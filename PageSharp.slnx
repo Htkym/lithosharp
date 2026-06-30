@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PageSharp/PageSharp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PageSharp.Tests/PageSharp.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/PageSharp.Sample/PageSharp.Sample.csproj" />
+  </Folder>
+</Solution>
