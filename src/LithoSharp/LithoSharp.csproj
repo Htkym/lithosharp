@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackageId>LithoSharp</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Htkym</Authors>
+    <Product>LithoSharp</Product>
+    <Description>A small, batteries-included static site generator for .NET. Give it Markdown and site settings, and it renders a complete site: listing pages, an archive, tags, client-side search, per-post Open Graph images, SEO metadata, an RSS feed, a sitemap, favicons, and a PWA manifest. Site-specific behavior is injected through SiteCustomization.</Description>
+    <PackageTags>static-site-generator;ssg;markdown;blog;changelog;html;rss;sitemap;seo;opengraph</PackageTags>
+    <PackageProjectUrl>https://github.com/Htkym/lithosharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>Initial preview release. The public API may change while the version is 0.x.</PackageReleaseNotes>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.3.2" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+    <PackageReference Include="YamlDotNet" Version="18.0.0" />
+  </ItemGroup>
+
+</Project>

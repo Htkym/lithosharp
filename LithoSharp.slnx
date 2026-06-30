@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LithoSharp/LithoSharp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/LithoSharp.Sample/LithoSharp.Sample.csproj" />
+  </Folder>
+</Solution>
