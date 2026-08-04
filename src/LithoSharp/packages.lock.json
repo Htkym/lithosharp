@@ -20,9 +20,9 @@
       },
       "SkiaSharp.NativeAssets.Linux.NoDependencies": {
         "type": "Direct",
-        "requested": "[3.119.4, )",
-        "resolved": "3.119.4",
-        "contentHash": "iFnpOfZoim2SwhSPy0EJNZtQAaWM7D0A6Q1YvquwOXUdQAFrSy81Tfb1I4c0IHrrQnoVjcZPcwOc1+VM2ja77w=="
+        "requested": "[4.151.0, )",
+        "resolved": "4.151.0",
+        "contentHash": "hpwqnuIVEkdd9WuuidNx9FKAlXphkO287JXn0p+XbiUxQmHfBmFUgnA9+zh/0bMkItSdOwfW200oSa1CkKnAOA=="
       },
       "YamlDotNet": {
         "type": "Direct",
