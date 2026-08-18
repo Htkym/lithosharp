@@ -79,6 +79,7 @@ public sealed class SiteTemplateTests
                 {
                     RelativePath = "about.html",
                     Title = "About",
+                    NavLabel = "About",
                     BodyHtml = "<h1>About</h1>"
                 }
             ]
@@ -94,6 +95,26 @@ public sealed class SiteTemplateTests
 
         await Assert.That(File.Exists(Path.Combine(output, "archives.html"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, "feed.xml"))).IsFalse();
+        var about = await File.ReadAllTextAsync(Path.Combine(output, "about.html"));
+        await Assert.That(about).Contains(">About</a>");
+        await Assert.That(about).Contains("class=\"docs-nav-link is-current\"");
+    }
+
+    [Test]
+    public async Task GenerateAsync_DefaultTemplate_RendersDocumentAndChildrenWithTheSamePath()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var content = Path.Combine(workspace.Root, "content");
+        await WriteDocumentAsync(content, "guides.md", "Guides", "2026-01-01T00:00:00Z", 1, null, "Guides");
+        await WriteDocumentAsync(content, Path.Combine("guides", "install.md"), "Install", "2026-01-02T00:00:00Z", 1, null, "Install");
+        var posts = await new MarkdownPostReader().ReadAllAsync(content);
+        var output = Path.Combine(workspace.Root, "output");
+
+        await new SiteGenerator().GenerateAsync(TestSite(), posts, output, clean: true);
+
+        var guides = await File.ReadAllTextAsync(Path.Combine(output, "posts", "guides.html"));
+        await Assert.That(guides).Contains(">Guides</a>");
+        await Assert.That(guides).Contains(">Install</a>");
     }
 
     [Test]
@@ -136,6 +157,10 @@ public sealed class SiteTemplateTests
         await Assert.That(html).Contains("href=\"#custom-heading\"");
         await Assert.That(html).Contains("href=\"/posts/custom.html\"");
         await Assert.That(File.Exists(Path.Combine(output, "assets", "site.css"))).IsTrue();
+        await Assert.That(html.Contains("archives.html")).IsFalse();
+        await Assert.That(html.Contains("tags.html")).IsFalse();
+        await Assert.That(html.Contains("search.html")).IsFalse();
+        await Assert.That(html.Contains("feed.xml")).IsFalse();
     }
 
     [Test]

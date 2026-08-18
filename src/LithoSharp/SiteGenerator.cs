@@ -226,7 +226,8 @@ public sealed class SiteGenerator
             document.Description,
             document.OpenGraphType,
             document.PublishedAt,
-            document.SocialImageRelativePath);
+            document.SocialImageRelativePath,
+            includeBlogNavigation: false);
     }
 
     internal static string RenderTemplateTableOfContents(
@@ -609,7 +610,7 @@ public sealed class SiteGenerator
         }
 
         body.AppendLine("</section>");
-        return DocsLayout(configuration, root, configuration.Site.Title, body.ToString(), "index.html", null, null);
+        return DocsLayout(configuration, root, configuration.Site.Title, body.ToString(), "index.html", "index.html", null);
     }
 
     private string RenderDocsPost(
@@ -649,7 +650,7 @@ public sealed class SiteGenerator
         RenderContext configuration,
         DocsNavigationNode root,
         SiteExtraPage page) =>
-        DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, null, null);
+        DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, page.RelativePath, null);
 
     private static string RenderDocsPagination(
         RenderContext configuration,
@@ -698,12 +699,13 @@ public sealed class SiteGenerator
         string title,
         string body,
         string relativePath,
-        string? currentDocumentPath,
+        string? currentPagePath,
         string? tableOfContents,
         string? description = null,
         string openGraphType = "website",
         DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null)
+        string? socialImageRelativePath = null,
+        bool includeBlogNavigation = true)
     {
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
@@ -747,7 +749,7 @@ public sealed class SiteGenerator
                 <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>Menu</button>
               </header>
               <div class="docs-shell">
-                {RenderDocsSidebar(configuration, root, currentDocumentPath)}
+                {RenderDocsSidebar(configuration, root, currentPagePath)}
                 <main class="docs-main">
                   <article class="docs-content">
             {body}
@@ -764,13 +766,14 @@ public sealed class SiteGenerator
     private static string RenderDocsSidebar(
         RenderContext configuration,
         DocsNavigationNode root,
-        string? currentDocumentPath)
+        string? currentPagePath)
     {
         var body = new StringBuilder();
         body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
         body.AppendLine("<nav aria-label=\"Documentation navigation\">");
         body.AppendLine("<ul class=\"docs-nav-list\">");
-        RenderDocsNavigationNodes(body, configuration, root, currentDocumentPath);
+        RenderDocsNavigationNodes(body, configuration, root, currentPagePath);
+        RenderDocsExtraNavigationNodes(body, configuration, currentPagePath);
         body.AppendLine("</ul>");
         body.AppendLine("</nav>");
         body.AppendLine("</aside>");
@@ -781,28 +784,52 @@ public sealed class SiteGenerator
         StringBuilder body,
         RenderContext configuration,
         DocsNavigationNode parent,
-        string? currentDocumentPath)
+        string? currentPagePath)
     {
         foreach (var node in OrderDocsNavigationChildren(parent))
         {
-            if (node.Post is not null)
+            var hasChildren = node.Children.Count > 0;
+            var isCurrent = node.Post is not null
+                && string.Equals(node.Post.RelativeOutputPath, currentPagePath, StringComparison.OrdinalIgnoreCase);
+            var isAncestor = ContainsDocsPath(node, currentPagePath);
+            if (!hasChildren && node.Post is not null)
             {
-                var isCurrent = string.Equals(
-                    node.Post.RelativeOutputPath,
-                    currentDocumentPath,
-                    StringComparison.OrdinalIgnoreCase);
                 var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
                 var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
                 body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, node.Post.RelativeOutputPath))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a></li>");
                 continue;
             }
 
-            var isAncestor = ContainsDocsPath(node, currentDocumentPath);
             var folderCssClass = isAncestor ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
-            body.AppendLine($"<li class=\"{folderCssClass}\"><span>{Html.Encode(FormatDocsFolderLabel(node.Segment))}</span>");
+            body.AppendLine($"<li class=\"{folderCssClass}\">");
+            if (node.Post is not null)
+            {
+                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
+                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
+                body.AppendLine($"<a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, node.Post.RelativeOutputPath))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a>");
+            }
+            else
+            {
+                body.AppendLine($"<span>{Html.Encode(FormatDocsFolderLabel(node.Segment))}</span>");
+            }
+
             body.AppendLine("<ul>");
-            RenderDocsNavigationNodes(body, configuration, node, currentDocumentPath);
+            RenderDocsNavigationNodes(body, configuration, node, currentPagePath);
             body.AppendLine("</ul></li>");
+        }
+    }
+
+    private static void RenderDocsExtraNavigationNodes(
+        StringBuilder body,
+        RenderContext configuration,
+        string? currentPagePath)
+    {
+        foreach (var page in configuration.ExtraPages.Where(page => !string.IsNullOrWhiteSpace(page.NavLabel)))
+        {
+            var isCurrent = string.Equals(page.RelativePath, currentPagePath, StringComparison.OrdinalIgnoreCase);
+            var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
+            var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
+            body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, page.RelativePath))}\"{current}>{Html.Encode(page.NavLabel)}</a></li>");
         }
     }
 
@@ -1287,13 +1314,24 @@ public sealed class SiteGenerator
         string? description = null,
         string openGraphType = "website",
         DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null)
+        string? socialImageRelativePath = null,
+        bool includeBlogNavigation = true)
     {
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
         var canonicalUrl = CombineUrl(configuration.Site.BaseUrl, relativePath);
         var socialImageUrl = CombineUrl(configuration.Site.BaseUrl, socialImageRelativePath ?? SocialImageAssetPath(DefaultSocialImageFileName));
         var socialImageAlt = $"{configuration.Site.Title} social preview";
+        var homePath = Html.Encode(SitePath(configuration, "index.html"));
+        var header = includeBlogNavigation
+            ? BuildSiteHeader(configuration)
+            : $"<header class=\"site-header\"><a class=\"brand\" href=\"{homePath}\">{Html.Encode(configuration.Site.Title)}</a></header>";
+        var feedLink = includeBlogNavigation
+            ? $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(configuration.Site.Title)}\" href=\"{Html.Encode(SitePath(configuration, "feed.xml"))}\">"
+            : string.Empty;
+        var siteScript = includeBlogNavigation
+            ? $"\n  <script src=\"{Html.Encode(SitePath(configuration, "assets/site.js"))}\" defer></script>"
+            : string.Empty;
         return $"""
             <!doctype html>
             <html lang="{Html.Encode(configuration.Site.Language)}">
@@ -1321,11 +1359,11 @@ public sealed class SiteGenerator
               <link rel="stylesheet" href="{Html.Encode(SitePath(configuration, "assets/site.css"))}">
               {BuildFaviconLinks(configuration)}
               {BuildGoogleAnalyticsSnippet(configuration)}
-              <link rel="alternate" type="application/rss+xml" title="{Html.Encode(configuration.Site.Title)}" href="{Html.Encode(SitePath(configuration, "feed.xml"))}">
-              <script src="{Html.Encode(SitePath(configuration, "assets/site.js"))}" defer></script>
+              {feedLink}
+              {siteScript}
             </head>
             <body>
-              {BuildSiteHeader(configuration)}
+              {header}
               <main>
             {body}
               </main>
