@@ -75,7 +75,7 @@ public sealed class SiteGenerator
     private const int SearchIndexMaxLength = 12000;
     private static readonly Regex StripTagsRegex = new("<.*?>", RegexOptions.Singleline);
 
-    private sealed record RenderContext(
+    internal sealed record RenderContext(
         SiteSettings Site,
         SiteText Text,
         SiteThemeOptions Theme,
@@ -118,11 +118,33 @@ public sealed class SiteGenerator
 
         Directory.CreateDirectory(outputRoot);
         var generated = new List<string>();
-        var generatedAt = DateTimeOffset.UtcNow;
+        var template = customization.Template
+            ?? throw new InvalidOperationException("Site customization must specify a template.");
+        var docsNavigation = BuildDocsNavigation(posts);
+        var templatePages = BuildTemplatePages(configuration, docsNavigation);
+        var templateNavigation = BuildTemplateNavigation(configuration, docsNavigation, templatePages);
+        var templateContext = new SiteTemplateContext(
+            this,
+            site,
+            posts,
+            customization.Text,
+            customization.Theme,
+            customization.ExtraPages,
+            templatePages,
+            templateNavigation,
+            configuration);
+        var templateResult = await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
+        ValidateTemplateFiles(
+            outputRoot,
+            templateResult.Files,
+            GetCommonArtifactPaths(configuration, posts, customization.GenerateLlmsTxt));
 
-        await WriteTextAsync(outputRoot, "assets/site.css", BuildCss(configuration), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "assets/site.js", BuildSiteScript(), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "assets/search.js", BuildSearchScript(configuration.Text), generated, cancellationToken).ConfigureAwait(false);
+        foreach (var file in templateResult.Files)
+        {
+            await WriteTextAsync(outputRoot, file.RelativePath, file.Content, generated, cancellationToken).ConfigureAwait(false);
+        }
+
         if (configuration.HasFaviconAssets)
         {
             await WriteBundledFaviconAssetsAsync(outputRoot, configuration, generated, cancellationToken).ConfigureAwait(false);
@@ -140,20 +162,9 @@ public sealed class SiteGenerator
                 .ConfigureAwait(false);
         }
 
-        await WriteTextAsync(outputRoot, "search-index.json", BuildSearchIndex(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "index.html", RenderIndex(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "archives.html", RenderArchives(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "tags.html", RenderTags(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
-        foreach (var extraPage in configuration.ExtraPages)
+        if (configuration.HasSocialImage)
         {
-            await WriteTextAsync(outputRoot, extraPage.RelativePath, RenderExtraPage(configuration, extraPage), generated, cancellationToken).ConfigureAwait(false);
-        }
-
-        await WriteTextAsync(outputRoot, "search.html", RenderSearch(configuration, generatedAt), generated, cancellationToken).ConfigureAwait(false);
-
-        foreach (var post in posts)
-        {
-            if (configuration.HasSocialImage)
+            foreach (var post in posts)
             {
                 await WriteBinaryAssetAsync(
                         outputRoot,
@@ -163,12 +174,8 @@ public sealed class SiteGenerator
                         cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            await WriteTextAsync(outputRoot, post.RelativeOutputPath, RenderPost(configuration, post), generated, cancellationToken).ConfigureAwait(false);
         }
 
-        await WriteTextAsync(outputRoot, "feed.xml", RenderFeed(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
-        await WriteTextAsync(outputRoot, "sitemap.xml", RenderSitemap(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
         if (customization.GenerateLlmsTxt)
         {
             await WriteTextAsync(outputRoot, "llms.txt", BuildLlmsTxt(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
@@ -202,6 +209,617 @@ public sealed class SiteGenerator
                 validator.Validate(post, context);
             }
         }
+    }
+
+    internal string RenderMarkdown(string markdown) => Markdown.ToHtml(markdown, _pipeline);
+
+    internal string GetSitePath(RenderContext configuration, string relativePath) => SitePath(configuration, relativePath);
+
+    internal string RenderTemplateDocument(RenderContext configuration, SiteTemplateDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return Layout(
+            configuration,
+            document.Title,
+            document.BodyHtml,
+            document.RelativePath,
+            document.Description,
+            document.OpenGraphType,
+            document.PublishedAt,
+            document.SocialImageRelativePath);
+    }
+
+    internal static string RenderTemplateTableOfContents(
+        RenderContext configuration,
+        IReadOnlyList<SiteTemplateHeading> headings)
+    {
+        ArgumentNullException.ThrowIfNull(headings);
+        var body = new StringBuilder();
+        body.AppendLine("<aside class=\"post-toc\" aria-labelledby=\"post-toc-title\">");
+        body.AppendLine($"<h2 id=\"post-toc-title\">{Html.Encode(configuration.Text.TableOfContentsHeading)}</h2>");
+        if (headings.Count == 0)
+        {
+            body.AppendLine($"<p>{Html.Encode(configuration.Text.TableOfContentsEmpty)}</p>");
+        }
+        else
+        {
+            body.AppendLine($"<nav class=\"toc-nav\" aria-label=\"{Html.Encode(configuration.Text.TableOfContentsHeading)}\">");
+            body.AppendLine("<div class=\"toc-track\" aria-hidden=\"true\"></div>");
+            body.AppendLine("<div class=\"toc-indicator\" aria-hidden=\"true\"></div>");
+            body.AppendLine("<ol class=\"toc-list\">");
+            foreach (var heading in headings)
+            {
+                var depth = Math.Clamp(heading.Level - 1, 1, 3);
+                body.AppendLine($"<li class=\"toc-depth-{depth}\" data-toc-item><a data-toc-link href=\"#{Html.Encode(heading.Id)}\">{Html.Encode(heading.Text)}</a></li>");
+            }
+
+            body.AppendLine("</ol>");
+            body.AppendLine("</nav>");
+        }
+
+        body.AppendLine("</aside>");
+        return body.ToString();
+    }
+
+    internal SiteTemplateResult RenderBlogTemplate(SiteTemplateContext templateContext)
+    {
+        var configuration = templateContext.Configuration;
+        var posts = templateContext.Posts;
+        var files = new List<SiteTemplateFile>
+        {
+            new() { RelativePath = "assets/site.css", Content = BuildCss(configuration) },
+            new() { RelativePath = "assets/site.js", Content = BuildSiteScript() },
+            new() { RelativePath = "assets/search.js", Content = BuildSearchScript(configuration.Text) },
+            new() { RelativePath = "search-index.json", Content = BuildSearchIndex(configuration, posts) },
+            new() { RelativePath = "index.html", Content = RenderIndex(configuration, posts) },
+            new() { RelativePath = "archives.html", Content = RenderArchives(configuration, posts) },
+            new() { RelativePath = "tags.html", Content = RenderTags(configuration, posts) }
+        };
+
+        foreach (var extraPage in configuration.ExtraPages)
+        {
+            files.Add(new SiteTemplateFile
+            {
+                RelativePath = extraPage.RelativePath,
+                Content = RenderExtraPage(configuration, extraPage)
+            });
+        }
+
+        files.Add(new SiteTemplateFile
+        {
+            RelativePath = "search.html",
+            Content = RenderSearch(configuration, DateTimeOffset.UtcNow)
+        });
+
+        foreach (var post in posts)
+        {
+            files.Add(new SiteTemplateFile
+            {
+                RelativePath = post.RelativeOutputPath,
+                Content = RenderPost(configuration, post)
+            });
+        }
+
+        files.Add(new SiteTemplateFile
+        {
+            RelativePath = "feed.xml",
+            Content = RenderFeed(configuration, posts)
+        });
+        files.Add(new SiteTemplateFile
+        {
+            RelativePath = "sitemap.xml",
+            Content = RenderSitemap(configuration, posts)
+        });
+
+        return new SiteTemplateResult(files);
+    }
+
+    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext)
+    {
+        var configuration = templateContext.Configuration;
+        var root = BuildDocsNavigation(templateContext.Posts);
+        var orderedPosts = FlattenDocsNavigation(root).ToArray();
+        var files = new List<SiteTemplateFile>
+        {
+            new() { RelativePath = "assets/site.css", Content = BuildDocsCss(configuration) },
+            new() { RelativePath = "assets/site.js", Content = BuildDocsScript() },
+            new()
+            {
+                RelativePath = "index.html",
+                Content = RenderDocsIndex(configuration, root, orderedPosts)
+            }
+        };
+
+        foreach (var post in orderedPosts)
+        {
+            files.Add(new SiteTemplateFile
+            {
+                RelativePath = post.RelativeOutputPath,
+                Content = RenderDocsPost(configuration, root, orderedPosts, post)
+            });
+        }
+
+        foreach (var extraPage in configuration.ExtraPages)
+        {
+            files.Add(new SiteTemplateFile
+            {
+                RelativePath = extraPage.RelativePath,
+                Content = RenderDocsExtraPage(configuration, root, extraPage)
+            });
+        }
+
+        return new SiteTemplateResult(files);
+    }
+
+    private static IEnumerable<string> GetCommonArtifactPaths(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        bool generateLlmsTxt)
+    {
+        var paths = new List<string>();
+        if (configuration.HasFaviconAssets)
+        {
+            paths.AddRange(BundledFaviconAssets.Select(FaviconAssetPath));
+            paths.Add("site.webmanifest");
+        }
+
+        if (configuration.HasSocialImage)
+        {
+            paths.Add(SocialImageAssetPath(DefaultSocialImageFileName));
+            paths.AddRange(posts.Select(PostSocialImagePath));
+        }
+
+        if (generateLlmsTxt)
+        {
+            paths.Add("llms.txt");
+        }
+
+        return paths;
+    }
+
+    private static void ValidateTemplateFiles(
+        string outputRoot,
+        IReadOnlyList<SiteTemplateFile> files,
+        IEnumerable<string> commonArtifactPaths)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+        var commonPaths = new HashSet<string>(
+            commonArtifactPaths.Select(path => NormalizeOutputPath(outputRoot, path)),
+            StringComparer.OrdinalIgnoreCase);
+        var templatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in files)
+        {
+            if (file is null)
+            {
+                throw new InvalidOperationException("A template returned a null file.");
+            }
+
+            var path = NormalizeOutputPath(outputRoot, file.RelativePath);
+            if (!templatePaths.Add(path))
+            {
+                throw new InvalidOperationException($"Template output path '{file.RelativePath}' is duplicated.");
+            }
+
+            if (commonPaths.Contains(path))
+            {
+                throw new InvalidOperationException(
+                    $"Template output path '{file.RelativePath}' conflicts with a common artifact.");
+            }
+        }
+    }
+
+    private static string NormalizeOutputPath(string outputRoot, string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            throw new InvalidOperationException("A template output path must not be empty.");
+        }
+
+        var fullPath = SafeCombine(outputRoot, relativePath);
+        var normalized = Path.GetRelativePath(outputRoot, fullPath)
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+        if (normalized is "." or "")
+        {
+            throw new InvalidOperationException($"Output path '{relativePath}' must name a file.");
+        }
+
+        return normalized;
+    }
+
+    private sealed class DocsNavigationNode(string segment, string path)
+    {
+        public string Segment { get; } = segment;
+
+        public string Path { get; } = path;
+
+        public MarkdownPost? Post { get; set; }
+
+        public Dictionary<string, DocsNavigationNode> Children { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static DocsNavigationNode BuildDocsNavigation(IReadOnlyList<MarkdownPost> posts)
+    {
+        var root = new DocsNavigationNode(string.Empty, string.Empty);
+        foreach (var post in posts)
+        {
+            var relativePath = post.RelativeOutputPath.Replace('\\', '/');
+            var contentPath = relativePath.StartsWith("posts/", StringComparison.OrdinalIgnoreCase)
+                ? relativePath["posts/".Length..]
+                : relativePath;
+            var withoutExtension = Path.ChangeExtension(contentPath, null)?.Replace('\\', '/') ?? contentPath;
+            var segments = withoutExtension.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var node = root;
+            var path = new StringBuilder();
+            foreach (var segment in segments)
+            {
+                if (path.Length > 0)
+                {
+                    path.Append('/');
+                }
+
+                path.Append(segment);
+                if (!node.Children.TryGetValue(segment, out var child))
+                {
+                    child = new DocsNavigationNode(segment, path.ToString());
+                    node.Children.Add(segment, child);
+                }
+
+                node = child;
+            }
+
+            if (node.Post is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Posts '{node.Post.FilePath}' and '{post.FilePath}' have the same documentation path.");
+            }
+
+            node.Post = post;
+        }
+
+        return root;
+    }
+
+    private IReadOnlyList<SiteTemplatePage> BuildTemplatePages(
+        RenderContext configuration,
+        DocsNavigationNode root)
+    {
+        var orderedPosts = FlattenDocsNavigation(root).ToArray();
+        var pages = orderedPosts
+            .Select(post =>
+            {
+                var contentHtml = AddNewTabAttributesToExternalPostLinks(
+                    configuration,
+                    NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
+                return new SiteTemplatePage
+                {
+                    Post = post,
+                    Url = SitePath(configuration, post.RelativeOutputPath),
+                    ContentHtml = contentHtml,
+                    Headings = ExtractTemplateHeadings(contentHtml)
+                };
+            })
+            .ToArray();
+
+        return pages
+            .Select((page, index) => page with
+            {
+                Previous = index > 0
+                    ? new SiteTemplatePageLink(GetDocsLabel(pages[index - 1].Post), pages[index - 1].Url)
+                    : null,
+                Next = index + 1 < pages.Length
+                    ? new SiteTemplatePageLink(GetDocsLabel(pages[index + 1].Post), pages[index + 1].Url)
+                    : null
+            })
+            .ToArray();
+    }
+
+    private static SiteTemplateNavigationNode BuildTemplateNavigation(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        IReadOnlyList<SiteTemplatePage> pages)
+    {
+        var pagesByPost = pages.ToDictionary(page => page.Post);
+        return BuildTemplateNavigationNode(root, pagesByPost, configuration.Site.Title);
+    }
+
+    private static SiteTemplateNavigationNode BuildTemplateNavigationNode(
+        DocsNavigationNode node,
+        IReadOnlyDictionary<MarkdownPost, SiteTemplatePage> pagesByPost,
+        string rootLabel)
+    {
+        return new SiteTemplateNavigationNode
+        {
+            Label = string.IsNullOrEmpty(node.Segment)
+                ? rootLabel
+                : GetDocsNavigationLabel(node),
+            Page = node.Post is not null ? pagesByPost[node.Post] : null,
+            Children = OrderDocsNavigationChildren(node)
+                .Select(child => BuildTemplateNavigationNode(child, pagesByPost, rootLabel))
+                .ToArray()
+        };
+    }
+
+    private static IEnumerable<MarkdownPost> FlattenDocsNavigation(DocsNavigationNode node)
+    {
+        foreach (var child in OrderDocsNavigationChildren(node))
+        {
+            if (child.Post is not null)
+            {
+                yield return child.Post;
+            }
+
+            foreach (var post in FlattenDocsNavigation(child))
+            {
+                yield return post;
+            }
+        }
+    }
+
+    private static IEnumerable<DocsNavigationNode> OrderDocsNavigationChildren(DocsNavigationNode node) =>
+        node.Children.Values
+            .OrderBy(GetDocsNavigationPosition)
+            .ThenBy(GetDocsNavigationLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(child => child.Path, StringComparer.Ordinal);
+
+    private static int GetDocsNavigationPosition(DocsNavigationNode node)
+    {
+        var ownPosition = node.Post?.FrontMatter.SidebarPosition;
+        var childPosition = node.Children.Values
+            .Select(GetDocsNavigationPosition)
+            .DefaultIfEmpty(int.MaxValue)
+            .Min();
+        return ownPosition ?? childPosition;
+    }
+
+    private static string GetDocsNavigationLabel(DocsNavigationNode node)
+    {
+        if (node.Post is not null)
+        {
+            return GetDocsLabel(node.Post);
+        }
+
+        return FormatDocsFolderLabel(node.Segment);
+    }
+
+    private static string GetDocsLabel(MarkdownPost post) =>
+        string.IsNullOrWhiteSpace(post.FrontMatter.SidebarLabel)
+            ? post.FrontMatter.Title
+            : post.FrontMatter.SidebarLabel.Trim();
+
+    private static string FormatDocsFolderLabel(string value) =>
+        value.Replace('-', ' ').Replace('_', ' ');
+
+    private static string RenderDocsIndex(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        IReadOnlyList<MarkdownPost> orderedPosts)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<section class=\"docs-hero\">");
+        body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
+        body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
+        body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
+        if (orderedPosts.Count > 0)
+        {
+            var first = orderedPosts[0];
+            body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(SitePath(configuration, first.RelativeOutputPath))}\">Start reading</a></p>");
+        }
+
+        body.AppendLine("</section>");
+        return DocsLayout(configuration, root, configuration.Site.Title, body.ToString(), "index.html", null, null);
+    }
+
+    private string RenderDocsPost(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        IReadOnlyList<MarkdownPost> orderedPosts,
+        MarkdownPost post)
+    {
+        var postBody = AddNewTabAttributesToExternalPostLinks(
+            configuration,
+            NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
+        var currentIndex = Array.IndexOf(orderedPosts.ToArray(), post);
+        var body = new StringBuilder();
+        body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
+        if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
+        {
+            body.AppendLine($"<p class=\"docs-description\">{Html.Encode(post.FrontMatter.Summary)}</p>");
+        }
+
+        body.AppendLine(postBody);
+        body.AppendLine(RenderDocsPagination(configuration, orderedPosts, currentIndex));
+        return DocsLayout(
+            configuration,
+            root,
+            post.FrontMatter.Title,
+            body.ToString(),
+            post.RelativeOutputPath,
+            post.RelativeOutputPath,
+            RenderDocsTableOfContents(configuration, postBody),
+            post.FrontMatter.Summary,
+            "article",
+            post.FrontMatter.Date,
+            PostSocialImagePath(post));
+    }
+
+    private static string RenderDocsExtraPage(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        SiteExtraPage page) =>
+        DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, null, null);
+
+    private static string RenderDocsPagination(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> orderedPosts,
+        int currentIndex)
+    {
+        if (currentIndex < 0)
+        {
+            return string.Empty;
+        }
+
+        var previous = currentIndex > 0 ? orderedPosts[currentIndex - 1] : null;
+        var next = currentIndex + 1 < orderedPosts.Count ? orderedPosts[currentIndex + 1] : null;
+        if (previous is null && next is null)
+        {
+            return string.Empty;
+        }
+
+        var body = new StringBuilder();
+        body.AppendLine("<nav class=\"docs-pagination\" aria-label=\"Document navigation\">");
+        if (previous is not null)
+        {
+            body.AppendLine($"<a class=\"docs-pagination-previous\" rel=\"prev\" href=\"{Html.Encode(SitePath(configuration, previous.RelativeOutputPath))}\"><small>Previous</small><span>{Html.Encode(GetDocsLabel(previous))}</span></a>");
+        }
+        else
+        {
+            body.AppendLine("<span></span>");
+        }
+
+        if (next is not null)
+        {
+            body.AppendLine($"<a class=\"docs-pagination-next\" rel=\"next\" href=\"{Html.Encode(SitePath(configuration, next.RelativeOutputPath))}\"><small>Next</small><span>{Html.Encode(GetDocsLabel(next))}</span></a>");
+        }
+
+        body.AppendLine("</nav>");
+        return body.ToString();
+    }
+
+    private static string RenderDocsTableOfContents(RenderContext configuration, string postBody) =>
+        RenderTableOfContents(configuration, postBody)
+            .Replace("class=\"post-toc\"", "class=\"post-toc docs-toc\"", StringComparison.Ordinal);
+
+    private static string DocsLayout(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        string title,
+        string body,
+        string relativePath,
+        string? currentDocumentPath,
+        string? tableOfContents,
+        string? description = null,
+        string openGraphType = "website",
+        DateTimeOffset? publishedAt = null,
+        string? socialImageRelativePath = null)
+    {
+        var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
+        var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
+        var canonicalUrl = CombineUrl(configuration.Site.BaseUrl, relativePath);
+        var socialImageUrl = CombineUrl(
+            configuration.Site.BaseUrl,
+            socialImageRelativePath ?? SocialImageAssetPath(DefaultSocialImageFileName));
+        var homePath = Html.Encode(SitePath(configuration, "index.html"));
+        return $"""
+            <!doctype html>
+            <html lang="{Html.Encode(configuration.Site.Language)}">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="color-scheme" content="dark">
+              <meta name="theme-color" content="{Html.Encode(configuration.Theme.ThemeColor)}">
+              <title>{Html.Encode(fullTitle)}</title>
+              <meta name="description" content="{Html.Encode(pageDescription)}">
+              <link rel="canonical" href="{Html.Encode(canonicalUrl)}">
+              <meta property="og:site_name" content="{Html.Encode(configuration.Site.Title)}">
+              <meta property="og:type" content="{Html.Encode(openGraphType)}">
+              <meta property="og:title" content="{Html.Encode(fullTitle)}">
+              <meta property="og:description" content="{Html.Encode(pageDescription)}">
+              <meta property="og:url" content="{Html.Encode(canonicalUrl)}">
+              <meta property="og:image" content="{Html.Encode(socialImageUrl)}">
+              <meta property="og:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
+              <meta name="twitter:card" content="summary_large_image">
+              <meta name="twitter:title" content="{Html.Encode(fullTitle)}">
+              <meta name="twitter:description" content="{Html.Encode(pageDescription)}">
+              <meta name="twitter:image" content="{Html.Encode(socialImageUrl)}">
+              <meta name="twitter:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
+              {BuildPublishedTimeMetadata(publishedAt)}
+              <link rel="stylesheet" href="{Html.Encode(SitePath(configuration, "assets/site.css"))}">
+              {BuildFaviconLinks(configuration)}
+              {BuildGoogleAnalyticsSnippet(configuration)}
+              <script src="{Html.Encode(SitePath(configuration, "assets/site.js"))}" defer></script>
+            </head>
+            <body class="docs-body">
+              <header class="docs-header">
+                <a class="docs-brand" href="{homePath}">{Html.Encode(configuration.Site.Title)}</a>
+                <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>Menu</button>
+              </header>
+              <div class="docs-shell">
+                {RenderDocsSidebar(configuration, root, currentDocumentPath)}
+                <main class="docs-main">
+                  <article class="docs-content">
+            {body}
+                  </article>
+                </main>
+                {tableOfContents ?? string.Empty}
+              </div>
+              <footer class="docs-footer"><p>Generated by {Html.Encode(configuration.Site.Title)}.</p></footer>
+            </body>
+            </html>
+            """;
+    }
+
+    private static string RenderDocsSidebar(
+        RenderContext configuration,
+        DocsNavigationNode root,
+        string? currentDocumentPath)
+    {
+        var body = new StringBuilder();
+        body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
+        body.AppendLine("<nav aria-label=\"Documentation navigation\">");
+        body.AppendLine("<ul class=\"docs-nav-list\">");
+        RenderDocsNavigationNodes(body, configuration, root, currentDocumentPath);
+        body.AppendLine("</ul>");
+        body.AppendLine("</nav>");
+        body.AppendLine("</aside>");
+        return body.ToString();
+    }
+
+    private static void RenderDocsNavigationNodes(
+        StringBuilder body,
+        RenderContext configuration,
+        DocsNavigationNode parent,
+        string? currentDocumentPath)
+    {
+        foreach (var node in OrderDocsNavigationChildren(parent))
+        {
+            if (node.Post is not null)
+            {
+                var isCurrent = string.Equals(
+                    node.Post.RelativeOutputPath,
+                    currentDocumentPath,
+                    StringComparison.OrdinalIgnoreCase);
+                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
+                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
+                body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, node.Post.RelativeOutputPath))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a></li>");
+                continue;
+            }
+
+            var isAncestor = ContainsDocsPath(node, currentDocumentPath);
+            var folderCssClass = isAncestor ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
+            body.AppendLine($"<li class=\"{folderCssClass}\"><span>{Html.Encode(FormatDocsFolderLabel(node.Segment))}</span>");
+            body.AppendLine("<ul>");
+            RenderDocsNavigationNodes(body, configuration, node, currentDocumentPath);
+            body.AppendLine("</ul></li>");
+        }
+    }
+
+    private static bool ContainsDocsPath(DocsNavigationNode node, string? currentDocumentPath)
+    {
+        if (string.IsNullOrWhiteSpace(currentDocumentPath))
+        {
+            return false;
+        }
+
+        if (node.Post is not null
+            && string.Equals(node.Post.RelativeOutputPath, currentDocumentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return node.Children.Values.Any(child => ContainsDocsPath(child, currentDocumentPath));
     }
 
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
@@ -393,7 +1011,13 @@ public sealed class SiteGenerator
 
     private static string RenderTableOfContents(RenderContext configuration, string postBody)
     {
-        var headings = HeadingRegex.Matches(postBody)
+        return RenderTemplateTableOfContents(
+            configuration,
+            ExtractTemplateHeadings(postBody));
+    }
+
+    private static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
+        HeadingRegex.Matches(postBody)
             .Select(match => new
             {
                 Level = int.Parse(match.Groups["level"].Value, CultureInfo.InvariantCulture),
@@ -401,33 +1025,8 @@ public sealed class SiteGenerator
                 Text = StripTagsRegex.Replace(match.Groups["text"].Value, string.Empty)
             })
             .Where(heading => !string.IsNullOrWhiteSpace(heading.Id) && !string.IsNullOrWhiteSpace(heading.Text))
+            .Select(heading => new SiteTemplateHeading(heading.Level, heading.Id, heading.Text))
             .ToArray();
-        var body = new StringBuilder();
-        body.AppendLine("<aside class=\"post-toc\" aria-labelledby=\"post-toc-title\">");
-        body.AppendLine($"<h2 id=\"post-toc-title\">{configuration.Text.TableOfContentsHeading}</h2>");
-        if (headings.Length == 0)
-        {
-            body.AppendLine($"<p>{configuration.Text.TableOfContentsEmpty}</p>");
-        }
-        else
-        {
-            body.AppendLine($"<nav class=\"toc-nav\" aria-label=\"{configuration.Text.TableOfContentsHeading}\">");
-            body.AppendLine("<div class=\"toc-track\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<div class=\"toc-indicator\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<ol class=\"toc-list\">");
-            foreach (var heading in headings)
-            {
-                var depth = Math.Clamp(heading.Level - 1, 1, 3);
-                body.AppendLine($"<li class=\"toc-depth-{depth}\" data-toc-item><a data-toc-link href=\"#{Html.Encode(heading.Id)}\">{heading.Text}</a></li>");
-            }
-
-            body.AppendLine("</ol>");
-            body.AppendLine("</nav>");
-        }
-
-        body.AppendLine("</aside>");
-        return body.ToString();
-    }
 
     private static string NormalizePostBodyHeadings(string postBody)
     {
@@ -1009,12 +1608,303 @@ public sealed class SiteGenerator
         return JsonSerializer.Serialize(manifest, WebManifestSerializerOptions);
     }
 
+    private static string BuildDocsCss(RenderContext configuration) =>
+        BuildCss(configuration) + """
+
+        @layer layout {
+          .docs-header,
+          .docs-shell,
+          .docs-footer {
+            inline-size: min(100%, 90rem);
+            margin-inline: auto;
+          }
+          .docs-header {
+            min-block-size: 4.25rem;
+            padding-inline: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            inset-block-start: 0;
+            z-index: 20;
+            border-block-end: 1px solid var(--border);
+            background: rgba(13, 17, 23, 0.94);
+            backdrop-filter: blur(0.8rem);
+          }
+          .docs-shell {
+            display: grid;
+            grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr) minmax(12rem, 15rem);
+            gap: clamp(1.25rem, 3vw, 3rem);
+            align-items: start;
+            padding: 2rem 1.25rem 4rem;
+          }
+          .docs-main {
+            min-inline-size: 0;
+          }
+          .docs-sidebar {
+            position: sticky;
+            inset-block-start: 5.75rem;
+            max-block-size: calc(100svh - 7rem);
+            overflow-y: auto;
+            padding-inline-end: 0.75rem;
+          }
+          .docs-footer {
+            padding: 1.5rem 1.25rem 3rem;
+            color: var(--muted);
+            border-block-start: 1px solid var(--border);
+          }
+        }
+
+        @layer components {
+          .docs-brand {
+            color: #f0f6fc;
+            font-size: 1.15rem;
+            font-weight: 750;
+            text-decoration: none;
+          }
+          .docs-brand::before {
+            content: "◆ ";
+            color: var(--accent);
+          }
+          .docs-menu-toggle {
+            display: none;
+            padding: 0.45rem 0.8rem;
+            color: #f0f6fc;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 0.45rem;
+            cursor: pointer;
+          }
+          .docs-nav-list,
+          .docs-nav-list ul {
+            display: grid;
+            gap: 0.12rem;
+          }
+          .docs-nav-list ul {
+            margin: 0.25rem 0 0.5rem 0.7rem;
+            padding-inline-start: 0.7rem;
+            border-inline-start: 1px solid var(--border);
+          }
+          .docs-nav-folder > span {
+            display: block;
+            margin: 0.7rem 0 0.25rem;
+            color: var(--text);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+          .docs-nav-folder.is-ancestor > span {
+            color: var(--accent);
+          }
+          .docs-nav-link {
+            display: block;
+            padding: 0.34rem 0.55rem;
+            color: var(--muted);
+            border-radius: 0.35rem;
+            text-decoration: none;
+          }
+          .docs-nav-link:hover,
+          .docs-nav-link:focus-visible {
+            color: #f0f6fc;
+            background: rgba(88, 166, 255, 0.13);
+          }
+          .docs-nav-link.is-current {
+            color: #f0f6fc;
+            background: rgba(88, 166, 255, 0.2);
+            box-shadow: inset 0.2rem 0 var(--accent);
+          }
+          .docs-content {
+            inline-size: min(100%, 48rem);
+            margin-inline: auto;
+          }
+          .docs-content h1 {
+            margin-block: 0 1rem;
+            font-size: clamp(2rem, 5vw, 3.3rem);
+          }
+          .docs-content h2 {
+            margin-block: 2.5rem 0.8rem;
+            padding-block-end: 0.45rem;
+            border-block-end: 1px solid var(--border);
+          }
+          .docs-content h3 {
+            margin-block: 1.8rem 0.6rem;
+          }
+          .docs-content :where(p, ul, ol, blockquote, pre) {
+            margin-block: 1rem;
+          }
+          .docs-content :where(ul, ol) {
+            padding-inline-start: 1.5rem;
+          }
+          .docs-content ul {
+            list-style: disc;
+          }
+          .docs-content ol {
+            list-style: decimal;
+          }
+          .docs-content li + li {
+            margin-block-start: 0.35rem;
+          }
+          .docs-content blockquote {
+            padding-inline-start: 1rem;
+            color: var(--muted);
+            border-inline-start: 0.25rem solid var(--accent);
+          }
+          .docs-description {
+            color: var(--muted);
+            font-size: 1.1rem;
+          }
+          .docs-hero {
+            padding: clamp(2rem, 7vw, 5rem);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background:
+              linear-gradient(135deg, rgba(88, 166, 255, 0.22), transparent 52%),
+              var(--panel);
+          }
+          .docs-hero h1 {
+            margin-block: 0.5rem 1rem;
+          }
+          .docs-kicker {
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+          .docs-primary-link {
+            display: inline-block;
+            margin-block-start: 1rem;
+            padding: 0.65rem 1rem;
+            color: var(--accent-contrast);
+            background: var(--accent);
+            border-radius: 0.45rem;
+            font-weight: 700;
+            text-decoration: none;
+          }
+          .docs-toc {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+          }
+          .docs-toc.post-toc {
+            inset-block-start: 5.75rem;
+          }
+          .docs-pagination {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            margin-block-start: 3rem;
+            padding-block-start: 1.5rem;
+            border-block-start: 1px solid var(--border);
+          }
+          .docs-pagination a {
+            display: grid;
+            gap: 0.25rem;
+            padding: 0.85rem;
+            color: #f0f6fc;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            text-decoration: none;
+          }
+          .docs-pagination a:hover,
+          .docs-pagination a:focus-visible {
+            border-color: var(--accent);
+            background: rgba(88, 166, 255, 0.1);
+          }
+          .docs-pagination-next {
+            text-align: end;
+          }
+          .docs-pagination small {
+            color: var(--muted);
+          }
+        }
+
+        @media (max-width: 70rem) {
+          .docs-shell {
+            grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem);
+          }
+          .docs-sidebar {
+            position: fixed;
+            inset: 4.25rem auto 0 0;
+            z-index: 15;
+            inline-size: min(19rem, 85vw);
+            max-block-size: none;
+            padding: 1rem;
+            border-inline-end: 1px solid var(--border);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            transform: translateX(-105%);
+            transition: transform 0.2s ease;
+          }
+          .docs-sidebar.docs-sidebar-open {
+            transform: translateX(0);
+          }
+          .docs-menu-toggle {
+            display: inline-flex;
+          }
+        }
+
+        @media (max-width: 52rem) {
+          .docs-shell {
+            grid-template-columns: 1fr;
+            padding-block-start: 1.25rem;
+          }
+          .docs-toc.post-toc {
+            position: static;
+            grid-row: 2;
+            max-block-size: none;
+            padding-block-start: 1.25rem;
+            border-block-start: 1px solid var(--border);
+          }
+        }
+        """;
+
     private static string BuildCss(RenderContext configuration)
     {
         var css = BuildBaseCss().Replace("__LITHOSHARP_BRAND_PREFIX__", configuration.Theme.BrandPrefix, StringComparison.Ordinal);
         var additional = configuration.Theme.AdditionalCss;
         return string.IsNullOrEmpty(additional) ? css : css + "\n\n" + additional;
     }
+
+    private static string BuildDocsScript() =>
+        BuildSiteScript() + """
+
+        (() => {
+          "use strict";
+
+          const toggle = document.querySelector("[data-docs-menu-toggle]");
+          const sidebar = document.querySelector("[data-docs-sidebar]");
+          if (!toggle || !sidebar) {
+            return;
+          }
+
+          const setOpen = (isOpen) => {
+            toggle.setAttribute("aria-expanded", String(isOpen));
+            sidebar.classList.toggle("docs-sidebar-open", isOpen);
+          };
+
+          toggle.addEventListener("click", () => {
+            setOpen(toggle.getAttribute("aria-expanded") !== "true");
+          });
+
+          for (const link of sidebar.querySelectorAll("a")) {
+            link.addEventListener("click", () => setOpen(false));
+          }
+
+          document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+              setOpen(false);
+              toggle.focus();
+            }
+          });
+
+          window.addEventListener("resize", () => setOpen(false));
+          setOpen(false);
+        })();
+        """;
 
     private static string BuildBaseCss() => """
         @layer reset, base, layout, components, utilities;

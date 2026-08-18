@@ -32,7 +32,9 @@ jobs:
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
 
       - name: Run sample
-        run: dotnet run --project samples/LithoSharp.Sample --configuration Release --no-build -- --output artifacts/sample-site
+        run: |
+          dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site
+          dotnet run --project samples/LithoSharp.Sample --configuration Release --no-build -- --output artifacts/blog-sample-site
 
       - name: Upload sample site
         uses: actions/upload-artifact@v7

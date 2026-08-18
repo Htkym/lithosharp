@@ -12,6 +12,7 @@ You need the .NET 10 SDK (see [`global.json`](global.json) for the exact version
 dotnet restore LithoSharp.slnx --locked-mode
 dotnet build LithoSharp.slnx --no-restore -c Release
 dotnet test --solution LithoSharp.slnx --no-build -c Release
+dotnet run --project samples/LithoSharp.DocsSample -- --output _site
 dotnet run --project samples/LithoSharp.Sample -- --output _site
 ```
 

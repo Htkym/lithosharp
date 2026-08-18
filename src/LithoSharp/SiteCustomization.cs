@@ -14,6 +14,9 @@ public sealed record SiteCustomization
     /// <summary>Theme settings.</summary>
     public SiteThemeOptions Theme { get; init; } = new();
 
+    /// <summary>Template used to render the site. Defaults to <see cref="DocsSiteTemplate"/>.</summary>
+    public ISiteTemplate Template { get; init; } = new DocsSiteTemplate();
+
     /// <summary>Content validators. When empty, only the default required-summary check runs.</summary>
     public IReadOnlyList<IContentValidator> Validators { get; init; } = [];
 

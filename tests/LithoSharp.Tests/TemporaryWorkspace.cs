@@ -2,7 +2,7 @@ namespace LithoSharp.Tests;
 
 internal sealed class TemporaryWorkspace : IDisposable
 {
-    public string Root { get; } = Path.Combine(Path.GetTempPath(), "lithosharp-tests", Guid.NewGuid().ToString("N"));
+    public string Root { get; } = Path.Combine(AppContext.BaseDirectory, $"lithosharp-test-{Guid.NewGuid():N}");
 
     public TemporaryWorkspace()
     {

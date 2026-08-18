@@ -12,8 +12,8 @@
     <Version>0.1.0</Version>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
-    <Description>A small, batteries-included static site generator for .NET. Give it Markdown and site settings, and it renders a complete site: listing pages, an archive, tags, client-side search, per-post Open Graph images, SEO metadata, an RSS feed, a sitemap, favicons, and a PWA manifest. Site-specific behavior is injected through SiteCustomization.</Description>
-    <PackageTags>static-site-generator;ssg;markdown;blog;changelog;html;rss;sitemap;seo;opengraph</PackageTags>
+    <Description>A small, batteries-included static site generator for .NET. Give it Markdown and site settings, and it renders a Docusaurus-inspired documentation site by default. Select the built-in Blog template for listings, archives, tags, client-side search, RSS, and a sitemap. Site-specific behavior is injected through SiteCustomization.</Description>
+    <PackageTags>static-site-generator;ssg;markdown;docs;documentation;blog;changelog;html;rss;sitemap;seo;opengraph</PackageTags>
     <PackageProjectUrl>https://github.com/Htkym/lithosharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

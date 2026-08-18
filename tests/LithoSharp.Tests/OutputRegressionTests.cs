@@ -45,6 +45,7 @@ public sealed class OutputRegressionTests
         await WritePostAsync(content, "post.md", "First Post", "2026-01-02T03:04:05Z", "the first post");
         var output = Path.Combine(workspace.Root, "output");
         var posts = await new MarkdownPostReader().ReadAllAsync(content);
+        customization = (customization ?? new SiteCustomization()) with { Template = new BlogSiteTemplate() };
         await new SiteGenerator().GenerateAsync(TestSite(), posts, output, clean: true, customization);
         return (output, posts);
     }

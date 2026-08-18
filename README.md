@@ -3,10 +3,13 @@
 [![build](https://github.com/Htkym/lithosharp/actions/workflows/build.yml/badge.svg)](https://github.com/Htkym/lithosharp/actions/workflows/build.yml)
 [![NuGet](https://img.shields.io/nuget/v/LithoSharp.svg)](https://www.nuget.org/packages/LithoSharp)
 
+[English](README.md) | [日本語](README.ja.md)
+
 A small, batteries-included static site generator for .NET. Give it Markdown and a
-bit of site configuration, and it renders a complete site: listing pages, an
-archive, tags, a client-side search index, per-post Open Graph images, SEO
-metadata, an RSS feed, a sitemap, favicons, and a PWA manifest.
+bit of site configuration, and it renders a Docusaurus-inspired documentation site
+by default. The Docs template builds a responsive hierarchy sidebar, page table of
+contents, and previous/next links. The legacy Blog template remains available when
+you select it explicitly.
 
 LithoSharp is designed to be embedded in your own console app or build pipeline.
 Site-specific behavior is injected through a single `SiteCustomization` object, so
@@ -14,9 +17,12 @@ the core library has no opinions about your brand, copy, or validation rules.
 
 ## Features
 
-- Markdown to HTML, with client-side search over titles, summaries, tags, and body text
-- Per-post Open Graph images plus canonical, Open Graph, and Twitter Card metadata
-- RSS (`feed.xml`), `sitemap.xml`, a favicon set, and a PWA manifest
+- Docusaurus-inspired Docs output by default, with a responsive hierarchy sidebar,
+  H2/H3 table of contents, and previous/next document links
+- An explicit Blog template with listing pages, archives, tags, client-side search,
+  RSS (`feed.xml`), and `sitemap.xml`
+- Canonical, Open Graph, and Twitter Card metadata, plus optional favicon and social
+  image assets
 - Front matter validation (title and date required; summary required by default)
 - Optional `llms.txt` summary for language models
 - Graceful degradation: when favicon or social-image sources are missing, those
@@ -67,11 +73,17 @@ var result = await new SiteGenerator().GenerateAsync(site, posts, "_site", clean
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
 ```
 
-A runnable version of this lives in [`samples/LithoSharp.Sample`](samples/LithoSharp.Sample).
+A runnable documentation example lives in
+[`samples/LithoSharp.DocsSample`](samples/LithoSharp.DocsSample). The legacy blog
+layout is shown in [`samples/LithoSharp.Sample`](samples/LithoSharp.Sample).
 
 ```powershell
-dotnet run --project samples/LithoSharp.Sample -- --output _site
+dotnet run --project samples/LithoSharp.DocsSample -- --output _site
 ```
+
+The default `DocsSiteTemplate` uses the directory structure under `content` for its
+left navigation. `intro.md` becomes a top-level document and
+`guides/install.md` appears under a **guides** group.
 
 ## Content and front matter
 
@@ -83,6 +95,8 @@ dotnet run --project samples/LithoSharp.Sample -- --output _site
 title: "Welcome"
 date: "2026-01-02T09:00:00Z"
 summary: "A short description used in listings and metadata."
+sidebar_position: 1
+sidebar_label: "Start here"
 tags:
   - intro
 sources:
@@ -101,6 +115,8 @@ Body written in Markdown.
 | `title`   | string          | Yes      | Post title. Used in listings, the `<title>`, and metadata.            |
 | `date`    | string (ISO 8601) | Yes    | Publication date and time. Parsed as a `DateTimeOffset`.              |
 | `summary` | string          | By default | Short description used in listings, the feed, and `og:description`. Required by the default `RequiredSummaryValidator`; replace the validator to change this. |
+| `sidebar_position` | integer | No | Docs navigation order. Lower values come first; unspecified documents are ordered by label and path. |
+| `sidebar_label` | string | No | Docs navigation label. Falls back to `title`. |
 | `tags`    | list of strings | No       | Free-form tags. Drive the tags page and client-side search.           |
 | `sources` | list of objects | No       | Provenance for the post. See below.                                   |
 
@@ -125,6 +141,9 @@ application code; you push behavior in through these members:
 - `Text` — UI strings. `SiteText.English` and `SiteText.Japanese` are included.
   Search status messages are templates that use `{count}`, `{tag}`, `{query}`, and
   `{shown}` placeholders, so the client-side search reads in the configured language.
+- `Template` — the rendering contract. `DocsSiteTemplate` is the default. Set
+  `new BlogSiteTemplate()` to retain the legacy blog URLs, posts, RSS, search, and
+  sitemap.
 - `Theme` — `SiteThemeOptions` with `BrandPrefix`, `ThemeColor`,
   `DefaultSocialSubtitle`, and `AdditionalCss`. The default markup and CSS are kept
   as-is; CSS from `AdditionalCss` is appended last and wins, so you can override
@@ -136,12 +155,68 @@ application code; you push behavior in through these members:
   a `favicon` directory next to the executable is used if present.
 - `GenerateLlmsTxt` — opt in to writing an `llms.txt` summary (off by default).
 
+### Selecting the Blog template
+
+```csharp
+var customization = new SiteCustomization
+{
+    Template = new BlogSiteTemplate()
+};
+```
+
+### Writing a custom template
+
+Implement `ISiteTemplate` to generate HTML and text assets. `SiteTemplateContext`
+provides rendered pages, headings, previous/next links, and a directory-based
+navigation tree. Use `RenderDocument` when the standard metadata, header, and footer
+fit your layout, and `RenderTableOfContents` to render the supplied page headings.
+LithoSharp validates every returned path, writes it safely beneath the output
+directory, and rejects a collision with common artifacts such as `llms.txt`, favicon
+files, and social images.
+
+```csharp
+public sealed class LandingTemplate : ISiteTemplate
+{
+    public Task<SiteTemplateResult> RenderAsync(
+        SiteTemplateContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var page = context.Pages[0];
+        var body = $"<h1>{Html.Encode(page.Post.FrontMatter.Title)}</h1>{page.ContentHtml}";
+        return Task.FromResult(new SiteTemplateResult(
+        [
+            new SiteTemplateFile
+            {
+                RelativePath = "index.html",
+                Content = context.RenderDocument(new SiteTemplateDocument
+                {
+                    Title = context.Site.Title,
+                    RelativePath = "index.html",
+                    BodyHtml = body
+                })
+            },
+            new SiteTemplateFile
+            {
+                RelativePath = "assets/site.css",
+                Content = "body { font-family: sans-serif; }"
+            }
+        ]));
+    }
+}
+
+var customization = new SiteCustomization { Template = new LandingTemplate() };
+```
+
 ## Public API
 
 - `new SiteGenerator().GenerateAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization = null, CancellationToken ct = default)`
 - `static SiteGenerator.Validate(SiteSettings site, string contentDirectory, IReadOnlyList<MarkdownPost> posts, SiteCustomization? customization = null)`
 - `new MarkdownPostReader().ReadAllAsync(string contentDirectory)`
 - `SiteCustomization`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
+- `ISiteTemplate`, `SiteTemplateContext`, `SiteTemplateResult`, `SiteTemplateFile`,
+  `SiteTemplatePage`, `SiteTemplatePageLink`, `SiteTemplateHeading`,
+  `SiteTemplateNavigationNode`, `SiteTemplateDocument`
+- `DocsSiteTemplate`, `BlogSiteTemplate`
 - `IContentValidator`, `ContentValidationContext`, `RequiredSummaryValidator`
 
 Namespaces: `LithoSharp`, `LithoSharp.Configuration`, `LithoSharp.Content`,
@@ -162,6 +237,7 @@ Requires the .NET 10 SDK.
 dotnet restore LithoSharp.slnx --locked-mode
 dotnet build LithoSharp.slnx --no-restore -c Release
 dotnet test --solution LithoSharp.slnx --no-build -c Release
+dotnet run --project samples/LithoSharp.DocsSample -- --output _site
 dotnet run --project samples/LithoSharp.Sample -- --output _site
 ```
 

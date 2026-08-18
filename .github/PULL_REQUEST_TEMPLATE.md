@@ -10,7 +10,8 @@
 
 - [ ] `dotnet build LithoSharp.slnx -c Release` succeeds
 - [ ] `dotnet test --solution LithoSharp.slnx -c Release` passes
-- [ ] The sample runs: `dotnet run --project samples/LithoSharp.Sample -- --output _site`
+- [ ] The Docs sample runs: `dotnet run --project samples/LithoSharp.DocsSample -- --output _site`
+- [ ] The Blog sample runs: `dotnet run --project samples/LithoSharp.Sample -- --output _site`
 - [ ] Public API has English XML doc comments (if applicable)
 - [ ] `packages.lock.json` updated if dependencies changed
 

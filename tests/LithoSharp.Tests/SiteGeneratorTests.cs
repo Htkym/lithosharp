@@ -40,7 +40,7 @@ public sealed class SiteGeneratorTests
         await new MarkdownPostReader().ReadAllAsync(contentDirectory);
 
     [Test]
-    public async Task GenerateAsync_WithoutBundledAssets_WritesCorePagesAndSkipsBinaries()
+    public async Task GenerateAsync_DefaultDocsTemplate_WritesDocsPagesAndSkipsBinaries()
     {
         using var workspace = new TemporaryWorkspace();
         var content = Path.Combine(workspace.Root, "content");
@@ -53,10 +53,12 @@ public sealed class SiteGeneratorTests
 
         await Assert.That(result.PostCount).IsEqualTo(1);
         await Assert.That(File.Exists(Path.Combine(output, "index.html"))).IsTrue();
-        await Assert.That(File.Exists(Path.Combine(output, "search-index.json"))).IsTrue();
-        await Assert.That(File.Exists(Path.Combine(output, "feed.xml"))).IsTrue();
-        await Assert.That(File.Exists(Path.Combine(output, "sitemap.xml"))).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(output, "search-index.json"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(output, "feed.xml"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(output, "sitemap.xml"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, posts[0].RelativeOutputPath))).IsTrue();
+        var post = await File.ReadAllTextAsync(Path.Combine(output, posts[0].RelativeOutputPath));
+        await Assert.That(post).Contains("class=\"docs-shell\"");
         // No favicon source directory exists, so binary assets degrade gracefully.
         await Assert.That(File.Exists(Path.Combine(output, "site.webmanifest"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, "assets", "social", "og-default.png"))).IsFalse();
@@ -83,7 +85,7 @@ public sealed class SiteGeneratorTests
     }
 
     [Test]
-    public async Task GenerateAsync_WritesExtraPageWithNavLabel()
+    public async Task GenerateAsync_DocsTemplate_WritesExtraPageInDocsShell()
     {
         using var workspace = new TemporaryWorkspace();
         var content = Path.Combine(workspace.Root, "content");
@@ -109,8 +111,7 @@ public sealed class SiteGeneratorTests
 
         var about = await File.ReadAllTextAsync(Path.Combine(output, "about.html"));
         await Assert.That(about).Contains("<section><h1>About</h1></section>");
-        var index = await File.ReadAllTextAsync(Path.Combine(output, "index.html"));
-        await Assert.That(index).Contains(">About</a>");
+        await Assert.That(about).Contains("class=\"docs-shell\"");
     }
 
     [Test]
