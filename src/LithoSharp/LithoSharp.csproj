@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
     <Description>A small, batteries-included static site generator for .NET. Give it Markdown and site settings, and it renders a Docusaurus-inspired documentation site by default. Select the built-in Blog template for listings, archives, tags, client-side search, RSS, and a sitemap. Site-specific behavior is injected through SiteCustomization.</Description>
@@ -20,7 +20,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>Initial preview release. The public API may change while the version is 0.x.</PackageReleaseNotes>
+    <PackageReleaseNotes>Adds the default Docs template, an explicit Blog template, extensible template APIs, hierarchical navigation, and separate Docs and Blog samples.</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

@@ -40,4 +40,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sample-site
-          path: artifacts/sample-site
+          path: |
+            artifacts/docs-sample-site
+            artifacts/blog-sample-site
