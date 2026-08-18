@@ -5,6 +5,7 @@ updates:
       - "/src/LithoSharp"
       - "/tests/LithoSharp.Tests"
       - "/samples/LithoSharp.Sample"
+      - "/samples/LithoSharp.DocsSample"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10

@@ -63,4 +63,26 @@ public sealed class MarkdownPostReaderTests
             .Throws<InvalidOperationException>()
             .WithMessageContaining("missing title");
     }
+
+    [Test]
+    public async Task ReadAsync_ParsesDocsSidebarFrontMatter()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var path = Path.Combine(workspace.Root, "guide.md");
+        await File.WriteAllTextAsync(path, """
+            ---
+            title: "Guide"
+            date: "2026-05-30T00:00:00Z"
+            sidebar_position: 3
+            sidebar_label: "Read this first"
+            ---
+
+            Body
+            """);
+
+        var post = await new MarkdownPostReader().ReadAsync(path, workspace.Root);
+
+        await Assert.That(post.FrontMatter.SidebarPosition).IsEqualTo(3);
+        await Assert.That(post.FrontMatter.SidebarLabel).IsEqualTo("Read this first");
+    }
 }

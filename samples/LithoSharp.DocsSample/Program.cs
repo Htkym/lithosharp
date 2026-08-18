@@ -7,8 +7,8 @@ var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDire
 
 var site = new SiteSettings
 {
-    Title = "LithoSharp Blog Sample",
-    Description = "A minimal blog generated with LithoSharp.",
+    Title = "LithoSharp Docs Sample",
+    Description = "A documentation site generated with LithoSharp.",
     BaseUrl = "https://example.com/",
     Language = "en",
     Author = "LithoSharp",
@@ -17,7 +17,6 @@ var site = new SiteSettings
 
 var customization = new SiteCustomization
 {
-    Template = new BlogSiteTemplate(),
     Theme = new SiteThemeOptions
     {
         BrandPrefix = "lithosharp / ",

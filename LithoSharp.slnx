@@ -7,5 +7,6 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/LithoSharp.Sample/LithoSharp.Sample.csproj" />
+    <Project Path="samples/LithoSharp.DocsSample/LithoSharp.DocsSample.csproj" />
   </Folder>
 </Solution>

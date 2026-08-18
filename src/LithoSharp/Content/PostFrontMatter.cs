@@ -1,3 +1,5 @@
+using YamlDotNet.Serialization;
+
 namespace LithoSharp.Content;
 
 /// <summary>
@@ -19,4 +21,12 @@ public sealed record PostFrontMatter
 
     /// <summary>Sources the post references.</summary>
     public List<PostSourceReference> Sources { get; init; } = [];
+
+    /// <summary>Optional sort order in the documentation sidebar.</summary>
+    [YamlMember(Alias = "sidebar_position")]
+    public int? SidebarPosition { get; init; }
+
+    /// <summary>Optional sidebar label. Defaults to <see cref="Title"/>.</summary>
+    [YamlMember(Alias = "sidebar_label")]
+    public string? SidebarLabel { get; init; }
 }

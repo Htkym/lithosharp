@@ -21,6 +21,11 @@ public static class MarkdownFrontMatterYaml
         .IgnoreUnmatchedProperties()
         .Build();
 
+    private static readonly IDeserializer PostFrontMatterDeserializer = new DeserializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .IgnoreUnmatchedProperties()
+        .Build();
+
     /// <summary>Converts the front matter into a YAML string.</summary>
     /// <param name="frontMatter">The front matter to convert.</param>
     /// <returns>The YAML string.</returns>
@@ -34,7 +39,9 @@ public static class MarkdownFrontMatterYaml
             Date = frontMatter.Date.ToString("O", CultureInfo.InvariantCulture),
             frontMatter.Summary,
             frontMatter.Tags,
-            frontMatter.Sources
+            frontMatter.Sources,
+            sidebar_position = frontMatter.SidebarPosition,
+            sidebar_label = frontMatter.SidebarLabel
         };
 
         return Serializer.Serialize(serializableFrontMatter).TrimEnd();
@@ -47,7 +54,7 @@ public static class MarkdownFrontMatterYaml
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(yaml);
 
-        return Deserialize<PostFrontMatter>(yaml);
+        return PostFrontMatterDeserializer.Deserialize<PostFrontMatter>(yaml);
     }
 
     /// <summary>Reads an arbitrary front matter type from a YAML string.</summary>
