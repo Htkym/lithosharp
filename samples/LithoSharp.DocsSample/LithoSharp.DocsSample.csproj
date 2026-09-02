@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Content Include="content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="typed-content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

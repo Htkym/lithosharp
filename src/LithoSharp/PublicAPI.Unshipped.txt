@@ -1,0 +1,353 @@
+#nullable enable
+LithoSharp.Content.GeneratedPageDerivedSurfaces.All = LithoSharp.Content.GeneratedPageDerivedSurfaces.Navigation | LithoSharp.Content.GeneratedPageDerivedSurfaces.Rss | LithoSharp.Content.GeneratedPageDerivedSurfaces.Default -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.Default = LithoSharp.Content.GeneratedPageDerivedSurfaces.Search | LithoSharp.Content.GeneratedPageDerivedSurfaces.Sitemap | LithoSharp.Content.GeneratedPageDerivedSurfaces.SocialImage | LithoSharp.Content.GeneratedPageDerivedSurfaces.LlmsTxt -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.SiteGenerationOptions
+LithoSharp.SiteGenerationOptions.BuildTimestamp.get -> System.DateTimeOffset?
+LithoSharp.SiteGenerationOptions.BuildTimestamp.init -> void
+LithoSharp.SiteGenerationOptions.EnvironmentName.get -> string!
+LithoSharp.SiteGenerationOptions.EnvironmentName.init -> void
+LithoSharp.SiteGenerationOptions.ContentCollections.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.SiteContentCollection!>!
+LithoSharp.SiteGenerationOptions.ContentCollections.init -> void
+LithoSharp.SiteGenerationOptions.PreviousBuildPlan.get -> LithoSharp.Build.SiteBuildPlan?
+LithoSharp.SiteGenerationOptions.PreviousBuildPlan.init -> void
+LithoSharp.SiteGenerator.GenerateWithOptionsAsync(LithoSharp.Configuration.SiteSettings! site, System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>! posts, string! outputDirectory, bool clean, LithoSharp.SiteCustomization? customization, LithoSharp.SiteGenerationOptions! options, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<LithoSharp.SiteGenerationResult!>!
+LithoSharp.SiteGenerationResult.BuildPlan.get -> LithoSharp.Build.SiteBuildPlan!
+LithoSharp.SiteGenerationResult.BuildPlan.init -> void
+LithoSharp.SiteGenerationResult.BuildReport.get -> LithoSharp.SiteBuildReport!
+LithoSharp.SiteGenerationResult.BuildReport.init -> void
+LithoSharp.SiteGenerationResult.Equals(LithoSharp.SiteGenerationResult? other) -> bool
+override LithoSharp.SiteGenerationResult.GetHashCode() -> int
+LithoSharp.SiteBuildReport
+const LithoSharp.SiteBuildReport.CurrentVersion = 1 -> int
+LithoSharp.SiteBuildReport.SiteBuildReport(System.DateTimeOffset buildTimestamp, string! environmentName, string! templateIdentity, System.Collections.Generic.IEnumerable<LithoSharp.SiteBuildReportNode!>? nodes = null, System.Collections.Generic.IEnumerable<LithoSharp.SiteBuildReportInvalidation!>? invalidations = null, System.Collections.Generic.IEnumerable<string!>? generatedArtifacts = null, System.Collections.Generic.IEnumerable<string!>? skippedArtifacts = null, System.Collections.Generic.IEnumerable<string!>? unpublishedPages = null, System.Collections.Generic.IEnumerable<string!>? staleRemovedArtifacts = null, System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>? diagnostics = null, string! transactionOutcome = "Committed", bool retainedRecoveryState = false) -> void
+LithoSharp.SiteBuildReport.Version.get -> int
+LithoSharp.SiteBuildReport.BuildTimestamp.get -> System.DateTimeOffset
+LithoSharp.SiteBuildReport.EnvironmentName.get -> string!
+LithoSharp.SiteBuildReport.TemplateIdentity.get -> string!
+LithoSharp.SiteBuildReport.Nodes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteBuildReportNode!>!
+LithoSharp.SiteBuildReport.Invalidations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteBuildReportInvalidation!>!
+LithoSharp.SiteBuildReport.GeneratedArtifacts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReport.SkippedArtifacts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReport.UnpublishedPages.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReport.StaleRemovedArtifacts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReport.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.SiteBuildReport.TransactionOutcome.get -> string!
+LithoSharp.SiteBuildReport.RetainedRecoveryState.get -> bool
+LithoSharp.SiteBuildReport.Equals(LithoSharp.SiteBuildReport? other) -> bool
+override LithoSharp.SiteBuildReport.Equals(object? obj) -> bool
+override LithoSharp.SiteBuildReport.GetHashCode() -> int
+LithoSharp.SiteBuildReportNode
+LithoSharp.SiteBuildReportNode.SiteBuildReportNode(string! NodeId, System.Collections.Generic.IReadOnlyList<string!>! OwnedArtifacts) -> void
+LithoSharp.SiteBuildReportNode.NodeId.get -> string!
+LithoSharp.SiteBuildReportNode.NodeId.init -> void
+LithoSharp.SiteBuildReportNode.OwnedArtifacts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReportNode.OwnedArtifacts.init -> void
+LithoSharp.SiteBuildReportNode.Equals(LithoSharp.SiteBuildReportNode? other) -> bool
+override LithoSharp.SiteBuildReportNode.GetHashCode() -> int
+LithoSharp.SiteBuildReportInvalidation
+LithoSharp.SiteBuildReportInvalidation.SiteBuildReportInvalidation(string! NodeId, System.Collections.Generic.IReadOnlyList<string!>! Reasons) -> void
+LithoSharp.SiteBuildReportInvalidation.NodeId.get -> string!
+LithoSharp.SiteBuildReportInvalidation.NodeId.init -> void
+LithoSharp.SiteBuildReportInvalidation.Reasons.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteBuildReportInvalidation.Reasons.init -> void
+LithoSharp.SiteBuildReportInvalidation.Equals(LithoSharp.SiteBuildReportInvalidation? other) -> bool
+override LithoSharp.SiteBuildReportInvalidation.GetHashCode() -> int
+LithoSharp.Routing.SiteRoute
+LithoSharp.Routing.SiteRoute.Equals(LithoSharp.Routing.SiteRoute? other) -> bool
+LithoSharp.Routing.SiteRoute.PublicPath.get -> string!
+LithoSharp.Routing.SiteRoute.RelativeOutputPath.get -> string!
+override LithoSharp.Routing.SiteRoute.Equals(object? obj) -> bool
+override LithoSharp.Routing.SiteRoute.GetHashCode() -> int
+static LithoSharp.Routing.SiteRoute.ForDirectoryIndex(string! relativePath, string? baseUrl = null) -> LithoSharp.Routing.SiteRoute!
+static LithoSharp.Routing.SiteRoute.ForFile(string! relativePath, string? baseUrl = null) -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Diagnostics.SiteDiagnostic
+LithoSharp.Diagnostics.SiteDiagnostic.Id.get -> string!
+LithoSharp.Diagnostics.SiteDiagnostic.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Diagnostics.SiteDiagnostic.Message.get -> string!
+LithoSharp.Diagnostics.SiteDiagnostic.Severity.get -> LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Diagnostics.SiteDiagnostic.SiteDiagnostic(string! id, LithoSharp.Diagnostics.SiteDiagnosticSeverity severity, string! message, LithoSharp.Diagnostics.SiteSourceLocation? location = null) -> void
+LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Diagnostics.SiteDiagnosticSeverity.Error = 2 -> LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Diagnostics.SiteDiagnosticSeverity.Info = 0 -> LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Diagnostics.SiteDiagnosticSeverity.Warning = 1 -> LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Diagnostics.SiteSourceLocation
+LithoSharp.Diagnostics.SiteSourceLocation.Column.get -> int?
+LithoSharp.Diagnostics.SiteSourceLocation.FilePath.get -> string!
+LithoSharp.Diagnostics.SiteSourceLocation.Line.get -> int?
+LithoSharp.Diagnostics.SiteSourceLocation.SiteSourceLocation(string! filePath, int? line = null, int? column = null) -> void
+LithoSharp.Routing.SiteRouteDiagnosticIds
+const LithoSharp.Routing.SiteRouteDiagnosticIds.DuplicateOutputPath = "LSR002" -> string!
+const LithoSharp.Routing.SiteRouteDiagnosticIds.DuplicatePublicPath = "LSR001" -> string!
+const LithoSharp.Routing.SiteRouteDiagnosticIds.InvalidRoute = "LSR005" -> string!
+const LithoSharp.Routing.SiteRouteDiagnosticIds.OutputPathAncestorConflict = "LSR006" -> string!
+const LithoSharp.Routing.SiteRouteDiagnosticIds.OutputPathCaseCollision = "LSR003" -> string!
+const LithoSharp.Routing.SiteRouteDiagnosticIds.ReservedOutputPathCollision = "LSR004" -> string!
+LithoSharp.Routing.SiteRouteTable
+LithoSharp.Routing.SiteRouteTable.Register(LithoSharp.Routing.SiteRoute! route, string! ownerId, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null) -> void
+LithoSharp.Routing.SiteRouteTable.ReserveOutputPath(string! relativeOutputPath, string! ownerId, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null) -> void
+LithoSharp.Routing.SiteRouteTable.SiteRouteTable() -> void
+LithoSharp.Routing.SiteRouteTable.Validate() -> LithoSharp.Routing.SiteRouteValidationResult!
+LithoSharp.Routing.SiteRouteTable.ValidateOrThrow() -> LithoSharp.Routing.SiteRouteValidationResult!
+LithoSharp.Routing.SiteRouteValidationException
+LithoSharp.Routing.SiteRouteValidationException.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Routing.SiteRouteValidationResult
+LithoSharp.Routing.SiteRouteValidationResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Routing.SiteRouteValidationResult.IsValid.get -> bool
+LithoSharp.Pages.PageId
+LithoSharp.Pages.PageId.Equals(LithoSharp.Pages.PageId? other) -> bool
+LithoSharp.Pages.PageId.PageId(string! value) -> void
+LithoSharp.Pages.PageId.Value.get -> string!
+override LithoSharp.Pages.PageId.Equals(object? obj) -> bool
+override LithoSharp.Pages.PageId.GetHashCode() -> int
+override LithoSharp.Pages.PageId.ToString() -> string!
+LithoSharp.Pages.PageMetadata
+LithoSharp.Pages.PageMetadata.Description.get -> string?
+LithoSharp.Pages.PageMetadata.Draft.get -> bool
+LithoSharp.Pages.PageMetadata.Environments.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Pages.PageMetadata.PageMetadata(string? title = null, string? description = null, bool draft = false, System.DateTimeOffset? publishFrom = null, System.DateTimeOffset? publishUntil = null, System.Collections.Generic.IEnumerable<string!>? environments = null) -> void
+LithoSharp.Pages.PageMetadata.PublishFrom.get -> System.DateTimeOffset?
+LithoSharp.Pages.PageMetadata.PublishUntil.get -> System.DateTimeOffset?
+LithoSharp.Pages.PageMetadata.Title.get -> string?
+LithoSharp.Content.PostFrontMatter.Draft.get -> bool
+LithoSharp.Content.PostFrontMatter.Draft.init -> void
+LithoSharp.Content.PostFrontMatter.PublishFrom.get -> System.DateTimeOffset?
+LithoSharp.Content.PostFrontMatter.PublishFrom.init -> void
+LithoSharp.Content.PostFrontMatter.PublishUntil.get -> System.DateTimeOffset?
+LithoSharp.Content.PostFrontMatter.PublishUntil.init -> void
+LithoSharp.Content.PostFrontMatter.Environments.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Content.PostFrontMatter.Environments.init -> void
+LithoSharp.Pages.RenderedPage
+LithoSharp.Pages.RenderedPage.Content.get -> string!
+LithoSharp.Pages.RenderedPage.Metadata.get -> LithoSharp.Pages.PageMetadata!
+LithoSharp.Pages.RenderedPage.RenderedPage(LithoSharp.Pages.PageId! sourceId, LithoSharp.Routing.SiteRoute! route, string! content, LithoSharp.Pages.PageMetadata! metadata) -> void
+LithoSharp.Pages.RenderedPage.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Pages.RenderedPage.SourceId.get -> LithoSharp.Pages.PageId!
+LithoSharp.SiteTemplateContext.ContentPages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Pages.RenderedPage!>!
+LithoSharp.Pages.SitePage<TContent>
+LithoSharp.Pages.SitePage<TContent>.Content.get -> TContent
+LithoSharp.Pages.SitePage<TContent>.Id.get -> LithoSharp.Pages.PageId!
+LithoSharp.Pages.SitePage<TContent>.Metadata.get -> LithoSharp.Pages.PageMetadata!
+LithoSharp.Pages.SitePage<TContent>.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Pages.SitePage<TContent>.SitePage(LithoSharp.Pages.PageId! id, LithoSharp.Routing.SiteRoute! route, TContent content, LithoSharp.Pages.PageMetadata! metadata) -> void
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.ContentCollection(LithoSharp.Content.ContentCollectionId! id, string! inputRoot, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>! entries, LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>! publicationMapper, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>? orderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false) -> void
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.DeclaredDependencies.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentDependency!>!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.Entries.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.GeneratePages<TPageContent>(LithoSharp.Content.ContentCollectionId! generatedCollectionId, LithoSharp.Content.ContentPageGroupSelector<TFrontMatter, TBody>! groupSelector, LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>! pageFactory, LithoSharp.Content.GeneratedPageRenderer<TPageContent>! renderer, System.Collections.Generic.IEnumerable<string!>? groupKeys = null, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<string!>? groupOrderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false, LithoSharp.Content.GeneratedPageDerivedSurfaces derivedSurfaces = LithoSharp.Content.GeneratedPageDerivedSurfaces.Default) -> LithoSharp.Content.SiteContentCollection!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.Id.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.InputRoot.get -> string!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.IsCacheable.get -> bool
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.LayoutId.get -> LithoSharp.Content.ContentLayoutId?
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.OrderingComparer.get -> System.Collections.Generic.IComparer<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.PublicationMapper.get -> LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.RouteConvention.get -> LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.TransformationId.get -> LithoSharp.Content.ContentTransformationId?
+LithoSharp.Content.ContentCollectionId
+LithoSharp.Content.ContentCollectionId.ContentCollectionId(string! value) -> void
+LithoSharp.Content.ContentCollectionId.Equals(LithoSharp.Content.ContentCollectionId? other) -> bool
+LithoSharp.Content.ContentCollectionId.Value.get -> string!
+override LithoSharp.Content.ContentCollectionId.Equals(object? obj) -> bool
+override LithoSharp.Content.ContentCollectionId.GetHashCode() -> int
+override LithoSharp.Content.ContentCollectionId.ToString() -> string!
+LithoSharp.Content.ContentDependency
+LithoSharp.Content.ContentDependency.Equals(LithoSharp.Content.ContentDependency? other) -> bool
+LithoSharp.Content.ContentDependency.Key.get -> string!
+LithoSharp.Content.ContentDependency.Kind.get -> LithoSharp.Content.ContentDependencyKind
+LithoSharp.Content.ContentDependency.Value.get -> string?
+override LithoSharp.Content.ContentDependency.Equals(object? obj) -> bool
+override LithoSharp.Content.ContentDependency.GetHashCode() -> int
+static LithoSharp.Content.ContentDependency.FromFile(string! relativePath) -> LithoSharp.Content.ContentDependency!
+static LithoSharp.Content.ContentDependency.FromValue(string! key, string! value) -> LithoSharp.Content.ContentDependency!
+LithoSharp.Content.ContentDependencyKind
+LithoSharp.Content.ContentDependencyKind.File = 1 -> LithoSharp.Content.ContentDependencyKind
+LithoSharp.Content.ContentDependencyKind.Value = 0 -> LithoSharp.Content.ContentDependencyKind
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.Body.get -> TBody
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.ContentEntry(LithoSharp.Content.ContentEntryId! id, string! sourcePath, string! sourceFingerprint, TFrontMatter frontMatter, TBody body, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null) -> void
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.FrontMatter.get -> TFrontMatter
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.Id.get -> LithoSharp.Content.ContentEntryId!
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.SourceFingerprint.get -> string!
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.SourceLocation.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.SourcePath.get -> string!
+LithoSharp.Content.ContentEntryId
+LithoSharp.Content.ContentEntryId.ContentEntryId(string! value) -> void
+LithoSharp.Content.ContentEntryId.Equals(LithoSharp.Content.ContentEntryId? other) -> bool
+LithoSharp.Content.ContentEntryId.Value.get -> string!
+override LithoSharp.Content.ContentEntryId.Equals(object? obj) -> bool
+override LithoSharp.Content.ContentEntryId.GetHashCode() -> int
+override LithoSharp.Content.ContentEntryId.ToString() -> string!
+LithoSharp.Content.ContentLayoutId
+LithoSharp.Content.ContentLayoutId.ContentLayoutId(string! value) -> void
+LithoSharp.Content.ContentLayoutId.Equals(LithoSharp.Content.ContentLayoutId? other) -> bool
+LithoSharp.Content.ContentLayoutId.Value.get -> string!
+override LithoSharp.Content.ContentLayoutId.Equals(object? obj) -> bool
+override LithoSharp.Content.ContentLayoutId.GetHashCode() -> int
+override LithoSharp.Content.ContentLayoutId.ToString() -> string!
+LithoSharp.Content.ContentTransformationId
+LithoSharp.Content.ContentTransformationId.ContentTransformationId(string! value) -> void
+LithoSharp.Content.ContentTransformationId.Equals(LithoSharp.Content.ContentTransformationId? other) -> bool
+LithoSharp.Content.ContentTransformationId.Value.get -> string!
+override LithoSharp.Content.ContentTransformationId.Equals(object? obj) -> bool
+override LithoSharp.Content.ContentTransformationId.GetHashCode() -> int
+override LithoSharp.Content.ContentTransformationId.ToString() -> string!
+LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>
+LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>.Collection.get -> LithoSharp.Content.ContentCollection<TFrontMatter, TBody>?
+LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>.IsSuccess.get -> bool
+static LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>.Failure(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!
+static LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>.Success(LithoSharp.Content.ContentCollection<TFrontMatter, TBody>! collection, System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>? diagnostics = null) -> LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!
+LithoSharp.Content.ContentParseResult<T>
+LithoSharp.Content.ContentParseResult<T>.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Content.ContentParseResult<T>.IsSuccess.get -> bool
+LithoSharp.Content.ContentParseResult<T>.Value.get -> T?
+static LithoSharp.Content.ContentParseResult<T>.Failure(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> LithoSharp.Content.ContentParseResult<T>!
+static LithoSharp.Content.ContentParseResult<T>.Success(T value, System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>? diagnostics = null) -> LithoSharp.Content.ContentParseResult<T>!
+LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>
+LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>
+LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>
+LithoSharp.Content.ContentPageGroupSelector<TFrontMatter, TBody>
+LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>
+LithoSharp.Content.GeneratedPageRenderer<TPageContent>
+LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.LlmsTxt = 32 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.Navigation = 1 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.None = 0 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.Rss = 4 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.Search = 2 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.Sitemap = 8 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.GeneratedPageDerivedSurfaces.SocialImage = 16 -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>
+LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>.Entries.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>!
+LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>.Key.get -> string!
+LithoSharp.Content.GeneratedPageDiagnosticIds
+const LithoSharp.Content.GeneratedPageDiagnosticIds.DuplicatePageId = "LSG002" -> string!
+const LithoSharp.Content.GeneratedPageDiagnosticIds.InvalidGroupKey = "LSG001" -> string!
+LithoSharp.Content.ContentPageRenderingContext
+LithoSharp.Content.ContentPageRenderingContext.BuildTimestamp.get -> System.DateTimeOffset
+LithoSharp.Content.ContentPageRenderingContext.EnvironmentName.get -> string!
+LithoSharp.Content.ContentPageRenderingContext.LayoutId.get -> LithoSharp.Content.ContentLayoutId?
+LithoSharp.Content.ContentPageRenderingContext.Metadata.get -> LithoSharp.Pages.PageMetadata!
+LithoSharp.Content.ContentPageRenderingContext.RenderDocument(string! bodyHtml) -> string!
+LithoSharp.Content.ContentPageRenderingContext.RenderMarkdown(string! markdown) -> string!
+LithoSharp.Content.ContentPageRenderingContext.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.ContentPageRenderingContext.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.Content.SiteContentCollection
+abstract LithoSharp.Content.SiteContentCollection.Id.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Collection.get -> LithoSharp.Content.ContentCollection<TFrontMatter, TBody>!
+override LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Id.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Renderer.get -> LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>!
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.SiteContentCollection(LithoSharp.Content.ContentCollection<TFrontMatter, TBody>! collection, LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>! renderer) -> void
+LithoSharp.Content.IContentCollectionLoader<TFrontMatter, TBody>
+LithoSharp.Content.IContentCollectionLoader<TFrontMatter, TBody>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!>
+LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>
+LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>.Bind(System.Collections.Generic.IReadOnlyDictionary<string!, object?>! values, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null) -> LithoSharp.Content.ContentParseResult<TFrontMatter>!
+LithoSharp.Content.ContentFrontMatterDiagnosticIds
+const LithoSharp.Content.ContentFrontMatterDiagnosticIds.InvalidValue = "LSC103" -> string!
+const LithoSharp.Content.ContentFrontMatterDiagnosticIds.MissingRequiredField = "LSC104" -> string!
+const LithoSharp.Content.ContentFrontMatterDiagnosticIds.NullNotAllowed = "LSC102" -> string!
+const LithoSharp.Content.ContentFrontMatterDiagnosticIds.UnknownField = "LSC101" -> string!
+LithoSharp.Content.MarkdownContentCollectionLoader<TFrontMatter>
+LithoSharp.Content.MarkdownContentCollectionLoader<TFrontMatter>.MarkdownContentCollectionLoader(LithoSharp.Content.ContentCollectionId! id, string! inputRoot, LithoSharp.Content.ContentRouteConvention<TFrontMatter, string!>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, string!>! publicationMapper, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<LithoSharp.Content.ContentEntry<TFrontMatter, string!>!>? orderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false) -> void
+LithoSharp.Content.MarkdownContentCollectionLoader<TFrontMatter>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, string!>!>
+LithoSharp.Content.MarkdownContentDiagnosticIds
+const LithoSharp.Content.MarkdownContentDiagnosticIds.AliasNotAllowed = "LSM006" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.DuplicateEntryId = "LSM010" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.DuplicateKey = "LSM005" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.EmptyFrontMatter = "LSM003" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.InvalidFrontMatterRoot = "LSM008" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.InvalidMappingKey = "LSM007" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.InvalidUtf8 = "LSM009" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.InvalidYaml = "LSM004" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.MissingFrontMatter = "LSM001" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.UnterminatedFrontMatter = "LSM002" -> string!
+LithoSharp.Content.ReflectionContentFrontMatterBinder<TFrontMatter>
+LithoSharp.Content.ReflectionContentFrontMatterBinder<TFrontMatter>.Bind(System.Collections.Generic.IReadOnlyDictionary<string!, object?>! values, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null) -> LithoSharp.Content.ContentParseResult<TFrontMatter>!
+LithoSharp.Content.ReflectionContentFrontMatterBinder<TFrontMatter>.ReflectionContentFrontMatterBinder(bool rejectUnknownFields = true) -> void
+LithoSharp.Content.ReflectionContentFrontMatterBinder<TFrontMatter>.RejectUnknownFields.get -> bool
+LithoSharp.Content.JsonContentCollectionLoader<TFrontMatter, TBody>
+LithoSharp.Content.JsonContentCollectionLoader<TFrontMatter, TBody>.JsonContentCollectionLoader(string! inputRoot, LithoSharp.Content.ContentCollectionId! collectionId, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>! binder, System.Func<System.Text.Json.JsonElement, TBody>! bodyFactory, LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>! publicationMapper, LithoSharp.Content.ContentLayoutId? layoutId = null) -> void
+LithoSharp.Content.JsonContentCollectionLoader<TFrontMatter, TBody>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!>
+LithoSharp.Content.CsvContentCollectionLoader<TFrontMatter, TBody>
+LithoSharp.Content.CsvContentCollectionLoader<TFrontMatter, TBody>.CsvContentCollectionLoader(string! inputRoot, LithoSharp.Content.ContentCollectionId! collectionId, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>! binder, System.Func<System.Collections.Generic.IReadOnlyDictionary<string!, object?>!, TBody>! bodyFactory, LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>! publicationMapper, LithoSharp.Content.ContentLayoutId? layoutId = null) -> void
+LithoSharp.Content.CsvContentCollectionLoader<TFrontMatter, TBody>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!>
+LithoSharp.Publishing.PagePublicationPolicy
+static LithoSharp.Publishing.PagePublicationPolicy.ShouldPublish(LithoSharp.Pages.PageMetadata! metadata, System.DateTimeOffset buildTimestamp, string! environmentName) -> bool
+LithoSharp.Build.BuildArtifact
+LithoSharp.Build.BuildArtifact.BuildArtifact(LithoSharp.Build.BuildArtifactId! id, LithoSharp.Build.BuildNodeId! ownerNodeId, string! relativeOutputPath) -> void
+LithoSharp.Build.BuildArtifact.Id.get -> LithoSharp.Build.BuildArtifactId!
+LithoSharp.Build.BuildArtifact.OwnerNodeId.get -> LithoSharp.Build.BuildNodeId!
+LithoSharp.Build.BuildArtifact.RelativeOutputPath.get -> string!
+LithoSharp.Build.BuildArtifactId
+LithoSharp.Build.BuildArtifactId.BuildArtifactId(string! value) -> void
+LithoSharp.Build.BuildArtifactId.Equals(LithoSharp.Build.BuildArtifactId? other) -> bool
+LithoSharp.Build.BuildArtifactId.Value.get -> string!
+override LithoSharp.Build.BuildArtifactId.Equals(object? obj) -> bool
+override LithoSharp.Build.BuildArtifactId.GetHashCode() -> int
+override LithoSharp.Build.BuildArtifactId.ToString() -> string!
+LithoSharp.Build.BuildInvalidation
+LithoSharp.Build.BuildInvalidation.NodeId.get -> LithoSharp.Build.BuildNodeId!
+LithoSharp.Build.BuildInvalidation.Reasons.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Build.BuildInput
+LithoSharp.Build.BuildInput.Key.get -> string!
+LithoSharp.Build.BuildInput.Kind.get -> LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildInput.Value.get -> string?
+static LithoSharp.Build.BuildInput.FromCollection(string! collectionId) -> LithoSharp.Build.BuildInput!
+static LithoSharp.Build.BuildInput.FromCollection(string! collectionId, string! fingerprint) -> LithoSharp.Build.BuildInput!
+static LithoSharp.Build.BuildInput.FromConfiguration(string! key, string! value) -> LithoSharp.Build.BuildInput!
+static LithoSharp.Build.BuildInput.FromFile(string! relativePath) -> LithoSharp.Build.BuildInput!
+static LithoSharp.Build.BuildInput.FromFile(string! relativePath, string! fingerprint) -> LithoSharp.Build.BuildInput!
+static LithoSharp.Build.BuildInput.FromValue(string! key, string! value) -> LithoSharp.Build.BuildInput!
+LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildInputKind.Collection = 1 -> LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildInputKind.Configuration = 2 -> LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildInputKind.File = 3 -> LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildInputKind.Value = 0 -> LithoSharp.Build.BuildInputKind
+LithoSharp.Build.BuildNode
+LithoSharp.Build.BuildNode.Artifacts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildArtifact!>!
+LithoSharp.Build.BuildNode.BuildNode(LithoSharp.Build.BuildNodeId! id, System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildInput!>? inputs = null, System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildNodeId!>? dependencies = null, System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildArtifact!>? artifacts = null) -> void
+LithoSharp.Build.BuildNode.Dependencies.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildNodeId!>!
+LithoSharp.Build.BuildNode.Id.get -> LithoSharp.Build.BuildNodeId!
+LithoSharp.Build.BuildNode.Inputs.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildInput!>!
+LithoSharp.Build.BuildNodeId
+LithoSharp.Build.BuildNodeId.BuildNodeId(string! value) -> void
+LithoSharp.Build.BuildNodeId.Equals(LithoSharp.Build.BuildNodeId? other) -> bool
+LithoSharp.Build.BuildNodeId.Value.get -> string!
+override LithoSharp.Build.BuildNodeId.Equals(object? obj) -> bool
+override LithoSharp.Build.BuildNodeId.GetHashCode() -> int
+override LithoSharp.Build.BuildNodeId.ToString() -> string!
+LithoSharp.Build.SiteBuildPlan
+LithoSharp.Build.SiteBuildPlan.Artifacts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildArtifact!>!
+LithoSharp.Build.SiteBuildPlan.GetArtifactOwner(LithoSharp.Build.BuildArtifactId! artifactId) -> LithoSharp.Build.BuildNode!
+LithoSharp.Build.SiteBuildPlan.GetInvalidatedNodes(LithoSharp.Build.SiteBuildPlan! previousPlan) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildInvalidation!>!
+LithoSharp.Build.SiteBuildPlan.Nodes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildNode!>!
+static LithoSharp.Build.SiteBuildPlan.Create(System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildNode!>! nodes) -> LithoSharp.Build.SiteBuildPlan!
+static LithoSharp.Build.SiteBuildPlan.Validate(System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildNode!>! nodes) -> LithoSharp.Build.SiteBuildPlanValidationResult!
+LithoSharp.Build.SiteBuildPlanDiagnosticIds
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.ArtifactOwnerMismatch = "LSB004" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.DependencyCycle = "LSB006" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.DuplicateArtifactId = "LSB002" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.DuplicateNodeId = "LSB001" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.DuplicateOutputPath = "LSB007" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.InvalidArtifactPath = "LSB003" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.MissingDependency = "LSB005" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.OutputPathAncestorConflict = "LSB009" -> string!
+const LithoSharp.Build.SiteBuildPlanDiagnosticIds.OutputPathCaseCollision = "LSB008" -> string!
+LithoSharp.Build.SiteBuildPlanValidationException
+LithoSharp.Build.SiteBuildPlanValidationException.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Build.SiteBuildPlanValidationResult
+LithoSharp.Build.SiteBuildPlanValidationResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Build.SiteBuildPlanValidationResult.IsValid.get -> bool
+LithoSharp.Build.SiteBuildPlanValidationResult.Plan.get -> LithoSharp.Build.SiteBuildPlan?
+LithoSharp.Content.YamlContentCollectionLoader<TFrontMatter, TBody>
+LithoSharp.Content.YamlContentCollectionLoader<TFrontMatter, TBody>.YamlContentCollectionLoader(string! inputRoot, LithoSharp.Content.ContentCollectionId! collectionId, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>! binder, System.Func<System.Collections.Generic.IReadOnlyDictionary<string!, object?>!, TBody>! bodyFactory, LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>! publicationMapper, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>? orderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false) -> void
+LithoSharp.Content.YamlContentCollectionLoader<TFrontMatter, TBody>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!>
+LithoSharp.Content.YamlContentDiagnosticIds
+const LithoSharp.Content.YamlContentDiagnosticIds.AliasNotAllowed = "LSM006" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.DuplicateEntryId = "LSY003" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.DuplicateKey = "LSM005" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.InvalidMappingKey = "LSM007" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.InvalidRoot = "LSM008" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.InvalidUtf8 = "LSY001" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.InvalidYaml = "LSM004" -> string!
+const LithoSharp.Content.YamlContentDiagnosticIds.ReadFailure = "LSY002" -> string!

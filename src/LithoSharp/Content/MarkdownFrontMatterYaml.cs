@@ -33,16 +33,36 @@ public static class MarkdownFrontMatterYaml
     {
         ArgumentNullException.ThrowIfNull(frontMatter);
 
-        var serializableFrontMatter = new
+        var serializableFrontMatter = new Dictionary<string, object?>
         {
-            frontMatter.Title,
-            Date = frontMatter.Date.ToString("O", CultureInfo.InvariantCulture),
-            frontMatter.Summary,
-            frontMatter.Tags,
-            frontMatter.Sources,
-            sidebar_position = frontMatter.SidebarPosition,
-            sidebar_label = frontMatter.SidebarLabel
+            ["title"] = frontMatter.Title,
+            ["date"] = frontMatter.Date.ToString("O", CultureInfo.InvariantCulture),
+            ["summary"] = frontMatter.Summary,
+            ["tags"] = frontMatter.Tags,
+            ["sources"] = frontMatter.Sources,
+            ["draft"] = frontMatter.Draft,
+            ["environments"] = frontMatter.Environments
         };
+
+        if (frontMatter.SidebarPosition is { } sidebarPosition)
+        {
+            serializableFrontMatter["sidebar_position"] = sidebarPosition;
+        }
+
+        if (frontMatter.SidebarLabel is not null)
+        {
+            serializableFrontMatter["sidebar_label"] = frontMatter.SidebarLabel;
+        }
+
+        if (frontMatter.PublishFrom is { } publishFrom)
+        {
+            serializableFrontMatter["publish_from"] = publishFrom.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (frontMatter.PublishUntil is { } publishUntil)
+        {
+            serializableFrontMatter["publish_until"] = publishUntil.ToString("O", CultureInfo.InvariantCulture);
+        }
 
         return Serializer.Serialize(serializableFrontMatter).TrimEnd();
     }

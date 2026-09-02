@@ -1,0 +1,310 @@
+#nullable enable
+LithoSharp.BlogSiteTemplate
+LithoSharp.BlogSiteTemplate.BlogSiteTemplate() -> void
+LithoSharp.BlogSiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteTemplateResult!>!
+LithoSharp.Configuration.SiteSettings
+LithoSharp.Configuration.SiteSettings.Author.get -> string!
+LithoSharp.Configuration.SiteSettings.Author.init -> void
+LithoSharp.Configuration.SiteSettings.BaseUrl.get -> string!
+LithoSharp.Configuration.SiteSettings.BaseUrl.init -> void
+LithoSharp.Configuration.SiteSettings.Description.get -> string!
+LithoSharp.Configuration.SiteSettings.Description.init -> void
+LithoSharp.Configuration.SiteSettings.GoogleAnalyticsMeasurementId.get -> string!
+LithoSharp.Configuration.SiteSettings.GoogleAnalyticsMeasurementId.init -> void
+LithoSharp.Configuration.SiteSettings.Language.get -> string!
+LithoSharp.Configuration.SiteSettings.Language.init -> void
+LithoSharp.Configuration.SiteSettings.RepositoryUrl.get -> string!
+LithoSharp.Configuration.SiteSettings.RepositoryUrl.init -> void
+LithoSharp.Configuration.SiteSettings.TimeZone.get -> string!
+LithoSharp.Configuration.SiteSettings.TimeZone.init -> void
+LithoSharp.Configuration.SiteSettings.Title.get -> string!
+LithoSharp.Configuration.SiteSettings.Title.init -> void
+LithoSharp.Content.MarkdownDocumentParser
+LithoSharp.Content.MarkdownFrontMatterYaml
+LithoSharp.Content.MarkdownPost
+LithoSharp.Content.MarkdownPost.FilePath.get -> string!
+LithoSharp.Content.MarkdownPost.FilePath.init -> void
+LithoSharp.Content.MarkdownPost.FrontMatter.get -> LithoSharp.Content.PostFrontMatter!
+LithoSharp.Content.MarkdownPost.FrontMatter.init -> void
+LithoSharp.Content.MarkdownPost.MarkdownBody.get -> string!
+LithoSharp.Content.MarkdownPost.MarkdownBody.init -> void
+LithoSharp.Content.MarkdownPost.MarkdownPost(string! FilePath, string! Slug, LithoSharp.Content.PostFrontMatter! FrontMatter, string! MarkdownBody, string! RelativeOutputPath) -> void
+LithoSharp.Content.MarkdownPost.RelativeOutputPath.get -> string!
+LithoSharp.Content.MarkdownPost.RelativeOutputPath.init -> void
+LithoSharp.Content.MarkdownPost.Slug.get -> string!
+LithoSharp.Content.MarkdownPost.Slug.init -> void
+LithoSharp.Content.MarkdownPostReader
+LithoSharp.Content.MarkdownPostReader.MarkdownPostReader() -> void
+LithoSharp.Content.MarkdownPostReader.ReadAllAsync(string! contentDirectory) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!>!
+LithoSharp.Content.MarkdownPostReader.ReadAsync(string! path, string! contentRoot) -> System.Threading.Tasks.Task<LithoSharp.Content.MarkdownPost!>!
+LithoSharp.Content.PostFrontMatter
+LithoSharp.Content.PostFrontMatter.Date.get -> System.DateTimeOffset
+LithoSharp.Content.PostFrontMatter.Date.init -> void
+LithoSharp.Content.PostFrontMatter.SidebarLabel.get -> string?
+LithoSharp.Content.PostFrontMatter.SidebarLabel.init -> void
+LithoSharp.Content.PostFrontMatter.SidebarPosition.get -> int?
+LithoSharp.Content.PostFrontMatter.SidebarPosition.init -> void
+LithoSharp.Content.PostFrontMatter.Sources.get -> System.Collections.Generic.List<LithoSharp.Content.PostSourceReference!>!
+LithoSharp.Content.PostFrontMatter.Sources.init -> void
+LithoSharp.Content.PostFrontMatter.Summary.get -> string!
+LithoSharp.Content.PostFrontMatter.Summary.init -> void
+LithoSharp.Content.PostFrontMatter.Tags.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Content.PostFrontMatter.Tags.init -> void
+LithoSharp.Content.PostFrontMatter.Title.get -> string!
+LithoSharp.Content.PostFrontMatter.Title.init -> void
+LithoSharp.Content.PostSourceReference
+LithoSharp.Content.PostSourceReference.Name.get -> string!
+LithoSharp.Content.PostSourceReference.Name.init -> void
+LithoSharp.Content.PostSourceReference.Type.get -> string!
+LithoSharp.Content.PostSourceReference.Type.init -> void
+LithoSharp.Content.PostSourceReference.Url.get -> string?
+LithoSharp.Content.PostSourceReference.Url.init -> void
+LithoSharp.Content.SlugHelper
+LithoSharp.ContentValidationResult
+LithoSharp.ContentValidationResult.ContentValidationResult(int PostCount) -> void
+LithoSharp.ContentValidationResult.PostCount.get -> int
+LithoSharp.ContentValidationResult.PostCount.init -> void
+LithoSharp.DocsSiteTemplate
+LithoSharp.DocsSiteTemplate.DocsSiteTemplate() -> void
+LithoSharp.DocsSiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteTemplateResult!>!
+LithoSharp.Html
+LithoSharp.ISiteTemplate
+LithoSharp.ISiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteTemplateResult!>!
+LithoSharp.Search.SearchDocument
+LithoSharp.Search.SearchDocument.Body.get -> string!
+LithoSharp.Search.SearchDocument.Body.init -> void
+LithoSharp.Search.SearchDocument.Date.get -> string!
+LithoSharp.Search.SearchDocument.Date.init -> void
+LithoSharp.Search.SearchDocument.SearchDocument(string! Title, string! Summary, System.Collections.Generic.IReadOnlyList<string!>! Tags, string! Url, string! Date, string! Body) -> void
+LithoSharp.Search.SearchDocument.Summary.get -> string!
+LithoSharp.Search.SearchDocument.Summary.init -> void
+LithoSharp.Search.SearchDocument.Tags.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Search.SearchDocument.Tags.init -> void
+LithoSharp.Search.SearchDocument.Title.get -> string!
+LithoSharp.Search.SearchDocument.Title.init -> void
+LithoSharp.Search.SearchDocument.Url.get -> string!
+LithoSharp.Search.SearchDocument.Url.init -> void
+LithoSharp.Search.SearchIndex
+LithoSharp.Search.SearchIndex.Documents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Search.SearchDocument!>!
+LithoSharp.Search.SearchIndex.Documents.init -> void
+LithoSharp.Search.SearchIndex.Generated.get -> string!
+LithoSharp.Search.SearchIndex.Generated.init -> void
+LithoSharp.Search.SearchIndex.SearchIndex(string! Site, string! Generated, System.Collections.Generic.IReadOnlyList<LithoSharp.Search.SearchDocument!>! Documents) -> void
+LithoSharp.Search.SearchIndex.Site.get -> string!
+LithoSharp.Search.SearchIndex.Site.init -> void
+LithoSharp.SiteCustomization
+LithoSharp.SiteCustomization.ExtraPages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteExtraPage!>!
+LithoSharp.SiteCustomization.ExtraPages.init -> void
+LithoSharp.SiteCustomization.FaviconSourceDirectory.get -> string?
+LithoSharp.SiteCustomization.FaviconSourceDirectory.init -> void
+LithoSharp.SiteCustomization.GenerateLlmsTxt.get -> bool
+LithoSharp.SiteCustomization.GenerateLlmsTxt.init -> void
+LithoSharp.SiteCustomization.Template.get -> LithoSharp.ISiteTemplate!
+LithoSharp.SiteCustomization.Template.init -> void
+LithoSharp.SiteCustomization.Text.get -> LithoSharp.SiteText!
+LithoSharp.SiteCustomization.Text.init -> void
+LithoSharp.SiteCustomization.Theme.get -> LithoSharp.SiteThemeOptions!
+LithoSharp.SiteCustomization.Theme.init -> void
+LithoSharp.SiteCustomization.Validators.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Validation.IContentValidator!>!
+LithoSharp.SiteCustomization.Validators.init -> void
+LithoSharp.SiteExtraPage
+LithoSharp.SiteExtraPage.BodyHtml.get -> string!
+LithoSharp.SiteExtraPage.BodyHtml.init -> void
+LithoSharp.SiteExtraPage.IncludeInSitemap.get -> bool
+LithoSharp.SiteExtraPage.IncludeInSitemap.init -> void
+LithoSharp.SiteExtraPage.NavCssClass.get -> string?
+LithoSharp.SiteExtraPage.NavCssClass.init -> void
+LithoSharp.SiteExtraPage.NavLabel.get -> string?
+LithoSharp.SiteExtraPage.NavLabel.init -> void
+LithoSharp.SiteExtraPage.RelativePath.get -> string!
+LithoSharp.SiteExtraPage.RelativePath.init -> void
+LithoSharp.SiteExtraPage.Title.get -> string!
+LithoSharp.SiteExtraPage.Title.init -> void
+LithoSharp.SiteFormatting
+LithoSharp.SiteGenerationResult
+LithoSharp.SiteGenerationResult.GeneratedFiles.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteGenerationResult.GeneratedFiles.init -> void
+LithoSharp.SiteGenerationResult.OutputDirectory.get -> string!
+LithoSharp.SiteGenerationResult.OutputDirectory.init -> void
+LithoSharp.SiteGenerationResult.PostCount.get -> int
+LithoSharp.SiteGenerationResult.PostCount.init -> void
+LithoSharp.SiteGenerationResult.SiteGenerationResult(string! OutputDirectory, int PostCount, System.Collections.Generic.IReadOnlyList<string!>! GeneratedFiles) -> void
+LithoSharp.SiteGenerator
+LithoSharp.SiteGenerator.GenerateAsync(LithoSharp.Configuration.SiteSettings! site, System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>! posts, string! outputDirectory, bool clean, LithoSharp.SiteCustomization? customization = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteGenerationResult!>!
+LithoSharp.SiteGenerator.SiteGenerator() -> void
+LithoSharp.SiteTemplateContext
+LithoSharp.SiteTemplateContext.ExtraPages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteExtraPage!>!
+LithoSharp.SiteTemplateContext.GetSitePath(string! relativePath) -> string!
+LithoSharp.SiteTemplateContext.Navigation.get -> LithoSharp.SiteTemplateNavigationNode!
+LithoSharp.SiteTemplateContext.Pages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplatePage!>!
+LithoSharp.SiteTemplateContext.Posts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!
+LithoSharp.SiteTemplateContext.RenderDocument(LithoSharp.SiteTemplateDocument! document) -> string!
+LithoSharp.SiteTemplateContext.RenderMarkdown(string! markdown) -> string!
+LithoSharp.SiteTemplateContext.RenderTableOfContents(System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateHeading!>! headings) -> string!
+LithoSharp.SiteTemplateContext.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.SiteTemplateContext.Text.get -> LithoSharp.SiteText!
+LithoSharp.SiteTemplateContext.Theme.get -> LithoSharp.SiteThemeOptions!
+LithoSharp.SiteTemplateDocument
+LithoSharp.SiteTemplateDocument.BodyHtml.get -> string!
+LithoSharp.SiteTemplateDocument.BodyHtml.init -> void
+LithoSharp.SiteTemplateDocument.Description.get -> string?
+LithoSharp.SiteTemplateDocument.Description.init -> void
+LithoSharp.SiteTemplateDocument.OpenGraphType.get -> string!
+LithoSharp.SiteTemplateDocument.OpenGraphType.init -> void
+LithoSharp.SiteTemplateDocument.PublishedAt.get -> System.DateTimeOffset?
+LithoSharp.SiteTemplateDocument.PublishedAt.init -> void
+LithoSharp.SiteTemplateDocument.RelativePath.get -> string!
+LithoSharp.SiteTemplateDocument.RelativePath.init -> void
+LithoSharp.SiteTemplateDocument.SocialImageRelativePath.get -> string?
+LithoSharp.SiteTemplateDocument.SocialImageRelativePath.init -> void
+LithoSharp.SiteTemplateDocument.Title.get -> string!
+LithoSharp.SiteTemplateDocument.Title.init -> void
+LithoSharp.SiteTemplateFile
+LithoSharp.SiteTemplateFile.Content.get -> string!
+LithoSharp.SiteTemplateFile.Content.init -> void
+LithoSharp.SiteTemplateFile.RelativePath.get -> string!
+LithoSharp.SiteTemplateFile.RelativePath.init -> void
+LithoSharp.SiteTemplateHeading
+LithoSharp.SiteTemplateHeading.Id.get -> string!
+LithoSharp.SiteTemplateHeading.Id.init -> void
+LithoSharp.SiteTemplateHeading.Level.get -> int
+LithoSharp.SiteTemplateHeading.Level.init -> void
+LithoSharp.SiteTemplateHeading.SiteTemplateHeading(int Level, string! Id, string! Text) -> void
+LithoSharp.SiteTemplateHeading.Text.get -> string!
+LithoSharp.SiteTemplateHeading.Text.init -> void
+LithoSharp.SiteTemplateNavigationNode
+LithoSharp.SiteTemplateNavigationNode.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateNavigationNode!>!
+LithoSharp.SiteTemplateNavigationNode.Children.init -> void
+LithoSharp.SiteTemplateNavigationNode.Label.get -> string!
+LithoSharp.SiteTemplateNavigationNode.Label.init -> void
+LithoSharp.SiteTemplateNavigationNode.Page.get -> LithoSharp.SiteTemplatePage?
+LithoSharp.SiteTemplateNavigationNode.Page.init -> void
+LithoSharp.SiteTemplatePage
+LithoSharp.SiteTemplatePage.ContentHtml.get -> string!
+LithoSharp.SiteTemplatePage.ContentHtml.init -> void
+LithoSharp.SiteTemplatePage.Headings.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateHeading!>!
+LithoSharp.SiteTemplatePage.Headings.init -> void
+LithoSharp.SiteTemplatePage.Next.get -> LithoSharp.SiteTemplatePageLink?
+LithoSharp.SiteTemplatePage.Next.init -> void
+LithoSharp.SiteTemplatePage.Post.get -> LithoSharp.Content.MarkdownPost!
+LithoSharp.SiteTemplatePage.Post.init -> void
+LithoSharp.SiteTemplatePage.Previous.get -> LithoSharp.SiteTemplatePageLink?
+LithoSharp.SiteTemplatePage.Previous.init -> void
+LithoSharp.SiteTemplatePage.Url.get -> string!
+LithoSharp.SiteTemplatePage.Url.init -> void
+LithoSharp.SiteTemplatePageLink
+LithoSharp.SiteTemplatePageLink.SiteTemplatePageLink(string! Title, string! Url) -> void
+LithoSharp.SiteTemplatePageLink.Title.get -> string!
+LithoSharp.SiteTemplatePageLink.Title.init -> void
+LithoSharp.SiteTemplatePageLink.Url.get -> string!
+LithoSharp.SiteTemplatePageLink.Url.init -> void
+LithoSharp.SiteTemplateResult
+LithoSharp.SiteTemplateResult.Files.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateFile!>!
+LithoSharp.SiteTemplateResult.SiteTemplateResult(System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateFile!>! files) -> void
+LithoSharp.SiteText
+LithoSharp.SiteText.ArchivesEmpty.get -> string!
+LithoSharp.SiteText.ArchivesEmpty.init -> void
+LithoSharp.SiteText.ArchivesHeading.get -> string!
+LithoSharp.SiteText.ArchivesHeading.init -> void
+LithoSharp.SiteText.ExistingTagsHeading.get -> string!
+LithoSharp.SiteText.ExistingTagsHeading.init -> void
+LithoSharp.SiteText.HeaderSearchPlaceholder.get -> string!
+LithoSharp.SiteText.HeaderSearchPlaceholder.init -> void
+LithoSharp.SiteText.IndexEmpty.get -> string!
+LithoSharp.SiteText.IndexEmpty.init -> void
+LithoSharp.SiteText.IndexLede.get -> string!
+LithoSharp.SiteText.IndexLede.init -> void
+LithoSharp.SiteText.LatestPostHeading.get -> string!
+LithoSharp.SiteText.LatestPostHeading.init -> void
+LithoSharp.SiteText.LlmsPostsHeading.get -> string!
+LithoSharp.SiteText.LlmsPostsHeading.init -> void
+LithoSharp.SiteText.MenuLabel.get -> string!
+LithoSharp.SiteText.MenuLabel.init -> void
+LithoSharp.SiteText.OlderPostsEmpty.get -> string!
+LithoSharp.SiteText.OlderPostsEmpty.init -> void
+LithoSharp.SiteText.OlderPostsHeading.get -> string!
+LithoSharp.SiteText.OlderPostsHeading.init -> void
+LithoSharp.SiteText.SearchButtonLabel.get -> string!
+LithoSharp.SiteText.SearchButtonLabel.init -> void
+LithoSharp.SiteText.SearchHeading.get -> string!
+LithoSharp.SiteText.SearchHeading.init -> void
+LithoSharp.SiteText.SearchInputLabel.get -> string!
+LithoSharp.SiteText.SearchInputLabel.init -> void
+LithoSharp.SiteText.SearchInputPlaceholder.get -> string!
+LithoSharp.SiteText.SearchInputPlaceholder.init -> void
+LithoSharp.SiteText.SearchIntro.get -> string!
+LithoSharp.SiteText.SearchIntro.init -> void
+LithoSharp.SiteText.SearchLoading.get -> string!
+LithoSharp.SiteText.SearchLoading.init -> void
+LithoSharp.SiteText.SearchNoscriptArchivesLinkText.get -> string!
+LithoSharp.SiteText.SearchNoscriptArchivesLinkText.init -> void
+LithoSharp.SiteText.SearchNoscriptPrefix.get -> string!
+LithoSharp.SiteText.SearchNoscriptPrefix.init -> void
+LithoSharp.SiteText.SearchNoscriptSuffix.get -> string!
+LithoSharp.SiteText.SearchNoscriptSuffix.init -> void
+LithoSharp.SiteText.SearchScopeTag.get -> string!
+LithoSharp.SiteText.SearchScopeTag.init -> void
+LithoSharp.SiteText.SearchStatusBrowseAll.get -> string!
+LithoSharp.SiteText.SearchStatusBrowseAll.init -> void
+LithoSharp.SiteText.SearchStatusHits.get -> string!
+LithoSharp.SiteText.SearchStatusHits.init -> void
+LithoSharp.SiteText.SearchStatusHitsInTag.get -> string!
+LithoSharp.SiteText.SearchStatusHitsInTag.init -> void
+LithoSharp.SiteText.SearchStatusLoadError.get -> string!
+LithoSharp.SiteText.SearchStatusLoadError.init -> void
+LithoSharp.SiteText.SearchStatusNoMatch.get -> string!
+LithoSharp.SiteText.SearchStatusNoMatch.init -> void
+LithoSharp.SiteText.SearchStatusNoMatchInTag.get -> string!
+LithoSharp.SiteText.SearchStatusNoMatchInTag.init -> void
+LithoSharp.SiteText.SearchStatusNoPosts.get -> string!
+LithoSharp.SiteText.SearchStatusNoPosts.init -> void
+LithoSharp.SiteText.SearchStatusNoPostsInTag.get -> string!
+LithoSharp.SiteText.SearchStatusNoPostsInTag.init -> void
+LithoSharp.SiteText.SearchStatusShowingTopSuffix.get -> string!
+LithoSharp.SiteText.SearchStatusShowingTopSuffix.init -> void
+LithoSharp.SiteText.SearchStatusTaggedPosts.get -> string!
+LithoSharp.SiteText.SearchStatusTaggedPosts.init -> void
+LithoSharp.SiteText.SiteNavigationLabel.get -> string!
+LithoSharp.SiteText.SiteNavigationLabel.init -> void
+LithoSharp.SiteText.TableOfContentsEmpty.get -> string!
+LithoSharp.SiteText.TableOfContentsEmpty.init -> void
+LithoSharp.SiteText.TableOfContentsHeading.get -> string!
+LithoSharp.SiteText.TableOfContentsHeading.init -> void
+LithoSharp.SiteText.TagsEmpty.get -> string!
+LithoSharp.SiteText.TagsEmpty.init -> void
+LithoSharp.SiteText.TagsHeading.get -> string!
+LithoSharp.SiteText.TagsHeading.init -> void
+LithoSharp.SiteText.TagsIntro.get -> string!
+LithoSharp.SiteText.TagsIntro.init -> void
+LithoSharp.SiteThemeOptions
+LithoSharp.SiteThemeOptions.AdditionalCss.get -> string!
+LithoSharp.SiteThemeOptions.AdditionalCss.init -> void
+LithoSharp.SiteThemeOptions.BrandPrefix.get -> string!
+LithoSharp.SiteThemeOptions.BrandPrefix.init -> void
+LithoSharp.SiteThemeOptions.DefaultSocialSubtitle.get -> string!
+LithoSharp.SiteThemeOptions.DefaultSocialSubtitle.init -> void
+LithoSharp.SiteThemeOptions.ThemeColor.get -> string!
+LithoSharp.SiteThemeOptions.ThemeColor.init -> void
+LithoSharp.Validation.ContentValidationContext
+LithoSharp.Validation.ContentValidationContext.ContentDirectory.get -> string!
+LithoSharp.Validation.ContentValidationContext.ContentDirectory.init -> void
+LithoSharp.Validation.ContentValidationContext.ContentValidationContext(LithoSharp.Configuration.SiteSettings! Site, string! ContentDirectory) -> void
+LithoSharp.Validation.ContentValidationContext.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.Validation.ContentValidationContext.Site.init -> void
+LithoSharp.Validation.IContentValidator
+LithoSharp.Validation.IContentValidator.Validate(LithoSharp.Content.MarkdownPost! post, LithoSharp.Validation.ContentValidationContext! context) -> void
+LithoSharp.Validation.RequiredSummaryValidator
+LithoSharp.Validation.RequiredSummaryValidator.RequiredSummaryValidator() -> void
+LithoSharp.Validation.RequiredSummaryValidator.Validate(LithoSharp.Content.MarkdownPost! post, LithoSharp.Validation.ContentValidationContext! context) -> void
+static LithoSharp.Content.MarkdownDocumentParser.SplitFrontMatter(string! text, string! path) -> (string! Yaml, string! Body)
+static LithoSharp.Content.MarkdownFrontMatterYaml.Deserialize(string! yaml) -> LithoSharp.Content.PostFrontMatter?
+static LithoSharp.Content.MarkdownFrontMatterYaml.Deserialize<T>(string! yaml) -> T?
+static LithoSharp.Content.MarkdownFrontMatterYaml.Serialize(LithoSharp.Content.PostFrontMatter! frontMatter) -> string!
+static LithoSharp.Content.SlugHelper.ToSlug(string! value) -> string!
+static LithoSharp.Html.Encode(string? value) -> string!
+static LithoSharp.SiteFormatting.FormatDateTime(LithoSharp.Configuration.SiteSettings! site, System.DateTimeOffset value) -> string!
+static LithoSharp.SiteFormatting.FormatMonth(LithoSharp.Configuration.SiteSettings! site, System.DateTimeOffset value) -> string!
+static LithoSharp.SiteFormatting.ToSiteTime(LithoSharp.Configuration.SiteSettings! site, System.DateTimeOffset value) -> System.DateTimeOffset
+static LithoSharp.SiteGenerator.Validate(LithoSharp.Configuration.SiteSettings! site, string! contentDirectory, System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>! posts, LithoSharp.SiteCustomization? customization = null) -> void
+static LithoSharp.SiteText.English.get -> LithoSharp.SiteText!
+static LithoSharp.SiteText.Japanese.get -> LithoSharp.SiteText!

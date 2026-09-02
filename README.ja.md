@@ -16,6 +16,8 @@ LithoSharp はコンソールアプリケーションやビルドパイプライ
 - canonical、Open Graph、Twitter Card メタデータ、任意の favicon とソーシャル画像
 - front matter の検証。タイトルと日時は必須で、既定では要約も必須
 - 言語モデル向けの `llms.txt` を任意で生成
+- 型付き Markdown、JSON、CSV コレクションからルート付きページを生成し、公開判定と
+  派生成果物へ反映
 - favicon やソーシャル画像の元ファイルがない場合も、該当する出力だけを省略して完全な HTML サイトを生成
 
 ## インストール
@@ -34,6 +36,7 @@ Markdown を読み込み、必要に応じて検証し、サイトを生成し�
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Routing;
 
 var site = new SiteSettings
 {
@@ -58,9 +61,31 @@ var customization = new SiteCustomization
 
 var posts = await new MarkdownPostReader().ReadAllAsync("content");
 SiteGenerator.Validate(site, "content", posts, customization);
-var result = await new SiteGenerator().GenerateAsync(site, posts, "_site", clean: true, customization);
+var options = new SiteGenerationOptions
+{
+    EnvironmentName = "Production"
+};
+var result = await new SiteGenerator().GenerateAsync(
+    site, posts, "_site", clean: true, customization, options, CancellationToken.None);
 
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
+```
+
+公開時刻と環境を明示する場合は、`GenerateWithOptionsAsync` を使用します。
+
+```csharp
+var result = await new SiteGenerator().GenerateWithOptionsAsync(
+    site,
+    posts,
+    "_site",
+    clean: true,
+    customization: null,
+    new SiteGenerationOptions
+    {
+        BuildTimestamp = DateTimeOffset.Parse("2026-01-02T12:00:00Z"),
+        EnvironmentName = "Production"
+    },
+    CancellationToken.None);
 ```
 
 実行可能な Docs サンプルは [`samples/LithoSharp.DocsSample`](samples/LithoSharp.DocsSample) にあります。従来の Blog レイアウトは [`samples/LithoSharp.Sample`](samples/LithoSharp.Sample) で確認できます。
@@ -82,6 +107,11 @@ date: "2026-01-02T09:00:00Z"
 summary: "A short description used in listings and metadata."
 sidebar_position: 1
 sidebar_label: "Start here"
+draft: false
+publish_from: "2026-01-01T00:00:00Z"
+publish_until: "2027-01-01T00:00:00Z"
+environments:
+  - Production
 tags:
   - intro
 sources:
@@ -102,6 +132,10 @@ Body written in Markdown.
 | `summary` | string | 既定では必須 | 一覧、フィード、`og:description` に使用する短い説明。既定の `RequiredSummaryValidator` が必須にします。変更するには検証器を置き換えます。 |
 | `sidebar_position` | integer | いいえ | Docs ナビゲーションの順序。小さい値ほど先に表示します。未指定の文書はラベル、次にパスで並べます。 |
 | `sidebar_label` | string | いいえ | Docs ナビゲーションの表示名。未指定時は `title` を使用します。 |
+| `draft` | boolean | いいえ | `true` の場合は、ページと派生成果物のすべてから投稿を除外します。既定値は `false` です。 |
+| `publish_from` | string (ISO 8601) | いいえ | 公開開始時刻です。解決済みのビルド時刻がこの時刻と同じ場合は公開します。 |
+| `publish_until` | string (ISO 8601) | いいえ | 公開終了時刻です。解決済みのビルド時刻がこの時刻と同じ場合は公開しません。 |
+| `environments` | list of strings | いいえ | 公開を許可する生成環境です。大文字と小文字を区別せずに比較し、空の一覧はすべての環境を許可します。 |
 | `tags` | list of strings | いいえ | 任意のタグ。タグページとクライアント側検索に使用します。 |
 | `sources` | list of objects | いいえ | 記事の出典。詳細は次を参照してください。 |
 
@@ -175,17 +209,128 @@ public sealed class LandingTemplate : ISiteTemplate
 var customization = new SiteCustomization { Template = new LandingTemplate() };
 ```
 
+### コレクションの集約ページ
+
+`ContentCollection<TFrontMatter, TBody>.GeneratePages<TPageContent>` は、
+公開判定後のエントリからタグ別、年別、カテゴリ別、任意分類の型付きページを生成します。
+
+```csharp
+var tagPages = articles.GeneratePages(
+    new ContentCollectionId("article-tags"),
+    entry => entry.FrontMatter.Tags,
+    group => new SitePage<TagIndex>(
+        new PageId($"tag:{group.Key}"),
+        SiteRoute.ForDirectoryIndex($"tags/{group.Key}"),
+        new TagIndex(group.Key, group.Entries),
+        new PageMetadata($"{group.Key} の記事")),
+    (page, context) => context.RenderDocument(RenderTagIndex(page.Content)),
+    transformationId: new ContentTransformationId("tag-index:v1"),
+    isCacheable: true);
+```
+
+戻り値の `SiteContentCollection` を `SiteGenerationOptions.ContentCollections`
+へ登録します。キーは Unicode NFC へ正規化し、大文字と小文字を区別して決定的に
+並べます。空グループ、依存宣言、診断、各出力への統合規則は
+[型付き Markdown コレクション](docs/typed-markdown-collections.md)を参照してください。
+
+Docs サンプルの `typed-content` には、Markdown コレクションの読み込みから集約ページの
+生成までを一通り実行する例があります。同じ決定的な生成を 2 回実行し、1 回目の
+`BuildPlan` を `PreviousBuildPlan` として渡し、`BuildReport` も表示します。
+従来の Blog サンプルは `MarkdownPostReader` との互換性を確認できるよう残しています。
+
+JSON と CSV も同じ登録契約を使用します。入力を増やしすぎず、小さなデータで
+確認できます。YAML も同じ厳格な YAML ポリシーで読み込めます。YAML の例:
+
+```csharp
+var loader = new YamlContentCollectionLoader<ArticleFrontMatter, string>(
+    "data/articles",
+    new ContentCollectionId("yaml-articles"),
+    new ReflectionContentFrontMatterBinder<ArticleFrontMatter>(),
+    values => (string)values["body"]!,
+    entry => SiteRoute.ForFile($"articles/{entry.Id.Value}.html"),
+    entry => new PageMetadata(entry.FrontMatter.Title, entry.FrontMatter.Summary));
+var loaded = await loader.LoadAsync(cancellationToken);
+```
+
+`.yaml` と `.yml` を再帰的に検出し、オブジェクトまたはオブジェクト配列を
+読み込みます。重複キー、エイリアス、非文字列キー、無効な UTF-8 は診断として
+報告されます。
+
 ## 公開 API
 
 - `new SiteGenerator().GenerateAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization = null, CancellationToken ct = default)`
+- `new SiteGenerator().GenerateWithOptionsAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization, SiteGenerationOptions options, CancellationToken ct)`
 - `static SiteGenerator.Validate(SiteSettings site, string contentDirectory, IReadOnlyList<MarkdownPost> posts, SiteCustomization? customization = null)`
 - `new MarkdownPostReader().ReadAllAsync(string contentDirectory)`
-- `SiteCustomization`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
+- `SiteCustomization`, `SiteGenerationOptions`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
+- `SiteContentCollection<TFrontMatter, TBody>`, `ContentPageRenderingContext`,
+  `ContentPageGroup<TFrontMatter, TBody>`, `GeneratePages<TPageContent>`
 - `ISiteTemplate`, `SiteTemplateContext`, `SiteTemplateResult`, `SiteTemplateFile`, `SiteTemplatePage`, `SiteTemplatePageLink`, `SiteTemplateHeading`, `SiteTemplateNavigationNode`, `SiteTemplateDocument`
 - `DocsSiteTemplate`, `BlogSiteTemplate`
 - `IContentValidator`, `ContentValidationContext`, `RequiredSummaryValidator`
 
 名前空間は `LithoSharp`、`LithoSharp.Configuration`、`LithoSharp.Content`、`LithoSharp.Validation`、`LithoSharp.Search` です。
+
+互換性の基準は、[生成サイトの互換性契約](docs/compatibility-contract.ja.md)、
+[英語版](docs/compatibility-contract.md)、および
+[公開 API の一覧と互換性ポリシー](docs/public-api-inventory.md)に記載しています。
+
+再現可能な出力が必要な場合は、`SiteGenerationOptions.BuildTimestamp` を設定します。
+未設定の場合は、有効な Unix タイムスタンプ形式の `SOURCE_DATE_EPOCH`、現在の UTC
+時刻の順に使用します。`SOURCE_DATE_EPOCH` が不正な場合は、現在時刻へ切り替えず、
+エラーとして生成を停止します。
+
+`SiteGenerationOptions.EnvironmentName` は、front matter の `environments`
+に含まれる投稿を選びます。既定値は `Production` です。`environments`
+を指定していない投稿は、どの環境でも公開対象になります。下書き、公開前、公開終了後、
+環境不一致の投稿はテンプレートへ渡す前に除外するため、ナビゲーション、一覧、検索、
+RSS、サイトマップ、`llms.txt`、投稿別ソーシャル画像にも含まれません。
+
+### ルートと診断
+
+`SiteRoute` は公開 URL と物理的な出力パスを一体で表します。既存の
+`.html` 形式には `ForFile` を、末尾スラッシュと `index.html` の組み合わせ
+には `ForDirectoryIndex` を使用します。
+
+```csharp
+var file = SiteRoute.ForFile("guides/install.html", site.BaseUrl);
+var directory = SiteRoute.ForDirectoryIndex("guides", site.BaseUrl);
+
+Console.WriteLine(file.PublicPath);             // /product/guides/install.html
+Console.WriteLine(directory.RelativeOutputPath); // guides/index.html
+```
+
+ジェネレーターは、ページ、テンプレート、共通成果物のルートを出力前に
+検証します。重複、大文字と小文字だけが異なるパス、予約済みパス、
+安全でないパス、ファイルとディレクトリの祖先競合がある場合は
+`SiteRouteValidationException` をスローします。`exception.Diagnostics` から
+安定した診断 ID と定義元の位置を確認できます。詳細は
+[生成サイトのルートと互換性契約](docs/compatibility-contract.ja.md)と
+[英語版](docs/compatibility-contract.md)を参照してください。
+
+`SiteGenerationResult.PostCount` は、その生成で公開条件を満たした Markdown 投稿数です。
+`clean: false` では無関係なファイルを保持します。一方、直前に成功した生成で
+ジェネレーター所有として記録され、現在の検証済みビルド計画にないファイルは削除します。
+所有権マニフェストは出力とともに原子的に確定します。マニフェスト導入前に作られた
+出力ツリーは所有権を安全に判定できないため、そのまま保持します。
+
+### 出力の安全性と移植性
+
+ジェネレーターはすべてのルートを検証し、描画を完了してから、同じユーザーの
+協調プロセス間で原子的な出力トランザクションを実行します。これは特権ユーザーや
+管理者、別ユーザーからの操作、原子的な rename を提供しないファイルシステムに
+対する防御ではありません。所有権は制限された兄弟 sidecar に記録します。
+Windows の owner/group/DACL と Unix の permission mode は可能な範囲で保持しますが、
+Unix の ACL、拡張属性、所有者は移植可能には保持できません。sidecar 自体も原子的に
+確定します。sidecar 導入前のツリーは推測で削除せず、失敗したクリーンアップは
+次回実行の回復登録として残ることがあります。
+
+ルートとグループの識別子は NFC 正規化後も大文字と小文字を区別します。出力パスは
+すべての OS で `/` 区切りとし、予約名や大文字と小文字だけが異なる衝突は変更前に拒否します。
+型付きローダーの入力エラーは安定した ID とソース位置を持つ診断として返し、構成や
+ファイルシステムの失敗は例外として扱います。移行では従来の投稿と型付きコレクションを
+並行して登録し、コレクション単位で切り替えてください。0.2 では API と依存関係が
+一つのまとまったアセンブリを形成しているため、物理的な NuGet パッケージ分割は行いません。
 
 ## 資産とフォントに関する注意
 

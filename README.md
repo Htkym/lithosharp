@@ -25,6 +25,8 @@ the core library has no opinions about your brand, copy, or validation rules.
   image assets
 - Front matter validation (title and date required; summary required by default)
 - Optional `llms.txt` summary for language models
+- Typed Markdown, JSON, and CSV collections that can emit routed pages and
+  participate in publication filtering and derived site artifacts
 - Graceful degradation: when favicon or social-image sources are missing, those
   outputs are skipped and a complete HTML site is still produced
 
@@ -44,6 +46,7 @@ The whole flow is three calls: read posts, optionally validate, then generate.
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Routing;
 
 var site = new SiteSettings
 {
@@ -68,9 +71,32 @@ var customization = new SiteCustomization
 
 var posts = await new MarkdownPostReader().ReadAllAsync("content");
 SiteGenerator.Validate(site, "content", posts, customization);
-var result = await new SiteGenerator().GenerateAsync(site, posts, "_site", clean: true, customization);
+var options = new SiteGenerationOptions
+{
+    EnvironmentName = "Production"
+};
+var result = await new SiteGenerator().GenerateAsync(
+    site, posts, "_site", clean: true, customization, options, CancellationToken.None);
 
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
+```
+
+For an explicit publication timestamp and environment, use
+`GenerateWithOptionsAsync`:
+
+```csharp
+var result = await new SiteGenerator().GenerateWithOptionsAsync(
+    site,
+    posts,
+    "_site",
+    clean: true,
+    customization: null,
+    new SiteGenerationOptions
+    {
+        BuildTimestamp = DateTimeOffset.Parse("2026-01-02T12:00:00Z"),
+        EnvironmentName = "Production"
+    },
+    CancellationToken.None);
 ```
 
 A runnable documentation example lives in
@@ -97,6 +123,11 @@ date: "2026-01-02T09:00:00Z"
 summary: "A short description used in listings and metadata."
 sidebar_position: 1
 sidebar_label: "Start here"
+draft: false
+publish_from: "2026-01-01T00:00:00Z"
+publish_until: "2027-01-01T00:00:00Z"
+environments:
+  - Production
 tags:
   - intro
 sources:
@@ -117,6 +148,10 @@ Body written in Markdown.
 | `summary` | string          | By default | Short description used in listings, the feed, and `og:description`. Required by the default `RequiredSummaryValidator`; replace the validator to change this. |
 | `sidebar_position` | integer | No | Docs navigation order. Lower values come first; unspecified documents are ordered by label and path. |
 | `sidebar_label` | string | No | Docs navigation label. Falls back to `title`. |
+| `draft` | boolean | No | When `true`, excludes the post from generated pages and every derived artifact. Defaults to `false`. |
+| `publish_from` | string (ISO 8601) | No | Inclusive publication start evaluated against the resolved build timestamp. |
+| `publish_until` | string (ISO 8601) | No | Exclusive publication end evaluated against the resolved build timestamp. |
+| `environments` | list of strings | No | Allowed generation environments, compared case-insensitively. An empty list allows every environment. |
 | `tags`    | list of strings | No       | Free-form tags. Drive the tags page and client-side search.           |
 | `sources` | list of objects | No       | Provenance for the post. See below.                                   |
 
@@ -207,20 +242,138 @@ public sealed class LandingTemplate : ISiteTemplate
 var customization = new SiteCustomization { Template = new LandingTemplate() };
 ```
 
+### Generated collection pages
+
+`ContentCollection<TFrontMatter, TBody>.GeneratePages<TPageContent>` builds
+typed tag, year, category, or custom index pages after publication filtering:
+
+```csharp
+var tagPages = articles.GeneratePages(
+    new ContentCollectionId("article-tags"),
+    entry => entry.FrontMatter.Tags,
+    group => new SitePage<TagIndex>(
+        new PageId($"tag:{group.Key}"),
+        SiteRoute.ForDirectoryIndex($"tags/{group.Key}"),
+        new TagIndex(group.Key, group.Entries),
+        new PageMetadata($"Articles tagged {group.Key}")),
+    (page, context) => context.RenderDocument(RenderTagIndex(page.Content)),
+    transformationId: new ContentTransformationId("tag-index:v1"),
+    isCacheable: true);
+```
+
+Register the returned `SiteContentCollection` in
+`SiteGenerationOptions.ContentCollections`. Keys use NFC normalization,
+case-sensitive identity, and deterministic ordering. See
+[typed Markdown collections](docs/typed-markdown-collections.md) for empty
+groups, dependency declarations, diagnostics, and integration rules.
+
+The Docs sample contains a complete Markdown collection and aggregate-page flow
+under `typed-content`. It runs the same deterministic build twice, passes the
+first `BuildPlan` as `PreviousBuildPlan`, and prints the resulting
+`BuildReport`. The legacy Blog sample remains unchanged for compatibility.
+
+JSON and CSV use the same registration contract. A focused JSON loader can map
+an object body without adding another site model:
+
+```csharp
+using System.Text.Json;
+
+var loader = new JsonContentCollectionLoader<ArticleFrontMatter, JsonElement>(
+    "data/articles",
+    new ContentCollectionId("json-articles"),
+    new ReflectionContentFrontMatterBinder<ArticleFrontMatter>(),
+    element => element.Clone(),
+    entry => SiteRoute.ForFile($"articles/{entry.Id.Value}.html"),
+    entry => new PageMetadata(entry.FrontMatter.Title, entry.FrontMatter.Summary));
+var loaded = await loader.LoadAsync(cancellationToken);
+```
+
 ## Public API
 
 - `new SiteGenerator().GenerateAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization = null, CancellationToken ct = default)`
+- `new SiteGenerator().GenerateWithOptionsAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization, SiteGenerationOptions options, CancellationToken ct)`
 - `static SiteGenerator.Validate(SiteSettings site, string contentDirectory, IReadOnlyList<MarkdownPost> posts, SiteCustomization? customization = null)`
 - `new MarkdownPostReader().ReadAllAsync(string contentDirectory)`
-- `SiteCustomization`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
+- `SiteCustomization`, `SiteGenerationOptions`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
+- `SiteContentCollection<TFrontMatter, TBody>`, `ContentPageRenderingContext`,
+  `ContentPageGroup<TFrontMatter, TBody>`, `GeneratePages<TPageContent>`
 - `ISiteTemplate`, `SiteTemplateContext`, `SiteTemplateResult`, `SiteTemplateFile`,
   `SiteTemplatePage`, `SiteTemplatePageLink`, `SiteTemplateHeading`,
   `SiteTemplateNavigationNode`, `SiteTemplateDocument`
 - `DocsSiteTemplate`, `BlogSiteTemplate`
 - `IContentValidator`, `ContentValidationContext`, `RequiredSummaryValidator`
 
+Compatibility baselines are documented in the
+[generated site compatibility contract](docs/compatibility-contract.md), its
+[Japanese version](docs/compatibility-contract.ja.md), and the
+[public API inventory and compatibility policy](docs/public-api-inventory.md).
+
 Namespaces: `LithoSharp`, `LithoSharp.Configuration`, `LithoSharp.Content`,
 `LithoSharp.Validation`, `LithoSharp.Search`.
+
+For reproducible output, set `SiteGenerationOptions.BuildTimestamp`. When it is
+not set, LithoSharp uses a valid `SOURCE_DATE_EPOCH` Unix timestamp, then falls
+back to the current UTC time. An invalid `SOURCE_DATE_EPOCH` stops generation
+with an error instead of silently using the current time.
+
+`SiteGenerationOptions.EnvironmentName` selects posts whose `environments`
+front matter contains that name. The default is `Production`; posts without an
+`environments` restriction remain publishable in every environment. Draft,
+future, expired, or environment-mismatched posts are removed before templates
+receive content, so they do not appear in navigation, indexes, search, RSS,
+sitemaps, `llms.txt`, or per-post social images.
+
+### Routes and diagnostics
+
+`SiteRoute` represents both a public URL and its physical output path. Use
+`ForFile` for the existing `.html` convention or `ForDirectoryIndex` for a
+trailing-slash URL backed by `index.html`:
+
+```csharp
+var file = SiteRoute.ForFile("guides/install.html", site.BaseUrl);
+var directory = SiteRoute.ForDirectoryIndex("guides", site.BaseUrl);
+
+Console.WriteLine(file.PublicPath);          // /product/guides/install.html
+Console.WriteLine(directory.RelativeOutputPath); // guides/index.html
+```
+
+The generator validates all page, template, and shared-artifact routes before
+writing output. Duplicate, case-only, reserved, unsafe, or file/directory
+ancestor conflicts throw `SiteRouteValidationException`; inspect
+`exception.Diagnostics` for stable IDs and source locations. See the
+[route and generated-site compatibility contract](docs/compatibility-contract.md)
+and its [Japanese version](docs/compatibility-contract.ja.md) for details.
+
+`SiteGenerationResult.PostCount` is the number of published Markdown posts
+generated in that run. With `clean: false`, LithoSharp preserves unrelated
+files but removes files recorded as generator-owned by the previous successful
+run when they are absent from the current validated build plan. The ownership
+manifest is committed atomically with the output. Trees created before this
+manifest existed are preserved because their ownership cannot be established
+safely.
+
+### Output safety and portability
+
+Generation validates every route and completes rendering before an atomic
+same-user output transaction. The lock and transaction metadata exclude
+cooperating processes running as the same user; this is not a defense against a
+privileged administrator, another user with directory access, or a filesystem
+without the required atomic rename semantics. Ownership is recorded in a
+restricted sibling sidecar. Windows owner/group/DACL and Unix permission-mode
+preservation are supported where exposed by the platform, but Unix ACLs,
+extended attributes, and ownership cannot be preserved portably. The sidecar
+is committed atomically; stale or pre-sidecar trees are retained rather than
+guessed at, and failed cleanup may leave a recovery registration for the next
+run.
+
+Route and group identity are NFC-normalized and case-sensitive. Output paths
+use `/` separators on every platform, while reserved names and case-only
+collisions are rejected before mutation. Typed-loader input errors are returned
+as diagnostics with stable IDs and source locations; configuration and
+file-system failures remain exceptions. The migration path is to add typed
+collections beside legacy posts and move one collection at a time. No physical
+NuGet package split is made in 0.2 because the current API and dependency
+boundary is one coherent assembly.
 
 ## Notes on assets and fonts
 

@@ -1,12 +1,43 @@
+using LithoSharp.Build;
+
 namespace LithoSharp;
 
 /// <summary>
-/// The result of generating a static site.
+/// 静的サイトの生成結果です。
 /// </summary>
-/// <param name="OutputDirectory">The output directory.</param>
-/// <param name="PostCount">Number of posts generated.</param>
-/// <param name="GeneratedFiles">The list of generated files.</param>
+/// <param name="OutputDirectory">出力ディレクトリ。</param>
+/// <param name="PostCount">公開条件を満たして生成された Markdown 投稿数。</param>
+/// <param name="GeneratedFiles">この生成で書き込んだファイルの一覧。</param>
 public sealed record SiteGenerationResult(
     string OutputDirectory,
     int PostCount,
-    IReadOnlyList<string> GeneratedFiles);
+    IReadOnlyList<string> GeneratedFiles)
+{
+    /// <summary>この生成で検証した不変のビルド計画です。</summary>
+    public SiteBuildPlan BuildPlan { get; init; } = SiteBuildPlan.Create([]);
+
+    /// <summary>今回の生成を決定的に要約したビルドレポートです。</summary>
+    public SiteBuildReport BuildReport { get; init; } = new(
+        DateTimeOffset.UnixEpoch,
+        "Production",
+        "Unknown");
+
+    /// <summary>従来の位置指定メンバーだけを使って、生成結果が等しいかどうかを判定します。</summary>
+    /// <param name="other">比較する生成結果。</param>
+    /// <returns>従来の位置指定メンバーがすべて等しい場合は <see langword="true"/>。</returns>
+    public bool Equals(SiteGenerationResult? other) =>
+        other is not null
+        && StringComparer.Ordinal.Equals(OutputDirectory, other.OutputDirectory)
+        && PostCount == other.PostCount
+        && EqualityComparer<IReadOnlyList<string>>.Default.Equals(
+            GeneratedFiles,
+            other.GeneratedFiles);
+
+    /// <summary>従来の位置指定メンバーだけに基づくハッシュコードを返します。</summary>
+    /// <returns>出力ディレクトリ、投稿数、生成ファイル一覧から計算したハッシュコード。</returns>
+    public override int GetHashCode() =>
+        HashCode.Combine(
+            StringComparer.Ordinal.GetHashCode(OutputDirectory),
+            PostCount,
+            EqualityComparer<IReadOnlyList<string>>.Default.GetHashCode(GeneratedFiles));
+}

@@ -5,6 +5,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/LithoSharp.Performance/LithoSharp.Performance.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/LithoSharp.Sample/LithoSharp.Sample.csproj" />
     <Project Path="samples/LithoSharp.DocsSample/LithoSharp.DocsSample.csproj" />

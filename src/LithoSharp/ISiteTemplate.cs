@@ -1,5 +1,6 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Pages;
 
 namespace LithoSharp;
 
@@ -28,6 +29,7 @@ public sealed class SiteTemplateContext
         SiteText text,
         SiteThemeOptions theme,
         IReadOnlyList<SiteExtraPage> extraPages,
+        IReadOnlyList<RenderedPage> contentPages,
         IReadOnlyList<SiteTemplatePage> pages,
         SiteTemplateNavigationNode navigation,
         SiteGenerator.RenderContext configuration)
@@ -38,6 +40,7 @@ public sealed class SiteTemplateContext
         Text = text;
         Theme = theme;
         ExtraPages = extraPages;
+        ContentPages = contentPages;
         Pages = pages;
         Navigation = navigation;
         Configuration = configuration;
@@ -57,6 +60,9 @@ public sealed class SiteTemplateContext
 
     /// <summary>Additional pages.</summary>
     public IReadOnlyList<SiteExtraPage> ExtraPages { get; }
+
+    /// <summary>型付きコンテンツコレクションから描画され、公開条件を満たしたページです。</summary>
+    public IReadOnlyList<RenderedPage> ContentPages { get; }
 
     /// <summary>Documentation pages in navigation order.</summary>
     public IReadOnlyList<SiteTemplatePage> Pages { get; }
