@@ -97,6 +97,12 @@ var result = await new SiteGenerator().GenerateWithOptionsAsync(
 dotnet run --project samples/LithoSharp.DocsSample -- --output _site
 ```
 
+`--check` を付けると、出力確定前のサイト品質検査を実行してテキスト形式のレポートを
+表示します。`--redirect-demo` を付けると、サイトのルートへ移動する `old-home.html` を
+生成します。どちらも任意であり、既定のサンプル出力は変わりません。失敗しきい値、診断 ID、
+出力形式、外部リンク検査、リダイレクトの規則は
+[サイト品質検査](docs/site-quality.md#日本語)を参照してください。
+
 既定の `DocsSiteTemplate` は `content` 配下のディレクトリ構造から左側ナビゲーションを作ります。`intro.md` はトップレベルの文書になり、`guides/install.md` は **guides** グループの下に表示されます。
 
 ## コンテンツと front matter

@@ -8,6 +8,11 @@
         "resolved": "18.0.0",
         "contentHash": "ptHVgcYmLejGuWXV7RMFoEqFKYMXnieOlWLPzEslfDtzZ9ngMhjYwykfqjBN2+fMEAEyobozkj07lKEpR4dssA=="
       },
+      "AngleSharp": {
+        "type": "Transitive",
+        "resolved": "1.7.3",
+        "contentHash": "I8TpSvgOPAVQHjVvXaROZOkIGZdX0tn+e9CUix6mv5pMqfyKO+/zm/dofsXgsxVTJl/sSTnEMFwrdnqxTt2axQ=="
+      },
       "Markdig": {
         "type": "Transitive",
         "resolved": "1.3.2",
@@ -40,6 +45,7 @@
       "lithosharp": {
         "type": "Project",
         "dependencies": {
+          "AngleSharp": "[1.7.3, )",
           "Markdig": "[1.3.2, )",
           "SkiaSharp": "[3.119.4, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[3.119.4, )",

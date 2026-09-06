@@ -74,7 +74,7 @@ finally {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('Markdig', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet')) {
+foreach ($expected in @('AngleSharp', 'Markdig', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

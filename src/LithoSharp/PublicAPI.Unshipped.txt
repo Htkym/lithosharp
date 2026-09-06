@@ -571,3 +571,36 @@ LithoSharp.Content.GeneratedContentBindingContext.TryArray<T>(object! input, boo
 LithoSharp.Content.GeneratedContentBindingContext.TryDictionary<T>(object! input, bool valueAllowsNull, LithoSharp.Content.GeneratedContentValueParser<T>! parser, out System.Collections.Generic.Dictionary<string!, T>! value) -> bool
 static LithoSharp.Content.GeneratedContentBindingContext.TryParseScalar<T>(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
 static LithoSharp.Content.GeneratedContentBindingContext.TryParseEnum<T>(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
+LithoSharp.Quality.ExternalLinkCheckOptions
+LithoSharp.Quality.ExternalLinkCheckOptions.ExternalLinkCheckOptions(string! cacheFilePath, System.TimeSpan? cacheDuration = null, System.TimeSpan? minimumRequestInterval = null, System.TimeSpan? requestTimeout = null) -> void
+LithoSharp.Quality.ExternalLinkCheckOptions.CacheFilePath.get -> string!
+LithoSharp.Quality.ExternalLinkCheckOptions.CacheDuration.get -> System.TimeSpan
+LithoSharp.Quality.ExternalLinkCheckOptions.MinimumRequestInterval.get -> System.TimeSpan
+LithoSharp.Quality.ExternalLinkCheckOptions.RequestTimeout.get -> System.TimeSpan
+LithoSharp.Quality.SiteDiagnosticFormat
+LithoSharp.Quality.SiteDiagnosticFormat.Text = 0 -> LithoSharp.Quality.SiteDiagnosticFormat
+LithoSharp.Quality.SiteDiagnosticFormat.Json = 1 -> LithoSharp.Quality.SiteDiagnosticFormat
+LithoSharp.Quality.SiteDiagnosticFormat.Sarif = 2 -> LithoSharp.Quality.SiteDiagnosticFormat
+LithoSharp.Quality.SiteQualityOptions
+LithoSharp.Quality.SiteQualityOptions.SiteQualityOptions(LithoSharp.Diagnostics.SiteDiagnosticSeverity failureThreshold = LithoSharp.Diagnostics.SiteDiagnosticSeverity.Error, bool checkOrphans = true, LithoSharp.Quality.ExternalLinkCheckOptions? externalLinks = null) -> void
+LithoSharp.Quality.SiteQualityOptions.FailureThreshold.get -> LithoSharp.Diagnostics.SiteDiagnosticSeverity
+LithoSharp.Quality.SiteQualityOptions.CheckOrphans.get -> bool
+LithoSharp.Quality.SiteQualityOptions.ExternalLinks.get -> LithoSharp.Quality.ExternalLinkCheckOptions?
+LithoSharp.Quality.SiteQualityReport
+LithoSharp.Quality.SiteQualityReport.SiteQualityReport(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>? diagnostics = null) -> void
+LithoSharp.Quality.SiteQualityReport.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Quality.SiteQualityReport.Format(LithoSharp.Quality.SiteDiagnosticFormat format) -> string!
+LithoSharp.Quality.SiteQualityValidationException
+LithoSharp.Quality.SiteQualityValidationException.SiteQualityValidationException(LithoSharp.Quality.SiteQualityReport! report) -> void
+LithoSharp.Quality.SiteQualityValidationException.Report.get -> LithoSharp.Quality.SiteQualityReport!
+LithoSharp.Quality.SiteQualityValidationException.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.SiteGenerationOptions.Quality.get -> LithoSharp.Quality.SiteQualityOptions?
+LithoSharp.SiteGenerationOptions.Quality.init -> void
+LithoSharp.SiteGenerationOptions.Redirects.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Routing.SiteRedirect!>!
+LithoSharp.SiteGenerationOptions.Redirects.init -> void
+LithoSharp.SiteGenerationResult.QualityReport.get -> LithoSharp.Quality.SiteQualityReport!
+LithoSharp.SiteGenerationResult.QualityReport.init -> void
+LithoSharp.Routing.SiteRedirect
+LithoSharp.Routing.SiteRedirect.SiteRedirect(LithoSharp.Routing.SiteRoute! source, LithoSharp.Routing.SiteRoute! target) -> void
+LithoSharp.Routing.SiteRedirect.Source.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Routing.SiteRedirect.Target.get -> LithoSharp.Routing.SiteRoute!

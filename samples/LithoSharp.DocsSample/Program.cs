@@ -1,12 +1,16 @@
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
+using LithoSharp.Quality;
 using LithoSharp.Routing;
 
 var output = GetArgument(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "_site");
 var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDirectory, "content");
 var typedContent = Path.Combine(AppContext.BaseDirectory, "typed-content");
+var check = args.Contains("--check", StringComparer.Ordinal);
+var redirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal);
 
 var site = new SiteSettings
 {
@@ -85,25 +89,39 @@ var options = new SiteGenerationOptions
     Assets = [articleSource],
     BuildTimestamp = DateTimeOffset.Parse("2026-09-02T00:00:00Z"),
     EnvironmentName = "Production",
+    Quality = check ? new SiteQualityOptions() : null,
+    Redirects = redirectDemo
+        ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
+        : [],
     ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
         articles, new ArticleLayout(articleSource)), topicPages]
 };
 var generator = new SiteGenerator();
-var firstResult = await generator.GenerateWithOptionsAsync(
-    site, posts, output, clean: true, customization, options, CancellationToken.None);
-var result = await generator.GenerateWithOptionsAsync(
-    site,
-    posts,
-    output,
-    clean: false,
-    customization,
-    options with { PreviousBuildPlan = firstResult.BuildPlan },
-    CancellationToken.None);
+SiteGenerationResult result;
+try
+{
+    var firstResult = await generator.GenerateWithOptionsAsync(
+        site, posts, output, clean: true, customization, options, CancellationToken.None);
+    result = await generator.GenerateWithOptionsAsync(
+        site,
+        posts,
+        output,
+        clean: false,
+        customization,
+        options with { PreviousBuildPlan = firstResult.BuildPlan },
+        CancellationToken.None);
+}
+catch (SiteQualityValidationException exception)
+{
+    Console.Error.WriteLine(exception.Report.Format(SiteDiagnosticFormat.Text));
+    return 1;
+}
 
 Console.WriteLine(
     $"Generated {result.PostCount} Markdown post(s), {articles.Entries.Count} typed article(s), " +
     $"{result.BuildReport.GeneratedArtifacts.Count} artifact(s) into {result.OutputDirectory}.");
 Console.WriteLine($"Build invalidations: {result.BuildReport.Invalidations.Count}.");
+if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
 return 0;
 
 static string? GetArgument(string[] args, string name)

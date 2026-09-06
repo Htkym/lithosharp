@@ -1,9 +1,14 @@
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
+using LithoSharp.Quality;
+using LithoSharp.Routing;
 
 var output = GetArgument(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "_site");
 var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDirectory, "content");
+var check = args.Contains("--check", StringComparer.Ordinal);
+var redirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal);
 
 var site = new SiteSettings
 {
@@ -29,9 +34,29 @@ var customization = new SiteCustomization
 
 var posts = await new MarkdownPostReader().ReadAllAsync(content);
 SiteGenerator.Validate(site, content, posts, customization);
-var result = await new SiteGenerator().GenerateAsync(site, posts, output, clean: true, customization);
+var options = new SiteGenerationOptions
+{
+    Quality = check ? new SiteQualityOptions() : null,
+    Redirects = redirectDemo
+        ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
+        : []
+};
+
+SiteGenerationResult result;
+try
+{
+    result = await new SiteGenerator().GenerateWithOptionsAsync(
+        site, posts, output, clean: true, customization, options, CancellationToken.None);
+}
+catch (SiteQualityValidationException exception)
+{
+    Console.Error.WriteLine(exception.Report.Format(SiteDiagnosticFormat.Text));
+    return 1;
+}
 
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
+if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
+return 0;
 
 static string? GetArgument(string[] args, string name)
 {

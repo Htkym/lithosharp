@@ -15,6 +15,7 @@ using LithoSharp.Content;
 using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
+using LithoSharp.Quality;
 using LithoSharp.Routing;
 using LithoSharp.Search;
 using LithoSharp.Validation;
@@ -207,6 +208,19 @@ public sealed partial class SiteGenerator
             throw new ArgumentNullException(nameof(options.Assets));
         }
 
+        ArgumentNullException.ThrowIfNull(options.Redirects);
+        var redirectDeclarations = options.Redirects.ToArray();
+        if (redirectDeclarations.Any(redirect => redirect is null))
+            throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
+        var outputRoot = Path.GetFullPath(outputDirectory);
+        if (options.Quality?.ExternalLinks is { } external)
+        {
+            var cachePath = Path.GetFullPath(external.CacheFilePath);
+            if (string.Equals(cachePath, outputRoot, PathComparison)
+                || cachePath.StartsWith(Path.TrimEndingDirectorySeparator(outputRoot) + Path.DirectorySeparatorChar, PathComparison))
+                throw new ArgumentException("The external link cache must be outside the site output directory.", nameof(options.Quality));
+        }
+
         customization ??= new SiteCustomization();
         var assetRegistry = await AssetRegistry.CreateAsync(options.Assets, site.BaseUrl, cancellationToken).ConfigureAwait(false);
         var template = customization.Template
@@ -279,7 +293,6 @@ public sealed partial class SiteGenerator
             })
             .ToArray();
 
-        var outputRoot = Path.GetFullPath(outputDirectory);
         var docsNavigation = BuildDocsNavigation(publishedPosts);
         var templatePages = BuildTemplatePages(configuration, docsNavigation);
         var templateNavigation = BuildTemplateNavigation(configuration, docsNavigation, templatePages);
@@ -354,7 +367,9 @@ public sealed partial class SiteGenerator
             artifactRouteTable,
             collectionFiles,
             contentPages);
-        artifactRouteTable.ValidateOrThrow();
+        var redirectOutputs = PrepareRedirects(redirectDeclarations, site.BaseUrl, artifactRouteTable,
+            templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
+                .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath)));
         var baseCommonArtifacts = commonArtifacts
             .Where(route => !contentPages.Any(page =>
                 page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
@@ -416,6 +431,8 @@ public sealed partial class SiteGenerator
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
                 .Concat(assetNodes));
+        if (redirectOutputs.Count != 0)
+            buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Concat(CreateRedirectNodes(redirectOutputs, site.BaseUrl, buildPlan)));
         var ownedArtifactPaths = buildPlan.Artifacts
             .Select(static artifact => artifact.RelativeOutputPath)
             .Order(StringComparer.Ordinal)
@@ -432,6 +449,7 @@ public sealed partial class SiteGenerator
             .ConfigureAwait(false);
         var generatedInStaging = new List<string>();
         IReadOnlyList<string> staleRemovedArtifacts = [];
+        var qualityReport = new SiteQualityReport();
         var committed = false;
         try
         {
@@ -461,6 +479,10 @@ public sealed partial class SiteGenerator
                         cancellationToken)
                     .ConfigureAwait(false);
             }
+
+            foreach (var redirect in redirectOutputs)
+                await WriteTextAsync(outputTransaction.StagingRoot, redirect.File.RelativePath, redirect.File.Content,
+                    generatedInStaging, cancellationToken).ConfigureAwait(false);
 
             foreach (var file in assetRegistry.Files)
             {
@@ -543,6 +565,26 @@ public sealed partial class SiteGenerator
                     .ConfigureAwait(false);
             }
 
+            if (options.Quality is { } qualityOptions)
+            {
+                var textFiles = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
+                    .ToDictionary(file => file.RelativePath, file => file.Content, StringComparer.Ordinal);
+                foreach (var asset in assetRegistry.Files.Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)))
+                    textFiles.Add(asset.RelativePath, new UTF8Encoding(false, true).GetString(asset.Bytes));
+                var pageRoutes = contentPages.Select(page => page.Route).Concat(redirectOutputs.Select(redirect => redirect.Source))
+                    .ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
+                var qualityRoutes = buildPlan.Artifacts.ToDictionary(artifact => artifact.RelativeOutputPath, artifact =>
+                    pageRoutes.TryGetValue(artifact.RelativeOutputPath, out var pageRoute) ? pageRoute
+                    : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
+                    : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
+                qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textFiles, qualityRoutes,
+                    assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
+                    redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
+                    qualityOptions, cancellationToken).ConfigureAwait(false);
+                if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
+                    throw new SiteQualityValidationException(qualityReport);
+            }
+
             await WriteOutputManifestAsync(
                     outputTransaction.StagingRoot,
                     ownedArtifactPaths,
@@ -587,6 +629,7 @@ public sealed partial class SiteGenerator
         return new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
             BuildPlan = buildPlan,
+            QualityReport = qualityReport,
             BuildReport = CreateBuildReport(
                 buildPlan,
                 options.PreviousBuildPlan,
@@ -596,7 +639,7 @@ public sealed partial class SiteGenerator
                 generated,
                 unpublishedPages,
                 staleRemovedArtifacts,
-                outputTransaction.Diagnostics,
+                outputTransaction.Diagnostics.Concat(qualityReport.Diagnostics).ToArray(),
                 outputTransaction.RetainedRecoveryState,
                 template),
         };
@@ -1338,7 +1381,7 @@ public sealed partial class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            configuration.Routes.PostSocialImage(post).RelativeOutputPath);
+            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
     }
 
     private static string RenderDocsExtraPage(
@@ -1573,7 +1616,7 @@ public sealed partial class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            configuration.Routes.PostSocialImage(post).RelativeOutputPath);
+            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
     }
 
     private static string RenderTableOfContents(RenderContext configuration, string postBody)

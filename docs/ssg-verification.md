@@ -210,3 +210,71 @@ is not loaded by this runtime benchmark, and actual render skipping remains phas
 ルート検証の区切り文字配列による余分な割当を修正し、最終測定のメモリ差は全項目で10%以内だった。
 時間には10%を超える悪化が残り、その原因は断定できていない。連続比較と初回値を残し、
 この制限を明記してフェーズ3を採用する。
+
+## Phase 4: links and site quality
+
+Added opt-in DOM inspection with source locations, internal artifact/fragment and
+canonical checks, redirect ownership and graph dependencies, orphan/title/SEO
+diagnostics, deterministic Text/JSON/SARIF reports, and a failure threshold before
+transaction commit. External checks remain disabled unless explicitly configured.
+Their versioned cache, HEAD/GET fallback, redirects, address restrictions, timeout,
+in-flight cancellation, and process-wide request spacing have focused tests with
+an in-memory HTTP handler; validation does not require a live network service.
+
+Release compilation has zero warnings/errors and all 376 TUnit tests pass. Core
+NuGet API/content validation and generator package-content validation pass. Both
+samples run with `--check` and with `--check --redirect-demo`, with zero diagnostics.
+Tests also cover base paths, encoded anchors and HTML entities, srcset, CSS assets,
+empty resource URLs, broken references, duplicate titles, orphans, redirect cycles,
+chains, missing targets, collisions, stale redirect deletion, cancellation, and
+preservation of previously committed output on quality failure.
+
+The first sample check exposed an existing defect: automatic social-image URLs
+were emitted even without the source image needed to generate those files. The
+shared built-in rendering now omits the four image metadata tags and uses the
+`summary` Twitter card when there is no image. Explicit custom image URLs still
+work, and image-backed compatibility fixtures remain unchanged. The existing
+no-image SEO assertion was corrected to check that behavior; no fixture files
+were replaced. Fixed Docs (15 files) and Blog (14 files) outputs were compared
+against phase 2A: exactly 10 and 6 HTML files, respectively, differ only by those
+four omitted lines and the card type. All other bytes and paths match.
+
+The initial performance run is retained under `artifacts/ssg-4/`. It predates the
+social-image fix; its smaller workloads also overlapped an agent's verification,
+so it is not used as the final comparison. Final measurements under
+`artifacts/ssg-4/final/` run sequentially without other build/test/sample commands,
+on the same Windows/.NET 10.0.8 environment as phase 3. Quality is disabled in the
+compatibility performance workloads; the checked samples exercise the DOM path.
+
+| Pages | Workload | Time (ms) | Time delta | Allocation delta | Peak working-set delta |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 100 | clean | 483.2 | +1.5% | -3.5% | +0.7% |
+| 100 | no-op | 340.6 | -14.5% | -2.5% | +0.7% |
+| 100 | single-page-change | 303.5 | -2.5% | -3.0% | +6.2% |
+| 100 | layout-change | 315.7 | -21.2% | -2.6% | +1.6% |
+| 1000 | clean | 2016.1 | +1.0% | -3.4% | +3.6% |
+| 1000 | no-op | 5396.0 | +41.3% | -3.3% | +2.5% |
+| 1000 | single-page-change | 3219.8 | -2.5% | -3.3% | -1.8% |
+| 1000 | layout-change | 3050.1 | -29.7% | -3.0% | -3.6% |
+| 10000 | clean | 36813.3 | -9.7% | -3.9% | +1.3% |
+| 10000 | no-op | 63720.1 | -1.2% | -2.9% | +2.3% |
+| 10000 | single-page-change | 59084.7 | -10.5% | -2.5% | -3.3% |
+| 10000 | layout-change | 64224.5 | -17.9% | -2.2% | -2.7% |
+
+Adopt phase 4 with the remaining 1,000-page no-op timing regression recorded:
+5396.0 ms versus 3819.0 ms (+41.3%). Its cause is not established by these runs;
+the workload still renders all pages and reuses no render cache before phase 6.
+The generated-node and artifact counts are unchanged, allocation is 3.3% lower,
+and neither the smaller nor the larger no-op run shows the same regression.
+No profiler attribution is claimed. All other final time regressions and all
+peak working-set regressions remain below 10%. The smaller HTML after the
+social-image correction reduces allocated bytes by 2.2–3.9% in these workloads.
+
+日本語の検証要約: Releaseビルドは警告・エラー0件、TUnitは376件成功した。
+Docs／Blogの品質検査とリダイレクト例は診断0件で、NuGet互換性・内容検査も成功した。
+サンプル検査で未生成のOGP画像への参照を発見し、共通描画を修正した。
+画像を生成する互換fixtureは維持した。固定サンプルとの全ファイル比較では、画像がない場合の
+メタデータ4行の削除とカード種別以外に差がないことを確認した。
+性能は全規模で割当量が減り、ピークメモリの悪化は10%以内だった。1,000ページのno-opだけは
+時間が41.3%増え、その原因は未特定である。ほかの規模のno-opでは同じ悪化がなく、
+この制限を記録してフェーズ4を採用する。実際の描画省略はフェーズ6で実装する。

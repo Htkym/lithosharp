@@ -272,7 +272,7 @@ public sealed class SeoComponent : ISiteComponent<SeoComponentProps>
             props.OpenGraphType, props.SocialImageUrl.Value, props.SocialImageAlt, props.PublishedAt);
 
     internal static string RenderCore(string siteTitle, string fullTitle, string description,
-        string canonicalUrl, string openGraphType, string socialImageUrl, string socialImageAlt, DateTimeOffset? publishedAt)
+        string canonicalUrl, string openGraphType, string? socialImageUrl, string socialImageAlt, DateTimeOffset? publishedAt)
     {
         var published = publishedAt is null ? "  " : $"  <meta property=\"article:published_time\" content=\"{publishedAt.Value:O}\">";
         return $"  <title>{Html.Encode(fullTitle)}</title>\n"
@@ -283,13 +283,13 @@ public sealed class SeoComponent : ISiteComponent<SeoComponentProps>
             + $"  <meta property=\"og:title\" content=\"{Html.Encode(fullTitle)}\">\n"
             + $"  <meta property=\"og:description\" content=\"{Html.Encode(description)}\">\n"
             + $"  <meta property=\"og:url\" content=\"{Html.Encode(canonicalUrl)}\">\n"
-            + $"  <meta property=\"og:image\" content=\"{Html.Encode(socialImageUrl)}\">\n"
-            + $"  <meta property=\"og:image:alt\" content=\"{Html.Encode(socialImageAlt)}\">\n"
-            + "  <meta name=\"twitter:card\" content=\"summary_large_image\">\n"
+            + (socialImageUrl is null ? string.Empty : $"  <meta property=\"og:image\" content=\"{Html.Encode(socialImageUrl)}\">\n"
+                + $"  <meta property=\"og:image:alt\" content=\"{Html.Encode(socialImageAlt)}\">\n")
+            + $"  <meta name=\"twitter:card\" content=\"{(socialImageUrl is null ? "summary" : "summary_large_image")}\">\n"
             + $"  <meta name=\"twitter:title\" content=\"{Html.Encode(fullTitle)}\">\n"
             + $"  <meta name=\"twitter:description\" content=\"{Html.Encode(description)}\">\n"
-            + $"  <meta name=\"twitter:image\" content=\"{Html.Encode(socialImageUrl)}\">\n"
-            + $"  <meta name=\"twitter:image:alt\" content=\"{Html.Encode(socialImageAlt)}\">\n"
+            + (socialImageUrl is null ? string.Empty : $"  <meta name=\"twitter:image\" content=\"{Html.Encode(socialImageUrl)}\">\n"
+                + $"  <meta name=\"twitter:image:alt\" content=\"{Html.Encode(socialImageAlt)}\">\n")
             + published + "\n";
     }
 }

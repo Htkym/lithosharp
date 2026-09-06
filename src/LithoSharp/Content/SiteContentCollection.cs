@@ -319,7 +319,7 @@ internal sealed class IntegratedContentPage(
             Route,
             Metadata,
             LayoutId,
-            IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
+            configuration.HasSocialImage && IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
                 ? configuration.Routes.ContentSocialImage(Route).RelativeOutputPath
                 : null,
             environmentName,

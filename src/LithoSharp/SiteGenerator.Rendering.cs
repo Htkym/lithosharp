@@ -10,7 +10,7 @@ public sealed partial class SiteGenerator
         string description,
         string canonicalUrl,
         string openGraphType,
-        string socialImageUrl,
+        string? socialImageUrl,
         DateTimeOffset? publishedAt,
         bool docs,
         bool includeBlogNavigation)
@@ -70,8 +70,8 @@ public sealed partial class SiteGenerator
         string? socialImageRelativePath = null,
         bool includeBlogNavigation = true)
     {
-        var socialImageUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(
-            socialImageRelativePath ?? configuration.Routes.DefaultSocialImage.RelativeOutputPath));
+        var socialImageUrl = socialImageRelativePath is not null
+            ? configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath)) : null;
         return DocsPageLayout.RenderCore(configuration, title, body, relativePath, description,
             openGraphType, publishedAt, socialImageUrl, RenderDocsSidebar(configuration, root, currentPagePath), tableOfContents);
     }
@@ -87,8 +87,8 @@ public sealed partial class SiteGenerator
         string? socialImageRelativePath = null,
         bool includeBlogNavigation = true)
     {
-        var socialImageUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(
-            socialImageRelativePath ?? configuration.Routes.DefaultSocialImage.RelativeOutputPath));
+        var socialImageUrl = socialImageRelativePath is not null
+            ? configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath)) : null;
         return BlogPageLayout.RenderCore(configuration, title, body, relativePath, description,
             openGraphType, publishedAt, socialImageUrl, includeBlogNavigation);
     }

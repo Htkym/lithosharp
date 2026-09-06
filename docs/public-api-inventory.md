@@ -41,8 +41,8 @@ documented extension points.
 | `LithoSharp` | `SiteText` | Customization data contract |
 | `LithoSharp` | `SiteThemeOptions` | Customization data contract |
 | `LithoSharp` | `SiteExtraPage` | Extra-page compatibility contract |
-| `LithoSharp` | `SiteGenerationOptions` | Per-run build timestamp, publication environment, and typed content registrations |
-| `LithoSharp` | `SiteGenerationResult` | Generation result contract |
+| `LithoSharp` | `SiteGenerationOptions` | Per-run build timestamp, publication environment, typed content, assets, redirects, and optional quality checks |
+| `LithoSharp` | `SiteGenerationResult` | Generation result contract, including the quality and build reports |
 | `LithoSharp` | `SiteTemplateContext` | Template extension contract |
 | `LithoSharp` | `SiteTemplateDocument` | Template extension contract |
 | `LithoSharp` | `SiteTemplateFile` | Template extension contract |
@@ -80,6 +80,8 @@ documented extension points.
 | `LithoSharp.Diagnostics` | `SiteDiagnostic` | Structured generation diagnostic contract |
 | `LithoSharp.Diagnostics` | `SiteDiagnosticSeverity` | Diagnostic severity contract |
 | `LithoSharp.Diagnostics` | `SiteSourceLocation` | Optional diagnostic source location |
+| `LithoSharp.Quality` | `SiteQualityOptions`, `ExternalLinkCheckOptions` | Pre-commit quality and optional external-link check settings |
+| `LithoSharp.Quality` | `SiteQualityReport`, `SiteDiagnosticFormat`, `SiteQualityValidationException` | Deterministic text, JSON, and SARIF reporting and failure contract |
 | `LithoSharp.Validation` | `IContentValidator` | Validation extension contract |
 | `LithoSharp.Validation` | `ContentValidationContext` | Validation extension contract |
 | `LithoSharp.Validation` | `RequiredSummaryValidator` | Built-in validator selection surface |
@@ -88,6 +90,7 @@ documented extension points.
 | `LithoSharp.Routing` | `SiteRouteValidationResult` | Collected route diagnostic result |
 | `LithoSharp.Routing` | `SiteRouteValidationException` | Invalid route table failure contract |
 | `LithoSharp.Routing` | `SiteRouteDiagnosticIds` | Stable route diagnostic identifiers |
+| `LithoSharp.Routing` | `SiteRedirect` | Owned redirect artifact declaration |
 | `LithoSharp.Pages` | `PageRef<TPage>` | Immutable typed page reference |
 
 ## Potential future deprecation candidates
@@ -139,6 +142,13 @@ Phase 3 adds `StaticContentCollectionAttribute`, `PageRef<TPage>`,
 `LithoSharp.Generators` analyzer package exports `StaticContentGenerator` and generates
 collection-specific binders, schemas, IDs, routes, and typed references from explicit
 `AdditionalFiles`. See the [source-generator contract](source-generators.md).
+
+Phase 4 adds opt-in pre-commit quality checks and owned redirects through
+`SiteGenerationOptions`. Checks return a deterministic `SiteQualityReport` and
+can fail generation at a configured severity without replacing previously
+committed output. External HTTP checks remain separately opt-in and cache outside
+the output directory. Redirect targets must exist; collisions, chains, and cycles
+are rejected. See [site quality checks](site-quality.md).
 
 `src/LithoSharp/PublicAPI.Shipped.txt` is the machine-readable 0.2.0 baseline.
 The `Microsoft.CodeAnalysis.PublicApiAnalyzers` diagnostics for additions and

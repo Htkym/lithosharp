@@ -110,6 +110,12 @@ layout is shown in [`samples/LithoSharp.Sample`](samples/LithoSharp.Sample).
 dotnet run --project samples/LithoSharp.DocsSample -- --output _site
 ```
 
+Add `--check` to run the pre-commit site quality checks and print their text
+report. Add `--redirect-demo` to generate `old-home.html` as a redirect to the
+site root. Both switches are optional, so the default sample output is unchanged.
+See [site quality checks](docs/site-quality.md) for failure thresholds,
+diagnostic IDs, output formats, external-link checks, and redirect rules.
+
 The default `DocsSiteTemplate` uses the directory structure under `content` for its
 left navigation. `intro.md` becomes a top-level document and
 `guides/install.md` appears under a **guides** group.

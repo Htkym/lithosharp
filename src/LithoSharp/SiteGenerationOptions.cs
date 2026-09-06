@@ -1,6 +1,8 @@
 namespace LithoSharp;
 
 using LithoSharp.Content;
+using LithoSharp.Quality;
+using LithoSharp.Routing;
 
 /// <summary>
 /// 1 回の静的サイト生成を制御するオプションです。
@@ -27,4 +29,10 @@ public sealed record SiteGenerationOptions
 
     /// <summary>今回の生成へ接続する静的資産です。</summary>
     public IReadOnlyList<SiteAsset> Assets { get; init; } = [];
+
+    /// <summary>通常の成果物として生成するリダイレクトです。</summary>
+    public IReadOnlyList<SiteRedirect> Redirects { get; init; } = [];
+
+    /// <summary>出力確定前の品質検査です。未指定の場合は検査もネットワーク通信も行いません。</summary>
+    public SiteQualityOptions? Quality { get; init; }
 }

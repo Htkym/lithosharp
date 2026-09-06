@@ -1,4 +1,5 @@
 using LithoSharp.Build;
+using LithoSharp.Quality;
 
 namespace LithoSharp;
 
@@ -15,6 +16,9 @@ public sealed record SiteGenerationResult(
 {
     /// <summary>この生成で検証した不変のビルド計画です。</summary>
     public SiteBuildPlan BuildPlan { get; init; } = SiteBuildPlan.Create([]);
+
+    /// <summary>出力確定前に収集した品質診断です。検査が無効な場合は空です。</summary>
+    public SiteQualityReport QualityReport { get; init; } = new();
 
     /// <summary>今回の生成を決定的に要約したビルドレポートです。</summary>
     public SiteBuildReport BuildReport { get; init; } = new(

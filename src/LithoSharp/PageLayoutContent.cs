@@ -13,7 +13,7 @@ public sealed record PageLayoutContent(IHtmlContent Body)
     /// <summary>Open Graph content type. Defaults to website.</summary>
     public string OpenGraphType { get; init; } = "website";
 
-    /// <summary>Optional social preview image URL. Defaults to the site's generated image.</summary>
+    /// <summary>Optional social preview image URL. Defaults to the site's generated image when one is available.</summary>
     public SiteUrl? SocialImageUrl { get; init; }
 
     /// <summary>Whether Blog navigation, search, feed link, and script are included.</summary>

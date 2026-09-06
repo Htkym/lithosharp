@@ -39,7 +39,7 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
         var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
+        if (configuration.HasSocialImage) socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
         var header = SiteGenerator.BuildSiteHeader(configuration, includeBlogNavigation);
         return $"""
             <!doctype html>
@@ -101,7 +101,7 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
         var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
+        if (configuration.HasSocialImage) socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
         return $"""
             <!doctype html>
             <html lang="{Html.Encode(configuration.Site.Language)}">
