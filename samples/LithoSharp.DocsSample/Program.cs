@@ -31,16 +31,19 @@ var customization = new SiteCustomization
 
 var posts = await new MarkdownPostReader().ReadAllAsync(content);
 SiteGenerator.Validate(site, content, posts, customization);
+var articleRoutes = new[] { GeneratedArticles.Entries.Typed_Content_First, GeneratedArticles.Entries.Typed_Content_Second }
+    .ToDictionary(reference => reference.Id, reference => reference.Route);
 var articleLoader = new MarkdownContentCollectionLoader<ArticleFrontMatter>(
     new ContentCollectionId("articles"),
     typedContent,
-    entry => SiteRoute.ForDirectoryIndex($"articles/{Path.GetFileNameWithoutExtension(entry.Id.Value)}"),
+    entry => articleRoutes[entry.Id],
     entry => new PageMetadata(
         entry.FrontMatter.Title,
         entry.FrontMatter.Summary,
         entry.FrontMatter.Draft,
         entry.FrontMatter.PublishedFrom,
         environments: entry.FrontMatter.Environments),
+    frontMatterBinder: GeneratedArticles.Binder,
     transformationId: new ContentTransformationId("docs-sample-articles:v1"),
     isCacheable: true);
 var articleResult = await articleLoader.LoadAsync();
@@ -68,7 +71,7 @@ var topicPages = articles.GeneratePages(
         var items = string.Join(
             string.Empty,
             page.Content.Entries.Select(entry =>
-                $"<li><a href=\"{SiteRoute.ForDirectoryIndex($"articles/{Path.GetFileNameWithoutExtension(entry.Id.Value)}").PublicPath}\">{System.Net.WebUtility.HtmlEncode(entry.FrontMatter.Title)}</a></li>"));
+                $"<li><a href=\"{articleRoutes[entry.Id].PublicPath}\">{System.Net.WebUtility.HtmlEncode(entry.FrontMatter.Title)}</a></li>"));
         return context.RenderDocument(
             $"<h1>{System.Net.WebUtility.HtmlEncode(page.Content.Topic)}</h1><ul>{items}</ul>");
     },

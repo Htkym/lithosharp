@@ -538,3 +538,36 @@ const LithoSharp.Content.YamlContentDiagnosticIds.InvalidRoot = "LSM008" -> stri
 const LithoSharp.Content.YamlContentDiagnosticIds.InvalidUtf8 = "LSY001" -> string!
 const LithoSharp.Content.YamlContentDiagnosticIds.InvalidYaml = "LSM004" -> string!
 const LithoSharp.Content.YamlContentDiagnosticIds.ReadFailure = "LSY002" -> string!
+LithoSharp.Content.StaticContentCollectionAttribute
+LithoSharp.Content.StaticContentCollectionAttribute.StaticContentCollectionAttribute(System.Type! frontMatterType, System.Type! pageType, string! collectionId) -> void
+LithoSharp.Content.StaticContentCollectionAttribute.FrontMatterType.get -> System.Type!
+LithoSharp.Content.StaticContentCollectionAttribute.PageType.get -> System.Type!
+LithoSharp.Content.StaticContentCollectionAttribute.CollectionId.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.EmitJsonSchema.get -> bool
+LithoSharp.Content.StaticContentCollectionAttribute.EmitJsonSchema.set -> void
+LithoSharp.Pages.PageRef<TPage>
+LithoSharp.Pages.PageRef<TPage>.PageRef(LithoSharp.Pages.PageId! id, LithoSharp.Routing.SiteRoute! route) -> void
+LithoSharp.Pages.PageRef<TPage>.Id.get -> LithoSharp.Pages.PageId!
+LithoSharp.Pages.PageRef<TPage>.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Pages.PageRef<TPage>.GetUrl(string? baseUrl = null) -> LithoSharp.SiteUrl!
+LithoSharp.Content.ContentRef<TEntry>
+LithoSharp.Content.ContentRef<TEntry>.ContentRef(LithoSharp.Content.ContentCollectionId! collectionId, LithoSharp.Content.ContentEntryId! id, LithoSharp.Routing.SiteRoute! route) -> void
+LithoSharp.Content.ContentRef<TEntry>.CollectionId.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.ContentRef<TEntry>.Id.get -> LithoSharp.Content.ContentEntryId!
+LithoSharp.Content.ContentRef<TEntry>.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.ContentRef<TEntry>.GetUrl(string? baseUrl = null) -> LithoSharp.SiteUrl!
+LithoSharp.Content.GeneratedContentValueParser<T>
+LithoSharp.Content.GeneratedContentBindingContext
+LithoSharp.Content.GeneratedContentBindingContext.GeneratedContentBindingContext(System.Collections.Generic.IReadOnlyDictionary<string!, object?>! values, LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null, bool rejectUnknownFields = true) -> void
+LithoSharp.Content.GeneratedContentBindingContext.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+LithoSharp.Content.GeneratedContentBindingContext.TryRead<T>(string! yamlName, T currentDefault, bool required, bool allowsNull, LithoSharp.Content.GeneratedContentValueParser<T>! parser, out T value) -> bool
+LithoSharp.Content.GeneratedContentBindingContext.ValidateRequired<T>(string! yamlName, T currentValue, bool required, bool allowsNull) -> void
+LithoSharp.Content.GeneratedContentBindingContext.Reject(string! yamlName, System.Exception! failure) -> void
+LithoSharp.Content.GeneratedContentBindingContext.ValidateUnknownFields() -> void
+LithoSharp.Content.GeneratedContentBindingContext.Complete<T>(T instance) -> LithoSharp.Content.ContentParseResult<T>!
+LithoSharp.Content.GeneratedContentBindingContext.TryObject<T>(object! input, System.Func<LithoSharp.Content.GeneratedContentBindingContext!, T>! bind, out T value) -> bool
+LithoSharp.Content.GeneratedContentBindingContext.TryList<T>(object! input, bool elementAllowsNull, LithoSharp.Content.GeneratedContentValueParser<T>! parser, out System.Collections.Generic.List<T>! value) -> bool
+LithoSharp.Content.GeneratedContentBindingContext.TryArray<T>(object! input, bool elementAllowsNull, LithoSharp.Content.GeneratedContentValueParser<T>! parser, out T[]! value) -> bool
+LithoSharp.Content.GeneratedContentBindingContext.TryDictionary<T>(object! input, bool valueAllowsNull, LithoSharp.Content.GeneratedContentValueParser<T>! parser, out System.Collections.Generic.Dictionary<string!, T>! value) -> bool
+static LithoSharp.Content.GeneratedContentBindingContext.TryParseScalar<T>(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
+static LithoSharp.Content.GeneratedContentBindingContext.TryParseEnum<T>(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool

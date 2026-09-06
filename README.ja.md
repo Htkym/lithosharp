@@ -18,6 +18,8 @@ LithoSharp はコンソールアプリケーションやビルドパイプライ
 - 言語モデル向けの `llms.txt` を任意で生成
 - 型付き Markdown、JSON、CSV コレクションからルート付きページを生成し、公開判定と
   派生成果物へ反映
+- 静的Markdown向けのbinder、schema、ルート、ID、型付き参照を生成する任意の
+  Source Generatorパッケージ
 - favicon やソーシャル画像の元ファイルがない場合も、該当する出力だけを省略して完全な HTML サイトを生成
 
 ## インストール
@@ -332,6 +334,44 @@ Unix の ACL、拡張属性、所有者は移植可能には保持できませ�
 ファイルシステムの失敗は例外として扱います。移行では従来の投稿と型付きコレクションを
 並行して登録し、コレクション単位で切り替えてください。0.2 では API と依存関係が
 一つのまとまったアセンブリを形成しているため、物理的な NuGet パッケージ分割は行いません。
+
+## 静的コンテンツのSource Generator
+
+`LithoSharp.Generators` は、明示的に宣言したMarkdownファイルをコンパイル時に処理します。
+analyzerパッケージを追加し、トップレベルのstatic partialクラスへ
+`StaticContentCollectionAttribute` を付けます。各 `AdditionalFiles` にはコレクション、ID、
+ルートのメタデータを設定します。front matterの `Binder`、`SchemaJson`、ネストした
+`Pages`、`Entries`、`Ids` が生成されます。
+
+```xml
+<PackageReference Include="LithoSharp.Generators" Version="0.2.0" PrivateAssets="all" />
+
+<AdditionalFiles Include="typed-content\**\*.md">
+  <LithoSharpCollection>articles</LithoSharpCollection>
+  <LithoSharpId>%(Filename)%(Extension)</LithoSharpId>
+  <LithoSharpRoute>articles/%(Filename)/</LithoSharpRoute>
+</AdditionalFiles>
+```
+
+```csharp
+var binder = GeneratedArticles.Binder;
+var pageUrl = GeneratedArticles.Pages.Typed_Content_First.GetUrl(site.BaseUrl);
+GeneratedArticles.WriteJsonSchema("artifacts/articles.schema.json");
+
+[StaticContentCollection(
+    typeof(ArticleFrontMatter),
+    typeof(ContentEntry<ArticleFrontMatter, string>),
+    "articles",
+    EmitJsonSchema = true)]
+public static partial class GeneratedArticles;
+```
+
+生成される `PageRef<TPage>` と `ContentRef<TEntry>` は不変です。
+`WriteJsonSchema` は `EmitJsonSchema` がtrueの場合だけ生成され、`SchemaJson` は常に利用できます。
+宣言、メタデータ、ID、ルート、YAML、値に問題がある場合は、`LSG001` から `LSG006` の
+コンパイルエラーになります。入力を移動または削除すると生成メンバーも消えるため、古い参照は
+通常のC#コンパイルエラーになります。動的ローダーの入力は従来どおり実行時に検証します。
+設定と診断の詳細は [Source Generator](docs/source-generators.md)を参照してください。
 
 ## レイアウト、コンポーネント、安全なHTML、登録資産
 

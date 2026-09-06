@@ -27,6 +27,8 @@ the core library has no opinions about your brand, copy, or validation rules.
 - Optional `llms.txt` summary for language models
 - Typed Markdown, JSON, and CSV collections that can emit routed pages and
   participate in publication filtering and derived site artifacts
+- An optional source-generator package for static Markdown binders, schemas,
+  routes, IDs, and typed page or entry references
 - Graceful degradation: when favicon or social-image sources are missing, those
   outputs are skipped and a complete HTML site is still produced
 
@@ -375,6 +377,45 @@ file-system failures remain exceptions. The migration path is to add typed
 collections beside legacy posts and move one collection at a time. No physical
 NuGet package split is made in 0.2 because the current API and dependency
 boundary is one coherent assembly.
+
+## Static content source generator
+
+`LithoSharp.Generators` handles explicitly declared Markdown files at compile time.
+Add the analyzer package, mark a top-level static partial class with
+`StaticContentCollectionAttribute`, and attach collection, ID, and route metadata to
+each `AdditionalFiles` item. It generates a front matter `Binder`, `SchemaJson`, and
+the nested `Pages`, `Entries`, and `Ids` members.
+
+```xml
+<PackageReference Include="LithoSharp.Generators" Version="0.2.0" PrivateAssets="all" />
+
+<AdditionalFiles Include="typed-content\**\*.md">
+  <LithoSharpCollection>articles</LithoSharpCollection>
+  <LithoSharpId>%(Filename)%(Extension)</LithoSharpId>
+  <LithoSharpRoute>articles/%(Filename)/</LithoSharpRoute>
+</AdditionalFiles>
+```
+
+```csharp
+var binder = GeneratedArticles.Binder;
+var pageUrl = GeneratedArticles.Pages.Typed_Content_First.GetUrl(site.BaseUrl);
+GeneratedArticles.WriteJsonSchema("artifacts/articles.schema.json");
+
+[StaticContentCollection(
+    typeof(ArticleFrontMatter),
+    typeof(ContentEntry<ArticleFrontMatter, string>),
+    "articles",
+    EmitJsonSchema = true)]
+public static partial class GeneratedArticles;
+```
+
+Generated `PageRef<TPage>` and `ContentRef<TEntry>` values are immutable.
+`WriteJsonSchema` exists only when `EmitJsonSchema` is true; `SchemaJson` is always
+available. Invalid declarations, metadata, IDs, routes, YAML, or values produce
+compile errors `LSG001` through `LSG006`. Moving or deleting an input removes its
+generated member, so stale references fail normal C# compilation. Dynamic loader
+inputs retain their existing runtime validation. See
+[source generators](docs/source-generators.md) for setup and diagnostics.
 
 ## Layouts, components, safe HTML, and registered assets
 

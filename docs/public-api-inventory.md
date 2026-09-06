@@ -68,6 +68,9 @@ documented extension points.
 | `LithoSharp.Content` | `PostSourceReference` | Front-matter source contract |
 | `LithoSharp.Content` | `SiteContentCollection<TFrontMatter, TBody>` | Typed collection generation registration |
 | `LithoSharp.Content` | `ContentPageRenderingContext` | Typed page rendering context |
+| `LithoSharp.Content` | `StaticContentCollectionAttribute` | Explicit static collection declaration for the source generator |
+| `LithoSharp.Content` | `ContentRef<TEntry>` | Immutable typed static-entry reference |
+| `LithoSharp.Content` | `GeneratedContentValueParser<T>`, `GeneratedContentBindingContext` | Generated binder runtime contract |
 | `LithoSharp.Content` | `ContentPageGroup<TFrontMatter, TBody>` | Published source group for `GeneratePages<TPageContent>` |
 | `LithoSharp.Content` | `ContentPageGroupSelector<TFrontMatter, TBody>` | Generated-page grouping contract |
 | `LithoSharp.Content` | `GeneratedPageFactory<TFrontMatter, TBody, TPageContent>` | Typed generated-page factory |
@@ -85,6 +88,7 @@ documented extension points.
 | `LithoSharp.Routing` | `SiteRouteValidationResult` | Collected route diagnostic result |
 | `LithoSharp.Routing` | `SiteRouteValidationException` | Invalid route table failure contract |
 | `LithoSharp.Routing` | `SiteRouteDiagnosticIds` | Stable route diagnostic identifiers |
+| `LithoSharp.Pages` | `PageRef<TPage>` | Immutable typed page reference |
 
 ## Potential future deprecation candidates
 
@@ -128,6 +132,13 @@ rejected; a component or layout that returns null causes `InvalidOperationExcept
 links, and the optional current URL.
 The [layout and CSS contract](layout-css-contract.md) records the markup hooks retained
 by the built-in implementations.
+
+Phase 3 adds `StaticContentCollectionAttribute`, `PageRef<TPage>`,
+`ContentRef<TEntry>`, `GeneratedContentValueParser<T>`, and
+`GeneratedContentBindingContext` to the runtime assembly. The separate
+`LithoSharp.Generators` analyzer package exports `StaticContentGenerator` and generates
+collection-specific binders, schemas, IDs, routes, and typed references from explicit
+`AdditionalFiles`. See the [source-generator contract](source-generators.md).
 
 `src/LithoSharp/PublicAPI.Shipped.txt` is the machine-readable 0.2.0 baseline.
 The `Microsoft.CodeAnalysis.PublicApiAnalyzers` diagnostics for additions and

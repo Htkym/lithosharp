@@ -1,5 +1,10 @@
 using LithoSharp.Content;
 
+[StaticContentCollection(typeof(ArticleFrontMatter), typeof(ContentEntry<ArticleFrontMatter, string>), "articles")]
+public static partial class GeneratedArticles
+{
+}
+
 public sealed class ArticleFrontMatter
 {
     public string Title { get; init; } = string.Empty;

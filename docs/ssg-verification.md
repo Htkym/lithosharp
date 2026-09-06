@@ -145,3 +145,68 @@ execution and cache work in phase 6.
 100ページsmokeも成功した。1,000ページでは10%を超える時間増加が残る。
 部品化に伴う中間HTML文字列で割当量は約1〜2.4%増えたが、大きな時間差の原因は
 断定できていない。この制限を明記して2Bを採用し、フェーズ6の比較にも残す。
+
+## Phase 3: static content generation
+
+Added the separate analyzer package, explicit static collection and AdditionalFiles
+contract, generated binders/schema/references, and LSG001–LSG006 diagnostics.
+Generated-code tests compile and execute binders against reflection, including
+inheritance, ignored required members, init setters, nested collections, defaults,
+nulls, and diagnostic locations. Static input tests cover deletion, movement,
+duplicate IDs, invalid declarations, YAML, metadata, and conflicting output routes.
+
+Release compilation has zero warnings/errors; all 355 TUnit tests pass. The final
+Docs sample uses generated entry references for route resolution and a generated
+binder. Its 15 files and the Blog sample's 14 files match the fixed phase 2A outputs
+byte for byte. Core package API/content validation and generator package content
+validation pass. A separate temporary consumer restores the actual generator
+NuGet package, compiles Binder/SchemaJson/Pages references, and runs successfully.
+That consumer exposed an MSBuild metadata issue: CompilerVisibleItemMetadata needs
+MetadataName, which is now corrected and exercised by the sample's named references.
+
+The following final measurements use the same Windows/.NET 10.0.8 environment as
+phase 2B. The 100-page run includes the smoke checks. Raw results are under
+`artifacts/ssg-3/final/`; the comparison is against `artifacts/ssg-2b/`.
+
+| Pages | Workload | Time (ms) | Time delta | Allocation delta | Peak working-set delta |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 100 | clean | 476.2 | +32.1% | 0.0% | +1.8% |
+| 100 | no-op | 398.6 | +32.6% | -0.2% | -2.0% |
+| 100 | single-page-change | 311.3 | +11.6% | +0.4% | -4.7% |
+| 100 | layout-change | 400.9 | +41.7% | +0.2% | -0.7% |
+| 1000 | clean | 1995.4 | +17.5% | +0.1% | +1.4% |
+| 1000 | no-op | 3819.0 | +8.4% | +0.7% | +2.5% |
+| 1000 | single-page-change | 3301.1 | +19.6% | -0.3% | +3.5% |
+| 1000 | layout-change | 4341.3 | +53.2% | -0.2% | -2.5% |
+| 10000 | clean | 40775.4 | +31.3% | +0.1% | +0.6% |
+| 10000 | no-op | 64478.7 | +7.1% | +0.1% | -0.3% |
+| 10000 | single-page-change | 66048.9 | +22.6% | +0.1% | +1.3% |
+| 10000 | layout-change | 78266.7 | +38.7% | +0.1% | 0.0% |
+
+Initial measurements remain under `artifacts/ssg-3/` and are not replaced by the
+final run. They showed roughly 0.6–1.6% extra allocation. Inspection found that
+the netstandard-compatible route implementation allocated separator arrays on
+each validation. Reusing those private arrays removed that allocation increase:
+the 1,000-page clean run fell from 326,644,032 to 323,868,056 allocated bytes,
+compared with 323,851,496 bytes for a freshly rebuilt phase 2B reference.
+
+For a contemporaneous comparison, commit `2b882f8` was extracted and rebuilt in
+`artifacts/ssg-3/phase2b-reference/`. Its sequential 1,000-page run measured
+1852.7/5055.6/2906.0/3293.3 ms (clean/no-op/single/layout). The final phase 3 run
+measured 1995.4/3819.0/3301.1/4341.3 ms, respectively: +7.7%, -24.5%, +13.6%, and
++31.8%. Corresponding allocation differences are +0.01%, +0.34%, +0.24%, and -0.17%.
+The earlier paired phase 3 run is retained under `phase3-paired/`.
+
+Adopt phase 3 with the timing limitation explicitly retained. The separator
+allocation cause is established and fixed, but it does not explain the remaining
+wall-clock regressions above 10%. These runs do not establish whether filesystem,
+runtime scheduling, or another factor causes the remaining difference; no profiler
+evidence is claimed. Memory stays within 10% in all final workloads. The analyzer
+is not loaded by this runtime benchmark, and actual render skipping remains phase 6.
+
+日本語の検証要約: 生成コードのコンパイルと実行、Reflectionとの互換性、入力・型・ルートの
+診断を確認した。Releaseビルドは警告・エラー0件、TUnitは355件成功した。Docs／Blogは
+既存の固定出力と一致し、NuGetパッケージを参照する別プロジェクトのビルド・実行も成功した。
+ルート検証の区切り文字配列による余分な割当を修正し、最終測定のメモリ差は全項目で10%以内だった。
+時間には10%を超える悪化が残り、その原因は断定できていない。連続比較と初回値を残し、
+この制限を明記してフェーズ3を採用する。

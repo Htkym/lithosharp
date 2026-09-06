@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpCollection" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpId" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpRoute" />
+    <CompilerVisibleProperty Include="MSBuildProjectDirectory" />
+  </ItemGroup>
+</Project>

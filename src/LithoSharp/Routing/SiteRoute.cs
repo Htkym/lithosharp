@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace LithoSharp.Routing;
@@ -5,9 +8,15 @@ namespace LithoSharp.Routing;
 /// <summary>
 /// 公開 URL の正規化済みパスと、出力ルートからの相対ファイルパスを一体として表します。
 /// </summary>
+#if NETSTANDARD2_0
+internal sealed class SiteRoute : IEquatable<SiteRoute>
+#else
 public sealed class SiteRoute : IEquatable<SiteRoute>
+#endif
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+    private static readonly char[] SlashSeparator = ['/'];
+    private static readonly char[] DotSeparator = ['.'];
 
     private SiteRoute(string publicPath, string relativeOutputPath)
     {
@@ -36,7 +45,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     /// </exception>
     public static SiteRoute ForFile(string relativePath, string? baseUrl = null)
     {
-        ArgumentNullException.ThrowIfNull(relativePath);
+        if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
 
         if (relativePath.Length == 0)
         {
@@ -75,7 +84,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     /// </exception>
     public static SiteRoute ForDirectoryIndex(string relativePath, string? baseUrl = null)
     {
-        ArgumentNullException.ThrowIfNull(relativePath);
+        if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
 
         var isRoot = relativePath.Length == 0 || IsOnlySeparators(relativePath);
         var route = isRoot
@@ -106,28 +115,33 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
     /// <summary>正規化済みルートの大文字と小文字を区別するハッシュコードを返します。</summary>
     /// <returns>正規化済みの公開パスと出力パスに基づくハッシュコード。</returns>
+#if NETSTANDARD2_0
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(PublicPath) ^ StringComparer.Ordinal.GetHashCode(RelativeOutputPath);
+#else
     public override int GetHashCode() =>
         HashCode.Combine(
             StringComparer.Ordinal.GetHashCode(PublicPath),
             StringComparer.Ordinal.GetHashCode(RelativeOutputPath));
+#endif
 
     internal SiteRoute WithBaseUrl(string baseUrl)
     {
-        ArgumentNullException.ThrowIfNull(baseUrl);
+        if (baseUrl is null) throw new ArgumentNullException(nameof(baseUrl));
+        var encodedOutputPath = string.Join("/", RelativeOutputPath.Split('/').Select(Uri.EscapeDataString));
         if (PublicPath.EndsWith("/", StringComparison.Ordinal))
         {
             var relativeDirectory = RelativeOutputPath == "index.html"
                 ? string.Empty
-                : RelativeOutputPath[..^"/index.html".Length];
+                : encodedOutputPath.Substring(0, encodedOutputPath.Length - "/index.html".Length);
             return ForDirectoryIndex(relativeDirectory, baseUrl);
         }
 
-        return ForFile(RelativeOutputPath, baseUrl);
+        return ForFile(encodedOutputPath, baseUrl);
     }
 
     internal static string NormalizeRelativeOutputPath(string relativeOutputPath)
     {
-        ArgumentNullException.ThrowIfNull(relativeOutputPath);
+        if (relativeOutputPath is null) throw new ArgumentNullException(nameof(relativeOutputPath));
 
         if (relativeOutputPath.Length == 0)
         {
@@ -159,9 +173,9 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
         var segments = relativeOutputPath
             .Replace('\\', '/')
-            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Split(SlashSeparator, StringSplitOptions.RemoveEmptyEntries)
             .Select(segment => NormalizeAndValidateSegment(segment, nameof(relativeOutputPath)));
-        return string.Join('/', segments);
+        return string.Join("/", segments);
     }
 
     private static NormalizedPath NormalizeRelativePath(string path, string parameterName)
@@ -178,7 +192,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
         var decodedSegments = new List<string>();
         var encodedSegments = new List<string>();
-        foreach (var rawSegment in path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawSegment in path.Replace('\\', '/').Split(SlashSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var segment = NormalizeAndValidateSegment(
                 DecodeSegment(rawSegment, parameterName),
@@ -193,8 +207,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
         }
 
         return new NormalizedPath(
-            string.Join('/', encodedSegments),
-            string.Join('/', decodedSegments));
+            string.Join("/", encodedSegments),
+            string.Join("/", decodedSegments));
     }
 
     private static string NormalizeBaseUrlPath(string? baseUrl)
@@ -209,7 +223,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             throw new UriFormatException("The base URL must be an absolute HTTP or HTTPS URI.");
         }
 
-        if (baseUrl.Contains('\\'))
+        if (baseUrl.IndexOf('\\') >= 0)
         {
             throw new UriFormatException("The base URL must use '/' as its URI path separator.");
         }
@@ -243,7 +257,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
         }
 
         var escapedPath = $"/{uri.GetComponents(UriComponents.Path, UriFormat.UriEscaped)}";
-        return escapedPath.EndsWith('/') ? escapedPath : $"{escapedPath}/";
+        return escapedPath.EndsWith("/", StringComparison.Ordinal) ? escapedPath : $"{escapedPath}/";
     }
 
     private static void ValidateBasePath(string rawPath)
@@ -255,7 +269,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
                 nameof(rawPath));
         }
 
-        foreach (var rawSegment in rawPath.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawSegment in rawPath.Split(SlashSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var segment = DecodeSegment(rawSegment, nameof(rawPath));
             if (segment is "." or "..")
@@ -288,8 +302,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
         var pathEnd = baseUrl.IndexOfAny(['?', '#'], pathStart);
         return pathEnd < 0
-            ? baseUrl[pathStart..]
-            : baseUrl[pathStart..pathEnd];
+            ? baseUrl.Substring(pathStart)
+            : baseUrl.Substring(pathStart, pathEnd - pathStart);
     }
 
     private static string DecodeSegment(string segment, string parameterName)
@@ -377,7 +391,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             throw new ArgumentException("A site route must not contain '.' or '..' path segments.", parameterName);
         }
 
-        if (segment.EndsWith(' ') || segment.EndsWith('.'))
+        if (segment.EndsWith(" ", StringComparison.Ordinal) || segment.EndsWith(".", StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 $"The path segment '{segment}' must not end with a space or period.",
@@ -396,7 +410,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             }
         }
 
-        var deviceName = segment.Split('.', 2)[0];
+        var deviceName = segment.Split(DotSeparator, 2)[0];
         if (IsReservedDeviceName(deviceName))
         {
             throw new ArgumentException(
@@ -431,16 +445,16 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     private static string BuildPublicPath(string basePath, string routePath, bool trailingSlash)
     {
         var publicPath = $"{(basePath.Length == 0 ? "/" : basePath)}{routePath}";
-        return trailingSlash && !publicPath.EndsWith('/') ? $"{publicPath}/" : publicPath;
+        return trailingSlash && !publicPath.EndsWith("/", StringComparison.Ordinal) ? $"{publicPath}/" : publicPath;
     }
 
     private static bool LooksRooted(string value) =>
         value.Length != 0
         && (value[0] is '/' or '\\'
-            || (value.Length >= 2 && char.IsAsciiLetter(value[0]) && value[1] == ':')
-            || value.Contains("://", StringComparison.Ordinal));
+            || (value.Length >= 2 && (value[0] is >= 'A' and <= 'Z' or >= 'a' and <= 'z') && value[1] == ':')
+            || value.IndexOf("://", StringComparison.Ordinal) >= 0);
 
-    private static bool EndsWithSeparator(string value) => value[^1] is '/' or '\\';
+    private static bool EndsWithSeparator(string value) => value[value.Length - 1] is '/' or '\\';
 
     private static bool IsOnlySeparators(string value)
     {
@@ -464,8 +478,15 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             _ => -1,
         };
 
-    private readonly record struct NormalizedPath(string EncodedPath, string OutputPath)
+    private readonly struct NormalizedPath
     {
+        public NormalizedPath(string encodedPath, string outputPath)
+        {
+            EncodedPath = encodedPath;
+            OutputPath = outputPath;
+        }
+        public string EncodedPath { get; }
+        public string OutputPath { get; }
         public static NormalizedPath Empty { get; } = new("", "");
     }
 }

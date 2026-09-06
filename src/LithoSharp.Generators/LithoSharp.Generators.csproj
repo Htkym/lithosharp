@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>LithoSharp.Generators</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>Htkym</Authors>
+    <Description>Static content binders, schemas, and typed references for LithoSharp.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
+    <Compile Include="..\LithoSharp\Routing\SiteRoute.cs" Link="Shared\SiteRoute.cs" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="buildTransitive\LithoSharp.Generators.props" Pack="true" PackagePath="buildTransitive\" />
+    <None Include="README.md" Pack="true" PackagePath="README.md" />
+    <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
+    <None Include="$(NuGetPackageRoot)yamldotnet\18.0.0\lib\netstandard2.0\YamlDotNet.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" Condition="Exists('$(NuGetPackageRoot)yamldotnet\18.0.0\lib\netstandard2.0\YamlDotNet.dll')" />
+  </ItemGroup>
+</Project>

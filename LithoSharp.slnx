@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/LithoSharp/LithoSharp.csproj" />
+    <Project Path="src/LithoSharp.Generators/LithoSharp.Generators.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />

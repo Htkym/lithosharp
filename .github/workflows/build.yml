@@ -35,6 +35,13 @@ jobs:
         shell: pwsh
         run: ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages
 
+      - name: Pack and validate generator
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Generators/LithoSharp.Generators.csproj --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
+
       - name: Test
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
 

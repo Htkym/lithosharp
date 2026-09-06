@@ -10,12 +10,26 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="18.0.0" />
+    <Analyzer Include="$(NuGetPackageRoot)yamldotnet/18.0.0/lib/netstandard2.0/YamlDotNet.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\LithoSharp\LithoSharp.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Generators\LithoSharp.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="typed-content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
+    <AdditionalFiles Include="typed-content\**\*.md">
+      <LithoSharpCollection>articles</LithoSharpCollection>
+      <LithoSharpId>%(Filename)%(Extension)</LithoSharpId>
+      <LithoSharpRoute>articles/%(Filename)/</LithoSharpRoute>
+    </AdditionalFiles>
   </ItemGroup>
 
+  <Import Project="../../src/LithoSharp.Generators/buildTransitive/LithoSharp.Generators.props" />
 </Project>

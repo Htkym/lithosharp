@@ -1,18 +1,20 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [string] $PackageDirectory
+    [string] $PackageDirectory,
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators')]
+    [string] $PackageId = 'LithoSharp'
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 
 $package = Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
-    Where-Object { $_.Name -notlike '*.symbols.nupkg' } |
+    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' } |
     Select-Object -First 1
 $symbols = Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.snupkg' | Select-Object -First 1
 
-if ($null -eq $package -or $null -eq $symbols) {
+if ($null -eq $package -or ($PackageId -eq 'LithoSharp' -and $null -eq $symbols)) {
     throw "Expected one .nupkg and one .snupkg in $PackageDirectory."
 }
 
@@ -27,6 +29,14 @@ function Get-ZipEntries([string] $path) {
 }
 
 $packageEntries = Get-ZipEntries $package.FullName
+if ($PackageId -eq 'LithoSharp.Generators') {
+    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/YamlDotNet.dll', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
+        if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+    }
+    if ($packageEntries | Where-Object { $_ -like 'lib/*' }) { throw 'Generator package must not add runtime library references.' }
+    Write-Host "Validated package contents: $($package.Name)"
+    return
+}
 $symbolsEntries = Get-ZipEntries $symbols.FullName
 
 foreach ($required in @(
