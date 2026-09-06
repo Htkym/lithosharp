@@ -6,41 +6,17 @@ using LithoSharp.Quality;
 using LithoSharp.Routing;
 
 var output = GetArgument(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "_site");
-var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDirectory, "content");
 var check = args.Contains("--check", StringComparer.Ordinal);
-var redirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal);
-
-var site = new SiteSettings
+var definition = await new BlogSampleFactory
 {
-    Title = "LithoSharp Blog Sample",
-    Description = "A minimal blog generated with LithoSharp.",
-    BaseUrl = "https://example.com/",
-    Language = "en",
-    Author = "LithoSharp",
-    TimeZone = "UTC"
-};
-
-var customization = new SiteCustomization
-{
-    Template = new BlogSiteTemplate(),
-    Theme = new SiteThemeOptions
-    {
-        BrandPrefix = "lithosharp / ",
-        DefaultSocialSubtitle = "Built with LithoSharp",
-        AdditionalCss = ":root { --accent: #7c9eff; }"
-    },
-    GenerateLlmsTxt = true
-};
-
-var posts = await new MarkdownPostReader().ReadAllAsync(content);
-SiteGenerator.Validate(site, content, posts, customization);
-var options = new SiteGenerationOptions
-{
-    Quality = check ? new SiteQualityOptions() : null,
-    Redirects = redirectDemo
-        ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
-        : []
-};
+    ContentDirectory = GetArgument(args, "--content"),
+    Check = check,
+    RedirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal)
+}.CreateAsync(new SiteFactoryContext(AppContext.BaseDirectory));
+var site = definition.Site;
+var posts = definition.Posts;
+var customization = definition.Customization;
+var options = definition.Options;
 
 SiteGenerationResult result;
 try

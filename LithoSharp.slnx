@@ -3,6 +3,7 @@
     <Project Path="src/LithoSharp/LithoSharp.csproj" />
     <Project Path="src/LithoSharp.Generators/LithoSharp.Generators.csproj" />
     <Project Path="src/LithoSharp.Images/LithoSharp.Images.csproj" />
+    <Project Path="src/LithoSharp.Tool/LithoSharp.Tool.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
@@ -13,5 +14,8 @@
   <Folder Name="/samples/">
     <Project Path="samples/LithoSharp.Sample/LithoSharp.Sample.csproj" />
     <Project Path="samples/LithoSharp.DocsSample/LithoSharp.DocsSample.csproj" />
+  </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj" />
   </Folder>
 </Solution>

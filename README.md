@@ -543,3 +543,5 @@ LithoSharp follows SemVer. While the version is `0.x`, the public API may change
 
 MIT. See [LICENSE](LICENSE). Third-party dependencies are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Build and serve C# site projects with [the CLI and site factories](docs/cli.md).

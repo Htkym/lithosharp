@@ -1,6 +1,6 @@
 # SSG enhancement verification
 
-Measurements use Windows 10.0.26200 x64, .NET SDK 10.0.400 and runtime 10.0.8,
+Measurements use Windows 10.0.26200 x64 and .NET runtime 10.0.8,
 with eight logical processors. The starting commit is `6a73fc9`.
 
 ## Starting baseline
@@ -468,3 +468,130 @@ execution for one changed body; at 10,000 pages their measured times improve by
 10,000ページの全体レイアウト変更は60.5%遅くなった。個々の処理や実行環境への寄与は
 分離できていないため、全般的な高速化とは評価しない。no-opの実行ノード0件、本文1件の
 変更時の3ノード実行と、安全な出力確定を確認したうえで、この制限を残して採用する。
+
+## Phase 7: CLI and development server
+
+Locked restore and the final Release solution build passed (zero
+warnings/errors); 405 TUnit tests passed. The new factory/definition constructors,
+post-list snapshot, selective atomic clean, cancellation, untrusted manifest, root
+rejection, and exact file-index versus directory-index routes are covered. Existing
+output fixtures remain unchanged. Live SDK verification for this phase reports
+10.0.300; the benchmark runtime remains 10.0.8 on the same OS, architecture, and
+eight-processor machine.
+
+`eng/Test-Tool.ps1` passed against the final CLI. It builds a real C# factory with
+file-backed typed pages and a custom layout, and compares library and CLI artifact
+SHA-256 values, exact public/output routes, and diagnostic JSON. It checks zero-miss
+no-op inspection; text/JSON/SARIF check without publishing or changing the normal
+cache; unchanged library route-failure IDs, locations and messages; and selective
+clean preserving modified and unowned files. The server test exercises content and
+C# edits, incremental counts, SSE reload, compiler diagnostics, last successful
+output after failure, retained watch exclusions after failure, encoded traversal,
+an outside junction/symlink, and actual Ctrl+C while a factory subprocess waits.
+Both server and factory PIDs exit. Windows uses a separate hidden console to send
+the control event without interrupting the test runner. CI also runs this script;
+Linux execution is delegated to CI and was not run on this Windows workstation.
+
+The core package passed `EnablePackageValidation=true`; all five package content
+checks passed: Core, Generators, Images, Tool, and ProjectTemplates.
+`eng/Test-Templates.ps1` installed the actual local Tool and ProjectTemplates
+packages into an isolated package cache/template hive. All three `new` templates
+compiled without warnings, generated through both CLI and normal console/library
+execution with identical output hashes, and passed quality checks with zero
+diagnostics. Source mapping pins LithoSharp packages to the local feed so an older
+public 0.2.0 package cannot satisfy the test accidentally.
+
+The existing samples now export shared factories. Docs (14 files), Blog (13), and
+the asset demo (18) match phase 6 by SHA-256, excluding the ownership output manifest
+whose build-cache key includes changed assembly identity. All sample quality checks
+are clean. Blog was compared with the same `SOURCE_DATE_EPOCH=1767225600`.
+Compatibility fixtures were not updated.
+
+### Distribution evaluation
+
+Framework-dependent tool installation and execution passed. A Windows x64
+framework-dependent single-file publish with `IncludeNativeLibrariesForSelfExtract`
+produced a 15,112,861-byte executable. It successfully compiled and loaded the Docs
+factory and rendered its custom article layout. A second temporary site generated
+`assets/social/og-default.png` through native Skia from that executable. The publish
+reported IL3000 for `Assembly.Location`; the launcher explicitly checks its empty
+single-file value and falls back to `Environment.ProcessPath`, exercised by both
+child-host tests. This is a host-platform smoke, not a cross-platform guarantee.
+
+Trimming and Native AOT remain unsupported for arbitrary dynamically loaded site
+assemblies. The decision follows the runtime loading/factory discovery contract and
+Microsoft's documented trimming and Native AOT limitations, linked in the
+[CLI guide](cli.md). No AOT or trimmed execution result is claimed, and no linker
+preservation registry or extra runtime dependency was added to imply support.
+Single-file evaluation's implicit linker restore was removed from the normal lock
+file; a normal locked restore and Release build passed afterward.
+
+日本語の検証要約: Release ビルドは警告・エラー0件、TUnitは405件成功した。
+CLIとライブラリの成果物、公開ルート、診断が一致した。本文とC#の変更反映、SSEリロード、
+失敗時の既存出力と監視除外の保持、パス保護、Ctrl+C後の子プロセス終了も確認した。
+ローカルパッケージから3種類のサイトを作成し、通常実行との出力一致と品質診断0件を確認した。
+既存のDocs・Blog・画像デモの成果物は、ビルド日時をそろえて前フェーズと一致した。
+Windowsの単一ファイル版はC#レイアウトとネイティブ画像生成を実行できた。
+trimmingとAOTは、動的なサイト読み込みの制約により非対応とし、未検証の成功は主張しない。
+
+### Phase 7 performance comparison
+
+The corpus and four workloads remain unchanged. Phase 7 returns validated artifact
+routes for CLI/library inspection; CLI process startup, compilation and HTTP serving
+are outside this library benchmark. Full results are in
+`artifacts/ssg-7/baseline-{100,1000,10000}.json`, compared with the final phase 6 files.
+
+| Pages | Workload | Phase 6 ms | Phase 7 ms | Time delta | Allocation delta | Peak WS delta | Executed nodes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | clean | 821.7 | 1035.7 | +26.1% | -6.0% | -3.3% | 112 |
+| 100 | no-op | 723.6 | 440.4 | -39.1% | -2.4% | -5.9% | 0 |
+| 100 | single-page-change | 510.9 | 482.5 | -5.6% | +0.8% | +4.7% | 3 |
+| 100 | layout-change | 497.4 | 496.8 | -0.1% | -1.1% | +0.3% | 104 |
+| 1000 | clean | 5721.0 | 11617.1 | +103.1% | -1.8% | -3.4% | 1012 |
+| 1000 | no-op | 6878.7 | 7432.0 | +8.0% | -1.4% | +1.4% | 0 |
+| 1000 | single-page-change | 2559.3 | 4047.4 | +58.1% | +1.9% | -1.5% | 3 |
+| 1000 | layout-change | 3251.7 | 8184.1 | +151.7% | -0.3% | 0.0% | 1004 |
+| 10000 | clean | 68619.2 | 106216.0 | +54.8% | +1.3% | -10.8% | 10012 |
+| 10000 | no-op | 85228.5 | 71967.0 | -15.6% | +2.1% | -3.1% | 0 |
+| 10000 | single-page-change | 46929.6 | 87834.1 | +87.2% | -0.2% | -0.5% | 3 |
+| 10000 | layout-change | 126002.2 | 212821.3 | +68.9% | -2.5% | -7.1% | 10004 |
+
+Allocation and peak working-set regressions in the main run stay below 10%
+(maximum +2.1% and +4.7%). Execution remains N+12 nodes for clean, zero for no-op,
+three for a changed body, and N+4 for a layout change. Time regressions exceed 10%
+for clean at every size, and single/layout changes at 1,000 and 10,000 pages.
+
+To investigate those large time deltas, the committed phase 6 source (`f6ad836`)
+was extracted into a separate directory and rebuilt with the current SDK. The old
+and current 1,000-page benchmarks then ran sequentially, without concurrent agent
+builds/tests. Results are retained under `artifacts/ssg-7/ab`:
+
+| Workload | Phase 6 repeat ms | Phase 7 repeat ms | Time delta | Allocation delta | Peak WS delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| clean | 12561.6 | 6471.2 | -48.5% | +8.5% | +0.1% |
+| no-op | 10840.8 | 10695.3 | -1.3% | +2.3% | 0.0% |
+| single-page-change | 6291.9 | 5694.5 | -9.5% | +6.1% | +8.1% |
+| layout-change | 8610.2 | 9591.6 | +11.4% | +2.0% | -0.9% |
+
+The unchanged phase 6 clean time moved from 5.7 to 12.6 seconds, while the phase 7
+clean repeat moved from 11.6 to 6.5 seconds. This establishes substantial run-to-run
+variation; it does not isolate filesystem latency, GC, or other system activity.
+The added library work is a validated route-map snapshot and ordering, with no
+extra rendering, template processing, or transaction writes. Its exact share of
+elapsed time was not profiled. The repeated layout workload retains an 11.4%
+elapsed regression; all repeated allocation/peak regressions remain below 10%.
+
+Adopt phase 7 for the verified CLI/library contract and development workflow,
+retaining these timing limitations. No faster-generation claim is made. Improving
+transaction filesystem throughput remains separate work; ownership verification
+and atomic publication were not weakened to improve the measurement.
+
+性能の日本語要約: 3規模の本測定では、割当量とピークメモリの悪化は10%未満だった。
+再実行ノード数も維持した。一方、時間は複数の条件で10%を超えて悪化したため、
+前フェーズの確定コードと現行コードを同じ環境で続けて測定した。前フェーズのcleanも
+5.7秒から12.6秒へ変わり、現行版の再測定は11.6秒から6.5秒へ変わった。
+実行ごとの変動が大きいことは確認できたが、I/O・GCなどの寄与は分離できていない。
+追加した処理は検証済みルート表の作成と整列で、描画やトランザクションの書込みは増やしていない。
+連続測定でも全体レイアウト変更は11.4%遅く、割当量とピークメモリの増加は10%未満だった。
+この時間の制限を記録したうえで、CLIとライブラリの一致、開発時の再読み込み、安全な出力処理を
+採用理由とする。生成全体の高速化とは評価しない。

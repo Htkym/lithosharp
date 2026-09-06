@@ -492,6 +492,13 @@ public sealed partial class SiteGenerator
             .Order(StringComparer.Ordinal)
             .ToArray();
 
+        var pageRoutes = contentPages.Select(page => page.Route).Concat(redirectOutputs.Select(redirect => redirect.Source))
+            .ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
+        var artifactRoutes = buildPlan.Artifacts.ToDictionary(artifact => artifact.RelativeOutputPath, artifact =>
+            pageRoutes.TryGetValue(artifact.RelativeOutputPath, out var pageRoute) ? pageRoute
+            : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
+            : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
+
         var outputTransaction = await OutputTransaction.CreateAsync(
                 outputRoot,
                 preserveExisting: !clean,
@@ -631,14 +638,8 @@ public sealed partial class SiteGenerator
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
                     .Select(file => file.RelativePath).Concat(assetRegistry.Files
                         .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath)).ToArray();
-                var pageRoutes = contentPages.Select(page => page.Route).Concat(redirectOutputs.Select(redirect => redirect.Source))
-                    .ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
-                var qualityRoutes = buildPlan.Artifacts.ToDictionary(artifact => artifact.RelativeOutputPath, artifact =>
-                    pageRoutes.TryGetValue(artifact.RelativeOutputPath, out var pageRoute) ? pageRoute
-                    : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
-                    : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
-                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), qualityRoutes,
+                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
                     qualityOptions, cancellationToken).ConfigureAwait(false);
@@ -691,6 +692,7 @@ public sealed partial class SiteGenerator
         return new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
             BuildPlan = buildPlan,
+            Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
             BuildReport = CreateBuildReport(
                 buildPlan,

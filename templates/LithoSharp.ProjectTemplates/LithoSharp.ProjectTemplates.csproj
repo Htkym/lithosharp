@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PackageId>LithoSharp.ProjectTemplates</PackageId>
+    <Authors>Htkym</Authors>
+    <Description>Docs, Blog, and custom C# site templates for LithoSharp.</Description>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+    <Version>0.2.0</Version>
+    <PackageType>Template</PackageType>
+    <PackageTags>dotnet-new;templates;static-site;LithoSharp</PackageTags>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="README.md" />
+    <None Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**;content\**\dist\**;content\**\packages.lock.json" Pack="true" PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

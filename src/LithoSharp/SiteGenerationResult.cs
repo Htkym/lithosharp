@@ -1,5 +1,6 @@
 using LithoSharp.Build;
 using LithoSharp.Quality;
+using LithoSharp.Routing;
 
 namespace LithoSharp;
 
@@ -16,6 +17,9 @@ public sealed record SiteGenerationResult(
 {
     /// <summary>この生成で検証した不変のビルド計画です。</summary>
     public SiteBuildPlan BuildPlan { get; init; } = SiteBuildPlan.Create([]);
+
+    /// <summary>Gets the validated public route for each generated artifact, ordered by output path.</summary>
+    public IReadOnlyList<SiteRoute> Routes { get; init; } = [];
 
     /// <summary>出力確定前に収集した品質診断です。検査が無効な場合は空です。</summary>
     public SiteQualityReport QualityReport { get; init; } = new();

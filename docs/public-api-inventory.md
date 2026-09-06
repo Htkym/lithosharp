@@ -186,3 +186,19 @@ consumer scenario or a concrete dependency boundary appears.
 case-insensitively against publication front matter. `SiteGenerationResult.PostCount`
 counts only Markdown posts that passed publication filtering and were supplied
 to the selected template.
+
+## Phase 7 additions
+
+`ISiteFactory.CreateAsync(SiteFactoryContext, CancellationToken)` returns a
+`SiteDefinition` shared by library callers and the tool. `SiteFactoryContext`
+validates and normalizes its project directory. `SiteDefinition` rejects null
+settings/posts and null entries, snapshots the post list, and exposes ordinary
+customization/options with a relative `dist` output default.
+`SiteGenerator.CleanAsync` removes only unchanged owned artifacts through the
+existing transaction; it returns removed relative paths and rejects filesystem
+roots and unsafe paths. `SiteGenerationResult.Routes` exposes the exact artifact
+routes used by quality validation, including the distinction between a file index
+and a directory index. Existing positional result equality remains unchanged.
+
+The separate `LithoSharp.Tool` and `LithoSharp.ProjectTemplates` packages provide
+the CLI and project scaffolding. [English usage](cli.md) / [日本語の使用例](cli.ja.md).

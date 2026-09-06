@@ -29,3 +29,11 @@ For the default documentation layout, see
 
 Favicon and social-image assets are optional. When no favicon directory is supplied,
 LithoSharp skips those binaries and still produces a complete HTML site.
+
+The sample exports `BlogSampleFactory : ISiteFactory`; `lithosharp build
+samples/LithoSharp.Sample -o artifacts/blog-cli` and the normal `dotnet run` entry
+point use the same definition. `--content`, `--output`, `--check`, and
+`--redirect-demo` remain available in the sample program.
+
+このサンプルは `BlogSampleFactory` を公開しています。CLI と通常の C# 実行が
+同じサイト定義を使い、既存のサンプル用オプションも利用できます。

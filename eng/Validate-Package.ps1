@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')]
     [string] $PackageId = 'LithoSharp'
 )
 
@@ -29,6 +29,24 @@ function Get-ZipEntries([string] $path) {
 }
 
 $packageEntries = Get-ZipEntries $package.FullName
+if ($PackageId -eq 'LithoSharp.Tool') {
+    foreach ($required in @('tools/net10.0/any/LithoSharp.Tool.dll', 'tools/net10.0/any/LithoSharp.Tool.runtimeconfig.json', 'tools/net10.0/any/DotnetToolSettings.xml', 'tools/net10.0/any/LithoSharp.dll', 'README.md')) {
+        if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+    }
+    Write-Host "Validated package contents: $($package.Name)"
+    return
+}
+if ($PackageId -eq 'LithoSharp.ProjectTemplates') {
+    foreach ($kind in @('docs', 'blog', 'empty')) {
+        foreach ($file in @('.template.config/template.json', 'Program.cs')) {
+            $required = "content/$kind/$file"
+            if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+        }
+    }
+    if ($packageEntries | Where-Object { $_ -match '/(bin|obj)/' }) { throw 'Template package contains build artifacts.' }
+    Write-Host "Validated package contents: $($package.Name)"
+    return
+}
 if ($PackageId -eq 'LithoSharp.Images') {
     foreach ($required in @('lib/net10.0/LithoSharp.Images.dll', 'lib/net10.0/LithoSharp.Images.xml', 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }

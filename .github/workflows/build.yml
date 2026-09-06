@@ -45,6 +45,21 @@ jobs:
       - name: Test
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
 
+      - name: Check CLI and development server
+        shell: pwsh
+        run: ./eng/Test-Tool.ps1
+
+      - name: Pack and check CLI and project templates
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Tool/LithoSharp.Tool.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet pack templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Tool
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
+          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages
+
       - name: Pack and validate images
         shell: pwsh
         run: |

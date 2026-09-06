@@ -643,3 +643,21 @@ LithoSharp.SiteBuildReportNode.CacheMissReason.get -> string?
 LithoSharp.SiteBuildReportNode.CacheMissReason.init -> void
 LithoSharp.SiteBuildReport.CacheHitCount.get -> int
 LithoSharp.SiteBuildReport.CacheMissCount.get -> int
+LithoSharp.ISiteFactory
+LithoSharp.ISiteFactory.CreateAsync(LithoSharp.SiteFactoryContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteDefinition!>!
+LithoSharp.SiteFactoryContext
+LithoSharp.SiteFactoryContext.SiteFactoryContext(string! ProjectDirectory) -> void
+LithoSharp.SiteFactoryContext.ProjectDirectory.get -> string!
+LithoSharp.SiteDefinition
+LithoSharp.SiteDefinition.SiteDefinition(LithoSharp.Configuration.SiteSettings! Site, System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>! Posts) -> void
+LithoSharp.SiteDefinition.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.SiteDefinition.Posts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!
+LithoSharp.SiteDefinition.OutputDirectory.get -> string!
+LithoSharp.SiteDefinition.OutputDirectory.init -> void
+LithoSharp.SiteDefinition.Customization.get -> LithoSharp.SiteCustomization?
+LithoSharp.SiteDefinition.Customization.init -> void
+LithoSharp.SiteDefinition.Options.get -> LithoSharp.SiteGenerationOptions!
+LithoSharp.SiteDefinition.Options.init -> void
+LithoSharp.SiteGenerator.CleanAsync(string! outputDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+LithoSharp.SiteGenerationResult.Routes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Routing.SiteRoute!>!
+LithoSharp.SiteGenerationResult.Routes.init -> void
