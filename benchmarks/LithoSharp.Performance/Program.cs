@@ -119,7 +119,7 @@ var measurement = new BenchmarkResult
         AllocatedBytes = Math.Max(0, allocatedAfter - allocatedBefore),
         GenerationStartWorkingSetBytes = workingSetBefore,
         GenerationEndWorkingSetBytes = workingSetAfter,
-        GenerationPeakWorkingSetBytes = Math.Max(workingSetBefore, workingSetMonitor.PeakWorkingSetBytes),
+        GenerationPeakWorkingSetBytes = Math.Max(workingSetAfter, Math.Max(workingSetBefore, workingSetMonitor.PeakWorkingSetBytes)),
         WorkingSetSamplingIntervalMilliseconds = workingSetMonitor.SamplingIntervalMilliseconds,
         GeneratedFileCount = generatedFileCount
     },

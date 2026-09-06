@@ -76,13 +76,17 @@ var topicPages = articles.GeneratePages(
     isCacheable: true,
     derivedSurfaces: GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation);
 
+var articleSource = new SiteAsset("article-source", typedContent, "first.md", "downloads/first.md");
 var options = new SiteGenerationOptions
 {
+    Assets = [articleSource],
     BuildTimestamp = DateTimeOffset.Parse("2026-09-02T00:00:00Z"),
     EnvironmentName = "Production",
     ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
         articles,
-        (entry, context) => context.RenderDocument(context.RenderMarkdown(entry.Body))), topicPages]
+        (entry, context) => context.RenderDocument(
+            context.RenderMarkdown(entry.Body) +
+            $"<p><a href=\"{context.Assets.GetUrl(articleSource).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>")), topicPages]
 };
 var generator = new SiteGenerator();
 var firstResult = await generator.GenerateWithOptionsAsync(

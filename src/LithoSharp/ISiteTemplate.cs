@@ -32,7 +32,8 @@ public sealed class SiteTemplateContext
         IReadOnlyList<RenderedPage> contentPages,
         IReadOnlyList<SiteTemplatePage> pages,
         SiteTemplateNavigationNode navigation,
-        SiteGenerator.RenderContext configuration)
+        SiteGenerator.RenderContext configuration,
+        AssetRegistry assets)
     {
         _generator = generator;
         Site = site;
@@ -44,6 +45,7 @@ public sealed class SiteTemplateContext
         Pages = pages;
         Navigation = navigation;
         Configuration = configuration;
+        Assets = assets;
     }
 
     /// <summary>Site settings.</summary>
@@ -71,6 +73,9 @@ public sealed class SiteTemplateContext
     public SiteTemplateNavigationNode Navigation { get; }
 
     internal SiteGenerator.RenderContext Configuration { get; }
+
+    /// <summary>このビルドで登録された資産を取得します。</summary>
+    public AssetRegistry Assets { get; }
 
     internal SiteTemplateResult RenderDocsTemplate() => _generator.RenderDocsTemplate(this);
 

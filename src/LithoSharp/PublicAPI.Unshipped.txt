@@ -1,4 +1,41 @@
 #nullable enable
+LithoSharp.IHtmlContent
+LithoSharp.IHtmlContent.ToHtmlString() -> string!
+LithoSharp.HtmlText
+LithoSharp.HtmlText.HtmlText(string! value) -> void
+LithoSharp.HtmlText.Value.get -> string!
+LithoSharp.HtmlText.ToHtmlString() -> string!
+override LithoSharp.HtmlText.ToString() -> string!
+LithoSharp.HtmlAttributeValue
+LithoSharp.HtmlAttributeValue.HtmlAttributeValue(string! value) -> void
+LithoSharp.HtmlAttributeValue.Value.get -> string!
+LithoSharp.HtmlAttributeValue.ToHtmlString() -> string!
+override LithoSharp.HtmlAttributeValue.ToString() -> string!
+static LithoSharp.Html.UnsafeRaw(string! html) -> LithoSharp.IHtmlContent!
+LithoSharp.SiteUrl
+LithoSharp.SiteUrl.Value.get -> string!
+static LithoSharp.SiteUrl.FromRoute(LithoSharp.Routing.SiteRoute! route) -> LithoSharp.SiteUrl!
+static LithoSharp.SiteUrl.ForDirectory(string! relativePath, string? baseUrl = null) -> LithoSharp.SiteUrl!
+static LithoSharp.SiteUrl.ForFile(string! relativePath, string? baseUrl = null) -> LithoSharp.SiteUrl!
+static LithoSharp.SiteUrl.FromAbsolute(string! value) -> LithoSharp.SiteUrl!
+LithoSharp.SiteUrl.ToAttributeValue() -> LithoSharp.HtmlAttributeValue!
+override LithoSharp.SiteUrl.ToString() -> string!
+LithoSharp.SiteAsset
+LithoSharp.SiteAsset.SiteAsset(string! id, string! inputRoot, string! relativeInputPath, string! relativeOutputPath) -> void
+LithoSharp.SiteAsset.Id.get -> string!
+LithoSharp.SiteAsset.InputRoot.get -> string!
+LithoSharp.SiteAsset.RelativeInputPath.get -> string!
+LithoSharp.SiteAsset.RelativeOutputPath.get -> string!
+LithoSharp.AssetUrl
+LithoSharp.AssetUrl.Asset.get -> LithoSharp.SiteAsset!
+LithoSharp.AssetUrl.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.AssetUrl.Value.get -> string!
+LithoSharp.AssetUrl.ToAttributeValue() -> LithoSharp.HtmlAttributeValue!
+override LithoSharp.AssetUrl.ToString() -> string!
+LithoSharp.AssetRegistry
+LithoSharp.AssetRegistry.GetUrl(LithoSharp.SiteAsset! asset) -> LithoSharp.AssetUrl!
+LithoSharp.AssetRegistryException
+LithoSharp.AssetRegistryException.Diagnostic.get -> LithoSharp.Diagnostics.SiteDiagnostic!
 LithoSharp.Content.GeneratedPageDerivedSurfaces.All = LithoSharp.Content.GeneratedPageDerivedSurfaces.Navigation | LithoSharp.Content.GeneratedPageDerivedSurfaces.Rss | LithoSharp.Content.GeneratedPageDerivedSurfaces.Default -> LithoSharp.Content.GeneratedPageDerivedSurfaces
 LithoSharp.Content.GeneratedPageDerivedSurfaces.Default = LithoSharp.Content.GeneratedPageDerivedSurfaces.Search | LithoSharp.Content.GeneratedPageDerivedSurfaces.Sitemap | LithoSharp.Content.GeneratedPageDerivedSurfaces.SocialImage | LithoSharp.Content.GeneratedPageDerivedSurfaces.LlmsTxt -> LithoSharp.Content.GeneratedPageDerivedSurfaces
 LithoSharp.SiteGenerationOptions
@@ -10,6 +47,10 @@ LithoSharp.SiteGenerationOptions.ContentCollections.get -> System.Collections.Ge
 LithoSharp.SiteGenerationOptions.ContentCollections.init -> void
 LithoSharp.SiteGenerationOptions.PreviousBuildPlan.get -> LithoSharp.Build.SiteBuildPlan?
 LithoSharp.SiteGenerationOptions.PreviousBuildPlan.init -> void
+LithoSharp.SiteGenerationOptions.Assets.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAsset!>!
+LithoSharp.SiteGenerationOptions.Assets.init -> void
+LithoSharp.SiteTemplateContext.Assets.get -> LithoSharp.AssetRegistry!
+LithoSharp.Content.ContentPageRenderingContext.Assets.get -> LithoSharp.AssetRegistry!
 LithoSharp.SiteGenerator.GenerateWithOptionsAsync(LithoSharp.Configuration.SiteSettings! site, System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>! posts, string! outputDirectory, bool clean, LithoSharp.SiteCustomization? customization, LithoSharp.SiteGenerationOptions! options, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<LithoSharp.SiteGenerationResult!>!
 LithoSharp.SiteGenerationResult.BuildPlan.get -> LithoSharp.Build.SiteBuildPlan!
 LithoSharp.SiteGenerationResult.BuildPlan.init -> void

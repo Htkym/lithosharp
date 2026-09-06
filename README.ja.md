@@ -332,6 +332,28 @@ Unix の ACL、拡張属性、所有者は移植可能には保持できませ�
 並行して登録し、コレクション単位で切り替えてください。0.2 では API と依存関係が
 一つのまとまったアセンブリを形成しているため、物理的な NuGet パッケージ分割は行いません。
 
+## 安全なHTMLと登録資産
+
+要素内のテキストには `HtmlText`、引用符付きHTML属性には `HtmlAttributeValue` を使います。
+`SiteUrl.ForFile("guide.html", site.BaseUrl)` は内部パスを検証し、
+`SiteUrl.FromAbsolute` はHTTP(S)のURLを受け付けます。属性へ挿入するURLは
+`ToAttributeValue()` で変換します。`Html.UnsafeRaw` はHTMLを明示的に信頼するためのAPIであり、
+サニタイズは行いません。これらの型はJavaScriptやCSSへの値の埋め込みを安全にはしません。
+
+```csharp
+var asset = new SiteAsset("guide", contentRoot, "guide.pdf", "downloads/guide.pdf");
+var options = new SiteGenerationOptions { Assets = [asset] };
+// テンプレートやコンテンツの描画処理内で使用します。
+var link = $"<a href=\"{context.Assets.GetUrl(asset).ToAttributeValue()}\">{new HtmlText("Guide & reference")}</a>";
+```
+
+レジストリーは入力ファイルの内容を保持し、そのSHA-256を出力ファイル名へ含めます。
+URLには `BaseUrl` のサブパスが反映されます。資産はルート競合の検証、ビルド依存関係、
+原子的出力の所有権管理へ登録されます。登録と参照には同じ `SiteAsset` インスタンスを使い、
+未登録参照は `LSA001` で失敗します。不正なパス、危険なURL、入力ルートを逸脱するファイルは拒否されます。
+[Docsサンプル](samples/LithoSharp.DocsSample/Program.cs)にはMarkdown原稿をダウンロードできる利用例があります。
+既存の文字列HTML APIも引き続き使えます。
+
 ## 資産とフォントに関する注意
 
 favicon とソーシャル画像の元ファイルは任意です。Open Graph 画像は SkiaSharp とシステムフォントで描画します。`SocialImageGenerator` は Consolas などの優先フォントを探し、見つからない場合は既定の書体へフォールバックします。フォントがないホストでは描画が異なったり、CJK 文字が豆腐文字として表示されたりする場合があります。

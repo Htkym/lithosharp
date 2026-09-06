@@ -24,4 +24,7 @@ public sealed record SiteGenerationOptions
 
     /// <summary>差分無効化を計算する前回のビルド計画です。</summary>
     public LithoSharp.Build.SiteBuildPlan? PreviousBuildPlan { get; init; }
+
+    /// <summary>今回の生成へ接続する静的資産です。</summary>
+    public IReadOnlyList<SiteAsset> Assets { get; init; } = [];
 }

@@ -375,6 +375,29 @@ collections beside legacy posts and move one collection at a time. No physical
 NuGet package split is made in 0.2 because the current API and dependency
 boundary is one coherent assembly.
 
+## Safe HTML and registered assets
+
+Use `HtmlText` for element text and `HtmlAttributeValue` inside quoted HTML attributes.
+`SiteUrl.ForFile("guide.html", site.BaseUrl)` validates internal paths;
+`SiteUrl.FromAbsolute` accepts HTTP(S) URLs. Convert URLs with `ToAttributeValue()`
+before inserting them into an attribute. `Html.UnsafeRaw` explicitly trusts HTML;
+it does not sanitize it. These types do not make JavaScript or CSS interpolation safe.
+
+```csharp
+var asset = new SiteAsset("guide", contentRoot, "guide.pdf", "downloads/guide.pdf");
+var options = new SiteGenerationOptions { Assets = [asset] };
+// Inside a template or content renderer:
+var link = $"<a href=\"{context.Assets.GetUrl(asset).ToAttributeValue()}\">{new HtmlText("Guide & reference")}</a>";
+```
+
+The registry snapshots file bytes and uses their SHA-256 in the output filename.
+URLs include the `BaseUrl` subpath. Assets participate in route conflict checks,
+build dependencies and transactional output ownership. Pass the same `SiteAsset`
+instance to registration and lookup; an unregistered reference fails with `LSA001`.
+Invalid paths, unsafe URLs and source files that escape their input root are rejected.
+The [Docs sample](samples/LithoSharp.DocsSample/Program.cs) publishes a downloadable
+Markdown source through this API. Existing string HTML APIs remain available.
+
 ## Notes on assets and fonts
 
 Favicon and social-image sources are optional. Open Graph images are drawn with

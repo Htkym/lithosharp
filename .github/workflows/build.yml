@@ -43,6 +43,9 @@ jobs:
           dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site
           dotnet run --project samples/LithoSharp.Sample --configuration Release --no-build -- --output artifacts/blog-sample-site
 
+      - name: Performance smoke
+        run: dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --smoke --output artifacts/performance-baselines/smoke.json
+
       - name: Upload sample site
         uses: actions/upload-artifact@v7
         with:

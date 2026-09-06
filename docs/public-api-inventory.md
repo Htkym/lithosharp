@@ -97,6 +97,15 @@ the same replacement, adapter, `ObsoleteAttribute`, and major-version policy.
 
 ## Automated compatibility gate
 
+Phase 2A adds `IHtmlContent`, `HtmlText`, `HtmlAttributeValue`, `SiteUrl`,
+`SiteAsset`, `AssetUrl`, `AssetRegistry`, and `AssetRegistryException` in
+`LithoSharp`. `Html.UnsafeRaw` is the explicit trusted-HTML factory. Asset
+registries are build-scoped and exposed by template and content rendering
+contexts; declarations are passed through `SiteGenerationOptions.Assets`.
+These additions leave the legacy string HTML signatures intact. See the
+[safe HTML and asset example](../README.md#safe-html-and-registered-assets)
+for usage and error conditions.
+
 `src/LithoSharp/PublicAPI.Shipped.txt` is the machine-readable 0.2.0 baseline.
 The `Microsoft.CodeAnalysis.PublicApiAnalyzers` diagnostics for additions and
 removals are treated as errors, so an intentional API change must update the

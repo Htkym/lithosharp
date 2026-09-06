@@ -202,7 +202,13 @@ public sealed class SiteGenerator
             throw new ArgumentNullException(nameof(options.ContentCollections));
         }
 
+        if (options.Assets is null)
+        {
+            throw new ArgumentNullException(nameof(options.Assets));
+        }
+
         customization ??= new SiteCustomization();
+        var assetRegistry = await AssetRegistry.CreateAsync(options.Assets, site.BaseUrl, cancellationToken).ConfigureAwait(false);
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
@@ -262,6 +268,7 @@ public sealed class SiteGenerator
                 this,
                 configuration,
                 options.EnvironmentName,
+                assetRegistry,
                 cancellationToken))
             .ToArray();
         var collectionFiles = renderedContentPages
@@ -286,13 +293,18 @@ public sealed class SiteGenerator
             renderedContentPages,
             templatePages,
             templateNavigation,
-            configuration);
+            configuration,
+            assetRegistry);
         var templateResult = await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
         var artifactRouteTable = new SiteRouteTable();
         artifactRouteTable.ReserveOutputPath(
             OutputManifestRelativePath,
             "manifest:output");
+        foreach (var asset in assetRegistry.RegisteredRoutes)
+        {
+            artifactRouteTable.Register(asset.Route, $"asset:{asset.Asset.Id}");
+        }
         var commonArtifacts = GetCommonArtifactRoutes(
             configuration,
             publishedPosts,
@@ -392,7 +404,17 @@ public sealed class SiteGenerator
             hasFaviconAssets,
             hasSocialImage,
             routes);
-        var buildPlan = SiteBuildPlan.Create(basePlan.Nodes.Concat(collectionNodes));
+        var assetNodes = assetRegistry.CreateBuildNodes();
+        var buildPlan = assetNodes.Count == 0
+            ? SiteBuildPlan.Create(basePlan.Nodes.Concat(collectionNodes))
+            : SiteBuildPlan.Create(
+                basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
+                    ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
+                    : node)
+                .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
+                    ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
+                    : node))
+                .Concat(assetNodes));
         var ownedArtifactPaths = buildPlan.Artifacts
             .Select(static artifact => artifact.RelativeOutputPath)
             .Order(StringComparer.Ordinal)
@@ -434,6 +456,17 @@ public sealed class SiteGenerator
                         outputTransaction.StagingRoot,
                         file.RelativePath,
                         file.Content,
+                        generatedInStaging,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            foreach (var file in assetRegistry.Files)
+            {
+                await WriteBinaryAssetAsync(
+                        outputTransaction.StagingRoot,
+                        file.RelativePath,
+                        file.Bytes,
                         generatedInStaging,
                         cancellationToken)
                     .ConfigureAwait(false);

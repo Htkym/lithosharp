@@ -34,7 +34,8 @@ public sealed class ContentPageRenderingContext
         PageMetadata metadata,
         ContentLayoutId? layoutId,
         string? socialImageRelativePath,
-        string environmentName)
+        string environmentName,
+        AssetRegistry assets)
     {
         this.generator = generator;
         this.configuration = configuration;
@@ -43,6 +44,7 @@ public sealed class ContentPageRenderingContext
         Metadata = metadata;
         LayoutId = layoutId;
         EnvironmentName = environmentName;
+        Assets = assets;
     }
 
     /// <summary>サイト設定を取得します。</summary>
@@ -62,6 +64,9 @@ public sealed class ContentPageRenderingContext
 
     /// <summary>公開判定に使用した環境名を取得します。</summary>
     public string EnvironmentName { get; }
+
+    /// <summary>このビルドで登録された資産を取得します。</summary>
+    public AssetRegistry Assets { get; }
 
     /// <summary>LithoSharp の安全な設定で Markdown を HTML に変換します。</summary>
     /// <param name="markdown">変換する Markdown。</param>
@@ -278,6 +283,7 @@ internal sealed class IntegratedContentPage(
         SiteGenerator generator,
         SiteGenerator.RenderContext configuration,
         string environmentName,
+        AssetRegistry assets,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -290,7 +296,8 @@ internal sealed class IntegratedContentPage(
             IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
                 ? configuration.Routes.ContentSocialImage(Route).RelativeOutputPath
                 : null,
-            environmentName);
+            environmentName,
+            assets);
         Content = renderer(context)
             ?? throw new InvalidOperationException(
                 $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
