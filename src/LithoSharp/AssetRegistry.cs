@@ -79,6 +79,7 @@ public sealed class AssetRegistry
 {
     private readonly IReadOnlyDictionary<string, RegisteredAsset> assets;
     private readonly IReadOnlyList<BuildNode>? additionalNodes;
+    internal IReadOnlySet<string> ExecutedTransformNodes { get; private init; } = new HashSet<string>(StringComparer.Ordinal);
 
     internal static AssetRegistry Empty { get; } = new(
         new ReadOnlyDictionary<string, RegisteredAsset>(new Dictionary<string, RegisteredAsset>(StringComparer.Ordinal)));
@@ -151,6 +152,7 @@ public sealed class AssetRegistry
                     throw new ArgumentException($"Transform output '{output.Id}' repeats an identifier or output path.", nameof(transforms));
         }
         var nodes = registry.CreateBuildNodes().ToList();
+        var executedTransforms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var value in map.Values.Where(value => !registry.assets.ContainsKey(value.Asset.Id)))
             nodes.Add(CopyNode(value));
         foreach (var transform in declarations)
@@ -163,6 +165,8 @@ public sealed class AssetRegistry
             var key = Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
             {
                 transform.Id, transform.ImplementationFingerprint,
+                Handler = Content.SiteContentCollection.CaptureRendererIdentity(transform.Handler),
+                Validator = transform.ValidateInputs is null ? null : Content.SiteContentCollection.CaptureRendererIdentity(transform.ValidateInputs),
                 Inputs = transform.Inputs.Select(input => new { input.Id, input.RelativeInputPath, Hash = map[input.Id].Fingerprint, Url = map[input.Id].Route.PublicPath }),
                 Outputs = transform.Outputs.Select(output => new { output.Id, output.RelativeOutputPath })
             }))));
@@ -170,6 +174,7 @@ public sealed class AssetRegistry
             var bytesByOutput = cachePath is null ? null : ReadTransformCache(cachePath, key, transform);
             if (bytesByOutput is null)
             {
+                executedTransforms.Add("asset-transform:" + transform.Id);
                 var context = new SiteAssetTransformContext(inputs, transform.Outputs, inputUrls);
                 await transform.Handler(context, cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
@@ -194,7 +199,8 @@ public sealed class AssetRegistry
                 transform.Inputs.Select(input => new BuildNodeId("asset:" + input.Id)),
                 transform.Outputs.Select(output => new BuildArtifact(new BuildArtifactId("asset:" + output.Id), owner, map[output.Id].Route.RelativeOutputPath))));
         }
-        return new AssetRegistry(new ReadOnlyDictionary<string, RegisteredAsset>(map), nodes.AsReadOnly());
+        return new AssetRegistry(new ReadOnlyDictionary<string, RegisteredAsset>(map), nodes.AsReadOnly())
+        { ExecutedTransformNodes = executedTransforms };
     }
 
     private static IEnumerable<string> EnumeratePublicFiles(string directory, CancellationToken cancellationToken)

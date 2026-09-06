@@ -32,7 +32,11 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
         EnvironmentName = environmentName;
         TemplateIdentity = templateIdentity;
         Nodes = ReadOnly((nodes ?? [])
-            .Select(static node => new SiteBuildReportNode(node.NodeId, node.OwnedArtifacts))
+            .Select(static node => new SiteBuildReportNode(node.NodeId, node.OwnedArtifacts)
+            {
+                CacheHit = node.CacheHit,
+                CacheMissReason = node.CacheMissReason,
+            })
             .Distinct()
             .OrderBy(static node => node.NodeId, StringComparer.Ordinal)
             .ThenBy(static node => node.OwnedArtifacts, OrdinalStringListComparer.Instance));
@@ -85,6 +89,10 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
     public string TemplateIdentity { get; }
     /// <summary>ノードと所有成果物を取得します。</summary>
     public IReadOnlyList<SiteBuildReportNode> Nodes { get; }
+    /// <summary>キャッシュから再利用したノード数を取得します。</summary>
+    public int CacheHitCount => Nodes.Count(static node => node.CacheHit);
+    /// <summary>キャッシュから再利用しなかったノード数を取得します。</summary>
+    public int CacheMissCount => Nodes.Count(static node => !node.CacheHit);
     /// <summary>前回計画との差分による無効化を取得します。</summary>
     public IReadOnlyList<SiteBuildReportInvalidation> Invalidations { get; }
     /// <summary>生成した相対成果物パスを取得します。</summary>
@@ -192,14 +200,22 @@ public sealed record SiteBuildReportNode(string NodeId, IReadOnlyList<string> Ow
         init => ownedArtifacts = Snapshot(value);
     }
 
+    /// <summary>ノードの成果物をキャッシュから再利用したかどうかを取得します。</summary>
+    public bool CacheHit { get; init; }
+
+    /// <summary>キャッシュを再利用しなかった理由を取得します。理由がない場合は <see langword="null"/> です。</summary>
+    public string? CacheMissReason { get; init; }
+
     /// <inheritdoc />
     public bool Equals(SiteBuildReportNode? other) =>
         other is not null
         && NodeId == other.NodeId
-        && OwnedArtifacts.SequenceEqual(other.OwnedArtifacts);
+        && OwnedArtifacts.SequenceEqual(other.OwnedArtifacts)
+        && CacheHit == other.CacheHit
+        && CacheMissReason == other.CacheMissReason;
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(NodeId, OwnedArtifacts.Count);
+    public override int GetHashCode() => HashCode.Combine(NodeId, OwnedArtifacts.Count, CacheHit, CacheMissReason);
 
     private static IReadOnlyList<string> Snapshot(IReadOnlyList<string> values)
     {

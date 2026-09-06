@@ -8,7 +8,7 @@ namespace LithoSharp;
 /// </summary>
 /// <param name="OutputDirectory">出力ディレクトリ。</param>
 /// <param name="PostCount">公開条件を満たして生成された Markdown 投稿数。</param>
-/// <param name="GeneratedFiles">この生成で書き込んだファイルの一覧。</param>
+/// <param name="GeneratedFiles">再利用した成果物を含む、今回公開したファイルの一覧。</param>
 public sealed record SiteGenerationResult(
     string OutputDirectory,
     int PostCount,

@@ -345,6 +345,9 @@ Unix の ACL、拡張属性、所有者は移植可能には保持できませ�
 
 `public`コピー、CSSの資産参照、整合性ハッシュ、画像変換の使用例は
 [資産と画像](docs/assets-and-images.ja.md)を参照してください。
+
+ページの永続キャッシュ、並列度、実際のヒット・ミスの確認方法は
+[差分ビルド](docs/incremental-builds.ja.md)を参照してください。
 `LithoSharp.Images`ではPNG／JPEG／WebPと、明示設定したエンコーダーによるAVIFを生成できます。
 Docsサンプルの`--asset-demo --check`で確認できます。
 

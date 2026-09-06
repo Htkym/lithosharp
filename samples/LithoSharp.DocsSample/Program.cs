@@ -103,7 +103,7 @@ var options = new SiteGenerationOptions
         ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
         : [],
     ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
-        articles, new ArticleLayout(articleSource, image)), topicPages]
+        articles, new ArticleLayout(articleSource, image)) { RendererFingerprint = "article-layout:v1", IsThreadSafe = true }, topicPages]
 };
 var generator = new SiteGenerator();
 SiteGenerationResult result;
@@ -130,6 +130,7 @@ Console.WriteLine(
     $"Generated {result.PostCount} Markdown post(s), {articles.Entries.Count} typed article(s), " +
     $"{result.BuildReport.GeneratedArtifacts.Count} artifact(s) into {result.OutputDirectory}.");
 Console.WriteLine($"Build invalidations: {result.BuildReport.Invalidations.Count}.");
+Console.WriteLine($"Cache hits: {result.BuildReport.CacheHitCount}; misses: {result.BuildReport.CacheMissCount}.");
 if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
 return 0;
 

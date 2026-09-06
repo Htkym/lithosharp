@@ -283,8 +283,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
         bool hasFaviconAssets,
         BuildNodeId navigationNodeId)
     {
-        var searchIndexFingerprint = SiteGenerator.ComputeTextContentSha256(
-            filesByPath[routes.SearchIndex.RelativeOutputPath].Content);
         AddTextArtifactNode(
             nodes,
             filesByPath,
@@ -388,9 +386,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             routes.SearchPage,
             [
                 .. HtmlLayoutInputs(site, theme, hasFaviconAssets),
-                BuildInput.FromFile(
-                    routes.SearchIndex.RelativeOutputPath,
-                    searchIndexFingerprint),
                 Configuration(
                     "text.searchPage",
                     Json(new

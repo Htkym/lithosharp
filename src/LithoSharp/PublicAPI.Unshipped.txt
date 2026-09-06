@@ -629,3 +629,17 @@ LithoSharp.SiteGenerationOptions.PublicDirectory.get -> string?
 LithoSharp.SiteGenerationOptions.PublicDirectory.init -> void
 LithoSharp.SiteGenerationOptions.AssetCacheDirectory.get -> string?
 LithoSharp.SiteGenerationOptions.AssetCacheDirectory.init -> void
+LithoSharp.SiteGenerationOptions.MaxDegreeOfParallelism.get -> int
+LithoSharp.SiteGenerationOptions.MaxDegreeOfParallelism.init -> void
+LithoSharp.SiteGenerationOptions.BuildCacheDirectory.get -> string?
+LithoSharp.SiteGenerationOptions.BuildCacheDirectory.init -> void
+LithoSharp.Content.SiteContentCollection.RendererFingerprint.get -> string?
+LithoSharp.Content.SiteContentCollection.RendererFingerprint.init -> void
+LithoSharp.Content.SiteContentCollection.IsThreadSafe.get -> bool
+LithoSharp.Content.SiteContentCollection.IsThreadSafe.init -> void
+LithoSharp.SiteBuildReportNode.CacheHit.get -> bool
+LithoSharp.SiteBuildReportNode.CacheHit.init -> void
+LithoSharp.SiteBuildReportNode.CacheMissReason.get -> string?
+LithoSharp.SiteBuildReportNode.CacheMissReason.init -> void
+LithoSharp.SiteBuildReport.CacheHitCount.get -> int
+LithoSharp.SiteBuildReport.CacheMissCount.get -> int

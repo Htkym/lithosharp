@@ -186,6 +186,7 @@ public sealed partial class SiteGenerator
         ArgumentNullException.ThrowIfNull(posts);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxDegreeOfParallelism, 1);
         if (options.EnvironmentName is null)
         {
             throw new ArgumentNullException(nameof(options.EnvironmentName));
@@ -212,7 +213,12 @@ public sealed partial class SiteGenerator
         var redirectDeclarations = options.Redirects.ToArray();
         if (redirectDeclarations.Any(redirect => redirect is null))
             throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
-        var outputRoot = Path.GetFullPath(outputDirectory);
+        var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
+        var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
+            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, ".lithosharp"));
+        if (ContainsDirectory(outputRoot, buildCacheRoot) || ContainsDirectory(buildCacheRoot, outputRoot)
+            || options.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
+            throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
         foreach (var asset in options.Assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
@@ -299,7 +305,7 @@ public sealed partial class SiteGenerator
             hasSocialImage,
             buildTimestamp,
             routes);
-        var renderedContentPages = contentPages
+        var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
                 this,
                 configuration,
@@ -307,16 +313,16 @@ public sealed partial class SiteGenerator
                 assetRegistry,
                 cancellationToken))
             .ToArray();
-        var collectionFiles = renderedContentPages
+        var collectionFiles = contentPages
             .Select(page => new SiteTemplateFile
             {
                 RelativePath = page.Route.RelativeOutputPath,
-                Content = page.Content,
+                Content = page.Content ?? string.Empty,
             })
             .ToArray();
 
         var docsNavigation = BuildDocsNavigation(publishedPosts);
-        var templatePages = BuildTemplatePages(configuration, docsNavigation);
+        var templatePages = BuildTemplatePages(configuration, docsNavigation, renderContent: !builtInTemplate);
         var templateNavigation = BuildTemplateNavigation(configuration, docsNavigation, templatePages);
         var templateContext = new SiteTemplateContext(
             this,
@@ -331,7 +337,10 @@ public sealed partial class SiteGenerator
             configuration,
             assetRegistry,
             options.EnvironmentName);
-        var templateResult = await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
+        var plannedText = builtInTemplate ? CreatePlannedTemplateRenders(templateContext, template) : null;
+        var templateResult = builtInTemplate
+            ? new SiteTemplateResult(plannedText!.Keys.Select(path => new SiteTemplateFile { RelativePath = path, Content = string.Empty }).ToArray())
+            : await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
         var artifactRouteTable = new SiteRouteTable();
         artifactRouteTable.ReserveOutputPath(
@@ -443,18 +452,37 @@ public sealed partial class SiteGenerator
             hasSocialImage,
             routes);
         var assetNodes = assetRegistry.CreateBuildNodes();
-        var buildPlan = assetNodes.Count == 0
-            ? SiteBuildPlan.Create(basePlan.Nodes.Concat(collectionNodes))
-            : SiteBuildPlan.Create(
-                basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
+        IEnumerable<BuildNode> allNodes = assetNodes.Count == 0
+            ? basePlan.Nodes.Concat(collectionNodes)
+            : basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node)
                 .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
-                .Concat(assetNodes));
+                .Concat(assetNodes);
         if (redirectOutputs.Count != 0)
-            buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Concat(CreateRedirectNodes(redirectOutputs, site.BaseUrl, buildPlan)));
+        {
+            var redirectPlan = SiteBuildPlan.Create(allNodes);
+            allNodes = redirectPlan.Nodes.Concat(CreateRedirectNodes(redirectOutputs, site.BaseUrl, redirectPlan));
+        }
+        var socialImplementation = hasSocialImage ? SocialImageGenerator.GetImplementationFingerprint() : null;
+        // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
+        var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
+        {
+            IEnumerable<BuildInput> inputs = node.Inputs;
+            if (node.Id.Value.StartsWith("social:", StringComparison.Ordinal))
+                inputs = inputs.Append(socialImplementation is null
+                    ? BuildInput.FromValue("social.cachePolicy", "always-rebuild")
+                    : BuildInput.FromConfiguration("social.implementation", socialImplementation));
+            if (builtInTemplate && node.Id.Value.StartsWith("page:", StringComparison.Ordinal)
+                && !node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal))
+                inputs = inputs.Append(BuildInput.FromConfiguration("assets.hasSocialImage", hasSocialImage.ToString(CultureInfo.InvariantCulture)));
+            return new BuildNode(node.Id, inputs,
+                node.Id.Value == "index:search" ? node.Dependencies.Concat(contentPages
+                    .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)).Select(page => new BuildNodeId(page.OwnerId))) : node.Dependencies,
+                node.Artifacts);
+        }));
         var ownedArtifactPaths = buildPlan.Artifacts
             .Select(static artifact => artifact.RelativeOutputPath)
             .Order(StringComparer.Ordinal)
@@ -470,6 +498,7 @@ public sealed partial class SiteGenerator
                 cancellationToken)
             .ConfigureAwait(false);
         var generatedInStaging = new List<string>();
+        BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
         var committed = false;
@@ -480,126 +509,136 @@ public sealed partial class SiteGenerator
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            foreach (var file in templateFiles)
+            if (builtInTemplate)
             {
-                await WriteTextAsync(
-                        outputTransaction.StagingRoot,
-                        file.RelativePath,
-                        file.Content,
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
+                    assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
+                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, cancellationToken).ConfigureAwait(false);
+                generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
             }
-
-            foreach (var file in normalizedCollectionFiles)
+            else
             {
-                await WriteTextAsync(
-                        outputTransaction.StagingRoot,
-                        file.RelativePath,
-                        file.Content,
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            foreach (var redirect in redirectOutputs)
-                await WriteTextAsync(outputTransaction.StagingRoot, redirect.File.RelativePath, redirect.File.Content,
-                    generatedInStaging, cancellationToken).ConfigureAwait(false);
-
-            foreach (var file in assetRegistry.Files)
-            {
-                await WriteBinaryAssetAsync(
-                        outputTransaction.StagingRoot,
-                        file.RelativePath,
-                        file.Bytes,
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            if (configuration.HasFaviconAssets)
-            {
-                await WriteBundledFaviconAssetsAsync(
-                        outputTransaction.StagingRoot,
-                        configuration,
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                await WriteTextAsync(
-                        outputTransaction.StagingRoot,
-                        routes.WebManifest.RelativeOutputPath,
-                        BuildWebManifest(configuration),
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            if (configuration.HasSocialImage)
-            {
-                await WriteBinaryAssetAsync(
-                        outputTransaction.StagingRoot,
-                        routes.DefaultSocialImage.RelativeOutputPath,
-                        await BuildDefaultSocialImageAsync(configuration, cancellationToken).ConfigureAwait(false),
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            if (configuration.HasSocialImage)
-            {
-                foreach (var post in publishedPosts)
+                foreach (var file in templateFiles)
                 {
-                    await WriteBinaryAssetAsync(
+                    await WriteTextAsync(
                             outputTransaction.StagingRoot,
-                            routes.PostSocialImage(post).RelativeOutputPath,
-                            await BuildPostSocialImageAsync(configuration, post, cancellationToken).ConfigureAwait(false),
+                            file.RelativePath,
+                            file.Content,
                             generatedInStaging,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
 
-                foreach (var page in contentPages
-                             .Where(page => page.IsIncludedIn(
-                                 GeneratedPageDerivedSurfaces.SocialImage)))
+                foreach (var file in normalizedCollectionFiles)
                 {
-                    await WriteBinaryAssetAsync(
+                    await WriteTextAsync(
                             outputTransaction.StagingRoot,
-                            routes.ContentSocialImage(page.Route).RelativeOutputPath,
-                            await BuildContentSocialImageAsync(
-                                    configuration,
-                                    page,
-                                    cancellationToken)
-                                .ConfigureAwait(false),
+                            file.RelativePath,
+                            file.Content,
                             generatedInStaging,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
-            }
 
-            if (customization.GenerateLlmsTxt)
-            {
-                await WriteTextAsync(
-                        outputTransaction.StagingRoot,
-                        routes.Llms.RelativeOutputPath,
-                        BuildLlmsTxt(configuration, publishedPosts, contentPages),
-                        generatedInStaging,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                foreach (var redirect in redirectOutputs)
+                    await WriteTextAsync(outputTransaction.StagingRoot, redirect.File.RelativePath, redirect.File.Content,
+                        generatedInStaging, cancellationToken).ConfigureAwait(false);
+
+                foreach (var file in assetRegistry.Files)
+                {
+                    await WriteBinaryAssetAsync(
+                            outputTransaction.StagingRoot,
+                            file.RelativePath,
+                            file.Bytes,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasFaviconAssets)
+                {
+                    await WriteBundledFaviconAssetsAsync(
+                            outputTransaction.StagingRoot,
+                            configuration,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            routes.WebManifest.RelativeOutputPath,
+                            BuildWebManifest(configuration),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasSocialImage)
+                {
+                    await WriteBinaryAssetAsync(
+                            outputTransaction.StagingRoot,
+                            routes.DefaultSocialImage.RelativeOutputPath,
+                            await BuildDefaultSocialImageAsync(configuration, cancellationToken).ConfigureAwait(false),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasSocialImage)
+                {
+                    foreach (var post in publishedPosts)
+                    {
+                        await WriteBinaryAssetAsync(
+                                outputTransaction.StagingRoot,
+                                routes.PostSocialImage(post).RelativeOutputPath,
+                                await BuildPostSocialImageAsync(configuration, post, cancellationToken).ConfigureAwait(false),
+                                generatedInStaging,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    foreach (var page in contentPages
+                                 .Where(page => page.IsIncludedIn(
+                                     GeneratedPageDerivedSurfaces.SocialImage)))
+                    {
+                        await WriteBinaryAssetAsync(
+                                outputTransaction.StagingRoot,
+                                routes.ContentSocialImage(page.Route).RelativeOutputPath,
+                                await BuildContentSocialImageAsync(
+                                        configuration,
+                                        page,
+                                        cancellationToken)
+                                    .ConfigureAwait(false),
+                                generatedInStaging,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                if (customization.GenerateLlmsTxt)
+                {
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            routes.Llms.RelativeOutputPath,
+                            BuildLlmsTxt(configuration, publishedPosts, contentPages),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
 
             if (options.Quality is { } qualityOptions)
             {
-                var textFiles = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
-                    .ToDictionary(file => file.RelativePath, file => file.Content, StringComparer.Ordinal);
-                foreach (var asset in assetRegistry.Files.Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)))
-                    textFiles.Add(asset.RelativePath, new UTF8Encoding(false, true).GetString(asset.Bytes));
+                var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
+                    .Select(file => file.RelativePath).Concat(assetRegistry.Files
+                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath)).ToArray();
                 var pageRoutes = contentPages.Select(page => page.Route).Concat(redirectOutputs.Select(redirect => redirect.Source))
                     .ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
                 var qualityRoutes = buildPlan.Artifacts.ToDictionary(artifact => artifact.RelativeOutputPath, artifact =>
                     pageRoutes.TryGetValue(artifact.RelativeOutputPath, out var pageRoute) ? pageRoute
                     : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
                     : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
-                qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textFiles, qualityRoutes,
+                qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
+                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), qualityRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
                     qualityOptions, cancellationToken).ConfigureAwait(false);
@@ -611,7 +650,8 @@ public sealed partial class SiteGenerator
                     outputTransaction.StagingRoot,
                     ownedArtifactPaths,
                     generatedInStaging,
-                    cancellationToken)
+                    cancellationToken,
+                    execution?.CacheKey)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await outputTransaction.PrepareOwnershipStateAsync(
@@ -663,7 +703,8 @@ public sealed partial class SiteGenerator
                 staleRemovedArtifacts,
                 outputTransaction.Diagnostics.Concat(qualityReport.Diagnostics).ToArray(),
                 outputTransaction.RetainedRecoveryState,
-                template),
+                template,
+                execution),
         };
     }
 
@@ -721,7 +762,8 @@ public sealed partial class SiteGenerator
         IReadOnlyList<string> staleRemovedArtifacts,
         IReadOnlyList<SiteDiagnostic> diagnostics,
         bool retainedRecoveryState,
-        ISiteTemplate template)
+        ISiteTemplate template,
+        BuildExecutionResult? execution = null)
     {
         var generatedRelative = generated
             .Select(path => Path.GetRelativePath(outputRoot, path).Replace('\\', '/'))
@@ -739,12 +781,12 @@ public sealed partial class SiteGenerator
             buildTimestamp,
             environmentName,
             template.GetType().FullName ?? template.GetType().Name,
-            plan.Nodes.Select(node => new SiteBuildReportNode(
+            execution?.Nodes ?? plan.Nodes.Select(node => new SiteBuildReportNode(
                 node.Id.Value,
                 node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray())),
             invalidations,
-            generatedRelative,
-            [],
+            execution is null ? generatedRelative : execution.Nodes.Where(node => !node.CacheHit).SelectMany(node => node.OwnedArtifacts),
+            execution?.Nodes.Where(node => node.CacheHit).SelectMany(node => node.OwnedArtifacts) ?? [],
             unpublishedPages,
             staleRemovedArtifacts,
             diagnostics,
@@ -1245,13 +1287,14 @@ public sealed partial class SiteGenerator
 
     private IReadOnlyList<SiteTemplatePage> BuildTemplatePages(
         RenderContext configuration,
-        DocsNavigationNode root)
+        DocsNavigationNode root,
+        bool renderContent = true)
     {
         var orderedPosts = FlattenDocsNavigation(root).ToArray();
         var pages = orderedPosts
             .Select(post =>
             {
-                var contentHtml = AddNewTabAttributesToExternalPostLinks(
+                var contentHtml = !renderContent ? string.Empty : AddNewTabAttributesToExternalPostLinks(
                     configuration,
                     NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
                 return new SiteTemplatePage
@@ -2012,7 +2055,8 @@ public sealed partial class SiteGenerator
         string outputRoot,
         IReadOnlyList<string> ownedArtifactPaths,
         List<string> generated,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? buildCacheKey = null)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(
@@ -2021,6 +2065,7 @@ public sealed partial class SiteGenerator
         {
             writer.WriteStartObject();
             writer.WriteNumber("version", OutputManifestVersion);
+            if (buildCacheKey is not null) writer.WriteString("buildCache", buildCacheKey);
             writer.WritePropertyName("files");
             writer.WriteStartArray();
             foreach (var path in ownedArtifactPaths)
@@ -2540,6 +2585,40 @@ public sealed partial class SiteGenerator
         }
 
         public string StagingRoot { get; }
+
+        internal string OutputIdentity => _outputIdentity;
+
+        internal async Task<string?> ReadPreviousBuildCacheKeyAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var owned = _previousOwnershipState?.Artifacts.FirstOrDefault(artifact =>
+                string.Equals(artifact.Path, OutputManifestRelativePath, StringComparison.Ordinal));
+            if (owned is null) return null;
+            try
+            {
+                var path = SafeCombine(StagingRoot, OutputManifestRelativePath);
+                EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
+                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(StagingRoot, path, asynchronous: true);
+                using var buffer = new MemoryStream();
+                await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+                var bytes = buffer.ToArray();
+                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256) return null;
+                using var document = JsonDocument.Parse(bytes);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object
+                    || !root.TryGetProperty("version", out var version) || !version.TryGetInt32(out var number) || number != OutputManifestVersion
+                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String) return null;
+                var digest = cache.GetString();
+                return digest is not null && IsSha256(digest) && digest == digest.ToLowerInvariant() ? digest : null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or InvalidOperationException or ArgumentException or JsonException
+                or System.ComponentModel.Win32Exception or NotSupportedException)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
+        }
 
         public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
 

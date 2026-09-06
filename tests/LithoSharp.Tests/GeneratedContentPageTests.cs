@@ -529,7 +529,8 @@ public sealed class GeneratedContentPageTests
             .ToArray();
         await Assert.That(invalidated).Contains(pageNode.Id.Value);
         await Assert.That(invalidated).Contains("feed:rss");
-        await Assert.That(invalidated).DoesNotContain("index:search");
+        // Search consumes the rendered body and now depends on the renderer node itself.
+        await Assert.That(invalidated).Contains("index:search");
         await Assert.That(invalidated).DoesNotContain("index:sitemap");
         await Assert.That(invalidated).DoesNotContain("text:llms");
     }

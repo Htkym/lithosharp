@@ -76,6 +76,7 @@ public sealed class SiteTemplateContext
     public SiteTemplateNavigationNode Navigation { get; }
 
     internal SiteGenerator.RenderContext Configuration { get; }
+    internal string EnvironmentName => _environmentName;
 
     /// <summary>このビルドで登録された資産を取得します。</summary>
     public AssetRegistry Assets { get; }

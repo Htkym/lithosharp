@@ -369,3 +369,102 @@ avifencが未導入のため実際のエンコードは未検証である。
 The final CI-style smoke also passes (`artifacts/ssg-5/final-smoke.json`, 607.5 ms
 clean). It follows build/pack verification and is retained separately from the
 isolated paired measurements.
+
+## Phase 6: incremental execution and persistent cache
+
+Release builds pass with zero warnings, and all 401 TUnit cases pass. The new
+checks cover real typed-renderer call counts, source changes, route rename and
+deletion, renderer identity, navigation changes, social-image source changes,
+corrupt records/artifacts/derived bodies, failure and cancellation, parallelism,
+undeclared renderers, actual transform execution reporting and output-path spelling.
+Clean and incremental outputs, including the output manifest, match byte-for-byte.
+Core package compatibility and Core/Generators/Images package contents pass.
+
+The 14 Docs, 13 Blog and 18 asset-demo artifacts match phase 5 by SHA-256. The
+output manifest intentionally adds a cache-record digest; no HTML fixture was
+updated. Sample quality diagnostics remain empty. The asset sample reports 15
+hits and three misses: its generated topic callbacks have not declared renderer
+fingerprints, so they remain uncached. The direct typed article layout is cached.
+Two existing graph assertions were updated for the declared search dependency:
+search now waits for typed renderer nodes, and its page depends on the index
+node rather than an eagerly rendered index fingerprint.
+
+Built-in rendering now follows a validated artifact plan. Cache candidates are
+bound to an output through its ownership-authenticated output manifest, and their
+current declarations, keys and staged bytes are verified before reuse. Rendered
+bodies needed by search are separate verified blobs. Cache records never grant
+deletion authority. Cache write failures abort publication; immutable records
+written before a later failure may remain unreferenced outside the output tree.
+Legacy opaque templates remain eager and uncached. Typed cache reuse requires
+both source and renderer declarations and a stable build timestamp.
+
+The benchmark now counts executed nodes instead of counting every planned node.
+At all three sizes, no-op executes zero nodes, a single body change executes three
+(the page, search index and search page), and a layout change executes N + 4 nodes.
+The 100-page smoke checks actual no-op reuse as well as artifact counts and memory
+sampling. Safe transaction copying, file verification and ownership hashing still
+run on a cache hit; zero rendering does not mean zero filesystem I/O.
+
+The initial implementation is retained in `artifacts/ssg-6/first-pass-*.json`.
+Its layout allocation increases were 39.0%, 42.5% and 40.3% at 100, 1,000 and
+10,000 pages, respectively. Inspection identified extra comparisons before writing
+already-invalidated HTML, whole-manifest byte buffers, and repeated final-plan
+validation. The adopted implementation writes regenerated text directly, streams
+cache JSON and combines final node declarations before validating them. Binary
+asset write comparison and cache-hit verification remain intact.
+
+Final measurements are in `artifacts/ssg-6/baseline-*.json`. They use the same
+machine, runtime, corpus and four workloads as phase 5. The comparison is against
+phase 5's retained final paired-run results, `artifacts/ssg-5/ab/phase5-*.json`;
+these are different-time observations, not a simultaneous controlled experiment.
+No build, test or sample process overlaps these measurements.
+
+| Pages | Workload | Phase 5 time (ms) | Phase 6 time (ms) | Time delta | Allocation delta | Peak working-set delta | Executed nodes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | clean | 438.3 | 821.7 | +87.5% | +15.2% | +8.8% | 112 |
+| 100 | no-op | 311.3 | 723.6 | +132.4% | -6.4% | +8.0% | 0 |
+| 100 | single-page-change | 305.1 | 510.9 | +67.5% | -3.2% | +13.0% | 3 |
+| 100 | layout-change | 340.6 | 497.4 | +46.0% | +8.1% | +4.9% | 104 |
+| 1000 | clean | 4842.9 | 5721.0 | +18.1% | +14.5% | -0.3% | 1012 |
+| 1000 | no-op | 6338.8 | 6878.7 | +8.5% | -5.4% | -0.7% | 0 |
+| 1000 | single-page-change | 4192.2 | 2559.3 | -39.0% | -2.7% | -0.8% | 3 |
+| 1000 | layout-change | 4101.0 | 3251.7 | -20.7% | +12.4% | +3.0% | 1004 |
+| 10000 | clean | 52126.8 | 68619.2 | +31.6% | +12.7% | +3.1% | 10012 |
+| 10000 | no-op | 103472.3 | 85228.5 | -17.6% | -8.2% | -2.1% | 0 |
+| 10000 | single-page-change | 63827.7 | 46929.6 | -26.5% | -4.8% | -10.1% | 3 |
+| 10000 | layout-change | 78500.6 | 126002.2 | +60.5% | +11.6% | +6.3% | 10004 |
+
+Adopt phase 6 for verified incremental execution, with these regressions retained.
+Clean allocation rises by 12.7–15.2%; the executor now creates node keys, artifact
+fingerprints and persistent cache metadata. Full-layout allocation rises by
+8.1–12.4%, because those builds also load prior cache metadata while rendering
+nearly every page. These are additional code paths absent from phase 5; the exact
+per-method allocation split has not been profiled. No-op and single-page allocation
+fall at every size, and peak working set stays within 10% except the 100-page
+single-change run (+13.0%, approximately 8.6 MB).
+
+Wall-clock regressions remain material: clean is 18.1–87.5% slower, all 100-page
+workloads are slower, and 10,000-page layout change is 60.5% slower. New keying,
+cache serialization and disk verification add work; transaction staging, ownership
+hashing and flushes remain. Timing also varies between the retained first and final
+runs (for example, 1,000-page no-op changes from 16.7 to 6.9 seconds, while the
+10,000-page layout run changes from 90.4 to 126.0 seconds despite lower allocations).
+The exact share of cache I/O, filesystem latency, GC and other system activity is
+not isolated. These measurements do not establish a general speedup, and further
+filesystem optimization is deferred rather than weakening atomicity or verification.
+The concrete improvement is zero cacheable-node execution on no-op and three-node
+execution for one changed body; at 10,000 pages their measured times improve by
+17.6% and 26.5%, respectively.
+
+日本語の検証要約: Releaseビルドは警告・エラー0件、TUnitは401件成功した。
+マニフェストを含むclean／差分出力の一致、変更のない型付きページの描画0回、
+破損時の再生成、削除・名前変更、レイアウト・ナビゲーション変更、失敗・キャンセル、
+並列度と直列拡張を検証した。Docs／Blog／画像デモの既存成果物はフェーズ5と一致し、
+品質診断は0件だった。出力マニフェストにはキャッシュ記録の参照を追加した。
+
+初回実装で見つかったHTMLの追加比較、JSON全体のバッファ、重複した計画検証を減らした。
+採用した実装でも、cleanの割当量は12.7〜15.2%、全体レイアウト変更では最大12.4%増える。
+キー・成果物の識別とキャッシュ保存が増えたことによる負担は残る。時間にはさらに変動があり、
+10,000ページの全体レイアウト変更は60.5%遅くなった。個々の処理や実行環境への寄与は
+分離できていないため、全般的な高速化とは評価しない。no-opの実行ノード0件、本文1件の
+変更時の3ノード実行と、安全な出力確定を確認したうえで、この制限を残して採用する。

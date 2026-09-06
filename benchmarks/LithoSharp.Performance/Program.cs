@@ -207,6 +207,8 @@ if (noOpRun.Result.BuildReport.Invalidations.Count != 0)
 {
     throw new InvalidOperationException("The no-op workload must not invalidate any nodes.");
 }
+if (noOpRun.Result.BuildReport.CacheMissCount != 0)
+    throw new InvalidOperationException("The no-op workload must reuse every cacheable node.");
 
 var expectedLayoutRenderingNodes = layoutRun.Result.BuildPlan.Nodes.Count(node =>
     node.Inputs.Any(input => input.Key == "theme.themeColor"));
@@ -365,7 +367,7 @@ internal sealed class WorkloadMeasurement
         StartWorkingSetBytes = start,
         EndWorkingSetBytes = end,
         PeakWorkingSetBytes = Math.Max(peak, end),
-        GeneratedNodeCount = result.BuildReport.Nodes.Count,
+        GeneratedNodeCount = result.BuildReport.CacheMissCount,
         InvalidatedNodeCount = result.BuildReport.Invalidations.Count,
         ArtifactCount = artifacts
     };

@@ -11,7 +11,7 @@ internal sealed class SiteRouteCatalog
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly string _baseUrl;
     private readonly string _origin;
-    private readonly Dictionary<string, SiteRoute> _files = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SiteRoute> _files = new(StringComparer.Ordinal);
     private readonly Dictionary<MarkdownPost, SiteRoute> _posts =
         new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<SiteExtraPage, SiteRoute> _extraPages =
@@ -114,16 +114,7 @@ internal sealed class SiteRouteCatalog
 
     public string AbsoluteRootUrl => $"{_origin}{PublicPath(Root)}";
 
-    private SiteRoute Add(SiteRoute route)
-    {
-        if (_files.TryGetValue(route.RelativeOutputPath, out var existing))
-        {
-            return existing;
-        }
-
-        _files.Add(route.RelativeOutputPath, route);
-        return route;
-    }
+    private SiteRoute Add(SiteRoute route) => _files.GetOrAdd(route.RelativeOutputPath, route);
 
     private static string RouteHash(SiteRoute route) =>
         Convert.ToHexStringLower(

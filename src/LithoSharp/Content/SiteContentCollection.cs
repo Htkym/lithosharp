@@ -1,3 +1,4 @@
+using System.Reflection;
 using LithoSharp.Configuration;
 using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
@@ -106,12 +107,47 @@ public sealed class ContentPageRenderingContext
 /// <summary>生成へ接続する型付きコンテンツコレクションの基底契約です。</summary>
 public abstract class SiteContentCollection
 {
+    private string? rendererFingerprint;
+
     private protected SiteContentCollection()
     {
     }
 
     /// <summary>コレクションの安定した識別子を取得します。</summary>
     public abstract ContentCollectionId Id { get; }
+
+    /// <summary>レンダラー設定を識別する安定した値です。未指定の場合、レンダリング結果はキャッシュされません。</summary>
+    /// <exception cref="ArgumentException">値が空または空白だけです。</exception>
+    public string? RendererFingerprint
+    {
+        get => rendererFingerprint;
+        init
+        {
+            if (value is not null && string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("A renderer fingerprint must not be empty.", nameof(RendererFingerprint));
+            rendererFingerprint = value;
+        }
+    }
+
+    /// <summary>レンダラーを複数ページで同時に呼び出しても安全かどうかを示します。</summary>
+    public bool IsThreadSafe { get; init; }
+
+    internal static string CaptureRendererIdentity(Delegate renderer, Type? layoutType = null)
+    {
+        var method = renderer.Method;
+        var token = TryGetMetadataToken(method);
+        var identity = $"{AssemblyIdentity(method.Module.Assembly)}:{method.Module.ModuleVersionId:N}:{token}:{method.DeclaringType?.AssemblyQualifiedName}:{method}";
+        return layoutType is null
+            ? identity
+            : $"{identity}|layout:{AssemblyIdentity(layoutType.Assembly)}:{layoutType.Module.ModuleVersionId:N}:{layoutType.FullName}";
+
+        static string AssemblyIdentity(Assembly assembly) => assembly.FullName ?? assembly.GetName().Name ?? "unknown";
+        static string TryGetMetadataToken(MethodInfo method)
+        {
+            try { return method.MetadataToken.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+            catch (InvalidOperationException) { return "dynamic"; }
+        }
+    }
 
     internal abstract IReadOnlyList<IntegratedContentPage> CreatePages(
         string baseUrl,
@@ -129,6 +165,8 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
     where TFrontMatter : notnull
     where TBody : notnull
 {
+    private readonly string rendererImplementationIdentity;
+
     /// <summary>生成へ接続するコレクションを作成します。</summary>
     /// <param name="collection">ルート、公開情報、レイアウト、依存関係を持つコレクション。</param>
     /// <param name="renderer">公開対象の各エントリを描画する処理。</param>
@@ -138,6 +176,7 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
     {
         Collection = collection ?? throw new ArgumentNullException(nameof(collection));
         Renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        rendererImplementationIdentity = CaptureRendererIdentity(renderer);
     }
 
     /// <summary>型付きページレイアウトを使用してコレクションを作成します。</summary>
@@ -162,6 +201,9 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
         })
     {
         ArgumentNullException.ThrowIfNull(layout);
+        rendererImplementationIdentity = CaptureRendererIdentity(
+            (Func<SitePage<ContentEntry<TFrontMatter, TBody>>, PageRenderingContext, IHtmlContent>)layout.Render,
+            layout.GetType());
     }
 
     /// <summary>登録した型付きコンテンツコレクションを取得します。</summary>
@@ -226,7 +268,13 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     ownerId,
                     new PageId(ownerId),
                     GeneratedPageDerivedSurfaces.All,
-                    context => Renderer(entry, context));
+                    context => Renderer(entry, context))
+                {
+                    RendererFingerprint = this.RendererFingerprint is null
+                        ? null
+                        : this.RendererFingerprint + "|" + rendererImplementationIdentity,
+                    IsThreadSafe = this.IsThreadSafe,
+                };
                 pages.Add(page);
                 routeTable.Register(route, ownerId, entry.SourceLocation);
             }
@@ -264,6 +312,9 @@ internal sealed class IntegratedContentPage(
     GeneratedPageDerivedSurfaces derivedSurfaces,
     Func<ContentPageRenderingContext, string> renderer)
 {
+    private string? derivedContent;
+    private Func<string?>? derivedContentProvider;
+
     public ContentCollectionId CollectionId { get; } = collectionId;
 
     public ContentEntryId EntryId { get; } = entryId;
@@ -288,6 +339,12 @@ internal sealed class IntegratedContentPage(
 
     public bool IsCacheable { get; } = isCacheable;
 
+    public string? RendererFingerprint { get; init; }
+
+    public bool IsThreadSafe { get; init; }
+
+    internal bool CanCacheRendering => IsCacheable && RendererFingerprint is not null;
+
     public IReadOnlyList<ContentDependency> DeclaredDependencies { get; } = declaredDependencies;
 
     public IReadOnlyList<IntegratedContentSource> Sources { get; } = sources;
@@ -296,7 +353,7 @@ internal sealed class IntegratedContentPage(
 
     public string? Content { get; private set; }
 
-    public string? DerivedContent { get; private set; }
+    public string? DerivedContent => derivedContent ?? derivedContentProvider?.Invoke();
 
     public PageId PageId { get; } = pageId;
 
@@ -327,8 +384,17 @@ internal sealed class IntegratedContentPage(
         Content = renderer(context)
             ?? throw new InvalidOperationException(
                 $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
-        DerivedContent = context.DerivedContent ?? Content;
+        derivedContent = context.DerivedContent ?? Content;
         return new RenderedPage(PageId, Route, Content, Metadata);
+    }
+
+    internal void SetDerivedContentProvider(Func<string?> provider) =>
+        derivedContentProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+
+    internal void ClearRenderedContent()
+    {
+        Content = null;
+        derivedContent = null;
     }
 }
 

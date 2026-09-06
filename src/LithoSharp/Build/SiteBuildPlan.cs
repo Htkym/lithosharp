@@ -134,12 +134,12 @@ public sealed class SiteBuildPlan
 
             if (node.Inputs.Any(input =>
                     input.Kind == BuildInputKind.Value
-                    && input.Key is "template.cachePolicy" or "content.cachePolicy"
+                    && input.Key is "template.cachePolicy" or "content.cachePolicy" or "social.cachePolicy"
                     && input.Value == "always-rebuild"))
             {
                 var cachePolicy = node.Inputs.First(input =>
                     input.Kind == BuildInputKind.Value
-                    && input.Key is "template.cachePolicy" or "content.cachePolicy"
+                    && input.Key is "template.cachePolicy" or "content.cachePolicy" or "social.cachePolicy"
                     && input.Value == "always-rebuild");
                 reasons.Add($"入力 'Value:{cachePolicy.Key}' が常時再ビルドを要求します。");
             }

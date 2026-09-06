@@ -427,6 +427,9 @@ inputs retain their existing runtime validation. See
 
 Public-directory copies, declared CSS transforms, integrity hashes and cached
 responsive image variants are described in [Assets and images](docs/assets-and-images.md).
+
+For persistent page caching, bounded parallel rendering, and actual cache hit reports, see
+[Incremental builds](docs/incremental-builds.md).
 `LithoSharp.Images` adds PNG/JPEG/WebP and opt-in AVIF without requiring an external
 tool for Core generation. Run the Docs sample with `--asset-demo --check` to try it.
 

@@ -118,6 +118,7 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
     private readonly ContentPageGroupSelector<TFrontMatter, TBody> groupSelector;
     private readonly GeneratedPageFactory<TFrontMatter, TBody, TPageContent> pageFactory;
     private readonly GeneratedPageRenderer<TPageContent> renderer;
+    private readonly string rendererImplementationIdentity;
     private readonly IReadOnlyList<string?> groupKeys;
     private readonly ContentLayoutId? layoutId;
     private readonly IComparer<string> groupOrderingComparer;
@@ -145,6 +146,10 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
         this.groupSelector = groupSelector ?? throw new ArgumentNullException(nameof(groupSelector));
         this.pageFactory = pageFactory ?? throw new ArgumentNullException(nameof(pageFactory));
         this.renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        rendererImplementationIdentity = string.Join("|",
+            CaptureRendererIdentity(renderer),
+            CaptureRendererIdentity(pageFactory),
+            CaptureRendererIdentity(groupSelector));
         if (id.Equals(source.Id))
         {
             throw new ArgumentException(
@@ -327,7 +332,13 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
                 ownerId,
                 page.Id,
                 derivedSurfaces,
-                context => renderer(page, context)));
+                context => renderer(page, context))
+            {
+                RendererFingerprint = this.RendererFingerprint is null
+                    ? null
+                    : this.RendererFingerprint + "|" + rendererImplementationIdentity,
+                IsThreadSafe = this.IsThreadSafe,
+            });
             routeTable.Register(
                 route,
                 ownerId,

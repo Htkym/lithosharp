@@ -167,7 +167,6 @@ public sealed class BuiltInBuildPlanTests
             .IsEquivalentTo(
             [
                 "依存ノード 'index:search' が無効化されました。",
-                "入力 'File:search-index.json' が変更されました。",
             ]);
     }
 

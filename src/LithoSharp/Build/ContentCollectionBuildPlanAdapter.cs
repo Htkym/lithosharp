@@ -113,7 +113,7 @@ internal static class ContentCollectionBuildPlanAdapter
             page.Route.RelativeOutputPath,
             Metadata = page.Metadata,
             Layout = page.LayoutId?.Value,
-            Content = includeContent ? page.DerivedContent : null,
+            Renderer = includeContent ? page.RendererFingerprint : null,
         }));
 
     private static IEnumerable<BuildInput> PageInputs(
@@ -159,7 +159,7 @@ internal static class ContentCollectionBuildPlanAdapter
             page.Route.RelativeOutputPath);
         yield return BuildInput.FromValue("content.metadata", Json(page.Metadata));
         yield return BuildInput.FromValue("content.layout", page.LayoutId?.Value ?? string.Empty);
-        yield return BuildInput.FromValue("content.output", page.Content ?? string.Empty);
+        yield return BuildInput.FromValue("content.renderer", page.RendererFingerprint ?? string.Empty);
         yield return BuildInput.FromValue(
             "content.derivedSurfaces",
             ((int)page.DerivedSurfaces).ToString(CultureInfo.InvariantCulture));
@@ -182,7 +182,7 @@ internal static class ContentCollectionBuildPlanAdapter
             yield return input;
         }
 
-        if (!page.IsCacheable)
+        if (!page.CanCacheRendering)
         {
             yield return BuildInput.FromValue("content.cachePolicy", "always-rebuild");
         }

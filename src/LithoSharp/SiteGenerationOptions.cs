@@ -9,6 +9,12 @@ using LithoSharp.Routing;
 /// </summary>
 public sealed record SiteGenerationOptions
 {
+    /// <summary>Maximum simultaneous renders. The default is one; extensions remain serial unless they declare thread safety.</summary>
+    public int MaxDegreeOfParallelism { get; init; } = 1;
+
+    /// <summary>Build cache root outside output and public input. Null uses a sibling .lithosharp directory, partitioned by output identity.</summary>
+    public string? BuildCacheDirectory { get; init; }
+
     /// <summary>
     /// 生成成果物と公開判定に使うビルド時刻です。値は UTC に正規化されます。
     /// 未指定時は <c>SOURCE_DATE_EPOCH</c>、現在の UTC 時刻の順に使用します。
