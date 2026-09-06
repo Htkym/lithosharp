@@ -24,6 +24,7 @@ the planned architecture changes.
 | `LithoSharp.Content.MarkdownPostReader` | Parameterless reader with `ReadAllAsync(string)` and `ReadAsync(string, string)` |
 | `LithoSharp.SiteCustomization` | Parameterless record carrying text, theme, template, validators, extra pages, favicon source, and `llms.txt` selection |
 | `LithoSharp.ISiteTemplate` | `Task<SiteTemplateResult> RenderAsync(SiteTemplateContext, CancellationToken = default)` |
+| `LithoSharp.SiteTemplateContext.RenderLayout<TPage>` | Adapts a typed page layout to the legacy template context while preserving build settings and assets |
 
 ## Compatibility surfaces
 
@@ -50,6 +51,16 @@ documented extension points.
 | `LithoSharp` | `SiteTemplatePage` | Template extension contract |
 | `LithoSharp` | `SiteTemplatePageLink` | Template extension contract |
 | `LithoSharp` | `SiteTemplateResult` | Template extension contract |
+| `LithoSharp` | `IHtmlContent`, `HtmlText`, `HtmlAttributeValue` | Context-specific HTML output contracts |
+| `LithoSharp` | `SiteUrl`, `SiteAsset`, `AssetUrl`, `AssetRegistry`, `AssetRegistryException` | Validated URL and registered-asset contracts |
+| `LithoSharp` | `ISiteComponent<TProps>` | Reusable typed component contract |
+| `LithoSharp` | `IPageLayout<TPage>` | Typed full-page layout contract |
+| `LithoSharp` | `PageLayoutContent`, `BlogPageLayout`, `DocsPageLayout` | Built-in typed page content and document layouts |
+| `LithoSharp` | `ComponentRenderingContext`, `PageRenderingContext` | Generation-backed and standalone rendering contexts |
+| `LithoSharp` | `Breadcrumbs`, `TableOfContentsComponent`, `SearchFormComponent` | Built-in content and search components |
+| `LithoSharp` | `NavigationComponent`, `DocsNavigationComponent`, `PreviousNextComponent`, `FooterComponent` | Built-in navigation and footer components |
+| `LithoSharp` | `BlogHeaderComponent`, `DocsHeaderComponent`, `SeoComponent`, `HeadComponent` | Built-in document chrome and metadata components |
+| `LithoSharp` | `NavigationLink`, `DocsNavigationComponentProps`, `PreviousNextComponentProps`, `FooterComponentProps`, `BlogHeaderComponentProps`, `SeoComponentProps`, `HeadComponentProps` | Built-in component input contracts |
 | `LithoSharp.Configuration` | `SiteSettings` | Site input contract |
 | `LithoSharp.Content` | `MarkdownPostReader` | Adapter-retained content entry point |
 | `LithoSharp.Content` | `MarkdownPost` | Parsed-content contract |
@@ -103,8 +114,20 @@ Phase 2A adds `IHtmlContent`, `HtmlText`, `HtmlAttributeValue`, `SiteUrl`,
 registries are build-scoped and exposed by template and content rendering
 contexts; declarations are passed through `SiteGenerationOptions.Assets`.
 These additions leave the legacy string HTML signatures intact. See the
-[safe HTML and asset example](../README.md#safe-html-and-registered-assets)
+[layout, safe HTML, and asset example](../README.md#layouts-components-safe-html-and-registered-assets)
 for usage and error conditions.
+
+Phase 2B adds typed layouts, reusable components, standalone rendering contexts,
+and built-in component input records. `SiteContentCollection<TFrontMatter, TBody>`
+accepts either its existing renderer delegate or an
+`IPageLayout<ContentEntry<TFrontMatter, TBody>>`. `SiteTemplateContext.RenderLayout`
+is the adapter from existing templates. A null implementation or required input is
+rejected; a component or layout that returns null causes `InvalidOperationException`.
+`BlogPageLayout` and `DocsPageLayout` render `SitePage<PageLayoutContent>`;
+`DocsNavigationComponentProps` carries one precomputed navigation tree, additional
+links, and the optional current URL.
+The [layout and CSS contract](layout-css-contract.md) records the markup hooks retained
+by the built-in implementations.
 
 `src/LithoSharp/PublicAPI.Shipped.txt` is the machine-readable 0.2.0 baseline.
 The `Microsoft.CodeAnalysis.PublicApiAnalyzers` diagnostics for additions and

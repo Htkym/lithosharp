@@ -1,4 +1,149 @@
 #nullable enable
+LithoSharp.ISiteComponent<TProps>
+LithoSharp.ISiteComponent<TProps>.Render(TProps props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.IPageLayout<TPage>
+LithoSharp.IPageLayout<TPage>.Render(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.PageLayoutContent
+LithoSharp.PageLayoutContent.PageLayoutContent(LithoSharp.IHtmlContent! Body) -> void
+LithoSharp.PageLayoutContent.Body.get -> LithoSharp.IHtmlContent!
+LithoSharp.PageLayoutContent.Body.init -> void
+LithoSharp.PageLayoutContent.Sidebar.get -> LithoSharp.IHtmlContent?
+LithoSharp.PageLayoutContent.Sidebar.init -> void
+LithoSharp.PageLayoutContent.TableOfContents.get -> LithoSharp.IHtmlContent?
+LithoSharp.PageLayoutContent.TableOfContents.init -> void
+LithoSharp.PageLayoutContent.OpenGraphType.get -> string!
+LithoSharp.PageLayoutContent.OpenGraphType.init -> void
+LithoSharp.PageLayoutContent.SocialImageUrl.get -> LithoSharp.SiteUrl?
+LithoSharp.PageLayoutContent.SocialImageUrl.init -> void
+LithoSharp.PageLayoutContent.IncludeBlogNavigation.get -> bool
+LithoSharp.PageLayoutContent.IncludeBlogNavigation.init -> void
+LithoSharp.SiteTemplateContext.RenderLayout<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IPageLayout<TPage>! layout) -> LithoSharp.IHtmlContent!
+LithoSharp.ComponentRenderingContext
+LithoSharp.ComponentRenderingContext.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.ComponentRenderingContext.Text.get -> LithoSharp.SiteText!
+LithoSharp.ComponentRenderingContext.Theme.get -> LithoSharp.SiteThemeOptions!
+LithoSharp.ComponentRenderingContext.BuildTimestamp.get -> System.DateTimeOffset
+LithoSharp.ComponentRenderingContext.EnvironmentName.get -> string!
+LithoSharp.ComponentRenderingContext.Assets.get -> LithoSharp.AssetRegistry!
+static LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.SiteSettings! site) -> LithoSharp.ComponentRenderingContext!
+LithoSharp.ComponentRenderingContext.Render<TProps>(LithoSharp.ISiteComponent<TProps>! component, TProps props) -> LithoSharp.IHtmlContent!
+LithoSharp.PageRenderingContext
+static LithoSharp.PageRenderingContext.Create(LithoSharp.Configuration.SiteSettings! site) -> LithoSharp.PageRenderingContext!
+LithoSharp.PageRenderingContext.RenderMarkdown(string! markdown) -> LithoSharp.IHtmlContent!
+LithoSharp.PageRenderingContext.RenderDocument<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IHtmlContent! body) -> LithoSharp.IHtmlContent!
+LithoSharp.Breadcrumbs.Render(System.Collections.Generic.IReadOnlyList<(string! Label, LithoSharp.SiteUrl! Url)>! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.TableOfContentsComponent
+LithoSharp.TableOfContentsComponent.TableOfContentsComponent() -> void
+LithoSharp.TableOfContentsComponent.Render(System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateHeading!>! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.SearchFormComponent
+LithoSharp.SearchFormComponent.SearchFormComponent() -> void
+LithoSharp.SearchFormComponent.Render(LithoSharp.SiteUrl! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.NavigationLink
+LithoSharp.NavigationLink.NavigationLink(string! Label, LithoSharp.SiteUrl! Url, string? CssClass = null, bool IsCurrent = false) -> void
+LithoSharp.NavigationLink.Label.get -> string!
+LithoSharp.NavigationLink.Label.init -> void
+LithoSharp.NavigationLink.Url.get -> LithoSharp.SiteUrl!
+LithoSharp.NavigationLink.Url.init -> void
+LithoSharp.NavigationLink.CssClass.get -> string?
+LithoSharp.NavigationLink.CssClass.init -> void
+LithoSharp.NavigationLink.IsCurrent.get -> bool
+LithoSharp.NavigationLink.IsCurrent.init -> void
+LithoSharp.PreviousNextComponentProps
+LithoSharp.PreviousNextComponentProps.PreviousNextComponentProps(LithoSharp.NavigationLink? Previous, LithoSharp.NavigationLink? Next) -> void
+LithoSharp.PreviousNextComponentProps.Previous.get -> LithoSharp.NavigationLink?
+LithoSharp.PreviousNextComponentProps.Previous.init -> void
+LithoSharp.PreviousNextComponentProps.Next.get -> LithoSharp.NavigationLink?
+LithoSharp.PreviousNextComponentProps.Next.init -> void
+LithoSharp.FooterComponentProps
+LithoSharp.FooterComponentProps.FooterComponentProps(string! SiteTitle, bool Docs = false) -> void
+LithoSharp.FooterComponentProps.SiteTitle.get -> string!
+LithoSharp.FooterComponentProps.SiteTitle.init -> void
+LithoSharp.FooterComponentProps.Docs.get -> bool
+LithoSharp.FooterComponentProps.Docs.init -> void
+LithoSharp.PreviousNextComponent
+LithoSharp.PreviousNextComponent.PreviousNextComponent() -> void
+LithoSharp.PreviousNextComponent.Render(LithoSharp.PreviousNextComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.NavigationComponent
+LithoSharp.NavigationComponent.NavigationComponent() -> void
+LithoSharp.NavigationComponent.Render(System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.FooterComponent
+LithoSharp.FooterComponent.FooterComponent() -> void
+LithoSharp.FooterComponent.Render(LithoSharp.FooterComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.BlogHeaderComponentProps
+LithoSharp.BlogHeaderComponentProps.BlogHeaderComponentProps(string! Brand, LithoSharp.SiteUrl! HomeUrl, System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>! Links, LithoSharp.SiteUrl? SearchUrl = null, bool IncludeNavigation = true) -> void
+LithoSharp.BlogHeaderComponentProps.Brand.get -> string!
+LithoSharp.BlogHeaderComponentProps.Brand.init -> void
+LithoSharp.BlogHeaderComponentProps.HomeUrl.get -> LithoSharp.SiteUrl!
+LithoSharp.BlogHeaderComponentProps.HomeUrl.init -> void
+LithoSharp.BlogHeaderComponentProps.Links.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>!
+LithoSharp.BlogHeaderComponentProps.Links.init -> void
+LithoSharp.BlogHeaderComponentProps.SearchUrl.get -> LithoSharp.SiteUrl?
+LithoSharp.BlogHeaderComponentProps.SearchUrl.init -> void
+LithoSharp.BlogHeaderComponentProps.IncludeNavigation.get -> bool
+LithoSharp.BlogHeaderComponentProps.IncludeNavigation.init -> void
+LithoSharp.BlogHeaderComponent
+LithoSharp.BlogHeaderComponent.BlogHeaderComponent() -> void
+LithoSharp.BlogHeaderComponent.Render(LithoSharp.BlogHeaderComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.DocsHeaderComponent
+LithoSharp.DocsHeaderComponent.DocsHeaderComponent() -> void
+LithoSharp.DocsHeaderComponent.Render(LithoSharp.NavigationLink! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.SeoComponentProps
+LithoSharp.SeoComponentProps.SeoComponentProps(string! FullTitle, string! Description, LithoSharp.SiteUrl! CanonicalUrl, string! OpenGraphType, LithoSharp.SiteUrl! SocialImageUrl, string! SocialImageAlt, System.DateTimeOffset? PublishedAt = null) -> void
+LithoSharp.SeoComponentProps.FullTitle.get -> string!
+LithoSharp.SeoComponentProps.FullTitle.init -> void
+LithoSharp.SeoComponentProps.Description.get -> string!
+LithoSharp.SeoComponentProps.Description.init -> void
+LithoSharp.SeoComponentProps.CanonicalUrl.get -> LithoSharp.SiteUrl!
+LithoSharp.SeoComponentProps.CanonicalUrl.init -> void
+LithoSharp.SeoComponentProps.OpenGraphType.get -> string!
+LithoSharp.SeoComponentProps.OpenGraphType.init -> void
+LithoSharp.SeoComponentProps.SocialImageUrl.get -> LithoSharp.SiteUrl!
+LithoSharp.SeoComponentProps.SocialImageUrl.init -> void
+LithoSharp.SeoComponentProps.SocialImageAlt.get -> string!
+LithoSharp.SeoComponentProps.SocialImageAlt.init -> void
+LithoSharp.SeoComponentProps.PublishedAt.get -> System.DateTimeOffset?
+LithoSharp.SeoComponentProps.PublishedAt.init -> void
+LithoSharp.HeadComponentProps
+LithoSharp.HeadComponentProps.HeadComponentProps(LithoSharp.SeoComponentProps! Seo, LithoSharp.SiteUrl! StylesheetUrl, LithoSharp.IHtmlContent! FaviconLinks, LithoSharp.IHtmlContent! Analytics, LithoSharp.SiteUrl? FeedUrl = null, LithoSharp.SiteUrl? ScriptUrl = null, bool Docs = false) -> void
+LithoSharp.HeadComponentProps.Seo.get -> LithoSharp.SeoComponentProps!
+LithoSharp.HeadComponentProps.Seo.init -> void
+LithoSharp.HeadComponentProps.StylesheetUrl.get -> LithoSharp.SiteUrl!
+LithoSharp.HeadComponentProps.StylesheetUrl.init -> void
+LithoSharp.HeadComponentProps.FaviconLinks.get -> LithoSharp.IHtmlContent!
+LithoSharp.HeadComponentProps.FaviconLinks.init -> void
+LithoSharp.HeadComponentProps.Analytics.get -> LithoSharp.IHtmlContent!
+LithoSharp.HeadComponentProps.Analytics.init -> void
+LithoSharp.HeadComponentProps.FeedUrl.get -> LithoSharp.SiteUrl?
+LithoSharp.HeadComponentProps.FeedUrl.init -> void
+LithoSharp.HeadComponentProps.ScriptUrl.get -> LithoSharp.SiteUrl?
+LithoSharp.HeadComponentProps.ScriptUrl.init -> void
+LithoSharp.HeadComponentProps.Docs.get -> bool
+LithoSharp.HeadComponentProps.Docs.init -> void
+LithoSharp.SeoComponent
+LithoSharp.SeoComponent.SeoComponent() -> void
+LithoSharp.SeoComponent.Render(LithoSharp.SeoComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.HeadComponent
+LithoSharp.HeadComponent.HeadComponent() -> void
+LithoSharp.HeadComponent.Render(LithoSharp.HeadComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.DocsNavigationComponentProps
+LithoSharp.DocsNavigationComponentProps.DocsNavigationComponentProps(LithoSharp.SiteTemplateNavigationNode! Root, System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>! AdditionalLinks, LithoSharp.SiteUrl? CurrentUrl = null) -> void
+LithoSharp.DocsNavigationComponentProps.Root.get -> LithoSharp.SiteTemplateNavigationNode!
+LithoSharp.DocsNavigationComponentProps.Root.init -> void
+LithoSharp.DocsNavigationComponentProps.AdditionalLinks.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>!
+LithoSharp.DocsNavigationComponentProps.AdditionalLinks.init -> void
+LithoSharp.DocsNavigationComponentProps.CurrentUrl.get -> LithoSharp.SiteUrl?
+LithoSharp.DocsNavigationComponentProps.CurrentUrl.init -> void
+LithoSharp.DocsNavigationComponent
+LithoSharp.DocsNavigationComponent.DocsNavigationComponent() -> void
+LithoSharp.DocsNavigationComponent.Render(LithoSharp.DocsNavigationComponentProps! props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.BlogPageLayout
+LithoSharp.BlogPageLayout.BlogPageLayout() -> void
+LithoSharp.BlogPageLayout.Render(LithoSharp.Pages.SitePage<LithoSharp.PageLayoutContent!>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.DocsPageLayout
+LithoSharp.DocsPageLayout.DocsPageLayout() -> void
+LithoSharp.DocsPageLayout.Render(LithoSharp.Pages.SitePage<LithoSharp.PageLayoutContent!>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.IHtmlContent!
+LithoSharp.Breadcrumbs
+LithoSharp.Breadcrumbs.Breadcrumbs() -> void
 LithoSharp.IHtmlContent
 LithoSharp.IHtmlContent.ToHtmlString() -> string!
 LithoSharp.HtmlText
@@ -279,6 +424,7 @@ LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Collection.get -> 
 override LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Id.get -> LithoSharp.Content.ContentCollectionId!
 LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.Renderer.get -> LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>!
 LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.SiteContentCollection(LithoSharp.Content.ContentCollection<TFrontMatter, TBody>! collection, LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>! renderer) -> void
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.SiteContentCollection(LithoSharp.Content.ContentCollection<TFrontMatter, TBody>! collection, LithoSharp.IPageLayout<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!>! layout) -> void
 LithoSharp.Content.IContentCollectionLoader<TFrontMatter, TBody>
 LithoSharp.Content.IContentCollectionLoader<TFrontMatter, TBody>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, TBody>!>
 LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>

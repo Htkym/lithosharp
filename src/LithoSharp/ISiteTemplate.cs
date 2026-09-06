@@ -21,6 +21,7 @@ public interface ISiteTemplate
 public sealed class SiteTemplateContext
 {
     private readonly SiteGenerator _generator;
+    private readonly string _environmentName;
 
     internal SiteTemplateContext(
         SiteGenerator generator,
@@ -33,7 +34,8 @@ public sealed class SiteTemplateContext
         IReadOnlyList<SiteTemplatePage> pages,
         SiteTemplateNavigationNode navigation,
         SiteGenerator.RenderContext configuration,
-        AssetRegistry assets)
+        AssetRegistry assets,
+        string environmentName = "Production")
     {
         _generator = generator;
         Site = site;
@@ -46,6 +48,7 @@ public sealed class SiteTemplateContext
         Navigation = navigation;
         Configuration = configuration;
         Assets = assets;
+        _environmentName = environmentName;
     }
 
     /// <summary>Site settings.</summary>
@@ -90,6 +93,21 @@ public sealed class SiteTemplateContext
     /// <summary>Renders a complete document with the standard metadata, header, and footer.</summary>
     public string RenderDocument(SiteTemplateDocument document) =>
         _generator.RenderTemplateDocument(Configuration, document);
+
+    /// <summary>Renders a typed layout using this legacy template's settings and registered assets.</summary>
+    /// <exception cref="ArgumentNullException">The page or layout is null.</exception>
+    /// <exception cref="InvalidOperationException">The layout returns null.</exception>
+    public IHtmlContent RenderLayout<TPage>(SitePage<TPage> page, IPageLayout<TPage> layout)
+        where TPage : notnull
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentNullException.ThrowIfNull(layout);
+        return layout.Render(page, new PageRenderingContext(_generator, Configuration)
+        {
+            Assets = Assets,
+            EnvironmentName = _environmentName
+        }) ?? throw new InvalidOperationException($"Page layout '{layout.GetType().FullName}' returned null.");
+    }
 
     /// <summary>Renders a table of contents for the supplied headings.</summary>
     public string RenderTableOfContents(IReadOnlyList<SiteTemplateHeading> headings) =>

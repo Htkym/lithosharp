@@ -83,10 +83,7 @@ var options = new SiteGenerationOptions
     BuildTimestamp = DateTimeOffset.Parse("2026-09-02T00:00:00Z"),
     EnvironmentName = "Production",
     ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
-        articles,
-        (entry, context) => context.RenderDocument(
-            context.RenderMarkdown(entry.Body) +
-            $"<p><a href=\"{context.Assets.GetUrl(articleSource).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>")), topicPages]
+        articles, new ArticleLayout(articleSource)), topicPages]
 };
 var generator = new SiteGenerator();
 var firstResult = await generator.GenerateWithOptionsAsync(
@@ -110,4 +107,12 @@ static string? GetArgument(string[] args, string name)
 {
     var index = Array.IndexOf(args, name);
     return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+}
+
+sealed class ArticleLayout(SiteAsset source) : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
+{
+    public IHtmlContent Render(SitePage<ContentEntry<ArticleFrontMatter, string>> page, PageRenderingContext context) =>
+        context.RenderDocument(page, Html.UnsafeRaw(
+            context.RenderMarkdown(page.Content.Body).ToHtmlString() +
+            $"<p><a href=\"{context.Assets.GetUrl(source).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>"));
 }

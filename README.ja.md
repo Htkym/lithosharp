@@ -36,6 +36,7 @@ Markdown を読み込み、必要に応じて検証し、サイトを生成し�
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Pages;
 using LithoSharp.Routing;
 
 var site = new SiteSettings
@@ -332,7 +333,65 @@ Unix の ACL、拡張属性、所有者は移植可能には保持できませ�
 並行して登録し、コレクション単位で切り替えてください。0.2 では API と依存関係が
 一つのまとまったアセンブリを形成しているため、物理的な NuGet パッケージ分割は行いません。
 
-## 安全なHTMLと登録資産
+## レイアウト、コンポーネント、安全なHTML、登録資産
+
+型付きコレクションには、レイアウトクラスを直接渡せます。
+
+```csharp
+// 読み込んだコレクションへ、描画デリゲートの代わりにレイアウトを登録します。
+var registration = new SiteContentCollection<ArticleFrontMatter, string>(articles, new ArticleLayout());
+
+sealed class ArticleLayout : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
+{
+    public IHtmlContent Render(
+        SitePage<ContentEntry<ArticleFrontMatter, string>> page,
+        PageRenderingContext context) =>
+        context.RenderDocument(page, context.RenderMarkdown(page.Content.Body));
+}
+```
+
+`PageRenderingContext.Create(site)` と `ComponentRenderingContext.Create(site)` を使うと、
+出力ディレクトリを作らずにレイアウトやコンポーネントを描画できます。
+コンポーネントは `ISiteComponent<TProps>` を実装して `IHtmlContent` を返し、
+`context.Render(component, props)` で組み合わせます。組み込みコンポーネントには、
+パンくず、目次、検索、フラットなナビゲーション、前後リンク、Blog／Docsのヘッダー、
+フッター、headとSEOメタデータがあります。維持するCSSクラスとスクリプト用属性は
+[レイアウトとCSSの契約](docs/layout-css-contract.md)に記載しています。
+
+既存の文字列描画APIと `ISiteTemplate` も引き続き使えます。従来のテンプレートから
+`SiteTemplateContext.RenderLayout(page, layout)` を呼ぶと、そのテンプレートのサイト設定、
+環境名、登録資産を新しい描画コンテキストへ引き継げます。`Create(site)` は英語の文言、
+既定テーマ、`Production` 環境、空の資産レジストリーを使います。登録資産や独自の文言、
+テーマが必要な場合は、サイト生成時に渡されるコンテキストを使ってください。
+
+組み込みレイアウトは `SitePage<PageLayoutContent>` を受け取ります。`BlogPageLayout` は
+Blogの文書構造を描画します。`DocsPageLayout` は、任意の `Sidebar` と
+`TableOfContents` も配置します。`OpenGraphType`、`SocialImageUrl`、
+`IncludeBlogNavigation` で対応する文書設定を指定できます。
+
+```csharp
+var page = new SitePage<PageLayoutContent>(
+    new PageId("preview"),
+    SiteRoute.ForFile("preview.html", site.BaseUrl),
+    new PageLayoutContent(new HtmlText("Preview")),
+    new PageMetadata("Preview"));
+
+var html = new BlogPageLayout()
+    .Render(page, PageRenderingContext.Create(site))
+    .ToHtmlString();
+```
+
+Docsのサイドバーには `DocsNavigationComponent` を使います。表示順に並べた
+`SiteTemplateNavigationNode`、追加の `NavigationLink`、現在の `SiteUrl` から描画し、
+結果を `PageLayoutContent.Sidebar` へ設定します。
+
+レイアウトとコンポーネントの入口は、実装や必須入力が `null` の場合に拒否します。
+`ComponentRenderingContext.Render`、`SiteTemplateContext.RenderLayout`、型付きコレクションの
+アダプターは、実装が `null` を返すと `InvalidOperationException` をスローします。
+組み込みレイアウトは、ページ、コンテキスト、コンテンツ、本文のいずれかが `null` の場合も
+拒否します。`DocsNavigationComponent` は props、ルート、追加リンク一覧の `null` を拒否します。
+`RenderMarkdown` はLithoSharpの設定済みMarkdownパイプラインが生成した信頼済みHTMLを返します。
+それ以外のraw HTMLを信頼する場合は、呼び出し側で `Html.UnsafeRaw` を明示してください。
 
 要素内のテキストには `HtmlText`、引用符付きHTML属性には `HtmlAttributeValue` を使います。
 `SiteUrl.ForFile("guide.html", site.BaseUrl)` は内部パスを検証し、

@@ -46,6 +46,7 @@ The whole flow is three calls: read posts, optionally validate, then generate.
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Pages;
 using LithoSharp.Routing;
 
 var site = new SiteSettings
@@ -375,7 +376,67 @@ collections beside legacy posts and move one collection at a time. No physical
 NuGet package split is made in 0.2 because the current API and dependency
 boundary is one coherent assembly.
 
-## Safe HTML and registered assets
+## Layouts, components, safe HTML, and registered assets
+
+Typed collections can use a layout class directly:
+
+```csharp
+// Register a loaded collection using the layout instead of a renderer delegate.
+var registration = new SiteContentCollection<ArticleFrontMatter, string>(articles, new ArticleLayout());
+
+sealed class ArticleLayout : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
+{
+    public IHtmlContent Render(
+        SitePage<ContentEntry<ArticleFrontMatter, string>> page,
+        PageRenderingContext context) =>
+        context.RenderDocument(page, context.RenderMarkdown(page.Content.Body));
+}
+```
+
+`PageRenderingContext.Create(site)` and `ComponentRenderingContext.Create(site)` render
+layouts and components without creating an output directory. Components implement
+`ISiteComponent<TProps>` and return `IHtmlContent`; `context.Render(component, props)`
+composes them. The built-in components cover breadcrumbs, table of contents, search,
+flat navigation, previous/next links, Blog and Docs headers, footers, and document
+head/SEO metadata. Their stable classes and script hooks are listed in the
+[layout and CSS contract](docs/layout-css-contract.md).
+
+Existing string renderers and `ISiteTemplate` implementations remain supported. A
+legacy template can opt into a typed layout with
+`SiteTemplateContext.RenderLayout(page, layout)`, which carries the template's site
+settings, environment, and registered assets into the new rendering context.
+`Create(site)` uses English text, the default theme, the `Production` environment, and
+an empty asset registry. Use the generation-provided context when a standalone render
+needs registered assets or customized text and theme.
+
+The built-in layouts accept `SitePage<PageLayoutContent>`. `BlogPageLayout` supplies
+the Blog shell; `DocsPageLayout` also places the optional `Sidebar` and
+`TableOfContents` regions. `OpenGraphType`, `SocialImageUrl`, and
+`IncludeBlogNavigation` control the corresponding document options.
+
+```csharp
+var page = new SitePage<PageLayoutContent>(
+    new PageId("preview"),
+    SiteRoute.ForFile("preview.html", site.BaseUrl),
+    new PageLayoutContent(new HtmlText("Preview")),
+    new PageMetadata("Preview"));
+
+var html = new BlogPageLayout()
+    .Render(page, PageRenderingContext.Create(site))
+    .ToHtmlString();
+```
+
+For a Docs sidebar, render `DocsNavigationComponent` from a preordered
+`SiteTemplateNavigationNode`, optional additional `NavigationLink` values, and the
+current `SiteUrl`, then assign the result to `PageLayoutContent.Sidebar`.
+
+All layout and component entry points reject a null implementation or required input.
+`ComponentRenderingContext.Render`, `SiteTemplateContext.RenderLayout`, and the typed
+collection adapter throw `InvalidOperationException` when an implementation returns
+null. The built-in layouts also reject a null page, context, content, or body.
+`DocsNavigationComponent` rejects null props, root, or additional-link list.
+`RenderMarkdown` returns trusted HTML from LithoSharp's configured Markdown
+pipeline; callers must use `Html.UnsafeRaw` explicitly for any other trusted raw HTML.
 
 Use `HtmlText` for element text and `HtmlAttributeValue` inside quoted HTML attributes.
 `SiteUrl.ForFile("guide.html", site.BaseUrl)` validates internal paths;

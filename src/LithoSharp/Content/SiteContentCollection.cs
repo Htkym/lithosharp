@@ -65,6 +65,8 @@ public sealed class ContentPageRenderingContext
     /// <summary>公開判定に使用した環境名を取得します。</summary>
     public string EnvironmentName { get; }
 
+    internal PageRenderingContext CreateLayoutContext() => new(generator, configuration, this);
+
     /// <summary>このビルドで登録された資産を取得します。</summary>
     public AssetRegistry Assets { get; }
 
@@ -136,6 +138,30 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
     {
         Collection = collection ?? throw new ArgumentNullException(nameof(collection));
         Renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+    }
+
+    /// <summary>型付きページレイアウトを使用してコレクションを作成します。</summary>
+    /// <param name="collection">描画対象のコレクション。</param>
+    /// <param name="layout">公開対象のページを描画するレイアウト。</param>
+    /// <exception cref="ArgumentNullException">コレクションまたはレイアウトが null です。</exception>
+    /// <remarks>レイアウトが null を返す場合は、生成時に InvalidOperationException が発生します。</remarks>
+    public SiteContentCollection(
+        ContentCollection<TFrontMatter, TBody> collection,
+        IPageLayout<ContentEntry<TFrontMatter, TBody>> layout)
+        : this(collection, (entry, context) =>
+        {
+            var page = new SitePage<ContentEntry<TFrontMatter, TBody>>(
+                new PageId(ContentPageIdentity.Create(collection.Id, entry.Id)),
+                context.Route,
+                entry,
+                context.Metadata);
+            var rendered = layout.Render(page, context.CreateLayoutContext())
+                ?? throw new InvalidOperationException(
+                    $"Page layout '{layout.GetType().FullName}' returned null.");
+            return rendered.ToHtmlString();
+        })
+    {
+        ArgumentNullException.ThrowIfNull(layout);
     }
 
     /// <summary>登録した型付きコンテンツコレクションを取得します。</summary>

@@ -74,6 +74,9 @@ public sealed class AssetRegistry
 {
     private readonly IReadOnlyDictionary<string, RegisteredAsset> assets;
 
+    internal static AssetRegistry Empty { get; } = new(
+        new ReadOnlyDictionary<string, RegisteredAsset>(new Dictionary<string, RegisteredAsset>(StringComparer.Ordinal)));
+
     internal static async Task<AssetRegistry> CreateAsync(
         IEnumerable<SiteAsset> definitions,
         string? baseUrl,

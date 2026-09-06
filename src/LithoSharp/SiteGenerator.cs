@@ -27,7 +27,7 @@ namespace LithoSharp;
 /// <see cref="SiteSettings"/>. Text, theme, content validation, and extra pages are
 /// swapped in through <see cref="SiteCustomization"/>.
 /// </summary>
-public sealed class SiteGenerator
+public sealed partial class SiteGenerator
 {
     private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -294,7 +294,8 @@ public sealed class SiteGenerator
             templatePages,
             templateNavigation,
             configuration,
-            assetRegistry);
+            assetRegistry,
+            options.EnvironmentName);
         var templateResult = await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
         var artifactRouteTable = new SiteRouteTable();
@@ -881,38 +882,6 @@ public sealed class SiteGenerator
             includeBlogNavigation: false);
     }
 
-    internal static string RenderTemplateTableOfContents(
-        RenderContext configuration,
-        IReadOnlyList<SiteTemplateHeading> headings)
-    {
-        ArgumentNullException.ThrowIfNull(headings);
-        var body = new StringBuilder();
-        body.AppendLine("<aside class=\"post-toc\" aria-labelledby=\"post-toc-title\">");
-        body.AppendLine($"<h2 id=\"post-toc-title\">{Html.Encode(configuration.Text.TableOfContentsHeading)}</h2>");
-        if (headings.Count == 0)
-        {
-            body.AppendLine($"<p>{Html.Encode(configuration.Text.TableOfContentsEmpty)}</p>");
-        }
-        else
-        {
-            body.AppendLine($"<nav class=\"toc-nav\" aria-label=\"{Html.Encode(configuration.Text.TableOfContentsHeading)}\">");
-            body.AppendLine("<div class=\"toc-track\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<div class=\"toc-indicator\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<ol class=\"toc-list\">");
-            foreach (var heading in headings)
-            {
-                var depth = Math.Clamp(heading.Level - 1, 1, 3);
-                body.AppendLine($"<li class=\"toc-depth-{depth}\" data-toc-item><a data-toc-link href=\"#{Html.Encode(heading.Id)}\">{Html.Encode(heading.Text)}</a></li>");
-            }
-
-            body.AppendLine("</ol>");
-            body.AppendLine("</nav>");
-        }
-
-        body.AppendLine("</aside>");
-        return body.ToString();
-    }
-
     internal SiteTemplateResult RenderBlogTemplate(SiteTemplateContext templateContext)
     {
         var configuration = templateContext.Configuration;
@@ -980,7 +949,7 @@ public sealed class SiteGenerator
             new()
             {
                 RelativePath = configuration.Routes.Home.RelativeOutputPath,
-                Content = RenderDocsIndex(configuration, root, orderedPosts)
+                Content = RenderDocsIndex(configuration, templateContext.Navigation, orderedPosts)
             }
         };
 
@@ -989,7 +958,7 @@ public sealed class SiteGenerator
             files.Add(new SiteTemplateFile
             {
                 RelativePath = configuration.Routes.Post(post).RelativeOutputPath,
-                Content = RenderDocsPost(configuration, root, orderedPosts, post)
+                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, post)
             });
         }
 
@@ -998,7 +967,7 @@ public sealed class SiteGenerator
             files.Add(new SiteTemplateFile
             {
                 RelativePath = configuration.Routes.ExtraPage(extraPage).RelativeOutputPath,
-                Content = RenderDocsExtraPage(configuration, root, extraPage)
+                Content = RenderDocsExtraPage(configuration, templateContext.Navigation, extraPage)
             });
         }
 
@@ -1321,7 +1290,7 @@ public sealed class SiteGenerator
 
     private static string RenderDocsIndex(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts)
     {
         var body = new StringBuilder();
@@ -1341,7 +1310,7 @@ public sealed class SiteGenerator
 
     private string RenderDocsPost(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts,
         MarkdownPost post)
     {
@@ -1374,220 +1343,31 @@ public sealed class SiteGenerator
 
     private static string RenderDocsExtraPage(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         SiteExtraPage page) =>
         DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, page.RelativePath, null);
-
-    private static string RenderDocsPagination(
-        RenderContext configuration,
-        IReadOnlyList<MarkdownPost> orderedPosts,
-        int currentIndex)
-    {
-        if (currentIndex < 0)
-        {
-            return string.Empty;
-        }
-
-        var previous = currentIndex > 0 ? orderedPosts[currentIndex - 1] : null;
-        var next = currentIndex + 1 < orderedPosts.Count ? orderedPosts[currentIndex + 1] : null;
-        if (previous is null && next is null)
-        {
-            return string.Empty;
-        }
-
-        var body = new StringBuilder();
-        body.AppendLine("<nav class=\"docs-pagination\" aria-label=\"Document navigation\">");
-        if (previous is not null)
-        {
-            body.AppendLine($"<a class=\"docs-pagination-previous\" rel=\"prev\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(previous)))}\"><small>Previous</small><span>{Html.Encode(GetDocsLabel(previous))}</span></a>");
-        }
-        else
-        {
-            body.AppendLine("<span></span>");
-        }
-
-        if (next is not null)
-        {
-            body.AppendLine($"<a class=\"docs-pagination-next\" rel=\"next\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(next)))}\"><small>Next</small><span>{Html.Encode(GetDocsLabel(next))}</span></a>");
-        }
-
-        body.AppendLine("</nav>");
-        return body.ToString();
-    }
 
     private static string RenderDocsTableOfContents(RenderContext configuration, string postBody) =>
         RenderTableOfContents(configuration, postBody)
             .Replace("class=\"post-toc\"", "class=\"post-toc docs-toc\"", StringComparison.Ordinal);
 
-    private static string DocsLayout(
-        RenderContext configuration,
-        DocsNavigationNode root,
-        string title,
-        string body,
-        string relativePath,
-        string? currentPagePath,
-        string? tableOfContents,
-        string? description = null,
-        string openGraphType = "website",
-        DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
-    {
-        var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
-        var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
-        var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        var socialImageUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(
-            socialImageRelativePath ?? configuration.Routes.DefaultSocialImage.RelativeOutputPath));
-        var homePath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Home));
-        return $"""
-            <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <meta name="color-scheme" content="dark">
-              <meta name="theme-color" content="{Html.Encode(configuration.Theme.ThemeColor)}">
-              <title>{Html.Encode(fullTitle)}</title>
-              <meta name="description" content="{Html.Encode(pageDescription)}">
-              <link rel="canonical" href="{Html.Encode(canonicalUrl)}">
-              <meta property="og:site_name" content="{Html.Encode(configuration.Site.Title)}">
-              <meta property="og:type" content="{Html.Encode(openGraphType)}">
-              <meta property="og:title" content="{Html.Encode(fullTitle)}">
-              <meta property="og:description" content="{Html.Encode(pageDescription)}">
-              <meta property="og:url" content="{Html.Encode(canonicalUrl)}">
-              <meta property="og:image" content="{Html.Encode(socialImageUrl)}">
-              <meta property="og:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
-              <meta name="twitter:card" content="summary_large_image">
-              <meta name="twitter:title" content="{Html.Encode(fullTitle)}">
-              <meta name="twitter:description" content="{Html.Encode(pageDescription)}">
-              <meta name="twitter:image" content="{Html.Encode(socialImageUrl)}">
-              <meta name="twitter:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
-              {BuildPublishedTimeMetadata(publishedAt)}
-              <link rel="stylesheet" href="{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SiteCss))}">
-              {BuildFaviconLinks(configuration)}
-              {BuildGoogleAnalyticsSnippet(configuration)}
-              <script src="{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SiteScript))}" defer></script>
-            </head>
-            <body class="docs-body">
-              <header class="docs-header">
-                <a class="docs-brand" href="{homePath}">{Html.Encode(configuration.Site.Title)}</a>
-                <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>Menu</button>
-              </header>
-              <div class="docs-shell">
-                {RenderDocsSidebar(configuration, root, currentPagePath)}
-                <main class="docs-main">
-                  <article class="docs-content">
-            {body}
-                  </article>
-                </main>
-                {tableOfContents ?? string.Empty}
-              </div>
-              <footer class="docs-footer"><p>Generated by {Html.Encode(configuration.Site.Title)}.</p></footer>
-            </body>
-            </html>
-            """;
-    }
-
     private static string RenderDocsSidebar(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         string? currentPagePath)
     {
-        var body = new StringBuilder();
-        body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
-        body.AppendLine("<nav aria-label=\"Documentation navigation\">");
-        body.AppendLine("<ul class=\"docs-nav-list\">");
-        RenderDocsNavigationNodes(body, configuration, root, currentPagePath);
-        RenderDocsExtraNavigationNodes(body, configuration, currentPagePath);
-        body.AppendLine("</ul>");
-        body.AppendLine("</nav>");
-        body.AppendLine("</aside>");
-        return body.ToString();
+        var links = configuration.ExtraPages
+            .Where(page => !string.IsNullOrWhiteSpace(page.NavLabel))
+            .Select(page => (page.NavLabel!, configuration.Routes.PublicPath(configuration.Routes.ExtraPage(page)), false))
+            .Concat(configuration.ContentPages
+                .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation)
+                    && !string.IsNullOrWhiteSpace(page.Metadata.Title))
+                .Select(page => (page.Metadata.Title!, configuration.Routes.PublicPath(page.Route), false)));
+        var currentUrl = string.IsNullOrWhiteSpace(currentPagePath)
+            ? null
+            : configuration.Routes.PublicPath(configuration.Routes.File(currentPagePath));
+        return DocsNavigationComponent.RenderCore(root, links, currentUrl);
     }
-
-    private static void RenderDocsNavigationNodes(
-        StringBuilder body,
-        RenderContext configuration,
-        DocsNavigationNode parent,
-        string? currentPagePath)
-    {
-        foreach (var node in OrderDocsNavigationChildren(parent))
-        {
-            var hasChildren = node.Children.Count > 0;
-            var isCurrent = node.Post is not null
-                && string.Equals(node.Post.RelativeOutputPath, currentPagePath, StringComparison.OrdinalIgnoreCase);
-            var isAncestor = ContainsDocsPath(node, currentPagePath);
-            if (!hasChildren && node.Post is not null)
-            {
-                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-                body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(node.Post)))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a></li>");
-                continue;
-            }
-
-            var folderCssClass = isAncestor ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
-            body.AppendLine($"<li class=\"{folderCssClass}\">");
-            if (node.Post is not null)
-            {
-                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-                body.AppendLine($"<a class=\"{cssClass}\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(node.Post)))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a>");
-            }
-            else
-            {
-                body.AppendLine($"<span>{Html.Encode(FormatDocsFolderLabel(node.Segment))}</span>");
-            }
-
-            body.AppendLine("<ul>");
-            RenderDocsNavigationNodes(body, configuration, node, currentPagePath);
-            body.AppendLine("</ul></li>");
-        }
-    }
-
-    private static void RenderDocsExtraNavigationNodes(
-        StringBuilder body,
-        RenderContext configuration,
-        string? currentPagePath)
-    {
-        foreach (var page in configuration.ExtraPages.Where(page => !string.IsNullOrWhiteSpace(page.NavLabel)))
-        {
-            var isCurrent = string.Equals(page.RelativePath, currentPagePath, StringComparison.OrdinalIgnoreCase);
-            var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-            var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-            body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.ExtraPage(page)))}\"{current}>{Html.Encode(page.NavLabel)}</a></li>");
-        }
-
-        foreach (var page in configuration.ContentPages
-                     .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation)
-                         && !string.IsNullOrWhiteSpace(page.Metadata.Title)))
-        {
-            var isCurrent = string.Equals(
-                page.Route.RelativeOutputPath,
-                currentPagePath,
-                StringComparison.OrdinalIgnoreCase);
-            var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-            var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-            body.AppendLine(
-                $"<li><a class=\"{cssClass}\" href=\"{Html.Encode(configuration.Routes.PublicPath(page.Route))}\"{current}>{Html.Encode(page.Metadata.Title)}</a></li>");
-        }
-    }
-
-    private static bool ContainsDocsPath(DocsNavigationNode node, string? currentDocumentPath)
-    {
-        if (string.IsNullOrWhiteSpace(currentDocumentPath))
-        {
-            return false;
-        }
-
-        if (node.Post is not null
-            && string.Equals(node.Post.RelativeOutputPath, currentDocumentPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return node.Children.Values.Any(child => ContainsDocsPath(child, currentDocumentPath));
-    }
-
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
         Layout(configuration, page.Title, page.BodyHtml, page.RelativePath);
 
@@ -2117,86 +1897,6 @@ public sealed class SiteGenerator
         }
 
         writer.WriteEndElement();
-    }
-
-    private static string Layout(
-        RenderContext configuration,
-        string title,
-        string body,
-        string relativePath,
-        string? description = null,
-        string openGraphType = "website",
-        DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
-    {
-        var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
-        var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
-        var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        var socialImageUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(
-            socialImageRelativePath ?? configuration.Routes.DefaultSocialImage.RelativeOutputPath));
-        var socialImageAlt = $"{configuration.Site.Title} social preview";
-        var homePath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Home));
-        var header = includeBlogNavigation
-            ? BuildSiteHeader(configuration)
-            : $"<header class=\"site-header\"><a class=\"brand\" href=\"{homePath}\">{Html.Encode(configuration.Site.Title)}</a></header>";
-        var feedLink = includeBlogNavigation
-            ? $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(configuration.Site.Title)}\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Feed))}\">"
-            : string.Empty;
-        var siteScript = includeBlogNavigation
-            ? $"\n  <script src=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SiteScript))}\" defer></script>"
-            : string.Empty;
-        return $"""
-            <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <meta name="color-scheme" content="dark">
-              <meta name="theme-color" content="{configuration.Theme.ThemeColor}">
-              <title>{Html.Encode(fullTitle)}</title>
-              <meta name="description" content="{Html.Encode(pageDescription)}">
-              <link rel="canonical" href="{Html.Encode(canonicalUrl)}">
-              <meta property="og:site_name" content="{Html.Encode(configuration.Site.Title)}">
-              <meta property="og:type" content="{Html.Encode(openGraphType)}">
-              <meta property="og:title" content="{Html.Encode(fullTitle)}">
-              <meta property="og:description" content="{Html.Encode(pageDescription)}">
-              <meta property="og:url" content="{Html.Encode(canonicalUrl)}">
-              <meta property="og:image" content="{Html.Encode(socialImageUrl)}">
-              <meta property="og:image:alt" content="{Html.Encode(socialImageAlt)}">
-              <meta name="twitter:card" content="summary_large_image">
-              <meta name="twitter:title" content="{Html.Encode(fullTitle)}">
-              <meta name="twitter:description" content="{Html.Encode(pageDescription)}">
-              <meta name="twitter:image" content="{Html.Encode(socialImageUrl)}">
-              <meta name="twitter:image:alt" content="{Html.Encode(socialImageAlt)}">
-              {BuildPublishedTimeMetadata(publishedAt)}
-              <link rel="stylesheet" href="{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SiteCss))}">
-              {BuildFaviconLinks(configuration)}
-              {BuildGoogleAnalyticsSnippet(configuration)}
-              {feedLink}
-              {siteScript}
-            </head>
-            <body>
-              {header}
-              <main>
-            {body}
-              </main>
-              <footer class="site-footer">
-                <p>Generated by {Html.Encode(configuration.Site.Title)}.</p>
-              </footer>
-            </body>
-            </html>
-            """;
-    }
-
-    private static string BuildPublishedTimeMetadata(DateTimeOffset? publishedAt)
-    {
-        if (publishedAt is null)
-        {
-            return string.Empty;
-        }
-
-        return $"<meta property=\"article:published_time\" content=\"{publishedAt.Value:O}\">";
     }
 
     private static async Task WriteTextAsync(string outputRoot, string relativePath, string contents, List<string> generated, CancellationToken cancellationToken)
@@ -4657,95 +4357,9 @@ public sealed class SiteGenerator
         return builder.ToString();
     }
 
-    private static string BuildSiteHeader(RenderContext configuration)
-    {
-        var homePath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Home));
-        var archivesPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Archives));
-        var tagsPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Tags));
-        var searchPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage));
-        var feedPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Feed));
-        var navLinks = new List<string>
-        {
-            $"<a class=\"site-nav-home\" href=\"{homePath}\">Home</a>",
-            $"<a href=\"{archivesPath}\">Archives</a>",
-            $"<a href=\"{tagsPath}\">Tags</a>",
-        };
-        foreach (var extraPage in configuration.ExtraPages)
-        {
-            if (string.IsNullOrEmpty(extraPage.NavLabel))
-            {
-                continue;
-            }
-
-            var extraPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.ExtraPage(extraPage)));
-            var cssClass = string.IsNullOrEmpty(extraPage.NavCssClass)
-                ? string.Empty
-                : $" class=\"{Html.Encode(extraPage.NavCssClass)}\"";
-            navLinks.Add($"<a{cssClass} href=\"{extraPath}\">{Html.Encode(extraPage.NavLabel)}</a>");
-        }
-
-        foreach (var page in configuration.ContentPages
-                     .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation)
-                         && !string.IsNullOrWhiteSpace(page.Metadata.Title)))
-        {
-            navLinks.Add(
-                $"<a href=\"{Html.Encode(configuration.Routes.PublicPath(page.Route))}\">{Html.Encode(page.Metadata.Title)}</a>");
-        }
-
-        navLinks.Add($"<a href=\"{searchPath}\">Search</a>");
-        navLinks.Add($"<a class=\"rss-nav-link\" href=\"{feedPath}\">RSS</a>");
-        var navHtml = string.Join("\n        ", navLinks);
-        var menuLabel = Html.Encode(configuration.Text.MenuLabel);
-        var navigationLabel = Html.Encode(configuration.Text.SiteNavigationLabel);
-        return $"""
-              <header class="site-header">
-                <a class="brand" href="{homePath}">{Html.Encode(configuration.Site.Title)}</a>
-                <div class="site-nav-shell">
-                  <a class="site-home-link site-icon-button" href="{homePath}" aria-label="Home">
-                    {BuildHomeIconSvg()}
-                    <span class="visually-hidden">Home</span>
-                  </a>
-                  {BuildHeaderSearchForm(configuration)}
-                  <button class="site-menu-toggle site-icon-button" type="button" aria-expanded="false" aria-controls="site-menu" aria-label="{menuLabel}" data-site-menu-toggle>
-                    {BuildMenuIconSvg()}
-                    <span class="visually-hidden">{menuLabel}</span>
-                  </button>
-                  <nav id="site-menu" class="site-nav" data-site-nav aria-label="{navigationLabel}">
-                    {navHtml}
-                  </nav>
-                </div>
-              </header>
-            """;
-    }
-
-    private static string BuildHeaderSearchForm(RenderContext configuration)
-    {
-        var searchPath = Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage));
-        var inputLabel = Html.Encode(configuration.Text.SearchInputLabel);
-        var placeholder = Html.Encode(configuration.Text.HeaderSearchPlaceholder);
-        var buttonLabel = Html.Encode(configuration.Text.SearchButtonLabel);
-        return $"""
-                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get">
-                    <label class="visually-hidden" for="header-search-input">{inputLabel}</label>
-                    <input id="header-search-input" name="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="{placeholder}" aria-label="{inputLabel}">
-                    <button type="submit" aria-label="{buttonLabel}">
-                      {BuildSearchIconSvg()}
-                      <span class="visually-hidden">{buttonLabel}</span>
-                    </button>
-                  </form>
-                """;
-    }
-
     private static string BuildHomeIconSvg() => """
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M4.5 10.5L12 4.5l7.5 6v8.25a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75V15a1.5 1.5 0 0 0-3 0v3.75a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75z" />
-        </svg>
-        """;
-
-    private static string BuildSearchIconSvg() => """
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <circle cx="11" cy="11" r="5.5" />
-          <path d="M15.25 15.25L19 19" />
         </svg>
         """;
 
