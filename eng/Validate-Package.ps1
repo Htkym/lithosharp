@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing')]
     [string] $PackageId = 'LithoSharp'
 )
 
@@ -47,8 +47,8 @@ if ($PackageId -eq 'LithoSharp.ProjectTemplates') {
     Write-Host "Validated package contents: $($package.Name)"
     return
 }
-if ($PackageId -eq 'LithoSharp.Images') {
-    foreach ($required in @('lib/net10.0/LithoSharp.Images.dll', 'lib/net10.0/LithoSharp.Images.xml', 'README.md')) {
+if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing')) {
+    foreach ($required in @("lib/net10.0/$PackageId.dll", "lib/net10.0/$PackageId.xml", 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
     }
     Write-Host "Validated package contents: $($package.Name)"

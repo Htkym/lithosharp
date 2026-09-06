@@ -37,3 +37,24 @@ point use the same definition. `--content`, `--output`, `--check`, and
 
 このサンプルは `BlogSampleFactory` を公開しています。CLI と通常の C# 実行が
 同じサイト定義を使い、既存のサンプル用オプションも利用できます。
+
+## Testing
+
+Use `SiteTestHost` and `SiteTestDocument` to test the factory in the test process.
+
+```csharp
+using LithoSharp;
+using LithoSharp.Testing;
+
+await using var host = await SiteTestHost.CreateAsync(
+    new BlogSampleFactory(),
+    new SiteFactoryContext(Path.GetFullPath("samples/LithoSharp.Sample")));
+host.AssertSucceeded();
+host.AssertRoute("/index.html", "index.html");
+using var page = await host.OpenPageAsync("/index.html");
+page.AssertElement("main");
+```
+
+Reference this sample project and `LithoSharp.Testing` from your test project, and
+run the example from the repository root. The host isolates output and caches.
+See the [testing guide](../../docs/testing.md) and [Japanese sample notes](README.ja.md).

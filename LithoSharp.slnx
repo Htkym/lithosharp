@@ -4,6 +4,7 @@
     <Project Path="src/LithoSharp.Generators/LithoSharp.Generators.csproj" />
     <Project Path="src/LithoSharp.Images/LithoSharp.Images.csproj" />
     <Project Path="src/LithoSharp.Tool/LithoSharp.Tool.csproj" />
+    <Project Path="src/LithoSharp.Testing/LithoSharp.Testing.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />

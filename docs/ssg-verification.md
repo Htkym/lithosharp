@@ -595,3 +595,104 @@ and atomic publication were not weakened to improve the measurement.
 連続測定でも全体レイアウト変更は11.4%遅く、割当量とピークメモリの増加は10%未満だった。
 この時間の制限を記録したうえで、CLIとライブラリの一致、開発時の再読み込み、安全な出力処理を
 採用理由とする。生成全体の高速化とは評価しない。
+
+## Phase 8 — public testing support
+
+Verified on 2026-09-07 with SDK 10.0.300, .NET runtime 10.0.8, and the same
+Windows/x64 machine described above.
+
+- Locked restore and the Release solution build passed: 11 projects, zero warnings.
+- All 414 TUnit tests passed, including nine new testing-package tests. Existing
+  compatibility fixtures were not changed.
+- Core package compatibility validation and the content checks for all six
+  packages passed. The new `LithoSharp.Testing` package contains its net10.0 DLL,
+  XML documentation and README. Its direct runtime dependencies are LithoSharp
+  and the existing AngleSharp 1.7.3; no test framework or browser is required.
+- The new public API baseline is enforced with PublicApiAnalyzers. The only Core
+  edit is an internal friend-assembly declaration, allowing reuse of its verified
+  file-read and path-containment checks.
+- Tests cover exact file/directory routes under a BaseUrl subpath, typed content
+  collections with a custom layout, component/layout rendering, decoded DOM text,
+  metadata and image/link attributes, assertion failures, null input and disposal.
+- Host checks cover temporary output and cache isolation, structured quality
+  failure diagnostics, uncaught renderer failures, cancellation cleanup, unsafe
+  paths and a Windows junction. The outside sentinel survived rejected reads and
+  disposal. A failed cleanup can leave part of the temporary tree for inspection.
+- Both sample factories run directly through the public API in TUnit. The Docs
+  case includes responsive images and checks the fingerprinted WebP reference.
+  Normal Docs, Blog and image-demo runs also passed local quality checks. Their
+  14, 13 and 18 published files respectively match phase 7 by SHA-256 with the
+  same timestamp. Internal output manifests are excluded from this cross-phase
+  comparison because the assembly fingerprint changes.
+
+The host preserves explicit settings except for output/cache locations and a
+missing timestamp/quality configuration: it defaults to Unix epoch and local
+quality checks. External-link validation is opt-in, with its cache redirected
+into the host's temporary tree. User factory/renderer/transform code is trusted,
+not sandboxed. The testing package was executed on Windows; this record does not
+claim a local Linux run. CI includes the same tests and package content check.
+
+検証の日本語要約: Releaseビルドは警告0、TUnitは414件成功した。公開APIと6パッケージの
+内容検査も成功した。一時出力とキャッシュの隔離、例外・キャンセル時の後片付け、
+不正なパスとジャンクションの拒否、DOMによる検証を確認した。Docs・Blogのファクトリを
+通常のテストから呼び、独自レイアウトと画像変換も検証した。既存の3種類のサンプル出力は、
+ビルド日時をそろえて前フェーズと一致した。Playwright支援と独自ファイルシステムは追加していない。
+
+### Phase 8 performance comparison
+
+The unchanged corpus and four workloads ran sequentially at 100 (including smoke),
+1,000 and 10,000 pages, with no concurrent builds/tests/sample runs. Results are in
+`artifacts/ssg-8/baseline-{100,1000,10000}.json` and `comparison.json`, compared with
+the final phase 7 files. Runtime, OS, architecture and processor metadata match.
+
+| Pages | Workload | Phase 7 ms | Phase 8 ms | Time delta | Allocation delta | Peak WS delta | Executed nodes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | clean | 1035.7 | 640.8 | -38.1% | +2.4% | -0.7% | 112 |
+| 100 | no-op | 440.4 | 351.5 | -20.2% | -2.6% | +8.9% | 0 |
+| 100 | single-page-change | 482.5 | 313.5 | -35.0% | -5.9% | -7.4% | 3 |
+| 100 | layout-change | 496.8 | 444.8 | -10.5% | -4.4% | +3.6% | 104 |
+| 1000 | clean | 11617.1 | 4013.6 | -65.5% | +1.1% | +6.0% | 1012 |
+| 1000 | no-op | 7432.0 | 5721.6 | -23.0% | -0.3% | +4.5% | 0 |
+| 1000 | single-page-change | 4047.4 | 2214.5 | -45.3% | -10.1% | +9.1% | 3 |
+| 1000 | layout-change | 8184.1 | 3336.8 | -59.2% | -8.9% | +7.7% | 1004 |
+| 10000 | clean | 106216.0 | 53629.2 | -49.5% | -3.3% | +9.9% | 10012 |
+| 10000 | no-op | 71967.0 | 63467.2 | -11.8% | -1.1% | +25.2% | 0 |
+| 10000 | single-page-change | 87834.1 | 59289.9 | -32.5% | -1.5% | +34.2% | 3 |
+| 10000 | layout-change | 212821.3 | 98263.6 | -53.8% | -1.1% | +25.4% | 10004 |
+
+Elapsed time decreases for every workload and allocation regressions stay below
+10%. Executed nodes remain N+12 for clean, zero for no-op, three for a body change,
+and N+4 for a layout change. Peak working set exceeds the 10% regression threshold
+for the three incremental 10,000-page workloads: +25.2%, +34.2% and +25.4%.
+
+Investigation found no new benchmark execution path: its project and generated
+dependency manifest reference Core and contain no `LithoSharp.Testing`; Core
+generation code and the benchmark source are unchanged from phase 7. Core only
+adds the friend-assembly attribute. Allocations for all four 10,000-page workloads
+decrease by 1.1–3.3%, while their process working-set baselines rise during the run.
+After the benchmark's existing forced collections, the single-page workload starts
+at 509.5 MB instead of 380.4 MB (+33.9%), and the layout workload starts at 636.6 MB
+instead of 468.2 MB (+36.0%). For layout, growth above its starting working set
+actually drops from 118.4 MB to 98.8 MB; the higher starting baseline accounts for
+its reported peak regression. These are decimal MB, derived from recorded bytes.
+
+The measurements therefore show a substantial process-memory baseline effect,
+not evidence of allocations inside the new testing package. They do not identify
+how much comes from retained managed/native heaps, GC behavior or OS residency;
+those contributions were not profiled. Do not attribute either the faster times
+or higher peak to a measured change in generation algorithms.
+
+Adopt phase 8 for the verified public testing API, isolated temporary output and
+sample coverage, with the elevated peak retained as a measurement limitation.
+It neither changes nor improves the production generator's memory behavior by
+design. No memory-reduction or general speedup claim is made, and the benchmark
+was not altered to hide the higher working set.
+
+性能の日本語要約: 3規模でno-opの実行0ノード、本文1件の変更の3ノードを維持した。
+時間は全条件で短縮し、割当量の増加も10%未満だった。一方、10,000ページの差分処理で
+ピークメモリが25.2〜34.2%増えた。測定プログラムはTestingを参照せず、Coreの生成処理と
+測定コードも前フェーズから変わっていない。本文変更とレイアウト変更は、測定開始時点での
+使用量がそれぞれ33.9%、36.0%増えていた。レイアウト変更では、開始後の増加量はむしろ減り、
+開始時点の差がピークの悪化を説明している。ただし、GC・ヒープの保持・OSの常駐メモリへの
+寄与は分離できていない。この制限を残したうえで、公開テストAPIと隔離された実行環境、
+サンプルの検証を採用理由とする。生成処理の高速化や省メモリ化とは評価しない。

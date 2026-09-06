@@ -545,3 +545,4 @@ MIT. See [LICENSE](LICENSE). Third-party dependencies are listed in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Build and serve C# site projects with [the CLI and site factories](docs/cli.md).
+Test sites, components and layouts with [LithoSharp.Testing](docs/testing.md).

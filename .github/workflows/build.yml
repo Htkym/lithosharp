@@ -70,6 +70,13 @@ jobs:
       - name: Check asset sample
         run: dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --asset-demo --check --output artifacts/assets-sample-site
 
+      - name: Pack and validate testing
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
+
       - name: Run sample
         run: |
           dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site

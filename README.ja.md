@@ -496,3 +496,4 @@ LithoSharp は SemVer に従います。バージョンが `0.x` の間は、公
 MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。サードパーティの通知は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) にあります。
 
 C# のサイトプロジェクトのビルドと開発サーバーについては、[CLI とサイトファクトリ](docs/cli.ja.md)を参照してください。
+サイト、コンポーネント、レイアウトの検証には、[LithoSharp.Testing](docs/testing.ja.md)を利用できます。

@@ -202,3 +202,25 @@ and a directory index. Existing positional result equality remains unchanged.
 
 The separate `LithoSharp.Tool` and `LithoSharp.ProjectTemplates` packages provide
 the CLI and project scaffolding. [English usage](cli.md) / [日本語の使用例](cli.ja.md).
+
+## Phase 8 additions
+
+`LithoSharp.Testing` is a separate net10.0 package with no test-framework or browser
+dependency. Its three public types are tracked by PublicApiAnalyzers:
+
+- `SiteTestHost` generates a definition or factory in temporary output and isolates
+  build, enabled asset, and enabled external-link caches. It exposes generation
+  results and diagnostics, exact route and artifact assertions, and verified HTML
+  reads. Structured validation failures retain diagnostics with a null result;
+  other exceptions propagate after cleanup. Disposal rejects linked paths and
+  deletes only the temporary tree.
+- `SiteTestDocument` parses HTML with AngleSharp, renders components/layouts with
+  existing contexts, and checks elements, text, attributes, metadata, links and
+  images. `Document` exposes the DOM for further checks. No browser, scripts or
+  networking run during parsing.
+- `SiteTestException` identifies assertion mismatches without coupling to TUnit,
+  xUnit or another framework.
+
+The Core change is an internal friend assembly for existing verified path reads;
+it adds no public Core API. [English examples and errors](testing.md) /
+[日本語の使用例とエラー条件](testing.ja.md).
