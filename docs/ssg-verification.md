@@ -278,3 +278,94 @@ Docs／Blogの品質検査とリダイレクト例は診断0件で、NuGet互換
 性能は全規模で割当量が減り、ピークメモリの悪化は10%以内だった。1,000ページのno-opだけは
 時間が41.3%増え、その原因は未特定である。ほかの規模のno-opでは同じ悪化がなく、
 この制限を記録してフェーズ4を採用する。実際の描画省略はフェーズ6で実装する。
+
+## Asset and image verification
+
+Phase 5 adds declared asset transforms, original-path public copies, integrity
+hashes, and the separate `LithoSharp.Images` package. The added tests execute
+PNG/JPEG/WebP resizing, proportional dimensions, responsive markup and cache reuse.
+They also cover source/settings invalidation, malformed cache recovery, preflight
+on hits, declaration identity, missing/double writes, directory links and unsafe
+input/output overlap. The existing compatibility fixtures are unchanged.
+
+The Release build and locked restore succeed without warnings. TUnit has 385
+passing tests. Core package compatibility against published 0.2.0 and contents of
+Core, Generators and Images packages pass. Fixed Docs (15 files) and Blog (14 files)
+match phase 4 byte for byte. Both quality checks return no diagnostics. The opt-in
+Docs `--asset-demo --check` produces 18 artifacts with no quality diagnostics.
+The new public APIs have XML documentation and English/Japanese usage and error
+contracts in [assets and images](assets-and-images.md).
+
+A real `avifenc` executable is not installed in this verification environment.
+AVIF process invocation has compilation and code-review coverage, but no real
+encode/decode execution test. PNG/JPEG/WebP run through the installed Skia runtime.
+AVIF remains explicitly configured; Core never starts an external encoder.
+
+An unchanged asset skips its final source/cache-to-staging write after the staged
+bytes are verified. Transaction setup still copies the previous output into
+isolated staging. This retains the existing rollback guarantees; these measurements
+do not claim zero filesystem copy I/O. Rendering itself is still eager until phase 6.
+
+The first sequential measurements are retained in `artifacts/ssg-5/baseline-*.json`.
+Compared with phase 4's historical final runs, allocated-byte changes stay between
++0.1% and +1.6%, and working-set regressions stay below 10%, while timings vary
+substantially. The largest historical timing regression is the 10,000-page layout
+workload (+105.0%). No build, test or sample command overlaps the performance runs.
+
+To investigate, the unchanged benchmark runner and dependencies were copied into
+two isolated directories. One uses Core from the verified phase 4 NuGet package;
+the other uses the current Core assembly. Each pair uses the same corpus/output
+location and Windows/.NET 10.0.8, x64, 8 logical processors. Results are retained in
+`artifacts/ssg-5/ab/phase{4,5}-{100,1000,10000}.json`. These fresh pairs are the main
+comparison below. The compatibility corpus declares no public/image/transform
+inputs, so it measures the effect on existing generation; tests and the sample
+exercise the new asset behavior.
+
+The old phase 4 binary itself changes from 2016.1 to 4993.4 ms for the 1,000-page
+clean workload, and from 63720.1 to 126147.6 ms for the 10,000-page no-op workload.
+Thus the historical differences include substantial run-to-run environment
+variation. The exact split between filesystem latency, GC and other system activity
+has not been profiled; no such attribution is claimed.
+
+| Pages | Workload | Phase 4 time (ms) | Phase 5 time (ms) | Time delta | Allocation delta | Peak working-set delta |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 100 | clean | 388.1 | 438.3 | +12.9% | +1.5% | -0.8% |
+| 100 | no-op | 386.9 | 311.3 | -19.5% | -0.1% | -1.4% |
+| 100 | single-page-change | 329.1 | 305.1 | -7.3% | -0.1% | -2.3% |
+| 100 | layout-change | 312.3 | 340.6 | +9.1% | -0.5% | -0.7% |
+| 1000 | clean | 4993.4 | 4842.9 | -3.0% | +1.9% | +0.1% |
+| 1000 | no-op | 7802.1 | 6338.8 | -18.8% | -0.1% | -3.3% |
+| 1000 | single-page-change | 6502.4 | 4192.2 | -35.5% | +0.6% | +0.1% |
+| 1000 | layout-change | 5957.1 | 4101.0 | -31.2% | -0.2% | +4.2% |
+| 10000 | clean | 52348.8 | 52126.8 | -0.4% | +1.7% | +1.5% |
+| 10000 | no-op | 126147.6 | 103472.3 | -18.0% | -0.7% | +8.6% |
+| 10000 | single-page-change | 99198.3 | 63827.7 | -35.7% | -0.2% | +3.1% |
+| 10000 | layout-change | 120502.7 | 78500.6 | -34.9% | -0.4% | +9.9% |
+
+Adopt phase 5 with the residual 100-page clean timing difference recorded:
++12.9%, or 50.2 ms, in the fresh pair. The initial 100-page run was 9.6% faster
+than the historical phase 4 result, and the larger fresh clean pairs are 3.0%
+and 0.4% faster. The specific cause of the small-run difference is not isolated.
+The observed environment variation, stable artifact/node counts, allocation
+regressions of at most 1.9% and working-set regressions below 10% support adopting
+the implementation. The paired timings do not establish a general speedup.
+Further repeat measurement is deferred until phase 6 changes actual execution.
+
+日本語の検証要約: Releaseビルドは警告・エラー0件、TUnitは385件成功した。
+Docs／Blogの全成果物はフェーズ4と一致し、画像デモを含む品質診断は0件だった。
+CoreのNuGet互換性と、Core／Generators／Imagesの内容検査も成功した。
+PNG／JPEG／WebPは実際に変換した。AVIFの外部実行経路はビルドとレビューで確認したが、
+avifencが未導入のため実際のエンコードは未検証である。
+
+最初の性能比較では時間が最大105.0%増えたため、保存済みの旧Coreと現在のCoreを
+同じ場所で続けて測定した。旧Core自体も以前の記録から大幅に遅くなり、
+実行環境による変動を確認した。連続比較では100ページのcleanが12.9%増えたが、
+差は50.2msで、1,000・10,000ページのcleanでは同じ悪化はなかった。
+割当量の悪化は最大1.9%、ピークメモリの悪化は10%未満だった。
+小規模測定の差の原因は特定できていない。この制限と初回の測定値を残して採用する。
+変更のない資産の最終書込みと変換は省略するが、出力を安全に確定するための
+ステージングへの複製は残る。ページの実際の描画省略はフェーズ6で実装する。
+
+The final CI-style smoke also passes (`artifacts/ssg-5/final-smoke.json`, 607.5 ms
+clean). It follows build/pack verification and is retained separately from the
+isolated paired measurements.

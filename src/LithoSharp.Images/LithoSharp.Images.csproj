@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>LithoSharp.Images</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>Htkym</Authors>
+    <Description>Declared, cached responsive image transforms for LithoSharp.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../LithoSharp/LithoSharp.csproj" /></ItemGroup>
+  <ItemGroup><None Include="README.md" Pack="true" PackagePath="/" /></ItemGroup>
+</Project>

@@ -604,3 +604,28 @@ LithoSharp.Routing.SiteRedirect
 LithoSharp.Routing.SiteRedirect.SiteRedirect(LithoSharp.Routing.SiteRoute! source, LithoSharp.Routing.SiteRoute! target) -> void
 LithoSharp.Routing.SiteRedirect.Source.get -> LithoSharp.Routing.SiteRoute!
 LithoSharp.Routing.SiteRedirect.Target.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.AssetUrl.Fingerprint.get -> string!
+LithoSharp.AssetUrl.Integrity.get -> string!
+LithoSharp.AssetRegistry.BuildNodes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildNode!>!
+LithoSharp.AssetRegistry.GetUrl(LithoSharp.SiteAssetOutput! output) -> LithoSharp.AssetUrl!
+LithoSharp.AssetRegistry.OpenRead(LithoSharp.SiteAssetOutput! output) -> System.IO.Stream!
+LithoSharp.SiteAssetOutput
+LithoSharp.SiteAssetOutput.SiteAssetOutput(string! id, string! relativeOutputPath) -> void
+LithoSharp.SiteAssetOutput.Id.get -> string!
+LithoSharp.SiteAssetOutput.RelativeOutputPath.get -> string!
+LithoSharp.SiteAssetTransform
+LithoSharp.SiteAssetTransform.SiteAssetTransform(string! id, string! implementationFingerprint, System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAsset!>! inputs, System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAssetOutput!>! outputs, System.Func<LithoSharp.SiteAssetTransformContext!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! handler, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task!>? validateInputs = null) -> void
+LithoSharp.SiteAssetTransform.Id.get -> string!
+LithoSharp.SiteAssetTransform.ImplementationFingerprint.get -> string!
+LithoSharp.SiteAssetTransform.Inputs.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAsset!>!
+LithoSharp.SiteAssetTransform.Outputs.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAssetOutput!>!
+LithoSharp.SiteAssetTransformContext
+LithoSharp.SiteAssetTransformContext.OpenRead(LithoSharp.SiteAsset! input) -> System.IO.Stream!
+LithoSharp.SiteAssetTransformContext.GetUrl(LithoSharp.SiteAsset! input) -> LithoSharp.AssetUrl!
+LithoSharp.SiteAssetTransformContext.WriteAsync(LithoSharp.SiteAssetOutput! output, System.ReadOnlyMemory<byte> bytes, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+LithoSharp.SiteGenerationOptions.AssetTransforms.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteAssetTransform!>!
+LithoSharp.SiteGenerationOptions.AssetTransforms.init -> void
+LithoSharp.SiteGenerationOptions.PublicDirectory.get -> string?
+LithoSharp.SiteGenerationOptions.PublicDirectory.init -> void
+LithoSharp.SiteGenerationOptions.AssetCacheDirectory.get -> string?
+LithoSharp.SiteGenerationOptions.AssetCacheDirectory.init -> void

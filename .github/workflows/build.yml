@@ -45,6 +45,16 @@ jobs:
       - name: Test
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
 
+      - name: Pack and validate images
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Images/LithoSharp.Images.csproj --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Images
+
+      - name: Check asset sample
+        run: dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --asset-demo --check --output artifacts/assets-sample-site
+
       - name: Run sample
         run: |
           dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site

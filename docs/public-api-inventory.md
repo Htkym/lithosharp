@@ -151,6 +151,12 @@ the output directory. Redirect targets must exist; collisions, chains, and cycle
 are rejected. See [site quality checks](site-quality.md).
 
 `src/LithoSharp/PublicAPI.Shipped.txt` is the machine-readable 0.2.0 baseline.
+Phase 5 adds `SiteAssetOutput`, `SiteAssetTransform`, `SiteAssetTransformContext`,
+public-directory and transform-cache options, and asset fingerprint/integrity and
+build-node inspection. `LithoSharp.Images` exposes `ImageFormat`, `ImageVariant`,
+`ImageAsset`, `ResponsiveImage`, and the opt-in `ExternalAvifEncoder`.
+See [assets and images](assets-and-images.md) for examples and error conditions.
+
 The `Microsoft.CodeAnalysis.PublicApiAnalyzers` diagnostics for additions and
 removals are treated as errors, so an intentional API change must update the
 baseline in the same pull request. `PublicAPI.Unshipped.txt` is reserved for

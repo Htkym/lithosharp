@@ -213,16 +213,38 @@ public sealed partial class SiteGenerator
         if (redirectDeclarations.Any(redirect => redirect is null))
             throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
         var outputRoot = Path.GetFullPath(outputDirectory);
+        foreach (var asset in options.Assets)
+        {
+            ArgumentNullException.ThrowIfNull(asset);
+            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath))))
+                throw new ArgumentException("Asset input files must be outside the output directory.", nameof(options));
+        }
         if (options.Quality?.ExternalLinks is { } external)
         {
             var cachePath = Path.GetFullPath(external.CacheFilePath);
-            if (string.Equals(cachePath, outputRoot, PathComparison)
-                || cachePath.StartsWith(Path.TrimEndingDirectorySeparator(outputRoot) + Path.DirectorySeparatorChar, PathComparison))
+            if (ContainsDirectory(outputRoot, cachePath))
                 throw new ArgumentException("The external link cache must be outside the site output directory.", nameof(options.Quality));
         }
 
         customization ??= new SiteCustomization();
-        var assetRegistry = await AssetRegistry.CreateAsync(options.Assets, site.BaseUrl, cancellationToken).ConfigureAwait(false);
+        if (options.AssetCacheDirectory is { } assetCacheDirectory)
+        {
+            var cachePath = Path.GetFullPath(assetCacheDirectory);
+            if (ContainsDirectory(outputRoot, cachePath))
+                throw new ArgumentException("The asset cache must be outside the output directory.", nameof(options));
+        }
+        if (options.PublicDirectory is { } publicDirectory)
+        {
+            var publicRoot = Path.GetFullPath(publicDirectory);
+            if (ContainsDirectory(publicRoot, outputRoot) || ContainsDirectory(outputRoot, publicRoot))
+                throw new ArgumentException("The public input directory and output directory must not overlap.", nameof(options));
+            if (options.AssetCacheDirectory is { } cache && ContainsDirectory(publicRoot, Path.GetFullPath(cache)))
+                throw new ArgumentException("The asset cache must be outside the public input directory.", nameof(options));
+            if (options.Quality?.ExternalLinks is { } links && ContainsDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
+                throw new ArgumentException("The external link cache must be outside the public input directory.", nameof(options));
+        }
+        var assetRegistry = await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
+            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false);
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
@@ -1960,10 +1982,28 @@ public sealed partial class SiteGenerator
     private static byte[] GetTextContentBytes(string contents) =>
         Encoding.UTF8.GetBytes(contents.ReplaceLineEndings("\n"));
 
+    private static bool ContainsDirectory(string root, string path)
+    {
+        root = Path.TrimEndingDirectorySeparator(root);
+        return string.Equals(root, Path.TrimEndingDirectorySeparator(path), PathComparison)
+            || path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, PathComparison);
+    }
+
     private static async Task WriteBinaryAssetAsync(string outputRoot, string relativePath, byte[] contents, List<string> generated, CancellationToken cancellationToken)
     {
         var fullPath = SafeCombine(outputRoot, relativePath);
         CreateSafeDirectory(outputRoot, Path.GetDirectoryName(fullPath)!);
+        if (File.Exists(fullPath))
+        {
+            await using var existing = BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, fullPath, asynchronous: true);
+            if (existing.Length == contents.Length
+                && (await SHA256.HashDataAsync(existing, cancellationToken).ConfigureAwait(false))
+                    .AsSpan().SequenceEqual(SHA256.HashData(contents)))
+            {
+                generated.Add(fullPath);
+                return;
+            }
+        }
         await WriteNewFileAsync(fullPath, contents, cancellationToken).ConfigureAwait(false);
         generated.Add(fullPath);
     }

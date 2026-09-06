@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LithoSharp\LithoSharp.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Images\LithoSharp.Images.csproj" />
     <ProjectReference Include="..\..\src\LithoSharp.Generators\LithoSharp.Generators.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
@@ -23,6 +24,8 @@
 
   <ItemGroup>
     <Content Include="content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../src/LithoSharp/icon.png" Link="image-source.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="public/**/*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="typed-content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
     <AdditionalFiles Include="typed-content\**\*.md">
       <LithoSharpCollection>articles</LithoSharpCollection>

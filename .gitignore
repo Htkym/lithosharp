@@ -432,6 +432,7 @@ FodyWeavers.xsd
 
 # LithoSharp sample output
 _site/
+.lithosharp/
 
 # Local roadmap
 roadmap/

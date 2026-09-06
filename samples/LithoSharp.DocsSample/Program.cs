@@ -2,6 +2,7 @@ using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
+using LithoSharp.Images;
 using LithoSharp.Pages;
 using LithoSharp.Quality;
 using LithoSharp.Routing;
@@ -11,6 +12,7 @@ var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDire
 var typedContent = Path.Combine(AppContext.BaseDirectory, "typed-content");
 var check = args.Contains("--check", StringComparer.Ordinal);
 var redirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal);
+var assetDemo = args.Contains("--asset-demo", StringComparer.Ordinal);
 
 var site = new SiteSettings
 {
@@ -84,9 +86,16 @@ var topicPages = articles.GeneratePages(
     derivedSurfaces: GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation);
 
 var articleSource = new SiteAsset("article-source", typedContent, "first.md", "downloads/first.md");
+var image = assetDemo ? new ImageAsset(
+    new SiteAsset("sample-image", AppContext.BaseDirectory, "image-source.png", "images/original.png"),
+    [new ImageVariant("sample-png", "images/sample.png", 128, ImageFormat.Png),
+     new ImageVariant("sample-webp", "images/sample.webp", 128, ImageFormat.WebP)]) : null;
 var options = new SiteGenerationOptions
 {
-    Assets = [articleSource],
+    Assets = image is null ? [articleSource] : [articleSource, image.Source],
+    AssetTransforms = image is null ? [] : [image.Transform],
+    AssetCacheDirectory = assetDemo ? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, ".lithosharp", "assets") : null,
+    PublicDirectory = assetDemo ? Path.Combine(AppContext.BaseDirectory, "public") : null,
     BuildTimestamp = DateTimeOffset.Parse("2026-09-02T00:00:00Z"),
     EnvironmentName = "Production",
     Quality = check ? new SiteQualityOptions() : null,
@@ -94,7 +103,7 @@ var options = new SiteGenerationOptions
         ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
         : [],
     ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
-        articles, new ArticleLayout(articleSource)), topicPages]
+        articles, new ArticleLayout(articleSource, image)), topicPages]
 };
 var generator = new SiteGenerator();
 SiteGenerationResult result;
@@ -130,10 +139,12 @@ static string? GetArgument(string[] args, string name)
     return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
 }
 
-sealed class ArticleLayout(SiteAsset source) : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
+sealed class ArticleLayout(SiteAsset source, ImageAsset? image) : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
 {
     public IHtmlContent Render(SitePage<ContentEntry<ArticleFrontMatter, string>> page, PageRenderingContext context) =>
         context.RenderDocument(page, Html.UnsafeRaw(
             context.RenderMarkdown(page.Content.Body).ToHtmlString() +
-            $"<p><a href=\"{context.Assets.GetUrl(source).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>"));
+            $"<p><a href=\"{context.Assets.GetUrl(source).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
+            (image is null ? string.Empty : ResponsiveImage.Render(context.Assets, image, "LithoSharp sample icon").ToHtmlString() +
+                $"<p><a href=\"{context.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>")));
 }

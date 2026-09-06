@@ -341,6 +341,13 @@ Unix の ACL、拡張属性、所有者は移植可能には保持できませ�
 並行して登録し、コレクション単位で切り替えてください。0.2 では API と依存関係が
 一つのまとまったアセンブリを形成しているため、物理的な NuGet パッケージ分割は行いません。
 
+## 資産と画像
+
+`public`コピー、CSSの資産参照、整合性ハッシュ、画像変換の使用例は
+[資産と画像](docs/assets-and-images.ja.md)を参照してください。
+`LithoSharp.Images`ではPNG／JPEG／WebPと、明示設定したエンコーダーによるAVIFを生成できます。
+Docsサンプルの`--asset-demo --check`で確認できます。
+
 ## 静的コンテンツのSource Generator
 
 `LithoSharp.Generators` は、明示的に宣言したMarkdownファイルをコンパイル時に処理します。

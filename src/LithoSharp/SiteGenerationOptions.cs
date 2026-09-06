@@ -30,6 +30,15 @@ public sealed record SiteGenerationOptions
     /// <summary>今回の生成へ接続する静的資産です。</summary>
     public IReadOnlyList<SiteAsset> Assets { get; init; } = [];
 
+    /// <summary>Transforms with declared source assets and output files.</summary>
+    public IReadOnlyList<SiteAssetTransform> AssetTransforms { get; init; } = [];
+
+    /// <summary>Optional directory whose regular files are copied using their original relative paths. It must not overlap the output directory or contain caches.</summary>
+    public string? PublicDirectory { get; init; }
+
+    /// <summary>Optional transform cache directory outside the output directory. Null disables the disk cache.</summary>
+    public string? AssetCacheDirectory { get; init; }
+
     /// <summary>通常の成果物として生成するリダイレクトです。</summary>
     public IReadOnlyList<SiteRedirect> Redirects { get; init; } = [];
 

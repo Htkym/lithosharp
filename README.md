@@ -425,6 +425,11 @@ inputs retain their existing runtime validation. See
 
 ## Layouts, components, safe HTML, and registered assets
 
+Public-directory copies, declared CSS transforms, integrity hashes and cached
+responsive image variants are described in [Assets and images](docs/assets-and-images.md).
+`LithoSharp.Images` adds PNG/JPEG/WebP and opt-in AVIF without requiring an external
+tool for Core generation. Run the Docs sample with `--asset-demo --check` to try it.
+
 Typed collections can use a layout class directly:
 
 ```csharp

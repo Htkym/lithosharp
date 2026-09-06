@@ -2,12 +2,6 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "YamlDotNet": {
-        "type": "Direct",
-        "requested": "[18.0.0, )",
-        "resolved": "18.0.0",
-        "contentHash": "ptHVgcYmLejGuWXV7RMFoEqFKYMXnieOlWLPzEslfDtzZ9ngMhjYwykfqjBN2+fMEAEyobozkj07lKEpR4dssA=="
-      },
       "AngleSharp": {
         "type": "Transitive",
         "resolved": "1.7.3",
@@ -42,6 +36,11 @@
         "resolved": "3.119.4",
         "contentHash": "XOpbx/4CReO2wYsq2s6rbvdauc6dntG4Zv499sHGTJ87bwZaFXszFkwql3+FIZMc8kUPeaj3Mx2ezIJmo8a1Kg=="
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "18.0.0",
+        "contentHash": "ptHVgcYmLejGuWXV7RMFoEqFKYMXnieOlWLPzEslfDtzZ9ngMhjYwykfqjBN2+fMEAEyobozkj07lKEpR4dssA=="
+      },
       "lithosharp": {
         "type": "Project",
         "dependencies": {
@@ -50,12 +49,6 @@
           "SkiaSharp": "[3.119.4, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[3.119.4, )",
           "YamlDotNet": "[18.0.0, )"
-        }
-      },
-      "lithosharp.images": {
-        "type": "Project",
-        "dependencies": {
-          "LithoSharp": "[0.2.0, )"
         }
       }
     }

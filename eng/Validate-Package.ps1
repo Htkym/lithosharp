@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images')]
     [string] $PackageId = 'LithoSharp'
 )
 
@@ -29,6 +29,13 @@ function Get-ZipEntries([string] $path) {
 }
 
 $packageEntries = Get-ZipEntries $package.FullName
+if ($PackageId -eq 'LithoSharp.Images') {
+    foreach ($required in @('lib/net10.0/LithoSharp.Images.dll', 'lib/net10.0/LithoSharp.Images.xml', 'README.md')) {
+        if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+    }
+    Write-Host "Validated package contents: $($package.Name)"
+    return
+}
 if ($PackageId -eq 'LithoSharp.Generators') {
     foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/YamlDotNet.dll', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
