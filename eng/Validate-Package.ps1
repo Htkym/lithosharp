@@ -3,15 +3,17 @@ param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
     [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')]
-    [string] $PackageId = 'LithoSharp'
+    [string] $PackageId = 'LithoSharp',
+    [string] $ExpectedVersion
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 
-$package = Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
-    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' } |
-    Select-Object -First 1
+$matchingPackages = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
+    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' })
+if ($matchingPackages.Count -ne 1) { throw "Expected exactly one $PackageId package in $PackageDirectory." }
+$package = $matchingPackages[0]
 $symbols = Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.snupkg' | Select-Object -First 1
 
 if ($null -eq $package -or ($PackageId -eq 'LithoSharp' -and $null -eq $symbols)) {
@@ -29,6 +31,35 @@ function Get-ZipEntries([string] $path) {
 }
 
 $packageEntries = Get-ZipEntries $package.FullName
+foreach ($required in @('README.md', 'icon.png')) {
+    if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+}
+if ($packageEntries | Where-Object { $_ -match '(^|/)(\.local|\.git|\.tmp|benchmarks|tests|TestResults|node_modules|obj)(/|$)' }) {
+    throw 'Package contains private, restored or development-only files.'
+}
+$archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+try {
+    $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -like '*.nuspec' } | Select-Object -First 1
+    if ($null -eq $nuspecEntry) { throw 'Package is missing its nuspec metadata.' }
+    $reader = [System.IO.StreamReader]::new($nuspecEntry.Open())
+    try { [xml] $nuspec = $reader.ReadToEnd() }
+    finally { $reader.Dispose() }
+}
+finally { $archive.Dispose() }
+$metadata = $nuspec.package.metadata
+if ($metadata.id -cne $PackageId -or ($ExpectedVersion -and $metadata.version -cne $ExpectedVersion)) {
+    throw "Unexpected package identity: $($metadata.id) $($metadata.version)."
+}
+if ($metadata.license.type -ne 'expression' -or $metadata.license.'#text' -ne 'MIT' -or
+    $metadata.icon -ne 'icon.png' -or $metadata.readme -ne 'README.md' -or
+    $metadata.repository.type -ne 'git' -or $metadata.repository.url -ne 'https://github.com/Htkym/lithosharp') {
+    throw 'Package license, icon, README or repository metadata is incorrect.'
+}
+foreach ($dependency in @($metadata.dependencies.group.dependency)) {
+    if ($dependency.id -like 'LithoSharp*' -and $dependency.version -notin @($metadata.version, "[$($metadata.version), )")) {
+        throw "Package dependency version is not aligned: $($dependency.id) $($dependency.version)."
+    }
+}
 if ($PackageId -eq 'LithoSharp.Tool') {
     foreach ($required in @('tools/net10.0/any/LithoSharp.Tool.dll', 'tools/net10.0/any/LithoSharp.Tool.runtimeconfig.json', 'tools/net10.0/any/DotnetToolSettings.xml', 'tools/net10.0/any/LithoSharp.dll', 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
@@ -61,7 +92,7 @@ if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing', 'LithoSharp.Mdx'
     return
 }
 if ($PackageId -eq 'LithoSharp.Generators') {
-    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/YamlDotNet.dll', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
+    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/LithoSharp.Generators.xml', 'analyzers/dotnet/cs/YamlDotNet.dll', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
     }
     if ($packageEntries | Where-Object { $_ -like 'lib/*' }) { throw 'Generator package must not add runtime library references.' }
@@ -83,25 +114,6 @@ foreach ($required in @(
 
 if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
     throw 'Symbols package is missing lib/net10.0/LithoSharp.pdb.'
-}
-
-$archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
-try {
-    $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -like '*.nuspec' } | Select-Object -First 1
-    if ($null -eq $nuspecEntry) {
-        throw 'Package is missing its nuspec metadata.'
-    }
-
-    $reader = [System.IO.StreamReader]::new($nuspecEntry.Open())
-    try {
-        [xml] $nuspec = $reader.ReadToEnd()
-    }
-    finally {
-        $reader.Dispose()
-    }
-}
-finally {
-    $archive.Dispose()
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)

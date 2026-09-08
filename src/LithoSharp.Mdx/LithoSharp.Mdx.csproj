@@ -5,11 +5,12 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Mdx</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Htkym</Authors>
     <Description>Opt-in official MDX and React static rendering for LithoSharp.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -22,4 +23,5 @@
     <None Update="worker/tests/**/*" Pack="false" CopyToOutputDirectory="Never" />
     <None Update="worker/.gitignore" Pack="false" CopyToOutputDirectory="Never" />
   </ItemGroup>
+  <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
 </Project>

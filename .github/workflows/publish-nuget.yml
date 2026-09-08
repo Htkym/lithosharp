@@ -25,14 +25,35 @@ jobs:
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode
 
-      - name: Pack
+      - name: Setup MDX toolchain
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+
+      - name: Restore and test MDX worker
+        working-directory: src/LithoSharp.Mdx/worker
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          dotnet pack src/LithoSharp/LithoSharp.csproj \
-            --no-restore \
-            --configuration Release \
-            --output artifacts/packages \
-            -p:Version="$version"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+
+      - name: Build and test
+        run: |
+          dotnet build LithoSharp.slnx --no-restore --configuration Release
+          dotnet test --solution LithoSharp.slnx --no-build --configuration Release
+
+      - name: Pack and validate all release packages
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.ProjectTemplates')) {
+            $parent = if ($id -eq 'LithoSharp.ProjectTemplates') { 'templates' } else { 'src' }
+            $project = "$parent/$id/$id.csproj"
+            [xml] $xml = Get-Content -LiteralPath $project -Raw
+            if (@($xml.Project.PropertyGroup.Version) -notcontains $version) { throw "$project does not match tag version $version." }
+            dotnet pack $project --no-build --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $version
+          }
 
       - name: NuGet login (OIDC)
         id: login

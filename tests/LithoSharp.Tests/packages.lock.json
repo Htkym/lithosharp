@@ -175,8 +175,8 @@
       "lithosharp.docssample": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[0.2.0, )",
-          "LithoSharp.Images": "[0.2.0, )",
+          "LithoSharp": "[0.3.0, )",
+          "LithoSharp.Images": "[0.3.0, )",
           "YamlDotNet": "[18.0.0, )"
         }
       },
@@ -186,26 +186,26 @@
       "lithosharp.images": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[0.2.0, )"
+          "LithoSharp": "[0.3.0, )"
         }
       },
       "lithosharp.mdx": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[0.2.0, )"
+          "LithoSharp": "[0.3.0, )"
         }
       },
       "lithosharp.sample": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[0.2.0, )"
+          "LithoSharp": "[0.3.0, )"
         }
       },
       "lithosharp.testing": {
         "type": "Project",
         "dependencies": {
           "AngleSharp": "[1.7.3, )",
-          "LithoSharp": "[0.2.0, )"
+          "LithoSharp": "[0.3.0, )"
         }
       }
     }

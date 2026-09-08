@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LithoSharp.Mdx" Version="0.2.0" />
+    <PackageReference Include="LithoSharp.Mdx" Version="0.3.0" />
   </ItemGroup>
 </Project>

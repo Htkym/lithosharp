@@ -1,1 +1,209 @@
 #nullable enable
+LithoSharp.Mdx.BlogAuthor
+LithoSharp.Mdx.BlogAuthor.Bio.get -> string?
+LithoSharp.Mdx.BlogAuthor.Bio.init -> void
+LithoSharp.Mdx.BlogAuthor.BlogAuthor(string! Name, string? Bio = null, LithoSharp.SiteUrl? Url = null, LithoSharp.SiteUrl? Image = null) -> void
+LithoSharp.Mdx.BlogAuthor.Image.get -> LithoSharp.SiteUrl?
+LithoSharp.Mdx.BlogAuthor.Image.init -> void
+LithoSharp.Mdx.BlogAuthor.Name.get -> string!
+LithoSharp.Mdx.BlogAuthor.Name.init -> void
+LithoSharp.Mdx.BlogAuthor.Url.get -> LithoSharp.SiteUrl?
+LithoSharp.Mdx.BlogAuthor.Url.init -> void
+LithoSharp.Mdx.DocumentationAlgolia
+LithoSharp.Mdx.DocumentationAlgolia.ApplicationId.get -> string!
+LithoSharp.Mdx.DocumentationAlgolia.ApplicationId.init -> void
+LithoSharp.Mdx.DocumentationAlgolia.DocumentationAlgolia(string! ApplicationId, string! SearchOnlyApiKey, string! IndexName) -> void
+LithoSharp.Mdx.DocumentationAlgolia.IndexName.get -> string!
+LithoSharp.Mdx.DocumentationAlgolia.IndexName.init -> void
+LithoSharp.Mdx.DocumentationAlgolia.SearchOnlyApiKey.get -> string!
+LithoSharp.Mdx.DocumentationAlgolia.SearchOnlyApiKey.init -> void
+LithoSharp.Mdx.DocumentationAnalytics
+LithoSharp.Mdx.DocumentationAnalytics.DocumentationAnalytics(LithoSharp.SiteUrl! Endpoint, string! Domain) -> void
+LithoSharp.Mdx.DocumentationAnalytics.Domain.get -> string!
+LithoSharp.Mdx.DocumentationAnalytics.Domain.init -> void
+LithoSharp.Mdx.DocumentationAnalytics.Endpoint.get -> LithoSharp.SiteUrl!
+LithoSharp.Mdx.DocumentationAnalytics.Endpoint.init -> void
+LithoSharp.Mdx.DocumentationAnalytics.Provider.get -> string!
+LithoSharp.Mdx.DocumentationAnalytics.Provider.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions
+LithoSharp.Mdx.DocumentationBrowserOptions.Algolia.get -> LithoSharp.Mdx.DocumentationAlgolia?
+LithoSharp.Mdx.DocumentationBrowserOptions.Algolia.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Analytics.get -> LithoSharp.Mdx.DocumentationAnalytics?
+LithoSharp.Mdx.DocumentationBrowserOptions.Analytics.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Announcement.get -> string?
+LithoSharp.Mdx.DocumentationBrowserOptions.Announcement.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Footer.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>!
+LithoSharp.Mdx.DocumentationBrowserOptions.Footer.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Navbar.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>!
+LithoSharp.Mdx.DocumentationBrowserOptions.Navbar.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Navigation.get -> bool
+LithoSharp.Mdx.DocumentationBrowserOptions.Navigation.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Offline.get -> bool
+LithoSharp.Mdx.DocumentationBrowserOptions.Offline.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Search.get -> bool
+LithoSharp.Mdx.DocumentationBrowserOptions.Search.init -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Theme.get -> bool
+LithoSharp.Mdx.DocumentationBrowserOptions.Theme.init -> void
+LithoSharp.Mdx.DocumentationCollection
+LithoSharp.Mdx.DocumentationCollection.DefaultSidebar.get -> string?
+LithoSharp.Mdx.DocumentationCollection.DefaultSidebar.init -> void
+LithoSharp.Mdx.DocumentationCollection.DocumentationCollection(string! Id, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentVariant!>! Variants) -> void
+LithoSharp.Mdx.DocumentationCollection.EditUrl.get -> string?
+LithoSharp.Mdx.DocumentationCollection.EditUrl.init -> void
+LithoSharp.Mdx.DocumentationCollection.GitMetadata.get -> bool
+LithoSharp.Mdx.DocumentationCollection.GitMetadata.init -> void
+LithoSharp.Mdx.DocumentationCollection.Id.get -> string!
+LithoSharp.Mdx.DocumentationCollection.Id.init -> void
+LithoSharp.Mdx.DocumentationCollection.MissingDocuments.get -> LithoSharp.Mdx.MissingDocumentPolicy
+LithoSharp.Mdx.DocumentationCollection.MissingDocuments.init -> void
+LithoSharp.Mdx.DocumentationCollection.Sidebars.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.SidebarItem!>!>!
+LithoSharp.Mdx.DocumentationCollection.Sidebars.init -> void
+LithoSharp.Mdx.DocumentationCollection.SourceLocale.get -> string?
+LithoSharp.Mdx.DocumentationCollection.SourceLocale.init -> void
+LithoSharp.Mdx.DocumentationCollection.UseMdx.get -> bool
+LithoSharp.Mdx.DocumentationCollection.UseMdx.init -> void
+LithoSharp.Mdx.DocumentationCollection.Variants.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentVariant!>!
+LithoSharp.Mdx.DocumentationCollection.Variants.init -> void
+LithoSharp.Mdx.DocumentationSite
+LithoSharp.Mdx.DocumentationSite.AddBlog(LithoSharp.Mdx.MdxBlogCollection! blog) -> void
+LithoSharp.Mdx.DocumentationSite.AddCollection(LithoSharp.Mdx.DocumentationCollection! collection) -> void
+LithoSharp.Mdx.DocumentationSite.AddPages<TFrontMatter>(LithoSharp.Content.IContentCollectionLoader<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! loader, System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!, LithoSharp.Mdx.MdxPublicData!>? publicData = null, LithoSharp.Content.ContentPageRenderer<TFrontMatter, LithoSharp.Mdx.MdxDocument!>? renderer = null) -> void
+LithoSharp.Mdx.DocumentationSite.Browser.get -> LithoSharp.Mdx.DocumentationBrowserOptions?
+LithoSharp.Mdx.DocumentationSite.Browser.init -> void
+LithoSharp.Mdx.DocumentationSite.Catalog.get -> LithoSharp.Documentation.DocumentCatalog!
+LithoSharp.Mdx.DocumentationSite.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Mdx.DocumentationSite.DocumentationSite(LithoSharp.Mdx.MdxOptions! options) -> void
+LithoSharp.Mdx.DocumentationSite.GetInspection() -> System.Text.Json.JsonElement?
+LithoSharp.Mdx.DocumentationSite.Layout.get -> LithoSharp.IPageLayout<LithoSharp.PageLayoutContent!>!
+LithoSharp.Mdx.DocumentationSite.Layout.init -> void
+LithoSharp.Mdx.DocumentationSite.MdxMetrics.get -> LithoSharp.Mdx.MdxBuildMetrics!
+LithoSharp.Mdx.DocumentationSite.MessageKeys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.DocumentationSite.MessageKeys.init -> void
+LithoSharp.Mdx.DocumentationSite.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+LithoSharp.Mdx.DocumentationSite.TranslationPolicy.get -> LithoSharp.Documentation.MissingTranslationPolicy
+LithoSharp.Mdx.DocumentationSite.TranslationPolicy.init -> void
+LithoSharp.Mdx.DocumentationSite.Translations.get -> LithoSharp.Documentation.TranslationCatalog?
+LithoSharp.Mdx.DocumentationSite.Translations.init -> void
+LithoSharp.Mdx.MdxBlogCollection
+LithoSharp.Mdx.MdxBlogCollection.Authors.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Mdx.BlogAuthor!>!
+LithoSharp.Mdx.MdxBlogCollection.Authors.init -> void
+LithoSharp.Mdx.MdxBlogCollection.Id.get -> string!
+LithoSharp.Mdx.MdxBlogCollection.Id.init -> void
+LithoSharp.Mdx.MdxBlogCollection.InputDirectory.get -> string!
+LithoSharp.Mdx.MdxBlogCollection.InputDirectory.init -> void
+LithoSharp.Mdx.MdxBlogCollection.MdxBlogCollection(string! Id, string! InputDirectory, string! RoutePrefix) -> void
+LithoSharp.Mdx.MdxBlogCollection.PageSize.get -> int
+LithoSharp.Mdx.MdxBlogCollection.PageSize.init -> void
+LithoSharp.Mdx.MdxBlogCollection.RoutePrefix.get -> string!
+LithoSharp.Mdx.MdxBlogCollection.RoutePrefix.init -> void
+LithoSharp.Mdx.MdxBlogFrontMatter
+LithoSharp.Mdx.MdxBlogFrontMatter.Authors.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Mdx.MdxBlogFrontMatter.Authors.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Date.get -> System.DateTimeOffset
+LithoSharp.Mdx.MdxBlogFrontMatter.Date.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Draft.get -> bool
+LithoSharp.Mdx.MdxBlogFrontMatter.Draft.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.FeedText.get -> string?
+LithoSharp.Mdx.MdxBlogFrontMatter.FeedText.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.MdxBlogFrontMatter() -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.PublishUntil.get -> System.DateTimeOffset?
+LithoSharp.Mdx.MdxBlogFrontMatter.PublishUntil.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Slug.get -> string?
+LithoSharp.Mdx.MdxBlogFrontMatter.Slug.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Summary.get -> string!
+LithoSharp.Mdx.MdxBlogFrontMatter.Summary.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Tags.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Mdx.MdxBlogFrontMatter.Tags.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Title.get -> string!
+LithoSharp.Mdx.MdxBlogFrontMatter.Title.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Unlisted.get -> bool
+LithoSharp.Mdx.MdxBlogFrontMatter.Unlisted.set -> void
+LithoSharp.Mdx.MdxBlogSite
+LithoSharp.Mdx.MdxBlogSite.AddCollection(LithoSharp.Mdx.MdxBlogCollection! blog) -> void
+LithoSharp.Mdx.MdxBlogSite.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Mdx.MdxBlogSite.GetInspection() -> System.Text.Json.JsonElement?
+LithoSharp.Mdx.MdxBlogSite.MdxBlogSite(LithoSharp.Mdx.MdxOptions! options) -> void
+LithoSharp.Mdx.MdxBlogSite.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+LithoSharp.Mdx.MdxBuildMetrics
+LithoSharp.Mdx.MdxBuildMetrics.BrowserBundleMilliseconds.get -> double
+LithoSharp.Mdx.MdxBuildMetrics.BrowserBundleMilliseconds.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.BundledPages.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.BundledPages.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.CacheHit.get -> bool
+LithoSharp.Mdx.MdxBuildMetrics.CacheHit.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.CompiledModules.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.CompiledModules.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.NodeHeapUsedBytes.get -> long
+LithoSharp.Mdx.MdxBuildMetrics.NodeHeapUsedBytes.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.RenderedPages.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.RenderedPages.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.RenderMilliseconds.get -> double
+LithoSharp.Mdx.MdxBuildMetrics.RenderMilliseconds.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.ServerBundleMilliseconds.get -> double
+LithoSharp.Mdx.MdxBuildMetrics.ServerBundleMilliseconds.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.WorkerMilliseconds.get -> double
+LithoSharp.Mdx.MdxBuildMetrics.WorkerMilliseconds.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.WorkerStarts.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.WorkerStarts.init -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.IncludeMarkdown.get -> bool
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.IncludeMarkdown.init -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!>
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.MdxContentCollectionLoader(LithoSharp.Content.ContentCollectionId! id, string! inputRoot, LithoSharp.Content.ContentRouteConvention<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! publicationMapper, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null) -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.TransformationFingerprint.get -> string?
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.TransformationFingerprint.init -> void
+LithoSharp.Mdx.MdxDocument
+LithoSharp.Mdx.MdxDocument.Body.get -> string!
+LithoSharp.Mdx.MdxDocument.BodyStartLine.get -> int
+LithoSharp.Mdx.MdxDocument.MdxDocument(string! body, int bodyStartLine = 1) -> void
+LithoSharp.Mdx.MdxDocument.PlainText.get -> string?
+LithoSharp.Mdx.MdxDocument.ToHtmlString() -> string!
+LithoSharp.Mdx.MdxOptions
+LithoSharp.Mdx.MdxOptions.Cacheable.get -> bool
+LithoSharp.Mdx.MdxOptions.Cacheable.init -> void
+LithoSharp.Mdx.MdxOptions.ComponentsModule.get -> string?
+LithoSharp.Mdx.MdxOptions.ComponentsModule.init -> void
+LithoSharp.Mdx.MdxOptions.CrossReferences.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.SiteUrl!>!
+LithoSharp.Mdx.MdxOptions.CrossReferences.init -> void
+LithoSharp.Mdx.MdxOptions.DeclaredInputFiles.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.MdxOptions.DeclaredInputFiles.init -> void
+LithoSharp.Mdx.MdxOptions.Environment.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+LithoSharp.Mdx.MdxOptions.Environment.init -> void
+LithoSharp.Mdx.MdxOptions.Hydration.get -> string!
+LithoSharp.Mdx.MdxOptions.Hydration.init -> void
+LithoSharp.Mdx.MdxOptions.MaximumMessageBytes.get -> int
+LithoSharp.Mdx.MdxOptions.MaximumMessageBytes.init -> void
+LithoSharp.Mdx.MdxOptions.MdxOptions(string! projectDirectory, string? workerDirectory = null) -> void
+LithoSharp.Mdx.MdxOptions.NodeExecutable.get -> string!
+LithoSharp.Mdx.MdxOptions.NodeExecutable.init -> void
+LithoSharp.Mdx.MdxOptions.Plugins.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Mdx.MdxPlugin!>!
+LithoSharp.Mdx.MdxOptions.Plugins.init -> void
+LithoSharp.Mdx.MdxOptions.ProjectDirectory.get -> string!
+LithoSharp.Mdx.MdxOptions.StaticComponents.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.MdxOptions.StaticComponents.init -> void
+LithoSharp.Mdx.MdxOptions.Timeout.get -> System.TimeSpan
+LithoSharp.Mdx.MdxOptions.Timeout.init -> void
+LithoSharp.Mdx.MdxOptions.WorkerDirectory.get -> string!
+LithoSharp.Mdx.MdxPlugin
+LithoSharp.Mdx.MdxPlugin.MdxPlugin(string! Stage, string! Module, System.Text.Json.JsonElement Options) -> void
+LithoSharp.Mdx.MdxPlugin.Module.get -> string!
+LithoSharp.Mdx.MdxPlugin.Module.init -> void
+LithoSharp.Mdx.MdxPlugin.Options.get -> System.Text.Json.JsonElement
+LithoSharp.Mdx.MdxPlugin.Options.init -> void
+LithoSharp.Mdx.MdxPlugin.Stage.get -> string!
+LithoSharp.Mdx.MdxPlugin.Stage.init -> void
+LithoSharp.Mdx.MdxPublicData
+LithoSharp.Mdx.MdxPublicData.MdxPublicData(System.Text.Json.JsonElement value, System.Text.Json.JsonElement schema) -> void
+LithoSharp.Mdx.MdxPublicData.Schema.get -> System.Text.Json.JsonElement
+LithoSharp.Mdx.MdxPublicData.Value.get -> System.Text.Json.JsonElement
+LithoSharp.Mdx.MdxSite
+LithoSharp.Mdx.MdxSite.AddCollection<TFrontMatter>(LithoSharp.Content.IContentCollectionLoader<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! loader, System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!, LithoSharp.Mdx.MdxPublicData!>? publicData = null, LithoSharp.Content.ContentPageRenderer<TFrontMatter, LithoSharp.Mdx.MdxDocument!>? renderer = null) -> void
+LithoSharp.Mdx.MdxSite.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Mdx.MdxSite.GetInspection() -> System.Text.Json.JsonElement?
+LithoSharp.Mdx.MdxSite.MdxSite(LithoSharp.Mdx.MdxOptions! options) -> void
+LithoSharp.Mdx.MdxSite.Metrics.get -> LithoSharp.Mdx.MdxBuildMetrics!
+LithoSharp.Mdx.MdxSite.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+LithoSharp.Mdx.MissingDocumentPolicy
+LithoSharp.Mdx.MissingDocumentPolicy.Error = 1 -> LithoSharp.Mdx.MissingDocumentPolicy
+LithoSharp.Mdx.MissingDocumentPolicy.Exclude = 0 -> LithoSharp.Mdx.MissingDocumentPolicy
+static LithoSharp.Mdx.MdxPublicData.Empty.get -> LithoSharp.Mdx.MdxPublicData!
