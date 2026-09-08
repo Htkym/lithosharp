@@ -49,6 +49,8 @@ internal static class ContentCollectionBuildPlanAdapter
             nodes.Add(new BuildNode(
                 nodeId,
                 inputs,
+                page.DeclaredDependencies.Where(dependency => dependency.Kind == ContentDependencyKind.Asset)
+                    .Select(dependency => new BuildNodeId("asset:" + dependency.Key)),
                 artifacts:
                 [
                     new BuildArtifact(
@@ -192,6 +194,11 @@ internal static class ContentCollectionBuildPlanAdapter
     {
         foreach (var dependency in page.DeclaredDependencies)
         {
+            if (dependency.Kind == ContentDependencyKind.Asset)
+            {
+                yield return BuildInput.FromValue("content.asset:" + dependency.Key, dependency.Key);
+                continue;
+            }
             if (dependency.Kind == ContentDependencyKind.Value)
             {
                 yield return BuildInput.FromValue(

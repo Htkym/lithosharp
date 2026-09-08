@@ -298,7 +298,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             _transformationId,
             _isCacheable);
 
-    private static ContentParseResult<LocatedYamlMapping> ParseYaml(
+    internal static ContentParseResult<LocatedYamlMapping> ParseYaml(
         string yaml,
         string relativePath,
         int yamlStartLine,
@@ -647,7 +647,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Normalize(NormalizationForm.FormC);
 
-    private sealed record MarkdownSourceDocument(string Yaml, string Body, int YamlStartLine)
+    internal sealed record MarkdownSourceDocument(string Yaml, string Body, int YamlStartLine)
     {
         public static ContentParseResult<MarkdownSourceDocument> Parse(
             string text,

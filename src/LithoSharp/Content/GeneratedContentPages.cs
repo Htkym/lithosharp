@@ -327,7 +327,7 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
                 transformationId,
                 source.TransformationId,
                 isCacheable,
-                declaredDependencies,
+                ContentDependency.Snapshot(declaredDependencies.Concat(pair.Value.SelectMany(entry => entry.DeclaredDependencies))),
                 sources,
                 ownerId,
                 page.Id,

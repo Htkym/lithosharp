@@ -256,7 +256,7 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     Collection.TransformationId,
                     null,
                     Collection.IsCacheable,
-                    Collection.DeclaredDependencies,
+                    ContentDependency.Snapshot(Collection.DeclaredDependencies.Concat(entry.DeclaredDependencies)),
                     [
                         new IntegratedContentSource(
                             Collection.Id,
@@ -267,7 +267,7 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     ],
                     ownerId,
                     new PageId(ownerId),
-                    GeneratedPageDerivedSurfaces.All,
+                    entry.DerivedSurfaces,
                     context => Renderer(entry, context))
                 {
                     RendererFingerprint = this.RendererFingerprint is null

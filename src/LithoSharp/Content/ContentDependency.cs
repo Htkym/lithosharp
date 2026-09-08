@@ -11,6 +11,9 @@ public enum ContentDependencyKind
 
     /// <summary>入力ルートからの相対ファイルへの依存です。</summary>
     File,
+
+    /// <summary>A registered asset build node, including generated shared chunks.</summary>
+    Asset,
 }
 
 /// <summary>コンテンツコレクションが宣言する不変の外部依存を表します。</summary>
@@ -42,6 +45,10 @@ public sealed class ContentDependency : IEquatable<ContentDependency>
         var input = BuildInput.FromFile(relativePath);
         return new ContentDependency(ContentDependencyKind.File, input.Key, value: null);
     }
+
+    /// <summary>References a registered asset by its identifier.</summary>
+    public static ContentDependency FromAsset(string assetId) =>
+        new(ContentDependencyKind.Asset, new BuildNodeId(assetId).Value, null);
 
     /// <summary>名前付きの値への依存を作成します。</summary>
     /// <param name="key">値を識別する安定したキー。</param>

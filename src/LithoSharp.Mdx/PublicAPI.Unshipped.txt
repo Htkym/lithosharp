@@ -1,0 +1,49 @@
+#nullable enable
+LithoSharp.Mdx.MdxBuildMetrics
+LithoSharp.Mdx.MdxBuildMetrics.BundledPages.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.BundledPages.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.CacheHit.get -> bool
+LithoSharp.Mdx.MdxBuildMetrics.CacheHit.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.CompiledModules.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.CompiledModules.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.RenderedPages.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.RenderedPages.init -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.IncludeMarkdown.get -> bool
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.IncludeMarkdown.init -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.LoadAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<LithoSharp.Content.ContentLoadResult<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!>
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.MdxContentCollectionLoader(LithoSharp.Content.ContentCollectionId! id, string! inputRoot, LithoSharp.Content.ContentRouteConvention<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! routeConvention, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! publicationMapper, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null) -> void
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.TransformationFingerprint.get -> string?
+LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.TransformationFingerprint.init -> void
+LithoSharp.Mdx.MdxDocument
+LithoSharp.Mdx.MdxDocument.Body.get -> string!
+LithoSharp.Mdx.MdxDocument.BodyStartLine.get -> int
+LithoSharp.Mdx.MdxDocument.MdxDocument(string! body, int bodyStartLine = 1) -> void
+LithoSharp.Mdx.MdxDocument.ToHtmlString() -> string!
+LithoSharp.Mdx.MdxOptions
+LithoSharp.Mdx.MdxOptions.Cacheable.get -> bool
+LithoSharp.Mdx.MdxOptions.Cacheable.init -> void
+LithoSharp.Mdx.MdxOptions.DeclaredInputFiles.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.MdxOptions.DeclaredInputFiles.init -> void
+LithoSharp.Mdx.MdxOptions.Environment.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+LithoSharp.Mdx.MdxOptions.Environment.init -> void
+LithoSharp.Mdx.MdxOptions.MaximumMessageBytes.get -> int
+LithoSharp.Mdx.MdxOptions.MaximumMessageBytes.init -> void
+LithoSharp.Mdx.MdxOptions.MdxOptions(string! projectDirectory, string? workerDirectory = null) -> void
+LithoSharp.Mdx.MdxOptions.NodeExecutable.get -> string!
+LithoSharp.Mdx.MdxOptions.NodeExecutable.init -> void
+LithoSharp.Mdx.MdxOptions.ProjectDirectory.get -> string!
+LithoSharp.Mdx.MdxOptions.Timeout.get -> System.TimeSpan
+LithoSharp.Mdx.MdxOptions.Timeout.init -> void
+LithoSharp.Mdx.MdxOptions.WorkerDirectory.get -> string!
+LithoSharp.Mdx.MdxPublicData
+LithoSharp.Mdx.MdxPublicData.MdxPublicData(System.Text.Json.JsonElement value, System.Text.Json.JsonElement schema) -> void
+LithoSharp.Mdx.MdxPublicData.Schema.get -> System.Text.Json.JsonElement
+LithoSharp.Mdx.MdxPublicData.Value.get -> System.Text.Json.JsonElement
+LithoSharp.Mdx.MdxSite
+LithoSharp.Mdx.MdxSite.AddCollection<TFrontMatter>(LithoSharp.Content.IContentCollectionLoader<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! loader, System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!, LithoSharp.Mdx.MdxPublicData!>? publicData = null, LithoSharp.Content.ContentPageRenderer<TFrontMatter, LithoSharp.Mdx.MdxDocument!>? renderer = null) -> void
+LithoSharp.Mdx.MdxSite.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Mdx.MdxSite.MdxSite(LithoSharp.Mdx.MdxOptions! options) -> void
+LithoSharp.Mdx.MdxSite.Metrics.get -> LithoSharp.Mdx.MdxBuildMetrics!
+LithoSharp.Mdx.MdxSite.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+static LithoSharp.Mdx.MdxPublicData.Empty.get -> LithoSharp.Mdx.MdxPublicData!

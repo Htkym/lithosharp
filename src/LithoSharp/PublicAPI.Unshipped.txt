@@ -1,4 +1,25 @@
 #nullable enable
+LithoSharp.Build.ISiteBuildExtension
+LithoSharp.Build.ISiteBuildExtension.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+LithoSharp.Build.SiteBuildContext
+LithoSharp.Build.SiteBuildContext.BuildTimestamp.get -> System.DateTimeOffset
+LithoSharp.Build.SiteBuildContext.CacheDirectory.get -> string!
+LithoSharp.Build.SiteBuildContext.Options.get -> LithoSharp.SiteGenerationOptions!
+LithoSharp.Build.SiteBuildContext.OutputDirectory.get -> string!
+LithoSharp.Build.SiteBuildContext.Site.get -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.Build.SiteBuildContribution
+LithoSharp.Build.SiteBuildContribution.Assets.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>!
+LithoSharp.Build.SiteBuildContribution.Assets.init -> void
+LithoSharp.Build.SiteBuildContribution.ContentCollections.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.SiteContentCollection!>!
+LithoSharp.Build.SiteBuildContribution.ContentCollections.init -> void
+LithoSharp.Build.SiteBuildExtensionException
+LithoSharp.Build.SiteBuildExtensionException.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Build.SiteBuildExtensionException.SiteBuildExtensionException(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> void
+LithoSharp.Content.ContentDependencyKind.Asset = 2 -> LithoSharp.Content.ContentDependencyKind
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentDependency!>!
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.init -> void
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.get -> LithoSharp.Content.GeneratedPageDerivedSurfaces
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.init -> void
 LithoSharp.ISiteComponent<TProps>
 LithoSharp.ISiteComponent<TProps>.Render(TProps props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
 LithoSharp.IPageLayout<TPage>
@@ -17,6 +38,17 @@ LithoSharp.PageLayoutContent.SocialImageUrl.get -> LithoSharp.SiteUrl?
 LithoSharp.PageLayoutContent.SocialImageUrl.init -> void
 LithoSharp.PageLayoutContent.IncludeBlogNavigation.get -> bool
 LithoSharp.PageLayoutContent.IncludeBlogNavigation.init -> void
+LithoSharp.SiteGeneratedAsset
+LithoSharp.SiteGeneratedAsset.Id.get -> string!
+LithoSharp.SiteGeneratedAsset.Inputs.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildInput!>!
+LithoSharp.SiteGeneratedAsset.OpenRead() -> System.IO.Stream!
+LithoSharp.SiteGeneratedAsset.ReferencedAssetIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteGeneratedAsset.RelativeOutputPath.get -> string!
+LithoSharp.SiteGeneratedAsset.SiteGeneratedAsset(string! id, string! relativeOutputPath, System.ReadOnlyMemory<byte> content, System.Collections.Generic.IEnumerable<LithoSharp.Build.BuildInput!>? inputs = null, System.Collections.Generic.IEnumerable<string!>? referencedAssetIds = null) -> void
+LithoSharp.SiteGenerationOptions.Extensions.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.ISiteBuildExtension!>!
+LithoSharp.SiteGenerationOptions.Extensions.init -> void
+LithoSharp.SiteGenerationOptions.GeneratedAssets.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>!
+LithoSharp.SiteGenerationOptions.GeneratedAssets.init -> void
 LithoSharp.SiteTemplateContext.RenderLayout<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IPageLayout<TPage>! layout) -> LithoSharp.IHtmlContent!
 LithoSharp.ComponentRenderingContext
 LithoSharp.ComponentRenderingContext.Site.get -> LithoSharp.Configuration.SiteSettings!
@@ -28,6 +60,7 @@ LithoSharp.ComponentRenderingContext.Assets.get -> LithoSharp.AssetRegistry!
 static LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.SiteSettings! site) -> LithoSharp.ComponentRenderingContext!
 LithoSharp.ComponentRenderingContext.Render<TProps>(LithoSharp.ISiteComponent<TProps>! component, TProps props) -> LithoSharp.IHtmlContent!
 LithoSharp.PageRenderingContext
+static LithoSharp.Content.ContentDependency.FromAsset(string! assetId) -> LithoSharp.Content.ContentDependency!
 static LithoSharp.PageRenderingContext.Create(LithoSharp.Configuration.SiteSettings! site) -> LithoSharp.PageRenderingContext!
 LithoSharp.PageRenderingContext.RenderMarkdown(string! markdown) -> LithoSharp.IHtmlContent!
 LithoSharp.PageRenderingContext.RenderDocument<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IHtmlContent! body) -> LithoSharp.IHtmlContent!

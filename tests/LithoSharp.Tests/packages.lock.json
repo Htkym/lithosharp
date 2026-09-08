@@ -189,6 +189,12 @@
           "LithoSharp": "[0.2.0, )"
         }
       },
+      "lithosharp.mdx": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[0.2.0, )"
+        }
+      },
       "lithosharp.sample": {
         "type": "Project",
         "dependencies": {

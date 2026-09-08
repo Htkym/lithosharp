@@ -224,6 +224,34 @@ public sealed class AssetRegistry
         [BuildInput.FromFile(value.Asset.RelativeInputPath, value.Fingerprint)],
         artifacts: [new BuildArtifact(new BuildArtifactId("asset:" + value.Asset.Id), new BuildNodeId("asset:" + value.Asset.Id), value.Route.RelativeOutputPath)]);
 
+    internal AssetRegistry WithGenerated(IEnumerable<SiteGeneratedAsset> declarations, string baseUrl)
+    {
+        var values = declarations.ToArray();
+        if (values.Length == 0) return this;
+        var map = assets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        var nodes = CreateBuildNodes().ToList();
+        foreach (var value in values)
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            var synthetic = new SiteAsset(value.Id, Path.GetPathRoot(Environment.CurrentDirectory)!,
+                value.RelativeOutputPath, value.RelativeOutputPath);
+            var hash = Convert.ToHexStringLower(SHA256.HashData(value.Bytes));
+            if (!map.TryAdd(value.Id, new RegisteredAsset(synthetic, value.Bytes, hash,
+                    SiteRoute.ForFile(EscapeRoutePath(value.RelativeOutputPath), baseUrl))))
+                throw new ArgumentException($"Asset identifier '{value.Id}' is registered more than once.", nameof(declarations));
+            var owner = new BuildNodeId("asset:" + value.Id);
+            nodes.Add(new BuildNode(owner,
+                value.Inputs.Append(BuildInput.FromValue("asset.bytes", hash)),
+                value.ReferencedAssetIds.Select(id => new BuildNodeId("asset:" + id)),
+                [new BuildArtifact(new BuildArtifactId("asset:" + value.Id), owner, value.RelativeOutputPath)]));
+        }
+        foreach (var value in values)
+            foreach (var id in value.ReferencedAssetIds)
+                if (!map.ContainsKey(id)) throw new ArgumentException($"Asset '{value.Id}' references unregistered asset '{id}'.");
+        return new AssetRegistry(new ReadOnlyDictionary<string, RegisteredAsset>(map), nodes.AsReadOnly())
+        { ExecutedTransformNodes = ExecutedTransformNodes };
+    }
+
     private static AssetUrl Url(RegisteredAsset value) => new(value.Asset, value.Route) { Fingerprint = value.Fingerprint, Integrity = value.Integrity };
     private AssetRegistry(IReadOnlyDictionary<string, RegisteredAsset> assets, IReadOnlyList<BuildNode>? additionalNodes = null)
     {

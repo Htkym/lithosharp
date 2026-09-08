@@ -249,11 +249,28 @@ public sealed partial class SiteGenerator
             if (options.Quality?.ExternalLinks is { } links && ContainsDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
                 throw new ArgumentException("The external link cache must be outside the public input directory.", nameof(options));
         }
-        var assetRegistry = await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
-            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false);
+        var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
+        ArgumentNullException.ThrowIfNull(options.Extensions);
+        ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        foreach (var extension in options.Extensions)
+        {
+            ArgumentNullException.ThrowIfNull(extension);
+            var contribution = await extension.PrepareAsync(
+                new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp), cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("A build extension returned no contribution.");
+            ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
+            ArgumentNullException.ThrowIfNull(contribution.Assets);
+            options = options with
+            {
+                ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
+                GeneratedAssets = [.. options.GeneratedAssets, .. contribution.Assets],
+            };
+        }
+        var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
+            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
+            .WithGenerated(options.GeneratedAssets, site.BaseUrl);
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
-        var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
         var pageRouteTable = new SiteRouteTable();
         var unpublishedPages = new List<string>();
         var publishedMarkdownClaims = AdaptPublishedMarkdownPages(

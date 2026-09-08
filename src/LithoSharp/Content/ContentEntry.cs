@@ -9,6 +9,18 @@ public sealed class ContentEntry<TFrontMatter, TBody>
     where TFrontMatter : notnull
     where TBody : notnull
 {
+    private IReadOnlyList<ContentDependency> declaredDependencies = [];
+
+    /// <summary>Additional dependencies specific to this entry.</summary>
+    public IReadOnlyList<ContentDependency> DeclaredDependencies
+    {
+        get => declaredDependencies;
+        init => declaredDependencies = ContentDependency.Snapshot(value ?? throw new ArgumentNullException(nameof(value)));
+    }
+
+    /// <summary>Discovery surfaces for this entry. Direct publication is controlled separately by metadata.</summary>
+    public GeneratedPageDerivedSurfaces DerivedSurfaces { get; init; } = GeneratedPageDerivedSurfaces.All;
+
     /// <summary>コンテンツエントリを作成します。</summary>
     /// <param name="id">ビルド間で安定したエントリ識別子。</param>
     /// <param name="sourcePath">入力ルートからの相対ソースパス。</param>
