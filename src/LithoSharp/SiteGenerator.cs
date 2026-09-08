@@ -2483,6 +2483,21 @@ public sealed partial class SiteGenerator
             .ConfigureAwait(false);
     }
 
+    internal static string CreateTemporaryDirectory(string prefix)
+    {
+        var temporary = Directory.CreateTempSubdirectory(prefix);
+        var segments = new Stack<string>();
+        for (var directory = temporary; directory.Parent is not null; directory = directory.Parent)
+            segments.Push(directory.Name);
+        var physicalRoot = Path.GetPathRoot(temporary.FullName)!;
+        while (segments.TryPop(out var segment))
+        {
+            var directory = new DirectoryInfo(Path.Combine(physicalRoot, segment));
+            physicalRoot = directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName;
+        }
+        return physicalRoot;
+    }
+
     private static string SafeCombine(string root, string relativePath)
     {
         var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));

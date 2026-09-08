@@ -35,7 +35,7 @@ internal static class Cli
         var machineOutput = format == "json" || args[0] == "check" && format == "sarif";
         var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machineOutput);
         var temporaryRoot = args[0] == "check"
-            ? Path.Combine(Path.GetTempPath(), $"lithosharp-check-{Guid.NewGuid():N}")
+            ? SiteGenerator.CreateTemporaryDirectory("lithosharp-check-")
             : null;
         var temporaryOutput = temporaryRoot is null ? null : Path.Combine(temporaryRoot, "output");
         try
