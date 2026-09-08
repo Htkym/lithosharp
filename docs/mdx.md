@@ -8,8 +8,8 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 ## Start a site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates
-dotnet tool install LithoSharp.Tool --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::0.3.0
+dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -195,6 +195,11 @@ imports or JSX compilation in the host document. Analytics is disabled by
 default and sends no events until an explicit `lithosharp:consent` event grants
 consent. Revocation stops subsequent events; normal and enhanced navigation use
 the same deduplicated page-view path.
+
+This consent flow belongs to `DocumentationBrowserOptions.Analytics`. It does not
+control legacy Google Analytics snippets enabled by `SiteSettings.GoogleAnalyticsMeasurementId`
+or the `GA_MEASUREMENT_ID` / `GOOGLE_ANALYTICS_MEASUREMENT_ID` environment variables.
+Leave those unset when using the documentation analytics consent flow.
 
 ## Trust, reproducibility and diagnosis
 

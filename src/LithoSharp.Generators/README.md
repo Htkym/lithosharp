@@ -4,7 +4,7 @@ Roslyn incremental generators for explicitly declared static Markdown collection
 Reference `LithoSharp` normally, then add this package as a private analyzer:
 
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="0.2.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="0.3.0" PrivateAssets="all" />
 ```
 
 Declare a top-level, nongeneric `static partial` class with

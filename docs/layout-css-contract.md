@@ -2,13 +2,13 @@
 
 The built-in components retain the existing Docs and Blog classes. Override colors
 through `SiteThemeOptions.AdditionalCss`; use the existing `--accent`,
-`--accent-contrast`, `--muted`, and `--border` variables. This phase adds no new
-stylesheet dependency or client framework.
+`--accent-contrast`, `--muted`, and `--border` variables. These C# layout components
+do not require an additional stylesheet dependency or client framework.
 
 組み込みコンポーネントは、既存のDocs／Blogのクラスを維持します。
 色の調整には `SiteThemeOptions.AdditionalCss` と、既存の `--accent`、
 `--accent-contrast`、`--muted`、`--border` を使います。
-新しいスタイルシートの依存関係やクライアントフレームワークは追加しません。
+これらのC# layout componentに追加のスタイルシート依存やclient frameworkは不要です。
 
 `BlogPageLayout` owns the Blog document shell. `DocsPageLayout` owns the Docs shell
 and accepts the rendered sidebar and table of contents through `PageLayoutContent`.

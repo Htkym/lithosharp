@@ -7,8 +7,8 @@ analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="0.2.0" />
-<PackageReference Include="LithoSharp.Generators" Version="0.2.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="0.3.0" />
+<PackageReference Include="LithoSharp.Generators" Version="0.3.0" PrivateAssets="all" />
 ```
 
 For a source-tree project reference, use analyzer output and do not reference the

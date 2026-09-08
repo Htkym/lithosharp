@@ -6,14 +6,14 @@ without publishing them:
 
 ```powershell
 dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.2.0.nupkg
+dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.3.0.nupkg
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```
 
 The template package is separate from the tool. Its short names are
-`lithosharp-docs`, `lithosharp-blog`, and `lithosharp-empty`; they also work directly
+`lithosharp-docs`, `lithosharp-blog`, `lithosharp-empty`, and `lithosharp-mdx`; they also work directly
 with `dotnet new`. The empty template demonstrates a custom C# layout.
 
 ## One definition for both hosts

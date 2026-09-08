@@ -38,8 +38,7 @@ not introduce directory-index URLs. Markdown page IDs use the
 `markdown:{normalized-output-path}` prefix, while extra page IDs use
 `extra:{normalized-output-path}`. Separators are normalized and Unicode is
 normalized by the route and page ID types, so IDs do not depend on the host OS.
-These adapters are internal implementation seams for the staged generator
-migration; the legacy public generator and template APIs remain unchanged.
+These adapters support the legacy public generator and template entry points.
 
 Markdown front matter additionally accepts `draft`, `publish_from`,
 `publish_until`, and `environments`. The timestamps are inclusive at the start
@@ -60,8 +59,9 @@ not participate in route validation because it owns no generated route.
 
 ## Route value contract
 
-`LithoSharp.Routing.SiteRoute` is the immutable route value used by the planned
-routing migration. Introducing it does not change the generated 0.2 output.
+`LithoSharp.Routing.SiteRoute` is the immutable route value used by the generator.
+Legacy valid routes retain their public paths; see the
+[0.3.0 migration guide](migration-0.3.md) for behavior changes from NuGet 0.2.0.
 
 - `ForFile` maps a relative route such as `posts/intro.html` to public path
   `/posts/intro.html` and output path `posts/intro.html`.
@@ -122,8 +122,9 @@ The default `DocsSiteTemplate` emits:
 | Script | `assets/site.js` |
 | LLM summary | `llms.txt` when `GenerateLlmsTxt` is enabled |
 
-Docs output does not emit `archives.html`, `tags.html`, `search.html`,
+By default, Docs output does not emit `archives.html`, `tags.html`, `search.html`,
 `search-index.json`, `assets/search.js`, `feed.xml`, or `sitemap.xml`.
+`EnableSearch = true` explicitly adds search artifacts.
 
 ## Blog artifacts
 
@@ -153,10 +154,10 @@ The sitemap contains absolute canonical URLs in this meaningful order: home,
 archives, tags, included extra pages in configuration order, search, then posts
 in reader order. Only post entries have `lastmod`.
 
-`search-index.json` contains `site`, a volatile `generated` timestamp, and
+`search-index.json` contains `site`, the resolved `generated` timestamp, and
 `documents`. Document URLs are root-relative site paths. `search.html` appends a
-volatile cache-busting query to the index URL; neither timestamp value is a
-compatibility value.
+content-fingerprint query to the index URL. Neither timestamp nor fingerprint
+value is a cross-release compatibility value.
 
 ## Shared optional artifacts
 
@@ -183,12 +184,12 @@ The same condition emits `site.webmanifest`. If
 `assets/social/og-default.png` and
 `assets/social/posts/{sha256(normalized-page-output-route)}.png`.
 
-HTML references the default or post social image through absolute Open Graph
-and Twitter Card URLs even when the optional source image is unavailable and no
-PNG is emitted. Favicon and manifest links are present only when the complete
-favicon set is available.
+HTML references emitted default or post social images through absolute Open Graph
+and Twitter Card URLs. When no image is emitted, image metadata is omitted and
+the Twitter card uses `summary`. Favicon and manifest links are present only when
+the complete favicon set is available.
 
-With `clean: false`, this phase preserves unrelated files and removes files
+With `clean: false`, the generator preserves unrelated files and removes files
 recorded as generator-owned by the previous successful build when they are
 absent from the current validated build plan. The deterministic ownership
 manifest is committed atomically with the output and is not reported in

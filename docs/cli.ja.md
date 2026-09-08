@@ -6,14 +6,14 @@
 
 ```powershell
 dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.2.0.nupkg
+dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.3.0.nupkg
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```
 
 テンプレートは別パッケージです。`dotnet new lithosharp-docs`、
-`dotnet new lithosharp-blog`、`dotnet new lithosharp-empty` でも作成できます。
+`dotnet new lithosharp-blog`、`dotnet new lithosharp-empty`、`dotnet new lithosharp-mdx` でも作成できます。
 空サイトのテンプレートには、独自の C# レイアウトを含めています。
 
 ## CLI とライブラリで同じ定義を使う
