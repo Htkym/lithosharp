@@ -120,11 +120,23 @@ internal static class BuildInputFingerprint
             return GetWindowsFinalPath(handle);
         }
 
-        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        if (OperatingSystem.IsMacOS())
         {
-            var descriptorPath = OperatingSystem.IsLinux()
-                ? $"/proc/self/fd/{handle.DangerousGetHandle().ToInt64()}"
-                : $"/dev/fd/{handle.DangerousGetHandle().ToInt64()}";
+            const int getPath = 50;
+            var buffer = new byte[1024]; // Darwin MAXPATHLEN includes the terminator.
+            // Apple's ARM64 ABI passes variadic arguments on the stack after x0-x7.
+            var result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                ? GetMacPathArm64(handle, getPath, 0, 0, 0, 0, 0, 0, buffer)
+                : GetMacPath(handle, getPath, buffer);
+            if (result == -1) throw new Win32Exception(Marshal.GetLastPInvokeError());
+            var length = Array.IndexOf(buffer, (byte)0);
+            if (length <= 0) throw new IOException("The opened dependency handle returned an invalid path.");
+            return Encoding.UTF8.GetString(buffer, 0, length);
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            var descriptorPath = $"/proc/self/fd/{handle.DangerousGetHandle().ToInt64()}";
             return File.ResolveLinkTarget(descriptorPath, returnFinalTarget: true)?.FullName
                 ?? throw new IOException(
                     $"Could not resolve the opened dependency handle '{descriptorPath}'.");
@@ -185,4 +197,13 @@ internal static class BuildInputFingerprint
         StringBuilder path,
         uint pathLength,
         uint flags);
+
+    [DllImport("libSystem.B.dylib", EntryPoint = "fcntl", SetLastError = true)]
+    [SupportedOSPlatform("macos")]
+    private static extern int GetMacPath(SafeFileHandle file, int command, [Out] byte[] path);
+
+    [DllImport("libSystem.B.dylib", EntryPoint = "fcntl", SetLastError = true)]
+    [SupportedOSPlatform("macos")]
+    private static extern int GetMacPathArm64(SafeFileHandle file, int command,
+        nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, [Out] byte[] path);
 }

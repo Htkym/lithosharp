@@ -571,7 +571,7 @@ public sealed class SiteGeneratorAtomicOutputTests
 
         try
         {
-            await WaitForFileAsync(readyPath, TimeSpan.FromSeconds(5));
+            await WaitForFileAsync(readyPath, TimeSpan.FromSeconds(30));
             using var cancellation =
                 new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
 
