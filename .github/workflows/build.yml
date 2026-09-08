@@ -41,6 +41,13 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm test
 
+      - name: Check pinned Docusaurus reference
+        working-directory: tests/fixtures/mdx-baseline
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npm test
+
       - name: Build
         run: dotnet build LithoSharp.slnx --no-restore --configuration Release
 
