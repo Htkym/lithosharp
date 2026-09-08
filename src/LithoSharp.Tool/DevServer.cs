@@ -47,7 +47,7 @@ internal static class DevServer
             await JsonSerializer.SerializeAsync(context.Response.Body, state.Latest,
                 new JsonSerializerOptions(JsonSerializerDefaults.Web), context.RequestAborted);
         });
-        app.MapFallback(context => ServeFileAsync(context, state.OutputRoot));
+        app.MapFallback("/{**path}", context => ServeFileAsync(context, state.OutputRoot));
 
         var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
         { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });

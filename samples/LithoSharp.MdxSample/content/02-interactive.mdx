@@ -1,0 +1,29 @@
+---
+title: Page hydration
+id: interactive
+tags: [MDX, React]
+---
+import Counter from './Counter.jsx'
+import Tabs from '@theme/Tabs'
+import TabItem from '@theme/TabItem'
+
+## A real React component
+
+<Counter initial={3} />
+
+<Tabs groupId="language" queryString="language">
+  <TabItem value="en" label="English">English content</TabItem>
+  <TabItem value="ja" label="日本語">日本語の本文</TabItem>
+</Tabs>
+
+<Tabs groupId="language">
+  <TabItem value="en" label="English">Synchronized English content</TabItem>
+  <TabItem value="ja" label="日本語">同期する日本語の本文</TabItem>
+</Tabs>
+
+```csharp title="Async example" showLineNumbers {2}
+var value = await GetValueAsync();
+Console.WriteLine(value);
+```
+
+[Return to static documentation](./01-static.mdx).

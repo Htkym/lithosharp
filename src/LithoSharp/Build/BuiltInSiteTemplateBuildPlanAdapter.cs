@@ -96,6 +96,15 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                 navigationNodeId);
         }
 
+        if (template is DocsSiteTemplate { EnableSearch: true })
+        {
+            foreach (var (id, route) in new[] { (SearchIndexNodeId, routes.SearchIndex), (SearchScriptNodeId, routes.SearchScript), (SearchPageNodeId, routes.SearchPage), (SitemapNodeId, routes.Sitemap) })
+                AddTextArtifactNode(nodes, filesByPath, id, route,
+                    [Configuration("site", Json(site)), Configuration("text", Json(text)), Configuration("timestamp", Format(buildTimestamp)),
+                        BuildInput.FromCollection("docs.search.pages", ContentCollectionBuildPlanAdapter.SurfaceValue(contentPages, "search", true, GeneratedPageDerivedSurfaces.Search)),
+                        BuildInput.FromCollection("docs.search.markdown", SearchCollectionValue(posts, routes, site))],
+                    id == SearchPageNodeId ? [SearchIndexNodeId] : []);
+        }
         if (filesByPath.Count != 0)
         {
             throw new InvalidOperationException(
@@ -138,6 +147,13 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             owners[routes.Tags.RelativeOutputPath] = TagsNodeId;
             owners[routes.SearchPage.RelativeOutputPath] = SearchPageNodeId;
             owners[routes.Feed.RelativeOutputPath] = FeedNodeId;
+            owners[routes.Sitemap.RelativeOutputPath] = SitemapNodeId;
+        }
+        else if (template is DocsSiteTemplate { EnableSearch: true })
+        {
+            owners[routes.SearchScript.RelativeOutputPath] = SearchScriptNodeId;
+            owners[routes.SearchIndex.RelativeOutputPath] = SearchIndexNodeId;
+            owners[routes.SearchPage.RelativeOutputPath] = SearchPageNodeId;
             owners[routes.Sitemap.RelativeOutputPath] = SitemapNodeId;
         }
         else if (template is not DocsSiteTemplate)

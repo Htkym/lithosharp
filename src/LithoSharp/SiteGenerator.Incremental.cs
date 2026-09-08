@@ -26,6 +26,13 @@ public sealed partial class SiteGenerator
                 renders.Add(routes.Post(post).RelativeOutputPath, _ => RenderDocsPost(configuration, context.Navigation, orderedPosts, post));
             foreach (var page in configuration.ExtraPages)
                 renders.Add(routes.ExtraPage(page).RelativeOutputPath, _ => RenderDocsExtraPage(configuration, context.Navigation, page));
+            if (template is DocsSiteTemplate { EnableSearch: true })
+            {
+                renders.Add(routes.SearchScript.RelativeOutputPath, _ => BuildSearchScript(configuration.Text, contextual: true));
+                renders.Add(routes.SearchIndex.RelativeOutputPath, _ => BuildSearchIndex(configuration, posts, configuration.ContentPages));
+                renders.Add(routes.SearchPage.RelativeOutputPath, hash => RenderSearch(configuration, hash!));
+                renders.Add(routes.Sitemap.RelativeOutputPath, _ => RenderSitemap(configuration, posts, configuration.ContentPages, docs: true));
+            }
         }
         else
         {
@@ -51,7 +58,7 @@ public sealed partial class SiteGenerator
         SiteBuildPlan plan, RenderContext configuration, SiteTemplateContext context,
         IReadOnlyDictionary<string, Func<string?, string>> textRenders,
         IReadOnlyList<IntegratedContentPage> pages, AssetRegistry assets, IReadOnlyList<SiteTemplateFile> redirects,
-        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, CancellationToken cancellationToken)
+        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, bool subset, CancellationToken cancellationToken)
     {
         var cache = new SiteBuildCache(cacheRoot, transaction.OutputIdentity);
         var previous = await cache.LoadAsync(clean ? null : await transaction.ReadPreviousBuildCacheKeyAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
@@ -61,7 +68,7 @@ public sealed partial class SiteGenerator
         var renders = new Dictionary<string, Func<CancellationToken, Task<byte[]>>>(StringComparer.Ordinal);
         foreach (var pair in textRenders)
             renders.Add(pair.Key, _ => Task.FromResult(GetTextContentBytes(pair.Value(
-                completed.TryGetValue("index:search", out var search) ? search.Artifacts.Single().Sha256 : null))));
+                completed.TryGetValue("index:search", out var search) ? search.Artifacts.SingleOrDefault()?.Sha256 : null))));
         foreach (var page in pages)
             renders.Add(page.Route.RelativeOutputPath, token => Task.FromResult(GetTextContentBytes(
                 page.Render(this, configuration, context.EnvironmentName, assets, token).Content)));
@@ -93,7 +100,10 @@ public sealed partial class SiteGenerator
         }
         if (plan.Artifacts.Any(artifact => artifact.RelativeOutputPath == routes.Llms.RelativeOutputPath))
             renders.Add(routes.Llms.RelativeOutputPath, _ => Task.FromResult(GetTextContentBytes(BuildLlmsTxt(configuration, context.Posts, pages))));
-        if (!plan.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToHashSet(StringComparer.Ordinal).SetEquals(renders.Keys))
+        var declaredPaths = plan.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToHashSet(StringComparer.Ordinal);
+        if (subset)
+            foreach (var path in renders.Keys.Where(path => !declaredPaths.Contains(path)).ToArray()) renders.Remove(path);
+        if (!declaredPaths.SetEquals(renders.Keys))
             throw new InvalidOperationException("Render actions must exactly match the validated build artifacts.");
         var textPaths = textRenders.Keys.Concat(pages.Select(page => page.Route.RelativeOutputPath))
             .Concat(redirects.Select(file => file.RelativePath)).Append(routes.Llms.RelativeOutputPath)

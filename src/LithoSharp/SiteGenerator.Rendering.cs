@@ -13,15 +13,20 @@ public sealed partial class SiteGenerator
         string? socialImageUrl,
         DateTimeOffset? publishedAt,
         bool docs,
-        bool includeBlogNavigation)
+        bool includeBlogNavigation,
+        Pages.PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
     {
         var seo = SeoComponent.RenderCore(configuration.Site.Title, fullTitle, description,
             canonicalUrl, openGraphType, socialImageUrl, $"{configuration.Site.Title} social preview", publishedAt);
-        return HeadComponent.RenderCore(configuration.Site.Title, configuration.Theme.ThemeColor, seo,
+        if (metadata?.NoIndex == true) seo += "  <meta name=\"robots\" content=\"noindex\">\n";
+        if (metadata is not null)
+            seo += string.Concat(metadata.Alternates.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair =>
+                $"  <link rel=\"alternate\" hreflang=\"{Html.Encode(pair.Key)}\" href=\"{pair.Value.ToAttributeValue()}\">\n"));
+        return HeadComponent.RenderCore(configuration.Site.Title, configuration.Theme.ThemeColor, seo + head?.ToHtmlString(),
             configuration.Routes.PublicPath(configuration.Routes.SiteCss), BuildFaviconLinks(configuration),
             BuildGoogleAnalyticsSnippet(configuration),
             !docs && includeBlogNavigation ? configuration.Routes.PublicPath(configuration.Routes.Feed) : null,
-            docs || includeBlogNavigation ? configuration.Routes.PublicPath(configuration.Routes.SiteScript) : null,
+            includeDefaultScript && (docs || includeBlogNavigation) ? configuration.Routes.PublicPath(configuration.Routes.SiteScript) : null,
             docs);
     }
     internal static string RenderTemplateTableOfContents(
@@ -68,12 +73,13 @@ public sealed partial class SiteGenerator
         string openGraphType = "website",
         DateTimeOffset? publishedAt = null,
         string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
+        bool includeBlogNavigation = true,
+        Pages.PageMetadata? metadata = null)
     {
         var socialImageUrl = socialImageRelativePath is not null
             ? configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath)) : null;
         return DocsPageLayout.RenderCore(configuration, title, body, relativePath, description,
-            openGraphType, publishedAt, socialImageUrl, RenderDocsSidebar(configuration, root, currentPagePath), tableOfContents);
+            openGraphType, publishedAt, socialImageUrl, RenderDocsSidebar(configuration, root, currentPagePath), tableOfContents, metadata);
     }
 
     private static string Layout(
@@ -85,12 +91,13 @@ public sealed partial class SiteGenerator
         string openGraphType = "website",
         DateTimeOffset? publishedAt = null,
         string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
+        bool includeBlogNavigation = true,
+        Pages.PageMetadata? metadata = null)
     {
         var socialImageUrl = socialImageRelativePath is not null
             ? configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath)) : null;
         return BlogPageLayout.RenderCore(configuration, title, body, relativePath, description,
-            openGraphType, publishedAt, socialImageUrl, includeBlogNavigation);
+            openGraphType, publishedAt, socialImageUrl, includeBlogNavigation, metadata);
     }
 
     internal static string BuildSiteHeader(RenderContext configuration, bool includeNavigation = true)

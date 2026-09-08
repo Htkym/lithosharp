@@ -81,7 +81,7 @@ public sealed class SiteTemplateContext
     /// <summary>このビルドで登録された資産を取得します。</summary>
     public AssetRegistry Assets { get; }
 
-    internal SiteTemplateResult RenderDocsTemplate() => _generator.RenderDocsTemplate(this);
+    internal SiteTemplateResult RenderDocsTemplate(bool enableSearch = false) => _generator.RenderDocsTemplate(this, enableSearch);
 
     internal SiteTemplateResult RenderBlogTemplate() => _generator.RenderBlogTemplate(this);
 

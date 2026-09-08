@@ -1,5 +1,6 @@
 #nullable enable
 LithoSharp.Build.ISiteBuildExtension
+LithoSharp.Build.ISiteBuildExtension.GetInspection() -> System.Text.Json.JsonElement?
 LithoSharp.Build.ISiteBuildExtension.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
 LithoSharp.Build.SiteBuildContext
 LithoSharp.Build.SiteBuildContext.BuildTimestamp.get -> System.DateTimeOffset
@@ -20,11 +21,164 @@ LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.get ->
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.init -> void
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.get -> LithoSharp.Content.GeneratedPageDerivedSurfaces
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.init -> void
+LithoSharp.DocsSiteTemplate.EnableSearch.get -> bool
+LithoSharp.DocsSiteTemplate.EnableSearch.init -> void
+LithoSharp.Documentation.DocumentCatalog
+LithoSharp.Documentation.DocumentCatalog.Adjacent(LithoSharp.Documentation.DocumentKey! key, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! navigation) -> (LithoSharp.Documentation.DocumentPage? Previous, LithoSharp.Documentation.DocumentPage? Next)
+LithoSharp.Documentation.DocumentCatalog.Alternates(LithoSharp.Documentation.DocumentKey! key) -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.SiteUrl!>!
+LithoSharp.Documentation.DocumentCatalog.DocumentCatalog(System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentPage!>! documents) -> void
+LithoSharp.Documentation.DocumentCatalog.Pages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentPage!>!
+LithoSharp.Documentation.DocumentCatalog.Resolve(LithoSharp.Documentation.DocumentKey! key) -> LithoSharp.Documentation.DocumentPage!
+LithoSharp.Documentation.DocumentCatalog.Sidebar(string! collection, string! version, string! locale, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.SidebarItem!>? items = null, System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.DocumentCategory!>? categories = null) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>!
+LithoSharp.Documentation.DocumentCatalog.Switch(LithoSharp.Documentation.DocumentKey! source, string! version, string! locale, string? fallbackDocumentId = null) -> LithoSharp.Documentation.DocumentPage!
+LithoSharp.Documentation.DocumentCategory
+LithoSharp.Documentation.DocumentCategory.Collapsed.get -> bool
+LithoSharp.Documentation.DocumentCategory.Collapsed.set -> void
+LithoSharp.Documentation.DocumentCategory.DocumentCategory() -> void
+LithoSharp.Documentation.DocumentCategory.Label.get -> string?
+LithoSharp.Documentation.DocumentCategory.Label.set -> void
+LithoSharp.Documentation.DocumentCategory.Link.get -> LithoSharp.Documentation.DocumentCategoryLink?
+LithoSharp.Documentation.DocumentCategory.Link.set -> void
+LithoSharp.Documentation.DocumentCategory.Position.get -> double?
+LithoSharp.Documentation.DocumentCategory.Position.set -> void
+LithoSharp.Documentation.DocumentCategoryLink
+LithoSharp.Documentation.DocumentCategoryLink.Description.get -> string?
+LithoSharp.Documentation.DocumentCategoryLink.Description.set -> void
+LithoSharp.Documentation.DocumentCategoryLink.DocumentCategoryLink() -> void
+LithoSharp.Documentation.DocumentCategoryLink.Id.get -> string?
+LithoSharp.Documentation.DocumentCategoryLink.Id.set -> void
+LithoSharp.Documentation.DocumentCategoryLink.Slug.get -> string?
+LithoSharp.Documentation.DocumentCategoryLink.Slug.set -> void
+LithoSharp.Documentation.DocumentCategoryLink.Title.get -> string?
+LithoSharp.Documentation.DocumentCategoryLink.Title.set -> void
+LithoSharp.Documentation.DocumentCategoryLink.Type.get -> string!
+LithoSharp.Documentation.DocumentCategoryLink.Type.set -> void
+LithoSharp.Documentation.DocumentFrontMatter
+LithoSharp.Documentation.DocumentFrontMatter.CustomEditUrl.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.CustomEditUrl.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Description.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.Description.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.DisplayedSidebar.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.DisplayedSidebar.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.DocumentFrontMatter() -> void
+LithoSharp.Documentation.DocumentFrontMatter.Draft.get -> bool
+LithoSharp.Documentation.DocumentFrontMatter.Draft.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.HideTableOfContents.get -> bool
+LithoSharp.Documentation.DocumentFrontMatter.HideTableOfContents.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.HideTitle.get -> bool
+LithoSharp.Documentation.DocumentFrontMatter.HideTitle.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Id.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.Id.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.PaginationNext.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.PaginationNext.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.PaginationPrev.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.PaginationPrev.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.PublishFrom.get -> System.DateTimeOffset?
+LithoSharp.Documentation.DocumentFrontMatter.PublishFrom.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.PublishUntil.get -> System.DateTimeOffset?
+LithoSharp.Documentation.DocumentFrontMatter.PublishUntil.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.SidebarLabel.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.SidebarLabel.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.SidebarPosition.get -> double?
+LithoSharp.Documentation.DocumentFrontMatter.SidebarPosition.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Slug.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.Slug.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Tags.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Documentation.DocumentFrontMatter.Tags.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Title.get -> string!
+LithoSharp.Documentation.DocumentFrontMatter.Title.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Unlisted.get -> bool
+LithoSharp.Documentation.DocumentFrontMatter.Unlisted.set -> void
+LithoSharp.Documentation.DocumentKey
+LithoSharp.Documentation.DocumentKey.Collection.get -> string!
+LithoSharp.Documentation.DocumentKey.Collection.init -> void
+LithoSharp.Documentation.DocumentKey.DocumentKey(string! Collection, string! Version, string! Locale, string! Id) -> void
+LithoSharp.Documentation.DocumentKey.Id.get -> string!
+LithoSharp.Documentation.DocumentKey.Id.init -> void
+LithoSharp.Documentation.DocumentKey.Locale.get -> string!
+LithoSharp.Documentation.DocumentKey.Locale.init -> void
+LithoSharp.Documentation.DocumentKey.Version.get -> string!
+LithoSharp.Documentation.DocumentKey.Version.init -> void
+LithoSharp.Documentation.DocumentNavigationItem
+LithoSharp.Documentation.DocumentNavigationItem.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>!
+LithoSharp.Documentation.DocumentNavigationItem.Children.init -> void
+LithoSharp.Documentation.DocumentNavigationItem.Collapsed.get -> bool
+LithoSharp.Documentation.DocumentNavigationItem.Collapsed.init -> void
+LithoSharp.Documentation.DocumentNavigationItem.Document.get -> LithoSharp.Documentation.DocumentKey?
+LithoSharp.Documentation.DocumentNavigationItem.Document.init -> void
+LithoSharp.Documentation.DocumentNavigationItem.DocumentNavigationItem(string! Label, LithoSharp.SiteUrl? Url, LithoSharp.Documentation.DocumentKey? Document, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! Children, bool Collapsed = false) -> void
+LithoSharp.Documentation.DocumentNavigationItem.Label.get -> string!
+LithoSharp.Documentation.DocumentNavigationItem.Label.init -> void
+LithoSharp.Documentation.DocumentNavigationItem.Url.get -> LithoSharp.SiteUrl?
+LithoSharp.Documentation.DocumentNavigationItem.Url.init -> void
+LithoSharp.Documentation.DocumentPage
+LithoSharp.Documentation.DocumentPage.DocumentPage(LithoSharp.Documentation.DocumentKey! Key, string! SourcePath, LithoSharp.Documentation.DocumentFrontMatter! FrontMatter, LithoSharp.Routing.SiteRoute! Route) -> void
+LithoSharp.Documentation.DocumentPage.FrontMatter.get -> LithoSharp.Documentation.DocumentFrontMatter!
+LithoSharp.Documentation.DocumentPage.FrontMatter.init -> void
+LithoSharp.Documentation.DocumentPage.Key.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentPage.Key.init -> void
+LithoSharp.Documentation.DocumentPage.Label.get -> string!
+LithoSharp.Documentation.DocumentPage.Position.get -> double
+LithoSharp.Documentation.DocumentPage.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Documentation.DocumentPage.Route.init -> void
+LithoSharp.Documentation.DocumentPage.SourcePath.get -> string!
+LithoSharp.Documentation.DocumentPage.SourcePath.init -> void
+LithoSharp.Documentation.DocumentSnapshot
+LithoSharp.Documentation.DocumentVariant
+LithoSharp.Documentation.DocumentVariant.Banner.get -> string?
+LithoSharp.Documentation.DocumentVariant.Banner.init -> void
+LithoSharp.Documentation.DocumentVariant.DocumentVariant(string! Version, string! Locale, string! InputDirectory, string! RoutePrefix) -> void
+LithoSharp.Documentation.DocumentVariant.FallbackDocumentId.get -> string?
+LithoSharp.Documentation.DocumentVariant.FallbackDocumentId.init -> void
+LithoSharp.Documentation.DocumentVariant.InputDirectory.get -> string!
+LithoSharp.Documentation.DocumentVariant.InputDirectory.init -> void
+LithoSharp.Documentation.DocumentVariant.Label.get -> string?
+LithoSharp.Documentation.DocumentVariant.Label.init -> void
+LithoSharp.Documentation.DocumentVariant.Locale.get -> string!
+LithoSharp.Documentation.DocumentVariant.Locale.init -> void
+LithoSharp.Documentation.DocumentVariant.NoIndex.get -> bool
+LithoSharp.Documentation.DocumentVariant.NoIndex.init -> void
+LithoSharp.Documentation.DocumentVariant.RightToLeft.get -> bool
+LithoSharp.Documentation.DocumentVariant.RightToLeft.init -> void
+LithoSharp.Documentation.DocumentVariant.RoutePrefix.get -> string!
+LithoSharp.Documentation.DocumentVariant.RoutePrefix.init -> void
+LithoSharp.Documentation.DocumentVariant.Version.get -> string!
+LithoSharp.Documentation.DocumentVariant.Version.init -> void
+LithoSharp.Documentation.MissingTranslationPolicy
+LithoSharp.Documentation.MissingTranslationPolicy.Error = 2 -> LithoSharp.Documentation.MissingTranslationPolicy
+LithoSharp.Documentation.MissingTranslationPolicy.Exclude = 1 -> LithoSharp.Documentation.MissingTranslationPolicy
+LithoSharp.Documentation.MissingTranslationPolicy.Source = 0 -> LithoSharp.Documentation.MissingTranslationPolicy
+LithoSharp.Documentation.SidebarItem
+LithoSharp.Documentation.SidebarItem.Collapsed.get -> bool
+LithoSharp.Documentation.SidebarItem.Collapsed.init -> void
+LithoSharp.Documentation.SidebarItem.Directory.get -> string!
+LithoSharp.Documentation.SidebarItem.Directory.init -> void
+LithoSharp.Documentation.SidebarItem.Href.get -> LithoSharp.SiteUrl?
+LithoSharp.Documentation.SidebarItem.Href.init -> void
+LithoSharp.Documentation.SidebarItem.Id.get -> string?
+LithoSharp.Documentation.SidebarItem.Id.init -> void
+LithoSharp.Documentation.SidebarItem.Items.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.SidebarItem!>!
+LithoSharp.Documentation.SidebarItem.Items.init -> void
+LithoSharp.Documentation.SidebarItem.Label.get -> string?
+LithoSharp.Documentation.SidebarItem.Label.init -> void
+LithoSharp.Documentation.SidebarItem.SidebarItem(string! Type, string? Id = null, string? Label = null) -> void
+LithoSharp.Documentation.SidebarItem.Type.get -> string!
+LithoSharp.Documentation.SidebarItem.Type.init -> void
+LithoSharp.Documentation.TranslationCatalog
+LithoSharp.Documentation.TranslationCatalog.Diagnose(System.Collections.Generic.IEnumerable<string!>! usedKeys) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Documentation.TranslationCatalog.Get(string! locale, string! key, LithoSharp.Documentation.MissingTranslationPolicy policy = LithoSharp.Documentation.MissingTranslationPolicy.Error) -> string?
+LithoSharp.Documentation.TranslationCatalog.Select(string! locale, System.Collections.Generic.IEnumerable<string!>! keys, LithoSharp.Documentation.MissingTranslationPolicy policy = LithoSharp.Documentation.MissingTranslationPolicy.Error) -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+LithoSharp.Documentation.TranslationCatalog.SourceLocale.get -> string!
+LithoSharp.Documentation.TranslationCatalog.TranslationCatalog(string! sourceLocale, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyDictionary<string!, string!>!>! messages) -> void
 LithoSharp.ISiteComponent<TProps>
 LithoSharp.ISiteComponent<TProps>.Render(TProps props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.IHtmlContent!
 LithoSharp.IPageLayout<TPage>
 LithoSharp.IPageLayout<TPage>.Render(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.IHtmlContent!
 LithoSharp.PageLayoutContent
+LithoSharp.PageLayoutContent.Head.get -> LithoSharp.IHtmlContent?
+LithoSharp.PageLayoutContent.Head.init -> void
+LithoSharp.PageLayoutContent.IncludeDefaultScript.get -> bool
+LithoSharp.PageLayoutContent.IncludeDefaultScript.init -> void
 LithoSharp.PageLayoutContent.PageLayoutContent(LithoSharp.IHtmlContent! Body) -> void
 LithoSharp.PageLayoutContent.Body.get -> LithoSharp.IHtmlContent!
 LithoSharp.PageLayoutContent.Body.init -> void
@@ -38,6 +192,43 @@ LithoSharp.PageLayoutContent.SocialImageUrl.get -> LithoSharp.SiteUrl?
 LithoSharp.PageLayoutContent.SocialImageUrl.init -> void
 LithoSharp.PageLayoutContent.IncludeBlogNavigation.get -> bool
 LithoSharp.PageLayoutContent.IncludeBlogNavigation.init -> void
+LithoSharp.Pages.PageMetadata.Alternates.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.SiteUrl!>!
+LithoSharp.Pages.PageMetadata.Alternates.init -> void
+LithoSharp.Pages.PageMetadata.Document.get -> LithoSharp.Documentation.DocumentKey?
+LithoSharp.Pages.PageMetadata.Document.init -> void
+LithoSharp.Pages.PageMetadata.Language.get -> string?
+LithoSharp.Pages.PageMetadata.Language.init -> void
+LithoSharp.Pages.PageMetadata.NoIndex.get -> bool
+LithoSharp.Pages.PageMetadata.NoIndex.init -> void
+LithoSharp.Pages.PageMetadata.RightToLeft.get -> bool
+LithoSharp.Pages.PageMetadata.RightToLeft.init -> void
+LithoSharp.Search.LocalSearch
+LithoSharp.Search.SearchDocument.Collection.get -> string?
+LithoSharp.Search.SearchDocument.Collection.init -> void
+LithoSharp.Search.SearchDocument.Locale.get -> string?
+LithoSharp.Search.SearchDocument.Locale.init -> void
+LithoSharp.Search.SearchDocument.Sections.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Search.SearchSection!>?
+LithoSharp.Search.SearchDocument.Sections.init -> void
+LithoSharp.Search.SearchDocument.Version.get -> string?
+LithoSharp.Search.SearchDocument.Version.init -> void
+LithoSharp.Search.SearchHit
+LithoSharp.Search.SearchHit.Document.get -> LithoSharp.Search.SearchDocument!
+LithoSharp.Search.SearchHit.Document.init -> void
+LithoSharp.Search.SearchHit.Excerpt.get -> string!
+LithoSharp.Search.SearchHit.Excerpt.init -> void
+LithoSharp.Search.SearchHit.Score.get -> int
+LithoSharp.Search.SearchHit.Score.init -> void
+LithoSharp.Search.SearchHit.SearchHit(LithoSharp.Search.SearchDocument! Document, string! Url, string! Excerpt, int Score) -> void
+LithoSharp.Search.SearchHit.Url.get -> string!
+LithoSharp.Search.SearchHit.Url.init -> void
+LithoSharp.Search.SearchSection
+LithoSharp.Search.SearchSection.Anchor.get -> string!
+LithoSharp.Search.SearchSection.Anchor.init -> void
+LithoSharp.Search.SearchSection.Body.get -> string!
+LithoSharp.Search.SearchSection.Body.init -> void
+LithoSharp.Search.SearchSection.SearchSection(string! Title, string! Anchor, string! Body) -> void
+LithoSharp.Search.SearchSection.Title.get -> string!
+LithoSharp.Search.SearchSection.Title.init -> void
 LithoSharp.SiteGeneratedAsset
 LithoSharp.SiteGeneratedAsset.Id.get -> string!
 LithoSharp.SiteGeneratedAsset.Inputs.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.BuildInput!>!
@@ -49,6 +240,8 @@ LithoSharp.SiteGenerationOptions.Extensions.get -> System.Collections.Generic.IR
 LithoSharp.SiteGenerationOptions.Extensions.init -> void
 LithoSharp.SiteGenerationOptions.GeneratedAssets.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>!
 LithoSharp.SiteGenerationOptions.GeneratedAssets.init -> void
+LithoSharp.SiteGenerationOptions.OutputScope.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.SiteGenerationOptions.OutputScope.init -> void
 LithoSharp.SiteTemplateContext.RenderLayout<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IPageLayout<TPage>! layout) -> LithoSharp.IHtmlContent!
 LithoSharp.ComponentRenderingContext
 LithoSharp.ComponentRenderingContext.Site.get -> LithoSharp.Configuration.SiteSettings!
@@ -61,6 +254,11 @@ static LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.Site
 LithoSharp.ComponentRenderingContext.Render<TProps>(LithoSharp.ISiteComponent<TProps>! component, TProps props) -> LithoSharp.IHtmlContent!
 LithoSharp.PageRenderingContext
 static LithoSharp.Content.ContentDependency.FromAsset(string! assetId) -> LithoSharp.Content.ContentDependency!
+static LithoSharp.Documentation.DocumentCatalog.Breadcrumbs(LithoSharp.Documentation.DocumentKey! key, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! navigation) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>!
+static LithoSharp.Documentation.DocumentCatalog.DefaultId(string! sourcePath) -> string!
+static LithoSharp.Documentation.DocumentCatalog.RemoveNumericPrefix(string! value) -> string!
+static LithoSharp.Documentation.DocumentSnapshot.CreateAsync(string! sourceDirectory, string! destinationDirectory, string! version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+static LithoSharp.Documentation.TranslationCatalog.ExtractKeys(string! source) -> System.Collections.Generic.IReadOnlyList<string!>!
 static LithoSharp.PageRenderingContext.Create(LithoSharp.Configuration.SiteSettings! site) -> LithoSharp.PageRenderingContext!
 LithoSharp.PageRenderingContext.RenderMarkdown(string! markdown) -> LithoSharp.IHtmlContent!
 LithoSharp.PageRenderingContext.RenderDocument<TPage>(LithoSharp.Pages.SitePage<TPage>! page, LithoSharp.IHtmlContent! body) -> LithoSharp.IHtmlContent!
@@ -192,6 +390,7 @@ override LithoSharp.HtmlAttributeValue.ToString() -> string!
 static LithoSharp.Html.UnsafeRaw(string! html) -> LithoSharp.IHtmlContent!
 LithoSharp.SiteUrl
 LithoSharp.SiteUrl.Value.get -> string!
+static LithoSharp.Search.LocalSearch.Query(System.Collections.Generic.IEnumerable<LithoSharp.Search.SearchDocument!>! documents, string! query, string? collection = null, string? version = null, string? locale = null, int limit = 30) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Search.SearchHit!>!
 static LithoSharp.SiteUrl.FromRoute(LithoSharp.Routing.SiteRoute! route) -> LithoSharp.SiteUrl!
 static LithoSharp.SiteUrl.ForDirectory(string! relativePath, string? baseUrl = null) -> LithoSharp.SiteUrl!
 static LithoSharp.SiteUrl.ForFile(string! relativePath, string? baseUrl = null) -> LithoSharp.SiteUrl!

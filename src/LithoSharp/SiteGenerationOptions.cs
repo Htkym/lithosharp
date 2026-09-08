@@ -9,6 +9,9 @@ using LithoSharp.Routing;
 /// </summary>
 public sealed record SiteGenerationOptions
 {
+    /// <summary>Optional output path prefixes for a subset build. Other owned outputs and shared chunks are retained.</summary>
+    /// <remarks>A subset requires an existing full output and clean=false. Shared aggregate files outside the scope are retained; include context-specific search partitions in the scope.</remarks>
+    public IReadOnlyList<string> OutputScope { get; init; } = [];
     /// <summary>Opt-in trusted build preparation. Ordinary sites do not run external processors.</summary>
     public IReadOnlyList<LithoSharp.Build.ISiteBuildExtension> Extensions { get; init; } = [];
 

@@ -475,6 +475,7 @@ public sealed partial class SiteGenerator
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node)
                 .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
+                    && !contentPages.Any(page => page.OwnerId == node.Id.Value && page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
                 .Concat(assetNodes);
@@ -516,6 +517,18 @@ public sealed partial class SiteGenerator
             : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
             : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
 
+        var outputScope = options.OutputScope.Select(SiteRoute.NormalizeRelativeOutputPath).ToArray();
+        if (outputScope.Length > 0 && (clean || !Directory.Exists(outputRoot)))
+            throw new ArgumentException("A subset build requires an existing full output and clean=false.", nameof(options));
+        bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
+        if (outputScope.Length > 0)
+        {
+            if (!builtInTemplate) throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
+            buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Select(node => new BuildNode(node.Id, node.Inputs, node.Dependencies,
+                node.Artifacts.Where(artifact => InScope(artifact.RelativeOutputPath) || node.Id.Value.StartsWith("asset:", StringComparison.Ordinal)))));
+            ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
+            currentOwnedPaths = ownedArtifactPaths.Append(OutputManifestRelativePath).ToArray();
+        }
         var outputTransaction = await OutputTransaction.CreateAsync(
                 outputRoot,
                 preserveExisting: !clean,
@@ -530,14 +543,14 @@ public sealed partial class SiteGenerator
         {
             staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
                     currentOwnedPaths,
-                    cancellationToken)
+                    cancellationToken, InScope)
                 .ConfigureAwait(false);
 
             if (builtInTemplate)
             {
                 execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
                     assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
-                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, cancellationToken).ConfigureAwait(false);
+                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, cancellationToken).ConfigureAwait(false);
                 generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
             }
             else
@@ -654,7 +667,8 @@ public sealed partial class SiteGenerator
             {
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
                     .Select(file => file.RelativePath).Concat(assetRegistry.Files
-                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath)).ToArray();
+                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
+                    .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
                     (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
@@ -666,7 +680,7 @@ public sealed partial class SiteGenerator
 
             await WriteOutputManifestAsync(
                     outputTransaction.StagingRoot,
-                    ownedArtifactPaths,
+                    outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
                     generatedInStaging,
                     cancellationToken,
                     execution?.CacheKey)
@@ -674,7 +688,7 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             await outputTransaction.PrepareOwnershipStateAsync(
                     generatedInStaging,
-                    cancellationToken)
+                    cancellationToken, outputScope.Length == 0 ? null : InScope)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
@@ -993,7 +1007,7 @@ public sealed partial class SiteGenerator
             ? configuration.Routes.PublicPath(configuration.Routes.Root)
             : configuration.Routes.PublicPath(configuration.Routes.File(relativePath));
 
-    internal string RenderTemplateDocument(RenderContext configuration, SiteTemplateDocument document)
+    internal string RenderTemplateDocument(RenderContext configuration, SiteTemplateDocument document, PageMetadata? metadata = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         return Layout(
@@ -1005,7 +1019,7 @@ public sealed partial class SiteGenerator
             document.OpenGraphType,
             document.PublishedAt,
             document.SocialImageRelativePath,
-            includeBlogNavigation: false);
+            includeBlogNavigation: false, metadata);
     }
 
     internal SiteTemplateResult RenderBlogTemplate(SiteTemplateContext templateContext)
@@ -1063,7 +1077,7 @@ public sealed partial class SiteGenerator
         return new SiteTemplateResult(files);
     }
 
-    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext)
+    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext, bool enableSearch = false)
     {
         var configuration = templateContext.Configuration;
         var root = BuildDocsNavigation(templateContext.Posts);
@@ -1078,6 +1092,15 @@ public sealed partial class SiteGenerator
                 Content = RenderDocsIndex(configuration, templateContext.Navigation, orderedPosts)
             }
         };
+
+        if (enableSearch)
+        {
+            var index = BuildSearchIndex(configuration, templateContext.Posts, configuration.ContentPages);
+            files.Add(new() { RelativePath = configuration.Routes.SearchIndex.RelativeOutputPath, Content = index });
+            files.Add(new() { RelativePath = configuration.Routes.SearchScript.RelativeOutputPath, Content = BuildSearchScript(configuration.Text, contextual: true) });
+            files.Add(new() { RelativePath = configuration.Routes.SearchPage.RelativeOutputPath, Content = RenderSearch(configuration, ComputeTextContentSha256(index)) });
+            files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
+        }
 
         foreach (var post in orderedPosts)
         {
@@ -1874,7 +1897,11 @@ public sealed partial class SiteGenerator
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
                     : string.Empty,
-                NormalizeForIndex(StripTagsRegex.Replace(page.DerivedContent ?? string.Empty, " "))));
+                NormalizeForIndex(StripTagsRegex.Replace(page.DerivedContent ?? string.Empty, " ")))
+            {
+                Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
+                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(page.DerivedContent ?? string.Empty)
+            });
         }
 
         var index = new SearchIndex(
@@ -1882,6 +1909,21 @@ public sealed partial class SiteGenerator
             configuration.BuildTimestamp.ToString("O", CultureInfo.InvariantCulture),
             documents);
         return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
+    }
+
+    private static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
+    {
+        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
+        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
+        var sections = new List<SearchSection>();
+        foreach (var heading in document.QuerySelectorAll("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]"))
+        {
+            var body = new StringBuilder();
+            for (var sibling = heading.NextElementSibling; sibling is not null && !(sibling.LocalName.Length == 2 && sibling.LocalName[0] == 'h' && char.IsDigit(sibling.LocalName[1])); sibling = sibling.NextElementSibling)
+                body.Append(sibling.TextContent).Append(' ');
+            sections.Add(new(heading.TextContent, heading.Id!, NormalizeForIndex(body.ToString())));
+        }
+        return sections;
     }
 
 
@@ -1970,7 +2012,8 @@ public sealed partial class SiteGenerator
     private string RenderSitemap(
         RenderContext configuration,
         IReadOnlyList<MarkdownPost> posts,
-        IReadOnlyList<IntegratedContentPage> contentPages)
+        IReadOnlyList<IntegratedContentPage> contentPages,
+        bool docs = false)
     {
         var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
         using var stringWriter = new Utf8StringWriter();
@@ -1978,8 +2021,11 @@ public sealed partial class SiteGenerator
         writer.WriteStartDocument();
         writer.WriteStartElement("urlset", "http://www.sitemaps.org/schemas/sitemap/0.9");
         WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Home));
-        WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Archives));
-        WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Tags));
+        if (!docs)
+        {
+            WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Archives));
+            WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Tags));
+        }
         foreach (var extraPage in configuration.ExtraPages)
         {
             if (extraPage.IncludeInSitemap)
@@ -2770,7 +2816,8 @@ public sealed partial class SiteGenerator
 
         public async Task<IReadOnlyList<string>> RemoveStaleOwnedFilesAsync(
             IReadOnlyCollection<string> currentOwnedPaths,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<string, bool>? inScope = null)
         {
             var removed = new List<string>();
             if (_previousOwnershipState is null)
@@ -2782,7 +2829,7 @@ public sealed partial class SiteGenerator
                 .Select(ArtifactPathIdentity)
                 .ToHashSet(StringComparer.Ordinal);
             foreach (var artifact in _previousOwnershipState.Artifacts
-                         .Where(artifact => !current.Contains(ArtifactPathIdentity(artifact.Path)))
+                         .Where(artifact => !current.Contains(ArtifactPathIdentity(artifact.Path)) && (inScope?.Invoke(artifact.Path) ?? true))
                          .OrderBy(static artifact => artifact.Path, StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -2827,7 +2874,8 @@ public sealed partial class SiteGenerator
 
         public async Task PrepareOwnershipStateAsync(
             IReadOnlyCollection<string> generatedFiles,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<string, bool>? inScope = null)
         {
             if (_pendingOwnershipStateRegistered)
             {
@@ -2840,6 +2888,12 @@ public sealed partial class SiteGenerator
                     generatedFiles,
                     cancellationToken)
                 .ConfigureAwait(false);
+            if (inScope is not null && _previousOwnershipState is not null)
+            {
+                var current = artifacts.Select(artifact => artifact.Path).ToHashSet(StringComparer.Ordinal);
+                artifacts = artifacts.Concat(_previousOwnershipState.Artifacts.Where(artifact => !inScope(artifact.Path) && !current.Contains(artifact.Path)))
+                    .OrderBy(artifact => artifact.Path, StringComparer.Ordinal).ToArray();
+            }
             await _outputLock.RegisterOwnershipStateAsync(_pendingOwnershipStatePath)
                 .ConfigureAwait(false);
             _pendingOwnershipStateRegistered = true;
@@ -2849,6 +2903,10 @@ public sealed partial class SiteGenerator
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        public IReadOnlyList<string> MergeRetainedPaths(IReadOnlyList<string> current, Func<string, bool> inScope) => current
+            .Concat((_previousOwnershipState?.Artifacts ?? []).Where(artifact => !inScope(artifact.Path) && artifact.Path != OutputManifestRelativePath).Select(artifact => artifact.Path))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 
         private void RemoveEmptyOwnedDirectories(string directory)
         {
@@ -5541,7 +5599,7 @@ public sealed partial class SiteGenerator
         }
         """;
 
-    private static string BuildSearchScript(SiteText text)
+    private static string BuildSearchScript(SiteText text, bool contextual = false)
     {
         var messages = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -5557,7 +5615,7 @@ public sealed partial class SiteGenerator
             ["scopeTag"] = text.SearchScopeTag,
             ["loadError"] = text.SearchStatusLoadError,
         };
-        return SearchScriptTemplate.Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal);
+        return (contextual ? ContextualSearchTemplate() : SearchScriptTemplate).Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal);
     }
 
     private static string SerializeSearchMessages(Dictionary<string, string> messages)
@@ -5579,6 +5637,54 @@ public sealed partial class SiteGenerator
         builder.Append('}');
         return builder.ToString();
     }
+
+    private static string ContextualSearchTemplate() => SearchScriptTemplate
+        .Replace("""
+          const matchTag = (doc) => !normalizedSelectedTag
+            || (doc.tagsNormalized || []).includes(normalizedSelectedTag);
+        """, """
+          const matchTag = (doc) => (!normalizedSelectedTag
+            || (doc.tagsNormalized || []).includes(normalizedSelectedTag))
+            && ["collection", "version", "locale"].every(key => !pageParams.get(key) || doc[key] === pageParams.get(key));
+        """, StringComparison.Ordinal)
+        .Replace("""
+            const rows = entries.map(({ doc }) => (
+        """, """
+            const rows = entries.map(({ doc }) => {
+              const section = tokens.length ? doc.sections.find(section => tokens.every(token => normalizeText(section.title + " " + section.body).includes(token))) : null;
+              const target = doc.url + (section ? "#" + encodeURIComponent(section.anchor) : "");
+              return (
+        """, StringComparison.Ordinal)
+        .Replace("""
+              '<h3><a href="' + escapeHtml(safeUrl(doc.url)) + '">' + highlight(doc.title, tokens) + "</a></h3>" +
+              "<p>" + highlight(doc.summary, tokens) + "</p>" +
+        """, """
+              '<h3><a href="' + escapeHtml(safeUrl(target)) + '">' + highlight(doc.title + (section ? " — " + section.title : ""), tokens) + "</a></h3>" +
+              "<p>" + highlight((section?.body || doc.summary || doc.body).slice(0, 240), tokens) + "</p>" +
+        """, StringComparison.Ordinal)
+        .Replace("""
+            ));
+        """, """
+            ); });
+        """, StringComparison.Ordinal)
+        .Replace("""
+              date: doc.date || "",
+        """, """
+              date: doc.date || "",
+              collection: doc.collection, version: doc.version, locale: doc.locale,
+              sections: doc.sections || [], body: doc.body || "",
+        """, StringComparison.Ordinal)
+        .Replace("""
+          });
+        """, """
+          });
+          input.addEventListener("keydown", event => { if (event.key === "ArrowDown") { const first = results.querySelector("a"); if (first) { event.preventDefault(); first.focus(); } } });
+          results.addEventListener("keydown", event => {
+            const links = [...results.querySelectorAll("a")]; const index = links.indexOf(document.activeElement);
+            if (event.key === "Escape") input.focus();
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); links[(index + (event.key === "ArrowDown" ? 1 : links.length - 1)) % links.length]?.focus(); }
+          });
+        """, StringComparison.Ordinal);
 
     private const string SearchScriptTemplate = """
         (() => {

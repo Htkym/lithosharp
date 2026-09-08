@@ -22,7 +22,7 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
             page.Content.OpenGraphType,
             page.Metadata.PublishFrom,
             ResolveSocialImageUrl(context, page.Content.SocialImageUrl),
-            page.Content.IncludeBlogNavigation));
+            page.Content.IncludeBlogNavigation, page.Metadata, page.Content.Head, page.Content.IncludeDefaultScript));
     }
 
     internal static string RenderCore(
@@ -34,7 +34,8 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
         string openGraphType,
         DateTimeOffset? publishedAt,
         string? socialImageUrl,
-        bool includeBlogNavigation)
+        bool includeBlogNavigation,
+        PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
     {
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
@@ -43,8 +44,8 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
         var header = SiteGenerator.BuildSiteHeader(configuration, includeBlogNavigation);
         return $"""
             <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: false, includeBlogNavigation)}
+            <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
+            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: false, includeBlogNavigation, metadata, head, includeDefaultScript)}
             <body>
               {header}
               <main>
@@ -83,7 +84,7 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
             page.Metadata.PublishFrom,
             ResolveSocialImageUrl(context, page.Content.SocialImageUrl),
             page.Content.Sidebar?.ToHtmlString(),
-            page.Content.TableOfContents?.ToHtmlString()));
+            page.Content.TableOfContents?.ToHtmlString(), page.Metadata, page.Content.Head, page.Content.IncludeDefaultScript));
     }
 
     internal static string RenderCore(
@@ -96,7 +97,8 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
         DateTimeOffset? publishedAt,
         string? socialImageUrl,
         string? sidebar,
-        string? tableOfContents)
+        string? tableOfContents,
+        PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
     {
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
@@ -104,8 +106,8 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
         if (configuration.HasSocialImage) socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
         return $"""
             <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true)}
+            <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
+            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true, metadata, head, includeDefaultScript)}
             <body class="docs-body">
               {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home))}
               <div class="docs-shell">

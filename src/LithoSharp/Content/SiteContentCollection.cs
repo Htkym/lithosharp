@@ -27,6 +27,7 @@ public sealed class ContentPageRenderingContext
     private readonly string? socialImageRelativePath;
 
     internal string? DerivedContent { get; private set; }
+    internal void SetDerivedContent(string html) => DerivedContent = html;
 
     internal ContentPageRenderingContext(
         SiteGenerator generator,
@@ -100,7 +101,7 @@ public sealed class ContentPageRenderingContext
                 OpenGraphType = "article",
                 PublishedAt = Metadata.PublishFrom,
                 SocialImageRelativePath = socialImageRelativePath,
-            });
+            }, Metadata);
     }
 }
 

@@ -20,6 +20,8 @@ internal static class Cli
             return 0;
         }
         if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
+        if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
+            return await ContentCommands.RunAsync(args, cancellationToken);
 
         var options = CommandOptions.Parse(args[1..]);
         var project = ProjectCompiler.ResolveProject(options.Project);
@@ -135,6 +137,7 @@ internal static class Cli
 
     private static void PrintInspection(HostResponse response)
     {
+        foreach (var extension in response.Extensions) Console.WriteLine(JsonSerializer.Serialize(extension, JsonOptions));
         foreach (var node in response.BuildPlan)
         {
             var report = response.BuildReport?.Nodes.FirstOrDefault(item => item.Id == node.Id);
@@ -147,8 +150,8 @@ internal static class Cli
 
     private static async Task<int> NewAsync(string[] args, CancellationToken cancellationToken)
     {
-        if (args.Length == 0 || args[0] is not ("docs" or "blog" or "empty"))
-            throw new CliUsageException("Usage: lithosharp new <docs|blog|empty> [name] [-o directory]");
+        if (args.Length == 0 || args[0] is not ("docs" or "blog" or "empty" or "mdx"))
+            throw new CliUsageException("Usage: lithosharp new <docs|blog|empty|mdx> [name] [-o directory]");
         var forwarded = new List<string> { "new", $"lithosharp-{args[0]}" };
         var remainder = args[1..];
         if (remainder.Length > 0 && !remainder[0].StartsWith('-'))
@@ -168,7 +171,11 @@ internal static class Cli
         LithoSharp static site tool
 
         Commands:
-          lithosharp new <docs|blog|empty> [name] [-o directory]
+          lithosharp new <docs|blog|empty|mdx> [name] [-o directory]
+          lithosharp snapshot <source> <destination> <version>
+          lithosharp extract-translations <source>
+          lithosharp restore-mdx <worker-directory> [--allow-scripts]
+          lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]

@@ -1,8 +1,20 @@
-import React, {Children, createContext, createElement as h, useContext, useEffect, useId, useRef, useState} from 'react';
+import React, {Children, createElement as h, useContext, useEffect, useId, useRef, useState} from 'react';
+import {PageContext} from './context.mjs';
+import {Island} from './islands.mjs';
+export {PageContext, Island};
 import './style.css';
 import 'katex/dist/katex.min.css';
 
-export const PageContext = createContext({basePath: '/', url: '/', locale: 'en'});
+export const usePageContext = () => useContext(PageContext);
+export function useTranslation() {
+  const page = usePageContext();
+  return (key, fallback) => page.messages?.[key] ?? fallback ?? key;
+}
+export function Translate({id, children}) { return useTranslation()(id, children); }
+export function FormattedDate({value, timeZone = 'UTC', ...options}) {
+  const page = usePageContext();
+  return h('time', {dateTime: value}, new Intl.DateTimeFormat(page.locale || 'en', {timeZone, ...options}).format(new Date(value)));
+}
 const plainText = value => typeof value === 'string' || typeof value === 'number' ? String(value)
   : Children.toArray(value).map(child => child?.props ? plainText(child.props.children) : typeof child === 'string' ? child : '').join('');
 const storageKey = (page, group) => `lithosharp:${page.basePath}:tabs:${group}`;
@@ -68,6 +80,7 @@ export function Details({summary = 'Details', children, ...props}) {
 }
 
 export function CodeBlock({children, code, title, language, highlightedHtml, ...props}) {
+  const t = useTranslation();
   const codeChild = Children.toArray(children).find(child => child?.props);
   const value = code ?? plainText(codeChild?.props.children ?? children);
   const classes = codeChild?.props.className ?? props.className ?? (language ? `language-${language}` : '');
@@ -89,9 +102,9 @@ export function CodeBlock({children, code, title, language, highlightedHtml, ...
   const showLines = selected.size > 0 || lang === 'diff';
   return h('figure', {className: 'mdx-code'},
     heading ? h('figcaption', {id}, heading) : null,
-    h('button', {type: 'button', className: 'mdx-copy', 'aria-label': 'Copy code', onClick: async () => {
-      try { await navigator.clipboard.writeText(value); setStatus('Copied'); } catch { setStatus('Copy unavailable'); }
-    }}, 'Copy'),
+    h('button', {type: 'button', className: 'mdx-copy', 'aria-label': t('copy', 'Copy code'), onClick: async () => {
+      try { await navigator.clipboard.writeText(value); setStatus(t('copied', 'Copied')); } catch { setStatus(t('copyUnavailable', 'Copy unavailable')); }
+    }}, t('copy', 'Copy')),
     h('span', {role: 'status', 'aria-live': 'polite', className: 'mdx-sr-only'}, status),
     h('pre', {'aria-labelledby': heading ? id : undefined, className: numbered ? 'mdx-numbered' : undefined,
       'data-highlight': highlighted, 'data-start': start},
@@ -151,5 +164,5 @@ export function Mermaid({chart, children, description = 'Diagram'}) {
     error ? h('p', {role: 'status'}, 'Diagram rendering unavailable; source is shown.') : null);
 }
 
-export const components = {a: Link, pre: CodeBlock, Tabs, TabItem, Admonition, Details, CodeBlock, TOCInline, Card, BrowserOnly, ClientOnly, Mermaid};
+export const components = {a: Link, pre: CodeBlock, Tabs, TabItem, Admonition, Details, CodeBlock, TOCInline, Card, BrowserOnly, ClientOnly, Mermaid, Translate, FormattedDate, Island};
 export default components;

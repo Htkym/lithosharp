@@ -22,6 +22,8 @@ public sealed class MdxDocument : IHtmlContent
     public int BodyStartLine { get; }
     internal string CompilerSource => new string('\n', BodyStartLine - 1) + Body;
     internal string? RenderedHtml { get; init; }
+    /// <summary>Plain text extracted from the MDX syntax tree during compilation.</summary>
+    public string? PlainText { get; internal init; }
     /// <summary>Returns the prepared React fragment, or fails if this document has not been compiled.</summary>
     public string ToHtmlString() => RenderedHtml ?? throw new InvalidOperationException("Register the collection with MdxSite before rendering its body.");
 }

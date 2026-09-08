@@ -7,6 +7,17 @@ namespace LithoSharp.Pages;
 /// </summary>
 public sealed class PageMetadata
 {
+    /// <summary>The stable document variant used by contextual search and navigation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Documentation.DocumentKey? Document { get; init; }
+    /// <summary>The page language; null uses the site language.</summary>
+    public string? Language { get; init; }
+    /// <summary>Whether the page uses right-to-left writing.</summary>
+    public bool RightToLeft { get; init; }
+    /// <summary>Whether search engines should omit this directly accessible page.</summary>
+    public bool NoIndex { get; init; }
+    /// <summary>Existing translated pages, keyed by language tag.</summary>
+    public IReadOnlyDictionary<string, SiteUrl> Alternates { get; init; } = new Dictionary<string, SiteUrl>();
     /// <summary>ページの表示情報と公開条件を作成します。</summary>
     /// <param name="title">ページタイトル。</param>
     /// <param name="description">ページの説明。</param>

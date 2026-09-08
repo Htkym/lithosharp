@@ -81,10 +81,28 @@ export async function compileSite(request) {
     return bytes;
   }
 
+  const extensions = {remark: [], rehype: []};
+  for (const extension of request.plugins ?? []) {
+    if (!Object.hasOwn(extensions, extension.stage)) throw new Error('Unsupported compiler plugin stage.');
+    const file = extension.module.startsWith('.') ? path.resolve(projectRoot, extension.module) : projectRequire.resolve(extension.module);
+    await readInput(file);
+    const module = await import(pathToFileURL(file).href + '?v=' + inputs.get(file));
+    if (typeof module.default !== 'function') throw new Error(`Compiler plugin '${extension.module}' must export a default function.`);
+    extensions[extension.stage].push([module.default, extension.options]);
+  }
+  const extensionFingerprint = [...inputs];
+
   function authoring(file, info) {
     return function () {
       return async tree => {
         const jobs = [];
+        const imported = new Map();
+        visit(tree, 'mdxjsEsm', node => {
+          for (const statement of node.data?.estree?.body ?? []) if (statement.type === 'ImportDeclaration')
+            for (const specifier of statement.specifiers) imported.set(specifier.local.name, {module: statement.source.value,
+              exportName: specifier.type === 'ImportDefaultSpecifier' ? 'default' : specifier.imported?.name});
+        });
+        info.fallback = null;
         visit(tree, node => {
           if (node.type === 'heading') info.headings.push({depth: node.depth, text: textOf(node), line: node.position?.start.line ?? 1});
           if (node.type === 'mdxjsEsm') {
@@ -96,12 +114,18 @@ export async function compileSite(request) {
             }
           }
           if (node.type === 'link' || node.type === 'image') info.links.push({url: node.url, line: node.position?.start.line ?? 1});
+          if (node.type === 'mdxFlowExpression' || node.type === 'mdxTextExpression') {
+            const expression = node.data?.estree?.body?.[0]?.expression;
+            if (expression?.type !== 'Literal' && !(expression?.type === 'MemberExpression' && expression.object?.name === 'frontMatter'))
+              info.fallback ??= 'An arbitrary MDX expression requires page hydration.';
+          }
           if (node.type === 'paragraph' || node.type === 'heading') info.text.push(textOf(node));
           if (node.type === 'containerDirective') {
             if (!['note', 'tip', 'info', 'warning', 'danger', 'caution'].includes(node.name)) throw new Error(`Unsupported directive '${node.name}'.`);
             node.data = {...node.data, hName: 'aside', hProperties: {className: ['mdx-admonition', `mdx-${node.name}`], role: 'note', 'aria-label': node.name}};
           }
           if (node.type === 'code') {
+            info.fallback ??= 'Code copy controls require page hydration; use an explicit Island for selective controls.';
             const meta = node.meta ?? '';
             node.data = {...node.data, hProperties: {
               'data-title': /(?:^|\s)title="([^"]*)"/.exec(meta)?.[1] ?? '',
@@ -111,6 +135,16 @@ export async function compileSite(request) {
             }};
           }
           if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') {
+            if (node.name === 'Island') {
+              const component = node.attributes.find(attribute => attribute.name === 'component');
+              const name = component?.value?.data?.estree?.body?.[0]?.expression?.name ?? component?.value?.value;
+              const binding = imported.get(name);
+              if (!binding?.exportName) throw new Error('Island component must reference a statically imported default or named component.');
+              const module = binding.module.startsWith('.') ? './' + relative(projectRoot, path.resolve(path.dirname(file), binding.module)) : binding.module;
+              node.attributes.push({type: 'mdxJsxAttribute', name: 'module', value: module}, {type: 'mdxJsxAttribute', name: 'exportName', value: binding.exportName});
+            } else if (node.name && /^[A-Z]/.test(node.name) && !['Admonition', 'Details', 'Card', 'TOCInline', 'Translate', 'FormattedDate', ...(request.staticComponents ?? [])].includes(node.name)) {
+              info.fallback ??= `Component '${node.name}' is not declared static or enclosed in an explicit Island.`;
+            }
             if (node.name === 'CodeBlock') {
               const attributes = new Map(node.attributes.filter(attribute => attribute.type === 'mdxJsxAttribute').map(attribute => [attribute.name, attribute]));
               const source = attributes.get('source')?.value;
@@ -177,7 +211,6 @@ export async function compileSite(request) {
       builder.onResolve({filter: /^server-only$/}, () => platform === 'browser'
         ? {errors: [{text: 'A server-only module reached the browser graph.'}]} : {path: 'server-only', namespace: 'empty'});
       builder.onLoad({filter: /.*/, namespace: 'empty'}, () => ({contents: '', loader: 'js'}));
-      if (platform === 'node') builder.onLoad({filter: /\.css$/}, async args => { await readInput(args.path); return {contents: '', loader: 'js'}; });
       builder.onLoad({filter: /\.(?:mdx|md)$/}, async args => {
         await readInput(args.path);
         const file = await realpath(args.path);
@@ -185,7 +218,7 @@ export async function compileSite(request) {
         const source = request.sources[relative(projectRoot, file)];
         if (source === undefined) throw Object.assign(new Error(`MDX import needs C# validation: ${relative(projectRoot, file)}`), {requiredSource: file});
         if (!compiled.has(file)) {
-          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title]));
+          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents]));
           const cached = request.cacheable && moduleCache.get(key);
           if (cached && (await Promise.all(cached.dependencies.map(async ([file, fingerprint]) => hash(await readInput(file)) === fingerprint))).every(Boolean)) {
             compiled.set(file, cached.code); metadata.set(file, cached.info);
@@ -197,8 +230,8 @@ export async function compileSite(request) {
           try {
             result = await compile({value: source, path: file}, {
               providerImportSource: '@mdx-js/react',
-              remarkPlugins: [remarkGfm, remarkDirective, remarkMath, authoring(file, info)],
-              rehypePlugins: [rehypeSlug, rehypeKatex, codeBlocks(info)],
+              remarkPlugins: [remarkGfm, remarkDirective, remarkMath, ...extensions.remark, authoring(file, info)],
+              rehypePlugins: [rehypeSlug, rehypeKatex, ...extensions.rehype, codeBlocks(info)],
               development: false
             });
           } catch (error) {
@@ -229,7 +262,7 @@ export async function compileSite(request) {
   await mkdir(browserDir, {recursive: true});
   const publicPath = request.assetBaseUrl.replace(/\/$/, '');
   const common = {
-    absWorkingDir: projectRoot, bundle: true, format: 'esm', metafile: true, write: false, jsx: 'automatic',
+    absWorkingDir: projectRoot, bundle: true, format: 'esm', metafile: true, write: false, jsx: 'automatic', minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false,
     logLevel: 'silent', nodePaths: [path.join(projectRoot, 'node_modules'), path.join(directory, 'node_modules')],
     assetNames: 'assets/[name]-[hash]', chunkNames: 'chunks/[name]-[hash]', entryNames: 'pages/[name]-[hash]',
     publicPath, loader: {'.png': 'file', '.jpg': 'file', '.jpeg': 'file', '.gif': 'file', '.svg': 'file', '.webp': 'file', '.avif': 'file', '.woff': 'file', '.woff2': 'file', '.ttf': 'file'},
@@ -237,14 +270,18 @@ export async function compileSite(request) {
   };
   const virtualServer = new Map();
   const virtualBrowser = new Map();
+  const contexts = new Map();
   for (const page of pages) {
     const props = JSON.stringify(page.props);
     const source = JSON.stringify(path.resolve(projectRoot, page.source));
-    const setup = `import {createElement} from 'react';import Content from ${source};import {components,PageContext} from '@lithosharp/runtime';
-      const value=${JSON.stringify({id: page.id, url: page.url, source: page.source, linkMap: request.linkMap, locale: page.locale, timestamp: request.timestamp, title: page.title, basePath: request.basePath})};
+    const value = {id: page.id, url: page.url, source: page.source, linkMap: request.linkMap, locale: page.locale, timestamp: request.timestamp, title: page.title, basePath: request.basePath, messages: page.props.messages ?? {}};
+    contexts.set(page.id, value);
+    const setup = `import {createElement} from 'react';import Content from ${source};import {components as defaults,PageContext} from '@lithosharp/runtime';
+      ${request.componentsModule ? `import overrides from ${JSON.stringify(path.resolve(projectRoot, request.componentsModule))};` : 'const overrides={};'}const components={...defaults,...overrides};
+      export const value=${JSON.stringify(value)};
       export const element=createElement(PageContext.Provider,{value},createElement(Content,{...${props},components}));`;
-    virtualServer.set(`virtual:${page.id}`, setup);
-    virtualBrowser.set(`virtual:${page.id}`, setup + `\nimport {mountPage} from ${JSON.stringify(path.join(directory, 'runtime', 'browser.mjs'))};mountPage(${JSON.stringify(page.id)},element,${JSON.stringify(page.id + '-')});`);
+    virtualServer.set(`virtual:${page.id}`, setup + `\nimport {renderToString} from 'react-dom/server';export const islands=[];export function selectIslands(){value.islands=islands;value.renderIsland=(component,props,id)=>renderToString(createElement(PageContext.Provider,{value:{...value,renderIsland:undefined,islands:undefined}},createElement(component,props)),{identifierPrefix:id+'-'});}`);
+    virtualBrowser.set(`virtual:${page.id}`, setup + `\nimport {mountPage} from ${JSON.stringify(path.join(directory, 'runtime', 'browser.mjs'))};export function mount(){mountPage(${JSON.stringify(page.id)},element,${JSON.stringify(page.id + '-')});}mount();`);
   }
   const virtualPlugin = sources => ({name: 'entries', setup(builder) {
     builder.onResolve({filter: /^virtual:/}, args => ({path: args.path, namespace: 'virtual'}));
@@ -254,8 +291,47 @@ export async function compileSite(request) {
   if (!pages.length) return {pages: [], assets: [], inputs: [], compiledModules: 0, renderedPages: 0, bundledPages: 0};
   const server = await build({...common, entryPoints: entries, outdir: serverDir, platform: 'node', plugins: [virtualPlugin(virtualServer), plugin('node')]});
   for (const file of server.outputFiles) { await mkdir(path.dirname(file.path), {recursive: true}); await writeFile(file.path, file.contents); }
-  const browser = await build({...common, entryPoints: entries, outdir: browserDir, platform: 'browser', splitting: true, minify: true,
-    sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]});
+  const results = [];
+  for (const page of pages) {
+    const serverEntry = Object.entries(server.metafile.outputs).find(([, output]) => output.entryPoint === `virtual:virtual:${page.id}` || output.entryPoint === `virtual:${page.id}`);
+    if (!serverEntry) throw new Error(`No server entry was emitted for '${page.id}'.`);
+    const serverPath = path.resolve(projectRoot, serverEntry[0]);
+    const info = metadata.get(path.resolve(projectRoot, page.source)) ?? {headings: [], links: [], text: [], fallback: null};
+    const fallback = Object.keys(serverEntry[1].inputs).map(file => metadata.get(path.resolve(projectRoot, file))?.fallback).find(Boolean)
+      ?? info.fallback ?? (request.componentsModule ? 'A component override module requires page hydration.' : null);
+    const selective = request.hydration === 'selective' && !fallback;
+    const renderKey = hash(Buffer.concat([server.outputFiles.find(file => file.path === serverPath).contents, Buffer.from(String(selective))]));
+    let renderedPage = request.cacheable ? renderCache.get(renderKey) : undefined;
+    if (renderedPage === undefined) {
+      const module = await import(pathToFileURL(serverPath).href);
+      if (selective) module.selectIslands();
+      const html = await new Promise((resolve, reject) => {
+      const chunks = [];
+      const stream = new PassThrough();
+      stream.on('data', chunk => chunks.push(chunk));
+      stream.on('error', reject);
+      stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      const rendered = renderToPipeableStream(module.element, {identifierPrefix: page.id + '-', onAllReady() { rendered.pipe(stream); }, onShellError: reject, onError: reject});
+      });
+      renderedPage = {html, islands: module.islands};
+      renderedPages++;
+      if (request.cacheable) remember(renderCache, renderKey, renderedPage);
+    }
+    if (selective) {
+      if (!renderedPage.islands.length) virtualBrowser.delete(`virtual:${page.id}`);
+      else virtualBrowser.set(`virtual:${page.id}`, `import {registerIsland} from ${JSON.stringify(path.join(directory, 'runtime', 'island-browser.mjs'))};const context=${JSON.stringify(contexts.get(page.id))};export function mount(){\n` + renderedPage.islands.map(island => {
+        const specifier = island.module.startsWith('.') ? path.resolve(projectRoot, island.module) : island.module;
+        return `registerIsland({...${JSON.stringify(island)},load:()=>import(${JSON.stringify(specifier)})},context);`;
+      }).join('\n') + '}mount();');
+    }
+    results.push({id: page.id, ...renderedPage, entry: null, css: [], hydration: selective ? renderedPage.islands.length ? 'selective' : 'static' : 'page', fallback: request.hydration === 'selective' ? fallback : null,
+      headings: info.headings, links: info.links, text: info.text.join('\n')});
+  }
+  const browserEntries = Object.fromEntries([...virtualBrowser.keys()].map(key => [key.slice(8), key]));
+  if (results.some(page => page.hydration !== 'page'))
+    for (const file of inputs.keys()) if (file.endsWith('.css')) browserEntries['style-' + hash(file).slice(0, 12)] = file;
+  const browser = Object.keys(browserEntries).length ? await build({...common, entryPoints: browserEntries, outdir: browserDir, platform: 'browser', splitting: true,
+    sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]}) : {outputFiles: [], metafile: {inputs: {}, outputs: {}}};
   const browserOutputs = new Map(Object.entries(browser.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
   const assets = browser.outputFiles.map(file => {
     const info = browserOutputs.get(file.path);
@@ -263,32 +339,18 @@ export async function compileSite(request) {
       imports: (info?.imports ?? []).filter(item => !item.external).map(item => relative(browserDir, path.resolve(projectRoot, item.path))),
       inputs: Object.keys(info?.inputs ?? {}).filter(file => !file.startsWith('virtual:')).map(file => relative(projectRoot, path.resolve(projectRoot, file)))};
   });
-  const results = [];
-  for (const page of pages) {
-    const serverEntry = Object.entries(server.metafile.outputs).find(([, output]) => output.entryPoint === `virtual:virtual:${page.id}` || output.entryPoint === `virtual:${page.id}`);
-    if (!serverEntry) throw new Error(`No server entry was emitted for '${page.id}'.`);
-    const serverPath = path.resolve(projectRoot, serverEntry[0]);
-    const renderKey = hash(server.outputFiles.find(file => file.path === serverPath).contents);
-    let html = request.cacheable ? renderCache.get(renderKey) : undefined;
-    if (html === undefined) {
-      const {element} = await import(pathToFileURL(serverPath).href);
-      html = await new Promise((resolve, reject) => {
-      const chunks = [];
-      const stream = new PassThrough();
-      stream.on('data', chunk => chunks.push(chunk));
-      stream.on('error', reject);
-      stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-      const rendered = renderToPipeableStream(element, {identifierPrefix: page.id + '-', onAllReady() { rendered.pipe(stream); }, onShellError: reject, onError: reject});
-      });
-      renderedPages++;
-      if (request.cacheable) remember(renderCache, renderKey, html);
+  for (const file of server.outputFiles.filter(file => !/\.(?:js|css)$/.test(file.path))) {
+    const name = relative(serverDir, file.path);
+    if (!assets.some(asset => asset.path === name)) assets.push({path: name, bytes: Buffer.from(file.contents).toString('base64'), hash: hash(file.contents), imports: [], inputs: []});
+  }
+  for (const page of results) {
+    const entry = [...browserOutputs].find(([, info]) => info.entryPoint === `virtual:virtual:${page.id}` || info.entryPoint === `virtual:${page.id}`);
+    if (entry) {
+      page.entry = relative(browserDir, entry[0]);
+      if (entry[1].cssBundle) page.css.push(relative(browserDir, path.resolve(projectRoot, entry[1].cssBundle)));
     }
-    const browserEntry = Object.entries(browser.metafile.outputs).find(([, output]) => output.entryPoint === `virtual:virtual:${page.id}` || output.entryPoint === `virtual:${page.id}`);
-    if (!browserEntry) throw new Error(`No browser entry was emitted for '${page.id}'.`);
-    const info = metadata.get(path.resolve(projectRoot, page.source)) ?? {headings: [], links: [], text: []};
-    results.push({id: page.id, html, entry: relative(browserDir, path.resolve(projectRoot, browserEntry[0])),
-      css: browserEntry[1].cssBundle ? [relative(browserDir, path.resolve(projectRoot, browserEntry[1].cssBundle))] : [],
-      headings: info.headings, links: info.links, text: info.text.join('\n')});
+    if (page.hydration !== 'page') page.css.push(...[...browserOutputs].filter(([file, info]) => file.endsWith('.css') && info.entryPoint).map(([file]) => relative(browserDir, file)));
+    page.css = [...new Set(page.css)];
   }
   for (const input of new Set([...Object.keys(server.metafile.inputs), ...Object.keys(browser.metafile.inputs)])) {
     if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:')) continue;
@@ -296,5 +358,5 @@ export async function compileSite(request) {
     else await readInput(path.resolve(projectRoot, input));
   }
   return {pages: results, assets, inputs: [...inputs].map(([file, hash]) => ({file, hash})),
-    compiledModules, renderedPages, bundledPages: pages.length};
+    compiledModules, renderedPages, bundledPages: virtualBrowser.size};
 }

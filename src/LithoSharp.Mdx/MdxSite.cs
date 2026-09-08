@@ -20,6 +20,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
     private readonly List<Func<SiteBuildContext, CancellationToken, Task<Loaded>>> loaders = [];
     private readonly SemaphoreSlim gate = new(1, 1);
     private bool disposed;
+    private JsonElement? inspection;
 
     /// <summary>Creates an opt-in MDX build extension without starting Node.</summary>
     public MdxSite(MdxOptions options)
@@ -27,11 +28,16 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         this.options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.Timeout <= TimeSpan.Zero || options.MaximumMessageBytes < 1024)
             throw new ArgumentException("Worker timeout and message size must be positive.", nameof(options));
+        if (options.Plugins.Any(plugin => plugin.Stage is not ("remark" or "rehype") || string.IsNullOrWhiteSpace(plugin.Module)))
+            throw new ArgumentException("MDX plugins require a remark or rehype stage and an explicit module.", nameof(options));
+        if (options.Hydration is not ("page" or "selective")) throw new ArgumentException("Hydration must be page or selective.", nameof(options));
         worker = new(options);
     }
 
     /// <summary>The measured work performed by the most recent preparation.</summary>
     public MdxBuildMetrics Metrics { get; private set; } = new();
+    /// <inheritdoc />
+    public JsonElement? GetInspection() => inspection;
 
     /// <summary>Registers typed content, an explicit browser-data selector and an optional C# layout renderer.</summary>
     public void AddCollection<TFrontMatter>(IContentCollectionLoader<TFrontMatter, MdxDocument> loader,
@@ -53,7 +59,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 RelativeSource(Path.Combine(collection.InputRoot, entry.SourcePath)), entry.Body.CompilerSource,
                 collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl).PublicPath,
                 collection.PublicationMapper(entry).Title ?? string.Empty,
-                (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value)).ToArray();
+                (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, collection.PublicationMapper(entry).Language ?? context.Site.Language)).ToArray();
             return new Loaded(pages, results =>
             {
                 var entries = published.Select((entry, index) =>
@@ -62,11 +68,11 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     var html = string.Concat(page.GetProperty("css").EnumerateArray().Select(css =>
                         $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(AssetUrl(context, css.GetString()!))}\">"))
                         + $"<div id=\"{pages[index].Id}\">{page.GetProperty("html").GetString()}</div>"
-                        + $"<script type=\"module\" src=\"{WebUtility.HtmlEncode(AssetUrl(context, page.GetProperty("entry").GetString()!))}\"></script>";
-                    var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine) { RenderedHtml = html };
+                        + (page.GetProperty("entry").ValueKind == JsonValueKind.Null ? "" : $"<script type=\"module\" src=\"{WebUtility.HtmlEncode(AssetUrl(context, page.GetProperty("entry").GetString()!))}\"></script>");
+                    var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine) { RenderedHtml = html, PlainText = page.GetProperty("text").GetString() };
                     var dependencies = entry.DeclaredDependencies.Concat(
                         page.GetProperty("css").EnumerateArray().Select(css => ContentDependency.FromAsset(AssetId(css.GetString()!))))
-                        .Append(ContentDependency.FromAsset(AssetId(page.GetProperty("entry").GetString()!)))
+                        .Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { ContentDependency.FromAsset(AssetId(page.GetProperty("entry").GetString()!)) })
                         .Append(ContentDependency.FromValue("mdx-render", Hash(Encoding.UTF8.GetBytes(html)))).ToArray();
                     return new ContentEntry<TFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint,
                         entry.FrontMatter, body, entry.SourceLocation) { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces };
@@ -106,7 +112,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     && !Path.GetFileName(file).StartsWith(".lithosharp-", StringComparison.Ordinal))
                 .Select(file => Path.GetRelativePath(options.ProjectDirectory, file)).Order(StringComparer.Ordinal).ToArray();
             var signature = Hash(JsonSerializer.SerializeToUtf8Bytes(new { pages, context.Site.BaseUrl, context.BuildTimestamp,
-                tools, resolutionCandidates, options.Environment, options.DeclaredInputFiles }, MdxJson.Options));
+                tools, resolutionCandidates, options.Environment, options.DeclaredInputFiles, options.Plugins, options.ComponentsModule, options.Hydration, options.StaticComponents }, MdxJson.Options));
             var cacheRoot = Path.Combine(context.CacheDirectory, "mdx");
             EnsureSafeDirectory(cacheRoot);
             var cachePath = Path.Combine(cacheRoot, signature + ".json");
@@ -136,8 +142,8 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         var response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
                             projectRoot = options.ProjectDirectory, workRoot = scratch, allowWorkWithinProject = true,
                             assetBaseUrl = AssetUrl(context, ""), basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
-                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable, pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Props, locale = "" }),
-                            sources, linkMap }, requestId, cancellationToken).ConfigureAwait(false);
+                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable, pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Props, page.Locale }),
+                            sources, linkMap, plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
                         if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();
                         if (missing.Length == 0 || sources.Count + missing.Length > 10000)
@@ -162,7 +168,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             if (!results.Keys.Order(StringComparer.Ordinal).SequenceEqual(pages.Select(page => page.Id).Order(StringComparer.Ordinal)))
                 throw MdxWorker.Failure("LSMDX003", "Worker page identities do not match the request.");
             foreach (var page in results.Values)
-                foreach (var path in page.GetProperty("css").EnumerateArray().Select(value => value.GetString()!).Append(page.GetProperty("entry").GetString()!))
+                foreach (var path in page.GetProperty("css").EnumerateArray().Select(value => value.GetString()!).Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { page.GetProperty("entry").GetString()! }))
                     if (!assets.Any(asset => asset.Id == AssetId(path))) throw MdxWorker.Failure("LSMDX003", "A page references an unknown bundle.");
             if (!hit && options.Cacheable)
             {
@@ -172,6 +178,12 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             }
             Metrics = new() { CacheHit = hit, CompiledModules = hit ? 0 : result.GetProperty("compiledModules").GetInt32(),
                 RenderedPages = hit ? 0 : result.GetProperty("renderedPages").GetInt32(), BundledPages = hit ? 0 : result.GetProperty("bundledPages").GetInt32() };
+            inspection = JsonSerializer.SerializeToElement(new { kind = "mdx", protocol = 1, node = "24.13.0", mdx = "3.1.1", react = "19.2.4", esbuild = "0.25.12", metrics = Metrics,
+                pages = results.Values.Select(page => new { id = page.GetProperty("id").GetString(), entry = page.GetProperty("entry"), hydration = page.GetProperty("hydration"),
+                    fallback = page.GetProperty("fallback"), islands = page.GetProperty("islands"), publicProps = pages.Single(input => input.Id == page.GetProperty("id").GetString()).Props }),
+                assets = assets.Select(asset => new { asset.Id, asset.RelativeOutputPath, asset.ReferencedAssetIds }),
+                modules = result.GetProperty("inputs").EnumerateArray().Select(input => new { file = IsWithin(options.ProjectDirectory, input.GetProperty("file").GetString()!)
+                    ? RelativeSource(input.GetProperty("file").GetString()!) : "@worker/" + Path.GetRelativePath(options.WorkerDirectory, input.GetProperty("file").GetString()!).Replace('\\', '/'), hash = input.GetProperty("hash").GetString() }) }, MdxJson.Options);
             return new() { Assets = assets, ContentCollections = loaded.Select(value => value.Create(results)).ToArray() };
         }
         finally { gate.Release(); }
@@ -271,6 +283,6 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         try { if (!disposed) { disposed = true; await worker.DisposeAsync().ConfigureAwait(false); } }
         finally { gate.Release(); }
     }
-    private sealed record Page(string Id, string Source, string Code, string Url, string Title, JsonElement Props);
+    private sealed record Page(string Id, string Source, string Code, string Url, string Title, JsonElement Props, string Locale);
     private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create);
 }

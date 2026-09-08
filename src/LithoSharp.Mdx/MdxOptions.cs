@@ -26,7 +26,18 @@ public sealed record MdxOptions
     public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
     /// <summary>Additional source inputs used by code that reads files dynamically.</summary>
     public IReadOnlyList<string> DeclaredInputFiles { get; init; } = [];
+    /// <summary>Explicit Remark or Rehype modules, in execution order. Their dynamic file inputs must be declared.</summary>
+    public IReadOnlyList<MdxPlugin> Plugins { get; init; } = [];
+    /// <summary>An optional project-relative module exporting component overrides. Defaults remain available for wrapping.</summary>
+    public string? ComponentsModule { get; init; }
+    /// <summary>Either page for compatibility or selective for explicit islands and static pages.</summary>
+    public string Hydration { get; init; } = "page";
+    /// <summary>Component names explicitly known to produce static output without browser behavior.</summary>
+    public IReadOnlyList<string> StaticComponents { get; init; } = [];
 }
+
+/// <summary>An explicitly trusted compiler plugin and its serializable configuration.</summary>
+public sealed record MdxPlugin(string Stage, string Module, System.Text.Json.JsonElement Options);
 
 /// <summary>Measured worker work for the most recent successful preparation.</summary>
 public sealed record MdxBuildMetrics

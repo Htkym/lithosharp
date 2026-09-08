@@ -43,6 +43,7 @@ internal static class FactoryHost
             cancellationToken.ThrowIfCancellationRequested();
             var loadContext = new FactoryLoadContext(assemblyPath);
             var originalDirectory = Directory.GetCurrentDirectory();
+            SiteDefinition? definition = null;
             try
             {
                 Directory.SetCurrentDirectory(projectDirectory);
@@ -54,7 +55,7 @@ internal static class FactoryHost
                     throw new InvalidOperationException(
                         $"Site assembly must contain exactly one public, nonabstract ISiteFactory with a public parameterless constructor; found {factories.Length}.");
                 var factory = (ISiteFactory)Activator.CreateInstance(factories[0])!;
-                var definition = await factory.CreateAsync(new SiteFactoryContext(projectDirectory), cancellationToken).ConfigureAwait(false)
+                definition = await factory.CreateAsync(new SiteFactoryContext(projectDirectory), cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("The site factory returned no definition.");
                 outputDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(
                     options.GetValueOrDefault("--output") ?? definition.OutputDirectory, projectDirectory));
@@ -103,6 +104,10 @@ internal static class FactoryHost
             }
             finally
             {
+                if (definition is not null)
+                    foreach (var extension in definition.Options.Extensions.Reverse().Distinct())
+                        if (extension is IAsyncDisposable asyncDisposable) await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        else if (extension is IDisposable disposable) disposable.Dispose();
                 Directory.SetCurrentDirectory(originalDirectory);
                 loadContext.Unload();
             }
@@ -127,6 +132,7 @@ internal static class FactoryHost
             {
                 SiteRouteValidationException routes => routes.Diagnostics,
                 SiteBuildPlanValidationException plan => plan.Diagnostics,
+                SiteBuildExtensionException extension => extension.Diagnostics,
                 AssetRegistryException asset => [asset.Diagnostic],
                 _ => [new SiteDiagnostic("LSC7001", SiteDiagnosticSeverity.Error, Describe(exception))]
             };
@@ -162,6 +168,7 @@ internal static class FactoryHost
         {
             Success = true,
             OutputDirectory = result.OutputDirectory,
+            Extensions = options.Extensions.Select(extension => extension.GetInspection()).Where(value => value.HasValue).Select(value => value!.Value).ToArray(),
             DiagnosticsText = result.QualityReport.Format(format),
             GeneratedFiles = result.GeneratedFiles.Select(path => Path.GetRelativePath(result.OutputDirectory, path).Replace('\\', '/'))
                 .Order(StringComparer.Ordinal).ToArray(),
@@ -266,6 +273,7 @@ internal sealed record HostResponse
     public string[] IgnoredPaths { get; init; } = [];
     public HostBuildReport? BuildReport { get; init; }
     public HostBuildNode[] BuildPlan { get; init; } = [];
+    public JsonElement[] Extensions { get; init; } = [];
 }
 
 internal sealed record HostBuildReport(int CacheHitCount, int CacheMissCount, string[] GeneratedArtifacts,

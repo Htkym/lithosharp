@@ -11,6 +11,32 @@ namespace LithoSharp.Tests;
 public sealed class MdxIntegrationTests
 {
     [Test]
+    public async Task BlogsShareAuthorsPaginationAndStaticFeedsWithPublicationFiltering()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "first.mdx"), "---\ntitle: First\ndate: 2020-01-01\nsummary: Safe excerpt\nauthors: [alice, bob]\ntags: [dotnet]\n---\n# Body\n");
+        await File.WriteAllTextAsync(Path.Combine(source, "second.mdx"), "---\ntitle: Second\ndate: 2020-01-02\nsummary: Next excerpt\nauthors: [alice]\n---\n# Second\n");
+        await File.WriteAllTextAsync(Path.Combine(source, "hidden.mdx"), "---\ntitle: Hidden\ndate: 2020-01-02\nunlisted: true\nsummary: hidden-canary\n---\n# Hidden\n");
+        await using var blog = new MdxBlogSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker")) { Cacheable = true, Hydration = "selective" });
+        blog.AddCollection(new("news", source, "news") { PageSize = 1, Authors = new Dictionary<string, BlogAuthor> { ["alice"] = new("Alice", "Engineer"), ["bob"] = new("Bob") } });
+        var output = Path.Combine(workspace.Root, "out");
+        await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings { BaseUrl = "https://example.com/project/" }, [], output, true, null,
+            new() { Extensions = [blog], BuildTimestamp = DateTimeOffset.Parse("2021-01-01T00:00:00Z") }, default);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/index.html"))).Contains("/project/news/second/");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/page/2/index.html"))).Contains("Safe excerpt");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/authors/alice/index.html"))).Contains("Engineer");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/first/index.html"))).Contains("min read");
+        foreach (var file in new[] { "rss.xml", "atom.xml", "feed.json" })
+        {
+            var feed = await File.ReadAllTextAsync(Path.Combine(output, "news", file));
+            await Assert.That(feed).Contains("Safe excerpt");
+            await Assert.That(feed).DoesNotContain("hidden-canary");
+            await Assert.That(feed).DoesNotContain("<script");
+        }
+    }
+    [Test]
     public async Task MdxRendersHydratesCachesAndPreservesPublishedOutputOnFailure()
     {
         using var workspace = new TemporaryWorkspace();

@@ -97,7 +97,7 @@ public sealed class PageRenderingContext : ComponentRenderingContext
         {
             return Html.UnsafeRaw(legacyContext.RenderDocument(body.ToHtmlString()));
         }
-        return Html.UnsafeRaw(Generator.RenderTemplateDocument(Configuration, new SiteTemplateDocument { Title = page.Metadata.Title ?? page.Route.PublicPath, RelativePath = page.Route.RelativeOutputPath, BodyHtml = body.ToHtmlString(), Description = page.Metadata.Description, OpenGraphType = "article", PublishedAt = page.Metadata.PublishFrom }));
+        return Html.UnsafeRaw(Generator.RenderTemplateDocument(Configuration, new SiteTemplateDocument { Title = page.Metadata.Title ?? page.Route.PublicPath, RelativePath = page.Route.RelativeOutputPath, BodyHtml = body.ToHtmlString(), Description = page.Metadata.Description, OpenGraphType = "article", PublishedAt = page.Metadata.PublishFrom }, page.Metadata));
     }
 }
 

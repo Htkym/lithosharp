@@ -9,6 +9,8 @@ public interface ISiteBuildExtension
 {
     /// <summary>Discovers inputs and returns complete artifact declarations without publishing them.</summary>
     Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default);
+    /// <summary>Returns an optional diagnostic snapshot containing only explicitly public data.</summary>
+    System.Text.Json.JsonElement? GetInspection() => null;
 }
 
 /// <summary>Provides the fixed environment for build preparation.</summary>
