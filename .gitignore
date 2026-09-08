@@ -12,6 +12,10 @@
 *.env
 artifacts/
 .tmp/
+.local/
+.playwright-cli/
+.lithosharp-*.lock
+.lithosharp-*.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

@@ -226,6 +226,3 @@ For repeatable checks, run worker `npm test`, the .NET integration tests,
 generated MDX sample served on port 4317. Cross-platform CI configuration is
 not evidence of a successful remote run; consult the recorded verification
 results for the environments actually tested.
-
-See the [verification and performance record](mdx-verification.md) for measured
-costs, browser comparisons and three-OS CI results.

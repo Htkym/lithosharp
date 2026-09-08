@@ -16,12 +16,12 @@ Only `ci` restores dependencies. `build` generates a production reference at
 claimed translation. Broken links fail the build. `test` checks the single
 React lock entries, named MDX exports, hydration-capable server rendering,
 browser bundling and the reference static Counter HTML. It does not simulate a
-click or certify hydration. Future AT-05 tests must click the production page
-and check that Count 3 becomes Count 4 with no hydration warnings.
+click or certify hydration. Production hydration is tested separately in
+[`../mdx-browser`](../mdx-browser).
 
 Review lockfile, license and test changes together when updating dependencies.
 Do not add this dependency set to ordinary Markdown builds or Core packages.
 
-日本語: Docusaurusの比較用サイトと公式MDX処理系の検証fixtureである。復元を明示的に
-実行し、その後に静的サイトをビルドして検査する。LithoSharpのMDX対応やブラウザーでの
-Hydrationを検証済みと扱わない。詳細は `docs/ssg-followup-baseline.md` を参照する。
+日本語: Docusaurus の比較用サイトと公式 MDX 処理系を検証する fixture である。
+依存関係を明示的に復元し、静的サイトをビルドして検査する。
+ブラウザーでの Hydration の動作は、別の `../mdx-browser` fixture で検証する。

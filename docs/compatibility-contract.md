@@ -1,8 +1,18 @@
 # Generated site compatibility contract
 
-This document records the generated-site behavior in LithoSharp 0.2 before the
-planned architecture changes. It is a compatibility baseline, not a promise that
-every implementation detail will remain unchanged.
+This document describes the compatibility contract for legacy Markdown sites and
+public APIs. Implementation details are not compatibility guarantees.
+
+## API compatibility
+
+Existing APIs remain available until a replacement and migration path exist.
+Deprecation notices must identify the replacement, migration guidance and
+intended removal version. `SiteGenerator.GenerateAsync`, `MarkdownPostReader`,
+`SiteCustomization` and `ISiteTemplate` retain their supported entry points.
+
+Public signatures are tracked in each library's `PublicAPI.Shipped.txt` and
+`PublicAPI.Unshipped.txt`. Update these analyzer baselines with API changes.
+CI also checks NuGet package compatibility against the published baseline.
 
 ## URL model
 

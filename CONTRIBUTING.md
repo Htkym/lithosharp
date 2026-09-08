@@ -21,6 +21,9 @@ library surface, so it confirms the generator works without any private code.
 
 ## Conventions
 
+- **Local working files.** Keep plans, audit notes, measurement results and agent
+  artifacts under the ignored `.local/` directory. Commit reusable tests and
+  benchmark tools, not their execution records or generated output.
 - **Lock files.** `RestorePackagesWithLockFile` is enabled. When you change a
   dependency, restore and commit the updated `packages.lock.json` files.
 - **EditorConfig.** Formatting is defined in [`.editorconfig`](.editorconfig)

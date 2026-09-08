@@ -78,5 +78,14 @@ Canonical URL、サイト内リンク、検索データ、RSS、サイトマッ�
 
 Docs と Blog の主要なランドマーク、CSS クラス、アクセシビリティ属性、
 ナビゲーション、目次、前後リンク、メタデータは互換性の対象です。
-詳細な公開 API の分類と互換性ポリシーは
-[公開 API の一覧](public-api-inventory.md)を参照してください。
+
+## API の互換性
+
+既存 API は、代替 API と移行方法を用意するまで維持します。非推奨にする場合は、
+代替 API、移行方法、削除予定のバージョンを明記します。
+`SiteGenerator.GenerateAsync`、`MarkdownPostReader`、`SiteCustomization`、
+`ISiteTemplate` の既存の呼び出し方法を維持します。
+
+公開シグネチャは各ライブラリの `PublicAPI.Shipped.txt` と `PublicAPI.Unshipped.txt` で
+管理します。API の変更時にはアナライザーの基準ファイルも更新してください。
+CI では、公開済みパッケージを基準に NuGet パッケージの互換性も検証します。

@@ -96,8 +96,7 @@ by `clean`.
 
 The supported distribution is the framework-dependent .NET tool. Single-file
 publishing is evaluated separately from tool packing. The host loads an external
-site assembly; bundling the tool cannot bundle an arbitrary future site. See the
-[verification record](ssg-verification.md) for executed publish checks.
+site assembly; bundling the tool cannot bundle an arbitrary future site.
 
 Trimming and Native AOT are not supported for this dynamic site host. Runtime factory
 discovery and arbitrary site dependencies cannot be analyzed when publishing the

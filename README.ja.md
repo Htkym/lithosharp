@@ -282,7 +282,7 @@ var loaded = await loader.LoadAsync(cancellationToken);
 
 互換性の基準は、[生成サイトの互換性契約](docs/compatibility-contract.ja.md)、
 [英語版](docs/compatibility-contract.md)、および
-[公開 API の一覧と互換性ポリシー](docs/public-api-inventory.md)に記載しています。
+[API の互換性ポリシー](docs/compatibility-contract.ja.md#api-の互換性)に記載しています。
 
 再現可能な出力が必要な場合は、`SiteGenerationOptions.BuildTimestamp` を設定します。
 未設定の場合は、有効な Unix タイムスタンプ形式の `SOURCE_DATE_EPOCH`、現在の UTC
@@ -498,4 +498,3 @@ MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してくだ�
 C# のサイトプロジェクトのビルドと開発サーバーについては、[CLI とサイトファクトリ](docs/cli.ja.md)を参照してください。
 サイト、コンポーネント、レイアウトの検証には、[LithoSharp.Testing](docs/testing.ja.md)を利用できます。
 [MDXとReactの利用ガイド](docs/mdx.ja.md)には、版と言語を持つDocs、Blog、Selective Hydrationをまとめています。
-測定結果と各 OS の CI 結果は[検証記録](docs/mdx-verification.md)を参照してください。

@@ -315,7 +315,7 @@ var loaded = await loader.LoadAsync(cancellationToken);
 Compatibility baselines are documented in the
 [generated site compatibility contract](docs/compatibility-contract.md), its
 [Japanese version](docs/compatibility-contract.ja.md), and the
-[public API inventory and compatibility policy](docs/public-api-inventory.md).
+[API compatibility policy](docs/compatibility-contract.md#api-compatibility).
 
 Namespaces: `LithoSharp`, `LithoSharp.Configuration`, `LithoSharp.Content`,
 `LithoSharp.Validation`, `LithoSharp.Search`.
@@ -547,5 +547,4 @@ MIT. See [LICENSE](LICENSE). Third-party dependencies are listed in
 Build and serve C# site projects with [the CLI and site factories](docs/cli.md).
 Test sites, components and layouts with [LithoSharp.Testing](docs/testing.md).
 Use opt-in [MDX and React documentation](docs/mdx.md) for versioned, multilingual
-Docs, Blog and selective hydration. See the [verification record](docs/mdx-verification.md)
-for measured costs and three-OS CI results.
+Docs, Blog and selective hydration.
