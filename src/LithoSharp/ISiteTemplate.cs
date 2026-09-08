@@ -1,5 +1,6 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Pages;
 
 namespace LithoSharp;
 
@@ -20,6 +21,7 @@ public interface ISiteTemplate
 public sealed class SiteTemplateContext
 {
     private readonly SiteGenerator _generator;
+    private readonly string _environmentName;
 
     internal SiteTemplateContext(
         SiteGenerator generator,
@@ -28,9 +30,12 @@ public sealed class SiteTemplateContext
         SiteText text,
         SiteThemeOptions theme,
         IReadOnlyList<SiteExtraPage> extraPages,
+        IReadOnlyList<RenderedPage> contentPages,
         IReadOnlyList<SiteTemplatePage> pages,
         SiteTemplateNavigationNode navigation,
-        SiteGenerator.RenderContext configuration)
+        SiteGenerator.RenderContext configuration,
+        AssetRegistry assets,
+        string environmentName = "Production")
     {
         _generator = generator;
         Site = site;
@@ -38,9 +43,12 @@ public sealed class SiteTemplateContext
         Text = text;
         Theme = theme;
         ExtraPages = extraPages;
+        ContentPages = contentPages;
         Pages = pages;
         Navigation = navigation;
         Configuration = configuration;
+        Assets = assets;
+        _environmentName = environmentName;
     }
 
     /// <summary>Site settings.</summary>
@@ -58,6 +66,9 @@ public sealed class SiteTemplateContext
     /// <summary>Additional pages.</summary>
     public IReadOnlyList<SiteExtraPage> ExtraPages { get; }
 
+    /// <summary>型付きコンテンツコレクションから描画され、公開条件を満たしたページです。</summary>
+    public IReadOnlyList<RenderedPage> ContentPages { get; }
+
     /// <summary>Documentation pages in navigation order.</summary>
     public IReadOnlyList<SiteTemplatePage> Pages { get; }
 
@@ -65,8 +76,12 @@ public sealed class SiteTemplateContext
     public SiteTemplateNavigationNode Navigation { get; }
 
     internal SiteGenerator.RenderContext Configuration { get; }
+    internal string EnvironmentName => _environmentName;
 
-    internal SiteTemplateResult RenderDocsTemplate() => _generator.RenderDocsTemplate(this);
+    /// <summary>このビルドで登録された資産を取得します。</summary>
+    public AssetRegistry Assets { get; }
+
+    internal SiteTemplateResult RenderDocsTemplate(bool enableSearch = false) => _generator.RenderDocsTemplate(this, enableSearch);
 
     internal SiteTemplateResult RenderBlogTemplate() => _generator.RenderBlogTemplate(this);
 
@@ -79,6 +94,21 @@ public sealed class SiteTemplateContext
     /// <summary>Renders a complete document with the standard metadata, header, and footer.</summary>
     public string RenderDocument(SiteTemplateDocument document) =>
         _generator.RenderTemplateDocument(Configuration, document);
+
+    /// <summary>Renders a typed layout using this legacy template's settings and registered assets.</summary>
+    /// <exception cref="ArgumentNullException">The page or layout is null.</exception>
+    /// <exception cref="InvalidOperationException">The layout returns null.</exception>
+    public IHtmlContent RenderLayout<TPage>(SitePage<TPage> page, IPageLayout<TPage> layout)
+        where TPage : notnull
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentNullException.ThrowIfNull(layout);
+        return layout.Render(page, new PageRenderingContext(_generator, Configuration)
+        {
+            Assets = Assets,
+            EnvironmentName = _environmentName
+        }) ?? throw new InvalidOperationException($"Page layout '{layout.GetType().FullName}' returned null.");
+    }
 
     /// <summary>Renders a table of contents for the supplied headings.</summary>
     public string RenderTableOfContents(IReadOnlyList<SiteTemplateHeading> headings) =>

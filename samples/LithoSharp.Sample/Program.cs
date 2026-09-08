@@ -1,37 +1,38 @@
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
+using LithoSharp.Quality;
+using LithoSharp.Routing;
 
 var output = GetArgument(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "_site");
-var content = GetArgument(args, "--content") ?? Path.Combine(AppContext.BaseDirectory, "content");
-
-var site = new SiteSettings
+var check = args.Contains("--check", StringComparer.Ordinal);
+var definition = await new BlogSampleFactory
 {
-    Title = "LithoSharp Blog Sample",
-    Description = "A minimal blog generated with LithoSharp.",
-    BaseUrl = "https://example.com/",
-    Language = "en",
-    Author = "LithoSharp",
-    TimeZone = "UTC"
-};
+    ContentDirectory = GetArgument(args, "--content"),
+    Check = check,
+    RedirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal)
+}.CreateAsync(new SiteFactoryContext(AppContext.BaseDirectory));
+var site = definition.Site;
+var posts = definition.Posts;
+var customization = definition.Customization;
+var options = definition.Options;
 
-var customization = new SiteCustomization
+SiteGenerationResult result;
+try
 {
-    Template = new BlogSiteTemplate(),
-    Theme = new SiteThemeOptions
-    {
-        BrandPrefix = "lithosharp / ",
-        DefaultSocialSubtitle = "Built with LithoSharp",
-        AdditionalCss = ":root { --accent: #7c9eff; }"
-    },
-    GenerateLlmsTxt = true
-};
-
-var posts = await new MarkdownPostReader().ReadAllAsync(content);
-SiteGenerator.Validate(site, content, posts, customization);
-var result = await new SiteGenerator().GenerateAsync(site, posts, output, clean: true, customization);
+    result = await new SiteGenerator().GenerateWithOptionsAsync(
+        site, posts, output, clean: true, customization, options, CancellationToken.None);
+}
+catch (SiteQualityValidationException exception)
+{
+    Console.Error.WriteLine(exception.Report.Format(SiteDiagnosticFormat.Text));
+    return 1;
+}
 
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
+if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
+return 0;
 
 static string? GetArgument(string[] args, string name)
 {

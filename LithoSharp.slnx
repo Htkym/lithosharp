@@ -1,12 +1,25 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/LithoSharp/LithoSharp.csproj" />
+    <Project Path="src/LithoSharp.Generators/LithoSharp.Generators.csproj" />
+    <Project Path="src/LithoSharp.Images/LithoSharp.Images.csproj" />
+    <Project Path="src/LithoSharp.Tool/LithoSharp.Tool.csproj" />
+    <Project Path="src/LithoSharp.Testing/LithoSharp.Testing.csproj" />
+    <Project Path="src/LithoSharp.Mdx/LithoSharp.Mdx.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/LithoSharp.MdxPerformance/LithoSharp.MdxPerformance.csproj" />
+    <Project Path="benchmarks/LithoSharp.Performance/LithoSharp.Performance.csproj" />
+  </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/LithoSharp.MdxSample/LithoSharp.MdxSample.csproj" />
     <Project Path="samples/LithoSharp.Sample/LithoSharp.Sample.csproj" />
     <Project Path="samples/LithoSharp.DocsSample/LithoSharp.DocsSample.csproj" />
+  </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj" />
   </Folder>
 </Solution>

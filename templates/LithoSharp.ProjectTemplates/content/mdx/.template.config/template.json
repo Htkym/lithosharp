@@ -1,0 +1,10 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "LithoSharp",
+  "classifications": ["Web", "Static Site", "MDX"],
+  "identity": "LithoSharp.Mdx",
+  "name": "LithoSharp MDX documentation site",
+  "shortName": "lithosharp-mdx",
+  "sourceName": "LithoSharpSite",
+  "preferNameDirectory": true
+}

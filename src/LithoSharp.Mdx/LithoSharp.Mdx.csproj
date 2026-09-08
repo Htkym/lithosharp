@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>LithoSharp.Mdx</PackageId>
+    <Version>0.3.0</Version>
+    <Authors>Htkym</Authors>
+    <Description>Opt-in official MDX and React static rendering for LithoSharp.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Browser/*" />
+    <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Remove="worker/node_modules/**/*;worker/.cache/**/*" />
+    <None Update="worker/**/*" Pack="true" PackagePath="contentFiles/any/any/%(Identity)" PackageCopyToOutput="true" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="worker/tests/**/*" Pack="false" CopyToOutputDirectory="Never" />
+    <None Update="worker/.gitignore" Pack="false" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+  <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
+</Project>

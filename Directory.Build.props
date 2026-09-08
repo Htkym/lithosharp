@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/Htkym/lithosharp</PackageProjectUrl>
   </PropertyGroup>
 </Project>

@@ -1,0 +1,32 @@
+#nullable enable
+LithoSharp.Testing.SiteTestDocument
+LithoSharp.Testing.SiteTestDocument.AssertAttribute(string! selector, string! name, string! expected) -> void
+LithoSharp.Testing.SiteTestDocument.AssertElement(string! selector) -> void
+LithoSharp.Testing.SiteTestDocument.AssertImage(string! src) -> void
+LithoSharp.Testing.SiteTestDocument.AssertLink(string! href) -> void
+LithoSharp.Testing.SiteTestDocument.AssertMeta(string! name, string! expected, bool property = false) -> void
+LithoSharp.Testing.SiteTestDocument.AssertText(string! selector, string! expected) -> void
+LithoSharp.Testing.SiteTestDocument.Dispose() -> void
+LithoSharp.Testing.SiteTestDocument.Document.get -> AngleSharp.Dom.IDocument!
+LithoSharp.Testing.SiteTestDocument.Route.get -> LithoSharp.Routing.SiteRoute?
+LithoSharp.Testing.SiteTestException
+LithoSharp.Testing.SiteTestException.SiteTestException(string! message) -> void
+LithoSharp.Testing.SiteTestHost
+LithoSharp.Testing.SiteTestHost.AssertArtifact(string! relativeOutputPath) -> string!
+LithoSharp.Testing.SiteTestHost.AssertDiagnostic(string! id, LithoSharp.Diagnostics.SiteDiagnosticSeverity? severity = null, string? messageContains = null) -> LithoSharp.Diagnostics.SiteDiagnostic!
+LithoSharp.Testing.SiteTestHost.AssertNoArtifact(string! relativeOutputPath) -> void
+LithoSharp.Testing.SiteTestHost.AssertNoDiagnostics(LithoSharp.Diagnostics.SiteDiagnosticSeverity minimumSeverity = LithoSharp.Diagnostics.SiteDiagnosticSeverity.Warning) -> void
+LithoSharp.Testing.SiteTestHost.AssertNoRoute(string! publicPath) -> void
+LithoSharp.Testing.SiteTestHost.AssertRoute(string! publicPath, string? relativeOutputPath = null) -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Testing.SiteTestHost.AssertSucceeded() -> void
+LithoSharp.Testing.SiteTestHost.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Testing.SiteTestHost.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Testing.SiteTestHost.OpenPageAsync(string! publicPath, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Testing.SiteTestDocument!>!
+LithoSharp.Testing.SiteTestHost.OutputDirectory.get -> string!
+LithoSharp.Testing.SiteTestHost.Result.get -> LithoSharp.SiteGenerationResult?
+LithoSharp.Testing.SiteTestHost.Succeeded.get -> bool
+static LithoSharp.Testing.SiteTestDocument.Parse(string! html) -> LithoSharp.Testing.SiteTestDocument!
+static LithoSharp.Testing.SiteTestDocument.RenderComponent<T>(LithoSharp.ISiteComponent<T>! component, T props, LithoSharp.ComponentRenderingContext! context) -> LithoSharp.Testing.SiteTestDocument!
+static LithoSharp.Testing.SiteTestDocument.RenderLayout<T>(LithoSharp.IPageLayout<T>! layout, LithoSharp.Pages.SitePage<T>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.Testing.SiteTestDocument!
+static LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.ISiteFactory! factory, LithoSharp.SiteFactoryContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Testing.SiteTestHost!>!
+static LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.SiteDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Testing.SiteTestHost!>!

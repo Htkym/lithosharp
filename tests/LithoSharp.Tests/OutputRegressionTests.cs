@@ -114,7 +114,9 @@ public sealed class OutputRegressionTests
         await Assert.That(post).Contains("<meta property=\"og:site_name\" content=\"Test Site\">");
         await Assert.That(post).Contains("<meta property=\"og:title\" content=\"First Post - Test Site\">");
         await Assert.That(post).Contains("<meta property=\"og:description\" content=\"the first post\">");
-        await Assert.That(post).Contains("<meta name=\"twitter:card\" content=\"summary_large_image\">");
+        await Assert.That(post).Contains("<meta name=\"twitter:card\" content=\"summary\">");
+        await Assert.That(post).DoesNotContain("property=\"og:image\"");
+        await Assert.That(post).DoesNotContain("name=\"twitter:image\"");
         await Assert.That(post).Contains("<meta property=\"og:url\" content=\"https://example.test/posts/post.html\">");
     }
 

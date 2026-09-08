@@ -1,0 +1,10 @@
+---
+title: Isolated React playground
+---
+import LiveCode from '@lithosharp/live-code';
+
+## Edit and run
+
+This playground accepts JavaScript React code. It runs in an opaque iframe with network and storage access disabled.
+
+<LiveCode code={'function Demo(){const [n,set]=React.useState(1);return React.createElement("button",{onClick:()=>set(n+1)},"Live "+n)};render(React.createElement(Demo));'} fallback="A counter starts at one. Run to try it." />

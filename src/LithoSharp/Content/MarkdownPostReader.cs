@@ -17,15 +17,30 @@ public sealed class MarkdownPostReader
             return [];
         }
 
-        var posts = new List<MarkdownPost>();
-        foreach (var path in Directory.EnumerateFiles(contentDirectory, "*.md", SearchOption.AllDirectories))
+        var discovery = ContentPath.Discover(
+            contentDirectory,
+            [".md"],
+            CancellationToken.None);
+        if (discovery.Diagnostics.Any(static diagnostic =>
+                diagnostic.Severity == Diagnostics.SiteDiagnosticSeverity.Error))
         {
-            posts.Add(await ReadAsync(path, contentDirectory).ConfigureAwait(false));
+            throw new InvalidOperationException(
+                string.Join(
+                    Environment.NewLine,
+                    discovery.Diagnostics.Select(static diagnostic =>
+                        $"{diagnostic.Id}: {diagnostic.Message}")));
+        }
+
+        var posts = new List<MarkdownPost>();
+        foreach (var file in discovery.Files)
+        {
+            posts.Add(await ReadAsync(file.FullPath, contentDirectory).ConfigureAwait(false));
         }
 
         return posts
             .OrderByDescending(post => post.FrontMatter.Date)
             .ThenBy(post => post.Slug, StringComparer.Ordinal)
+            .ThenBy(post => post.RelativeOutputPath, StringComparer.Ordinal)
             .ToArray();
     }
 
@@ -47,16 +62,20 @@ public sealed class MarkdownPostReader
 
         var frontMatter = MarkdownFrontMatterYaml.Deserialize(yaml)
             ?? throw new InvalidOperationException($"Post '{path}' has empty front matter.");
-
         Validate(frontMatter, path);
 
         var relative = Path.GetRelativePath(contentRoot, path);
-        var withoutExtension = Path.ChangeExtension(relative, ".html");
-        var normalizedOutput = withoutExtension.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
-        var slug = SlugHelper.ToSlug(Path.GetFileNameWithoutExtension(path));
-
-        return new MarkdownPost(path, slug, frontMatter, body.Trim(), $"posts/{normalizedOutput}");
+        var normalizedOutput = Path.ChangeExtension(relative, ".html")
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+        return new MarkdownPost(
+            path,
+            SlugHelper.ToSlug(Path.GetFileNameWithoutExtension(path)),
+            frontMatter,
+            body.Trim(),
+            $"posts/{normalizedOutput}");
     }
+
     private static void Validate(PostFrontMatter frontMatter, string path)
     {
         if (string.IsNullOrWhiteSpace(frontMatter.Title))

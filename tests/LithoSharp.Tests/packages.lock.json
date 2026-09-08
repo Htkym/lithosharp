@@ -2,6 +2,16 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "Microsoft.CodeAnalysis.CSharp": {
+        "type": "Direct",
+        "requested": "[4.14.0, )",
+        "resolved": "4.14.0",
+        "contentHash": "568a6wcTivauIhbeWcCwfWwIn7UV7MeHEBvFB2uzGIpM2OhJ4eM/FZ8KS0yhPoNxnSpjGzz7x7CIjTxhslojQA==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "3.11.0",
+          "Microsoft.CodeAnalysis.Common": "[4.14.0]"
+        }
+      },
       "TUnit": {
         "type": "Direct",
         "requested": "[1.65.0, )",
@@ -15,6 +25,11 @@
           "TUnit.Engine": "1.65.0"
         }
       },
+      "AngleSharp": {
+        "type": "Transitive",
+        "resolved": "1.7.3",
+        "contentHash": "I8TpSvgOPAVQHjVvXaROZOkIGZdX0tn+e9CUix6mv5pMqfyKO+/zm/dofsXgsxVTJl/sSTnEMFwrdnqxTt2axQ=="
+      },
       "Markdig": {
         "type": "Transitive",
         "resolved": "1.3.2",
@@ -24,6 +39,19 @@
         "type": "Transitive",
         "resolved": "2.23.0",
         "contentHash": "nWArUZTdU7iqZLycLKWe0TDms48KKGE6pONH2terYNa8REXiqixrMOkf1sk5DHGMaUTqONU2YkS4SAXBhLStgw=="
+      },
+      "Microsoft.CodeAnalysis.Analyzers": {
+        "type": "Transitive",
+        "resolved": "3.11.0",
+        "contentHash": "v/EW3UE8/lbEYHoC2Qq7AR/DnmvpgdtAMndfQNmpuIMx/Mto8L5JnuCfdBYtgvalQOtfNCnxFejxuRrryvUTsg=="
+      },
+      "Microsoft.CodeAnalysis.Common": {
+        "type": "Transitive",
+        "resolved": "4.14.0",
+        "contentHash": "PC3tuwZYnC+idaPuoC/AZpEdwrtX7qFpmnrfQkgobGIWiYmGi5MCRtl5mx6QrfMGQpK78X2lfIEoZDLg/qnuHg==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Analyzers": "3.11.0"
+        }
       },
       "Microsoft.DiaSymReader": {
         "type": "Transitive",
@@ -137,10 +165,47 @@
       "lithosharp": {
         "type": "Project",
         "dependencies": {
+          "AngleSharp": "[1.7.3, )",
           "Markdig": "[1.3.2, )",
           "SkiaSharp": "[3.119.4, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[3.119.4, )",
           "YamlDotNet": "[18.0.0, )"
+        }
+      },
+      "lithosharp.docssample": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[0.3.0, )",
+          "LithoSharp.Images": "[0.3.0, )",
+          "YamlDotNet": "[18.0.0, )"
+        }
+      },
+      "lithosharp.generators": {
+        "type": "Project"
+      },
+      "lithosharp.images": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[0.3.0, )"
+        }
+      },
+      "lithosharp.mdx": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[0.3.0, )"
+        }
+      },
+      "lithosharp.sample": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[0.3.0, )"
+        }
+      },
+      "lithosharp.testing": {
+        "type": "Project",
+        "dependencies": {
+          "AngleSharp": "[1.7.3, )",
+          "LithoSharp": "[0.3.0, )"
         }
       }
     }

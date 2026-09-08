@@ -12,6 +12,10 @@
 *.env
 artifacts/
 .tmp/
+.local/
+.playwright-cli/
+.lithosharp-*.lock
+.lithosharp-*.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -432,6 +436,7 @@ FodyWeavers.xsd
 
 # LithoSharp sample output
 _site/
+.lithosharp/
 
 # Local roadmap
 roadmap/

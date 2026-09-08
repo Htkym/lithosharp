@@ -1,0 +1,48 @@
+name: performance baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: Corpus size to measure
+        required: true
+        default: 1000
+        type: choice
+        options:
+          - 100
+          - 1000
+          - 10000
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore LithoSharp.slnx --locked-mode
+
+      - name: Build
+        run: dotnet build benchmarks/LithoSharp.Performance/LithoSharp.Performance.csproj --no-restore --configuration Release
+
+      - name: Run benchmark
+        run: >
+          dotnet run --project benchmarks/LithoSharp.Performance
+          --configuration Release --no-build --
+          --size ${{ inputs.size }}
+          --output artifacts/performance-baselines/baseline-${{ inputs.size }}.json
+
+      - name: Upload result
+        uses: actions/upload-artifact@v7
+        with:
+          name: performance-baseline-${{ inputs.size }}
+          path: artifacts/performance-baselines/baseline-${{ inputs.size }}.json

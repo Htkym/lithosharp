@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.65.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +18,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LithoSharp\LithoSharp.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Mdx\LithoSharp.Mdx.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Images\LithoSharp.Images.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Testing\LithoSharp.Testing.csproj" />
+    <ProjectReference Include="..\..\samples\LithoSharp.DocsSample\LithoSharp.DocsSample.csproj" />
+    <ProjectReference Include="..\..\samples\LithoSharp.Sample\LithoSharp.Sample.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Generators\LithoSharp.Generators.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

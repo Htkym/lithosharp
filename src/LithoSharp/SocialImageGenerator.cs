@@ -1,3 +1,6 @@
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text.Json;
 using SkiaSharp;
 
 namespace LithoSharp;
@@ -23,6 +26,69 @@ internal sealed class SocialImageGenerator(byte[] siteIconBytes)
         "Courier New"
     ];
     private readonly byte[] _siteIconBytes = siteIconBytes.Length > 0 ? siteIconBytes : throw new ArgumentException("Site icon bytes must not be empty.", nameof(siteIconBytes));
+
+    internal static string? GetImplementationFingerprint()
+    {
+        try
+        {
+            var bold = GetTypefaceFingerprint(isBold: true);
+            var normal = GetTypefaceFingerprint(isBold: false);
+            if (bold is null || normal is null) return null;
+            return Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                ManagedAssembly = typeof(SKTypeface).Assembly.FullName,
+                ManagedModule = typeof(SKTypeface).Module.ModuleVersionId,
+                NativeVersion = SkiaSharpVersion.Native.ToString(),
+                RuntimeInformation.RuntimeIdentifier,
+                RuntimeInformation.OSDescription,
+                RuntimeInformation.OSArchitecture,
+                RuntimeInformation.ProcessArchitecture,
+                RuntimeInformation.FrameworkDescription,
+                BoldFont = bold,
+                NormalFont = normal,
+            })));
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException
+            or ArgumentException or NotSupportedException or ExternalException
+            or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException
+            or TypeInitializationException)
+        {
+            return null;
+        }
+    }
+
+    private static string? GetTypefaceFingerprint(bool isBold)
+    {
+        var typeface = ResolveTypeface(isBold);
+        try
+        {
+            using var stream = typeface.OpenStream(out var collectionIndex);
+            if (stream is null || stream.Length <= 0) return null;
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = new byte[81920];
+            var remaining = stream.Length;
+            while (remaining > 0)
+            {
+                var count = stream.Read(buffer, Math.Min(buffer.Length, remaining));
+                if (count <= 0) return null;
+                hash.AppendData(buffer, 0, count);
+                remaining -= count;
+            }
+            return JsonSerializer.Serialize(new
+            {
+                Sha256 = Convert.ToHexStringLower(hash.GetHashAndReset()),
+                CollectionIndex = collectionIndex,
+                typeface.FamilyName,
+                typeface.FontWeight,
+                typeface.FontWidth,
+                typeface.FontSlant,
+            });
+        }
+        finally
+        {
+            if (!ReferenceEquals(typeface, SKTypeface.Default)) typeface.Dispose();
+        }
+    }
 
     public Task<byte[]> BuildSiteImageAsync(string siteTitle, string siteDescription, CancellationToken cancellationToken)
     {

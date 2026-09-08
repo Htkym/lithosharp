@@ -5,210 +5,88 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-.NET 向けの小さな静的サイトジェネレーターです。Markdown とサイト設定を渡すと、Docusaurus に着想を得たドキュメントサイトを既定で生成します。Docs テンプレートはレスポンシブな階層サイドバー、ページ目次、前後ページへのリンクを生成します。従来の Blog テンプレートも明示的に選択できます。
+C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
+.NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-LithoSharp はコンソールアプリケーションやビルドパイプラインへ組み込むことを想定しています。サイト固有の文言、テーマ、検証、テンプレートは `SiteCustomization` で指定するため、コアライブラリはブランドや運用方針を固定しません。
+現在のreleaseは**0.3.0**です。
 
-## 機能
+## 主な機能
 
-- Docusaurus に着想を得た Docs 出力を既定で提供。レスポンシブな階層サイドバー、H2/H3 の目次、前後のドキュメントリンクを生成
-- 一覧、アーカイブ、タグ、クライアント側検索、RSS (`feed.xml`)、`sitemap.xml` を備えた Blog テンプレートを明示的に選択可能
-- canonical、Open Graph、Twitter Card メタデータ、任意の favicon とソーシャル画像
-- front matter の検証。タイトルと日時は必須で、既定では要約も必須
-- 言語モデル向けの `llms.txt` を任意で生成
-- favicon やソーシャル画像の元ファイルがない場合も、該当する出力だけを省略して完全な HTML サイトを生成
+- 型付きC# content collection、route、reference。厳密なschema検証と、任意のRoslyn source generator・build診断。
+- Markdownと任意のMDX 3。Reactによる生成時HTML、page hydration、明示islandによるselective hydration。
+- Docs、Blog、独立ページ、複数Docs collection、version、locale、sidebar、local search。
+- 依存graph、永続cache、invalidation reason、artifact ownershipによる増分ビルドの確認。
+- routeとownershipを検証したうえでのstaging、output transaction、公開前のrollback。
+- link、anchor、canonical、redirect、SEOに対する構造化診断。
+- XML形式の.NET API文書、OpenAPI 3 JSON、正確なxref、検証済みexampleの取り込み。
+- site、route、artifact、DOM、component、layoutを検証する.NET向けTesting API。
+- fingerprint付きasset、responsive image、C# renderingと信頼するMDX pluginの拡張点。
 
-## インストール
+## Quick Start
 
-```powershell
-dotnet add package LithoSharp
+.NET 10 SDKを用意して実行します。
+
+```sh
+dotnet new install LithoSharp.ProjectTemplates::0.3.0
+dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
+.tools/lithosharp new docs MyDocs -o MyDocs
+.tools/lithosharp build MyDocs -c Release
+.tools/lithosharp serve MyDocs -c Release
 ```
 
-LithoSharp は `net10.0` を対象とし、Markdig、YamlDotNet、SkiaSharp に依存しています。
+Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`を編集し、
+`DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
+独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-## クイックスタート
+既存applicationでは`dotnet add package LithoSharp --version 0.3.0`でライブラリを追加し、
+直接呼び出せます。CLI hostは必須ではありません。
 
-Markdown を読み込み、必要に応じて検証し、サイトを生成します。
+## 使用例
 
-```csharp
-using LithoSharp;
-using LithoSharp.Configuration;
-using LithoSharp.Content;
+| 目的 | 入口 |
+| --- | --- |
+| Markdown Docs、typed content、画像 | [Docs sample](samples/LithoSharp.DocsSample) |
+| 従来のBlog、feed、search | [Blog sample](samples/LithoSharp.Sample) |
+| MDX、React island、offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.ja.md) |
+| versioning、i18n、Blog/Pages、API docs | [MDXガイド](docs/mdx.ja.md)と[使用例の案内](docs/quickstart.ja.md#使用例と次の手順) |
 
-var site = new SiteSettings
-{
-    Title = "My Site",
-    Description = "A static site generated with LithoSharp.",
-    BaseUrl = "https://example.com/",
-    Language = "en",
-    Author = "Me",
-    TimeZone = "UTC"
-};
+## 必要な環境
 
-var customization = new SiteCustomization
-{
-    Theme = new SiteThemeOptions
-    {
-        BrandPrefix = "my site / ",
-        DefaultSocialSubtitle = "Built with LithoSharp",
-        AdditionalCss = ":root { --accent: #7c9eff; }"
-    },
-    GenerateLlmsTxt = true
-};
+.NET 10が必要です。公開準備ではSDK 10.0.300を使っています。CLIの開発serverはSDKに含まれる
+ASP.NET Core shared frameworkも使います。MarkdownだけならNode.jsとReactは不要です。
+MDXはNode.js 24.13.0と明示的なworker restoreが必要です。lockfileはMDX 3.1.1、React 19.2.4、
+esbuild 0.25.12を固定しています。本番出力の配信には静的HTTP hostだけで十分です。
 
-var posts = await new MarkdownPostReader().ReadAllAsync("content");
-SiteGenerator.Validate(site, "content", posts, customization);
-var result = await new SiteGenerator().GenerateAsync(site, posts, "_site", clean: true, customization);
+## ドキュメント
 
-Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
-```
+- [CLIとsite factory](docs/cli.ja.md)、[MDXと文書サイト](docs/mdx.ja.md)
+- [型付きMarkdown collection](docs/typed-markdown-collections.md)、
+  [型付きYAML](docs/typed-yaml-collections.md)、[source generator](docs/source-generators.md)
+- [Build graph](docs/build-graph.ja.md)、[増分ビルド](docs/incremental-builds.ja.md)
+- [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
+- [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-実行可能な Docs サンプルは [`samples/LithoSharp.DocsSample`](samples/LithoSharp.DocsSample) にあります。従来の Blog レイアウトは [`samples/LithoSharp.Sample`](samples/LithoSharp.Sample) で確認できます。
+## 0.2.0からの更新
 
-```powershell
-dotnet run --project samples/LithoSharp.DocsSample -- --output _site
-```
+検証した従来のソースとバイナリは0.3.0でも動作します。出力のserialization、欠落画像のmetadata、
+searchのfingerprint、安全性検証には確認が必要です。[移行ガイド](docs/migration-0.3.ja.md)と
+[変更履歴](CHANGELOG.ja.md)を参照してください。任意packageの追加に伴って、既存Markdownサイトが
+MDXを採用する必要はありません。0.xの間は、今後のminor releaseで公開APIが変わる可能性があります。
 
-既定の `DocsSiteTemplate` は `content` 配下のディレクトリ構造から左側ナビゲーションを作ります。`intro.md` はトップレベルの文書になり、`guides/install.md` は **guides** グループの下に表示されます。
+## 既知の制約
 
-## コンテンツと front matter
+MDXとC#のsite codeは信頼するbuild codeとして実行します。HTML safetyはコードのsandboxではありません。
+大規模MDXでは多くのinteractive entryを再bundleする場合があります。任意のDocusaurus plugin、
+trimming、Native AOTは非対応です。実行環境を選ぶ前に[既知の制約](docs/known-limitations.ja.md)を確認してください。
 
-`MarkdownPostReader` は `*.md` を再帰的に読み込み、日時の降順、次にスラッグ順で並べます。各ファイルは YAML front matter から始めます。
+## 性能
 
-```markdown
----
-title: "Welcome"
-date: "2026-01-02T09:00:00Z"
-summary: "A short description used in listings and metadata."
-sidebar_position: 1
-sidebar_label: "Start here"
-tags:
-  - intro
-sources:
-  - type: feed
-    name: Example Blog
-    url: https://example.com/feed.xml
----
+測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
+hydration rootが1から0になりました。全islandやfallbackの結果ではありません。
+10,000ページMDX corpusのcoldは274.30秒、no-opは105.13秒でした。
+[測定条件・制約・再現手順](docs/performance.ja.md)を参照してください。同等条件の競合benchmarkはありません。
 
-Body written in Markdown.
-```
+## 貢献とライセンス
 
-### スキーマ
-
-| フィールド | 型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `title` | string | はい | 記事タイトル。一覧、`<title>`、メタデータに使用します。 |
-| `date` | string (ISO 8601) | はい | 公開日時。`DateTimeOffset` として解析します。 |
-| `summary` | string | 既定では必須 | 一覧、フィード、`og:description` に使用する短い説明。既定の `RequiredSummaryValidator` が必須にします。変更するには検証器を置き換えます。 |
-| `sidebar_position` | integer | いいえ | Docs ナビゲーションの順序。小さい値ほど先に表示します。未指定の文書はラベル、次にパスで並べます。 |
-| `sidebar_label` | string | いいえ | Docs ナビゲーションの表示名。未指定時は `title` を使用します。 |
-| `tags` | list of strings | いいえ | 任意のタグ。タグページとクライアント側検索に使用します。 |
-| `sources` | list of objects | いいえ | 記事の出典。詳細は次を参照してください。 |
-
-`sources` の各要素は次のフィールドを持ちます。
-
-| フィールド | 型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `type` | string | いいえ | 呼び出し側で解釈する任意のラベル。`feed`、`article`、`repo`、`doc`、`release` などを利用できます。 |
-| `name` | string | いいえ | 人が読める出典名。 |
-| `url` | string | いいえ | 出典へのリンク。 |
-
-`sources` は解析されて `MarkdownPost.FrontMatter` から取得できますが、コアジェネレーターは表示しません。必要に応じて `SiteExtraPage` または独自レイアウトで表示してください。`title` と `date` は読み込み時に検証され、`summary` は `SiteGenerator.Validate` で検証されます。
-
-## カスタマイズ
-
-`SiteCustomization` はライブラリの拡張点です。利用側のアプリケーションコードをコアライブラリが参照することはなく、次のメンバーを通じて設定を渡します。
-
-- `Text`: UI 文言。`SiteText.English` と `SiteText.Japanese` を利用できます。検索ステータスには `{count}`、`{tag}`、`{query}`、`{shown}` のプレースホルダーを使えます。
-- `Template`: 描画契約。既定は `DocsSiteTemplate` です。従来の Blog URL、記事、RSS、検索、サイトマップを使用するには `new BlogSiteTemplate()` を設定します。
-- `Theme`: `BrandPrefix`、`ThemeColor`、`DefaultSocialSubtitle`、`AdditionalCss` を持つ `SiteThemeOptions`。`AdditionalCss` は既定スタイルシートの末尾に追加されます。
-- `Validators`: 独自の `IContentValidator`。空の場合は既定の要約必須チェックだけを実行します。
-- `ExtraPages`: 標準ページに追加して出力するページ。
-- `FaviconSourceDirectory`: favicon 資産を置くディレクトリ。未指定時は実行ファイルの隣にある `favicon` ディレクトリを使用します。
-- `GenerateLlmsTxt`: 言語モデル向けの `llms.txt` を生成するかどうか。既定ではオフです。
-
-### Blog テンプレートの選択
-
-```csharp
-var customization = new SiteCustomization
-{
-    Template = new BlogSiteTemplate()
-};
-```
-
-### 独自テンプレートの作成
-
-`ISiteTemplate` を実装すると、独自の HTML とテキスト資産を生成できます。`SiteTemplateContext` は、変換済み本文、見出し、前後ページリンク、ディレクトリベースのナビゲーションツリーを提供します。標準のメタデータ、ヘッダー、フッターを使う場合は `RenderDocument` を、ページ見出しから目次を作る場合は `RenderTableOfContents` を使えます。
-
-LithoSharp はテンプレートが返すパスをすべて検証し、出力先ディレクトリの配下へ安全に書き込みます。`llms.txt`、favicon、ソーシャル画像などの共通資産と衝突するパスは拒否します。
-
-```csharp
-public sealed class LandingTemplate : ISiteTemplate
-{
-    public Task<SiteTemplateResult> RenderAsync(
-        SiteTemplateContext context,
-        CancellationToken cancellationToken = default)
-    {
-        var page = context.Pages[0];
-        var body = $"<h1>{Html.Encode(page.Post.FrontMatter.Title)}</h1>{page.ContentHtml}";
-        return Task.FromResult(new SiteTemplateResult(
-        [
-            new SiteTemplateFile
-            {
-                RelativePath = "index.html",
-                Content = context.RenderDocument(new SiteTemplateDocument
-                {
-                    Title = context.Site.Title,
-                    RelativePath = "index.html",
-                    BodyHtml = body
-                })
-            },
-            new SiteTemplateFile
-            {
-                RelativePath = "assets/site.css",
-                Content = "body { font-family: sans-serif; }"
-            }
-        ]));
-    }
-}
-
-var customization = new SiteCustomization { Template = new LandingTemplate() };
-```
-
-## 公開 API
-
-- `new SiteGenerator().GenerateAsync(SiteSettings site, IReadOnlyList<MarkdownPost> posts, string outputDirectory, bool clean, SiteCustomization? customization = null, CancellationToken ct = default)`
-- `static SiteGenerator.Validate(SiteSettings site, string contentDirectory, IReadOnlyList<MarkdownPost> posts, SiteCustomization? customization = null)`
-- `new MarkdownPostReader().ReadAllAsync(string contentDirectory)`
-- `SiteCustomization`, `SiteThemeOptions`, `SiteText`, `SiteExtraPage`
-- `ISiteTemplate`, `SiteTemplateContext`, `SiteTemplateResult`, `SiteTemplateFile`, `SiteTemplatePage`, `SiteTemplatePageLink`, `SiteTemplateHeading`, `SiteTemplateNavigationNode`, `SiteTemplateDocument`
-- `DocsSiteTemplate`, `BlogSiteTemplate`
-- `IContentValidator`, `ContentValidationContext`, `RequiredSummaryValidator`
-
-名前空間は `LithoSharp`、`LithoSharp.Configuration`、`LithoSharp.Content`、`LithoSharp.Validation`、`LithoSharp.Search` です。
-
-## 資産とフォントに関する注意
-
-favicon とソーシャル画像の元ファイルは任意です。Open Graph 画像は SkiaSharp とシステムフォントで描画します。`SocialImageGenerator` は Consolas などの優先フォントを探し、見つからない場合は既定の書体へフォールバックします。フォントがないホストでは描画が異なったり、CJK 文字が豆腐文字として表示されたりする場合があります。
-
-## ビルドとテスト
-
-.NET 10 SDK が必要です。
-
-```powershell
-dotnet restore LithoSharp.slnx --locked-mode
-dotnet build LithoSharp.slnx --no-restore -c Release
-dotnet test --solution LithoSharp.slnx --no-build -c Release
-dotnet run --project samples/LithoSharp.DocsSample -- --output _site
-dotnet run --project samples/LithoSharp.Sample -- --output _site
-```
-
-テストには Microsoft.Testing.Platform 上で動作する TUnit を使用しています。
-
-## バージョニング
-
-LithoSharp は SemVer に従います。バージョンが `0.x` の間は、公開 API が変更される場合があります。
-
-## ライセンス
-
-MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してください。サードパーティの通知は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) にあります。
+buildと検証の手順は[CONTRIBUTING](CONTRIBUTING.md)を参照してください。
+MIT licenseです。[LICENSE](LICENSE)と[third-party notices](THIRD-PARTY-NOTICES.md)も確認してください。

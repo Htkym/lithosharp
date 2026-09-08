@@ -1,12 +1,22 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 using System.Xml;
+using LithoSharp.Build;
+using LithoSharp.Compatibility;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
+using LithoSharp.Pages;
+using LithoSharp.Publishing;
+using LithoSharp.Quality;
+using LithoSharp.Routing;
 using LithoSharp.Search;
 using LithoSharp.Validation;
 using Markdig;
@@ -18,16 +28,16 @@ namespace LithoSharp;
 /// <see cref="SiteSettings"/>. Text, theme, content validation, and extra pages are
 /// swapped in through <see cref="SiteCustomization"/>.
 /// </summary>
-public sealed class SiteGenerator
+public sealed partial class SiteGenerator
 {
     private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .DisableHtml()
         .Build();
-    private const string FaviconOutputDirectory = "assets/favicon";
-    private const string SocialImageOutputDirectory = "assets/social";
-    private const string DefaultSocialImageFileName = "og-default.png";
-    private const string SiteIconFileName = "android-chrome-192x192.png";
+    private const string OutputManifestRelativePath = ".lithosharp-output-manifest.json";
+    private const int OutputManifestVersion = 1;
+    private const int OutputOwnershipStateVersion = 1;
+    internal const string SocialImageSourceFileName = "android-chrome-192x192.png";
     private static readonly (string FileName, string Sizes)[] PngFaviconAssets =
     [
         ("favicon-16x16.png", "16x16"),
@@ -54,6 +64,7 @@ public sealed class SiteGenerator
         "android-chrome-512x512.png",
         .. PngFaviconAssets.Select(static asset => asset.FileName)
     ];
+    internal static IReadOnlyList<string> BundledFaviconAssetNames => BundledFaviconAssets;
     private static readonly JsonSerializerOptions SearchSerializerOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false
@@ -80,9 +91,26 @@ public sealed class SiteGenerator
         SiteText Text,
         SiteThemeOptions Theme,
         IReadOnlyList<SiteExtraPage> ExtraPages,
+        IReadOnlyList<IntegratedContentPage> ContentPages,
         string FaviconSourceDirectory,
         bool HasFaviconAssets,
-        bool HasSocialImage);
+        bool HasSocialImage,
+        DateTimeOffset BuildTimestamp,
+        SiteRouteCatalog Routes);
+
+    private sealed record PageClaim<TContent>(
+        SitePage<TContent> Page,
+        string OwnerId,
+        SiteSourceLocation? SourceLocation)
+        where TContent : notnull;
+
+    private sealed record GeneratedArtifactState(
+        string Path,
+        string Sha256);
+
+    private sealed record OutputOwnershipState(
+        string OutputIdentity,
+        IReadOnlyList<GeneratedArtifactState> Artifacts);
 
 
     /// <summary>Generates a static site from the site settings and posts.</summary>
@@ -93,95 +121,859 @@ public sealed class SiteGenerator
     /// <param name="customization">Text, theme, extra pages, and other overrides. Defaults to English when omitted.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The generation result.</returns>
-    public async Task<SiteGenerationResult> GenerateAsync(
+    /// <remarks>
+    /// Cooperating processes are serialized by a Unicode-normalized, case-folded output identity.
+    /// Transaction metadata is owner-only where supported. Symbolic links and name-surrogate
+    /// reparse points are rejected. Because .NET has no portable handle-relative no-follow directory
+    /// traversal, hostile same-user mutation outside this lock protocol is unsupported.
+    /// Generator ownership and content fingerprints are kept in an owner-restricted sibling sidecar.
+    /// The manifest published inside the output tree is informational and is never used for deletion.
+    /// With <paramref name="clean"/> set to <see langword="false"/>, timestamps, file attributes,
+    /// Windows owner/group/DACL data, and Unix permission modes are preserved. Unix ownership,
+    /// ACLs, extended attributes, and other platform metadata are not promised.
+    /// If cleanup after promotion fails, generation still succeeds, a trace warning is emitted,
+    /// and the owned backup is retained for cleanup by a later generation.
+    /// </remarks>
+    public Task<SiteGenerationResult> GenerateAsync(
         SiteSettings site,
         IReadOnlyList<MarkdownPost> posts,
         string outputDirectory,
         bool clean,
         SiteCustomization? customization = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GenerateWithOptionsAsync(
+            site,
+            posts,
+            outputDirectory,
+            clean,
+            customization,
+            new SiteGenerationOptions(),
+            cancellationToken);
+
+    /// <summary>生成オプションを指定して静的サイトを生成します。</summary>
+    /// <param name="site">サイト設定。</param>
+    /// <param name="posts">描画する投稿。</param>
+    /// <param name="outputDirectory">出力ディレクトリ。</param>
+    /// <param name="clean">生成前に出力ディレクトリを削除するかどうか。</param>
+    /// <param name="customization">文言、テーマ、追加ページなどのカスタマイズ。</param>
+    /// <param name="options">今回の生成に適用するオプション。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    /// <returns>生成結果。</returns>
+    /// <remarks>
+    /// Unicode 正規化と大文字化を適用した出力識別子ごとに、協調するプロセス間の生成を直列化します。
+    /// 対応する環境ではトランザクション用メタデータを所有者専用にします。
+    /// シンボリックリンクと名前を置き換える再解析ポイントは拒否します。
+    /// 生成物の所有情報と内容フィンガープリントは、所有者専用の隣接サイドカーに保持します。
+    /// 出力ツリー内に公開するマニフェストは情報提供専用であり、削除判断には使用しません。
+    /// .NET には移植可能なハンドル相対の no-follow ディレクトリ走査がないため、
+    /// この排他制御を使わずに同じユーザーの外部プロセスが生成中のツリーを変更する敵対的操作はサポートしません。
+    /// <paramref name="clean"/> が <see langword="false"/> の場合は、タイムスタンプ、ファイル属性、
+    /// Windows の所有者、グループ、DACL、および Unix のパーミッションモードを保持します。
+    /// Unix の所有者、ACL、拡張属性などのメタデータ保持は保証しません。
+    /// 昇格後のバックアップ削除に失敗した場合も生成は成功として扱い、トレース警告を出力して、
+    /// 所有するバックアップを次回の生成で再度削除するために保持します。
+    /// </remarks>
+    public async Task<SiteGenerationResult> GenerateWithOptionsAsync(
+        SiteSettings site,
+        IReadOnlyList<MarkdownPost> posts,
+        string outputDirectory,
+        bool clean,
+        SiteCustomization? customization,
+        SiteGenerationOptions options,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(site);
         ArgumentNullException.ThrowIfNull(posts);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
-        customization ??= new SiteCustomization();
-        var faviconSource = customization.FaviconSourceDirectory ?? Path.Combine(AppContext.BaseDirectory, "favicon");
-        var hasFaviconAssets = BundledFaviconAssets.All(asset => File.Exists(Path.Combine(faviconSource, asset)));
-        var hasSocialImage = File.Exists(Path.Combine(faviconSource, SiteIconFileName));
-        var configuration = new RenderContext(site, customization.Text, customization.Theme, customization.ExtraPages, faviconSource, hasFaviconAssets, hasSocialImage);
-
-        var outputRoot = Path.GetFullPath(outputDirectory);
-        if (clean && Directory.Exists(outputRoot))
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxDegreeOfParallelism, 1);
+        if (options.EnvironmentName is null)
         {
-            Directory.Delete(outputRoot, recursive: true);
+            throw new ArgumentNullException(nameof(options.EnvironmentName));
         }
 
-        Directory.CreateDirectory(outputRoot);
-        var generated = new List<string>();
+        if (string.IsNullOrWhiteSpace(options.EnvironmentName))
+        {
+            throw new ArgumentException(
+                "The environment name must not be empty.",
+                nameof(options.EnvironmentName));
+        }
+
+        if (options.ContentCollections is null)
+        {
+            throw new ArgumentNullException(nameof(options.ContentCollections));
+        }
+
+        if (options.Assets is null)
+        {
+            throw new ArgumentNullException(nameof(options.Assets));
+        }
+
+        ArgumentNullException.ThrowIfNull(options.Redirects);
+        var redirectDeclarations = options.Redirects.ToArray();
+        if (redirectDeclarations.Any(redirect => redirect is null))
+            throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
+        var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
+        var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
+            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, ".lithosharp"));
+        if (ContainsDirectory(outputRoot, buildCacheRoot) || ContainsDirectory(buildCacheRoot, outputRoot)
+            || options.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
+            throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
+        foreach (var asset in options.Assets)
+        {
+            ArgumentNullException.ThrowIfNull(asset);
+            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath))))
+                throw new ArgumentException("Asset input files must be outside the output directory.", nameof(options));
+        }
+        if (options.Quality?.ExternalLinks is { } external)
+        {
+            var cachePath = Path.GetFullPath(external.CacheFilePath);
+            if (ContainsDirectory(outputRoot, cachePath))
+                throw new ArgumentException("The external link cache must be outside the site output directory.", nameof(options.Quality));
+        }
+
+        customization ??= new SiteCustomization();
+        if (options.AssetCacheDirectory is { } assetCacheDirectory)
+        {
+            var cachePath = Path.GetFullPath(assetCacheDirectory);
+            if (ContainsDirectory(outputRoot, cachePath))
+                throw new ArgumentException("The asset cache must be outside the output directory.", nameof(options));
+        }
+        if (options.PublicDirectory is { } publicDirectory)
+        {
+            var publicRoot = Path.GetFullPath(publicDirectory);
+            if (ContainsDirectory(publicRoot, outputRoot) || ContainsDirectory(outputRoot, publicRoot))
+                throw new ArgumentException("The public input directory and output directory must not overlap.", nameof(options));
+            if (options.AssetCacheDirectory is { } cache && ContainsDirectory(publicRoot, Path.GetFullPath(cache)))
+                throw new ArgumentException("The asset cache must be outside the public input directory.", nameof(options));
+            if (options.Quality?.ExternalLinks is { } links && ContainsDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
+                throw new ArgumentException("The external link cache must be outside the public input directory.", nameof(options));
+        }
+        var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
+        ArgumentNullException.ThrowIfNull(options.Extensions);
+        ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        foreach (var extension in options.Extensions)
+        {
+            ArgumentNullException.ThrowIfNull(extension);
+            var contribution = await extension.PrepareAsync(
+                new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp), cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("A build extension returned no contribution.");
+            ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
+            ArgumentNullException.ThrowIfNull(contribution.Assets);
+            options = options with
+            {
+                ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
+                GeneratedAssets = [.. options.GeneratedAssets, .. contribution.Assets],
+            };
+        }
+        var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
+            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
+            .WithGenerated(options.GeneratedAssets, site.BaseUrl);
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
-        var docsNavigation = BuildDocsNavigation(posts);
-        var templatePages = BuildTemplatePages(configuration, docsNavigation);
+        var pageRouteTable = new SiteRouteTable();
+        var unpublishedPages = new List<string>();
+        var publishedMarkdownClaims = AdaptPublishedMarkdownPages(
+            posts,
+            site.BaseUrl,
+            buildTimestamp,
+            options.EnvironmentName,
+            pageRouteTable,
+            unpublishedPages);
+        var extraPageClaims = AdaptExtraPages(customization.ExtraPages, site.BaseUrl, pageRouteTable);
+        var publishedExtraPageClaims = FilterPublished(
+            extraPageClaims,
+            buildTimestamp,
+            options.EnvironmentName);
+        var contentPages = AdaptContentCollections(
+            options.ContentCollections,
+            site.BaseUrl,
+            buildTimestamp,
+            options.EnvironmentName,
+            pageRouteTable,
+            unpublishedPages,
+            cancellationToken);
+        var builtInTemplate = template is DocsSiteTemplate or BlogSiteTemplate;
+        RegisterPageRoutes(pageRouteTable, publishedMarkdownClaims, builtInTemplate);
+        RegisterPageRoutes(pageRouteTable, publishedExtraPageClaims, builtInTemplate);
+        pageRouteTable.ValidateOrThrow();
+
+        var publishedPosts = publishedMarkdownClaims
+            .Select(claim => claim.Page.Content)
+            .ToArray();
+        var publishedExtraPages = publishedExtraPageClaims
+            .Select(claim => claim.Page.Content)
+            .ToArray();
+        var routes = new SiteRouteCatalog(
+            site.BaseUrl,
+            publishedMarkdownClaims.Select(claim => claim.Page),
+            publishedExtraPageClaims.Select(claim => claim.Page));
+        var faviconSource = customization.FaviconSourceDirectory ?? Path.Combine(AppContext.BaseDirectory, "favicon");
+        var hasFaviconAssets = BundledFaviconAssets.All(asset => File.Exists(Path.Combine(faviconSource, asset)));
+        var hasSocialImage = File.Exists(Path.Combine(faviconSource, SocialImageSourceFileName));
+        var configuration = new RenderContext(
+            site,
+            customization.Text,
+            customization.Theme,
+            publishedExtraPages,
+            contentPages,
+            faviconSource,
+            hasFaviconAssets,
+            hasSocialImage,
+            buildTimestamp,
+            routes);
+        var renderedContentPages = builtInTemplate ? [] : contentPages
+            .Select(page => page.Render(
+                this,
+                configuration,
+                options.EnvironmentName,
+                assetRegistry,
+                cancellationToken))
+            .ToArray();
+        var collectionFiles = contentPages
+            .Select(page => new SiteTemplateFile
+            {
+                RelativePath = page.Route.RelativeOutputPath,
+                Content = page.Content ?? string.Empty,
+            })
+            .ToArray();
+
+        var docsNavigation = BuildDocsNavigation(publishedPosts);
+        var templatePages = BuildTemplatePages(configuration, docsNavigation, renderContent: !builtInTemplate);
         var templateNavigation = BuildTemplateNavigation(configuration, docsNavigation, templatePages);
         var templateContext = new SiteTemplateContext(
             this,
             site,
-            posts,
+            publishedPosts,
             customization.Text,
             customization.Theme,
-            customization.ExtraPages,
+            publishedExtraPages,
+            renderedContentPages,
             templatePages,
             templateNavigation,
-            configuration);
-        var templateResult = await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
+            configuration,
+            assetRegistry,
+            options.EnvironmentName);
+        var plannedText = builtInTemplate ? CreatePlannedTemplateRenders(templateContext, template) : null;
+        var templateResult = builtInTemplate
+            ? new SiteTemplateResult(plannedText!.Keys.Select(path => new SiteTemplateFile { RelativePath = path, Content = string.Empty }).ToArray())
+            : await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
-        ValidateTemplateFiles(
-            outputRoot,
-            templateResult.Files,
-            GetCommonArtifactPaths(configuration, posts, customization.GenerateLlmsTxt));
-
-        foreach (var file in templateResult.Files)
+        var artifactRouteTable = new SiteRouteTable();
+        artifactRouteTable.ReserveOutputPath(
+            OutputManifestRelativePath,
+            "manifest:output");
+        foreach (var asset in assetRegistry.RegisteredRoutes)
         {
-            await WriteTextAsync(outputRoot, file.RelativePath, file.Content, generated, cancellationToken).ConfigureAwait(false);
+            artifactRouteTable.Register(asset.Route, $"asset:{asset.Asset.Id}");
         }
-
-        if (configuration.HasFaviconAssets)
-        {
-            await WriteBundledFaviconAssetsAsync(outputRoot, configuration, generated, cancellationToken).ConfigureAwait(false);
-            await WriteTextAsync(outputRoot, "site.webmanifest", BuildWebManifest(configuration), generated, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (configuration.HasSocialImage)
-        {
-            await WriteBinaryAssetAsync(
-                    outputRoot,
-                    SocialImageAssetPath(DefaultSocialImageFileName),
-                    await BuildDefaultSocialImageAsync(configuration, cancellationToken).ConfigureAwait(false),
-                    generated,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-
-        if (configuration.HasSocialImage)
-        {
-            foreach (var post in posts)
+        var commonArtifacts = GetCommonArtifactRoutes(
+            configuration,
+            publishedPosts,
+            contentPages,
+            customization.GenerateLlmsTxt);
+        var builtInTemplateOwners = builtInTemplate
+            ? BuiltInSiteTemplateBuildPlanAdapter.CreateTemplateOwnerMap(
+                template,
+                publishedPosts,
+                publishedExtraPages,
+                routes)
+            : null;
+        var builtInCommonOwners = builtInTemplate
+            ? BuiltInSiteTemplateBuildPlanAdapter.CreateCommonOwnerMap(
+                publishedPosts,
+                routes)
+            : null;
+        RegisterCommonRoutes(
+            artifactRouteTable,
+            commonArtifacts,
+            route =>
             {
-                await WriteBinaryAssetAsync(
-                        outputRoot,
-                        PostSocialImagePath(post),
-                        await BuildPostSocialImageAsync(configuration, post, cancellationToken).ConfigureAwait(false),
-                        generated,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                var contentOwner = contentPages.FirstOrDefault(page =>
+                    page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
+                    && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
+                        == route.RelativeOutputPath);
+                if (contentOwner is not null)
+                {
+                    return ContentCollectionBuildPlanAdapter.SocialNodeId(contentOwner).Value;
+                }
+
+                return builtInTemplate
+                    ? builtInCommonOwners![route.RelativeOutputPath].Value
+                    : LegacySiteTemplateBuildPlanAdapter.CommonNodeId.Value;
+            });
+        var templateFiles = RegisterTemplateRoutes(
+            artifactRouteTable,
+            routes,
+            templateResult.Files,
+            commonArtifacts,
+            rejectCommonArtifactConflict: !builtInTemplate,
+            route => builtInTemplate
+                ? builtInTemplateOwners![route.RelativeOutputPath].Value
+                : LegacySiteTemplateBuildPlanAdapter.TemplateNodeId.Value);
+        var normalizedCollectionFiles = RegisterCollectionRoutes(
+            artifactRouteTable,
+            collectionFiles,
+            contentPages);
+        var redirectOutputs = PrepareRedirects(redirectDeclarations, site.BaseUrl, artifactRouteTable,
+            templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
+                .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath)));
+        var baseCommonArtifacts = commonArtifacts
+            .Where(route => !contentPages.Any(page =>
+                page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
+                && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
+                    == route.RelativeOutputPath))
+            .ToArray();
+        var basePlan = builtInTemplate
+            ? BuiltInSiteTemplateBuildPlanAdapter.Create(
+                template,
+                site,
+                customization.Text,
+                customization.Theme,
+                publishedPosts,
+                publishedExtraPages,
+                contentPages,
+                routes,
+                templateFiles,
+                buildTimestamp,
+                faviconSource,
+                hasFaviconAssets,
+                hasSocialImage,
+                customization.GenerateLlmsTxt)
+            : LegacySiteTemplateBuildPlanAdapter.Create(
+                template,
+                site,
+                customization.Text,
+                customization.Theme,
+                publishedPosts,
+                publishedExtraPages,
+                contentPages,
+                routes,
+                templateFiles,
+                baseCommonArtifacts,
+                buildTimestamp,
+                options.EnvironmentName,
+                faviconSource,
+                hasFaviconAssets,
+                hasSocialImage,
+                customization.GenerateLlmsTxt);
+        var collectionNodes = ContentCollectionBuildPlanAdapter.Create(
+            contentPages,
+            site,
+            customization.Text,
+            customization.Theme,
+            buildTimestamp,
+            options.EnvironmentName,
+            faviconSource,
+            hasFaviconAssets,
+            hasSocialImage,
+            routes);
+        var assetNodes = assetRegistry.CreateBuildNodes();
+        IEnumerable<BuildNode> allNodes = assetNodes.Count == 0
+            ? basePlan.Nodes.Concat(collectionNodes)
+            : basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
+                    ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
+                    : node)
+                .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
+                    && !contentPages.Any(page => page.OwnerId == node.Id.Value && page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
+                    ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
+                    : node))
+                .Concat(assetNodes);
+        if (redirectOutputs.Count != 0)
+        {
+            var redirectPlan = SiteBuildPlan.Create(allNodes);
+            allNodes = redirectPlan.Nodes.Concat(CreateRedirectNodes(redirectOutputs, site.BaseUrl, redirectPlan));
+        }
+        var socialImplementation = hasSocialImage ? SocialImageGenerator.GetImplementationFingerprint() : null;
+        // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
+        var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
+        {
+            IEnumerable<BuildInput> inputs = node.Inputs;
+            if (node.Id.Value.StartsWith("social:", StringComparison.Ordinal))
+                inputs = inputs.Append(socialImplementation is null
+                    ? BuildInput.FromValue("social.cachePolicy", "always-rebuild")
+                    : BuildInput.FromConfiguration("social.implementation", socialImplementation));
+            if (builtInTemplate && node.Id.Value.StartsWith("page:", StringComparison.Ordinal)
+                && !node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal))
+                inputs = inputs.Append(BuildInput.FromConfiguration("assets.hasSocialImage", hasSocialImage.ToString(CultureInfo.InvariantCulture)));
+            return new BuildNode(node.Id, inputs,
+                node.Id.Value == "index:search" ? node.Dependencies.Concat(contentPages
+                    .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)).Select(page => new BuildNodeId(page.OwnerId))) : node.Dependencies,
+                node.Artifacts);
+        }));
+        var ownedArtifactPaths = buildPlan.Artifacts
+            .Select(static artifact => artifact.RelativeOutputPath)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var currentOwnedPaths = ownedArtifactPaths
+            .Append(OutputManifestRelativePath)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        var pageRoutes = contentPages.Select(page => page.Route).Concat(redirectOutputs.Select(redirect => redirect.Source))
+            .ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
+        var artifactRoutes = buildPlan.Artifacts.ToDictionary(artifact => artifact.RelativeOutputPath, artifact =>
+            pageRoutes.TryGetValue(artifact.RelativeOutputPath, out var pageRoute) ? pageRoute
+            : routes.TryGetFile(artifact.RelativeOutputPath, out var knownRoute) ? knownRoute
+            : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
+
+        var outputScope = options.OutputScope.Select(SiteRoute.NormalizeRelativeOutputPath).ToArray();
+        if (outputScope.Length > 0 && (clean || !Directory.Exists(outputRoot)))
+            throw new ArgumentException("A subset build requires an existing full output and clean=false.", nameof(options));
+        bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
+        if (outputScope.Length > 0)
+        {
+            if (!builtInTemplate) throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
+            buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Select(node => new BuildNode(node.Id, node.Inputs, node.Dependencies,
+                node.Artifacts.Where(artifact => InScope(artifact.RelativeOutputPath) || node.Id.Value.StartsWith("asset:", StringComparison.Ordinal)))));
+            ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
+            currentOwnedPaths = ownedArtifactPaths.Append(OutputManifestRelativePath).ToArray();
+        }
+        var outputTransaction = await OutputTransaction.CreateAsync(
+                outputRoot,
+                preserveExisting: !clean,
+                cancellationToken)
+            .ConfigureAwait(false);
+        var generatedInStaging = new List<string>();
+        BuildExecutionResult? execution = null;
+        IReadOnlyList<string> staleRemovedArtifacts = [];
+        var qualityReport = new SiteQualityReport();
+        var committed = false;
+        try
+        {
+            staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
+                    currentOwnedPaths,
+                    cancellationToken, InScope)
+                .ConfigureAwait(false);
+
+            if (builtInTemplate)
+            {
+                execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
+                    assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
+                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, cancellationToken).ConfigureAwait(false);
+                generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+            }
+            else
+            {
+                foreach (var file in templateFiles)
+                {
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            file.RelativePath,
+                            file.Content,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                foreach (var file in normalizedCollectionFiles)
+                {
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            file.RelativePath,
+                            file.Content,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                foreach (var redirect in redirectOutputs)
+                    await WriteTextAsync(outputTransaction.StagingRoot, redirect.File.RelativePath, redirect.File.Content,
+                        generatedInStaging, cancellationToken).ConfigureAwait(false);
+
+                foreach (var file in assetRegistry.Files)
+                {
+                    await WriteBinaryAssetAsync(
+                            outputTransaction.StagingRoot,
+                            file.RelativePath,
+                            file.Bytes,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasFaviconAssets)
+                {
+                    await WriteBundledFaviconAssetsAsync(
+                            outputTransaction.StagingRoot,
+                            configuration,
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            routes.WebManifest.RelativeOutputPath,
+                            BuildWebManifest(configuration),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasSocialImage)
+                {
+                    await WriteBinaryAssetAsync(
+                            outputTransaction.StagingRoot,
+                            routes.DefaultSocialImage.RelativeOutputPath,
+                            await BuildDefaultSocialImageAsync(configuration, cancellationToken).ConfigureAwait(false),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                if (configuration.HasSocialImage)
+                {
+                    foreach (var post in publishedPosts)
+                    {
+                        await WriteBinaryAssetAsync(
+                                outputTransaction.StagingRoot,
+                                routes.PostSocialImage(post).RelativeOutputPath,
+                                await BuildPostSocialImageAsync(configuration, post, cancellationToken).ConfigureAwait(false),
+                                generatedInStaging,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    foreach (var page in contentPages
+                                 .Where(page => page.IsIncludedIn(
+                                     GeneratedPageDerivedSurfaces.SocialImage)))
+                    {
+                        await WriteBinaryAssetAsync(
+                                outputTransaction.StagingRoot,
+                                routes.ContentSocialImage(page.Route).RelativeOutputPath,
+                                await BuildContentSocialImageAsync(
+                                        configuration,
+                                        page,
+                                        cancellationToken)
+                                    .ConfigureAwait(false),
+                                generatedInStaging,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                if (customization.GenerateLlmsTxt)
+                {
+                    await WriteTextAsync(
+                            outputTransaction.StagingRoot,
+                            routes.Llms.RelativeOutputPath,
+                            BuildLlmsTxt(configuration, publishedPosts, contentPages),
+                            generatedInStaging,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            if (options.Quality is { } qualityOptions)
+            {
+                var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
+                    .Select(file => file.RelativePath).Concat(assetRegistry.Files
+                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
+                    .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
+                qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
+                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
+                    assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
+                    redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
+                if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
+                    throw new SiteQualityValidationException(qualityReport);
+            }
+
+            await WriteOutputManifestAsync(
+                    outputTransaction.StagingRoot,
+                    outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
+                    generatedInStaging,
+                    cancellationToken,
+                    execution?.CacheKey)
+                .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await outputTransaction.PrepareOwnershipStateAsync(
+                    generatedInStaging,
+                    cancellationToken, outputScope.Length == 0 ? null : InScope)
+                .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
+            committed = true;
+        }
+        finally
+        {
+            try
+            {
+                if (!committed)
+                {
+                    await outputTransaction.CleanupAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await outputTransaction.DisposeAsync().ConfigureAwait(false);
             }
         }
 
-        if (customization.GenerateLlmsTxt)
+        var generated = generatedInStaging
+            .Where(path => !string.Equals(
+                Path.GetRelativePath(outputTransaction.StagingRoot, path)
+                    .Replace('\\', '/'),
+                OutputManifestRelativePath,
+                StringComparison.Ordinal))
+            .Select(path => SafeCombine(
+                outputRoot,
+                Path.GetRelativePath(outputTransaction.StagingRoot, path)))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
-            await WriteTextAsync(outputRoot, "llms.txt", BuildLlmsTxt(configuration, posts), generated, cancellationToken).ConfigureAwait(false);
+            BuildPlan = buildPlan,
+            Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
+            QualityReport = qualityReport,
+            BuildReport = CreateBuildReport(
+                buildPlan,
+                options.PreviousBuildPlan,
+                buildTimestamp,
+                options.EnvironmentName,
+                outputRoot,
+                generated,
+                unpublishedPages,
+                staleRemovedArtifacts,
+                outputTransaction.Diagnostics.Concat(qualityReport.Diagnostics).ToArray(),
+                outputTransaction.RetainedRecoveryState,
+                template,
+                execution),
+        };
+        foreach (var extension in options.Extensions)
+            await extension.AfterBuildAsync(result, cancellationToken).ConfigureAwait(false);
+        return result;
+    }
+
+    private static IReadOnlyList<PageClaim<MarkdownPost>> AdaptPublishedMarkdownPages(
+        IReadOnlyList<MarkdownPost> posts,
+        string baseUrl,
+        DateTimeOffset buildTimestamp,
+        string environmentName,
+        SiteRouteTable routeTable,
+        List<string>? unpublishedPages = null)
+    {
+        var claims = new List<PageClaim<MarkdownPost>>(posts.Count);
+        for (var index = 0; index < posts.Count; index++)
+        {
+            var post = posts[index]
+                ?? throw new ArgumentException("Posts must not contain null entries.", nameof(posts));
+            var ownerId = $"page:markdown:{index:D8}";
+            var location = new SiteSourceLocation(post.FilePath);
+            var metadata = LegacyPageAdapters.ToPageMetadata(post);
+            // 公開対象外のページはルートを所有しませんが、公開メタデータ自体は常に検証します。
+            if (!PagePublicationPolicy.ShouldPublish(metadata, buildTimestamp, environmentName))
+            {
+                unpublishedPages?.Add(LegacyPageAdapters.CreateMarkdownPageId(post).Value);
+                continue;
+            }
+
+            try
+            {
+                claims.Add(new PageClaim<MarkdownPost>(
+                    LegacyPageAdapters.ToSitePage(post, metadata, baseUrl),
+                    ownerId,
+                    location));
+            }
+            catch (Exception exception) when (exception is ArgumentException or UriFormatException)
+            {
+                routeTable.RegisterInvalidRoute(
+                    post.RelativeOutputPath,
+                    ownerId,
+                    exception,
+                    location);
+            }
         }
 
-        return new SiteGenerationResult(outputRoot, posts.Count, generated);
+        return claims;
+    }
+
+    private static SiteBuildReport CreateBuildReport(
+        SiteBuildPlan plan,
+        SiteBuildPlan? previousPlan,
+        DateTimeOffset buildTimestamp,
+        string environmentName,
+        string outputRoot,
+        IReadOnlyList<string> generated,
+        IReadOnlyList<string> unpublishedPages,
+        IReadOnlyList<string> staleRemovedArtifacts,
+        IReadOnlyList<SiteDiagnostic> diagnostics,
+        bool retainedRecoveryState,
+        ISiteTemplate template,
+        BuildExecutionResult? execution = null)
+    {
+        var generatedRelative = generated
+            .Select(path => Path.GetRelativePath(outputRoot, path).Replace('\\', '/'))
+            .Where(path => !string.Equals(path, OutputManifestRelativePath, StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var invalidations = previousPlan is null
+            ? []
+            : plan.GetInvalidatedNodes(previousPlan)
+                .Select(item => new SiteBuildReportInvalidation(
+                    item.NodeId.Value,
+                    item.Reasons))
+                .ToArray();
+        return new SiteBuildReport(
+            buildTimestamp,
+            environmentName,
+            template.GetType().FullName ?? template.GetType().Name,
+            execution?.Nodes ?? plan.Nodes.Select(node => new SiteBuildReportNode(
+                node.Id.Value,
+                node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray())),
+            invalidations,
+            execution is null ? generatedRelative : execution.Nodes.Where(node => !node.CacheHit).SelectMany(node => node.OwnedArtifacts),
+            execution?.Nodes.Where(node => node.CacheHit).SelectMany(node => node.OwnedArtifacts) ?? [],
+            unpublishedPages,
+            staleRemovedArtifacts,
+            diagnostics,
+            retainedRecoveryState: retainedRecoveryState);
+    }
+
+    private static IReadOnlyList<PageClaim<SiteExtraPage>> AdaptExtraPages(
+        IReadOnlyList<SiteExtraPage> pages,
+        string baseUrl,
+        SiteRouteTable routeTable)
+    {
+        var claims = new List<PageClaim<SiteExtraPage>>(pages.Count);
+        for (var index = 0; index < pages.Count; index++)
+        {
+            var page = pages[index]
+                ?? throw new ArgumentException("Extra pages must not contain null entries.", nameof(pages));
+            var ownerId = $"page:extra:{index:D8}";
+            try
+            {
+                claims.Add(new PageClaim<SiteExtraPage>(
+                    LegacyPageAdapters.ToSitePage(page, baseUrl),
+                    ownerId,
+                    SourceLocation: null));
+            }
+            catch (Exception exception) when (exception is ArgumentException or UriFormatException)
+            {
+                routeTable.RegisterInvalidRoute(page.RelativePath, ownerId, exception);
+            }
+        }
+
+        return claims;
+    }
+
+    private static IReadOnlyList<IntegratedContentPage> AdaptContentCollections(
+        IReadOnlyList<SiteContentCollection> collections,
+        string baseUrl,
+        DateTimeOffset buildTimestamp,
+        string environmentName,
+        SiteRouteTable routeTable,
+        ICollection<string> unpublishedPages,
+        CancellationToken cancellationToken)
+    {
+        ValidateContentCollectionIds(collections);
+        var pages = new List<IntegratedContentPage>();
+        foreach (var collection in collections
+                     .Select((value, index) => (Value: value, Index: index))
+                     .OrderBy(item => item.Value?.Id.Value, StringComparer.Ordinal)
+                     .ThenBy(item => item.Index))
+        {
+            if (collection.Value is null)
+            {
+                throw new ArgumentException(
+                    "Content collections must not contain null entries.",
+                    nameof(collections));
+            }
+
+            pages.AddRange(collection.Value.CreatePages(
+                baseUrl,
+                buildTimestamp,
+                environmentName,
+                routeTable,
+                unpublishedPages,
+                cancellationToken));
+        }
+
+        return pages;
+    }
+
+    private static void ValidateContentCollectionIds(
+        IReadOnlyList<SiteContentCollection> collections)
+    {
+        var duplicateIds = collections
+            .Select((collection, index) => collection
+                ?? throw new ArgumentException(
+                    $"Content collection at index {index} is null.",
+                    nameof(collections)))
+            .GroupBy(static collection => collection.Id)
+            .Where(static group => group.Skip(1).Any())
+            .Select(static group => group.Key.Value)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (duplicateIds.Length != 0)
+        {
+            throw new ArgumentException(
+                $"Content collection identifiers must be unique: {string.Join(", ", duplicateIds.Select(static id => $"'{id}'"))}.",
+                nameof(collections));
+        }
+    }
+
+    private static IReadOnlyList<PageClaim<TContent>> FilterPublished<TContent>(
+        IReadOnlyList<PageClaim<TContent>> claims,
+        DateTimeOffset buildTimestamp,
+        string environmentName)
+        where TContent : notnull
+    {
+        var published = LegacyPageAdapters.FilterPublished(
+            claims.Select(claim => claim.Page),
+            buildTimestamp,
+            environmentName);
+        var publishedPages = published.ToHashSet(ReferenceEqualityComparer.Instance);
+        return claims.Where(claim => publishedPages.Contains(claim.Page)).ToArray();
+    }
+
+    private static void RegisterPageRoutes<TContent>(
+        SiteRouteTable routeTable,
+        IReadOnlyList<PageClaim<TContent>> claims,
+        bool claimsOutput)
+        where TContent : notnull
+    {
+        foreach (var claim in claims)
+        {
+            if (claimsOutput)
+            {
+                routeTable.Register(claim.Page.Route, claim.OwnerId, claim.SourceLocation);
+            }
+            else
+            {
+                routeTable.RegisterPublicRoute(claim.Page.Route, claim.OwnerId, claim.SourceLocation);
+            }
+        }
+    }
+
+    private static DateTimeOffset ResolveBuildTimestamp(DateTimeOffset? explicitTimestamp)
+    {
+        if (explicitTimestamp is not null)
+        {
+            return explicitTimestamp.Value.ToUniversalTime();
+        }
+
+        var sourceDateEpoch = Environment.GetEnvironmentVariable("SOURCE_DATE_EPOCH");
+        if (sourceDateEpoch is null)
+        {
+            return DateTimeOffset.UtcNow;
+        }
+
+        if (!long.TryParse(sourceDateEpoch, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
+        {
+            throw new InvalidOperationException(
+                $"Environment variable SOURCE_DATE_EPOCH must be a valid Unix timestamp in whole seconds, but was '{sourceDateEpoch}'.");
+        }
+
+        try
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(seconds);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new InvalidOperationException(
+                $"Environment variable SOURCE_DATE_EPOCH is outside the supported Unix timestamp range: '{sourceDateEpoch}'.",
+                exception);
+        }
     }
 
     /// <summary>Validates posts by applying the validators in <paramref name="customization"/> in order.</summary>
@@ -213,9 +1005,12 @@ public sealed class SiteGenerator
 
     internal string RenderMarkdown(string markdown) => Markdown.ToHtml(markdown, _pipeline);
 
-    internal string GetSitePath(RenderContext configuration, string relativePath) => SitePath(configuration, relativePath);
+    internal string GetSitePath(RenderContext configuration, string relativePath) =>
+        relativePath.Length == 0
+            ? configuration.Routes.PublicPath(configuration.Routes.Root)
+            : configuration.Routes.PublicPath(configuration.Routes.File(relativePath));
 
-    internal string RenderTemplateDocument(RenderContext configuration, SiteTemplateDocument document)
+    internal string RenderTemplateDocument(RenderContext configuration, SiteTemplateDocument document, PageMetadata? metadata = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         return Layout(
@@ -227,116 +1022,95 @@ public sealed class SiteGenerator
             document.OpenGraphType,
             document.PublishedAt,
             document.SocialImageRelativePath,
-            includeBlogNavigation: false);
-    }
-
-    internal static string RenderTemplateTableOfContents(
-        RenderContext configuration,
-        IReadOnlyList<SiteTemplateHeading> headings)
-    {
-        ArgumentNullException.ThrowIfNull(headings);
-        var body = new StringBuilder();
-        body.AppendLine("<aside class=\"post-toc\" aria-labelledby=\"post-toc-title\">");
-        body.AppendLine($"<h2 id=\"post-toc-title\">{Html.Encode(configuration.Text.TableOfContentsHeading)}</h2>");
-        if (headings.Count == 0)
-        {
-            body.AppendLine($"<p>{Html.Encode(configuration.Text.TableOfContentsEmpty)}</p>");
-        }
-        else
-        {
-            body.AppendLine($"<nav class=\"toc-nav\" aria-label=\"{Html.Encode(configuration.Text.TableOfContentsHeading)}\">");
-            body.AppendLine("<div class=\"toc-track\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<div class=\"toc-indicator\" aria-hidden=\"true\"></div>");
-            body.AppendLine("<ol class=\"toc-list\">");
-            foreach (var heading in headings)
-            {
-                var depth = Math.Clamp(heading.Level - 1, 1, 3);
-                body.AppendLine($"<li class=\"toc-depth-{depth}\" data-toc-item><a data-toc-link href=\"#{Html.Encode(heading.Id)}\">{Html.Encode(heading.Text)}</a></li>");
-            }
-
-            body.AppendLine("</ol>");
-            body.AppendLine("</nav>");
-        }
-
-        body.AppendLine("</aside>");
-        return body.ToString();
+            includeBlogNavigation: false, metadata);
     }
 
     internal SiteTemplateResult RenderBlogTemplate(SiteTemplateContext templateContext)
     {
         var configuration = templateContext.Configuration;
         var posts = templateContext.Posts;
+        var searchIndex = BuildSearchIndex(configuration, posts, configuration.ContentPages);
+        var searchIndexFingerprint = ComputeTextContentSha256(searchIndex);
         var files = new List<SiteTemplateFile>
         {
-            new() { RelativePath = "assets/site.css", Content = BuildCss(configuration) },
-            new() { RelativePath = "assets/site.js", Content = BuildSiteScript() },
-            new() { RelativePath = "assets/search.js", Content = BuildSearchScript(configuration.Text) },
-            new() { RelativePath = "search-index.json", Content = BuildSearchIndex(configuration, posts) },
-            new() { RelativePath = "index.html", Content = RenderIndex(configuration, posts) },
-            new() { RelativePath = "archives.html", Content = RenderArchives(configuration, posts) },
-            new() { RelativePath = "tags.html", Content = RenderTags(configuration, posts) }
+            new() { RelativePath = configuration.Routes.SiteCss.RelativeOutputPath, Content = BuildCss(configuration) },
+            new() { RelativePath = configuration.Routes.SiteScript.RelativeOutputPath, Content = BuildSiteScript() },
+            new() { RelativePath = configuration.Routes.SearchScript.RelativeOutputPath, Content = BuildSearchScript(configuration.Text) },
+            new() { RelativePath = configuration.Routes.SearchIndex.RelativeOutputPath, Content = searchIndex },
+            new() { RelativePath = configuration.Routes.Home.RelativeOutputPath, Content = RenderIndex(configuration, posts) },
+            new() { RelativePath = configuration.Routes.Archives.RelativeOutputPath, Content = RenderArchives(configuration, posts) },
+            new() { RelativePath = configuration.Routes.Tags.RelativeOutputPath, Content = RenderTags(configuration, posts) }
         };
 
         foreach (var extraPage in configuration.ExtraPages)
         {
             files.Add(new SiteTemplateFile
             {
-                RelativePath = extraPage.RelativePath,
+                RelativePath = configuration.Routes.ExtraPage(extraPage).RelativeOutputPath,
                 Content = RenderExtraPage(configuration, extraPage)
             });
         }
 
         files.Add(new SiteTemplateFile
         {
-            RelativePath = "search.html",
-            Content = RenderSearch(configuration, DateTimeOffset.UtcNow)
+            RelativePath = configuration.Routes.SearchPage.RelativeOutputPath,
+            Content = RenderSearch(configuration, searchIndexFingerprint)
         });
 
         foreach (var post in posts)
         {
             files.Add(new SiteTemplateFile
             {
-                RelativePath = post.RelativeOutputPath,
+                RelativePath = configuration.Routes.Post(post).RelativeOutputPath,
                 Content = RenderPost(configuration, post)
             });
         }
 
         files.Add(new SiteTemplateFile
         {
-            RelativePath = "feed.xml",
-            Content = RenderFeed(configuration, posts)
+            RelativePath = configuration.Routes.Feed.RelativeOutputPath,
+            Content = RenderFeed(configuration, posts, configuration.ContentPages)
         });
         files.Add(new SiteTemplateFile
         {
-            RelativePath = "sitemap.xml",
-            Content = RenderSitemap(configuration, posts)
+            RelativePath = configuration.Routes.Sitemap.RelativeOutputPath,
+            Content = RenderSitemap(configuration, posts, configuration.ContentPages)
         });
 
         return new SiteTemplateResult(files);
     }
 
-    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext)
+    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext, bool enableSearch = false)
     {
         var configuration = templateContext.Configuration;
         var root = BuildDocsNavigation(templateContext.Posts);
         var orderedPosts = FlattenDocsNavigation(root).ToArray();
         var files = new List<SiteTemplateFile>
         {
-            new() { RelativePath = "assets/site.css", Content = BuildDocsCss(configuration) },
-            new() { RelativePath = "assets/site.js", Content = BuildDocsScript() },
+            new() { RelativePath = configuration.Routes.SiteCss.RelativeOutputPath, Content = BuildDocsCss(configuration) },
+            new() { RelativePath = configuration.Routes.SiteScript.RelativeOutputPath, Content = BuildDocsScript() },
             new()
             {
-                RelativePath = "index.html",
-                Content = RenderDocsIndex(configuration, root, orderedPosts)
+                RelativePath = configuration.Routes.Home.RelativeOutputPath,
+                Content = RenderDocsIndex(configuration, templateContext.Navigation, orderedPosts, enableSearch)
             }
         };
+
+        if (enableSearch)
+        {
+            var index = BuildSearchIndex(configuration, templateContext.Posts, configuration.ContentPages);
+            files.Add(new() { RelativePath = configuration.Routes.SearchIndex.RelativeOutputPath, Content = index });
+            files.Add(new() { RelativePath = configuration.Routes.SearchScript.RelativeOutputPath, Content = BuildSearchScript(configuration.Text, contextual: true) });
+            files.Add(new() { RelativePath = configuration.Routes.SearchPage.RelativeOutputPath, Content = RenderSearch(configuration, ComputeTextContentSha256(index), templateContext.Navigation) });
+            files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
+        }
 
         foreach (var post in orderedPosts)
         {
             files.Add(new SiteTemplateFile
             {
-                RelativePath = post.RelativeOutputPath,
-                Content = RenderDocsPost(configuration, root, orderedPosts, post)
+                RelativePath = configuration.Routes.Post(post).RelativeOutputPath,
+                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, post)
             });
         }
 
@@ -344,86 +1118,152 @@ public sealed class SiteGenerator
         {
             files.Add(new SiteTemplateFile
             {
-                RelativePath = extraPage.RelativePath,
-                Content = RenderDocsExtraPage(configuration, root, extraPage)
+                RelativePath = configuration.Routes.ExtraPage(extraPage).RelativeOutputPath,
+                Content = RenderDocsExtraPage(configuration, templateContext.Navigation, extraPage)
             });
         }
 
         return new SiteTemplateResult(files);
     }
 
-    private static IEnumerable<string> GetCommonArtifactPaths(
+    private static IReadOnlyList<SiteRoute> GetCommonArtifactRoutes(
         RenderContext configuration,
         IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages,
         bool generateLlmsTxt)
     {
-        var paths = new List<string>();
+        var artifacts = new List<SiteRoute>();
         if (configuration.HasFaviconAssets)
         {
-            paths.AddRange(BundledFaviconAssets.Select(FaviconAssetPath));
-            paths.Add("site.webmanifest");
+            foreach (var asset in BundledFaviconAssets)
+            {
+                artifacts.Add(configuration.Routes.Favicon(asset));
+            }
+
+            artifacts.Add(configuration.Routes.WebManifest);
         }
 
         if (configuration.HasSocialImage)
         {
-            paths.Add(SocialImageAssetPath(DefaultSocialImageFileName));
-            paths.AddRange(posts.Select(PostSocialImagePath));
+            artifacts.Add(configuration.Routes.DefaultSocialImage);
+            foreach (var post in posts)
+            {
+                artifacts.Add(configuration.Routes.PostSocialImage(post));
+            }
+
+            foreach (var page in contentPages
+                         .Where(page => page.IsIncludedIn(
+                             GeneratedPageDerivedSurfaces.SocialImage)))
+            {
+                artifacts.Add(configuration.Routes.ContentSocialImage(page.Route));
+            }
         }
 
         if (generateLlmsTxt)
         {
-            paths.Add("llms.txt");
+            artifacts.Add(configuration.Routes.Llms);
         }
 
-        return paths;
+        return artifacts;
     }
 
-    private static void ValidateTemplateFiles(
-        string outputRoot,
+    private static void RegisterCommonRoutes(
+        SiteRouteTable routeTable,
+        IReadOnlyList<SiteRoute> artifacts,
+        Func<SiteRoute, string> ownerId)
+    {
+        foreach (var artifact in artifacts)
+        {
+            routeTable.Register(artifact, ownerId(artifact));
+        }
+    }
+
+    private static IReadOnlyList<SiteTemplateFile> RegisterTemplateRoutes(
+        SiteRouteTable routeTable,
+        SiteRouteCatalog routes,
         IReadOnlyList<SiteTemplateFile> files,
-        IEnumerable<string> commonArtifactPaths)
+        IReadOnlyList<SiteRoute> commonArtifacts,
+        bool rejectCommonArtifactConflict,
+        Func<SiteRoute, string> ownerId)
     {
         ArgumentNullException.ThrowIfNull(files);
-        var commonPaths = new HashSet<string>(
-            commonArtifactPaths.Select(path => NormalizeOutputPath(outputRoot, path)),
-            StringComparer.OrdinalIgnoreCase);
-        var templatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var file in files)
+        var commonPaths = commonArtifacts
+            .Select(route => route.RelativeOutputPath)
+            .ToHashSet(StringComparer.Ordinal);
+        var templatePaths = new HashSet<string>(StringComparer.Ordinal);
+        var normalizedFiles = new List<SiteTemplateFile>(files.Count);
+        for (var index = 0; index < files.Count; index++)
         {
+            var file = files[index];
             if (file is null)
             {
                 throw new InvalidOperationException("A template returned a null file.");
             }
 
-            var path = NormalizeOutputPath(outputRoot, file.RelativePath);
-            if (!templatePaths.Add(path))
+            if (file.RelativePath is null)
             {
-                throw new InvalidOperationException($"Template output path '{file.RelativePath}' is duplicated.");
+                throw new InvalidOperationException("A template output path must not be null.");
             }
 
-            if (commonPaths.Contains(path))
+            var fallbackOwner = $"template:file:{index:D8}";
+            try
             {
-                throw new InvalidOperationException(
-                    $"Template output path '{file.RelativePath}' conflicts with a common artifact.");
+                var route = routes.TryGetFile(file.RelativePath, out var knownRoute)
+                    ? knownRoute
+                    : routes.File(file.RelativePath);
+                if (!templatePaths.Add(route.RelativeOutputPath))
+                {
+                    throw new InvalidOperationException(
+                        $"Template output path '{file.RelativePath}' is duplicated.");
+                }
+
+                if (rejectCommonArtifactConflict
+                    && commonPaths.Contains(route.RelativeOutputPath))
+                {
+                    throw new InvalidOperationException(
+                        $"Template output path '{file.RelativePath}' conflicts with a common artifact.");
+                }
+
+                routeTable.Register(route, ownerId(route));
+                normalizedFiles.Add(file with { RelativePath = route.RelativeOutputPath });
+            }
+            catch (Exception exception) when (exception is ArgumentException or UriFormatException)
+            {
+                routeTable.RegisterInvalidRoute(
+                    file.RelativePath,
+                    fallbackOwner,
+                    exception);
             }
         }
+
+        return normalizedFiles;
     }
 
-    private static string NormalizeOutputPath(string outputRoot, string relativePath)
+    private static IReadOnlyList<SiteTemplateFile> RegisterCollectionRoutes(
+        SiteRouteTable routeTable,
+        IReadOnlyList<SiteTemplateFile> files,
+        IReadOnlyList<IntegratedContentPage> pages)
     {
-        if (string.IsNullOrWhiteSpace(relativePath))
+        if (files.Count != pages.Count)
         {
-            throw new InvalidOperationException("A template output path must not be empty.");
+            throw new InvalidOperationException("Rendered collection page count does not match its route declarations.");
         }
 
-        var fullPath = SafeCombine(outputRoot, relativePath);
-        var normalized = Path.GetRelativePath(outputRoot, fullPath)
-            .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace(Path.AltDirectorySeparatorChar, '/');
-        if (normalized is "." or "")
+        var normalized = new List<SiteTemplateFile>(files.Count);
+        for (var index = 0; index < files.Count; index++)
         {
-            throw new InvalidOperationException($"Output path '{relativePath}' must name a file.");
+            var file = files[index];
+            var page = pages[index];
+            if (!StringComparer.Ordinal.Equals(
+                    file.RelativePath,
+                    page.Route.RelativeOutputPath))
+            {
+                throw new InvalidOperationException(
+                    $"Rendered collection page '{page.PageId}' changed its declared output path.");
+            }
+
+            routeTable.Register(page.Route, page.OwnerId, page.SourceLocation);
+            normalized.Add(file with { RelativePath = page.Route.RelativeOutputPath });
         }
 
         return normalized;
@@ -473,8 +1313,15 @@ public sealed class SiteGenerator
 
             if (node.Post is not null)
             {
-                throw new InvalidOperationException(
-                    $"Posts '{node.Post.FilePath}' and '{post.FilePath}' have the same documentation path.");
+                if (!StringComparer.OrdinalIgnoreCase.Equals(
+                        node.Post.RelativeOutputPath,
+                        post.RelativeOutputPath))
+                {
+                    throw new InvalidOperationException(
+                        $"Posts '{node.Post.FilePath}' and '{post.FilePath}' have the same documentation path.");
+                }
+
+                continue;
             }
 
             node.Post = post;
@@ -485,19 +1332,20 @@ public sealed class SiteGenerator
 
     private IReadOnlyList<SiteTemplatePage> BuildTemplatePages(
         RenderContext configuration,
-        DocsNavigationNode root)
+        DocsNavigationNode root,
+        bool renderContent = true)
     {
         var orderedPosts = FlattenDocsNavigation(root).ToArray();
         var pages = orderedPosts
             .Select(post =>
             {
-                var contentHtml = AddNewTabAttributesToExternalPostLinks(
+                var contentHtml = !renderContent ? string.Empty : AddNewTabAttributesToExternalPostLinks(
                     configuration,
                     NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
                 return new SiteTemplatePage
                 {
                     Post = post,
-                    Url = SitePath(configuration, post.RelativeOutputPath),
+                    Url = configuration.Routes.PublicPath(configuration.Routes.Post(post)),
                     ContentHtml = contentHtml,
                     Headings = ExtractTemplateHeadings(contentHtml)
                 };
@@ -595,18 +1443,19 @@ public sealed class SiteGenerator
 
     private static string RenderDocsIndex(
         RenderContext configuration,
-        DocsNavigationNode root,
-        IReadOnlyList<MarkdownPost> orderedPosts)
+        SiteTemplateNavigationNode root,
+        IReadOnlyList<MarkdownPost> orderedPosts, bool enableSearch = false)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"docs-hero\">");
         body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
         body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
+        if (enableSearch) body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
         if (orderedPosts.Count > 0)
         {
             var first = orderedPosts[0];
-            body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(SitePath(configuration, first.RelativeOutputPath))}\">Start reading</a></p>");
+            body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(first)))}\">Start reading</a></p>");
         }
 
         body.AppendLine("</section>");
@@ -615,7 +1464,7 @@ public sealed class SiteGenerator
 
     private string RenderDocsPost(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts,
         MarkdownPost post)
     {
@@ -643,216 +1492,43 @@ public sealed class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            PostSocialImagePath(post));
+            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
     }
 
     private static string RenderDocsExtraPage(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         SiteExtraPage page) =>
         DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, page.RelativePath, null);
-
-    private static string RenderDocsPagination(
-        RenderContext configuration,
-        IReadOnlyList<MarkdownPost> orderedPosts,
-        int currentIndex)
-    {
-        if (currentIndex < 0)
-        {
-            return string.Empty;
-        }
-
-        var previous = currentIndex > 0 ? orderedPosts[currentIndex - 1] : null;
-        var next = currentIndex + 1 < orderedPosts.Count ? orderedPosts[currentIndex + 1] : null;
-        if (previous is null && next is null)
-        {
-            return string.Empty;
-        }
-
-        var body = new StringBuilder();
-        body.AppendLine("<nav class=\"docs-pagination\" aria-label=\"Document navigation\">");
-        if (previous is not null)
-        {
-            body.AppendLine($"<a class=\"docs-pagination-previous\" rel=\"prev\" href=\"{Html.Encode(SitePath(configuration, previous.RelativeOutputPath))}\"><small>Previous</small><span>{Html.Encode(GetDocsLabel(previous))}</span></a>");
-        }
-        else
-        {
-            body.AppendLine("<span></span>");
-        }
-
-        if (next is not null)
-        {
-            body.AppendLine($"<a class=\"docs-pagination-next\" rel=\"next\" href=\"{Html.Encode(SitePath(configuration, next.RelativeOutputPath))}\"><small>Next</small><span>{Html.Encode(GetDocsLabel(next))}</span></a>");
-        }
-
-        body.AppendLine("</nav>");
-        return body.ToString();
-    }
 
     private static string RenderDocsTableOfContents(RenderContext configuration, string postBody) =>
         RenderTableOfContents(configuration, postBody)
             .Replace("class=\"post-toc\"", "class=\"post-toc docs-toc\"", StringComparison.Ordinal);
 
-    private static string DocsLayout(
-        RenderContext configuration,
-        DocsNavigationNode root,
-        string title,
-        string body,
-        string relativePath,
-        string? currentPagePath,
-        string? tableOfContents,
-        string? description = null,
-        string openGraphType = "website",
-        DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
-    {
-        var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
-        var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
-        var canonicalUrl = CombineUrl(configuration.Site.BaseUrl, relativePath);
-        var socialImageUrl = CombineUrl(
-            configuration.Site.BaseUrl,
-            socialImageRelativePath ?? SocialImageAssetPath(DefaultSocialImageFileName));
-        var homePath = Html.Encode(SitePath(configuration, "index.html"));
-        return $"""
-            <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <meta name="color-scheme" content="dark">
-              <meta name="theme-color" content="{Html.Encode(configuration.Theme.ThemeColor)}">
-              <title>{Html.Encode(fullTitle)}</title>
-              <meta name="description" content="{Html.Encode(pageDescription)}">
-              <link rel="canonical" href="{Html.Encode(canonicalUrl)}">
-              <meta property="og:site_name" content="{Html.Encode(configuration.Site.Title)}">
-              <meta property="og:type" content="{Html.Encode(openGraphType)}">
-              <meta property="og:title" content="{Html.Encode(fullTitle)}">
-              <meta property="og:description" content="{Html.Encode(pageDescription)}">
-              <meta property="og:url" content="{Html.Encode(canonicalUrl)}">
-              <meta property="og:image" content="{Html.Encode(socialImageUrl)}">
-              <meta property="og:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
-              <meta name="twitter:card" content="summary_large_image">
-              <meta name="twitter:title" content="{Html.Encode(fullTitle)}">
-              <meta name="twitter:description" content="{Html.Encode(pageDescription)}">
-              <meta name="twitter:image" content="{Html.Encode(socialImageUrl)}">
-              <meta name="twitter:image:alt" content="{Html.Encode(configuration.Site.Title)} social preview">
-              {BuildPublishedTimeMetadata(publishedAt)}
-              <link rel="stylesheet" href="{Html.Encode(SitePath(configuration, "assets/site.css"))}">
-              {BuildFaviconLinks(configuration)}
-              {BuildGoogleAnalyticsSnippet(configuration)}
-              <script src="{Html.Encode(SitePath(configuration, "assets/site.js"))}" defer></script>
-            </head>
-            <body class="docs-body">
-              <header class="docs-header">
-                <a class="docs-brand" href="{homePath}">{Html.Encode(configuration.Site.Title)}</a>
-                <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>Menu</button>
-              </header>
-              <div class="docs-shell">
-                {RenderDocsSidebar(configuration, root, currentPagePath)}
-                <main class="docs-main">
-                  <article class="docs-content">
-            {body}
-                  </article>
-                </main>
-                {tableOfContents ?? string.Empty}
-              </div>
-              <footer class="docs-footer"><p>Generated by {Html.Encode(configuration.Site.Title)}.</p></footer>
-            </body>
-            </html>
-            """;
-    }
-
     private static string RenderDocsSidebar(
         RenderContext configuration,
-        DocsNavigationNode root,
+        SiteTemplateNavigationNode root,
         string? currentPagePath)
     {
-        var body = new StringBuilder();
-        body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
-        body.AppendLine("<nav aria-label=\"Documentation navigation\">");
-        body.AppendLine("<ul class=\"docs-nav-list\">");
-        RenderDocsNavigationNodes(body, configuration, root, currentPagePath);
-        RenderDocsExtraNavigationNodes(body, configuration, currentPagePath);
-        body.AppendLine("</ul>");
-        body.AppendLine("</nav>");
-        body.AppendLine("</aside>");
-        return body.ToString();
+        var links = configuration.ExtraPages
+            .Where(page => !string.IsNullOrWhiteSpace(page.NavLabel))
+            .Select(page => (page.NavLabel!, configuration.Routes.PublicPath(configuration.Routes.ExtraPage(page)), false))
+            .Concat(configuration.ContentPages
+                .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation)
+                    && !string.IsNullOrWhiteSpace(page.Metadata.Title))
+                .Select(page => (page.Metadata.Title!, configuration.Routes.PublicPath(page.Route), false)));
+        var currentUrl = string.IsNullOrWhiteSpace(currentPagePath)
+            ? null
+            : configuration.Routes.PublicPath(configuration.Routes.File(currentPagePath));
+        return DocsNavigationComponent.RenderCore(root, links, currentUrl);
     }
-
-    private static void RenderDocsNavigationNodes(
-        StringBuilder body,
-        RenderContext configuration,
-        DocsNavigationNode parent,
-        string? currentPagePath)
-    {
-        foreach (var node in OrderDocsNavigationChildren(parent))
-        {
-            var hasChildren = node.Children.Count > 0;
-            var isCurrent = node.Post is not null
-                && string.Equals(node.Post.RelativeOutputPath, currentPagePath, StringComparison.OrdinalIgnoreCase);
-            var isAncestor = ContainsDocsPath(node, currentPagePath);
-            if (!hasChildren && node.Post is not null)
-            {
-                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-                body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, node.Post.RelativeOutputPath))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a></li>");
-                continue;
-            }
-
-            var folderCssClass = isAncestor ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
-            body.AppendLine($"<li class=\"{folderCssClass}\">");
-            if (node.Post is not null)
-            {
-                var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-                var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-                body.AppendLine($"<a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, node.Post.RelativeOutputPath))}\"{current}>{Html.Encode(GetDocsLabel(node.Post))}</a>");
-            }
-            else
-            {
-                body.AppendLine($"<span>{Html.Encode(FormatDocsFolderLabel(node.Segment))}</span>");
-            }
-
-            body.AppendLine("<ul>");
-            RenderDocsNavigationNodes(body, configuration, node, currentPagePath);
-            body.AppendLine("</ul></li>");
-        }
-    }
-
-    private static void RenderDocsExtraNavigationNodes(
-        StringBuilder body,
-        RenderContext configuration,
-        string? currentPagePath)
-    {
-        foreach (var page in configuration.ExtraPages.Where(page => !string.IsNullOrWhiteSpace(page.NavLabel)))
-        {
-            var isCurrent = string.Equals(page.RelativePath, currentPagePath, StringComparison.OrdinalIgnoreCase);
-            var cssClass = isCurrent ? "docs-nav-link is-current" : "docs-nav-link";
-            var current = isCurrent ? " aria-current=\"page\"" : string.Empty;
-            body.AppendLine($"<li><a class=\"{cssClass}\" href=\"{Html.Encode(SitePath(configuration, page.RelativePath))}\"{current}>{Html.Encode(page.NavLabel)}</a></li>");
-        }
-    }
-
-    private static bool ContainsDocsPath(DocsNavigationNode node, string? currentDocumentPath)
-    {
-        if (string.IsNullOrWhiteSpace(currentDocumentPath))
-        {
-            return false;
-        }
-
-        if (node.Post is not null
-            && string.Equals(node.Post.RelativeOutputPath, currentDocumentPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return node.Children.Values.Any(child => ContainsDocsPath(child, currentDocumentPath));
-    }
-
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
         Layout(configuration, page.Title, page.BodyHtml, page.RelativePath);
 
-    private static string BuildLlmsTxt(RenderContext configuration, IReadOnlyList<MarkdownPost> posts)
+    private static string BuildLlmsTxt(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages)
     {
         var site = configuration.Site;
         var builder = new StringBuilder();
@@ -863,7 +1539,10 @@ public sealed class SiteGenerator
         }
 
         builder.Append("\n## ").Append(configuration.Text.LlmsPostsHeading).Append('\n');
-        if (posts.Count == 0)
+        var includedContentPages = contentPages
+            .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.LlmsTxt))
+            .ToArray();
+        if (posts.Count == 0 && includedContentPages.Length == 0)
         {
             return builder.ToString();
         }
@@ -872,10 +1551,25 @@ public sealed class SiteGenerator
         foreach (var post in posts)
         {
             builder.Append("- [").Append(post.FrontMatter.Title).Append("](")
-                .Append(CombineUrl(site.BaseUrl, post.RelativeOutputPath)).Append(')');
+                .Append(configuration.Routes.AbsoluteUrl(configuration.Routes.Post(post))).Append(')');
             if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
             {
                 builder.Append(": ").Append(post.FrontMatter.Summary);
+            }
+
+            builder.Append('\n');
+        }
+
+        foreach (var page in includedContentPages)
+        {
+            builder.Append("- [")
+                .Append(page.Metadata.Title ?? page.EntryId.Value)
+                .Append("](")
+                .Append(configuration.Routes.AbsoluteUrl(page.Route))
+                .Append(')');
+            if (!string.IsNullOrWhiteSpace(page.Metadata.Description))
+            {
+                builder.Append(": ").Append(page.Metadata.Description);
             }
 
             builder.Append('\n');
@@ -977,7 +1671,7 @@ public sealed class SiteGenerator
             {
                 var tag = group.Key;
                 var count = group.Select(item => item.Post).Distinct().Count();
-                var href = $"{SitePath(configuration, "search.html")}?tag={Uri.EscapeDataString(tag)}";
+                var href = $"{configuration.Routes.PublicPath(configuration.Routes.SearchPage)}?tag={Uri.EscapeDataString(tag)}";
                 body.AppendLine($"""
                     <a class="tag-link" href="{Html.Encode(href)}">
                       <span>{Html.Encode(tag)}</span>
@@ -1033,7 +1727,7 @@ public sealed class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            PostSocialImagePath(post));
+            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
     }
 
     private static string RenderTableOfContents(RenderContext configuration, string postBody)
@@ -1043,7 +1737,7 @@ public sealed class SiteGenerator
             ExtractTemplateHeadings(postBody));
     }
 
-    private static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
+    internal static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
         HeadingRegex.Matches(postBody)
             .Select(match => new
             {
@@ -1063,10 +1757,7 @@ public sealed class SiteGenerator
 
     private static string AddNewTabAttributesToExternalPostLinks(RenderContext configuration, string postBody)
     {
-        if (!Uri.TryCreate(NormalizeBaseUrl(configuration.Site.BaseUrl), UriKind.Absolute, out var siteUri))
-        {
-            return postBody;
-        }
+        var siteUri = new Uri(configuration.Routes.AbsoluteRootUrl, UriKind.Absolute);
 
         return AnchorTagRegex.Replace(postBody, match =>
         {
@@ -1108,7 +1799,7 @@ public sealed class SiteGenerator
 
     private static string RenderPostCard(RenderContext configuration, MarkdownPost post, string? extraClass = null)
     {
-        var href = SitePath(configuration, post.RelativeOutputPath);
+        var href = configuration.Routes.PublicPath(configuration.Routes.Post(post));
         var displayDate = SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date);
         var cardClass = string.IsNullOrWhiteSpace(extraClass) ? "card" : $"card {extraClass}";
         return $"""
@@ -1122,7 +1813,7 @@ public sealed class SiteGenerator
 
     private static string RenderArchivePostRow(RenderContext configuration, MarkdownPost post)
     {
-        var href = SitePath(configuration, post.RelativeOutputPath);
+        var href = configuration.Routes.PublicPath(configuration.Routes.Post(post));
         var displayDate = SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date);
         return $"""
             <article class="archive-row">
@@ -1156,16 +1847,17 @@ public sealed class SiteGenerator
         return body.ToString();
     }
 
-    private string RenderSearch(RenderContext configuration, DateTimeOffset generatedAt)
+    private string RenderSearch(RenderContext configuration, string searchIndexFingerprint, SiteTemplateNavigationNode? docsNavigation = null)
     {
-        var indexPath = $"{SitePath(configuration, "search-index.json")}?v={generatedAt:yyyyMMddHHmmss}";
-        var scriptPath = SitePath(configuration, "assets/search.js");
+        var indexPath =
+            $"{configuration.Routes.PublicPath(configuration.Routes.SearchIndex)}?v={searchIndexFingerprint}";
+        var scriptPath = configuration.Routes.PublicPath(configuration.Routes.SearchScript);
         var body = new StringBuilder();
         body.AppendLine("<section class=\"hero search-hero\">");
         body.AppendLine("<p class=\"eyebrow\">Search</p>");
         body.AppendLine($"<h1>{configuration.Text.SearchHeading}</h1>");
         body.AppendLine($"<p>{configuration.Text.SearchIntro}</p>");
-        body.AppendLine($"<form class=\"search-box\" role=\"search\" action=\"{Html.Encode(SitePath(configuration, "search.html"))}\" method=\"get\">");
+        body.AppendLine($"<form class=\"search-box\" role=\"search\" action=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\" method=\"get\">");
         body.AppendLine($"<input id=\"search-input\" name=\"q\" type=\"search\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" enterkeyhint=\"search\" placeholder=\"{configuration.Text.SearchInputPlaceholder}\" aria-label=\"{configuration.Text.SearchInputLabel}\" autofocus>");
         body.AppendLine("</form>");
         body.AppendLine("<p id=\"search-scope\" class=\"search-scope\" role=\"status\" aria-live=\"polite\" hidden></p>");
@@ -1173,14 +1865,18 @@ public sealed class SiteGenerator
         body.AppendLine("</section>");
         body.AppendLine($"<section id=\"search-app\" data-index=\"{Html.Encode(indexPath)}\">");
         body.AppendLine("<div id=\"search-results\" class=\"archive-post-list\"></div>");
-        body.AppendLine("<noscript><p>" + configuration.Text.SearchNoscriptPrefix + "<a href=\"" + Html.Encode(SitePath(configuration, "archives.html")) + "\">" + configuration.Text.SearchNoscriptArchivesLinkText + "</a>" + configuration.Text.SearchNoscriptSuffix + "</p></noscript>");
+        body.AppendLine("<noscript><p>" + configuration.Text.SearchNoscriptPrefix + "<a href=\"" + Html.Encode(configuration.Routes.PublicPath(docsNavigation is null ? configuration.Routes.Archives : configuration.Routes.Home)) + "\">" + (docsNavigation is null ? configuration.Text.SearchNoscriptArchivesLinkText : Html.Encode(configuration.Site.Title)) + "</a>" + configuration.Text.SearchNoscriptSuffix + "</p></noscript>");
         body.AppendLine("</section>");
         body.AppendLine($"<script src=\"{Html.Encode(scriptPath)}\" defer></script>");
-        return Layout(configuration, "Search", body.ToString(), "search.html");
+        return docsNavigation is null ? Layout(configuration, "Search", body.ToString(), "search.html")
+            : DocsLayout(configuration, docsNavigation, "Search", body.ToString(), "search.html", "search.html", null, includeBlogNavigation: false);
     }
 
 
-    private string BuildSearchIndex(RenderContext configuration, IReadOnlyList<MarkdownPost> posts)
+    private string BuildSearchIndex(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages)
     {
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
@@ -1190,20 +1886,53 @@ public sealed class SiteGenerator
                 post.FrontMatter.Title,
                 post.FrontMatter.Summary,
                 post.FrontMatter.Tags,
-                SitePath(configuration, post.RelativeOutputPath),
+                configuration.Routes.PublicPath(configuration.Routes.Post(post)),
                 SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date),
                 NormalizeForIndex(plain)));
         }
 
+        foreach (var page in contentPages
+                     .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)))
+        {
+            documents.Add(new SearchDocument(
+                page.Metadata.Title ?? page.EntryId.Value,
+                page.Metadata.Description ?? string.Empty,
+                [],
+                configuration.Routes.PublicPath(page.Route),
+                page.Metadata.PublishFrom is { } published
+                    ? SiteFormatting.FormatDateTime(configuration.Site, published)
+                    : string.Empty,
+                NormalizeForIndex(StripTagsRegex.Replace(page.DerivedContent ?? string.Empty, " ")))
+            {
+                Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
+                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(page.DerivedContent ?? string.Empty)
+            });
+        }
+
         var index = new SearchIndex(
             configuration.Site.Title,
-            DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+            configuration.BuildTimestamp.ToString("O", CultureInfo.InvariantCulture),
             documents);
         return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
     }
 
+    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
+    {
+        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
+        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
+        var sections = new List<SearchSection>();
+        foreach (var heading in document.QuerySelectorAll("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]"))
+        {
+            var body = new StringBuilder();
+            for (var sibling = heading.NextElementSibling; sibling is not null && !(sibling.LocalName.Length == 2 && sibling.LocalName[0] == 'h' && char.IsDigit(sibling.LocalName[1])); sibling = sibling.NextElementSibling)
+                body.Append(sibling.TextContent).Append(' ');
+            sections.Add(new(heading.TextContent, heading.Id!, NormalizeForIndex(body.ToString())));
+        }
+        return sections;
+    }
 
-    private static string NormalizeForIndex(string text)
+
+    internal static string NormalizeForIndex(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -1233,7 +1962,10 @@ public sealed class SiteGenerator
         return normalized.Length > SearchIndexMaxLength ? normalized[..SearchIndexMaxLength] : normalized;
     }
 
-    private string RenderFeed(RenderContext configuration, IReadOnlyList<MarkdownPost> posts)
+    private string RenderFeed(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages)
     {
         var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
         using var stringWriter = new Utf8StringWriter();
@@ -1244,16 +1976,34 @@ public sealed class SiteGenerator
         writer.WriteStartElement("channel");
         writer.WriteElementString("title", configuration.Site.Title);
         writer.WriteElementString("description", configuration.Site.Description);
-        writer.WriteElementString("link", NormalizeBaseUrl(configuration.Site.BaseUrl));
+        writer.WriteElementString("link", configuration.Routes.AbsoluteRootUrl);
         foreach (var post in posts.Take(20))
         {
-            var url = CombineUrl(configuration.Site.BaseUrl, post.RelativeOutputPath);
+            var url = configuration.Routes.AbsoluteUrl(configuration.Routes.Post(post));
             writer.WriteStartElement("item");
             writer.WriteElementString("title", post.FrontMatter.Title);
             writer.WriteElementString("description", post.FrontMatter.Summary);
             writer.WriteElementString("link", url);
             writer.WriteElementString("guid", url);
             writer.WriteElementString("pubDate", post.FrontMatter.Date.UtcDateTime.ToString("R", CultureInfo.InvariantCulture));
+            writer.WriteEndElement();
+        }
+
+        foreach (var page in contentPages
+                     .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Rss))
+                     .Take(Math.Max(0, 20 - posts.Count)))
+        {
+            var url = configuration.Routes.AbsoluteUrl(page.Route);
+            writer.WriteStartElement("item");
+            writer.WriteElementString("title", page.Metadata.Title ?? page.EntryId.Value);
+            writer.WriteElementString("description", page.Metadata.Description ?? string.Empty);
+            writer.WriteElementString("link", url);
+            writer.WriteElementString("guid", url);
+            writer.WriteElementString(
+                "pubDate",
+                (page.Metadata.PublishFrom ?? configuration.BuildTimestamp)
+                    .UtcDateTime
+                    .ToString("R", CultureInfo.InvariantCulture));
             writer.WriteEndElement();
         }
 
@@ -1264,28 +2014,49 @@ public sealed class SiteGenerator
         return stringWriter.ToString();
     }
 
-    private string RenderSitemap(RenderContext configuration, IReadOnlyList<MarkdownPost> posts)
+    private string RenderSitemap(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages,
+        bool docs = false)
     {
         var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
         using var stringWriter = new Utf8StringWriter();
         using var writer = XmlWriter.Create(stringWriter, settings);
         writer.WriteStartDocument();
         writer.WriteStartElement("urlset", "http://www.sitemaps.org/schemas/sitemap/0.9");
-        WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, "index.html"));
-        WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, "archives.html"));
-        WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, "tags.html"));
+        WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Home));
+        if (!docs)
+        {
+            WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Archives));
+            WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.Tags));
+        }
         foreach (var extraPage in configuration.ExtraPages)
         {
             if (extraPage.IncludeInSitemap)
             {
-                WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, extraPage.RelativePath));
+                WriteSitemapUrl(
+                    writer,
+                    configuration.Routes.AbsoluteUrl(configuration.Routes.ExtraPage(extraPage)));
             }
         }
 
-        WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, "search.html"));
+        WriteSitemapUrl(writer, configuration.Routes.AbsoluteUrl(configuration.Routes.SearchPage));
         foreach (var post in posts)
         {
-            WriteSitemapUrl(writer, CombineUrl(configuration.Site.BaseUrl, post.RelativeOutputPath), post.FrontMatter.Date);
+            WriteSitemapUrl(
+                writer,
+                configuration.Routes.AbsoluteUrl(configuration.Routes.Post(post)),
+                post.FrontMatter.Date);
+        }
+
+        foreach (var page in contentPages
+                     .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Sitemap)))
+        {
+            WriteSitemapUrl(
+                writer,
+                configuration.Routes.AbsoluteUrl(page.Route),
+                page.Metadata.PublishFrom);
         }
 
         writer.WriteEndElement();
@@ -1306,99 +2077,356 @@ public sealed class SiteGenerator
         writer.WriteEndElement();
     }
 
-    private static string Layout(
-        RenderContext configuration,
-        string title,
-        string body,
-        string relativePath,
-        string? description = null,
-        string openGraphType = "website",
-        DateTimeOffset? publishedAt = null,
-        string? socialImageRelativePath = null,
-        bool includeBlogNavigation = true)
-    {
-        var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
-        var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
-        var canonicalUrl = CombineUrl(configuration.Site.BaseUrl, relativePath);
-        var socialImageUrl = CombineUrl(configuration.Site.BaseUrl, socialImageRelativePath ?? SocialImageAssetPath(DefaultSocialImageFileName));
-        var socialImageAlt = $"{configuration.Site.Title} social preview";
-        var homePath = Html.Encode(SitePath(configuration, "index.html"));
-        var header = includeBlogNavigation
-            ? BuildSiteHeader(configuration)
-            : $"<header class=\"site-header\"><a class=\"brand\" href=\"{homePath}\">{Html.Encode(configuration.Site.Title)}</a></header>";
-        var feedLink = includeBlogNavigation
-            ? $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(configuration.Site.Title)}\" href=\"{Html.Encode(SitePath(configuration, "feed.xml"))}\">"
-            : string.Empty;
-        var siteScript = includeBlogNavigation
-            ? $"\n  <script src=\"{Html.Encode(SitePath(configuration, "assets/site.js"))}\" defer></script>"
-            : string.Empty;
-        return $"""
-            <!doctype html>
-            <html lang="{Html.Encode(configuration.Site.Language)}">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <meta name="color-scheme" content="dark">
-              <meta name="theme-color" content="{configuration.Theme.ThemeColor}">
-              <title>{Html.Encode(fullTitle)}</title>
-              <meta name="description" content="{Html.Encode(pageDescription)}">
-              <link rel="canonical" href="{Html.Encode(canonicalUrl)}">
-              <meta property="og:site_name" content="{Html.Encode(configuration.Site.Title)}">
-              <meta property="og:type" content="{Html.Encode(openGraphType)}">
-              <meta property="og:title" content="{Html.Encode(fullTitle)}">
-              <meta property="og:description" content="{Html.Encode(pageDescription)}">
-              <meta property="og:url" content="{Html.Encode(canonicalUrl)}">
-              <meta property="og:image" content="{Html.Encode(socialImageUrl)}">
-              <meta property="og:image:alt" content="{Html.Encode(socialImageAlt)}">
-              <meta name="twitter:card" content="summary_large_image">
-              <meta name="twitter:title" content="{Html.Encode(fullTitle)}">
-              <meta name="twitter:description" content="{Html.Encode(pageDescription)}">
-              <meta name="twitter:image" content="{Html.Encode(socialImageUrl)}">
-              <meta name="twitter:image:alt" content="{Html.Encode(socialImageAlt)}">
-              {BuildPublishedTimeMetadata(publishedAt)}
-              <link rel="stylesheet" href="{Html.Encode(SitePath(configuration, "assets/site.css"))}">
-              {BuildFaviconLinks(configuration)}
-              {BuildGoogleAnalyticsSnippet(configuration)}
-              {feedLink}
-              {siteScript}
-            </head>
-            <body>
-              {header}
-              <main>
-            {body}
-              </main>
-              <footer class="site-footer">
-                <p>Generated by {Html.Encode(configuration.Site.Title)}.</p>
-              </footer>
-            </body>
-            </html>
-            """;
-    }
-
-    private static string BuildPublishedTimeMetadata(DateTimeOffset? publishedAt)
-    {
-        if (publishedAt is null)
-        {
-            return string.Empty;
-        }
-
-        return $"<meta property=\"article:published_time\" content=\"{publishedAt.Value:O}\">";
-    }
-
     private static async Task WriteTextAsync(string outputRoot, string relativePath, string contents, List<string> generated, CancellationToken cancellationToken)
     {
         var fullPath = SafeCombine(outputRoot, relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        await File.WriteAllTextAsync(fullPath, contents, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        CreateSafeDirectory(outputRoot, Path.GetDirectoryName(fullPath)!);
+        await WriteNewFileAsync(
+                fullPath,
+                GetTextContentBytes(contents),
+                cancellationToken)
+            .ConfigureAwait(false);
         generated.Add(fullPath);
+    }
+
+    internal static string ComputeTextContentSha256(string contents) =>
+        Convert.ToHexStringLower(SHA256.HashData(GetTextContentBytes(contents)));
+
+    private static byte[] GetTextContentBytes(string contents) =>
+        Encoding.UTF8.GetBytes(contents.ReplaceLineEndings("\n"));
+
+    private static bool ContainsDirectory(string root, string path)
+    {
+        root = Path.TrimEndingDirectorySeparator(root);
+        return string.Equals(root, Path.TrimEndingDirectorySeparator(path), PathComparison)
+            || path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, PathComparison);
     }
 
     private static async Task WriteBinaryAssetAsync(string outputRoot, string relativePath, byte[] contents, List<string> generated, CancellationToken cancellationToken)
     {
         var fullPath = SafeCombine(outputRoot, relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        await File.WriteAllBytesAsync(fullPath, contents, cancellationToken).ConfigureAwait(false);
+        CreateSafeDirectory(outputRoot, Path.GetDirectoryName(fullPath)!);
+        if (File.Exists(fullPath))
+        {
+            await using var existing = BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, fullPath, asynchronous: true);
+            if (existing.Length == contents.Length
+                && (await SHA256.HashDataAsync(existing, cancellationToken).ConfigureAwait(false))
+                    .AsSpan().SequenceEqual(SHA256.HashData(contents)))
+            {
+                generated.Add(fullPath);
+                return;
+            }
+        }
+        await WriteNewFileAsync(fullPath, contents, cancellationToken).ConfigureAwait(false);
         generated.Add(fullPath);
+    }
+
+    private static async Task WriteOutputManifestAsync(
+        string outputRoot,
+        IReadOnlyList<string> ownedArtifactPaths,
+        List<string> generated,
+        CancellationToken cancellationToken,
+        string? buildCacheKey = null)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(
+                   stream,
+                   new JsonWriterOptions { Indented = true }))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("version", OutputManifestVersion);
+            if (buildCacheKey is not null) writer.WriteString("buildCache", buildCacheKey);
+            writer.WritePropertyName("files");
+            writer.WriteStartArray();
+            foreach (var path in ownedArtifactPaths)
+            {
+                writer.WriteStringValue(path);
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(
+            Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
+        await WriteBinaryAssetAsync(
+                outputRoot,
+                OutputManifestRelativePath,
+                bytes,
+                generated,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<GeneratedArtifactState>> CreateArtifactStatesAsync(
+        string outputRoot,
+        IReadOnlyCollection<string> generatedFiles,
+        CancellationToken cancellationToken)
+    {
+        var artifacts = new List<GeneratedArtifactState>(generatedFiles.Count);
+        foreach (var generatedFile in generatedFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var relativePath = Path.GetRelativePath(outputRoot, generatedFile)
+                .Replace('\\', '/');
+            ValidateOwnedArtifactPath(relativePath, "generated output");
+            artifacts.Add(new GeneratedArtifactState(
+                relativePath,
+                await ComputeFileSha256Async(generatedFile, cancellationToken)
+                    .ConfigureAwait(false)));
+        }
+
+        EnsureNoArtifactPathAliases(artifacts, "generated output");
+        return artifacts
+            .OrderBy(static artifact => artifact.Path, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static async Task WriteOwnershipStateAsync(
+        string path,
+        OutputOwnershipState state,
+        CancellationToken cancellationToken)
+    {
+        using var memory = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(
+                   memory,
+                   new JsonWriterOptions { Indented = true }))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("version", OutputOwnershipStateVersion);
+            writer.WriteString("outputIdentity", state.OutputIdentity);
+            writer.WritePropertyName("artifacts");
+            writer.WriteStartArray();
+            foreach (var artifact in state.Artifacts)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("path", artifact.Path);
+                writer.WriteString("sha256", artifact.Sha256);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(
+            Encoding.UTF8.GetString(memory.ToArray()).ReplaceLineEndings("\n") + "\n");
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            BufferSize = 4096,
+            Options = FileOptions.Asynchronous | FileOptions.WriteThrough
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        await using var stream = new FileStream(path, options);
+        EnsureOpenedFilePath(stream, path);
+        OutputTransaction.RestrictTransactionPathToOwner(path, isDirectory: false);
+        OutputTransaction.EnsureTransactionPathIsOwnerRestricted(
+            path,
+            isDirectory: false);
+        await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        stream.Flush(flushToDisk: true);
+    }
+
+    private static async Task<OutputOwnershipState?> ReadOwnershipStateAsync(
+        string path,
+        string expectedOutputIdentity,
+        CancellationToken cancellationToken)
+    {
+        var attributes = GetAttributes(path);
+        if (attributes is null)
+        {
+            return null;
+        }
+
+        EnsureNotNameSurrogateReparsePoint(path, attributes.Value);
+        if ((attributes.Value & FileAttributes.Directory) != 0)
+        {
+            throw new InvalidOperationException(
+                $"Output ownership state '{path}' is not a regular file.");
+        }
+
+        OutputTransaction.EnsureTransactionPathIsOwnerRestricted(
+            path,
+            isDirectory: false);
+        try
+        {
+            await using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            EnsureOpenedFilePath(stream, path);
+            var bytes = new byte[stream.Length];
+            await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(bytes);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || root.EnumerateObject().Count() != 3
+                || !root.TryGetProperty("version", out var version)
+                || version.ValueKind != JsonValueKind.Number
+                || !version.TryGetInt32(out var versionValue)
+                || versionValue != OutputOwnershipStateVersion
+                || !root.TryGetProperty("outputIdentity", out var outputIdentity)
+                || outputIdentity.ValueKind != JsonValueKind.String
+                || !root.TryGetProperty("artifacts", out var artifactsElement)
+                || artifactsElement.ValueKind != JsonValueKind.Array)
+            {
+                throw new InvalidOperationException(
+                    $"Output ownership state '{path}' has an unsupported format.");
+            }
+
+            var actualOutputIdentity = outputIdentity.GetString()!;
+            if (!IsSha256(actualOutputIdentity)
+                || !string.Equals(
+                    actualOutputIdentity,
+                    expectedOutputIdentity,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Output ownership state '{path}' does not match its canonical output identity.");
+            }
+
+            var artifacts = new List<GeneratedArtifactState>();
+            foreach (var item in artifactsElement.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object
+                    || item.EnumerateObject().Count() != 2
+                    || !item.TryGetProperty("path", out var artifactPath)
+                    || artifactPath.ValueKind != JsonValueKind.String
+                    || !item.TryGetProperty("sha256", out var sha256)
+                    || sha256.ValueKind != JsonValueKind.String)
+                {
+                    throw new InvalidOperationException(
+                        $"Output ownership state '{path}' contains an invalid artifact.");
+                }
+
+                var relativePath = artifactPath.GetString()!;
+                ValidateOwnedArtifactPath(relativePath, path);
+                var fingerprint = sha256.GetString()!;
+                if (!IsSha256(fingerprint))
+                {
+                    throw new InvalidOperationException(
+                        $"Output ownership state '{path}' contains an invalid fingerprint.");
+                }
+
+                artifacts.Add(new GeneratedArtifactState(relativePath, fingerprint));
+            }
+
+            EnsureNoArtifactPathAliases(artifacts, path);
+            return new OutputOwnershipState(actualOutputIdentity, artifacts);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(
+                $"Output ownership state '{path}' is invalid.",
+                exception);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new InvalidOperationException(
+                $"Output ownership state '{path}' contains an unsafe path.",
+                exception);
+        }
+    }
+
+    private static async Task<string> ComputeFileSha256Async(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        EnsureOpenedFilePath(stream, path);
+        var attributes = File.GetAttributes(stream.SafeFileHandle);
+        if ((attributes
+             & (FileAttributes.Directory
+                | FileAttributes.Device
+                | FileAttributes.ReparsePoint)) != 0)
+        {
+            throw new InvalidOperationException(
+                $"Generated artifact '{path}' is not a regular file.");
+        }
+
+        return Convert.ToHexStringLower(
+            await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
+    }
+
+    private static void ValidateOwnedArtifactPath(string path, string stateDescription)
+    {
+        var normalized = SiteRoute.NormalizeRelativeOutputPath(path);
+        if (!string.Equals(path, normalized, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Output ownership state '{stateDescription}' contains unsafe path '{path}'.");
+        }
+    }
+
+    private static void EnsureNoArtifactPathAliases(
+        IReadOnlyCollection<GeneratedArtifactState> artifacts,
+        string stateDescription)
+    {
+        var identities = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var artifact in artifacts)
+        {
+            var identity = artifact.Path.Normalize(NormalizationForm.FormC);
+            if (OperatingSystem.IsWindows())
+            {
+                identity = identity.ToUpperInvariant();
+            }
+
+            if (!identities.Add(identity))
+            {
+                throw new InvalidOperationException(
+                    $"Output ownership state '{stateDescription}' contains aliased or duplicate paths.");
+            }
+        }
+    }
+
+    private static bool IsSha256(string value) =>
+        value.Length == 64
+        && value.All(static character =>
+            character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    private static async Task WriteNewFileAsync(
+        string path,
+        byte[] contents,
+        CancellationToken cancellationToken)
+    {
+        var attributes = GetAttributes(path);
+        if (attributes is not null)
+        {
+            EnsureNotNameSurrogateReparsePoint(path, attributes.Value);
+            if ((attributes.Value & FileAttributes.Directory) != 0)
+            {
+                throw new IOException($"Output file path '{path}' is occupied by a directory.");
+            }
+
+            File.Delete(path);
+        }
+
+        await using var stream = new FileStream(
+            path,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            FileOptions.Asynchronous);
+        EnsureOpenedFilePath(stream, path);
+        await stream.WriteAsync(contents, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task WriteBundledFaviconAssetsAsync(string outputRoot, RenderContext configuration, List<string> generated, CancellationToken cancellationToken)
@@ -1407,7 +2435,7 @@ public sealed class SiteGenerator
         {
             await WriteBinaryAssetAsync(
                     outputRoot,
-                    FaviconAssetPath(assetFile),
+                    configuration.Routes.Favicon(assetFile).RelativeOutputPath,
                     LoadBundledBytes(configuration.FaviconSourceDirectory, assetFile, "favicon asset"),
                     generated,
                     cancellationToken)
@@ -1428,21 +2456,53 @@ public sealed class SiteGenerator
 
     private static async Task<byte[]> BuildDefaultSocialImageAsync(RenderContext configuration, CancellationToken cancellationToken)
     {
-        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SiteIconFileName, "favicon asset"));
+        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SocialImageSourceFileName, "favicon asset"));
         return await generator.BuildSiteImageAsync(configuration.Site.Title, configuration.Theme.DefaultSocialSubtitle, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<byte[]> BuildPostSocialImageAsync(RenderContext configuration, MarkdownPost post, CancellationToken cancellationToken)
     {
-        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SiteIconFileName, "favicon asset"));
+        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SocialImageSourceFileName, "favicon asset"));
         return await generator.BuildPostImageAsync(configuration.Site.Title, post.FrontMatter.Title, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<byte[]> BuildContentSocialImageAsync(
+        RenderContext configuration,
+        IntegratedContentPage page,
+        CancellationToken cancellationToken)
+    {
+        var generator = new SocialImageGenerator(
+            LoadBundledBytes(
+                configuration.FaviconSourceDirectory,
+                SocialImageSourceFileName,
+                "favicon asset"));
+        return await generator.BuildPostImageAsync(
+                configuration.Site.Title,
+                page.Metadata.Title ?? page.EntryId.Value,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal static string CreateTemporaryDirectory(string prefix)
+    {
+        var temporary = Directory.CreateTempSubdirectory(prefix);
+        var segments = new Stack<string>();
+        for (var directory = temporary; directory.Parent is not null; directory = directory.Parent)
+            segments.Push(directory.Name);
+        var physicalRoot = Path.GetPathRoot(temporary.FullName)!;
+        while (segments.TryPop(out var segment))
+        {
+            var directory = new DirectoryInfo(Path.Combine(physicalRoot, segment));
+            physicalRoot = directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName;
+        }
+        return physicalRoot;
     }
 
     private static string SafeCombine(string root, string relativePath)
     {
         var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
         var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        if (!fullPath.StartsWith(normalizedRoot, PathComparison))
         {
             throw new InvalidOperationException($"Output path '{relativePath}' escapes output directory.");
         }
@@ -1450,27 +2510,2054 @@ public sealed class SiteGenerator
         return fullPath;
     }
 
-    private static string NormalizeBaseUrl(string baseUrl) => baseUrl.TrimEnd('/') + "/";
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-    private static string CombineUrl(string baseUrl, string relativePath) => $"{NormalizeBaseUrl(baseUrl)}{relativePath.TrimStart('/').Replace('\\', '/')}";
-
-
-    private static string SitePath(RenderContext configuration, string relativePath)
+    private static void CreateSafeDirectory(string root, string directory)
     {
-        var basePath = "/";
-        if (Uri.TryCreate(NormalizeBaseUrl(configuration.Site.BaseUrl), UriKind.Absolute, out var uri))
+        EnsureNotNameSurrogateReparsePoint(root);
+        var relativePath = Path.GetRelativePath(root, directory);
+        var current = root;
+        foreach (var segment in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
         {
-            basePath = uri.AbsolutePath;
-        }
+            current = Path.Combine(current, segment);
+            if (File.Exists(current))
+            {
+                throw new IOException($"Output directory path '{current}' is occupied by a file.");
+            }
 
-        return $"{basePath.TrimEnd('/')}/{relativePath.TrimStart('/').Replace('\\', '/')}";
+            if (!Directory.Exists(current))
+            {
+                Directory.CreateDirectory(current);
+            }
+
+            EnsureNotNameSurrogateReparsePoint(current);
+        }
     }
 
-    private static string FaviconAssetPath(string fileName) => $"{FaviconOutputDirectory}/{fileName}";
+    internal static void EnsureContainedPathHasNoNameSurrogateReparsePoints(
+        string root,
+        string path)
+    {
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var fullPath = Path.GetFullPath(path);
+        var relativePath = Path.GetRelativePath(fullRoot, fullPath);
+        if (Path.IsPathRooted(relativePath)
+            || relativePath == ".."
+            || relativePath.StartsWith(
+                $"..{Path.DirectorySeparatorChar}",
+                StringComparison.Ordinal)
+            || relativePath.StartsWith(
+                $"..{Path.AltDirectorySeparatorChar}",
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Path '{path}' escapes root '{fullRoot}'.");
+        }
 
-    private static string SocialImageAssetPath(string fileName) => $"{SocialImageOutputDirectory}/{fileName}";
+        EnsureNotNameSurrogateReparsePoint(fullRoot);
+        var current = fullRoot;
+        foreach (var segment in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            EnsureNotNameSurrogateReparsePoint(current);
+        }
+    }
 
-    private static string PostSocialImagePath(MarkdownPost post) => $"{SocialImageOutputDirectory}/posts/{post.Slug}.png";
+    private static void EnsureNotNameSurrogateReparsePoint(string path)
+    {
+        var attributes = GetAttributes(path);
+        if (attributes is not null)
+        {
+            EnsureNotNameSurrogateReparsePoint(path, attributes.Value);
+        }
+    }
+
+    private static void EnsureNotNameSurrogateReparsePoint(
+        string path,
+        FileAttributes attributes)
+    {
+        if ((attributes & FileAttributes.ReparsePoint) == 0)
+        {
+            return;
+        }
+
+        FileSystemInfo info = (attributes & FileAttributes.Directory) != 0
+            ? new DirectoryInfo(path)
+            : new FileInfo(path);
+        if (info.LinkTarget is not null)
+        {
+            throw new InvalidOperationException(
+                $"Output path '{path}' contains a symbolic link or name-surrogate reparse point.");
+        }
+    }
+
+    private static FileAttributes? GetAttributes(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path);
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    private static void EnsureOpenedFilePath(FileStream stream, string expectedPath)
+    {
+        if (!string.Equals(
+                Path.GetFullPath(stream.Name),
+                Path.GetFullPath(expectedPath),
+                PathComparison))
+        {
+            throw new InvalidOperationException(
+                $"Opened file path '{stream.Name}' does not match expected path '{expectedPath}'.");
+        }
+
+        EnsureNotNameSurrogateReparsePoint(expectedPath);
+    }
+
+    private sealed class OutputTransaction
+        : IAsyncDisposable
+    {
+        private const string RetainedBackupDiagnosticId = "LST001";
+        private const string RetainedStagingRegistrationDiagnosticId = "LST002";
+        private const string RetainedOwnershipStateRegistrationDiagnosticId = "LST003";
+        private static readonly TimeSpan LockAcquisitionTimeout = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan LockRetryDelay = TimeSpan.FromMilliseconds(50);
+        private const int WindowsFileLockRetryCount = 4;
+        private static readonly TimeSpan WindowsFileLockRetryDelay = TimeSpan.FromMilliseconds(50);
+        private readonly string _outputRoot;
+        private readonly string _parentRoot;
+        private readonly string _backupRoot;
+        private readonly string _outputIdentity;
+        private readonly string _ownershipStatePath;
+        private readonly string _pendingOwnershipStatePath;
+        private readonly OutputLock _outputLock;
+        private readonly List<FileSystemMetadata> _copiedDirectoryMetadata = [];
+        private readonly List<FileSystemMetadata> _copiedFileMetadata = [];
+        private readonly List<SiteDiagnostic> _diagnostics = [];
+        private OutputOwnershipState? _previousOwnershipState;
+        private bool _pendingOwnershipStateRegistered;
+
+        private OutputTransaction(
+            string outputRoot,
+            string parentRoot,
+            string stagingRoot,
+            string backupRoot,
+            string outputIdentity,
+            string ownershipStatePath,
+            string pendingOwnershipStatePath,
+            OutputLock outputLock)
+        {
+            _outputRoot = outputRoot;
+            _parentRoot = parentRoot;
+            StagingRoot = stagingRoot;
+            _backupRoot = backupRoot;
+            _outputIdentity = outputIdentity;
+            _ownershipStatePath = ownershipStatePath;
+            _pendingOwnershipStatePath = pendingOwnershipStatePath;
+            _outputLock = outputLock;
+        }
+
+        public string StagingRoot { get; }
+
+        internal string OutputIdentity => _outputIdentity;
+
+        internal async Task<string?> ReadPreviousBuildCacheKeyAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var owned = _previousOwnershipState?.Artifacts.FirstOrDefault(artifact =>
+                string.Equals(artifact.Path, OutputManifestRelativePath, StringComparison.Ordinal));
+            if (owned is null) return null;
+            try
+            {
+                var path = SafeCombine(StagingRoot, OutputManifestRelativePath);
+                EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
+                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(StagingRoot, path, asynchronous: true);
+                using var buffer = new MemoryStream();
+                await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+                var bytes = buffer.ToArray();
+                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256) return null;
+                using var document = JsonDocument.Parse(bytes);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object
+                    || !root.TryGetProperty("version", out var version) || !version.TryGetInt32(out var number) || number != OutputManifestVersion
+                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String) return null;
+                var digest = cache.GetString();
+                return digest is not null && IsSha256(digest) && digest == digest.ToLowerInvariant() ? digest : null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or InvalidOperationException or ArgumentException or JsonException
+                or System.ComponentModel.Win32Exception or NotSupportedException)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return null;
+            }
+        }
+
+        public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
+
+        public bool RetainedRecoveryState => _diagnostics.Count != 0;
+
+        public static async Task<OutputTransaction> CreateAsync(
+            string outputRoot,
+            bool preserveExisting,
+            CancellationToken cancellationToken)
+        {
+            outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
+            var parentRoot = Path.GetDirectoryName(outputRoot);
+            var outputName = Path.GetFileName(outputRoot);
+            if (parentRoot is null || string.IsNullOrEmpty(outputName))
+            {
+                throw new InvalidOperationException("The file system root cannot be used as the output directory.");
+            }
+
+            CreateSafeAbsoluteDirectory(parentRoot);
+            var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
+            var lockIdentity = CreateLockIdentity(outputRoot);
+            var outputIdentity = CreateOutputIdentity(ownershipScope);
+            var outputLock = await OutputLock.AcquireAsync(
+                    Path.Combine(
+                        parentRoot,
+                        $".lithosharp-lock-{lockIdentity}.lock"),
+                    lockIdentity,
+                    ownershipScope,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            var suffix = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+            var stagingRoot = Path.Combine(
+                parentRoot,
+                $".lithosharp-staging-{lockIdentity}-{suffix}");
+            var backupRoot = Path.Combine(
+                parentRoot,
+                $".lithosharp-backup-{lockIdentity}-{suffix}");
+            var ownershipStatePath = Path.Combine(
+                parentRoot,
+                $".lithosharp-ownership-{lockIdentity}-{outputIdentity}.json");
+            var pendingOwnershipStatePath = Path.Combine(
+                parentRoot,
+                $".lithosharp-ownership-pending-{lockIdentity}-{outputIdentity}-{suffix}.json");
+            EnsureOwnedSiblingPath(
+                parentRoot,
+                stagingRoot,
+                "staging",
+                lockIdentity);
+            EnsureOwnedSiblingPath(
+                parentRoot,
+                backupRoot,
+                "backup",
+                lockIdentity);
+            EnsureOwnershipStatePath(
+                parentRoot,
+                ownershipStatePath,
+                lockIdentity,
+                outputIdentity,
+                pending: false);
+            EnsureOwnershipStatePath(
+                parentRoot,
+                pendingOwnershipStatePath,
+                lockIdentity,
+                outputIdentity,
+                pending: true);
+
+            var transaction = new OutputTransaction(
+                outputRoot,
+                parentRoot,
+                stagingRoot,
+                backupRoot,
+                outputIdentity,
+                ownershipStatePath,
+                pendingOwnershipStatePath,
+                outputLock);
+            var initialized = false;
+            try
+            {
+                await transaction.RecoverRegisteredTransactionsAsync()
+                    .ConfigureAwait(false);
+                transaction._previousOwnershipState =
+                    await ReadOwnershipStateAsync(
+                            ownershipStatePath,
+                            outputIdentity,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                var outputAttributes = GetAttributes(outputRoot);
+                if (outputAttributes is not null
+                    && (outputAttributes.Value & FileAttributes.Directory) == 0)
+                {
+                    throw new IOException($"Output path '{outputRoot}' is not a directory.");
+                }
+
+                if (outputAttributes is not null)
+                {
+                    EnsureTreeContainsNoNameSurrogateReparsePoints(outputRoot);
+                }
+
+                await outputLock.RegisterStagingAsync(stagingRoot).ConfigureAwait(false);
+                CreateTransactionDirectory(stagingRoot);
+                EnsureNotNameSurrogateReparsePoint(stagingRoot);
+                if (preserveExisting && outputAttributes is not null)
+                {
+                    await transaction.CopyDirectoryAsync(
+                            outputRoot,
+                            stagingRoot,
+                            cancellationToken,
+                            includeRootMetadata: true)
+                        .ConfigureAwait(false);
+                }
+
+                initialized = true;
+                return transaction;
+            }
+            finally
+            {
+                if (!initialized)
+                {
+                    try
+                    {
+                        await transaction.CleanupAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await outputLock.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        public async Task<IReadOnlyList<string>> RemoveStaleOwnedFilesAsync(
+            IReadOnlyCollection<string> currentOwnedPaths,
+            CancellationToken cancellationToken,
+            Func<string, bool>? inScope = null)
+        {
+            var removed = new List<string>();
+            if (_previousOwnershipState is null)
+            {
+                return removed;
+            }
+
+            var current = currentOwnedPaths
+                .Select(ArtifactPathIdentity)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var artifact in _previousOwnershipState.Artifacts
+                         .Where(artifact => !current.Contains(ArtifactPathIdentity(artifact.Path)) && (inScope?.Invoke(artifact.Path) ?? true))
+                         .OrderBy(static artifact => artifact.Path, StringComparer.Ordinal))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var relativePath = artifact.Path;
+                var fullPath = SafeCombine(StagingRoot, relativePath);
+                var attributes = GetAttributes(fullPath);
+                if (attributes is null)
+                {
+                    continue;
+                }
+
+                EnsureNotNameSurrogateReparsePoint(fullPath, attributes.Value);
+                if ((attributes.Value & FileAttributes.Directory) != 0)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(
+                        await ComputeFileSha256Async(fullPath, cancellationToken)
+                            .ConfigureAwait(false),
+                        artifact.Sha256,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                _copiedFileMetadata.RemoveAll(metadata =>
+                    string.Equals(
+                        metadata.DestinationPath,
+                        fullPath,
+                        PathComparison));
+                File.SetAttributes(
+                    fullPath,
+                    attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
+                File.Delete(fullPath);
+                removed.Add(relativePath);
+                RemoveEmptyOwnedDirectories(Path.GetDirectoryName(fullPath)!);
+            }
+
+            return removed.Order(StringComparer.Ordinal).ToArray();
+        }
+
+        public async Task PrepareOwnershipStateAsync(
+            IReadOnlyCollection<string> generatedFiles,
+            CancellationToken cancellationToken,
+            Func<string, bool>? inScope = null)
+        {
+            if (_pendingOwnershipStateRegistered)
+            {
+                throw new InvalidOperationException(
+                    "Output ownership state has already been prepared.");
+            }
+
+            var artifacts = await CreateArtifactStatesAsync(
+                    StagingRoot,
+                    generatedFiles,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (inScope is not null && _previousOwnershipState is not null)
+            {
+                var current = artifacts.Select(artifact => artifact.Path).ToHashSet(StringComparer.Ordinal);
+                artifacts = artifacts.Concat(_previousOwnershipState.Artifacts.Where(artifact => !inScope(artifact.Path) && !current.Contains(artifact.Path)))
+                    .OrderBy(artifact => artifact.Path, StringComparer.Ordinal).ToArray();
+            }
+            await _outputLock.RegisterOwnershipStateAsync(_pendingOwnershipStatePath)
+                .ConfigureAwait(false);
+            _pendingOwnershipStateRegistered = true;
+            await WriteOwnershipStateAsync(
+                    _pendingOwnershipStatePath,
+                    new OutputOwnershipState(_outputIdentity, artifacts),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        public IReadOnlyList<string> MergeRetainedPaths(IReadOnlyList<string> current, Func<string, bool> inScope) => current
+            .Concat((_previousOwnershipState?.Artifacts ?? []).Where(artifact => !inScope(artifact.Path) && artifact.Path != OutputManifestRelativePath).Select(artifact => artifact.Path))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+
+        private void RemoveEmptyOwnedDirectories(string directory)
+        {
+            var current = directory;
+            while (!string.Equals(current, StagingRoot, PathComparison)
+                   && !Directory.EnumerateFileSystemEntries(current).Any())
+            {
+                _copiedDirectoryMetadata.RemoveAll(metadata =>
+                    string.Equals(
+                        metadata.DestinationPath,
+                        current,
+                        PathComparison));
+                Directory.Delete(current);
+                current = Path.GetDirectoryName(current)
+                    ?? throw new InvalidOperationException(
+                        $"Staging path '{directory}' has no parent.");
+            }
+        }
+
+        public async Task CommitAsync(IReadOnlyCollection<string> generatedFiles)
+        {
+            if (!_pendingOwnershipStateRegistered
+                || GetAttributes(_pendingOwnershipStatePath) is null)
+            {
+                throw new InvalidOperationException(
+                    "Output ownership state must be prepared before committing output.");
+            }
+
+            EnsureTreeContainsNoNameSurrogateReparsePoints(StagingRoot);
+            ApplyCopiedMetadata(generatedFiles);
+            EnsureNotNameSurrogateReparsePoint(StagingRoot);
+            var outputAttributes = GetAttributes(_outputRoot);
+            if (outputAttributes is null)
+            {
+                await MoveDirectoryWithRetriesAsync(StagingRoot, _outputRoot).ConfigureAwait(false);
+                try
+                {
+                    await PromoteOwnershipStateAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                        or UnauthorizedAccessException
+                        or InvalidOperationException)
+                {
+                    await RollbackPromotedOutputAsync(
+                            exception,
+                            restoreBackup: false)
+                        .ConfigureAwait(false);
+                }
+
+                await TryUnregisterPromotedStagingAsync().ConfigureAwait(false);
+                return;
+            }
+
+            if ((outputAttributes.Value & FileAttributes.Directory) == 0)
+            {
+                throw new IOException($"Output path '{_outputRoot}' is not a directory.");
+            }
+
+            EnsureTreeContainsNoNameSurrogateReparsePoints(_outputRoot);
+            RestoreCopiedSourceDirectoryMetadata();
+            await _outputLock.RegisterBackupAsync(_backupRoot).ConfigureAwait(false);
+            await MoveDirectoryWithRetriesAsync(_outputRoot, _backupRoot).ConfigureAwait(false);
+            try
+            {
+                await MoveDirectoryWithRetriesAsync(StagingRoot, _outputRoot).ConfigureAwait(false);
+            }
+            catch (IOException commitException)
+            {
+                await RestorePreviousOutputAsync(commitException).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException commitException)
+            {
+                await RestorePreviousOutputAsync(commitException).ConfigureAwait(false);
+            }
+
+            try
+            {
+                await PromoteOwnershipStateAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException)
+            {
+                await RollbackPromotedOutputAsync(
+                        exception,
+                        restoreBackup: true)
+                    .ConfigureAwait(false);
+            }
+
+            await TryUnregisterPromotedStagingAsync().ConfigureAwait(false);
+            await TryCleanupCommittedBackupAsync(_backupRoot).ConfigureAwait(false);
+        }
+
+        public async Task CleanupAsync()
+        {
+            await DeleteOwnedDirectoryAsync(StagingRoot, "staging").ConfigureAwait(false);
+            await _outputLock.UnregisterStagingAsync(StagingRoot).ConfigureAwait(false);
+            await DeletePendingOwnershipStateAsync().ConfigureAwait(false);
+        }
+
+        public ValueTask DisposeAsync() =>
+            _outputLock.DisposeAsync();
+
+        private async Task DeleteOwnedDirectoryAsync(string path, string kind)
+        {
+            EnsureOwnedSiblingPath(
+                _parentRoot,
+                path,
+                kind,
+                _outputLock.Identity);
+            var attributes = GetAttributes(path);
+            if (attributes is null)
+            {
+                return;
+            }
+
+            if ((attributes.Value & FileAttributes.Directory) == 0)
+            {
+                throw new IOException($"Owned {kind} path '{path}' is not a directory.");
+            }
+
+            EnsureTreeContainsNoNameSurrogateReparsePoints(path);
+            PrepareOwnedTreeForDeletion(path);
+            await DeleteDirectoryWithRetriesAsync(path).ConfigureAwait(false);
+        }
+
+        private async Task TryCleanupCommittedBackupAsync(string backupRoot)
+        {
+            try
+            {
+                await DeleteOwnedDirectoryAsync(backupRoot, "backup").ConfigureAwait(false);
+                await _outputLock.UnregisterBackupAsync(backupRoot).ConfigureAwait(false);
+            }
+            catch (IOException exception)
+            {
+                RecordRetainedBackup(backupRoot, exception);
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                RecordRetainedBackup(backupRoot, exception);
+            }
+            catch (InvalidOperationException exception)
+            {
+                RecordRetainedBackup(backupRoot, exception);
+            }
+        }
+
+        private void RecordRetainedBackup(string backupRoot, Exception exception)
+        {
+            RecordCleanupDiagnostic(
+                RetainedBackupDiagnosticId,
+                "Committed output retained a backup for a later recovery cleanup.");
+            System.Diagnostics.Trace.TraceWarning(
+                "LithoSharp committed generated output but retained backup '{0}' for a later cleanup attempt: {1}",
+                backupRoot,
+                exception.Message);
+        }
+
+        private async Task TryUnregisterPromotedStagingAsync()
+        {
+            try
+            {
+                await _outputLock.UnregisterStagingAsync(StagingRoot).ConfigureAwait(false);
+            }
+            catch (IOException exception)
+            {
+                RecordCleanupDiagnostic(
+                    RetainedStagingRegistrationDiagnosticId,
+                    "Committed output retained a staging registration for a later recovery cleanup.");
+                System.Diagnostics.Trace.TraceWarning(
+                    "LithoSharp committed generated output but retained stale staging registration '{0}': {1}",
+                    StagingRoot,
+                    exception.Message);
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                RecordCleanupDiagnostic(
+                    RetainedStagingRegistrationDiagnosticId,
+                    "Committed output retained a staging registration for a later recovery cleanup.");
+                System.Diagnostics.Trace.TraceWarning(
+                    "LithoSharp committed generated output but retained stale staging registration '{0}': {1}",
+                    StagingRoot,
+                    exception.Message);
+            }
+        }
+
+        private async Task PromoteOwnershipStateAsync()
+        {
+            EnsureOwnershipStatePath(
+                _parentRoot,
+                _pendingOwnershipStatePath,
+                _outputLock.Identity,
+                _outputIdentity,
+                pending: true);
+            EnsureOwnershipStatePath(
+                _parentRoot,
+                _ownershipStatePath,
+                _outputLock.Identity,
+                _outputIdentity,
+                pending: false);
+            var pendingAttributes = GetAttributes(_pendingOwnershipStatePath)
+                ?? throw new IOException(
+                    $"Pending output ownership state '{_pendingOwnershipStatePath}' is missing.");
+            EnsureNotNameSurrogateReparsePoint(
+                _pendingOwnershipStatePath,
+                pendingAttributes);
+            if ((pendingAttributes & FileAttributes.Directory) != 0)
+            {
+                throw new IOException(
+                    $"Pending output ownership state '{_pendingOwnershipStatePath}' is a directory.");
+            }
+
+            var currentAttributes = GetAttributes(_ownershipStatePath);
+            if (currentAttributes is not null)
+            {
+                EnsureNotNameSurrogateReparsePoint(
+                    _ownershipStatePath,
+                    currentAttributes.Value);
+                if ((currentAttributes.Value & FileAttributes.Directory) != 0)
+                {
+                    throw new IOException(
+                        $"Output ownership state '{_ownershipStatePath}' is a directory.");
+                }
+            }
+
+            File.Move(
+                _pendingOwnershipStatePath,
+                _ownershipStatePath,
+                overwrite: true);
+            _pendingOwnershipStateRegistered = false;
+            try
+            {
+                await _outputLock.UnregisterOwnershipStateAsync(
+                        _pendingOwnershipStatePath)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException)
+            {
+                RecordCleanupDiagnostic(
+                    RetainedOwnershipStateRegistrationDiagnosticId,
+                    "Committed output retained an ownership-state registration for a later recovery cleanup.");
+                System.Diagnostics.Trace.TraceWarning(
+                    "LithoSharp committed generated output but retained stale ownership-state registration '{0}': {1}",
+                    _pendingOwnershipStatePath,
+                    exception.Message);
+            }
+        }
+
+        private async Task RollbackPromotedOutputAsync(
+            Exception stateException,
+            bool restoreBackup)
+        {
+            try
+            {
+                await MoveDirectoryWithRetriesAsync(_outputRoot, StagingRoot)
+                    .ConfigureAwait(false);
+                if (restoreBackup)
+                {
+                    await MoveDirectoryWithRetriesAsync(_backupRoot, _outputRoot)
+                        .ConfigureAwait(false);
+                    await _outputLock.UnregisterBackupAsync(_backupRoot)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception rollbackException) when (
+                rollbackException is IOException or UnauthorizedAccessException)
+            {
+                throw new IOException(
+                    "Atomic output ownership-state commit failed and the previous output "
+                    + $"could not be restored. The previous output remains at '{_backupRoot}'.",
+                    new AggregateException(stateException, rollbackException));
+            }
+
+            throw new IOException(
+                restoreBackup
+                    ? "Atomic output ownership-state commit failed; the previous output was restored."
+                    : "Atomic output ownership-state commit failed; the newly promoted output was removed.",
+                stateException);
+        }
+
+        private async Task DeletePendingOwnershipStateAsync()
+        {
+            if (!_pendingOwnershipStateRegistered)
+            {
+                return;
+            }
+
+            EnsureOwnershipStatePath(
+                _parentRoot,
+                _pendingOwnershipStatePath,
+                _outputLock.Identity,
+                _outputIdentity,
+                pending: true);
+            var attributes = GetAttributes(_pendingOwnershipStatePath);
+            if (attributes is not null)
+            {
+                EnsureNotNameSurrogateReparsePoint(
+                    _pendingOwnershipStatePath,
+                    attributes.Value);
+                if ((attributes.Value & FileAttributes.Directory) != 0)
+                {
+                    throw new IOException(
+                        $"Pending output ownership state '{_pendingOwnershipStatePath}' is a directory.");
+                }
+
+                File.SetAttributes(
+                    _pendingOwnershipStatePath,
+                    attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
+                File.Delete(_pendingOwnershipStatePath);
+            }
+
+            await _outputLock.UnregisterOwnershipStateAsync(_pendingOwnershipStatePath)
+                .ConfigureAwait(false);
+            _pendingOwnershipStateRegistered = false;
+        }
+
+        private async Task RestorePreviousOutputAsync(Exception commitException)
+        {
+            try
+            {
+                await MoveDirectoryWithRetriesAsync(_backupRoot, _outputRoot).ConfigureAwait(false);
+            }
+            catch (IOException rollbackException)
+            {
+                throw CreateRollbackFailure(commitException, rollbackException);
+            }
+            catch (UnauthorizedAccessException rollbackException)
+            {
+                throw CreateRollbackFailure(commitException, rollbackException);
+            }
+
+            await _outputLock.UnregisterBackupAsync(_backupRoot).ConfigureAwait(false);
+            throw new IOException(
+                "Atomic output commit failed; the previous output was restored. "
+                + "The platform did not permit the required same-volume directory rename.",
+                commitException);
+        }
+
+        private IOException CreateRollbackFailure(
+            Exception commitException,
+            Exception rollbackException) =>
+            new(
+                $"Atomic output commit failed and the previous output could not be restored. "
+                + $"The previous output remains at '{_backupRoot}'.",
+                new AggregateException(commitException, rollbackException));
+
+        private async Task CopyDirectoryAsync(
+            string sourceRoot,
+            string destinationRoot,
+            CancellationToken cancellationToken,
+            bool includeRootMetadata = false)
+        {
+            var sourceRootMetadata = FileSystemMetadata.Capture(
+                sourceRoot,
+                destinationRoot,
+                isDirectory: true);
+            if (includeRootMetadata)
+            {
+                _copiedDirectoryMetadata.Add(sourceRootMetadata);
+            }
+
+            try
+            {
+                foreach (var entry in Directory.EnumerateFileSystemEntries(sourceRoot))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var attributes = File.GetAttributes(entry);
+                    EnsureNotNameSurrogateReparsePoint(entry, attributes);
+                    var destination = SafeCombine(
+                        destinationRoot,
+                        Path.GetRelativePath(sourceRoot, entry));
+                    if ((attributes & FileAttributes.Directory) != 0)
+                    {
+                        CreateSafeDirectory(destinationRoot, destination);
+                        _copiedDirectoryMetadata.Add(
+                            FileSystemMetadata.Capture(
+                                entry,
+                                destination,
+                                isDirectory: true));
+                        await CopyDirectoryAsync(
+                                entry,
+                                destination,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var metadata = FileSystemMetadata.Capture(
+                        entry,
+                        destination,
+                        isDirectory: false);
+                    CreateSafeDirectory(destinationRoot, Path.GetDirectoryName(destination)!);
+                    try
+                    {
+                        await using var source = new FileStream(
+                            entry,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.Read,
+                            bufferSize: 81920,
+                            FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        EnsureOpenedFilePath(source, entry);
+                        await using var target = new FileStream(
+                            destination,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None,
+                            bufferSize: 81920,
+                            FileOptions.Asynchronous);
+                        EnsureOpenedFilePath(target, destination);
+                        await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        metadata.RestoreSourceAccessTime();
+                    }
+
+                    _copiedFileMetadata.Add(metadata);
+                }
+            }
+            finally
+            {
+                sourceRootMetadata.RestoreSourceAccessTime();
+            }
+        }
+
+        private static void CreateSafeAbsoluteDirectory(string directory)
+        {
+            var fullPath = Path.GetFullPath(directory);
+            var root = Path.GetPathRoot(fullPath)
+                ?? throw new InvalidOperationException($"Path '{directory}' has no file system root.");
+            var current = root;
+            foreach (var segment in fullPath[root.Length..].Split(
+                         [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                current = Path.Combine(current, segment);
+                if (File.Exists(current))
+                {
+                    throw new IOException($"Output parent path '{current}' is occupied by a file.");
+                }
+
+                if (!Directory.Exists(current))
+                {
+                    Directory.CreateDirectory(current);
+                }
+
+                EnsureNotNameSurrogateReparsePoint(current);
+            }
+        }
+
+        private static void CreateTransactionDirectory(string path)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Directory.CreateDirectory(path);
+                RestrictTransactionPathToOwner(path, isDirectory: true);
+                return;
+            }
+
+            Directory.CreateDirectory(
+                path,
+                UnixFileMode.UserRead
+                | UnixFileMode.UserWrite
+                | UnixFileMode.UserExecute);
+            RestrictTransactionPathToOwner(path, isDirectory: true);
+        }
+
+        internal static void RestrictTransactionPathToOwner(
+            string path,
+            bool isDirectory)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    path,
+                    isDirectory
+                        ? UnixFileMode.UserRead
+                          | UnixFileMode.UserWrite
+                          | UnixFileMode.UserExecute
+                        : UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                return;
+            }
+
+            RestrictWindowsTransactionPathToOwner(path, isDirectory);
+        }
+
+        [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+        private static void RestrictWindowsTransactionPathToOwner(
+            string path,
+            bool isDirectory)
+        {
+            var owner = WindowsIdentity.GetCurrent().User
+                ?? throw new InvalidOperationException(
+                    "The current Windows identity has no security identifier.");
+            var inheritance = isDirectory
+                ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit
+                : InheritanceFlags.None;
+            FileSystemSecurity security = isDirectory
+                ? new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner)
+                : new FileInfo(path).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
+            if (!owner.Equals(security.GetOwner(typeof(SecurityIdentifier))))
+            {
+                security.SetOwner(owner);
+            }
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(
+                         includeExplicit: true,
+                         includeInherited: false,
+                         typeof(SecurityIdentifier)))
+            {
+                security.RemoveAccessRuleSpecific(rule);
+            }
+
+            security.AddAccessRule(new FileSystemAccessRule(
+                owner,
+                FileSystemRights.FullControl,
+                inheritance,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+            if (isDirectory)
+            {
+                new DirectoryInfo(path).SetAccessControl((DirectorySecurity)security);
+            }
+            else
+            {
+                new FileInfo(path).SetAccessControl((FileSecurity)security);
+            }
+        }
+
+        internal static void EnsureTransactionPathIsOwnerRestricted(
+            string path,
+            bool isDirectory)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                var expected = isDirectory
+                    ? UnixFileMode.UserRead
+                      | UnixFileMode.UserWrite
+                      | UnixFileMode.UserExecute
+                    : UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                if (File.GetUnixFileMode(path) != expected)
+                {
+                    throw new InvalidOperationException(
+                        $"Transaction path '{path}' is not restricted to its owner.");
+                }
+
+                return;
+            }
+
+            EnsureWindowsTransactionPathIsOwnerRestricted(path, isDirectory);
+        }
+
+        [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+        private static void EnsureWindowsTransactionPathIsOwnerRestricted(
+            string path,
+            bool isDirectory)
+        {
+            var owner = WindowsIdentity.GetCurrent().User
+                ?? throw new InvalidOperationException(
+                    "The current Windows identity has no security identifier.");
+            FileSystemSecurity security = isDirectory
+                ? new DirectoryInfo(path).GetAccessControl(
+                    AccessControlSections.Access | AccessControlSections.Owner)
+                : new FileInfo(path).GetAccessControl(
+                    AccessControlSections.Access | AccessControlSections.Owner);
+            if (!security.AreAccessRulesProtected
+                || !owner.Equals(security.GetOwner(typeof(SecurityIdentifier))))
+            {
+                throw new InvalidOperationException(
+                    $"Transaction path '{path}' is not restricted to its owner.");
+            }
+
+            var rules = security.GetAccessRules(
+                    includeExplicit: true,
+                    includeInherited: true,
+                    typeof(SecurityIdentifier))
+                .Cast<FileSystemAccessRule>()
+                .ToArray();
+            if (rules.Length == 0
+                || rules.Any(rule =>
+                    rule.AccessControlType != AccessControlType.Allow
+                    || !owner.Equals(rule.IdentityReference)))
+            {
+                throw new InvalidOperationException(
+                    $"Transaction path '{path}' is not restricted to its owner.");
+            }
+        }
+
+        private static void PrepareOwnedTreeForDeletion(string root)
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(root))
+            {
+                var attributes = File.GetAttributes(entry);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    PrepareOwnedTreeForDeletion(entry);
+                }
+                else
+                {
+                    RestrictTransactionPathToOwner(entry, isDirectory: false);
+                }
+
+                File.SetAttributes(
+                    entry,
+                    attributes & ~(FileAttributes.ReadOnly | FileAttributes.System));
+            }
+
+            RestrictTransactionPathToOwner(root, isDirectory: true);
+            var rootAttributes = File.GetAttributes(root);
+            File.SetAttributes(
+                root,
+                rootAttributes & ~(FileAttributes.ReadOnly | FileAttributes.System));
+        }
+
+        private static void EnsureTreeContainsNoNameSurrogateReparsePoints(string root)
+        {
+            EnsureNotNameSurrogateReparsePoint(root);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(root))
+            {
+                var attributes = File.GetAttributes(entry);
+                EnsureNotNameSurrogateReparsePoint(entry, attributes);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    EnsureTreeContainsNoNameSurrogateReparsePoints(entry);
+                }
+            }
+        }
+
+        private void ApplyCopiedMetadata(IReadOnlyCollection<string> generatedFiles)
+        {
+            var generatedPaths = generatedFiles.ToHashSet(
+                OperatingSystem.IsWindows()
+                    ? StringComparer.OrdinalIgnoreCase
+                    : StringComparer.Ordinal);
+            foreach (var metadata in _copiedFileMetadata)
+            {
+                metadata.Apply(
+                    preserveTimestamps: !generatedPaths.Contains(metadata.DestinationPath));
+            }
+
+            for (var index = _copiedDirectoryMetadata.Count - 1; index >= 0; index--)
+            {
+                _copiedDirectoryMetadata[index].Apply();
+            }
+        }
+
+        private void RestoreCopiedSourceDirectoryMetadata()
+        {
+            for (var index = _copiedDirectoryMetadata.Count - 1; index >= 0; index--)
+            {
+                _copiedDirectoryMetadata[index].RestoreSource();
+            }
+        }
+
+        private async Task RecoverRegisteredTransactionsAsync()
+        {
+            await RecoverRegisteredOwnershipStatesAsync().ConfigureAwait(false);
+            var registeredBackups = _outputLock.RegisteredBackups.ToArray();
+            string? restoredBackup = null;
+            if (GetAttributes(_outputRoot) is null)
+            {
+                for (var index = registeredBackups.Length - 1; index >= 0; index--)
+                {
+                    var backup = registeredBackups[index];
+                    EnsureOwnedSiblingPath(
+                        _parentRoot,
+                        backup,
+                        "backup",
+                        _outputLock.Identity);
+                    if (GetAttributes(backup) is null)
+                    {
+                        await TryUnregisterRecoveredBackupAsync(backup).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    EnsureTreeContainsNoNameSurrogateReparsePoints(backup);
+                    await MoveDirectoryWithRetriesAsync(backup, _outputRoot).ConfigureAwait(false);
+                    await TryUnregisterRecoveredBackupAsync(backup).ConfigureAwait(false);
+                    restoredBackup = backup;
+                    break;
+                }
+            }
+
+            foreach (var backup in registeredBackups)
+            {
+                if (string.Equals(backup, restoredBackup, PathComparison))
+                {
+                    continue;
+                }
+
+                if (GetAttributes(backup) is null)
+                {
+                    await TryUnregisterRecoveredBackupAsync(backup).ConfigureAwait(false);
+                    continue;
+                }
+
+                await TryCleanupCommittedBackupAsync(backup).ConfigureAwait(false);
+            }
+
+            foreach (var staging in _outputLock.RegisteredStaging.ToArray())
+            {
+                EnsureOwnedSiblingPath(
+                    _parentRoot,
+                    staging,
+                    "staging",
+                    _outputLock.Identity);
+                try
+                {
+                    await DeleteOwnedDirectoryAsync(staging, "staging").ConfigureAwait(false);
+                    await _outputLock.UnregisterStagingAsync(staging).ConfigureAwait(false);
+                }
+                catch (IOException exception)
+                {
+                    RecordRetainedStaging(staging, exception);
+                }
+                catch (UnauthorizedAccessException exception)
+                {
+                    RecordRetainedStaging(staging, exception);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    RecordRetainedStaging(staging, exception);
+                }
+            }
+        }
+
+        private async Task RecoverRegisteredOwnershipStatesAsync()
+        {
+            foreach (var pendingPath in _outputLock.RegisteredOwnershipStates.ToArray())
+            {
+                EnsureOwnershipStatePath(
+                    _parentRoot,
+                    pendingPath,
+                    _outputLock.Identity,
+                    _outputIdentity,
+                    pending: true);
+                var suffix = GetPendingOwnershipStateSuffix(pendingPath);
+                var stagingPath = Path.Combine(
+                    _parentRoot,
+                    $".lithosharp-staging-{_outputLock.Identity}-{suffix}");
+                EnsureOwnedSiblingPath(
+                    _parentRoot,
+                    stagingPath,
+                    "staging",
+                    _outputLock.Identity);
+                var outputExists = GetAttributes(_outputRoot) is not null;
+                var stagingExists = GetAttributes(stagingPath) is not null;
+                if (outputExists && !stagingExists)
+                {
+                    EnsureTreeContainsNoNameSurrogateReparsePoints(_outputRoot);
+                    var pendingState = await ReadOwnershipStateAsync(
+                            pendingPath,
+                            _outputIdentity,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                    if (pendingState is not null)
+                    {
+                        await EnsureOutputMatchesOwnershipStateAsync(pendingState)
+                            .ConfigureAwait(false);
+                        File.Move(
+                            pendingPath,
+                            _ownershipStatePath,
+                            overwrite: true);
+                    }
+                    else
+                    {
+                        var promotedState = await ReadOwnershipStateAsync(
+                                _ownershipStatePath,
+                                _outputIdentity,
+                                CancellationToken.None)
+                            .ConfigureAwait(false)
+                            ?? throw new InvalidOperationException(
+                                $"Registered output ownership state '{pendingPath}' is missing.");
+                        await EnsureOutputMatchesOwnershipStateAsync(promotedState)
+                            .ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    DeleteRegisteredOwnershipState(pendingPath);
+                }
+
+                try
+                {
+                    await _outputLock.UnregisterOwnershipStateAsync(pendingPath)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception exception) when (
+                    exception is IOException or UnauthorizedAccessException)
+                {
+                    RecordCleanupDiagnostic(
+                        RetainedOwnershipStateRegistrationDiagnosticId,
+                        "Committed output retained an ownership-state registration for a later recovery cleanup.");
+                    System.Diagnostics.Trace.TraceWarning(
+                        "LithoSharp retained stale ownership-state registration '{0}' for a later cleanup attempt: {1}",
+                        pendingPath,
+                        exception.Message);
+                }
+            }
+        }
+
+        private void RecordRetainedStaging(string staging, Exception exception)
+        {
+            RecordCleanupDiagnostic(
+                RetainedStagingRegistrationDiagnosticId,
+                "Committed output retained a staging registration for a later recovery cleanup.");
+            TraceRetainedStaging(staging, exception);
+        }
+
+        private async Task TryUnregisterRecoveredBackupAsync(string backup)
+        {
+            try
+            {
+                await _outputLock.UnregisterBackupAsync(backup).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException)
+            {
+                RecordRetainedBackup(backup, exception);
+            }
+        }
+
+        private void RecordCleanupDiagnostic(string id, string message)
+        {
+            if (_diagnostics.All(diagnostic => diagnostic.Id != id))
+            {
+                _diagnostics.Add(new SiteDiagnostic(id, SiteDiagnosticSeverity.Warning, message));
+            }
+        }
+
+        private async Task EnsureOutputMatchesOwnershipStateAsync(
+            OutputOwnershipState state)
+        {
+            foreach (var artifact in state.Artifacts)
+            {
+                var path = SafeCombine(_outputRoot, artifact.Path);
+                var attributes = GetAttributes(path)
+                    ?? throw new InvalidOperationException(
+                        $"Promoted output is missing generated artifact '{artifact.Path}'.");
+                EnsureNotNameSurrogateReparsePoint(path, attributes);
+                if ((attributes & FileAttributes.Directory) != 0
+                    || !string.Equals(
+                        await ComputeFileSha256Async(path, CancellationToken.None)
+                            .ConfigureAwait(false),
+                        artifact.Sha256,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Promoted output artifact '{artifact.Path}' does not match its ownership state.");
+                }
+            }
+        }
+
+        private static void DeleteRegisteredOwnershipState(string path)
+        {
+            var attributes = GetAttributes(path);
+            if (attributes is null)
+            {
+                return;
+            }
+
+            EnsureNotNameSurrogateReparsePoint(path, attributes.Value);
+            if ((attributes.Value & FileAttributes.Directory) != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Registered output ownership state '{path}' is a directory.");
+            }
+
+            RestrictTransactionPathToOwner(path, isDirectory: false);
+            File.SetAttributes(
+                path,
+                attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
+            File.Delete(path);
+        }
+
+        private static string GetPendingOwnershipStateSuffix(string path)
+        {
+            var fileName = Path.GetFileName(path);
+            var extensionLength = ".json".Length;
+            return fileName[(fileName.LastIndexOf('-') + 1)..^extensionLength];
+        }
+
+        private static void TraceRetainedStaging(string stagingRoot, Exception exception) =>
+            System.Diagnostics.Trace.TraceWarning(
+                "LithoSharp retained registered staging directory '{0}' for a later cleanup attempt: {1}",
+                stagingRoot,
+                exception.Message);
+
+        private static string CreateLockIdentity(string outputRoot)
+        {
+            var normalizedPath = outputRoot
+                .Normalize(NormalizationForm.FormC)
+                .ToUpperInvariant();
+            return Convert.ToHexString(
+                    SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath)))
+                .ToLowerInvariant();
+        }
+
+        private static string CreateOwnershipScope(
+            string parentRoot,
+            string outputName)
+        {
+            var canonicalParent = ResolveExistingDirectoryPath(parentRoot);
+            var requestedOutput = Path.Combine(canonicalParent, outputName);
+            var entries = Directory.EnumerateFileSystemEntries(canonicalParent).ToArray();
+            var exact = entries.SingleOrDefault(entry =>
+                string.Equals(Path.GetFileName(entry), outputName, StringComparison.Ordinal));
+            if (exact is not null)
+            {
+                return Path.TrimEndingDirectorySeparator(Path.GetFullPath(exact));
+            }
+
+            if (Directory.Exists(requestedOutput))
+            {
+                var aliases = entries
+                    .Where(Directory.Exists)
+                    .Where(entry => FileSystemNamesAlias(
+                        Path.GetFileName(entry),
+                        outputName))
+                    .ToArray();
+                if (aliases.Length != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Output path '{requestedOutput}' has an ambiguous physical identity.");
+                }
+
+                return Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(aliases[0]));
+            }
+
+            var prospectiveName = OperatingSystem.IsMacOS()
+                ? outputName.Normalize(NormalizationForm.FormD)
+                : outputName;
+            return Path.Combine(canonicalParent, prospectiveName);
+        }
+
+        private static string ResolveExistingDirectoryPath(string path)
+        {
+            var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            var root = Path.GetPathRoot(fullPath)
+                ?? throw new InvalidOperationException($"Path '{path}' has no file system root.");
+            var current = root;
+            foreach (var segment in fullPath[root.Length..].Split(
+                         [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                var entries = Directory.EnumerateDirectories(current).ToArray();
+                var exact = entries.SingleOrDefault(entry =>
+                    string.Equals(Path.GetFileName(entry), segment, StringComparison.Ordinal));
+                if (exact is not null)
+                {
+                    current = exact;
+                    continue;
+                }
+
+                var requested = Path.Combine(current, segment);
+                if (!Directory.Exists(requested))
+                {
+                    throw new DirectoryNotFoundException(
+                        $"Output parent directory '{requested}' was not found.");
+                }
+
+                var aliases = entries
+                    .Where(entry => FileSystemNamesAlias(
+                        Path.GetFileName(entry),
+                        segment))
+                    .ToArray();
+                if (aliases.Length != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Output parent path '{requested}' has an ambiguous physical identity.");
+                }
+
+                current = aliases[0];
+            }
+
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(current));
+        }
+
+        private static bool FileSystemNamesAlias(string left, string right)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (OperatingSystem.IsMacOS())
+            {
+                return string.Equals(
+                    left.Normalize(NormalizationForm.FormD),
+                    right.Normalize(NormalizationForm.FormD),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(left, right, StringComparison.Ordinal);
+        }
+
+        private static string CreateOutputIdentity(string canonicalOutputRoot) =>
+            Convert.ToHexStringLower(
+                SHA256.HashData(Encoding.UTF8.GetBytes(canonicalOutputRoot)));
+
+        private static string ArtifactPathIdentity(string relativePath)
+        {
+            var identity = relativePath.Normalize(NormalizationForm.FormC);
+            return OperatingSystem.IsWindows()
+                ? identity.ToUpperInvariant()
+                : identity;
+        }
+
+        private static void EnsureOwnershipStatePath(
+            string parentRoot,
+            string path,
+            string lockIdentity,
+            string outputIdentity,
+            bool pending)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var fileName = Path.GetFileName(fullPath);
+            var validName = pending
+                ? IsPendingOwnershipStateName(
+                    fileName,
+                    lockIdentity,
+                    outputIdentity)
+                : string.Equals(
+                    fileName,
+                    $".lithosharp-ownership-{lockIdentity}-{outputIdentity}.json",
+                    StringComparison.Ordinal);
+            if (!string.Equals(
+                    Path.GetDirectoryName(fullPath),
+                    parentRoot,
+                    PathComparison)
+                || !validName)
+            {
+                throw new InvalidOperationException(
+                    $"Refusing to operate on unresolved output ownership state path '{path}'.");
+            }
+        }
+
+        private static bool IsPendingOwnershipStateName(
+            string fileName,
+            string lockIdentity,
+            string outputIdentity)
+        {
+            var prefix =
+                $".lithosharp-ownership-pending-{lockIdentity}-{outputIdentity}-";
+            if (!fileName.StartsWith(prefix, StringComparison.Ordinal)
+                || !fileName.EndsWith(".json", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var suffix = fileName[prefix.Length..^".json".Length];
+            return suffix.Length == 32
+                   && suffix.All(static character =>
+                       character is >= '0' and <= '9' or >= 'a' and <= 'f');
+        }
+
+        private static void EnsureOwnedSiblingPath(
+            string parentRoot,
+            string path,
+            string kind,
+            string lockIdentity)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var expectedPrefix =
+                $".lithosharp-{kind}-{lockIdentity}-";
+            if (!string.Equals(
+                    Path.GetDirectoryName(fullPath),
+                    parentRoot,
+                    PathComparison)
+                || !Path.GetFileName(fullPath).StartsWith(
+                    expectedPrefix,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Refusing to operate on unresolved {kind} path '{path}'.");
+            }
+        }
+
+        private static async Task MoveDirectoryWithRetriesAsync(
+            string source,
+            string destination)
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    Directory.Move(source, destination);
+                    return;
+                }
+                catch (IOException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+                catch (UnauthorizedAccessException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+
+                await Task.Delay(WindowsFileLockRetryDelay).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task DeleteDirectoryWithRetriesAsync(string path)
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(path, recursive: true);
+                    return;
+                }
+                catch (IOException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+                catch (UnauthorizedAccessException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+
+                await Task.Delay(WindowsFileLockRetryDelay).ConfigureAwait(false);
+            }
+        }
+
+        private sealed class OutputLock : IAsyncDisposable
+        {
+            private readonly FileStream _stream;
+            private readonly List<TransactionRegistration> _registeredBackups;
+            private readonly List<TransactionRegistration> _registeredStaging;
+            private readonly List<TransactionRegistration> _registeredOwnershipStates;
+            private readonly string _scope;
+
+            private OutputLock(
+                FileStream stream,
+                string identity,
+                string scope,
+                TransactionState state)
+            {
+                _stream = stream;
+                Identity = identity;
+                _scope = scope;
+                _registeredBackups = state.Backups;
+                _registeredStaging = state.Staging;
+                _registeredOwnershipStates = state.OwnershipStates;
+            }
+
+            public string Identity { get; }
+
+            public IReadOnlyList<string> RegisteredBackups =>
+                _registeredBackups
+                    .Where(registration => ScopeMatches(registration.Scope))
+                    .Select(registration => registration.Path)
+                    .ToArray();
+
+            public IReadOnlyList<string> RegisteredStaging =>
+                _registeredStaging
+                    .Where(registration => ScopeMatches(registration.Scope))
+                    .Select(registration => registration.Path)
+                    .ToArray();
+
+            public IReadOnlyList<string> RegisteredOwnershipStates =>
+                _registeredOwnershipStates
+                    .Where(registration => ScopeMatches(registration.Scope))
+                    .Select(registration => registration.Path)
+                    .ToArray();
+
+            public static async Task<OutputLock> AcquireAsync(
+                string lockPath,
+                string identity,
+                string scope,
+                CancellationToken cancellationToken)
+            {
+                PrepareWindowsLockFile(lockPath);
+                var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                IOException? lastContention = null;
+                while (System.Diagnostics.Stopwatch.GetElapsedTime(startedAt)
+                       < LockAcquisitionTimeout)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var attributes = GetAttributes(lockPath);
+                    if (attributes is not null)
+                    {
+                        if ((attributes.Value & FileAttributes.Directory) != 0)
+                        {
+                            throw new IOException(
+                                $"Output transaction lock path '{lockPath}' is a directory.");
+                        }
+
+                        EnsureNotNameSurrogateReparsePoint(lockPath, attributes.Value);
+                    }
+
+                    FileStream? stream = null;
+                    try
+                    {
+                        stream = CreateLockStream(lockPath);
+                        EnsureOpenedFilePath(stream, lockPath);
+                        if (!OperatingSystem.IsWindows())
+                        {
+                            RestrictTransactionPathToOwner(
+                                lockPath,
+                                isDirectory: false);
+                        }
+
+                        return new OutputLock(
+                            stream,
+                            identity,
+                            scope,
+                            ReadTransactionState(stream, scope));
+                    }
+                    catch (IOException exception)
+                    {
+                        stream?.Dispose();
+                        lastContention = exception;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        stream?.Dispose();
+                        throw;
+                    }
+
+                    await Task.Delay(LockRetryDelay, cancellationToken).ConfigureAwait(false);
+                }
+
+                throw new TimeoutException(
+                    $"Timed out acquiring the output transaction lock for '{lockPath}'.",
+                    lastContention);
+            }
+
+            private static void PrepareWindowsLockFile(string lockPath)
+            {
+                if (!OperatingSystem.IsWindows() || GetAttributes(lockPath) is not null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    using (new FileStream(
+                               lockPath,
+                               FileMode.CreateNew,
+                               FileAccess.ReadWrite,
+                               FileShare.None))
+                    {
+                    }
+                }
+                catch (IOException) when (GetAttributes(lockPath) is not null)
+                {
+                    return;
+                }
+
+                RestrictTransactionPathToOwner(lockPath, isDirectory: false);
+            }
+
+            public async Task RegisterBackupAsync(string backupRoot)
+            {
+                if (!_registeredBackups.Any(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == backupRoot))
+                {
+                    _registeredBackups.Add(new TransactionRegistration(_scope, backupRoot));
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public async Task UnregisterBackupAsync(string backupRoot)
+            {
+                if (_registeredBackups.RemoveAll(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == backupRoot) > 0)
+                {
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public async Task RegisterStagingAsync(string stagingRoot)
+            {
+                if (!_registeredStaging.Any(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == stagingRoot))
+                {
+                    _registeredStaging.Add(new TransactionRegistration(_scope, stagingRoot));
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public async Task UnregisterStagingAsync(string stagingRoot)
+            {
+                if (_registeredStaging.RemoveAll(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == stagingRoot) > 0)
+                {
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public async Task RegisterOwnershipStateAsync(string pendingStatePath)
+            {
+                if (!_registeredOwnershipStates.Any(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == pendingStatePath))
+                {
+                    _registeredOwnershipStates.Add(
+                        new TransactionRegistration(_scope, pendingStatePath));
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public async Task UnregisterOwnershipStateAsync(string pendingStatePath)
+            {
+                if (_registeredOwnershipStates.RemoveAll(registration =>
+                        ScopeMatches(registration.Scope)
+                        && registration.Path == pendingStatePath) > 0)
+                {
+                    await PersistAsync().ConfigureAwait(false);
+                }
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                _stream.Dispose();
+                return ValueTask.CompletedTask;
+            }
+
+            private bool ScopeMatches(string scope) =>
+                string.Equals(
+                    scope,
+                    _scope,
+                    StringComparison.Ordinal);
+
+            private static FileStream CreateLockStream(string lockPath)
+            {
+                var options = new FileStreamOptions
+                {
+                    Mode = FileMode.OpenOrCreate,
+                    Access = FileAccess.ReadWrite,
+                    Share = FileShare.None,
+                    BufferSize = 4096,
+                    Options = FileOptions.Asynchronous | FileOptions.WriteThrough
+                };
+                if (!OperatingSystem.IsWindows())
+                {
+                    options.UnixCreateMode =
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                }
+
+                return new FileStream(lockPath, options);
+            }
+
+            private static TransactionState ReadTransactionState(
+                FileStream stream,
+                string currentScope)
+            {
+                stream.Position = 0;
+                using var reader = new StreamReader(
+                    stream,
+                    Encoding.UTF8,
+                    detectEncodingFromByteOrderMarks: true,
+                    leaveOpen: true);
+                var backups = new List<TransactionRegistration>();
+                var staging = new List<TransactionRegistration>();
+                var ownershipStates = new List<TransactionRegistration>();
+                foreach (var line in reader.ReadToEnd()
+                    .Split(
+                        ['\r', '\n'],
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (line.StartsWith("S|", StringComparison.Ordinal))
+                    {
+                        staging.Add(DecodeRegistration(line[2..], currentScope));
+                    }
+                    else if (line.StartsWith("B|", StringComparison.Ordinal))
+                    {
+                        backups.Add(DecodeRegistration(line[2..], currentScope));
+                    }
+                    else if (line.StartsWith("O|", StringComparison.Ordinal))
+                    {
+                        ownershipStates.Add(
+                            DecodeRegistration(line[2..], currentScope));
+                    }
+                    else
+                    {
+                        backups.Add(new TransactionRegistration(currentScope, line));
+                    }
+                }
+
+                return new TransactionState(
+                    backups.Distinct().ToList(),
+                    staging.Distinct().ToList(),
+                    ownershipStates.Distinct().ToList());
+            }
+
+            private async Task PersistAsync()
+            {
+                var contents = string.Join(
+                    '\n',
+                    _registeredBackups.Select(registration =>
+                            $"B|{EncodeRegisteredPath(registration.Scope)}|{EncodeRegisteredPath(registration.Path)}")
+                        .Concat(_registeredStaging.Select(registration =>
+                            $"S|{EncodeRegisteredPath(registration.Scope)}|{EncodeRegisteredPath(registration.Path)}"))
+                        .Concat(_registeredOwnershipStates.Select(registration =>
+                            $"O|{EncodeRegisteredPath(registration.Scope)}|{EncodeRegisteredPath(registration.Path)}")));
+                if (contents.Length > 0)
+                {
+                    contents += '\n';
+                }
+
+                var bytes = Encoding.UTF8.GetBytes(contents);
+                _stream.Position = 0;
+                _stream.SetLength(0);
+                await _stream.WriteAsync(bytes).ConfigureAwait(false);
+                await _stream.FlushAsync().ConfigureAwait(false);
+                _stream.Flush(flushToDisk: true);
+            }
+
+            private static string EncodeRegisteredPath(string path) =>
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(path));
+
+            private static TransactionRegistration DecodeRegistration(
+                string value,
+                string currentScope)
+            {
+                var separator = value.IndexOf('|');
+                return separator < 0
+                    ? new TransactionRegistration(
+                        currentScope,
+                        DecodeRegisteredPath(value))
+                    : new TransactionRegistration(
+                        DecodeRegisteredPath(value[..separator]),
+                        DecodeRegisteredPath(value[(separator + 1)..]));
+            }
+
+            private static string DecodeRegisteredPath(string value) =>
+                Encoding.UTF8.GetString(Convert.FromBase64String(value));
+
+            private sealed record TransactionState(
+                List<TransactionRegistration> Backups,
+                List<TransactionRegistration> Staging,
+                List<TransactionRegistration> OwnershipStates);
+
+            private sealed record TransactionRegistration(
+                string Scope,
+                string Path);
+        }
+
+        private sealed record FileSystemMetadata(
+            string SourcePath,
+            string DestinationPath,
+            bool IsDirectory,
+            FileAttributes Attributes,
+            DateTime CreationTimeUtc,
+            DateTime LastAccessTimeUtc,
+            DateTime LastWriteTimeUtc,
+            UnixFileMode? UnixMode,
+            byte[]? WindowsSecurityDescriptor)
+        {
+            public static FileSystemMetadata Capture(
+                string sourcePath,
+                string destinationPath,
+                bool isDirectory) =>
+                new(
+                    sourcePath,
+                    destinationPath,
+                    isDirectory,
+                    File.GetAttributes(sourcePath),
+                    isDirectory
+                        ? Directory.GetCreationTimeUtc(sourcePath)
+                        : File.GetCreationTimeUtc(sourcePath),
+                    isDirectory
+                        ? Directory.GetLastAccessTimeUtc(sourcePath)
+                        : File.GetLastAccessTimeUtc(sourcePath),
+                    isDirectory
+                        ? Directory.GetLastWriteTimeUtc(sourcePath)
+                        : File.GetLastWriteTimeUtc(sourcePath),
+                    OperatingSystem.IsWindows()
+                        ? null
+                        : File.GetUnixFileMode(sourcePath),
+                    CaptureWindowsSecurityDescriptor(sourcePath, isDirectory));
+
+            public void Apply(bool preserveTimestamps = true)
+            {
+                ApplyTo(
+                    DestinationPath,
+                    applyWindowsSecurity: true,
+                    preserveTimestamps);
+            }
+
+            public void RestoreSource()
+            {
+                ApplyTo(
+                    SourcePath,
+                    applyWindowsSecurity: false,
+                    preserveTimestamps: true);
+            }
+
+            private void ApplyTo(
+                string path,
+                bool applyWindowsSecurity,
+                bool preserveTimestamps)
+            {
+                if (!OperatingSystem.IsWindows() && UnixMode is not null)
+                {
+                    File.SetUnixFileMode(path, UnixMode.Value);
+                }
+
+                if (preserveTimestamps && IsDirectory)
+                {
+                    Directory.SetCreationTimeUtc(path, CreationTimeUtc);
+                    Directory.SetLastAccessTimeUtc(path, LastAccessTimeUtc);
+                    Directory.SetLastWriteTimeUtc(path, LastWriteTimeUtc);
+                }
+                else if (preserveTimestamps)
+                {
+                    File.SetCreationTimeUtc(path, CreationTimeUtc);
+                    File.SetLastAccessTimeUtc(path, LastAccessTimeUtc);
+                    File.SetLastWriteTimeUtc(path, LastWriteTimeUtc);
+                }
+
+                File.SetAttributes(path, Attributes);
+                if (applyWindowsSecurity && WindowsSecurityDescriptor is not null)
+                {
+                    ApplyWindowsSecurityDescriptor(
+                        path,
+                        IsDirectory,
+                        WindowsSecurityDescriptor);
+                }
+            }
+
+            public void RestoreSourceAccessTime()
+            {
+                if (IsDirectory)
+                {
+                    Directory.SetLastAccessTimeUtc(SourcePath, LastAccessTimeUtc);
+                }
+                else
+                {
+                    File.SetLastAccessTimeUtc(SourcePath, LastAccessTimeUtc);
+                }
+            }
+
+            private static byte[]? CaptureWindowsSecurityDescriptor(
+                string path,
+                bool isDirectory)
+            {
+                if (!OperatingSystem.IsWindows())
+                {
+                    return null;
+                }
+
+                const AccessControlSections sections =
+                    AccessControlSections.Access
+                    | AccessControlSections.Owner
+                    | AccessControlSections.Group;
+                FileSystemSecurity security = isDirectory
+                    ? new DirectoryInfo(path).GetAccessControl(sections)
+                    : new FileInfo(path).GetAccessControl(sections);
+                return security.GetSecurityDescriptorBinaryForm();
+            }
+
+            private static void ApplyWindowsSecurityDescriptor(
+                string path,
+                bool isDirectory,
+                byte[] securityDescriptor)
+            {
+                if (!OperatingSystem.IsWindows())
+                {
+                    return;
+                }
+
+                if (isDirectory)
+                {
+                    var security = new DirectorySecurity();
+                    security.SetSecurityDescriptorBinaryForm(
+                        securityDescriptor,
+                        AccessControlSections.Access);
+                    new DirectoryInfo(path).SetAccessControl(security);
+                }
+                else
+                {
+                    var fileSecurity = new FileSecurity();
+                    fileSecurity.SetSecurityDescriptorBinaryForm(
+                        securityDescriptor,
+                        AccessControlSections.Access);
+                    new FileInfo(path).SetAccessControl(fileSecurity);
+                }
+
+                var expected = new RawSecurityDescriptor(securityDescriptor, 0);
+                FileSystemSecurity current = isDirectory
+                    ? new DirectoryInfo(path).GetAccessControl(
+                        AccessControlSections.Owner | AccessControlSections.Group)
+                    : new FileInfo(path).GetAccessControl(
+                        AccessControlSections.Owner | AccessControlSections.Group);
+                var changed = false;
+                if (expected.Owner is not null
+                    && !expected.Owner.Equals(current.GetOwner(typeof(SecurityIdentifier))))
+                {
+                    current.SetOwner(expected.Owner);
+                    changed = true;
+                }
+
+                if (expected.Group is not null
+                    && !expected.Group.Equals(current.GetGroup(typeof(SecurityIdentifier))))
+                {
+                    current.SetGroup(expected.Group);
+                    changed = true;
+                }
+
+                if (!changed)
+                {
+                    return;
+                }
+
+                if (isDirectory)
+                {
+                    new DirectoryInfo(path).SetAccessControl((DirectorySecurity)current);
+                }
+                else
+                {
+                    new FileInfo(path).SetAccessControl((FileSecurity)current);
+                }
+            }
+        }
+    }
 
     private static string BuildGoogleAnalyticsSnippet(RenderContext configuration)
     {
@@ -1522,98 +4609,20 @@ public sealed class SiteGenerator
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine($"              <link rel=\"icon\" type=\"image/x-icon\" sizes=\"any\" href=\"{Html.Encode(SitePath(configuration, FaviconAssetPath("favicon.ico")))}\">");
+        builder.AppendLine($"              <link rel=\"icon\" type=\"image/x-icon\" sizes=\"any\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Favicon("favicon.ico")))}\">");
         foreach (var (fileName, sizes) in PngFaviconAssets)
         {
-            builder.AppendLine($"              <link rel=\"icon\" type=\"image/png\" sizes=\"{sizes}\" href=\"{Html.Encode(SitePath(configuration, FaviconAssetPath(fileName)))}\">");
+            builder.AppendLine($"              <link rel=\"icon\" type=\"image/png\" sizes=\"{sizes}\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Favicon(fileName)))}\">");
         }
 
-        builder.AppendLine($"              <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"{Html.Encode(SitePath(configuration, FaviconAssetPath("apple-touch-icon.png")))}\">");
-        builder.Append($"              <link rel=\"manifest\" href=\"{Html.Encode(SitePath(configuration, "site.webmanifest"))}\">");
+        builder.AppendLine($"              <link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Favicon("apple-touch-icon.png")))}\">");
+        builder.Append($"              <link rel=\"manifest\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.WebManifest))}\">");
         return builder.ToString();
-    }
-
-    private static string BuildSiteHeader(RenderContext configuration)
-    {
-        var homePath = Html.Encode(SitePath(configuration, "index.html"));
-        var archivesPath = Html.Encode(SitePath(configuration, "archives.html"));
-        var tagsPath = Html.Encode(SitePath(configuration, "tags.html"));
-        var searchPath = Html.Encode(SitePath(configuration, "search.html"));
-        var feedPath = Html.Encode(SitePath(configuration, "feed.xml"));
-        var navLinks = new List<string>
-        {
-            $"<a class=\"site-nav-home\" href=\"{homePath}\">Home</a>",
-            $"<a href=\"{archivesPath}\">Archives</a>",
-            $"<a href=\"{tagsPath}\">Tags</a>",
-        };
-        foreach (var extraPage in configuration.ExtraPages)
-        {
-            if (string.IsNullOrEmpty(extraPage.NavLabel))
-            {
-                continue;
-            }
-
-            var extraPath = Html.Encode(SitePath(configuration, extraPage.RelativePath));
-            var cssClass = string.IsNullOrEmpty(extraPage.NavCssClass)
-                ? string.Empty
-                : $" class=\"{Html.Encode(extraPage.NavCssClass)}\"";
-            navLinks.Add($"<a{cssClass} href=\"{extraPath}\">{Html.Encode(extraPage.NavLabel)}</a>");
-        }
-
-        navLinks.Add($"<a href=\"{searchPath}\">Search</a>");
-        navLinks.Add($"<a class=\"rss-nav-link\" href=\"{feedPath}\">RSS</a>");
-        var navHtml = string.Join("\n        ", navLinks);
-        var menuLabel = Html.Encode(configuration.Text.MenuLabel);
-        var navigationLabel = Html.Encode(configuration.Text.SiteNavigationLabel);
-        return $"""
-              <header class="site-header">
-                <a class="brand" href="{homePath}">{Html.Encode(configuration.Site.Title)}</a>
-                <div class="site-nav-shell">
-                  <a class="site-home-link site-icon-button" href="{homePath}" aria-label="Home">
-                    {BuildHomeIconSvg()}
-                    <span class="visually-hidden">Home</span>
-                  </a>
-                  {BuildHeaderSearchForm(configuration)}
-                  <button class="site-menu-toggle site-icon-button" type="button" aria-expanded="false" aria-controls="site-menu" aria-label="{menuLabel}" data-site-menu-toggle>
-                    {BuildMenuIconSvg()}
-                    <span class="visually-hidden">{menuLabel}</span>
-                  </button>
-                  <nav id="site-menu" class="site-nav" data-site-nav aria-label="{navigationLabel}">
-                    {navHtml}
-                  </nav>
-                </div>
-              </header>
-            """;
-    }
-
-    private static string BuildHeaderSearchForm(RenderContext configuration)
-    {
-        var searchPath = Html.Encode(SitePath(configuration, "search.html"));
-        var inputLabel = Html.Encode(configuration.Text.SearchInputLabel);
-        var placeholder = Html.Encode(configuration.Text.HeaderSearchPlaceholder);
-        var buttonLabel = Html.Encode(configuration.Text.SearchButtonLabel);
-        return $"""
-                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get">
-                    <label class="visually-hidden" for="header-search-input">{inputLabel}</label>
-                    <input id="header-search-input" name="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="{placeholder}" aria-label="{inputLabel}">
-                    <button type="submit" aria-label="{buttonLabel}">
-                      {BuildSearchIconSvg()}
-                      <span class="visually-hidden">{buttonLabel}</span>
-                    </button>
-                  </form>
-                """;
     }
 
     private static string BuildHomeIconSvg() => """
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M4.5 10.5L12 4.5l7.5 6v8.25a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75V15a1.5 1.5 0 0 0-3 0v3.75a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75z" />
-        </svg>
-        """;
-
-    private static string BuildSearchIconSvg() => """
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <circle cx="11" cy="11" r="5.5" />
-          <path d="M15.25 15.25L19 19" />
         </svg>
         """;
 
@@ -1630,14 +4639,14 @@ public sealed class SiteGenerator
             name = configuration.Site.Title,
             short_name = configuration.Site.Title,
             description = configuration.Site.Description,
-            start_url = SitePath(configuration, "index.html"),
-            scope = SitePath(configuration, string.Empty),
+            start_url = configuration.Routes.PublicPath(configuration.Routes.Home),
+            scope = configuration.Routes.PublicPath(configuration.Routes.Root),
             display = "standalone",
             background_color = configuration.Theme.ThemeColor,
             theme_color = configuration.Theme.ThemeColor,
             icons = ManifestIconAssets.Select(asset => new
             {
-                src = SitePath(configuration, FaviconAssetPath(asset.FileName)),
+                src = configuration.Routes.PublicPath(configuration.Routes.Favicon(asset.FileName)),
                 sizes = asset.Sizes,
                 type = "image/png"
             })
@@ -2614,7 +5623,7 @@ public sealed class SiteGenerator
         }
         """;
 
-    private static string BuildSearchScript(SiteText text)
+    private static string BuildSearchScript(SiteText text, bool contextual = false)
     {
         var messages = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -2630,7 +5639,7 @@ public sealed class SiteGenerator
             ["scopeTag"] = text.SearchScopeTag,
             ["loadError"] = text.SearchStatusLoadError,
         };
-        return SearchScriptTemplate.Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal);
+        return (contextual ? ContextualSearchTemplate() : SearchScriptTemplate).Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal);
     }
 
     private static string SerializeSearchMessages(Dictionary<string, string> messages)
@@ -2652,6 +5661,54 @@ public sealed class SiteGenerator
         builder.Append('}');
         return builder.ToString();
     }
+
+    private static string ContextualSearchTemplate() => SearchScriptTemplate
+        .Replace("""
+          const matchTag = (doc) => !normalizedSelectedTag
+            || (doc.tagsNormalized || []).includes(normalizedSelectedTag);
+        """, """
+          const matchTag = (doc) => (!normalizedSelectedTag
+            || (doc.tagsNormalized || []).includes(normalizedSelectedTag))
+            && ["collection", "version", "locale"].every(key => !pageParams.get(key) || doc[key] === pageParams.get(key));
+        """, StringComparison.Ordinal)
+        .Replace("""
+            const rows = entries.map(({ doc }) => (
+        """, """
+            const rows = entries.map(({ doc }) => {
+              const section = tokens.length ? doc.sections.find(section => tokens.every(token => normalizeText(section.title + " " + section.body).includes(token))) : null;
+              const target = doc.url + (section ? "#" + encodeURIComponent(section.anchor) : "");
+              return (
+        """, StringComparison.Ordinal)
+        .Replace("""
+              '<h3><a href="' + escapeHtml(safeUrl(doc.url)) + '">' + highlight(doc.title, tokens) + "</a></h3>" +
+              "<p>" + highlight(doc.summary, tokens) + "</p>" +
+        """, """
+              '<h3><a href="' + escapeHtml(safeUrl(target)) + '">' + highlight(doc.title + (section ? " — " + section.title : ""), tokens) + "</a></h3>" +
+              "<p>" + highlight((section?.body || doc.summary || doc.body).slice(0, 240), tokens) + "</p>" +
+        """, StringComparison.Ordinal)
+        .Replace("""
+            ));
+        """, """
+            ); });
+        """, StringComparison.Ordinal)
+        .Replace("""
+              date: doc.date || "",
+        """, """
+              date: doc.date || "",
+              collection: doc.collection, version: doc.version, locale: doc.locale,
+              sections: doc.sections || [], body: doc.body || "",
+        """, StringComparison.Ordinal)
+        .Replace("""
+          });
+        """, """
+          });
+          input.addEventListener("keydown", event => { if (event.key === "ArrowDown") { const first = results.querySelector("a"); if (first) { event.preventDefault(); first.focus(); } } });
+          results.addEventListener("keydown", event => {
+            const links = [...results.querySelectorAll("a")]; const index = links.indexOf(document.activeElement);
+            if (event.key === "Escape") input.focus();
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); links[(index + (event.key === "ArrowDown" ? 1 : links.length - 1)) % links.length]?.focus(); }
+          });
+        """, StringComparison.Ordinal);
 
     private const string SearchScriptTemplate = """
         (() => {

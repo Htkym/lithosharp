@@ -1,0 +1,17 @@
+---
+title: MDX integration fixture
+slug: /counter
+---
+
+import {useState} from 'react';
+
+export function Counter({initial = 0}) {
+  const [count, setCount] = useState(initial);
+  return <button onClick={() => setCount(value => value + 1)}>Count: {count}</button>;
+}
+
+# MDX integration fixture
+
+この本文はJavaScript無効時にも読めます。
+
+<Counter initial={3} />

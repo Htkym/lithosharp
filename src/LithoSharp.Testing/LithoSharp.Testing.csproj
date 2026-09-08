@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>LithoSharp.Testing</PackageId>
+    <Version>0.3.0</Version>
+    <Authors>Htkym</Authors>
+    <Description>Framework-independent site and DOM assertions for LithoSharp.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;CS1591</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
+    <PackageReference Include="AngleSharp" Version="1.7.3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
+</Project>

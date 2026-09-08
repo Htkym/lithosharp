@@ -1,6 +1,7 @@
 name: build
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -11,7 +12,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -25,21 +30,132 @@ jobs:
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode
 
+      - name: Setup MDX toolchain
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+
+      - name: Restore and test MDX worker
+        working-directory: src/LithoSharp.Mdx/worker
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+
+      - name: Check pinned Docusaurus reference
+        working-directory: tests/fixtures/mdx-baseline
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npm test
+
       - name: Build
         run: dotnet build LithoSharp.slnx --no-restore --configuration Release
 
+      - name: Pack
+        run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
+
+      - name: Validate package contents
+        shell: pwsh
+        run: ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages
+
+      - name: Pack and validate generator
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Generators/LithoSharp.Generators.csproj --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
+
       - name: Test
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
+
+      - name: Check CLI and development server
+        shell: pwsh
+        run: |
+          ./eng/Test-Tool.ps1
+          ./eng/Test-MdxWatch.ps1
+          ./eng/Test-DocumentationVerification.ps1
+
+      - name: Pack and check CLI and project templates
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Mdx/LithoSharp.Mdx.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Mdx
+          dotnet pack src/LithoSharp.Tool/LithoSharp.Tool.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet pack templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Tool
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
+          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages
+
+      - name: Pack and validate images
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Images/LithoSharp.Images.csproj --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Images
+
+      - name: Check asset sample
+        run: dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --asset-demo --check --output artifacts/assets-sample-site
+
+      - name: Pack and validate testing
+        shell: pwsh
+        run: |
+          dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
 
       - name: Run sample
         run: |
           dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site
           dotnet run --project samples/LithoSharp.Sample --configuration Release --no-build -- --output artifacts/blog-sample-site
 
+      - name: Performance smoke
+        run: dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --smoke --output artifacts/performance-baselines/smoke.json
+
+      - name: Restore browser tests
+        working-directory: tests/fixtures/mdx-browser
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Check production MDX browser behavior
+        shell: pwsh
+        run: |
+          dotnet run --project samples/LithoSharp.MdxSample --configuration Release --no-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project samples/LithoSharp.MdxSample --configuration Release --no-build -- --next-revision --output .artifacts/next
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project samples/LithoSharp.MdxSample --configuration Release --no-build -- --offline-disabled --output .artifacts/retired
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $start = [Diagnostics.ProcessStartInfo]::new('node')
+          $start.UseShellExecute = $false
+          $start.CreateNoWindow = $true
+          $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+          $start.ArgumentList.Add('tests/fixtures/mdx-browser/serve.mjs')
+          $start.ArgumentList.Add('samples/LithoSharp.MdxSample/.artifacts/site')
+          $start.ArgumentList.Add('4317')
+          $start.ArgumentList.Add('samples/LithoSharp.MdxSample/.artifacts/next')
+          $start.ArgumentList.Add('samples/LithoSharp.MdxSample/.artifacts/retired')
+          $server = [Diagnostics.Process]::Start($start)
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 40; $attempt++) {
+              try { $null = Invoke-WebRequest http://127.0.0.1:4317/guide/static/ -NoProxy; $ready = $true; break }
+              catch { Start-Sleep -Milliseconds 100 }
+            }
+            if (!$ready) { throw 'Static fixture server did not start.' }
+            node tests/fixtures/mdx-browser/run.mjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            node tests/fixtures/mdx-browser/offline-update.mjs http://127.0.0.1:4317
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { if (!$server.HasExited) { $server.Kill($true); $server.WaitForExit() }; $server.Dispose() }
+
       - name: Upload sample site
         uses: actions/upload-artifact@v7
         with:
-          name: sample-site
+          name: sample-site-${{ matrix.os }}
           path: |
             artifacts/docs-sample-site
             artifacts/blog-sample-site

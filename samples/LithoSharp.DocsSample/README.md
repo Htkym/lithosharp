@@ -25,3 +25,39 @@ and labels.
 
 For the legacy blog layout, see
 [`samples/LithoSharp.Sample`](../LithoSharp.Sample).
+
+The sample exports `DocsSampleFactory : ISiteFactory`. The CLI can build the same
+Markdown and custom C# article layout with:
+
+```sh
+lithosharp build samples/LithoSharp.DocsSample -o artifacts/docs-cli
+lithosharp serve samples/LithoSharp.DocsSample
+```
+
+The normal `dotnet run` entry point calls the same factory. Its existing
+`--content`, `--output`, `--check`, `--redirect-demo`, and `--asset-demo` switches
+remain available. The factory uses its project context for source paths.
+
+このサンプルは `DocsSampleFactory` を公開しています。CLI と通常の C# 実行が
+同じサイト定義と記事レイアウトを使います。既存のサンプル用オプションも利用できます。
+
+## Testing
+
+Use SiteTestHost with the sample factory and SiteTestDocument for DOM assertions. The host isolates output and caches and does not use the network unless external link checks are configured.
+
+```csharp
+using LithoSharp;
+using LithoSharp.Testing;
+
+await using var host = await SiteTestHost.CreateAsync(
+    new DocsSampleFactory { AssetDemo = true },
+    new SiteFactoryContext(Path.GetFullPath("samples/LithoSharp.DocsSample")));
+host.AssertSucceeded();
+host.AssertRoute("/index.html", "index.html");
+using var page = await host.OpenPageAsync("/index.html");
+page.AssertElement("main");
+```
+
+Reference this sample project and `LithoSharp.Testing` from your test project, and
+run the example from the repository root. See the [testing guide](../../docs/testing.md)
+and [Japanese sample notes](README.ja.md) for diagnostics and error conditions.

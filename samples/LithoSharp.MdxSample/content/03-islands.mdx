@@ -1,0 +1,24 @@
+---
+title: Selective hydration
+id: islands
+tags: [Islands]
+---
+import Counter from './Counter.jsx'
+
+## Static text around interactive islands
+
+Only the counters become React roots. The document stays static.
+
+<Island component={Counter} props={{initial: 10}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="load" />
+
+<Island component={Counter} props={{initial: 20}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="idle" />
+
+<div style={{height: '110vh'}} aria-hidden="true" />
+
+<Island component={Counter} props={{initial: 30}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="visible" />
+
+<Island component={Counter} props={{initial: 40}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="media" media="(min-width: 800px)" />
+
+<Island component={Counter} props={{initial: 50}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="manual" />
+
+[Return to static documentation](./01-static.mdx).
