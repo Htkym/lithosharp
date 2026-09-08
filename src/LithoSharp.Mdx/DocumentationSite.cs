@@ -244,7 +244,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
         else if (Browser is not null)
         {
             var prefix = JsonSerializer.Serialize("lithosharp:" + SiteUrl.ForDirectory("", context.Site.BaseUrl).Value + ":");
-            var retire = "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith(" + prefix + "))await caches.delete(key);await self.registration.unregister();for(const client of await self.clients.matchAll({type:'window'}))await client.navigate(client.url);})()));";
+            var retire = "self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith(" + prefix + "))await caches.delete(key);await self.registration.unregister();for(const client of await self.clients.matchAll({type:'window'}))client.postMessage({type:'lithosharp:offline-retired'});})()));";
             browserAssets.Add(new("docs:service-worker", "lithosharp-sw.js", System.Text.Encoding.UTF8.GetBytes(retire)));
         }
         var clientIndex = browserAssets.FindIndex(asset => asset.Id == "docs:client");

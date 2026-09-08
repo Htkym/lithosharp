@@ -389,15 +389,21 @@ export async function compileSite(request) {
   for (const page of results) Object.assign(publicLinks, page.usedLinks);
   virtualBrowser.set('virtual:site-links', `export const linkMap=${JSON.stringify(publicLinks)};export const crossReferences=${JSON.stringify(request.crossReferences ?? {})};`);
   const browserEntries = Object.fromEntries(pages.filter(page => virtualBrowser.has(`virtual:${page.id}`)).map(page => [page.id, `virtual:${page.id}`]));
+  const styleRoots = [...inputs.keys()].filter(file => file.endsWith('.css'))
+    .map(file => [inside(projectRoot, file) ? relative(projectRoot, file) : '@worker/' + relative(directory, file), file])
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
   if (results.some(page => page.hydration !== 'page'))
-    for (const file of inputs.keys()) if (file.endsWith('.css')) browserEntries['style-' + hash(file).slice(0, 12)] = file;
+    for (const [name, file] of styleRoots) browserEntries['style-' + hash(name).slice(0, 12)] = file;
   const browserStarted = performance.now();
   const browser = Object.keys(browserEntries).length ? await build({...common, entryPoints: browserEntries, outdir: browserDir, platform: 'browser', splitting: true,
     sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]}) : {outputFiles: [], metafile: {inputs: {}, outputs: {}}};
   const browserBundleMilliseconds = performance.now() - browserStarted;
   const browserOutputs = new Map(Object.entries(browser.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
   const pageEntries = new Map([...browserOutputs].filter(([, info]) => info.entryPoint).map(entry => [entry[1].entryPoint.replace(/^virtual:virtual:/, 'virtual:'), entry]));
-  const styleEntries = [...browserOutputs].filter(([file, info]) => file.endsWith('.css') && info.entryPoint).map(([file]) => relative(browserDir, file));
+  const styleOrder = new Map(styleRoots.map(([, file], index) => [file, index]));
+  const styleEntries = [...browserOutputs].filter(([file, info]) => file.endsWith('.css') && info.entryPoint && styleOrder.has(path.resolve(projectRoot, info.entryPoint)))
+    .sort(([, left], [, right]) => styleOrder.get(path.resolve(projectRoot, left.entryPoint)) - styleOrder.get(path.resolve(projectRoot, right.entryPoint)))
+    .map(([file]) => relative(browserDir, file));
   const assets = browser.outputFiles.map(file => {
     const info = browserOutputs.get(file.path);
     return {path: relative(browserDir, file.path), bytes: Buffer.from(file.contents).toString('base64'), hash: hash(file.contents),

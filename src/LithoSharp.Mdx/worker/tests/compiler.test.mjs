@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
+import {mkdtemp, mkdir, writeFile, rm, cp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {compileSite, extractRegion} from '../compiler.mjs';
@@ -81,16 +81,18 @@ test('selective rendering emits no static-page entry and shares explicit island 
     await mkdir(projectRoot); await mkdir(workRoot);
     await writeFile(path.join(projectRoot, 'Counter.jsx'), `import {useId,useState} from 'react';import styles from './counter.module.css';export default function Counter({initial=0}){const id=useId();const [n,set]=useState(initial);return <button id={id} className={styles.counter} onClick={()=>set(n+1)}>Count {n}</button>}`);
     await writeFile(path.join(projectRoot, 'counter.module.css'), '.counter{color:navy}');
+    await writeFile(path.join(projectRoot, 'static.css'), '.static{color:teal}');
     const sources = {
-      'static.mdx': '# Static\n\nNo React entry is needed.',
+      'static.mdx': "import './static.css'\n\n# Static\n\nNo React entry is needed.",
       'islands.mdx': `import Counter from './Counter.jsx'\n\n# Islands\n\n` + ['load', 'idle', 'visible', 'media', 'manual'].map(strategy =>
         `<Island component={Counter} props={{initial: 3}} schema={{type:'object',properties:{initial:{type:'integer'}},additionalProperties:false}} strategy="${strategy}" ${strategy === 'media' ? 'media="(min-width: 800px)"' : ''} />`).join('\n\n'),
       'fallback.mdx': `import Counter from './Counter.jsx'\n\n# Whole page\n\n<Counter />`
     };
     for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
-    const result = await compileSite({projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, hydration: 'selective',
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, hydration: 'selective',
       linkMap: {'static.mdx':'/unlisted-route-canary/', 'islands.mdx':'/1/', 'fallback.mdx':'/2/'},
-      pages: Object.keys(sources).map((source, index) => ({id: 'page' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}, discoverable: index !== 0}))});
+      pages: Object.keys(sources).map((source, index) => ({id: 'page' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}, discoverable: index !== 0}))};
+    const result = await compileSite(request);
     assert.equal(result.pages[0].entry, null);
     assert.equal(result.pages[0].hydration, 'static');
     assert.equal(result.pages[1].hydration, 'selective');
@@ -104,5 +106,10 @@ test('selective rendering emits no static-page entry and shares explicit island 
     const bootstrap = Buffer.from(result.assets.find(asset => asset.path === result.pages[1].entry).bytes, 'base64').toString();
     assert.ok(!bootstrap.includes('react-dom.production'));
     assert.ok(result.assets.filter(asset => asset.path.endsWith('.js')).every(asset => !Buffer.from(asset.bytes, 'base64').toString().includes('/unlisted-route-canary/')));
+    await mkdir(path.join(root, 'repeated'));
+    await cp(projectRoot, path.join(root, 'copied-input'), {recursive: true});
+    const repeated = await compileSite({...request, projectRoot: path.join(root, 'copied-input'), workRoot: path.join(root, 'repeated'), pages: [...request.pages].reverse()});
+    for (const page of result.pages.filter(page => page.hydration !== 'page'))
+      assert.deepEqual(repeated.pages.find(candidate => candidate.id === page.id).css, page.css);
   } finally { await rm(root, {recursive: true, force: true}); }
 });

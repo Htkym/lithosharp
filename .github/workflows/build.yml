@@ -73,6 +73,7 @@ jobs:
         run: |
           ./eng/Test-Tool.ps1
           ./eng/Test-MdxWatch.ps1
+          ./eng/Test-DocumentationVerification.ps1
 
       - name: Pack and check CLI and project templates
         shell: pwsh

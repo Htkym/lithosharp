@@ -35,7 +35,10 @@ export function start(config) {
       };
       offer(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', offer));
     }).catch(error => document.dispatchEvent(new CustomEvent('lithosharp:offline-error', {detail: String(error)})));
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (controlled) location.reload(); });
+    let reloading = false;
+    const reload = () => { if (!reloading) { reloading = true; location.reload(); } };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (controlled) reload(); });
+    navigator.serviceWorker.addEventListener('message', event => { if (event.data?.type === 'lithosharp:offline-retired') reload(); });
   }
   let theme = saved('theme') || 'system';
   const searchCache = new Map();
