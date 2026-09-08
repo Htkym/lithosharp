@@ -1,4 +1,4 @@
-import {readFile, realpath, mkdir, writeFile} from 'node:fs/promises';
+import {readFile, readdir, realpath, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {pathToFileURL, fileURLToPath} from 'node:url';
@@ -74,15 +74,23 @@ export async function compileSite(request) {
   const cacheLimit = Math.min(20000, Math.max(2048, pages.length * 2));
   const bySource = new Map(pages.map(page => [path.resolve(projectRoot, page.source), page]));
 
-  async function readInput(file) {
-    const resolved = await realpath(file);
-    if (!allowedRoots.some(root => inside(root, resolved))) throw new Error(`Import escapes the declared roots: ${relative(projectRoot, file)}`);
-    // Compare the lexical and real path: symlinked imports do not bypass C# source validation.
-    const comparable = value => process.platform === 'win32' ? value.toLowerCase() : value;
-    if (comparable(path.resolve(file)) !== comparable(resolved)) throw new Error(`Symbolic imports are not supported: ${relative(projectRoot, file)}`);
-    const bytes = await readFile(resolved);
-    inputs.set(resolved, hash(bytes));
-    return bytes;
+  // esbuild can request every source at once; bound open files across all input readers.
+  const reads = Array.from({length: 32}, () => Promise.resolve());
+  let nextRead = 0;
+  function readInput(file) {
+    const slot = nextRead++ % reads.length;
+    const result = reads[slot].then(async () => {
+      const resolved = await realpath(file);
+      if (!allowedRoots.some(root => inside(root, resolved))) throw new Error(`Import escapes the declared roots: ${relative(projectRoot, file)}`);
+      // Compare the lexical and real path: symlinked imports do not bypass C# source validation.
+      const comparable = value => process.platform === 'win32' ? value.toLowerCase() : value;
+      if (comparable(path.resolve(file)) !== comparable(resolved)) throw new Error(`Symbolic imports are not supported: ${relative(projectRoot, file)}`);
+      const bytes = await readFile(resolved);
+      inputs.set(resolved, hash(bytes));
+      return bytes;
+    });
+    reads[slot] = result.catch(() => {});
+    return result;
   }
 
   const extensions = {remark: [], rehype: []};
@@ -425,9 +433,8 @@ export async function compileSite(request) {
   for (const root of packageRoots) {
     const manifest = JSON.parse((await readInput(path.join(root, 'package.json'))).toString('utf8'));
     let license = '';
-    for (const name of ['LICENSE', 'LICENSE.md', 'LICENSE.txt', 'license', 'license.md', 'LICENCE', 'LICENSE-MIT']) {
-      try { license = (await readInput(path.join(root, name))).toString('utf8'); break; } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    }
+    const licenseName = (await readdir(root)).sort().find(name => /^licen[cs]e(?:\.md|\.txt|-mit)?$/i.test(name));
+    if (licenseName) license = (await readInput(path.join(root, licenseName))).toString('utf8');
     notices.set(manifest.name + '@' + manifest.version, `${manifest.name}@${manifest.version}\nLicense: ${typeof manifest.license === 'string' ? manifest.license : JSON.stringify(manifest.license ?? 'See package distribution')}\n${license}\n`);
   }
   const noticeBytes = Buffer.from([...notices].sort(([left], [right]) => left.localeCompare(right, 'en')).map(([, text]) => text).join('\n---\n\n'));

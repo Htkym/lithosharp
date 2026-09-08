@@ -545,8 +545,8 @@ public sealed class SiteGeneratorRouteIntegrationTests
             "assets/social/posts/0d64c079d0c3efefb9b961c5ca7aff497fbedcd2347d837bd296baebea30ec5a.png";
         var secondPath =
             "assets/social/posts/1c34211d7760e874e88598701f35c02a0d7db22d28eb82c855a644b69a95ba92.png";
-        await Assert.That(File.Exists(Path.Combine(output, firstPath.Replace('/', '\\')))).IsTrue();
-        await Assert.That(File.Exists(Path.Combine(output, secondPath.Replace('/', '\\')))).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(output, firstPath.Replace('/', Path.DirectorySeparatorChar)))).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(output, secondPath.Replace('/', Path.DirectorySeparatorChar)))).IsTrue();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "a", "same.html")))
             .Contains($"https://example.test/{firstPath}");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "b", "same.html")))

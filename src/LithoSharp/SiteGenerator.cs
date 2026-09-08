@@ -3414,8 +3414,12 @@ public sealed partial class SiteGenerator
                 ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit
                 : InheritanceFlags.None;
             FileSystemSecurity security = isDirectory
-                ? new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access)
-                : new FileInfo(path).GetAccessControl(AccessControlSections.Access);
+                ? new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner)
+                : new FileInfo(path).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
+            if (!owner.Equals(security.GetOwner(typeof(SecurityIdentifier))))
+            {
+                security.SetOwner(owner);
+            }
             security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
             foreach (FileSystemAccessRule rule in security.GetAccessRules(
                          includeExplicit: true,

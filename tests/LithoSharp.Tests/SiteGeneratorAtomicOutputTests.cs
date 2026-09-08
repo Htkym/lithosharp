@@ -843,9 +843,10 @@ public sealed class SiteGeneratorAtomicOutputTests
             workspace.Root,
             $".lithosharp-lock-{CreateLockIdentity(output)}.lock");
         var lockSecurity = new FileInfo(lockPath)
-            .GetAccessControl(AccessControlSections.Access);
+            .GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
         await Assert.That(lockSecurity.AreAccessRulesProtected).IsTrue();
         var owner = WindowsIdentity.GetCurrent().User!;
+        await Assert.That(owner.Equals(lockSecurity.GetOwner(typeof(SecurityIdentifier)))).IsTrue();
         var lockRules = lockSecurity.GetAccessRules(
                 includeExplicit: true,
                 includeInherited: true,
@@ -858,8 +859,9 @@ public sealed class SiteGeneratorAtomicOutputTests
             && owner.Equals(rule.IdentityReference))).IsTrue();
 
         var stateSecurity = new FileInfo(GetOwnershipStatePath(workspace.Root))
-            .GetAccessControl(AccessControlSections.Access);
+            .GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
         await Assert.That(stateSecurity.AreAccessRulesProtected).IsTrue();
+        await Assert.That(owner.Equals(stateSecurity.GetOwner(typeof(SecurityIdentifier)))).IsTrue();
         var stateRules = stateSecurity.GetAccessRules(
                 includeExplicit: true,
                 includeInherited: true,
@@ -873,7 +875,7 @@ public sealed class SiteGeneratorAtomicOutputTests
     }
 
     [Test]
-    public async Task GenerateAsync_BackupCleanupFailureDoesNotFailCommittedGeneration()
+    public async Task GenerateAsync_ReadOnlyBackupIsCleanedAfterCommittedGeneration()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -887,9 +889,6 @@ public sealed class SiteGeneratorAtomicOutputTests
         File.SetUnixFileMode(
             output,
             UnixFileMode.UserRead | UnixFileMode.UserExecute);
-        using var messages = new StringWriter();
-        using var listener = new TextWriterTraceListener(messages);
-        Trace.Listeners.Add(listener);
         try
         {
             var result = await GenerateAsync(
@@ -897,37 +896,21 @@ public sealed class SiteGeneratorAtomicOutputTests
                 clean: true,
                 new SingleFileTemplate("index.html", "current"));
 
-            listener.Flush();
             await Assert.That(result.GeneratedFiles).Contains(Path.Combine(output, "index.html"));
             await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html")))
                 .IsEqualTo("current");
-            await Assert.That(result.BuildReport.RetainedRecoveryState).IsTrue();
-            var diagnostic = result.BuildReport.Diagnostics.Single();
-            await Assert.That(diagnostic.Id).IsEqualTo("LST001");
-            await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Warning);
-            await Assert.That(diagnostic.Message)
-                .IsEqualTo("Committed output retained a backup for a later recovery cleanup.");
-            await Assert.That(diagnostic.Message).DoesNotContain(workspace.Root);
-            await Assert.That(diagnostic.Location).IsNull();
-            await Assert.That(messages.ToString()).Contains("retained backup");
-            await Assert.That(FindTransactionDirectories(workspace.Root, "backup")).Count().IsEqualTo(1);
-
-            var retainedBackup = FindTransactionDirectories(workspace.Root, "backup").Single();
-            File.SetUnixFileMode(
-                retainedBackup,
-                UnixFileMode.UserRead
-                | UnixFileMode.UserWrite
-                | UnixFileMode.UserExecute);
+            // Owned backup cleanup restores owner permissions before deletion.
+            await Assert.That(result.BuildReport.RetainedRecoveryState).IsFalse();
+            await Assert.That(result.BuildReport.Diagnostics).IsEmpty();
+            await Assert.That(FindTransactionDirectories(workspace.Root, "backup")).IsEmpty();
             await GenerateAsync(
                 output,
                 clean: false,
                 new SingleFileTemplate("second.html", "second"));
-            await Assert.That(Directory.Exists(retainedBackup)).IsFalse();
             await Assert.That(FindTransactionDirectories(workspace.Root, "backup")).IsEmpty();
         }
         finally
         {
-            Trace.Listeners.Remove(listener);
             foreach (var directory in FindTransactionDirectories(workspace.Root, "backup"))
             {
                 File.SetUnixFileMode(
