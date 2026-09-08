@@ -1,10 +1,12 @@
 import {createInterface} from 'node:readline';
 import {format} from 'node:util';
 import {compileSite} from './compiler.mjs';
+import {readFile} from 'node:fs/promises';
 
 const send = value => process.stdout.write(JSON.stringify(value) + '\n');
 for (const method of ['log', 'info', 'warn', 'error', 'debug']) console[method] = (...args) => process.stderr.write(format(...args) + '\n');
-send({protocol: 1, type: 'ready', node: process.versions.node, mdx: '3.1.1', react: '19.2.4', esbuild: '0.25.12'});
+const version = async name => JSON.parse(await readFile(new URL(`./node_modules/${name}/package.json`, import.meta.url), 'utf8')).version;
+send({protocol: 1, type: 'ready', node: process.versions.node, mdx: await version('@mdx-js/mdx'), react: await version('react'), esbuild: await version('esbuild')});
 for await (const line of createInterface({input: process.stdin, crlfDelay: Infinity})) {
   let message;
   try {

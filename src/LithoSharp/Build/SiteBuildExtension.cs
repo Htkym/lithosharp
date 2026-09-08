@@ -11,6 +11,9 @@ public interface ISiteBuildExtension
     Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default);
     /// <summary>Returns an optional diagnostic snapshot containing only explicitly public data.</summary>
     System.Text.Json.JsonElement? GetInspection() => null;
+    /// <summary>Observes a successfully committed build. This hook must not modify owned output files.</summary>
+    /// <remarks>Runs sequentially after publication, including no-op builds. A hook failure cannot roll back an already committed site.</remarks>
+    Task AfterBuildAsync(SiteGenerationResult result, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 /// <summary>Provides the fixed environment for build preparation.</summary>

@@ -54,6 +54,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
     private readonly List<MdxBlogCollection> blogs = [];
     /// <summary>Creates the optional blog preset without starting Node.</summary>
     public MdxBlogSite(MdxOptions options) => mdx = new(options);
+    internal MdxBlogSite(MdxSite shared) => mdx = shared;
     /// <summary>Registers a blog with strict publication and author validation.</summary>
     public void AddCollection(MdxBlogCollection blog)
     {
@@ -77,6 +78,10 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
     public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
     {
         var prepared = await mdx.PrepareAsync(context, cancellationToken).ConfigureAwait(false);
+        return Contribute(prepared, context);
+    }
+    internal SiteBuildContribution Contribute(SiteBuildContribution prepared, SiteBuildContext context)
+    {
         var collections = prepared.ContentCollections.ToList();
         var assets = prepared.Assets.ToList();
         foreach (var blog in blogs)

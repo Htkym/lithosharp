@@ -19,5 +19,7 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Remove="worker/node_modules/**/*;worker/.cache/**/*" />
     <None Update="worker/**/*" Pack="true" PackagePath="contentFiles/any/any/%(Identity)" PackageCopyToOutput="true" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="worker/tests/**/*" Pack="false" CopyToOutputDirectory="Never" />
+    <None Update="worker/.gitignore" Pack="false" CopyToOutputDirectory="Never" />
   </ItemGroup>
 </Project>

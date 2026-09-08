@@ -673,7 +673,7 @@ public sealed partial class SiteGenerator
                     (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
-                    qualityOptions, cancellationToken).ConfigureAwait(false);
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
             }
@@ -720,7 +720,7 @@ public sealed partial class SiteGenerator
                 Path.GetRelativePath(outputTransaction.StagingRoot, path)))
             .Order(StringComparer.Ordinal)
             .ToArray();
-        return new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
+        var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
@@ -739,6 +739,9 @@ public sealed partial class SiteGenerator
                 template,
                 execution),
         };
+        foreach (var extension in options.Extensions)
+            await extension.AfterBuildAsync(result, cancellationToken).ConfigureAwait(false);
+        return result;
     }
 
     private static IReadOnlyList<PageClaim<MarkdownPost>> AdaptPublishedMarkdownPages(
@@ -1089,7 +1092,7 @@ public sealed partial class SiteGenerator
             new()
             {
                 RelativePath = configuration.Routes.Home.RelativeOutputPath,
-                Content = RenderDocsIndex(configuration, templateContext.Navigation, orderedPosts)
+                Content = RenderDocsIndex(configuration, templateContext.Navigation, orderedPosts, enableSearch)
             }
         };
 
@@ -1098,7 +1101,7 @@ public sealed partial class SiteGenerator
             var index = BuildSearchIndex(configuration, templateContext.Posts, configuration.ContentPages);
             files.Add(new() { RelativePath = configuration.Routes.SearchIndex.RelativeOutputPath, Content = index });
             files.Add(new() { RelativePath = configuration.Routes.SearchScript.RelativeOutputPath, Content = BuildSearchScript(configuration.Text, contextual: true) });
-            files.Add(new() { RelativePath = configuration.Routes.SearchPage.RelativeOutputPath, Content = RenderSearch(configuration, ComputeTextContentSha256(index)) });
+            files.Add(new() { RelativePath = configuration.Routes.SearchPage.RelativeOutputPath, Content = RenderSearch(configuration, ComputeTextContentSha256(index), templateContext.Navigation) });
             files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
         }
 
@@ -1441,13 +1444,14 @@ public sealed partial class SiteGenerator
     private static string RenderDocsIndex(
         RenderContext configuration,
         SiteTemplateNavigationNode root,
-        IReadOnlyList<MarkdownPost> orderedPosts)
+        IReadOnlyList<MarkdownPost> orderedPosts, bool enableSearch = false)
     {
         var body = new StringBuilder();
         body.AppendLine("<section class=\"docs-hero\">");
         body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
         body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
+        if (enableSearch) body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
         if (orderedPosts.Count > 0)
         {
             var first = orderedPosts[0];
@@ -1733,7 +1737,7 @@ public sealed partial class SiteGenerator
             ExtractTemplateHeadings(postBody));
     }
 
-    private static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
+    internal static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
         HeadingRegex.Matches(postBody)
             .Select(match => new
             {
@@ -1843,7 +1847,7 @@ public sealed partial class SiteGenerator
         return body.ToString();
     }
 
-    private string RenderSearch(RenderContext configuration, string searchIndexFingerprint)
+    private string RenderSearch(RenderContext configuration, string searchIndexFingerprint, SiteTemplateNavigationNode? docsNavigation = null)
     {
         var indexPath =
             $"{configuration.Routes.PublicPath(configuration.Routes.SearchIndex)}?v={searchIndexFingerprint}";
@@ -1861,10 +1865,11 @@ public sealed partial class SiteGenerator
         body.AppendLine("</section>");
         body.AppendLine($"<section id=\"search-app\" data-index=\"{Html.Encode(indexPath)}\">");
         body.AppendLine("<div id=\"search-results\" class=\"archive-post-list\"></div>");
-        body.AppendLine("<noscript><p>" + configuration.Text.SearchNoscriptPrefix + "<a href=\"" + Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Archives)) + "\">" + configuration.Text.SearchNoscriptArchivesLinkText + "</a>" + configuration.Text.SearchNoscriptSuffix + "</p></noscript>");
+        body.AppendLine("<noscript><p>" + configuration.Text.SearchNoscriptPrefix + "<a href=\"" + Html.Encode(configuration.Routes.PublicPath(docsNavigation is null ? configuration.Routes.Archives : configuration.Routes.Home)) + "\">" + (docsNavigation is null ? configuration.Text.SearchNoscriptArchivesLinkText : Html.Encode(configuration.Site.Title)) + "</a>" + configuration.Text.SearchNoscriptSuffix + "</p></noscript>");
         body.AppendLine("</section>");
         body.AppendLine($"<script src=\"{Html.Encode(scriptPath)}\" defer></script>");
-        return Layout(configuration, "Search", body.ToString(), "search.html");
+        return docsNavigation is null ? Layout(configuration, "Search", body.ToString(), "search.html")
+            : DocsLayout(configuration, docsNavigation, "Search", body.ToString(), "search.html", "search.html", null, includeBlogNavigation: false);
     }
 
 
@@ -1911,7 +1916,7 @@ public sealed partial class SiteGenerator
         return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
     }
 
-    private static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
+    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
     {
         var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
         foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
@@ -1927,7 +1932,7 @@ public sealed partial class SiteGenerator
     }
 
 
-    private static string NormalizeForIndex(string text)
+    internal static string NormalizeForIndex(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {

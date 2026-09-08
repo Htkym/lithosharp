@@ -96,10 +96,26 @@ internal static class FactoryHost
                                 ? null : Path.Combine(checkRoot, "asset-cache"),
                         };
                     }
-                    var result = await generator.GenerateWithOptionsAsync(definition.Site, definition.Posts,
-                        outputDirectory, command == "check" || options.ContainsKey("--clean"), definition.Customization,
-                        generationOptions, cancellationToken).ConfigureAwait(false);
-                    response = FromResult(result, generationOptions, format);
+                    var watch = options.ContainsKey("--watch");
+                    if (watch && command != "build") throw new ArgumentException("Watch hosts support only build.");
+                    do
+                    {
+                        try
+                        {
+                            var result = await generator.GenerateWithOptionsAsync(definition.Site, definition.Posts,
+                                outputDirectory, command == "check" || options.ContainsKey("--clean"), definition.Customization,
+                                generationOptions, cancellationToken).ConfigureAwait(false);
+                            response = FromResult(result, generationOptions, format);
+                        }
+                        catch (Exception exception) when (watch && exception is not OperationCanceledException)
+                        {
+                            response = new HostResponse { ExitCode = 1, OutputDirectory = outputDirectory, Error = Describe(exception),
+                                DiagnosticsText = exception is SiteBuildExtensionException failure ? new SiteQualityReport(failure.Diagnostics).Format(format) : Describe(exception) };
+                        }
+                        if (!watch) break;
+                        await WriteResponseAsync(responsePath, response).ConfigureAwait(false);
+                        if (await Console.In.ReadLineAsync(cancellationToken).ConfigureAwait(false) != "build") break;
+                    } while (true);
                 }
             }
             finally
@@ -200,9 +216,9 @@ internal static class FactoryHost
         for (var index = args.FirstOrDefault() == "__host" ? 1 : 0; index < args.Length; index++)
         {
             var name = args[index];
-            if (name is not ("--assembly" or "--project" or "--command" or "--output" or "--response" or "--clean" or "--format"))
+            if (name is not ("--assembly" or "--project" or "--command" or "--output" or "--response" or "--clean" or "--format" or "--watch"))
                 throw new ArgumentException($"Unknown host option '{name}'.");
-            var value = name == "--clean" ? "true" : ++index < args.Length
+            var value = name is "--clean" or "--watch" ? "true" : ++index < args.Length
                 ? args[index] : throw new ArgumentException($"Host option '{name}' requires a value.");
             if (!options.TryAdd(name, value)) throw new ArgumentException($"Host option '{name}' was specified more than once.");
         }

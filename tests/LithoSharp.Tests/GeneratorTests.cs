@@ -52,6 +52,17 @@ public sealed class GeneratorTests
         """;
 
     [Test]
+    public async Task ExplicitBodyTypeGeneratesTypedMdxCompatibleReferences()
+    {
+        var source = Model.Replace("EmitJsonSchema = true", "EmitJsonSchema = true, BodyType = typeof(Child)");
+        var (compilation, diagnostics) = Generate(source, new Input("C:/site/content/intro.mdx", "---\ntitle: hello\n---\n<Counter />"));
+        await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
+        await Assert.That(string.Join("\n", compilation.SyntaxTrees.Select(tree => tree.ToString()))).Contains("ContentEntry<global::Front, global::Child>");
+        using var stream = new MemoryStream();
+        await Assert.That(Errors(compilation.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+    }
+
+    [Test]
     public async Task GeneratedBinderCompilesAndMatchesReflection()
     {
         var (compilation, diagnostics) = Generate(Model, new Input("C:/site/content/intro.md", "---\ntitle: hello\n---\nBody"));

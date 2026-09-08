@@ -45,6 +45,8 @@ public sealed class DocumentFrontMatter
     public bool Draft { get; set; }
     /// <summary>Whether the document is accessible only by direct links.</summary>
     public bool Unlisted { get; set; }
+    /// <summary>Excludes this published page from site search without hiding it from navigation.</summary>
+    public bool SearchExclude { get; set; }
     /// <summary>The inclusive publication start.</summary>
     public DateTimeOffset? PublishFrom { get; set; }
     /// <summary>The exclusive publication end.</summary>
@@ -61,6 +63,17 @@ public sealed class DocumentFrontMatter
     public bool HideTitle { get; set; }
     /// <summary>Whether to omit the layout's table of contents.</summary>
     public bool HideTableOfContents { get; set; }
+    /// <summary>Optional explicit update metadata, taking precedence over Git discovery.</summary>
+    public DocumentUpdate? LastUpdate { get; set; }
+}
+
+/// <summary>The last committed document update or an explicit front-matter override.</summary>
+public sealed class DocumentUpdate
+{
+    /// <summary>The update timestamp.</summary>
+    public DateTimeOffset? Date { get; set; }
+    /// <summary>The public author display name.</summary>
+    public string? Author { get; set; }
 }
 
 /// <summary>A published document with resolved identity and route.</summary>

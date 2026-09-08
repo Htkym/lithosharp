@@ -43,6 +43,37 @@ test('code regions preserve nesting and fail for missing closing directives', ()
   assert.throws(() => extractRegion('#region demo\nunclosed', 'demo'));
 });
 
+test('TSX, npm components, CSS, images, partial MDX and compiler plugins retain their dependencies', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-language-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const sources = {'index.mdx': `import Widget from './Widget.tsx';\nimport Partial from './_Partial.mdx';\nimport BrowserOnly from '@docusaurus/BrowserOnly';\n\n# Features\n\n<Widget value={4} />\n\n<Partial label="imported" />\n\n<BrowserOnly fallback={<p>Browser fallback</p>}>{()=> <p>{window.location.href}</p>}</BrowserOnly>\n\n[Type](xref:T:Example)`,
+      '_Partial.mdx': `# Partial\n\n{props.label}\n`};
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    await writeFile(path.join(projectRoot, 'Widget.tsx'), `import React from 'react';import Box from 'fixture';import icon from './icon.svg';import './style.css';export default function Widget({value}:{value:number}){return <Box><img src={icon} alt="test icon"/><strong>{value+1}</strong></Box>}`);
+    await writeFile(path.join(projectRoot, 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path d="M0 0h8v8H0z"/></svg>');
+    await writeFile(path.join(projectRoot, 'style.css'), 'strong{color:navy}');
+    await mkdir(path.join(projectRoot, 'node_modules/fixture'), {recursive: true});
+    await writeFile(path.join(projectRoot, 'node_modules/fixture/package.json'), JSON.stringify({name: 'fixture', version: '1.0.0', main: 'index.js', license: 'MIT'}));
+    await writeFile(path.join(projectRoot, 'node_modules/fixture/index.js'), `import React from 'react';export default function Box({children}){return React.createElement('section',{className:'npm-box'},children)}`);
+    await writeFile(path.join(projectRoot, 'plugin.mjs'), `import {label} from './label.mjs';export default function plugin(){return tree=>{tree.children.unshift({type:'paragraph',children:[{type:'text',value:label}]})}}`);
+    await writeFile(path.join(projectRoot, 'label.mjs'), `export const label='plugin-one'`);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/product/_mdx', basePath: '/product/', sources, cacheable: true, crossReferences: {'T:Example':'/product/api/example/'},
+      plugins: [{stage: 'remark', module: './plugin.mjs', options: {}}], pages: [{id: 'page', source: 'index.mdx', url: '/product/features/', title: 'Features', locale: 'en', props: {}}]};
+    let result = await compileSite(request);
+    assert.match(result.pages[0].html, /npm-box/); assert.match(result.pages[0].html, /imported/); assert.match(result.pages[0].html, /Browser fallback/);
+    assert.match(result.pages[0].html, /src="\/product\/_mdx\/assets\/icon-/);
+    assert.match(result.pages[0].html, /href="\/product\/api\/example\/"/);
+    assert.match(result.pages[0].html, /plugin-one/);
+    assert.ok(result.inputs.some(input => input.file.endsWith('label.mjs')));
+    assert.ok(result.assets.some(asset => asset.path.endsWith('.svg')));
+    await writeFile(path.join(projectRoot, 'label.mjs'), `export const label='plugin-two'`);
+    result = await compileSite({...request, workRoot: await mkdtemp(path.join(root, 'next-'))});
+    assert.match(result.pages[0].html, /plugin-two/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
 test('selective rendering emits no static-page entry and shares explicit island modules', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-island-check-'));
   try {
@@ -58,7 +89,8 @@ test('selective rendering emits no static-page entry and shares explicit island 
     };
     for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
     const result = await compileSite({projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, hydration: 'selective',
-      pages: Object.keys(sources).map((source, index) => ({id: 'page' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}}))});
+      linkMap: {'static.mdx':'/unlisted-route-canary/', 'islands.mdx':'/1/', 'fallback.mdx':'/2/'},
+      pages: Object.keys(sources).map((source, index) => ({id: 'page' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}, discoverable: index !== 0}))});
     assert.equal(result.pages[0].entry, null);
     assert.equal(result.pages[0].hydration, 'static');
     assert.equal(result.pages[1].hydration, 'selective');
@@ -71,5 +103,6 @@ test('selective rendering emits no static-page entry and shares explicit island 
     assert.ok(result.assets.some(asset => asset.path.startsWith('chunks/')));
     const bootstrap = Buffer.from(result.assets.find(asset => asset.path === result.pages[1].entry).bytes, 'base64').toString();
     assert.ok(!bootstrap.includes('react-dom.production'));
+    assert.ok(result.assets.filter(asset => asset.path.endsWith('.js')).every(asset => !Buffer.from(asset.bytes, 'base64').toString().includes('/unlisted-route-canary/')));
   } finally { await rm(root, {recursive: true, force: true}); }
 });

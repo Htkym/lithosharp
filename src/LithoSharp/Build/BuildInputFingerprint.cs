@@ -64,7 +64,7 @@ internal static class BuildInputFingerprint
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            bufferSize: 81920,
+            bufferSize: asynchronous ? 1 : 81920,
             FileOptions.SequentialScan
                 | (asynchronous ? FileOptions.Asynchronous : FileOptions.None));
 

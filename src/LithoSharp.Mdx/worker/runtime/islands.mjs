@@ -3,6 +3,8 @@ import {PageContext} from './context.mjs';
 
 function publicProps(value, schema, depth = 0) {
   if (depth > 32 || !schema || typeof schema !== 'object') throw new Error('Island props require a bounded explicit JSON schema.');
+  if (!['null', 'boolean', 'number', 'integer', 'string', 'array', 'object'].includes(schema.type)) throw new Error('Unsupported Island schema type.');
+  if (schema.required && (!Array.isArray(schema.required) || schema.required.some(key => typeof key !== 'string'))) throw new Error('Island required keys must be an array of strings.');
   if (Object.keys(schema).some(key => !['type', 'properties', 'items', 'required', 'additionalProperties', 'enum', 'description'].includes(key))) throw new Error('Unsupported Island schema keyword.');
   const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
   if (schema.type !== type && !(schema.type === 'integer' && Number.isSafeInteger(value))) throw new Error('Island prop type does not match its public schema.');
@@ -25,10 +27,11 @@ export function Island({component, props = {}, schema, strategy = 'load', media,
   if (!['load', 'idle', 'visible', 'media', 'manual'].includes(strategy)) throw new Error('Unknown Island hydration strategy.');
   if (strategy === 'media' && !media) throw new Error('The media strategy requires a media query.');
   if (!schema) schema = {type: 'object', properties: {}, additionalProperties: false};
+  if (props === null || typeof props !== 'object' || Array.isArray(props)) throw new Error('Island props must be a JSON object.');
   publicProps(props, schema);
   const data = JSON.stringify(props);
   if (new TextEncoder().encode(data).length > 65536) throw new Error('Island props exceed 64 KiB; share data explicitly.');
-  if (typeof component !== 'function') throw new Error('Island requires an imported component.');
+  if (typeof component !== 'function' && ![Symbol.for('react.memo'), Symbol.for('react.forward_ref')].includes(component?.$$typeof)) throw new Error('Island requires an imported component.');
   if (!context.renderIsland) return createElement('div', {id, 'data-island': strategy}, createElement(component, props, children));
   if (children !== undefined) throw new Error('Put children inside the Island component; only JSON props cross the boundary.');
   const html = context.renderIsland(component, props, id);

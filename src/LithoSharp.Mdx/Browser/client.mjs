@@ -4,15 +4,110 @@ export function start(config) {
   const namespace = `lithosharp:${config.basePath}:`;
   const saved = key => { try { return localStorage.getItem(namespace + key); } catch { return null; } };
   const save = (key, value) => { try { localStorage.setItem(namespace + key, value); } catch { /* Persistence is optional. */ } };
-  const system = matchMedia('(prefers-color-scheme: dark)');
+  const system = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : {matches: false, addEventListener() {}};
+  let messages = {};
+  const t = (key, fallback) => messages[key] ?? fallback;
+  document.addEventListener('lithosharp:chunk-error', () => {
+    const key = namespace + 'chunk-reload:' + location.pathname;
+    try { if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); location.reload(); return; } } catch { }
+    if (!document.querySelector('[data-ls-chunk-retry]')) {
+      const link = document.createElement('a'); link.dataset.lsChunkRetry = ''; link.dataset.noNavigation = ''; link.href = location.href;
+      link.textContent = t('reloadPage', 'Reload this page to retry interactive content'); document.body.prepend(link);
+    }
+  });
+  let consent = false, lastView = null;
+  function track() {
+    if (!config.analytics || !consent || lastView === location.href) return;
+    lastView = location.href;
+    const data = config.analytics.provider === 'plausible'
+      ? {name: 'pageview', url: location.href, domain: config.analytics.domain, referrer: document.referrer}
+      : {event: 'pageview', url: location.href, title: document.title};
+    fetch(config.analytics.endpoint, {method: 'POST', mode: 'cors', credentials: 'omit', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(data), keepalive: true}).catch(() => {});
+  }
+  document.addEventListener('lithosharp:consent', event => { consent = event.detail?.granted === true; if (!consent) lastView = null; else track(); });
+  if (config.offline && 'serviceWorker' in navigator) {
+    const controlled = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register(config.basePath + 'lithosharp-sw.js', {scope: config.basePath, updateViaCache: 'none'}).then(registration => {
+      const offer = () => {
+        if (!registration.waiting || !navigator.serviceWorker.controller || document.querySelector('[data-ls-update]')) return;
+        const button = document.createElement('button'); button.type = 'button'; button.dataset.lsUpdate = ''; button.textContent = t('offlineUpdate', 'Update offline content');
+        button.addEventListener('click', () => registration.waiting?.postMessage({type: 'lithosharp:activate'})); document.body.prepend(button);
+      };
+      offer(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', offer));
+    }).catch(error => document.dispatchEvent(new CustomEvent('lithosharp:offline-error', {detail: String(error)})));
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (controlled) location.reload(); });
+  }
   let theme = saved('theme') || 'system';
+  const searchCache = new Map();
+  const searchWidgets = new WeakSet();
+  function startSearch() {
+    if (!config.search) return;
+    for (const scope of document.querySelectorAll('[data-ls-search]')) {
+      if (searchWidgets.has(scope)) continue;
+      searchWidgets.add(scope);
+      const input = scope.querySelector('input'), results = scope.querySelector('[data-results]'), status = scope.querySelector('[role=status]');
+      let pending = 0, timer;
+      const normalize = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      async function query() {
+        const request = ++pending;
+        const value = input.value.trim(); results.replaceChildren();
+        if (!value) { status.textContent = ''; return; }
+        status.textContent = t('searching', 'Searching…');
+        try {
+          let hits;
+          if (config.algolia) {
+            const response = await fetch(`https://${config.algolia.applicationId}-dsn.algolia.net/1/indexes/${encodeURIComponent(config.algolia.indexName)}/query`, {
+              method: 'POST', credentials: 'omit', headers: {'Content-Type': 'application/json', 'X-Algolia-Application-Id': config.algolia.applicationId, 'X-Algolia-API-Key': config.algolia.searchOnlyApiKey},
+              body: JSON.stringify({query: value, hitsPerPage: 30, facetFilters: ['collection','version','locale'].map(key => key + ':' + scope.dataset[key])})
+            });
+            if (!response.ok) throw new Error('Search service unavailable');
+            hits = (await response.json()).hits.map(hit => ({title: hit.title || Object.values(hit.hierarchy ?? {}).filter(Boolean).join(' · '), url: hit.url, body: hit.content || ''}));
+          } else {
+            const url = scope.dataset.index;
+            if (!searchCache.has(url)) {
+              if (searchCache.size >= 4) searchCache.delete(searchCache.keys().next().value);
+              searchCache.set(url, fetch(url).then(response => { if (!response.ok) throw new Error('Search data unavailable'); return response.json(); }).catch(error => { searchCache.delete(url); throw error; }));
+            }
+            const documents = await searchCache.get(url);
+            const tokens = normalize(value).split(' ');
+            hits = documents.filter(doc => tokens.every(token => normalize(doc.title + ' ' + doc.summary + ' ' + doc.body).includes(token))).map(doc => {
+              const section = doc.sections?.find(section => tokens.every(token => normalize(section.title + ' ' + section.body).includes(token)));
+              return {title: doc.title + (section ? ' · ' + section.title : ''), url: doc.url + (section ? '#' + encodeURIComponent(section.anchor) : ''), body: section?.body || doc.summary || doc.body,
+                score: tokens.reduce((score, token) => score + (normalize(doc.title).includes(token) ? 3 : 1), 0)};
+            }).sort((left, right) => right.score - left.score).slice(0, 30);
+          }
+          if (request !== pending || !scope.isConnected) return;
+          const highlight = (element, text) => {
+            const index = text.toLowerCase().indexOf(value.toLowerCase());
+            if (index < 0) { element.textContent = text; return; }
+            element.append(document.createTextNode(text.slice(0, index)));
+            const mark = document.createElement('mark'); mark.textContent = text.slice(index, index + value.length); element.append(mark, document.createTextNode(text.slice(index + value.length)));
+          };
+          for (const hit of hits) {
+            const url = new URL(hit.url, location.href); if (!['http:', 'https:'].includes(url.protocol)) continue;
+            const article = document.createElement('article'), link = document.createElement('a'), excerpt = document.createElement('p');
+            link.href = url.href; highlight(link, hit.title); highlight(excerpt, String(hit.body).slice(0, 220)); article.append(link, excerpt); results.append(article);
+          }
+          status.textContent = t('results', '{count} results').replace('{count}', hits.length);
+        } catch { if (request === pending && scope.isConnected) status.textContent = t('searchUnavailable', 'Search unavailable. You can still browse this documentation.'); }
+      }
+      input.addEventListener('input', () => { pending++; clearTimeout(timer); timer = setTimeout(query, 150); });
+      scope.addEventListener('keydown', event => {
+        const links = [...results.querySelectorAll('a')];
+        if (event.key === 'Escape') { input.focus(); return; }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); const index = links.indexOf(document.activeElement); links[(index + (event.key === 'ArrowDown' ? 1 : links.length - 1)) % links.length]?.focus(); }
+      });
+    }
+  }
   function applyTheme() {
     document.documentElement.dataset.theme = theme === 'system' ? system.matches ? 'dark' : 'light' : theme;
     document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     document.dispatchEvent(new CustomEvent('lithosharp:theme', {detail: {theme: document.documentElement.dataset.theme}}));
-    document.querySelectorAll('[data-ls-theme]').forEach(button => { button.textContent = `Theme: ${theme}`; button.setAttribute('aria-label', `Color theme: ${theme}`); });
+    document.querySelectorAll('[data-ls-theme]').forEach(button => { button.textContent = `${t('theme', 'Theme')}: ${t(theme, theme)}`; button.setAttribute('aria-label', button.textContent); });
   }
   function page() {
+    try { messages = JSON.parse(document.querySelector('[data-ls-messages]')?.textContent || '{}'); } catch { messages = {}; }
+    startSearch();
     if (config.theme) {
       if (!document.querySelector('[data-ls-theme]')) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.lsTheme = '';
@@ -22,7 +117,7 @@ export function start(config) {
     }
     if (config.announcement && !saved('announcement:' + config.announcement) && !document.querySelector('[data-ls-announcement]')) {
       const aside = document.createElement('aside'); aside.dataset.lsAnnouncement = ''; aside.setAttribute('role', 'note');
-      aside.textContent = config.announcement; const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.dataset.lsDismiss = ''; dismiss.textContent = 'Dismiss'; aside.append(dismiss); document.body.prepend(aside);
+      aside.textContent = config.announcement; const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.dataset.lsDismiss = ''; dismiss.textContent = t('dismiss', 'Dismiss'); aside.append(dismiss); document.body.prepend(aside);
     }
     for (const [selector, links] of [['header', config.navbar], ['footer', config.footer]]) {
       const parent = document.querySelector(selector); if (!parent || parent.querySelector('[data-ls-links]') || !links?.length) continue;
@@ -31,6 +126,7 @@ export function start(config) {
       parent.append(nav);
     }
     document.dispatchEvent(new CustomEvent('lithosharp:page', {detail: {url: location.href, title: document.title}}));
+    track();
   }
   globalThis[installed] = {page};
   if (config.theme) system.addEventListener('change', applyTheme);

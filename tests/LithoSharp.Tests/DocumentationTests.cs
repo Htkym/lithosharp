@@ -9,6 +9,79 @@ namespace LithoSharp.Tests;
 public sealed class DocumentationTests
 {
     [Test]
+    public async Task GitUpdatesAndMissingTranslationsAreExplicitAndPublicationSafe()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var en = Path.Combine(workspace.Root, "en");
+        var ja = Path.Combine(workspace.Root, "ja");
+        Directory.CreateDirectory(en); Directory.CreateDirectory(ja);
+        await File.WriteAllTextAsync(Path.Combine(en, "intro.md"), "---\ntitle: Intro\n---\n# Intro\n");
+        async Task Git(params string[] arguments)
+        {
+            var start = new System.Diagnostics.ProcessStartInfo("git") { WorkingDirectory = workspace.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+            using var process = System.Diagnostics.Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync(); await output;
+            if (process.ExitCode != 0) throw new InvalidOperationException(await error);
+        }
+        try
+        {
+        await Git("init"); await Git("add", "en/intro.md");
+        await Git("-c", "user.name=Fixture Author", "-c", "user.email=fixture@example.test", "commit", "-m", "Document fixture");
+        var collection = new DocumentationCollection("guide", [new("current", "en", en, "en"), new("current", "ja", ja, "ja")]) { GitMetadata = true };
+        await using var docs = new DocumentationSite(new(workspace.Root));
+        docs.AddCollection(collection);
+        var outputRoot = Path.Combine(workspace.Root, "out");
+        await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, true, new() { Template = new DocsSiteTemplate() }, new() { Extensions = [docs] }, default);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(outputRoot, "en/intro/index.html"))).Contains("Fixture Author");
+        await Assert.That(docs.GetInspection()!.Value.GetProperty("missingTranslations").GetArrayLength()).IsEqualTo(1);
+        await using var strict = new DocumentationSite(new(workspace.Root));
+        strict.AddCollection(collection with { MissingDocuments = MissingDocumentPolicy.Error });
+        await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, false, null, new() { Extensions = [strict] }, default)).Throws<LithoSharp.Build.SiteBuildExtensionException>();
+        await Assert.That(File.Exists(Path.Combine(outputRoot, "en/intro/index.html"))).IsTrue();
+        }
+        finally
+        {
+            var gitRoot = Path.Combine(workspace.Root, ".git");
+            if (Directory.Exists(gitRoot))
+                foreach (var file in Directory.EnumerateFiles(gitRoot, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+        }
+    }
+
+    [Test]
+    public async Task ApiReferencesResolveOverloadsAndGenerateVersionDifferencesAndOpenApi()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var before = Path.Combine(workspace.Root, "v1.xml");
+        var after = Path.Combine(workspace.Root, "v2.xml");
+        await File.WriteAllTextAsync(before, "<doc><members><member name=\"T:Example.Box`1\"><summary>A generic box.</summary></member><member name=\"M:Example.Box`1.Get(System.Int32)\"><summary>See <see cref=\"T:Example.Box`1\"/>.</summary></member></members></doc>");
+        await File.WriteAllTextAsync(after, "<doc><members><member name=\"T:Example.Box`1\"><summary>A generic box.</summary><deprecated>Use NewBox.</deprecated></member><member name=\"M:Example.Box`1.Get(System.String)\"><summary>String overload.</summary></member></members></doc>");
+        var openApi = Path.Combine(workspace.Root, "openapi.json");
+        await File.WriteAllTextAsync(openApi, "{\"openapi\":\"3.1.0\",\"paths\":{\"/items\":{\"get\":{\"summary\":\"List items\",\"deprecated\":true,\"responses\":{\"200\":{\"description\":\"OK\"}}}}}}");
+        var api = new ApiReferenceSite();
+        api.AddXml(new("library", new("v1", "en", workspace.Root, "api/v1"), before));
+        api.AddXml(new("library", new("v2", "en", workspace.Root, "api/v2"), after));
+        api.AddOpenApi(new("http", new("v1", "en", workspace.Root, "http"), openApi));
+        api.AddComparison("library", "v1", "v2", "en", "api/changes");
+        var output = Path.Combine(workspace.Root, "out");
+        await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings { BaseUrl = "https://example.com/project/" }, [], output, true, new() { Template = new DocsSiteTemplate { EnableSearch = true } },
+            new() { Extensions = [api], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+        var target = api.Resolve(new("library", "v1", "en", "M:Example.Box`1.Get(System.Int32)"));
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, target.Route.RelativeOutputPath))).Contains("/project/api/v1/");
+        var changes = await File.ReadAllTextAsync(Path.Combine(output, "api/changes/index.html"));
+        await Assert.That(changes).Contains("deprecated");
+        await Assert.That(changes).Contains("removed");
+        await Assert.That(changes).Contains("added");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "search-index.json"))).Contains("List items");
+        var searchPage = await File.ReadAllTextAsync(Path.Combine(output, "search.html"));
+        await Assert.That(searchPage).DoesNotContain("/feed.xml");
+        await Assert.That(searchPage).DoesNotContain("/archives.html");
+        await File.WriteAllTextAsync(openApi, "{\"openapi\":\"3.1.0\",\"paths\":{},\"components\":{\"$ref\":\"https://example.com/remote.json\"}}");
+        await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null, new() { Extensions = [api] }, default)).Throws<ArgumentException>();
+        await Assert.That(File.Exists(Path.Combine(output, "api/changes/index.html"))).IsTrue();
+    }
+    [Test]
     public async Task TwoCollectionsThreeVersionsTwoLanguagesShareNavigationAndPublicationWithoutNode()
     {
         using var workspace = new TemporaryWorkspace();

@@ -8,7 +8,7 @@ public sealed record MdxOptions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectDirectory);
         ProjectDirectory = Path.GetFullPath(projectDirectory);
-        WorkerDirectory = Path.GetFullPath(workerDirectory ?? Path.Combine(AppContext.BaseDirectory, "worker"));
+        WorkerDirectory = Path.GetFullPath(workerDirectory ?? Path.Combine(Path.GetDirectoryName(typeof(MdxOptions).Assembly.Location)!, "worker"));
     }
     /// <summary>The root containing trusted source and its node_modules.</summary>
     public string ProjectDirectory { get; }
@@ -34,6 +34,8 @@ public sealed record MdxOptions
     public string Hydration { get; init; } = "page";
     /// <summary>Component names explicitly known to produce static output without browser behavior.</summary>
     public IReadOnlyList<string> StaticComponents { get; init; } = [];
+    /// <summary>Explicit public URLs for xref links, keyed by exact API or document identity.</summary>
+    public IReadOnlyDictionary<string, SiteUrl> CrossReferences { get; init; } = new Dictionary<string, SiteUrl>();
 }
 
 /// <summary>An explicitly trusted compiler plugin and its serializable configuration.</summary>
@@ -42,6 +44,18 @@ public sealed record MdxPlugin(string Stage, string Module, System.Text.Json.Jso
 /// <summary>Measured worker work for the most recent successful preparation.</summary>
 public sealed record MdxBuildMetrics
 {
+    /// <summary>The number of Node workers started for this preparation.</summary>
+    public int WorkerStarts { get; init; }
+    /// <summary>Worker elapsed time for this preparation; zero for a bridge cache hit.</summary>
+    public double WorkerMilliseconds { get; init; }
+    /// <summary>Server bundling time, including MDX compilation.</summary>
+    public double ServerBundleMilliseconds { get; init; }
+    /// <summary>Server module loading and React rendering time.</summary>
+    public double RenderMilliseconds { get; init; }
+    /// <summary>Browser bundling time.</summary>
+    public double BrowserBundleMilliseconds { get; init; }
+    /// <summary>Node's heap-used snapshot after compilation; zero when no worker response was needed.</summary>
+    public long NodeHeapUsedBytes { get; init; }
     /// <summary>The number of MDX modules compiled.</summary>
     public int CompiledModules { get; init; }
     /// <summary>The number of pages rendered by React.</summary>

@@ -15,6 +15,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
     private int offset;
     private int buffered;
     private readonly SemaphoreSlim gate = new(1, 1);
+    internal int Starts { get; private set; }
 
     internal async Task<JsonElement> SendAsync(object request, string requestId, CancellationToken cancellationToken)
     {
@@ -43,6 +44,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                     start.Environment[pair.Key] = pair.Value;
                 }
                 process = Process.Start(start) ?? throw Failure("LSMDX002", "The Node worker could not be started.");
+                Starts++;
                 stderrTask = DrainErrorsAsync(process.StandardError);
                 var ready = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
                 if (ready.GetProperty("protocol").GetInt32() != 1 || ready.GetProperty("type").GetString() != "ready"

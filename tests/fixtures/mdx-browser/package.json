@@ -1,0 +1,1 @@
+{"name":"lithosharp-mdx-browser-tests","private":true,"type":"module","scripts":{"test":"node run.mjs"},"devDependencies":{"playwright":"1.63.0"}}

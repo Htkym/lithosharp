@@ -79,7 +79,10 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
             {
                 var emitter = new BinderEmitter(front);
                 var emitSchema = attribute.Attributes[0].NamedArguments.Any(pair => pair.Key == "EmitJsonSchema" && pair.Value.Value is true);
-                collections.Add(new Collection(symbol, front, page, id, emitSchema, emitter));
+                var body = attribute.Attributes[0].NamedArguments.FirstOrDefault(pair => pair.Key == "BodyType").Value.Value as ITypeSymbol;
+                if (body is not null && (body.SpecialType == SpecialType.System_Void || body.TypeKind is TypeKind.Pointer or TypeKind.Error || body is INamedTypeSymbol { IsUnboundGenericType: true } or { IsRefLikeType: true }))
+                    throw new InvalidOperationException("The content body must be a closed, non-ref type.");
+                collections.Add(new Collection(symbol, front, page, id, emitSchema, emitter, body));
             }
             catch (InvalidOperationException failure) { Report(output, InvalidDeclaration, location, failure.Message); }
         }
@@ -162,7 +165,7 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                 var collectionId = "new global::LithoSharp.Content.ContentCollectionId(" + GeneratorModel.Literal(collection.Id) + ")";
                 var pageId = $"page:collection:{collection.Id.Length}:{collection.Id}:{entry.Id.Length}:{entry.Id}";
                 var type = group == "Pages" ? $"global::LithoSharp.Pages.PageRef<{page}>"
-                    : group == "Entries" ? $"global::LithoSharp.Content.ContentRef<global::LithoSharp.Content.ContentEntry<{front}, string>>"
+                    : group == "Entries" ? $"global::LithoSharp.Content.ContentRef<global::LithoSharp.Content.ContentEntry<{front}, {(collection.Body is null ? "string" : GeneratorModel.Display(collection.Body))}>>"
                     : "global::LithoSharp.Content.ContentEntryId";
                 var value = group == "Pages" ? "new(new global::LithoSharp.Pages.PageId(" + GeneratorModel.Literal(pageId) + "), " + route + ")"
                     : group == "Entries" ? "new(" + collectionId + ", " + id + ", " + route + ")" : id;
@@ -213,8 +216,9 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
 
     private sealed class Collection
     {
-        public Collection(INamedTypeSymbol symbol, INamedTypeSymbol front, ITypeSymbol page, string id, bool emitSchema, BinderEmitter emitter)
-        { Symbol = symbol; Front = front; Page = page; Id = id; EmitSchema = emitSchema; Emitter = emitter; }
+        public Collection(INamedTypeSymbol symbol, INamedTypeSymbol front, ITypeSymbol page, string id, bool emitSchema, BinderEmitter emitter, ITypeSymbol? body)
+        { Symbol = symbol; Front = front; Page = page; Id = id; EmitSchema = emitSchema; Emitter = emitter; Body = body; }
+        public ITypeSymbol? Body { get; }
         public INamedTypeSymbol Symbol { get; }
         public INamedTypeSymbol Front { get; }
         public ITypeSymbol Page { get; }

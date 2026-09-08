@@ -32,6 +32,7 @@ internal static class ContentCollectionBuildPlanAdapter
             page.Metadata.Title,
             Layout = page.LayoutId?.Value,
         }));
+        navigationValue = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(navigationValue)));
 
         foreach (var page in pages)
         {

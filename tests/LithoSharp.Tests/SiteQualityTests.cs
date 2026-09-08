@@ -10,6 +10,20 @@ public sealed class SiteQualityTests
     private const string BaseUrl = "https://example.test/sub/";
 
     [Test]
+    public async Task DeclaredChunkDependenciesAreReachableButUnusedRootsRemainWarnings()
+    {
+        var files = new Dictionary<string, string> { ["index.html"] = Page("", "Home", "<script src='entry.js'></script>") };
+        var assets = new[] { "entry.js", "shared.js", "lazy.js", "unused.js" };
+        var routes = files.Keys.Concat(assets).ToDictionary(path => path, path => path == "index.html" ? SiteRoute.ForDirectoryIndex("", BaseUrl) : SiteRoute.ForFile(path, BaseUrl));
+        var nodes = assets.Select(path => new LithoSharp.Build.BuildNode(new(path),
+            dependencies: path == "entry.js" ? [new("shared.js")] : path == "shared.js" ? [new("lazy.js")] : [],
+            artifacts: [new(new(path), new(path), path)])).ToArray();
+        var report = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(), (path, _) => Task.FromResult(files[path]), routes,
+            assets.ToHashSet(StringComparer.Ordinal), new Dictionary<string, SiteRoute>(), new(), default, nodes);
+        await Assert.That(report.Diagnostics.Where(diagnostic => diagnostic.Id == "LSQ008").Select(diagnostic => diagnostic.Location!.FilePath)).IsEquivalentTo(["unused.js"]);
+    }
+
+    [Test]
     public async Task DomResolvesRelativeLinksEntitiesFragmentsImagesAndBasePath()
     {
         var files = new Dictionary<string, string>

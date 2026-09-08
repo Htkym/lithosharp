@@ -19,7 +19,8 @@ internal static class SiteQualityValidator
         IReadOnlySet<string> registeredAssets,
         IReadOnlyDictionary<string, SiteRoute> redirects,
         SiteQualityOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null)
     {
         ArgumentNullException.ThrowIfNull(textFilePaths);
         ArgumentNullException.ThrowIfNull(readText);
@@ -111,6 +112,19 @@ internal static class SiteQualityValidator
 
         if (options.CheckOrphans)
         {
+            if (assetNodes is not null)
+            {
+                var byId = assetNodes.ToDictionary(node => node.Id);
+                var owners = assetNodes.SelectMany(node => node.Artifacts.Select(artifact => (artifact.RelativeOutputPath, Node: node))).ToDictionary(pair => pair.RelativeOutputPath, pair => pair.Node, StringComparer.Ordinal);
+                var visited = new HashSet<LithoSharp.Build.BuildNodeId>();
+                var assets = new Queue<LithoSharp.Build.BuildNode>(referencedAssets.Where(owners.ContainsKey).Select(path => owners[path]));
+                while (assets.TryDequeue(out var node))
+                {
+                    if (!visited.Add(node.Id)) continue;
+                    foreach (var artifact in node.Artifacts) referencedAssets.Add(artifact.RelativeOutputPath);
+                    foreach (var dependency in node.Dependencies) if (byId.TryGetValue(dependency, out var target)) assets.Enqueue(target);
+                }
+            }
             var reachable = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<string>();
             if (pages.ContainsKey("index.html")) pending.Enqueue("index.html");
@@ -122,7 +136,7 @@ internal static class SiteQualityValidator
             foreach (var path in pages.Keys.Where(path => !reachable.Contains(path) && !redirects.ContainsKey(path)))
                 Add("LSQ007", SiteDiagnosticSeverity.Warning, "Page is not reachable from the site's home page.", path);
             foreach (var path in registeredAssets.Where(path => !referencedAssets.Contains(path)))
-                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset has no HTML or CSS reference.", path);
+                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset has no HTML, CSS or declared transitive reference.", path);
         }
         if (options.ExternalLinks is not null)
             diagnostics.AddRange(await ExternalLinkChecker.CheckAsync(externalLinks, options.ExternalLinks, cancellationToken).ConfigureAwait(false));

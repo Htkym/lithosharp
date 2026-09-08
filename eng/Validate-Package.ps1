@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')]
     [string] $PackageId = 'LithoSharp'
 )
 
@@ -37,7 +37,7 @@ if ($PackageId -eq 'LithoSharp.Tool') {
     return
 }
 if ($PackageId -eq 'LithoSharp.ProjectTemplates') {
-    foreach ($kind in @('docs', 'blog', 'empty')) {
+    foreach ($kind in @('docs', 'blog', 'empty', 'mdx')) {
         foreach ($file in @('.template.config/template.json', 'Program.cs')) {
             $required = "content/$kind/$file"
             if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
@@ -47,9 +47,15 @@ if ($PackageId -eq 'LithoSharp.ProjectTemplates') {
     Write-Host "Validated package contents: $($package.Name)"
     return
 }
-if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing')) {
+if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing', 'LithoSharp.Mdx')) {
     foreach ($required in @("lib/net10.0/$PackageId.dll", "lib/net10.0/$PackageId.xml", 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
+    }
+    if ($PackageId -eq 'LithoSharp.Mdx') {
+        foreach ($file in @('worker.mjs', 'compiler.mjs', 'package.json', 'package-lock.json', 'runtime/components.mjs', 'runtime/islands.mjs', 'runtime/live-code.mjs')) {
+            if ($packageEntries -notcontains "contentFiles/any/any/worker/$file") { throw "MDX package is missing worker/$file" }
+        }
+        if ($packageEntries | Where-Object { $_ -match '/(node_modules|\.cache|tests)/' }) { throw 'MDX package contains restored dependencies or private test/cache data.' }
     }
     Write-Host "Validated package contents: $($package.Name)"
     return

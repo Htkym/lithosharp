@@ -1,4 +1,13 @@
 #nullable enable
+LithoSharp.Documentation.DocumentFrontMatter.LastUpdate.get -> LithoSharp.Documentation.DocumentUpdate?
+LithoSharp.Documentation.DocumentFrontMatter.LastUpdate.set -> void
+LithoSharp.Documentation.DocumentUpdate
+LithoSharp.Documentation.DocumentUpdate.DocumentUpdate() -> void
+LithoSharp.Documentation.DocumentUpdate.Author.get -> string?
+LithoSharp.Documentation.DocumentUpdate.Author.set -> void
+LithoSharp.Documentation.DocumentUpdate.Date.get -> System.DateTimeOffset?
+LithoSharp.Documentation.DocumentUpdate.Date.set -> void
+LithoSharp.Build.ISiteBuildExtension.AfterBuildAsync(LithoSharp.SiteGenerationResult! result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 LithoSharp.Build.ISiteBuildExtension
 LithoSharp.Build.ISiteBuildExtension.GetInspection() -> System.Text.Json.JsonElement?
 LithoSharp.Build.ISiteBuildExtension.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
@@ -21,8 +30,45 @@ LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.get ->
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DeclaredDependencies.init -> void
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.get -> LithoSharp.Content.GeneratedPageDerivedSurfaces
 LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.DerivedSurfaces.init -> void
+LithoSharp.Content.StaticContentCollectionAttribute.BodyType.get -> System.Type!
+LithoSharp.Content.StaticContentCollectionAttribute.BodyType.set -> void
 LithoSharp.DocsSiteTemplate.EnableSearch.get -> bool
 LithoSharp.DocsSiteTemplate.EnableSearch.init -> void
+LithoSharp.Documentation.ApiChange
+LithoSharp.Documentation.ApiChange.ApiChange(string! Id, string! Kind) -> void
+LithoSharp.Documentation.ApiChange.Id.get -> string!
+LithoSharp.Documentation.ApiChange.Id.init -> void
+LithoSharp.Documentation.ApiChange.Kind.get -> string!
+LithoSharp.Documentation.ApiChange.Kind.init -> void
+LithoSharp.Documentation.ApiMember
+LithoSharp.Documentation.ApiMember.ApiMember(string! Id, string! Title, string! Summary, string! BodyHtml, bool Deprecated = false) -> void
+LithoSharp.Documentation.ApiMember.BodyHtml.get -> string!
+LithoSharp.Documentation.ApiMember.BodyHtml.init -> void
+LithoSharp.Documentation.ApiMember.Deprecated.get -> bool
+LithoSharp.Documentation.ApiMember.Deprecated.init -> void
+LithoSharp.Documentation.ApiMember.Id.get -> string!
+LithoSharp.Documentation.ApiMember.Id.init -> void
+LithoSharp.Documentation.ApiMember.Summary.get -> string!
+LithoSharp.Documentation.ApiMember.Summary.init -> void
+LithoSharp.Documentation.ApiMember.Title.get -> string!
+LithoSharp.Documentation.ApiMember.Title.init -> void
+LithoSharp.Documentation.ApiReferenceInput
+LithoSharp.Documentation.ApiReferenceInput.ApiReferenceInput(string! Collection, LithoSharp.Documentation.DocumentVariant! Variant, string! FilePath) -> void
+LithoSharp.Documentation.ApiReferenceInput.Collection.get -> string!
+LithoSharp.Documentation.ApiReferenceInput.Collection.init -> void
+LithoSharp.Documentation.ApiReferenceInput.FilePath.get -> string!
+LithoSharp.Documentation.ApiReferenceInput.FilePath.init -> void
+LithoSharp.Documentation.ApiReferenceInput.Variant.get -> LithoSharp.Documentation.DocumentVariant!
+LithoSharp.Documentation.ApiReferenceInput.Variant.init -> void
+LithoSharp.Documentation.ApiReferenceSite
+LithoSharp.Documentation.ApiReferenceSite.AddComparison(string! collection, string! previousVersion, string! currentVersion, string! locale, string! routePrefix) -> void
+LithoSharp.Documentation.ApiReferenceSite.AddOpenApi(LithoSharp.Documentation.ApiReferenceInput! input) -> void
+LithoSharp.Documentation.ApiReferenceSite.AddXml(LithoSharp.Documentation.ApiReferenceInput! input) -> void
+LithoSharp.Documentation.ApiReferenceSite.ApiReferenceSite() -> void
+LithoSharp.Documentation.ApiReferenceSite.Members.get -> System.Collections.Generic.IReadOnlyDictionary<LithoSharp.Documentation.DocumentKey!, LithoSharp.Documentation.ApiMember!>!
+LithoSharp.Documentation.ApiReferenceSite.PrepareAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Build.SiteBuildContribution!>!
+LithoSharp.Documentation.ApiReferenceSite.Resolve(LithoSharp.Documentation.DocumentKey! key) -> LithoSharp.Pages.PageRef<LithoSharp.Documentation.ApiMember!>!
+LithoSharp.Documentation.DocumentationVerification
 LithoSharp.Documentation.DocumentCatalog
 LithoSharp.Documentation.DocumentCatalog.Adjacent(LithoSharp.Documentation.DocumentKey! key, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! navigation) -> (LithoSharp.Documentation.DocumentPage? Previous, LithoSharp.Documentation.DocumentPage? Next)
 LithoSharp.Documentation.DocumentCatalog.Alternates(LithoSharp.Documentation.DocumentKey! key) -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.SiteUrl!>!
@@ -77,6 +123,8 @@ LithoSharp.Documentation.DocumentFrontMatter.PublishFrom.get -> System.DateTimeO
 LithoSharp.Documentation.DocumentFrontMatter.PublishFrom.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.PublishUntil.get -> System.DateTimeOffset?
 LithoSharp.Documentation.DocumentFrontMatter.PublishUntil.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.SearchExclude.get -> bool
+LithoSharp.Documentation.DocumentFrontMatter.SearchExclude.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.SidebarLabel.get -> string?
 LithoSharp.Documentation.DocumentFrontMatter.SidebarLabel.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.SidebarPosition.get -> double?
@@ -254,6 +302,10 @@ static LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.Site
 LithoSharp.ComponentRenderingContext.Render<TProps>(LithoSharp.ISiteComponent<TProps>! component, TProps props) -> LithoSharp.IHtmlContent!
 LithoSharp.PageRenderingContext
 static LithoSharp.Content.ContentDependency.FromAsset(string! assetId) -> LithoSharp.Content.ContentDependency!
+static LithoSharp.Documentation.ApiReferenceSite.Compare(System.Collections.Generic.IEnumerable<LithoSharp.Documentation.ApiMember!>! previous, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.ApiMember!>! current) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.ApiChange!>!
+static LithoSharp.Documentation.ApiReferenceSite.RouteFor(string! prefix, string! id, string? baseUrl = null) -> LithoSharp.Routing.SiteRoute!
+static LithoSharp.Documentation.DocumentationVerification.BuildApiAsync(string! projectOrSolution, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<string!>!>!
+static LithoSharp.Documentation.DocumentationVerification.VerifyExamplesAsync(string! project, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 static LithoSharp.Documentation.DocumentCatalog.Breadcrumbs(LithoSharp.Documentation.DocumentKey! key, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! navigation) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>!
 static LithoSharp.Documentation.DocumentCatalog.DefaultId(string! sourcePath) -> string!
 static LithoSharp.Documentation.DocumentCatalog.RemoveNumericPrefix(string! value) -> string!

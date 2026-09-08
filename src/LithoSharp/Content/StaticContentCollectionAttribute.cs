@@ -28,4 +28,6 @@ public sealed class StaticContentCollectionAttribute : Attribute
 
     /// <summary>Whether to generate the optional JSON Schema export.</summary>
     public bool EmitJsonSchema { get; set; }
+    /// <summary>The content body type used by generated entry references. Defaults to Markdown strings.</summary>
+    public Type BodyType { get; set; } = typeof(string);
 }

@@ -21,6 +21,7 @@ public sealed class BuildExtensionTests
         var second = await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null,
             options with { PreviousBuildPlan = first.BuildPlan }, default);
         await Assert.That(extension.Timestamp).IsEqualTo(DateTimeOffset.UnixEpoch);
+        await Assert.That(extension.CompletedBuilds).IsEqualTo(2);
         await Assert.That(second.BuildReport.CacheMissCount).IsEqualTo(0);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "chunks/entry.js"))).IsEqualTo("import './shared.js';");
         var entryNode = second.BuildPlan!.Nodes.Single(node => node.Id.Value == "asset:entry");
@@ -32,6 +33,7 @@ public sealed class BuildExtensionTests
         await Assert.That(async () => await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null, options, default))
             .ThrowsException();
         await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).IsEquivalentTo(previous);
+        await Assert.That(extension.CompletedBuilds).IsEqualTo(2);
     }
 
     [Test]
@@ -52,6 +54,13 @@ public sealed class BuildExtensionTests
     {
         public DateTimeOffset Timestamp { get; private set; }
         public bool Conflict { get; set; }
+        public int CompletedBuilds { get; private set; }
+        public Task AfterBuildAsync(SiteGenerationResult result, CancellationToken cancellationToken)
+        {
+            if (!File.Exists(Path.Combine(result.OutputDirectory, "chunks/entry.js"))) throw new InvalidOperationException("Output has not been committed.");
+            CompletedBuilds++;
+            return Task.CompletedTask;
+        }
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

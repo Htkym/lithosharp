@@ -2,6 +2,7 @@ import React, {Children, createElement as h, useContext, useEffect, useId, useRe
 import {PageContext} from './context.mjs';
 import {Island} from './islands.mjs';
 export {PageContext, Island};
+export {HydrationProbe} from './context.mjs';
 import './style.css';
 import 'katex/dist/katex.min.css';
 
@@ -22,10 +23,17 @@ const storageKey = (page, group) => `lithosharp:${page.basePath}:tabs:${group}`;
 export function Link({href = '', children, ...props}) {
   const page = useContext(PageContext);
   if (/^\s*(?:javascript|vbscript|data):/i.test(href)) throw new Error('Unsafe link protocol.');
+  if (href.startsWith('xref:')) {
+    const target = page.crossReferences?.[href.slice(5)];
+    if (!target) throw new Error(`Unresolved API reference '${href.slice(5)}'.`);
+    href = target;
+  }
   if (page.linkMap && /\.(?:md|mdx)(?:[?#]|$)/.test(href)) {
     const source = new URL(href, `https://source.invalid/${page.source}`);
-    const target = page.linkMap[decodeURIComponent(source.pathname.slice(1))];
+    const key = decodeURIComponent(source.pathname.slice(1));
+    const target = page.linkMap[key];
     if (!target) throw new Error(`Unresolved document link '${href}'.`);
+    if (page.usedLinks) page.usedLinks[key] = target;
     href = target + source.search + source.hash;
   }
   return h('a', {...props, href}, children);

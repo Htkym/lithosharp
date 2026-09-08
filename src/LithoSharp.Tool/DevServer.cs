@@ -23,7 +23,8 @@ internal static class DevServer
         string project, string configuration, CommandOptions options, CancellationToken cancellationToken)
     {
         var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken);
-        var latest = await Cli.RunHostAsync(assembly, project, "build", options, null, cancellationToken);
+        await using var session = new WatchHostSession();
+        var latest = await session.BuildAsync(assembly, project, options, cancellationToken);
         if (!latest.Success)
         {
             if (!string.IsNullOrWhiteSpace(latest.Error)) Console.Error.WriteLine(latest.Error);
@@ -52,8 +53,8 @@ internal static class DevServer
         var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
         { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
         using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
-            () => changes.Writer.TryWrite(true));
-        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, cancellationToken);
+            path => { if (Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1); changes.Writer.TryWrite(true); });
+        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, cancellationToken);
         await app.StartAsync(cancellationToken);
         var actualUrl = app.Services.GetRequiredService<IServer>().Features
             .Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault() ?? url;
@@ -71,7 +72,7 @@ internal static class DevServer
 
     private static async Task RebuildLoopAsync(
         ChannelReader<bool> changes, string project, string configuration, CommandOptions options,
-        ServerState state, ReloadHub hub, CancellationToken cancellationToken)
+        ServerState state, ReloadHub hub, WatchHostSession session, string assembly, CancellationToken cancellationToken)
     {
         await foreach (var ignored in changes.ReadAllAsync(cancellationToken))
         {
@@ -79,8 +80,12 @@ internal static class DevServer
             while (changes.TryRead(out _)) { }
             try
             {
-                var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken);
-                var response = await Cli.RunHostAsync(assembly, project, "build", options, null, cancellationToken);
+                if (Interlocked.Exchange(ref state.Restart, 0) != 0)
+                {
+                    await session.StopAsync();
+                    assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken);
+                }
+                var response = await session.BuildAsync(assembly, project, options, cancellationToken);
                 state.Latest = response;
                 if (response.Success && response.OutputDirectory is not null)
                 {
@@ -94,6 +99,7 @@ internal static class DevServer
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception exception)
             {
+                Interlocked.Exchange(ref state.Restart, 1);
                 state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message };
                 Console.Error.WriteLine(exception.Message);
                 hub.Publish("error");
@@ -102,18 +108,18 @@ internal static class DevServer
     }
 
     private static FileSystemWatcher CreateWatcher(
-        string root, Func<IReadOnlyList<string>> ignoredPaths, Action changed)
+        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string> changed)
     {
         var watcher = new FileSystemWatcher(root)
         {
             IncludeSubdirectories = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(); };
+        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath); };
         RenamedEventHandler onRename = (_, eventArgs) =>
         {
             if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)
-                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) changed();
+                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath); changed(eventArgs.OldFullPath); }
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;
@@ -193,6 +199,7 @@ internal static class DevServer
 
     private sealed class ServerState(HostResponse latest)
     {
+        public int Restart;
         public HostResponse Latest { get; set; } = latest;
         public string OutputRoot { get; set; } = Path.GetFullPath(latest.OutputDirectory!);
         public IReadOnlyList<string> IgnoredPaths { get; set; } = latest.IgnoredPaths;

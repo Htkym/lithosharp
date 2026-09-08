@@ -11,6 +11,41 @@ namespace LithoSharp.Tests;
 public sealed class MdxIntegrationTests
 {
     [Test]
+    public async Task WorkerFailuresTimeoutAndCancellationPreserveThePublishedSite()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        var worker = Path.Combine(workspace.Root, "worker");
+        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        await File.WriteAllTextAsync(Path.Combine(source, "hello.mdx"), "---\ntitle: Hello\n---\n# Hello\n");
+        var output = Path.Combine(workspace.Root, "out");
+        var generator = new SiteGenerator();
+        await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, true, null, new() { BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+        var snapshot = HashOutput(output);
+        foreach (var mode in new[] { "crash", "invalid-json", "oversize", "request-id", "path", "timeout", "cancel" })
+        {
+            var action = mode switch
+            {
+                "crash" => "process.exit(23);",
+                "invalid-json" => "console.log('not json');",
+                "oversize" => "console.log('x'.repeat(9000));",
+                "request-id" => "console.log(JSON.stringify({protocol:1,requestId:'wrong'}));",
+                "path" => "console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{inputs:[],assets:[{path:'../escape.js',bytes:'',hash:'',imports:[]}],pages:[]}}));",
+                _ => "setInterval(()=>{},1000);"
+            };
+            var script = "import {createInterface} from 'node:readline';console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.25.12'}));for await(const line of createInterface({input:process.stdin})){const request=JSON.parse(line);" + action + "}";
+            await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), script);
+            await using var mdx = new MdxSite(new(workspace.Root, worker) { Timeout = TimeSpan.FromSeconds(1), MaximumMessageBytes = 8192 });
+            mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("fault"), source, _ => SiteRoute.ForDirectoryIndex("hello"), entry => new(entry.FrontMatter.Title)));
+            using var cancellation = new CancellationTokenSource();
+            if (mode == "cancel") cancellation.CancelAfter(TimeSpan.FromMilliseconds(200));
+            await Assert.That(async () => await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null,
+                new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, cancellation.Token)).ThrowsException();
+            await Assert.That(HashOutput(output)).IsEquivalentTo(snapshot);
+            await Assert.That(File.Exists(Path.Combine(workspace.Root, "escape.js"))).IsFalse();
+        }
+    }
+    [Test]
     public async Task BlogsShareAuthorsPaginationAndStaticFeedsWithPublicationFiltering()
     {
         using var workspace = new TemporaryWorkspace();
@@ -19,8 +54,12 @@ public sealed class MdxIntegrationTests
         await File.WriteAllTextAsync(Path.Combine(source, "first.mdx"), "---\ntitle: First\ndate: 2020-01-01\nsummary: Safe excerpt\nauthors: [alice, bob]\ntags: [dotnet]\n---\n# Body\n");
         await File.WriteAllTextAsync(Path.Combine(source, "second.mdx"), "---\ntitle: Second\ndate: 2020-01-02\nsummary: Next excerpt\nauthors: [alice]\n---\n# Second\n");
         await File.WriteAllTextAsync(Path.Combine(source, "hidden.mdx"), "---\ntitle: Hidden\ndate: 2020-01-02\nunlisted: true\nsummary: hidden-canary\n---\n# Hidden\n");
-        await using var blog = new MdxBlogSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker")) { Cacheable = true, Hydration = "selective" });
-        blog.AddCollection(new("news", source, "news") { PageSize = 1, Authors = new Dictionary<string, BlogAuthor> { ["alice"] = new("Alice", "Engineer"), ["bob"] = new("Bob") } });
+        var docsSource = Path.Combine(workspace.Root, "docs");
+        Directory.CreateDirectory(docsSource);
+        await File.WriteAllTextAsync(Path.Combine(docsSource, "intro.mdx"), "---\ntitle: Guide\n---\n# Guide\n");
+        await using var blog = new DocumentationSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker")) { Cacheable = true, Hydration = "selective" });
+        blog.AddCollection(new("guide", [new("current", "en", docsSource, "guide")]) { UseMdx = true });
+        blog.AddBlog(new("news", source, "news") { PageSize = 1, Authors = new Dictionary<string, BlogAuthor> { ["alice"] = new("Alice", "Engineer"), ["bob"] = new("Bob") } });
         var output = Path.Combine(workspace.Root, "out");
         await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings { BaseUrl = "https://example.com/project/" }, [], output, true, null,
             new() { Extensions = [blog], BuildTimestamp = DateTimeOffset.Parse("2021-01-01T00:00:00Z") }, default);
@@ -28,6 +67,8 @@ public sealed class MdxIntegrationTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/page/2/index.html"))).Contains("Safe excerpt");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/authors/alice/index.html"))).Contains("Engineer");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "news/first/index.html"))).Contains("min read");
+        await Assert.That(File.Exists(Path.Combine(output, "guide/intro/index.html"))).IsTrue();
+        await Assert.That(blog.MdxMetrics.WorkerStarts).IsEqualTo(1);
         foreach (var file in new[] { "rss.xml", "atom.xml", "feed.json" })
         {
             var feed = await File.ReadAllTextAsync(Path.Combine(output, "news", file));
@@ -67,6 +108,11 @@ public sealed class MdxIntegrationTests
         await Assert.That(mdx.Metrics.CacheHit).IsTrue();
         await Assert.That(mdx.Metrics.CompiledModules + mdx.Metrics.RenderedPages + mdx.Metrics.BundledPages).IsEqualTo(0);
         await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"), "export default function Counter(){return <button>Changed</button>}");
+        await File.WriteAllTextAsync(Path.Combine(source, "hello.mdx"), "---\ntitle: Hello\n---\nimport Draft from './draft.mdx'\n\n<Draft />\n");
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default)).Throws<LithoSharp.Build.SiteBuildExtensionException>();
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        await File.WriteAllTextAsync(Path.Combine(source, "hello.mdx"), "---\ntitle: Hello\n---\nimport Counter from './Counter.jsx'\n\n# Hello\n\n<Counter />\n");
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"), "export default function Counter(){return <button>Changed</button>}");
         await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
         await Assert.That(await File.ReadAllTextAsync(page)).Contains("Changed");
