@@ -2,7 +2,7 @@
 
 [日本語](migration-0.3.ja.md)
 
-0.3.0 is a stable release candidate in the 0.x series, not a 1.0 API stability
+0.3.0 is a stable release in the 0.x series, not a 1.0 API stability
 promise. Future minor releases may change public APIs. The published 0.2.0
 package remains available; this release does not replace or unlist it.
 

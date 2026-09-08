@@ -9,8 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-This branch prepares **0.3.0**. Installation commands below require its publication;
-local candidate verification uses the generated NuGet packages instead.
+Current release: **0.3.0**.
 
 ## Features
 

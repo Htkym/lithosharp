@@ -4,7 +4,7 @@
 
 .NET 10 SDKを用意します。検証版は10.0.300です。MDXにはNode.js 24.13.0も必要ですが、
 Markdownだけなら不要です。`serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
-新しいディレクトリで作業してください。以下は0.3.0公開後の手順で、候補版の検証にはローカルのpackage sourceを使います。
+新しいディレクトリで作業してください。以下は0.3.0の手順で、候補版の検証にはローカルのpackage sourceを使います。
 
 ## InstallとMarkdown Docsの作成
 

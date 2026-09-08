@@ -2,7 +2,7 @@
 
 [日本語](known-limitations.ja.md)
 
-These limits apply to the 0.3.0 candidate. See [performance](performance.md) for
+These limits apply to 0.3.0. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
 
 ## Build cost and platform coverage

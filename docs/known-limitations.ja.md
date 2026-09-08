@@ -2,7 +2,7 @@
 
 [English](known-limitations.md)
 
-0.3.0候補の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+0.3.0の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
 
 ## 生成コストと検証環境
 

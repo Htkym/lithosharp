@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md)
 
-## 0.3.0 — release候補
+## 0.3.0 — 2026-09-08
 
 ### 追加
 

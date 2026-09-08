@@ -2,7 +2,7 @@
 
 [日本語](CHANGELOG.ja.md)
 
-## 0.3.0 — release candidate
+## 0.3.0 — 2026-09-08
 
 ### Added
 

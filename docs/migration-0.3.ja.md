@@ -2,7 +2,7 @@
 
 [English](migration-0.3.md)
 
-0.3.0は0.x系列のstable候補です。1.0相当のAPI安定性は保証せず、今後のminor
+0.3.0は0.x系列のstable releaseです。1.0相当のAPI安定性は保証せず、今後のminor
 releaseでは公開APIが変わる可能性があります。公開済みの0.2.0は置換もunlistもしません。
 
 ## Markdownサイトの更新

@@ -5,7 +5,7 @@
 Use the .NET 10 SDK (verified with 10.0.300). MDX additionally uses Node.js
 24.13.0; Markdown-only sites do not use Node. The SDK supplies the ASP.NET Core
 shared framework used by `serve`. Work in a new directory. Commands below target
-0.3.0 after publication; candidate verification uses a local package source.
+0.3.0; candidate verification uses a local package source.
 
 ## Install and create Markdown Docs
 
