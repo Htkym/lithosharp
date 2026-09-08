@@ -11,6 +11,7 @@
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/LithoSharp.MdxPerformance/LithoSharp.MdxPerformance.csproj" />
     <Project Path="benchmarks/LithoSharp.Performance/LithoSharp.Performance.csproj" />
   </Folder>
   <Folder Name="/samples/">
