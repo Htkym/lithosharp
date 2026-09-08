@@ -497,3 +497,5 @@ MIT ライセンスです。詳細は [LICENSE](LICENSE) を参照してくだ�
 
 C# のサイトプロジェクトのビルドと開発サーバーについては、[CLI とサイトファクトリ](docs/cli.ja.md)を参照してください。
 サイト、コンポーネント、レイアウトの検証には、[LithoSharp.Testing](docs/testing.ja.md)を利用できます。
+[MDXとReactの利用ガイド](docs/mdx.ja.md)には、版と言語を持つDocs、Blog、Selective Hydrationをまとめています。
+測定結果と各 OS の CI 結果は[検証記録](docs/mdx-verification.md)を参照してください。

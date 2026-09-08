@@ -546,3 +546,6 @@ MIT. See [LICENSE](LICENSE). Third-party dependencies are listed in
 
 Build and serve C# site projects with [the CLI and site factories](docs/cli.md).
 Test sites, components and layouts with [LithoSharp.Testing](docs/testing.md).
+Use opt-in [MDX and React documentation](docs/mdx.md) for versioned, multilingual
+Docs, Blog and selective hydration. See the [verification record](docs/mdx-verification.md)
+for measured costs and three-OS CI results.
