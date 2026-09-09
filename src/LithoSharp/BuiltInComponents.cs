@@ -187,10 +187,10 @@ public sealed class BlogHeaderComponent : ISiteComponent<BlogHeaderComponentProp
         }
         var nav = NavigationComponent.RenderCore(props.Links.Select(link => (link.Label, link.Url.Value, link.CssClass, link.IsCurrent)));
         var search = props.SearchUrl is null ? string.Empty : SearchFormComponent.RenderCore(context.Configuration, props.SearchUrl.Value);
-        return Html.UnsafeRaw(RenderCore(props.Brand, props.HomeUrl.Value, nav, search, props.IncludeNavigation, context.Text));
+        return Html.UnsafeRaw(RenderCore(props.Brand, props.HomeUrl.Value, nav, search, props.IncludeNavigation, context.Text, context.Theme.EnableThemeSwitching));
     }
 
-    internal static string RenderCore(string brand, string homeUrl, string navHtml, string searchHtml, bool includeNavigation, SiteText text)
+    internal static string RenderCore(string brand, string homeUrl, string navHtml, string searchHtml, bool includeNavigation, SiteText text, bool enableThemeSwitching)
     {
         if (!includeNavigation)
             return $"<header class=\"site-header\"><a class=\"brand\" href=\"{Html.Encode(homeUrl)}\">{Html.Encode(brand)}</a></header>";
@@ -205,6 +205,7 @@ public sealed class BlogHeaderComponent : ISiteComponent<BlogHeaderComponentProp
                     <span class="visually-hidden">Home</span>
                   </a>
                   {searchHtml}
+                  {(enableThemeSwitching ? SiteGenerator.BuildThemeToggle() : string.Empty)}
                   <button class="site-menu-toggle site-icon-button" type="button" aria-expanded="false" aria-controls="site-menu" aria-label="{menuLabel}" data-site-menu-toggle>
                     {BuildMenuIconSvg()}
                     <span class="visually-hidden">{menuLabel}</span>
@@ -233,13 +234,16 @@ public sealed class DocsHeaderComponent : ISiteComponent<NavigationLink>
         ArgumentNullException.ThrowIfNull(props.Label);
         ArgumentNullException.ThrowIfNull(props.Url);
         ArgumentNullException.ThrowIfNull(context);
-        return Html.UnsafeRaw(RenderCore(props.Label, props.Url.Value));
+        return Html.UnsafeRaw(RenderCore(props.Label, props.Url.Value, context.Theme.EnableThemeSwitching));
     }
 
-    internal static string RenderCore(string title, string url) => $"""
+    internal static string RenderCore(string title, string url, bool enableThemeSwitching) => $"""
             <header class="docs-header">
                 <a class="docs-brand" href="{Html.Encode(url)}">{Html.Encode(title)}</a>
+                <div class="docs-header-actions">
+                {(enableThemeSwitching ? SiteGenerator.BuildThemeToggle() : string.Empty)}
                 <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>Menu</button>
+                </div>
               </header>
             """;
 }
@@ -316,11 +320,11 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
         return Html.UnsafeRaw(RenderCore(context.Site.Title, context.Theme.ThemeColor,
             SeoComponent.RenderCore(props.Seo, context.Site.Title), props.StylesheetUrl.Value,
             props.FaviconLinks.ToHtmlString(), props.Analytics.ToHtmlString(),
-            props.FeedUrl?.Value, props.ScriptUrl?.Value, props.Docs));
+            props.FeedUrl?.Value, props.ScriptUrl?.Value, props.Docs, context.Theme.EnableThemeSwitching));
     }
 
     internal static string RenderCore(string siteTitle, string themeColor, string seo,
-        string stylesheetUrl, string faviconLinks, string analytics, string? feedUrl, string? scriptUrl, bool docs)
+        string stylesheetUrl, string faviconLinks, string analytics, string? feedUrl, string? scriptUrl, bool docs, bool enableThemeSwitching)
     {
         var feed = feedUrl is null ? string.Empty : $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(siteTitle)}\" href=\"{Html.Encode(feedUrl)}\">";
         var script = scriptUrl is null ? string.Empty : $"<script src=\"{Html.Encode(scriptUrl)}\" defer></script>";
@@ -330,7 +334,8 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
         return "<head>\n"
             + "  <meta charset=\"utf-8\">\n"
             + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-            + "  <meta name=\"color-scheme\" content=\"dark\">\n"
+            + $"  <meta name=\"color-scheme\" content=\"{(enableThemeSwitching ? "light dark" : "light")}\">\n"
+            + (enableThemeSwitching && scriptUrl is not null ? "  <script>try{const t=localStorage.getItem('lithosharp-theme');if(t==='light'||t==='dark')document.documentElement.dataset.siteTheme=t;}catch{}</script>\n" : string.Empty)
             + $"  <meta name=\"theme-color\" content=\"{Html.Encode(themeColor)}\">\n"
             + seo
             + "  <link rel=\"stylesheet\" href=\"" + Html.Encode(stylesheetUrl) + "\">\n"

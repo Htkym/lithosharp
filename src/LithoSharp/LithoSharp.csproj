@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
     <Description>A type-safe static site and documentation generator for .NET. Build with C#, typed Markdown collections, dependency-aware incremental generation, and safe output publication. Add the optional MDX package for React components, versioned documentation, and selective hydration.</Description>
@@ -20,7 +20,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>0.3.0 adds typed content, routes, source generation, incremental builds, CLI/templates, testing APIs, and opt-in MDX/React documentation. Review the 0.2.0 migration guide and known limitations before upgrading: https://github.com/Htkym/lithosharp/blob/main/docs/migration-0.3.md</PackageReleaseNotes>
+    <PackageReleaseNotes>0.3.1 refreshes the built-in Docs and Blog themes, adds optional light/dark switching and keyboard navigation improvements, and updates package icons. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

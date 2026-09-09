@@ -2,6 +2,20 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 0.3.1 — 2026-09-09
+
+- Refresh the built-in Docs and Blog layouts, typography, spacing and responsive navigation.
+- Add light/dark palettes with system preference and saved reader selection.
+  `SiteThemeOptions.EnableThemeSwitching` defaults to `true`; set it to `false`
+  for fixed light colors without the toggle or preference scripts. Fixed dark
+  colors are available through `AdditionalCss`.
+- Improve skip links, keyboard focus, Escape handling and navigation without JavaScript.
+- Update the shared NuGet icon and add sample screenshots to the READMEs.
+
+Existing public signatures and routes are preserved. Generated HTML, CSS and
+JavaScript change; review custom CSS after regeneration. See the
+[theme configuration](docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+
 ## 0.3.0 — 2026-09-08
 
 ### Added

@@ -2,7 +2,7 @@
 
 [English](known-limitations.md)
 
-0.3.0の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+0.3.1の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
 
 ## 生成コストと検証環境
 
@@ -21,6 +21,10 @@ PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定�
 この環境では実AVIF encodeは未検証です。
 
 ## MDXとブラウザー機能の範囲
+
+0.3.1のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
+保存済み配色の復元にはインラインスクリプトを使うため、ホスト側のCSPで実行を許可してください。
+詳しくは[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
 
 MarkdownだけならNode.jsは不要です。MDXはNode.js 24.13.0と同梱lockfileを使います。
 任意のNode版やnpm packageを保証するものではありません。browser importはブラウザーで動作し、

@@ -54,3 +54,52 @@ of navigation semantics.
 `post-toc-title`、`data-toc-item`、`data-toc-link` です。ヘッダー検索では、
 `header-search-input` と対応するラベル、GETフィールドの `q`、`type="search"` を維持します。
 ナビゲーションの意味を表す `aria-current="page"`、`rel="prev"`、`rel="next"` も契約に含みます。
+
+## Theme switching / テーマ切り替え
+
+Docs and Blog follow the operating system until the reader selects a palette.
+The choice is saved in local storage under `lithosharp-theme` for the same origin.
+Without JavaScript the system palette still applies, but the toggle is hidden.
+
+DocsとBlogは、読者が配色を選択するまではOS設定に従います。選択した配色は同じオリジンの
+ローカルストレージに `lithosharp-theme` として保存します。JavaScriptが無効な場合も
+OS設定に従いますが、ボタンは表示しません。
+
+Set `SiteThemeOptions.EnableThemeSwitching = false` to omit the built-in theme
+toggle and theme preference scripts. The default is `true`. When disabled, the
+built-in stylesheet uses light colors; set `AdditionalCss = ":root { color-scheme: dark; }"`
+for a fixed dark theme. Custom templates that reuse the built-in header and head
+components inherit this setting; custom controls must honor it explicitly.
+
+`SiteThemeOptions.EnableThemeSwitching` は既定で `true` です。`false` にすると、
+標準の切り替えボタンとテーマ設定の保存・復元、OS設定への追従を無効にします。
+標準配色はライトになり、ダークに固定する場合は
+`AdditionalCss = ":root { color-scheme: dark; }"` を指定します。
+標準のヘッダーとHead部品を流用する自作テンプレートにも適用されます。
+独自の切り替え処理を実装する場合は、その処理で設定を参照してください。
+
+```csharp
+var customization = new SiteCustomization
+{
+    Theme = new SiteThemeOptions
+    {
+        EnableThemeSwitching = false,
+        AdditionalCss = ":root { color-scheme: dark; }"
+    }
+};
+```
+
+Omit `AdditionalCss` for fixed light colors. Regenerate after changing the option;
+incremental builds update the affected HTML, CSS and JavaScript. Saved choices
+are ignored while switching is disabled. Blocked storage still permits switching
+within the current page.
+
+`AdditionalCss` を省くとライト固定になります。設定変更後はサイトを再生成してください。
+増分生成でも関連するHTML・CSS・JavaScriptを更新します。無効の間は保存済みの選択を参照しません。
+保存が制限されていても、そのページ内での切り替えは利用できます。
+
+Restoration uses an inline head script before CSS loads; a strict Content Security
+Policy must allow that script. Palettes require CSS `light-dark()` support.
+
+保存済み配色はCSSの読み込み前にインラインスクリプトで復元します。厳格なCSPを設定する場合、
+復元にはこのスクリプトの実行許可が必要です。配色にはCSSの `light-dark()` 対応ブラウザーが必要です。

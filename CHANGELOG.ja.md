@@ -2,6 +2,19 @@
 
 [English](CHANGELOG.md)
 
+## 0.3.1 — 2026-09-09
+
+- 標準のDocs・Blogのレイアウト、書体、余白、画面幅に応じたナビゲーションを刷新しました。
+- OS設定と保存済みの選択に対応するライト・ダーク配色を追加しました。
+  `SiteThemeOptions.EnableThemeSwitching` は既定で `true` です。`false` にすると
+  ボタンと設定の保存・復元処理を省き、ライト配色に固定します。
+  `AdditionalCss` によるダーク固定も可能です。
+- 本文へのスキップリンク、フォーカス表示、Escキーの処理、JavaScript無効時のナビゲーションを改善しました。
+- 共通のNuGetアイコンを更新し、READMEにサンプルサイトの画像を追加しました。
+
+既存の公開署名とURLは維持します。生成するHTML・CSS・JavaScriptは変わるため、
+再生成後に独自CSSの表示を確認してください。[テーマの設定](docs/layout-css-contract.md#theme-switching--テーマ切り替え)も参照してください。
+
 ## 0.3.0 — 2026-09-08
 
 ### 追加

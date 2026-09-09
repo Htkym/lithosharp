@@ -43,8 +43,7 @@ public sealed class DocsSampleFactory : ISiteFactory
             Theme = new SiteThemeOptions
             {
                 BrandPrefix = "lithosharp / ",
-                DefaultSocialSubtitle = "Built with LithoSharp",
-                AdditionalCss = ":root { --accent: #7c9eff; }"
+                DefaultSocialSubtitle = "Built with LithoSharp"
             },
             GenerateLlmsTxt = true
         };

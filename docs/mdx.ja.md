@@ -8,8 +8,8 @@ MDX 3.1.1、React 19.2.4、esbuild 0.25.12 を使います。依存関係は wor
 ## サイトを作る
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.0
-dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::0.3.1
+dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker

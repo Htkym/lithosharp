@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Images</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>Htkym</Authors>
     <Description>Declared, cached responsive image transforms for LithoSharp.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

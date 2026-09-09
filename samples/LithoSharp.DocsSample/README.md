@@ -1,5 +1,10 @@
 # LithoSharp Docs sample
 
+![Generated sample site](../../docs/images/docs-light.png)
+
+Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
+to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+
 A minimal console app that builds documentation with
 [LithoSharp](../../src/LithoSharp). It uses the default `DocsSiteTemplate`.
 
@@ -19,6 +24,8 @@ and labels.
 ## What it shows
 
 - The default Docs template.
+- Stone-inspired typography and light/dark palettes. The header toggle saves the
+  reader's choice; otherwise the site follows the operating system's preference.
 - Nested content folders for the sidebar hierarchy.
 - `sidebar_position` and `sidebar_label` front matter.
 - The page table of contents and previous/next document links.

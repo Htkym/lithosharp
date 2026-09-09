@@ -8,6 +8,13 @@ package remains available; this release does not replace or unlist it.
 
 ## Update an existing Markdown site
 
+For the 0.3.1 patch, regenerate and review custom CSS against the refreshed
+Docs/Blog themes. Theme switching is enabled by default; use
+`Theme = new SiteThemeOptions { EnableThemeSwitching = false }` in your
+`SiteCustomization` for fixed light colors. See [theme configuration](layout-css-contract.md#theme-switching--テーマ切り替え)
+for fixed dark colors and browser requirements. Routes and existing signatures
+remain unchanged.
+
 Before:
 
 ```xml
