@@ -1254,3 +1254,5 @@ static LithoSharp.SiteUrl.ForDirectory(string! relativePath, string? baseUrl = n
 static LithoSharp.SiteUrl.ForFile(string! relativePath, string? baseUrl = null) -> LithoSharp.SiteUrl!
 static LithoSharp.SiteUrl.FromAbsolute(string! value) -> LithoSharp.SiteUrl!
 static LithoSharp.SiteUrl.FromRoute(LithoSharp.Routing.SiteRoute! route) -> LithoSharp.SiteUrl!
+LithoSharp.SiteThemeOptions.EnableThemeSwitching.get -> bool
+LithoSharp.SiteThemeOptions.EnableThemeSwitching.init -> void

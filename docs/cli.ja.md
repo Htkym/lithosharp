@@ -6,7 +6,7 @@
 
 ```powershell
 dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.3.0.nupkg
+dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.3.1.nupkg
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

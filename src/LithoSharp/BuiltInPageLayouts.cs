@@ -46,9 +46,10 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
             <!doctype html>
             <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
             {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: false, includeBlogNavigation, metadata, head, includeDefaultScript)}
-            <body>
+            <body class="blog-body">
+              <a class="site-skip-link" href="#blog-main">Skip to main content</a>
               {header}
-              <main>
+              <main id="blog-main" tabindex="-1">
             {body}
               </main>
               {FooterComponent.RenderCore(configuration.Site.Title, docs: false)}
@@ -109,10 +110,11 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
             <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
             {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true, metadata, head, includeDefaultScript)}
             <body class="docs-body">
-              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home))}
+              <a class="docs-skip-link" href="#docs-main">Skip to main content</a>
+              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching)}
               <div class="docs-shell">
                 {sidebar ?? string.Empty}
-                <main class="docs-main">
+                <main id="docs-main" class="docs-main" tabindex="-1">
                   <article class="docs-content">
             {body}
                   </article>

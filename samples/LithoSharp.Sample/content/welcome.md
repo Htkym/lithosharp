@@ -1,7 +1,7 @@
 ---
 title: "Welcome to the LithoSharp Blog Sample"
 date: "2026-01-02T09:00:00Z"
-summary: "A quick tour of the legacy blog layout."
+summary: "A quick tour of the LithoSharp blog layout."
 tags:
   - intro
   - lithosharp

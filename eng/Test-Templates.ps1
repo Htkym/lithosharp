@@ -27,9 +27,9 @@ try {
   <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
-    dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path $toolDirectory --configfile $config
+    dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path $toolDirectory --configfile $config
     if ($LASTEXITCODE -ne 0) { throw 'Tool package installation failed.' }
-    dotnet new install (Join-Path $packages 'LithoSharp.ProjectTemplates.0.3.0.nupkg') --debug:custom-hive $hive
+    dotnet new install (Join-Path $packages 'LithoSharp.ProjectTemplates.0.3.1.nupkg') --debug:custom-hive $hive
     if ($LASTEXITCODE -ne 0) { throw 'Template package installation failed.' }
     $tool = Join-Path $toolDirectory $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     foreach ($kind in @('docs', 'blog', 'empty', 'mdx')) {
@@ -39,7 +39,7 @@ try {
         if ($kind -eq 'mdx') {
             $extension = Join-Path $fixture 'extension'
             $null = New-Item -ItemType Directory -Path $extension
-            [IO.File]::WriteAllText((Join-Path $extension 'Extension.csproj'), '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><PackageId>LithoSharp.FixtureExtension</PackageId><Version>1.0.0</Version></PropertyGroup><ItemGroup><PackageReference Include="LithoSharp" Version="0.3.0" /></ItemGroup></Project>')
+            [IO.File]::WriteAllText((Join-Path $extension 'Extension.csproj'), '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><PackageId>LithoSharp.FixtureExtension</PackageId><Version>1.0.0</Version></PropertyGroup><ItemGroup><PackageReference Include="LithoSharp" Version="0.3.1" /></ItemGroup></Project>')
             [IO.File]::WriteAllText((Join-Path $extension 'ExternalContent.cs'), @'
 using LithoSharp;
 using LithoSharp.Build;

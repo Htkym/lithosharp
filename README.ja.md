@@ -8,7 +8,18 @@
 C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
 .NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-現在のreleaseは**0.3.0**です。
+現在のリリースは **0.3.1** です。
+
+## サンプルサイト
+
+同梱のサイト定義から生成した画面です。標準のDocsとBlogは、ライト・ダーク切り替え、
+画面幅に応じたメニュー、キーボード操作に対応します。
+`SiteThemeOptions.EnableThemeSwitching = false` で切り替えを無効にできます。
+詳しくは[テーマの設定](docs/layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
+
+| Docsのライト配色 | Blogのダーク配色 |
+| --- | --- |
+| [![サイドバー、本文、目次を表示したDocsサンプル](docs/images/docs-light.png)](samples/LithoSharp.DocsSample) | [![先頭記事とナビゲーションを表示したBlogサンプル](docs/images/blog-dark.png)](samples/LithoSharp.Sample) |
 
 ## 主な機能
 
@@ -27,8 +38,8 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 .NET 10 SDKを用意して実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.0
-dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::0.3.1
+dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -38,7 +49,7 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 `DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存applicationでは`dotnet add package LithoSharp --version 0.3.0`でライブラリを追加し、
+既存applicationでは`dotnet add package LithoSharp --version 0.3.1`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -46,7 +57,7 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 | 目的 | 入口 |
 | --- | --- |
 | Markdown Docs、typed content、画像 | [Docs sample](samples/LithoSharp.DocsSample) |
-| 従来のBlog、feed、search | [Blog sample](samples/LithoSharp.Sample) |
+| Blog、フィード、検索 | [Blog sample](samples/LithoSharp.Sample) |
 | MDX、React island、offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.ja.md) |
 | versioning、i18n、Blog/Pages、API docs | [MDXガイド](docs/mdx.ja.md)と[使用例の案内](docs/quickstart.ja.md#使用例と次の手順) |
 

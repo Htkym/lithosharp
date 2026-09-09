@@ -2,7 +2,7 @@
 
 [日本語](known-limitations.ja.md)
 
-These limits apply to 0.3.0. See [performance](performance.md) for
+These limits apply to 0.3.1. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
 
 ## Build cost and platform coverage
@@ -24,6 +24,10 @@ PNG, JPEG and WebP were exercised with Skia. AVIF needs an explicitly configured
 trusted `avifenc`; real AVIF encoding remains unverified in this environment.
 
 ## MDX and browser scope
+
+The 0.3.1 Docs/Blog palettes require CSS `light-dark()` support. Restoring
+a saved theme uses an inline head script, which must be allowed by the host's CSP.
+See [theme configuration](layout-css-contract.md#theme-switching--テーマ切り替え).
 
 Markdown-only sites need no Node.js. MDX uses Node.js 24.13.0 and the packaged
 lockfile. Arbitrary Node versions and npm packages are not certified. Browser

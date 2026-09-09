@@ -12,7 +12,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Generators</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>Htkym</Authors>
     <Description>Static content binders, schemas, and typed references for LithoSharp.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>

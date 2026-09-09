@@ -5,6 +5,13 @@ namespace LithoSharp;
 /// </summary>
 public sealed record SiteThemeOptions
 {
+    /// <summary>
+    /// Enables the built-in light/dark toggle, system preference, and saved theme selection.
+    /// When false, the built-in theme uses light colors; override AdditionalCss for a fixed custom scheme.
+    /// Custom templates must honor this option when implementing their own theme controls.
+    /// </summary>
+    public bool EnableThemeSwitching { get; init; } = true;
+
     /// <summary>Prefix shown before the brand name (used in the CSS <c>.brand::before</c>).</summary>
     public string BrandPrefix { get; init; } = string.Empty;
 

@@ -7,6 +7,12 @@ releaseでは公開APIが変わる可能性があります。公開済みの0.2.
 
 ## Markdownサイトの更新
 
+パッチ版0.3.1ではDocs・Blogの標準テーマが変わるため、再生成後に独自CSSの表示を確認してください。
+テーマ切り替えは既定で有効です。ライト固定にする場合は `SiteCustomization` に
+`Theme = new SiteThemeOptions { EnableThemeSwitching = false }` を設定します。
+ダーク固定とブラウザー要件は[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
+URLと既存の公開署名は維持します。
+
 更新前:
 
 ```xml

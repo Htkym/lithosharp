@@ -1,5 +1,14 @@
 # LithoSharp Docs サンプル
 
+![生成したサンプルサイト](../../docs/images/docs-light.png)
+
+テーマ切り替えは既定で有効です。`SiteThemeOptions.EnableThemeSwitching = false` で無効にできます。
+[固定ダーク配色を含む設定例](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
+
+標準のDocsテンプレートは、石版をイメージした見出しと配色を採用しています。
+ライト・ダークの切り替えはヘッダーから行えます。選択はブラウザーに保存され、
+未選択の場合はOSの配色設定に従います。
+
 `DocsSampleFactory` を使って、サイトをテストプロセス内で生成できます。
 出力先とキャッシュは一時領域へ隔離し、外部リンクの検証は既定で無効です。
 テストプロジェクトからこのサンプルと `LithoSharp.Testing` を参照し、

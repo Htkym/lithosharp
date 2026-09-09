@@ -40,6 +40,35 @@ public sealed class CompatibilityContractTests
     };
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task GenerateAsync_ThemeSwitching_CanOptOutAndReenableIncrementally(bool docs)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var (posts, faviconSource) = await CreateInputsAsync(workspace);
+        var output = Path.Combine(workspace.Root, "theme-output");
+        var customization = ContractCustomization(faviconSource, docs ? new DocsSiteTemplate() : new BlogSiteTemplate());
+        await Assert.That(customization.Theme.EnableThemeSwitching).IsTrue();
+        foreach (var enabled in new[] { true, false, true })
+        {
+            await new SiteGenerator().GenerateWithOptionsAsync(
+                TestSite(), posts, output, clean: false,
+                customization with { Theme = new SiteThemeOptions { EnableThemeSwitching = enabled } },
+                new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp }, CancellationToken.None);
+            var html = await File.ReadAllTextAsync(Path.Combine(output, "index.html"));
+            var script = await File.ReadAllTextAsync(Path.Combine(output, "assets", "site.js"));
+            var css = await File.ReadAllTextAsync(Path.Combine(output, "assets", "site.css"));
+            await Assert.That(html.Contains("data-site-theme-toggle", StringComparison.Ordinal)).IsEqualTo(enabled);
+            await Assert.That(html.Contains("localStorage.getItem('lithosharp-theme')", StringComparison.Ordinal)).IsEqualTo(enabled);
+            await Assert.That(script.Contains("lithosharp-theme", StringComparison.Ordinal)).IsEqualTo(enabled);
+            await Assert.That(script.Contains("prefers-color-scheme", StringComparison.Ordinal)).IsEqualTo(enabled);
+            await Assert.That(css.Contains("color-scheme: light dark;", StringComparison.Ordinal)).IsEqualTo(enabled);
+            await Assert.That(html).Contains(enabled ? "content=\"light dark\"" : "content=\"light\"");
+            await Assert.That(script).Contains("data-site-menu-toggle");
+        }
+    }
+
+    [Test]
     public async Task GenerateAsync_DocsTemplate_PreservesArtifactPathsAndPublicUrls()
     {
         using var workspace = new TemporaryWorkspace();
@@ -187,7 +216,7 @@ public sealed class CompatibilityContractTests
             "<header class=\"docs-header\">",
             "<div class=\"docs-shell\">",
             "<aside id=\"docs-sidebar\" class=\"docs-sidebar\"",
-            "<main class=\"docs-main\">",
+            "<main id=\"docs-main\" class=\"docs-main\" tabindex=\"-1\">",
             "<article class=\"docs-content\">",
             "<h1>Install</h1>",
             "<nav class=\"docs-pagination\"",
@@ -211,7 +240,7 @@ public sealed class CompatibilityContractTests
             ">Team</a>",
             ">Search</a>",
             "class=\"rss-nav-link\"",
-            "<main>",
+            "<main id=\"blog-main\" tabindex=\"-1\">",
             "<div class=\"post-layout\">",
             "<article class=\"post\">",
             "<h1 class=\"post-title\">Install</h1>",

@@ -56,13 +56,15 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                 Configuration("template.builtIn", templateIdentity),
                 Configuration("theme.brandPrefix", theme.BrandPrefix),
                 Configuration("theme.additionalCss", theme.AdditionalCss),
+                Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching)),
             ]);
         AddTextArtifactNode(
             nodes,
             filesByPath,
             SiteScriptNodeId,
             routes.SiteScript,
-            [Configuration("template.builtIn", templateIdentity)]);
+            [Configuration("template.builtIn", templateIdentity),
+                Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching))]);
 
         if (isDocs)
         {
@@ -649,6 +651,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                 AnalyticsMeasurementId = ResolveAnalyticsMeasurementId(site),
             }));
         yield return Configuration("theme.themeColor", theme.ThemeColor);
+        yield return Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching));
         yield return Configuration(
             "assets.hasFaviconSet",
             hasFaviconAssets.ToString(CultureInfo.InvariantCulture));

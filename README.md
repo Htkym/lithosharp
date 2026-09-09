@@ -9,7 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-Current release: **0.3.0**.
+Current release: **0.3.1**.
 
 ## Features
 
@@ -34,8 +34,8 @@ Current release: **0.3.0**.
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.0
-dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::0.3.1
+dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -46,15 +46,26 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 0.3.0`
+Existing applications can use `dotnet add package LithoSharp --version 0.3.1`
 and call the library directly; a CLI host is not required.
+
+## Sample sites
+
+Generated from the included factories. Both built-in templates support light/dark
+switching, responsive menus and keyboard navigation. Set
+`SiteThemeOptions.EnableThemeSwitching = false` to disable switching; see
+[theme configuration](docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+
+| Docs — light | Blog — dark |
+| --- | --- |
+| [![Docs sample with sidebar, article and table of contents](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/docs-light.png)](samples/LithoSharp.DocsSample) | [![Blog sample with featured article and navigation](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/blog-dark.png)](samples/LithoSharp.Sample) |
 
 ## Examples
 
 | Goal | Start here |
 | --- | --- |
 | Markdown Docs, typed content and images | [Docs sample](samples/LithoSharp.DocsSample) |
-| Legacy Blog, feed and search | [Blog sample](samples/LithoSharp.Sample) |
+| Blog, feed and search | [Blog sample](samples/LithoSharp.Sample) |
 | MDX, React islands and offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.md) |
 | Versioning, i18n, Blog/Pages and API docs | [MDX guide](docs/mdx.md) and [sample map](docs/quickstart.md#examples-and-next-steps) |
 

@@ -1,5 +1,10 @@
 # LithoSharp Blog sample
 
+![Generated sample site](../../docs/images/blog-dark.png)
+
+Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
+to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+
 A minimal console app that builds a blog with [LithoSharp](../../src/LithoSharp).
 It depends only on the LithoSharp library, so it doubles as a check that the generator
 works without any daily-update code.
@@ -14,14 +19,16 @@ dotnet run --project samples/LithoSharp.Sample -- --output _site
 - `--content <dir>`: Markdown source folder (default: the bundled `content/` next to the app).
 
 Open `_site/index.html` in a browser to view the result. This sample explicitly uses
-`BlogSiteTemplate`, preserving the legacy listing, archive, tags, and post layout.
+`BlogSiteTemplate`, with an editorial layout for listings, archives, tags, and posts.
+Light and dark palettes follow the operating system until the reader saves a
+preference with the header toggle.
 
 ## What it shows
 
 - Reading Markdown posts with `MarkdownPostReader`.
 - Validating posts with the default validator via `SiteGenerator.Validate`.
 - Generating the site with `SiteGenerator.GenerateAsync` and a custom `SiteCustomization`
-  (theme brand prefix, an `AdditionalCss` palette override, and opt-in `llms.txt`).
+  (social preview subtitle and opt-in `llms.txt`).
 - Explicit selection of `BlogSiteTemplate`.
 
 For the default documentation layout, see

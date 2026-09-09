@@ -4,6 +4,12 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
+    internal static string BuildThemeToggle() => """
+        <button class="site-theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" data-site-theme-toggle hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg>
+        </button>
+        """;
+
     internal static string RenderHead(
         RenderContext configuration,
         string fullTitle,
@@ -27,7 +33,7 @@ public sealed partial class SiteGenerator
             BuildGoogleAnalyticsSnippet(configuration),
             !docs && includeBlogNavigation ? configuration.Routes.PublicPath(configuration.Routes.Feed) : null,
             includeDefaultScript && (docs || includeBlogNavigation) ? configuration.Routes.PublicPath(configuration.Routes.SiteScript) : null,
-            docs);
+            docs, configuration.Theme.EnableThemeSwitching);
     }
     internal static string RenderTemplateTableOfContents(
         RenderContext configuration,
@@ -106,7 +112,7 @@ public sealed partial class SiteGenerator
         if (!includeNavigation)
         {
             return BlogHeaderComponent.RenderCore(configuration.Site.Title, homePath,
-                string.Empty, string.Empty, false, configuration.Text);
+                string.Empty, string.Empty, false, configuration.Text, configuration.Theme.EnableThemeSwitching);
         }
         var archivesPath = configuration.Routes.PublicPath(configuration.Routes.Archives);
         var tagsPath = configuration.Routes.PublicPath(configuration.Routes.Tags);
@@ -145,7 +151,7 @@ public sealed partial class SiteGenerator
             navHtml,
             SearchFormComponent.RenderCore(configuration, searchPath),
             includeNavigation,
-            configuration.Text);
+            configuration.Text, configuration.Theme.EnableThemeSwitching);
     }
 
 }

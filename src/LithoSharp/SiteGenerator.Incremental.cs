@@ -20,7 +20,7 @@ public sealed partial class SiteGenerator
         {
             var orderedPosts = FlattenDocsNavigation(BuildDocsNavigation(posts)).ToArray();
             renders.Add(routes.SiteCss.RelativeOutputPath, _ => BuildDocsCss(configuration));
-            renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildDocsScript());
+            renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildDocsScript(configuration));
             renders.Add(routes.Home.RelativeOutputPath, _ => RenderDocsIndex(configuration, context.Navigation, orderedPosts, template is DocsSiteTemplate { EnableSearch: true }));
             foreach (var post in orderedPosts)
                 renders.Add(routes.Post(post).RelativeOutputPath, _ => RenderDocsPost(configuration, context.Navigation, orderedPosts, post));
@@ -37,7 +37,7 @@ public sealed partial class SiteGenerator
         else
         {
             renders.Add(routes.SiteCss.RelativeOutputPath, _ => BuildCss(configuration));
-            renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildSiteScript());
+            renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildSiteScript(configuration));
             renders.Add(routes.SearchScript.RelativeOutputPath, _ => BuildSearchScript(configuration.Text));
             renders.Add(routes.SearchIndex.RelativeOutputPath, _ => BuildSearchIndex(configuration, posts, configuration.ContentPages));
             renders.Add(routes.Home.RelativeOutputPath, _ => RenderIndex(configuration, posts));

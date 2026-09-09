@@ -3,8 +3,8 @@
 .NET 10 CLI for C# static sites. Requires the .NET SDK and ASP.NET Core shared framework.
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 0.3.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::0.3.0
+dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::0.3.1
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
