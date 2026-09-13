@@ -3118,6 +3118,7 @@ public sealed partial class SiteGenerator
             EnsureTreeContainsNoNameSurrogateReparsePoints(_outputRoot);
             RestoreCopiedSourceDirectoryMetadata();
             await _outputLock.RegisterBackupAsync(_backupRoot).ConfigureAwait(false);
+            EnsureOwnedDirectoryIsRenamable(_outputRoot);
             await MoveDirectoryWithRetriesAsync(_outputRoot, _backupRoot).ConfigureAwait(false);
             try
             {
@@ -4139,8 +4140,27 @@ public sealed partial class SiteGenerator
             }
         }
 
-        private static async Task MoveDirectoryWithRetriesAsync(
-            string source,
+        /// <summary>
+        /// Restores owner-write on an owned directory so rename() accepts it.
+        /// Linux renames read-only directories, but macOS returns EACCES without
+        /// owner-write on the moved directory itself (verified on macos-15).
+        /// Only the top directory needs the bit; contents are untouched.
+        /// </summary>
+        private static void EnsureOwnedDirectoryIsRenamable(string path)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return;
+            }
+
+            var mode = File.GetUnixFileMode(path);
+            if ((mode & UnixFileMode.UserWrite) == 0)
+            {
+                File.SetUnixFileMode(path, mode | UnixFileMode.UserWrite);
+            }
+        }
+
+        private static async Task MoveDirectoryWithRetriesAsync(            string source,
             string destination)
         {
             for (var attempt = 0; ; attempt++)
