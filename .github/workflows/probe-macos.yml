@@ -6,6 +6,9 @@ name: probe-macos
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - verify/r22-os-matrix
 
 permissions:
   contents: read
