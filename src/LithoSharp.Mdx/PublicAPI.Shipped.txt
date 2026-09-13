@@ -101,10 +101,14 @@ LithoSharp.Mdx.MdxBlogFrontMatter.Authors.get -> System.Collections.Generic.List
 LithoSharp.Mdx.MdxBlogFrontMatter.Authors.set -> void
 LithoSharp.Mdx.MdxBlogFrontMatter.Date.get -> System.DateTimeOffset
 LithoSharp.Mdx.MdxBlogFrontMatter.Date.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Description.get -> string?
+LithoSharp.Mdx.MdxBlogFrontMatter.Description.set -> void
 LithoSharp.Mdx.MdxBlogFrontMatter.Draft.get -> bool
 LithoSharp.Mdx.MdxBlogFrontMatter.Draft.set -> void
 LithoSharp.Mdx.MdxBlogFrontMatter.FeedText.get -> string?
 LithoSharp.Mdx.MdxBlogFrontMatter.FeedText.set -> void
+LithoSharp.Mdx.MdxBlogFrontMatter.Image.get -> string?
+LithoSharp.Mdx.MdxBlogFrontMatter.Image.set -> void
 LithoSharp.Mdx.MdxBlogFrontMatter.MdxBlogFrontMatter() -> void
 LithoSharp.Mdx.MdxBlogFrontMatter.PublishUntil.get -> System.DateTimeOffset?
 LithoSharp.Mdx.MdxBlogFrontMatter.PublishUntil.set -> void

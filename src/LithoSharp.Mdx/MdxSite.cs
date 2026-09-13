@@ -66,6 +66,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 RelativeSource(Path.Combine(collection.InputRoot, entry.SourcePath)), entry.Body.CompilerSource,
                 collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl).PublicPath,
                 collection.PublicationMapper(entry).Title ?? string.Empty,
+                collection.PublicationMapper(entry).Description,
                 (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, collection.PublicationMapper(entry).Language ?? context.Site.Language,
                 entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None)).ToArray();
             return new Loaded(pages, results =>
@@ -174,7 +175,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         var response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
                             projectRoot = options.ProjectDirectory, workRoot = scratch, allowWorkWithinProject = true,
                             assetBaseUrl = AssetUrl(context, ""), basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
-                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable, pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Props, page.Locale, page.Discoverable }),
+                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable, pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
                             sources, linkMap, crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value), plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
                         if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();
@@ -325,6 +326,6 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         try { if (!disposed) { disposed = true; await worker.DisposeAsync().ConfigureAwait(false); } }
         finally { gate.Release(); }
     }
-    private sealed record Page(string Id, string Source, string Code, string Url, string Title, JsonElement Props, string Locale, bool Discoverable);
+    private sealed record Page(string Id, string Source, string Code, string Url, string Title, string? Description, JsonElement Props, string Locale, bool Discoverable);
     private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics);
 }

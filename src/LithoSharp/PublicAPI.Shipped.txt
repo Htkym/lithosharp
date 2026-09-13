@@ -307,7 +307,9 @@ LithoSharp.Content.MarkdownPost.Slug.get -> string!
 LithoSharp.Content.MarkdownPost.Slug.init -> void
 LithoSharp.Content.MarkdownPostReader
 LithoSharp.Content.MarkdownPostReader.MarkdownPostReader() -> void
+LithoSharp.Content.MarkdownPostReader.ReadAllAsync(string! contentDirectory) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!>!
 LithoSharp.Content.MarkdownPostReader.ReadAllAsync(string! contentDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!>!
+LithoSharp.Content.MarkdownPostReader.ReadAsync(string! path, string! contentRoot) -> System.Threading.Tasks.Task<LithoSharp.Content.MarkdownPost!>!
 LithoSharp.Content.MarkdownPostReader.ReadAsync(string! path, string! contentRoot, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Content.MarkdownPost!>!
 LithoSharp.Content.PostFrontMatter
 LithoSharp.Content.PostFrontMatter.Date.get -> System.DateTimeOffset
@@ -495,6 +497,8 @@ LithoSharp.Documentation.DocumentFrontMatter.HideTitle.get -> bool
 LithoSharp.Documentation.DocumentFrontMatter.HideTitle.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.Id.get -> string?
 LithoSharp.Documentation.DocumentFrontMatter.Id.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.Keywords.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Documentation.DocumentFrontMatter.Keywords.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.LastUpdate.get -> LithoSharp.Documentation.DocumentUpdate?
 LithoSharp.Documentation.DocumentFrontMatter.LastUpdate.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.PaginationNext.get -> string?
@@ -515,6 +519,8 @@ LithoSharp.Documentation.DocumentFrontMatter.Slug.get -> string?
 LithoSharp.Documentation.DocumentFrontMatter.Slug.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.Tags.get -> System.Collections.Generic.List<string!>!
 LithoSharp.Documentation.DocumentFrontMatter.Tags.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.TocMaxHeadingLevel.get -> int?
+LithoSharp.Documentation.DocumentFrontMatter.TocMaxHeadingLevel.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.Title.get -> string!
 LithoSharp.Documentation.DocumentFrontMatter.Title.set -> void
 LithoSharp.Documentation.DocumentFrontMatter.Unlisted.get -> bool

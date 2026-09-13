@@ -127,7 +127,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     internal SiteRoute WithBaseUrl(string baseUrl)
     {
         if (baseUrl is null) throw new ArgumentNullException(nameof(baseUrl));
-        var encodedOutputPath = string.Join("/", RelativeOutputPath.Split('/').Select(Uri.EscapeDataString));
+        var encodedOutputPath = string.Join("/", RelativeOutputPath.Split('/').Select(EncodeSegment));
         if (PublicPath.EndsWith("/", StringComparison.Ordinal))
         {
             var relativeDirectory = RelativeOutputPath == "index.html"
@@ -198,7 +198,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
                 DecodeSegment(rawSegment, parameterName),
                 parameterName);
             decodedSegments.Add(segment);
-            encodedSegments.Add(Uri.EscapeDataString(segment));
+            encodedSegments.Add(EncodeSegment(segment));
         }
 
         if (decodedSegments.Count == 0)
@@ -305,6 +305,14 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             ? baseUrl.Substring(pathStart)
             : baseUrl.Substring(pathStart, pathEnd - pathStart);
     }
+
+    /// <summary>
+    /// Encodes one path segment for public URLs. <c>@</c> stays literal to match
+    /// Docusaurus route output (observed on 290 API reference routes); it is a
+    /// valid RFC 3986 sub-delim in path segments.
+    /// </summary>
+    private static string EncodeSegment(string segment) =>
+        Uri.EscapeDataString(segment).Replace("%40", "@");
 
     private static string DecodeSegment(string segment, string parameterName)
     {

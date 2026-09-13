@@ -47,6 +47,7 @@ public sealed class SiteRouteTests
     [Arguments("日本語/概要", null, "/%E6%97%A5%E6%9C%AC%E8%AA%9E/%E6%A6%82%E8%A6%81/", "日本語/概要/index.html")]
     [Arguments("", "https://example.test/product/", "/product/", "index.html")]
     [Arguments("guide", "https://example.test/product/", "/product/guide/", "guide/index.html")]
+    [Arguments("api/plugins/@docusaurus/plugin-content-docs", null, "/api/plugins/@docusaurus/plugin-content-docs/", "api/plugins/@docusaurus/plugin-content-docs/index.html")]
     public async Task ForDirectoryIndex_NormalizesValidRoutes(
         string relativePath,
         string? baseUrl,

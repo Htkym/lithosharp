@@ -43,6 +43,19 @@ public sealed class MarkdownContentCollectionLoaderTests
     }
 
     [Test]
+    public async Task LoadAsync_SkipsUnderscorePartialsWithoutFrontMatter()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "intro.md", Document("Intro", "Body"));
+        await WriteAsync(workspace.Root, "_Note.md", "Shared text without front matter.");
+
+        var result = await Loader<TypedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Collection!.Entries.Single().SourcePath).IsEqualTo("intro.md");
+    }
+
+    [Test]
     public async Task LoadAsync_RejectsUnknownFieldsAtTheirSourceLocationByDefault()
     {
         using var workspace = new TemporaryWorkspace();

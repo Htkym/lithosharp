@@ -84,6 +84,12 @@ public sealed class DocumentFrontMatter
     /// <summary>Optional explicit update metadata, taking precedence over Git discovery.</summary>
     [System.ComponentModel.Description("Optional explicit update metadata, taking precedence over Git discovery.")]
     public DocumentUpdate? LastUpdate { get; set; }
+    /// <summary>SEO keywords (Docusaurus compatibility; bound but not rendered yet).</summary>
+    [System.ComponentModel.Description("SEO keywords (Docusaurus compatibility; bound but not rendered yet).")]
+    public List<string> Keywords { get; set; } = [];
+    /// <summary>Maximum heading level for the table of contents (Docusaurus compatibility; rendering keeps h2-h3).</summary>
+    [System.ComponentModel.Description("Maximum heading level for the table of contents (Docusaurus compatibility; rendering keeps h2-h3).")]
+    public int? TocMaxHeadingLevel { get; set; }
 }
 
 /// <summary>The last committed document update or an explicit front-matter override.</summary>

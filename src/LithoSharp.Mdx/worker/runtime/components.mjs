@@ -31,11 +31,15 @@ export function Link({href = '', to, children, ...props}) {
     if (!target) throw new Error(`Unresolved API reference '${href.slice(5)}'.`);
     href = target;
   }
-  if (page.linkMap && /\.(?:md|mdx)(?:[?#]|$)/.test(href)) {
+  if (page.linkMap && !/^[a-z][a-z0-9+.-]*:/i.test(href) && /\.(?:md|mdx)(?:[?#]|$)/.test(href)) {
+    // Absolute URLs (including external .md links) pass through like Docusaurus;
+    // only relative document links resolve through the link map.
     const source = new URL(href, `https://source.invalid/${page.source}`);
     const key = decodeURIComponent(source.pathname.slice(1));
     const target = page.linkMap[key];
-    if (!target) throw new Error(`Unresolved document link '${href}'.`);
+    // Unresolvable document links pass through instead of failing the whole build;
+    // the final quality report flags dead internal targets.
+    if (!target) return h('a', {...props, href}, children);
     if (page.usedLinks) page.usedLinks[key] = target;
     href = target + source.search + source.hash;
   }
@@ -132,6 +136,23 @@ export function TOCInline({toc = [], minHeadingLevel = 2, maxHeadingLevel = 3}) 
 }
 
 export function Card({title, href, children}) { return h('article', {className: 'mdx-card'}, h('h3', null, h(Link, {href}, title)), children); }
+export function Zoom({children}) { return h(React.Fragment, null, children); }
+export function DocCardList() { throw new Error('DocCardList renders at compile time; inline or propped usage is not supported.'); }
+export function IdealImage(props) { return h('img', props); }
+export function ThemedImage({sources, src, ...props}) {
+  const resolved = src ?? sources?.light ?? sources?.dark ?? '';
+  return h('img', {src: resolved, ...props});
+}
+export function Heading({as: Tag = 'h2', ...props}) { return h(Tag, props); }
+export function Highlight({children, color}) {
+  return h('span', {style: {backgroundColor: color, borderRadius: '2px', color: '#fff', padding: '0.2rem'}}, children);
+}
+export function TweetQuote({url, handle, name, job, children}) {
+  return h('figure', {className: 'mdx-tweet-quote'},
+    h('blockquote', null, children),
+    h('figcaption', null, name ? `${name}${job ? ` (${job})` : ''}` : null));
+}
+export function Code({children, ...props}) { return h('code', props, children); }
 
 export function BrowserOnly({children, fallback = null}) {
   const [mounted, setMounted] = useState(false);
@@ -175,5 +196,5 @@ export function Mermaid({chart, children, description = 'Diagram'}) {
     error ? h('p', {role: 'status'}, 'Diagram rendering unavailable; source is shown.') : null);
 }
 
-export const components = {a: Link, Link, pre: CodeBlock, Tabs, TabItem, Admonition, Details, CodeBlock, TOCInline, Card, BrowserOnly, ClientOnly, Mermaid, Translate, FormattedDate, Island};
+export const components = {a: Link, Link, pre: CodeBlock, code: Code, Tabs, TabItem, Admonition, Details, CodeBlock, Code, TOCInline, Card, DocCardList, Zoom, IdealImage, ThemedImage, Heading, Highlight, TweetQuote, BrowserOnly, ClientOnly, Mermaid, Translate, FormattedDate, Island};
 export default components;

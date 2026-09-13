@@ -74,7 +74,8 @@ move reusable modules into underscore-prefixed partials. MDX modules keep
 their JavaScript export semantics. Only selected browser data is published.
 
 `@theme/Tabs`, `@theme/TabItem`, `@theme/Admonition`, `@theme/Details`,
-`@theme/CodeBlock`, `@theme/TOCInline`, `@theme/Card`, `@theme/MDXComponents`,
+`@theme/CodeBlock`, `@theme/TOCInline`, `@theme/Card`, `@theme/DocCardList`,
+`@theme/MDXComponents`,
 `@theme/BrowserOnly` and `@docusaurus/BrowserOnly` are supported imports.
 The same components, plus `Link` and `Translate`, also resolve as bare JSX
 names from the runtime component map. `useBaseUrl` and
@@ -103,9 +104,11 @@ Only verified behavior is listed as supported. The Fixture column names the
 | `Details` | Supported | Static-safe. | mdx-components |
 | `CodeBlock` | Supported | Fenced code renders statically with shared title, highlight and line-number metadata. Copy controls hydrate in the browser. Bare `<CodeBlock>` usage requests page hydration. | mdx-components, admonitions |
 | `Card` | Supported | Static-safe card with a linked title. Renders without hydration. | mdx-components |
+| `DocCardList` | Supported | Bare usage renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures. | mdx-components |
 | `MDXComponents` | Partial | The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component. | mdx-components |
 | `TOCInline` | Supported | Static-safe. Receives the page `toc` export built from worker headings, levels 2-3 by default. | mdx-components |
 | `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it and unsafe schemes fail the build; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. | mdx-components |
+| `Zoom` | Supported | Bare image-zoom wrapper with no import path; renders children without zoom interaction. | mdx-components |
 | `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. | mdx-components |
 | `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. | mdx-components |
 | `useBaseUrl` | Unsupported | No such export. Read `basePath` from `usePageContext` in `@lithosharp/runtime`. | full-site |
