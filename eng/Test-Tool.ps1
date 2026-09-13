@@ -87,6 +87,33 @@ function Get-Snapshot([string] $Root) {
     return ConvertTo-Json -InputObject $snapshot -Compress -Depth 10
 }
 
+function Assert-SiteEquivalence([string] $FirstRoot, [string] $SecondRoot, [string] $Caption) {
+    $manifestName = '.lithosharp-output-manifest.json'
+    $firstSnap = Get-Snapshot $FirstRoot | ConvertFrom-Json
+    $secondSnap = Get-Snapshot $SecondRoot | ConvertFrom-Json
+    $firstNames = @($firstSnap.PSObject.Properties.Name | Where-Object { $_ -ne $manifestName } | Sort-Object)
+    $secondNames = @($secondSnap.PSObject.Properties.Name | Where-Object { $_ -ne $manifestName } | Sort-Object)
+    Assert-True (($firstNames -join "`n") -ceq ($secondNames -join "`n")) "$Caption artifact sets differ."
+    foreach ($name in $firstNames) {
+        Assert-True ($firstSnap.$name -ceq $secondSnap.$name) "$Caption artifact bytes differ: $name."
+    }
+    # The output manifest carries a per-cache build pointer whose node keys embed the host
+    # LithoSharp.dll ModuleVersionId, so two compilations of identical sources legitimately
+    # disagree there. Compare the manifest structurally with the pointer redacted, and require
+    # a well-formed digest on both sides instead of byte equality.
+    foreach ($root in @($FirstRoot, $SecondRoot)) {
+        $manifest = Join-Path $root $manifestName
+        Assert-True (Test-Path -LiteralPath $manifest -PathType Leaf) "$Caption output manifest is missing: $root."
+    }
+    $readRedacted = {
+        param([string] $Root)
+        $text = [IO.File]::ReadAllText((Join-Path $Root $manifestName))
+        if ($text -notmatch '"buildCache"\s*:\s*"([0-9a-f]{64})"') { throw "$Caption output manifest has no well-formed buildCache pointer: $Root." }
+        return $text -replace '"buildCache"\s*:\s*"[0-9a-f]{64}"', '"buildCache":"<redacted>"'
+    }
+    Assert-True ((& $readRedacted $FirstRoot) -ceq (& $readRedacted $SecondRoot)) "$Caption output manifests differ beyond the build cache pointer."
+}
+
 function Wait-Until([scriptblock] $Condition, [string] $Description) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
     while ($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
@@ -231,7 +258,7 @@ public static class Program
     Assert-True $build.success 'CLI build did not succeed.'
     $fixtureDll = Join-Path $site 'bin/Release/net10.0/ToolFixture.dll'
     $null = Invoke-Dotnet -Arguments @($fixtureDll, $site, $directOutput, $directReportPath)
-    Assert-True ((Get-Snapshot $cliOutput) -ceq (Get-Snapshot $directOutput)) 'CLI and direct-library artifact SHA-256 snapshots differ.'
+    Assert-SiteEquivalence $cliOutput $directOutput 'CLI and direct-library'
     $direct = Get-Content -LiteralPath $directReportPath -Raw | ConvertFrom-Json
     $paths = @($build.buildPlan | ForEach-Object artifacts | ForEach-Object path | Sort-Object)
     Assert-True (($paths -join "`n") -ceq ($direct.Paths -join "`n")) 'CLI and library route/artifact paths differ.'
