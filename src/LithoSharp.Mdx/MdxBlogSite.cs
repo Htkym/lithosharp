@@ -36,6 +36,10 @@ public sealed class MdxBlogFrontMatter
     public DateTimeOffset? PublishUntil { get; set; }
     /// <summary>An explicit feed text alternative; otherwise the excerpt is used.</summary>
     public string? FeedText { get; set; }
+    /// <summary>Social card image path (Docusaurus compatibility; bound but not rendered yet).</summary>
+    public string? Image { get; set; }
+    /// <summary>Meta description override (Docusaurus compatibility; bound but not rendered yet).</summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>One blog's input, routes, authors and pagination.</summary>

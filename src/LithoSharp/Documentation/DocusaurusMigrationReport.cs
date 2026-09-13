@@ -89,7 +89,7 @@ public sealed class MigrationSuggestedAction
     /// <summary>適用形状を取得します。</summary>
     public MigrationActionKind Kind { get; }
 
-    /// <summary>1-basedの開始行を取得します。InsertAfterは挿入先の行です。</summary>
+    /// <summary>1-basedの開始行を取得します。InsertAfterは挿入先の行で、0は先頭への挿入です。</summary>
     public int StartLine { get; }
 
     /// <summary>1-basedの終了行を取得します。InsertAfterは開始行と同じです。</summary>

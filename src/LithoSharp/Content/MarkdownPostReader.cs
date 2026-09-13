@@ -7,6 +7,12 @@ public sealed class MarkdownPostReader
 {
     /// <summary>Reads the Markdown posts under the given directory.</summary>
     /// <param name="contentDirectory">The content directory.</param>
+    /// <returns>The posts ordered newest first.</returns>
+    public Task<IReadOnlyList<MarkdownPost>> ReadAllAsync(string contentDirectory) =>
+        ReadAllAsync(contentDirectory, CancellationToken.None);
+
+    /// <summary>Reads the Markdown posts under the given directory.</summary>
+    /// <param name="contentDirectory">The content directory.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The posts ordered newest first.</returns>
     public async Task<IReadOnlyList<MarkdownPost>> ReadAllAsync(string contentDirectory, CancellationToken cancellationToken = default)
@@ -45,6 +51,13 @@ public sealed class MarkdownPostReader
             .ThenBy(post => post.RelativeOutputPath, StringComparer.Ordinal)
             .ToArray();
     }
+
+    /// <summary>Reads a single Markdown post.</summary>
+    /// <param name="path">Path to the Markdown file.</param>
+    /// <param name="contentRoot">Root of the content directory.</param>
+    /// <returns>The post that was read.</returns>
+    public Task<MarkdownPost> ReadAsync(string path, string contentRoot) =>
+        ReadAsync(path, contentRoot, CancellationToken.None);
 
     /// <summary>Reads a single Markdown post.</summary>
     /// <param name="path">Path to the Markdown file.</param>

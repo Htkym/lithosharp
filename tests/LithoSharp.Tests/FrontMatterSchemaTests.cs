@@ -55,6 +55,9 @@ public sealed class FrontMatterSchemaTests
         await Assert.That(byKey["title"].Description).IsEqualTo("The page title.");
         await Assert.That(byKey["tags"].Type).IsEqualTo("array");
         await Assert.That(byKey["tags"].ItemType).IsEqualTo("string");
+        await Assert.That(byKey["keywords"].Type).IsEqualTo("array");
+        await Assert.That(byKey["keywords"].ItemType).IsEqualTo("string");
+        await Assert.That(byKey["toc_max_heading_level"].Type).IsEqualTo("integer");
         await Assert.That(byKey["draft"].Type).IsEqualTo("boolean");
         await Assert.That(byKey["sidebar_position"].Type).IsEqualTo("number");
         await Assert.That(byKey["publish_from"].Type).IsEqualTo("date-time");
@@ -155,6 +158,8 @@ public sealed class FrontMatterSchemaTests
         var byKey = schema.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
         await Assert.That(byKey["title"].Type).IsEqualTo("string");
         await Assert.That(byKey["authors"].Type).IsEqualTo("array");
+        await Assert.That(byKey["image"].Type).IsEqualTo("string");
+        await Assert.That(byKey["description"].Type).IsEqualTo("string");
 
         await CheckConsistencyAsync(schema, new ReflectionContentFrontMatterBinder<MdxBlogFrontMatter>());
     }

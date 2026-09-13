@@ -1,4 +1,4 @@
-import {readFile, readdir, realpath, mkdir, writeFile} from 'node:fs/promises';
+import {readFile, readdir, realpath, mkdir, writeFile, stat} from 'node:fs/promises';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {pathToFileURL, fileURLToPath} from 'node:url';
@@ -26,7 +26,7 @@ const moduleCache = new Map();
 const renderCache = new Map();
 function remember(cache, key, value, limit) { if (cache.size >= limit) cache.delete(cache.keys().next().value); cache.set(key, value); }
 // These lists mirror DocusaurusProfile in src/LithoSharp/Documentation; the .NET profile tests parse them.
-const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'MDXComponents', 'BrowserOnly'];
+const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'DocCardList', 'MDXComponents', 'BrowserOnly', 'IdealImage', 'ThemedImage', 'Heading'];
 const staticMdxComponents = ['Admonition', 'Details', 'Card', 'TOCInline', 'Translate', 'FormattedDate'];
 
 export function extractRegion(source, name) {
@@ -45,11 +45,74 @@ export function extractRegion(source, name) {
 
 function highlight(code, language) {
   if (!language || language === 'text' || language === 'plain') return null;
-  if (!Prism.languages[language]) {
-    if (!/^[a-z0-9-]+$/i.test(language)) throw new Error(`Invalid code language '${language}'.`);
-    try { loadLanguages([language]); } catch { /* An unknown language uses escaped plain code. */ }
+  // Docusaurus mdx-code-block fences are unwrapped before compilation, but samples
+  // displayed inside outer fences keep the language for Prism. Map the legacy name
+  // to MDX so the highlighter does not log "Language does not exist" noise.
+  const normalized = language === 'mdx-code-block' ? 'mdx' : language;
+  if (!Prism.languages[normalized]) {
+    if (!/^[a-z0-9-]+$/i.test(normalized)) throw new Error(`Invalid code language '${language}'.`);
+    try { loadLanguages([normalized]); } catch { /* An unknown language uses escaped plain code. */ }
   }
-  return Prism.languages[language] ? Prism.highlight(code, Prism.languages[language], language) : null;
+  return Prism.languages[normalized] ? Prism.highlight(code, Prism.languages[normalized], normalized) : null;
+}
+
+// Docusaurus mdx-code-block fences wrap executable MDX (imports, component
+// definitions, JSX open/close tags spanning markdown) rather than display code.
+// The fence itself renders nothing; its inner content is hoisted as real MDX so
+// later prose can use the imports and components it defines. Only top-level
+// fences unwrap: mdx-code-block text inside outer fenced samples stays display.
+export function unwrapMdxCodeBlocks(source) {
+  const lines = source.split('\n');
+  const output = [];
+  let inFence = false;
+  let fenceLength = 0;
+  let fenceChar = '';
+  let inMdxBlock = false;
+  let mdxLength = 0;
+  let mdxChar = '';
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    const marker = /^(```+|~~~+)/.exec(trimmed)?.[1];
+    if (marker) {
+      const char = marker[0];
+      const length = marker.length;
+      if (inMdxBlock) {
+        if (char === mdxChar && length >= mdxLength) {
+          inMdxBlock = false;
+          continue;
+        }
+        output.push(line);
+        continue;
+      }
+      if (!inFence) {
+        const rest = trimmed.slice(length);
+        if (/^mdx-code-block(?:\s|$)/.test(rest)) {
+          inMdxBlock = true;
+          mdxLength = length;
+          mdxChar = char;
+          continue;
+        }
+        inFence = true;
+        fenceLength = length;
+        fenceChar = char;
+        output.push(line);
+        continue;
+      }
+      if (char === fenceChar && length >= fenceLength) inFence = false;
+      output.push(line);
+      continue;
+    }
+    if (!inFence && !inMdxBlock) {
+      output.push(line);
+      continue;
+    }
+    if (inMdxBlock) {
+      output.push(line);
+      continue;
+    }
+    output.push(line);
+  }
+  return output.join('\n');
 }
 
 export async function compileSite(request) {
@@ -94,6 +157,24 @@ export async function compileSite(request) {
     });
     reads[slot] = result.catch(() => {});
     return result;
+  }
+
+  // esbuild-style extension and directory-index probing for fingerprinting.
+  // Mirrors bundler resolution so extensionless and directory imports hash the
+  // same bytes esbuild compiled instead of failing on the unresolved path.
+  const probeExtensions = ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.cjs', '.json', '.css'];
+  async function resolveInputFile(file) {
+    const candidates = [file];
+    if (!path.extname(file)) {
+      for (const extension of probeExtensions) candidates.push(file + extension);
+      for (const extension of [''].concat(probeExtensions)) candidates.push(path.join(file, 'index' + extension));
+    }
+    for (const candidate of candidates) {
+      try {
+        if ((await stat(candidate)).isFile()) return candidate;
+      } catch { /* Try the next candidate. */ }
+    }
+    throw new Error(`Cannot read file "${relative(projectRoot, file)}".`);
   }
 
   const extensions = {remark: [], rehype: []};
@@ -142,8 +223,10 @@ export async function compileSite(request) {
           }
           if (node.type === 'paragraph' || node.type === 'heading') info.text.push(textOf(node));
           if (node.type === 'containerDirective') {
-            if (!['note', 'tip', 'info', 'warning', 'danger', 'caution'].includes(node.name)) throw new Error(`Unsupported directive '${node.name}'.`);
-            node.data = {...node.data, hName: 'aside', hProperties: {className: ['mdx-admonition', `mdx-${node.name}`], role: 'note', 'aria-label': node.name}};
+            // Unknown directives keep their content in a plain div, matching the
+            // Markdown pipeline instead of failing the build.
+            if (['note', 'tip', 'info', 'warning', 'danger', 'caution'].includes(node.name)) node.data = {...node.data, hName: 'aside', hProperties: {className: ['mdx-admonition', `mdx-${node.name}`], role: 'note', 'aria-label': node.name}};
+            else node.data = {...node.data, hName: 'div', hProperties: {className: [node.name]}};
           }
           if (node.type === 'code') {
             info.fallback ??= 'Code copy controls require page hydration; use an explicit Island for selective controls.';
@@ -166,8 +249,22 @@ export async function compileSite(request) {
             } else if (node.name && /^[A-Z]/.test(node.name) && ![...staticMdxComponents, ...(request.staticComponents ?? [])].includes(node.name)) {
               info.fallback ??= `Component '${node.name}' is not declared static or enclosed in an explicit Island.`;
             }
-            if (node.name === 'CodeBlock') {
-              const attributes = new Map(node.attributes.filter(attribute => attribute.type === 'mdxJsxAttribute').map(attribute => [attribute.name, attribute]));
+            if (node.type === 'mdxJsxFlowElement' && node.name === 'DocCardList') {
+              // Bare DocCardList renders directory-sibling cards at compile time, matching
+              // autogenerated navigation order. Variants with props stay explicit failures.
+              if (node.attributes.some(attribute => attribute.type === 'mdxJsxAttribute')) throw new Error('DocCardList with props is not supported.');
+              const directory = path.dirname(path.resolve(projectRoot, file));
+              const siblings = (request.pages ?? []).filter(page => path.resolve(projectRoot, page.source) !== path.resolve(projectRoot, file) && path.dirname(path.resolve(projectRoot, page.source)) === directory);
+              node.name = 'div';
+              node.attributes = [{type: 'mdxJsxAttribute', name: 'className', value: 'mdx-doc-card-list'}];
+              node.children = siblings.map(page => ({type: 'mdxJsxFlowElement', name: 'Card',
+                attributes: [
+                  {type: 'mdxJsxAttribute', name: 'title', value: page.title ?? page.id},
+                  {type: 'mdxJsxAttribute', name: 'href', value: page.url},
+                ],
+                children: page.description ? [{type: 'text', value: page.description}] : []}));
+            }
+            if (node.name === 'CodeBlock') {              const attributes = new Map(node.attributes.filter(attribute => attribute.type === 'mdxJsxAttribute').map(attribute => [attribute.name, attribute]));
               const source = attributes.get('source')?.value;
               if (typeof source === 'string') jobs.push((async () => {
                 const input = path.resolve(path.dirname(file), source);
@@ -216,6 +313,41 @@ export async function compileSite(request) {
       });
       builder.onResolve({filter: /^@lithosharp\/runtime$/}, () => ({path: path.join(directory, 'runtime', 'components.mjs')}));
       builder.onResolve({filter: /^@docusaurus\/BrowserOnly$/}, () => ({path: 'BrowserOnly', namespace: 'theme'}));
+      builder.onResolve({filter: /^@docusaurus\/Link$/}, () => ({path: 'Link', namespace: 'theme'}));
+      builder.onResolve({filter: /^@docusaurus\/Translate$/}, () => ({path: 'Translate', namespace: 'theme'}));
+      // SSR-safe dummies for vendored site components. Direct use in documents stays
+      // a migration-level manual item; these only let vendored components render statically.
+      builder.onResolve({filter: /^@docusaurus\/useBrokenLinks$/}, () => ({path: 'useBrokenLinks', namespace: 'hooks'}));
+      builder.onResolve({filter: /^@docusaurus\/useIsBrowser$/}, () => ({path: 'useIsBrowser', namespace: 'hooks'}));
+      builder.onResolve({filter: /^@docusaurus\/router$/}, () => ({path: 'router', namespace: 'hooks'}));
+      builder.onResolve({filter: /^@docusaurus\/theme-common$/}, () => ({path: 'theme-common', namespace: 'hooks'}));
+      builder.onResolve({filter: /^@docusaurus\/plugin-content-docs\/client$/}, () => ({path: 'docs-client', namespace: 'hooks'}));
+      builder.onLoad({filter: /.*/, namespace: 'hooks'}, args => {
+        if (args.path === 'useBrokenLinks') return {contents: `export default function useBrokenLinks() { return {collectAnchor() {}, collectLink() {}}; }`, loader: 'js'};
+        if (args.path === 'useIsBrowser') return {contents: `export default function useIsBrowser() { return false; }`, loader: 'js'};
+        if (args.path === 'router') return {contents: [
+          `export function useHistory() { return {location: {pathname: '', search: '', hash: ''}, push() {}, replace() {}}; }`,
+          `export function useLocation() { return {pathname: '', search: '', hash: ''}; }`,
+          `export default {useHistory, useLocation};`,
+        ].join('\n'), loader: 'js'};
+        if (args.path === 'docs-client') return {contents: [
+          `const version = {name: 'current', label: 'current', path: '/docs'};`,
+          `export function useLatestVersion() { return version; }`,
+          `export function useActiveVersion() { return version; }`,
+          `export function useVersions() { return [version]; }`,
+          `export function useActiveDocContext() { return {activeVersion: version, activeDoc: null}; }`,
+          `export function useAllDocsData() { return {}; }`,
+          `export function useDocsSidebar() { return null; }`,
+          `export function useDoc() { return null; }`,
+          `export default {useLatestVersion, useActiveVersion, useVersions, useActiveDocContext, useAllDocsData, useDocsSidebar, useDoc};`,
+        ].join('\n'), loader: 'js'};
+        if (args.path === 'theme-common') return {contents: [
+          `export function useColorMode() { return {colorMode: 'light', setColorMode() {}}; }`,
+          `export function createStorageSlot() { let current = null; return {get: () => current, set: (value) => { current = value; }, del: () => { current = null; }, clear: () => { current = null; }}; }`,
+          `export default {useColorMode, createStorageSlot};`,
+        ].join('\n'), loader: 'js'};
+        throw new Error(`Unknown hooks module '${args.path}'.`);
+      });
       builder.onResolve({filter: /^@theme\//}, args => {
         const name = args.path.slice(7);
         if (!supportedThemeComponents.includes(name))
@@ -224,7 +356,7 @@ export async function compileSite(request) {
       });
       builder.onLoad({filter: /.*/, namespace: 'theme'}, args => ({contents:
         `export {${args.path === 'MDXComponents' ? 'components' : args.path} as default} from ${JSON.stringify(path.join(directory, 'runtime', 'components.mjs'))};`, loader: 'js', resolveDir: directory}));
-      builder.onResolve({filter: /^@site\//}, args => ({path: path.resolve(projectRoot, args.path.slice(6))}));
+      builder.onResolve({filter: /^@site\//}, async args => ({path: await resolveInputFile(path.resolve(projectRoot, args.path.slice(6)))}));
       builder.onResolve({filter: /\?raw$/}, args => ({path: path.resolve(args.resolveDir, args.path.slice(0, -4)), namespace: 'raw'}));
       builder.onLoad({filter: /.*/, namespace: 'raw'}, async args => ({contents: (await readInput(args.path)).toString('utf8'), loader: 'text'}));
       builder.onResolve({filter: /^(?:react|react-dom)(?:\/|$)/}, async args => {
@@ -258,7 +390,7 @@ export async function compileSite(request) {
           metadata.set(file, info);
           let result;
           try {
-            result = await compile({value: source, path: file}, {
+            result = await compile({value: unwrapMdxCodeBlocks(source), path: file}, {
               providerImportSource: '@mdx-js/react',
               remarkPlugins: [remarkGfm, remarkDirective, remarkMath, ...extensions.remark, authoring(file, info)],
               rehypePlugins: [rehypeSlug, rehypeKatex, ...extensions.rehype, codeBlocks(info)],
@@ -275,7 +407,7 @@ export async function compileSite(request) {
         }
         return {contents: compiled.get(file), loader: 'js', resolveDir: path.dirname(file)};
       });
-      builder.onLoad({filter: /\.(?:[cm]?js|jsx|tsx?|json|css|png|jpe?g|gif|svg|webp|avif|woff2?|ttf)$/}, async args => {
+      builder.onLoad({filter: /\.(?:[cm]?js|jsx|tsx?|json|css|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|docx|pdf)$/}, async args => {
         const bytes = await readInput(args.path);
         const extension = path.extname(args.path).slice(1);
         const loader = ['js', 'mjs', 'cjs'].includes(extension) ? 'js'
@@ -295,7 +427,7 @@ export async function compileSite(request) {
     absWorkingDir: projectRoot, bundle: true, format: 'esm', metafile: true, write: false, jsx: 'automatic', minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false,
     logLevel: 'silent', nodePaths: [path.join(projectRoot, 'node_modules'), path.join(directory, 'node_modules')],
     assetNames: 'assets/[name]-[hash]', chunkNames: 'chunks/[name]-[hash]', entryNames: 'pages/[name]-[hash]',
-    publicPath, loader: {'.png': 'file', '.jpg': 'file', '.jpeg': 'file', '.gif': 'file', '.svg': 'file', '.webp': 'file', '.avif': 'file', '.woff': 'file', '.woff2': 'file', '.ttf': 'file'},
+    publicPath, loader: {'.png': 'file', '.jpg': 'file', '.jpeg': 'file', '.gif': 'file', '.svg': 'file', '.webp': 'file', '.avif': 'file', '.woff': 'file', '.woff2': 'file', '.ttf': 'file', '.docx': 'file', '.pdf': 'file'},
     define: {'process.env.NODE_ENV': '"production"'}
   };
   const virtualServer = new Map();
@@ -366,7 +498,10 @@ export async function compileSite(request) {
       const chunks = [];
       const stream = new PassThrough();
       let rendered, failed = false;
-      const fail = error => { if (failed) return; failed = true; reject(error); stream.destroy(); rendered?.abort(); };
+      const fail = error => { if (failed) return; failed = true;
+        const cause = error instanceof Error ? error : new Error(String(error));
+        cause.file ??= relative(projectRoot, path.resolve(projectRoot, page.source));
+        reject(cause); stream.destroy(); rendered?.abort(); };
       stream.on('data', chunk => chunks.push(chunk));
       stream.on('error', fail);
       stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
@@ -427,9 +562,9 @@ export async function compileSite(request) {
     page.css = [...new Set(page.css)];
   }
   for (const input of new Set([...Object.keys(server.metafile.inputs), ...Object.keys(browser.metafile.inputs)])) {
-    if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:') || input.startsWith('live-runtime:')) continue;
+    if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:') || input.startsWith('live-runtime:') || input.startsWith('hooks:')) continue;
     if (input.startsWith('raw:')) await readInput(input.slice(4));
-    else await readInput(path.resolve(projectRoot, input));
+    else await readInput(await resolveInputFile(path.resolve(projectRoot, input)));
   }
   const packageRoots = new Set();
   for (const file of inputs.keys()) {

@@ -35,12 +35,14 @@ public sealed class DocusaurusMigrationTests
         await Write("docs/guide/まず-はじめに.md", "---\ntitle: Hajime\n---\n\nUnicode body.\n");
         await Write("docs/guide/tabs.mdx", "---\ntitle: Tabs\n---\nimport Tabs from '@theme/Tabs';\nimport TabItem from '@theme/TabItem';\n\n<Tabs><TabItem value=\"a\" label=\"A\">Alpha</TabItem></Tabs>\n");
         await Write("docs/guide/custom.md", "---\ntitle: Custom\nslug: my-page\n---\n\nCustom body.\n");
-        await Write("docs/linkfix.mdx", "---\ntitle: Linkfix\n---\nimport Link from '@docusaurus/Link';\n\n<Link href=\"/mig/docs/start/\">Start</Link>\n");
+        await Write("docs/api/docusaurus.config.js.mdx", "---\ntitle: Config API\nslug: /api/docusaurus-config\n---\n\nConfig API body.\n");
+        await Write("docs/linkfix.mdx", "---\ntitle: Linkfix\n---\nimport Link from '@docusaurus/Link';\n\n<Link href=\"/mig/docs/next/start/\">Start</Link>\n");
         await Write("versioned_docs/version-1.0/intro.md", "---\ntitle: Old Intro\n---\n\nOld body.\n");
         await Write("versioned_sidebars/version-1.0-sidebars.json", "{\"docs\": [\"intro\"]}\n");
         await Write("blog/authors.yml", "ada:\n  name: Ada Lovelace\n");
-        await Write("blog/2024-01-02-hello.md", "---\ntitle: Hello\nauthors: [ada]\nsummary: Hi\n---\n\nHello body.\n");
+        await Write("blog/2024-01-02-hello.md", "---\ntitle: Hello\nauthors: [ada]\nsummary: Hi\nimage: ./img/social.png\n---\n\nHello body.\n");
         await Write("blog/plain.md", "---\ntitle: Plain\ndate: 2024-03-04\nsummary: P\n---\n\nPlain body.\n");
+        await Write("blog/2024/05-06-nested.md", "---\ntitle: Nested\nsummary: N\n---\n\nNested body.\n");
         await Write("i18n/ja/docusaurus-plugin-content-docs/current/intro.md", "---\ntitle: Ja Intro\n---\n\nJa body.\n");
         Directory.CreateDirectory(Path.Combine(site, "static/img"));
         await File.WriteAllBytesAsync(Path.Combine(site, "static/img/logo.png"), "PNG"u8.ToArray());
@@ -53,13 +55,15 @@ public sealed class DocusaurusMigrationTests
     [
         "/mig/blog/2024/01/02/hello/",
         "/mig/blog/2024/03/04/plain/",
-        "/mig/docs/1.0/intro/",
-        "/mig/docs/guide/",
-        "/mig/docs/guide/" + Uri.EscapeDataString("まず-はじめに") + "/",
-        "/mig/docs/guide/my-page/",
-        "/mig/docs/guide/tabs/",
-        "/mig/docs/linkfix/",
-        "/mig/docs/start/",
+        "/mig/blog/2024/05/06/nested/",
+        "/mig/docs/intro/",
+        "/mig/docs/next/api/docusaurus-config/",
+        "/mig/docs/next/guide/",
+        "/mig/docs/next/guide/" + Uri.EscapeDataString("まず-はじめに") + "/",
+        "/mig/docs/next/guide/my-page/",
+        "/mig/docs/next/guide/tabs/",
+        "/mig/docs/next/linkfix/",
+        "/mig/docs/next/start/",
         "/mig/ja/docs/intro/",
     ];
 
@@ -95,6 +99,7 @@ public sealed class DocusaurusMigrationTests
         DocusaurusMigrationVerdict Verdict(string path) =>
             result.Files.Single(file => file.SourcePath == path).Verdict;
         await Assert.That(Verdict("docs/intro.md")).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
+        await Assert.That(Verdict("docs/api/docusaurus.config.js.mdx")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
         await Assert.That(Verdict("docs/guide/_category_.json")).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
         await Assert.That(Verdict("docs/guide/tabs.mdx")).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
         await Assert.That(Verdict("docs/guide/README.md")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
@@ -105,6 +110,7 @@ public sealed class DocusaurusMigrationTests
         await Assert.That(Verdict("blog/authors.yml")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
         await Assert.That(Verdict("blog/2024-01-02-hello.md")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
         await Assert.That(Verdict("blog/plain.md")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
+        await Assert.That(Verdict("blog/2024/05-06-nested.md")).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
         await Assert.That(Verdict("static/img/logo.png")).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
         await Assert.That(Verdict("docusaurus.config.js")).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
         await Assert.That(Verdict("sidebars.js")).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
@@ -136,10 +142,11 @@ public sealed class DocusaurusMigrationTests
 
         var linkfix = await File.ReadAllTextAsync(Path.Combine(destination, "docs/linkfix.mdx"));
         await Assert.That(linkfix.Contains("@docusaurus/Link")).IsFalse();
-        await Assert.That(linkfix).Contains("<Link href=\"/mig/docs/start/\">Start</Link>");
+        await Assert.That(linkfix).Contains("<Link href=\"/mig/docs/next/start/\">Start</Link>");
         var hello = await File.ReadAllTextAsync(Path.Combine(destination, "blog/2024-01-02-hello.md"));
         await Assert.That(hello).Contains("date: 2024-01-02");
         await Assert.That(hello).Contains("slug: 2024/01/02/hello");
+        await Assert.That(hello).Contains("image: ./img/social.png");
         var plain = await File.ReadAllTextAsync(Path.Combine(destination, "blog/plain.md"));
         await Assert.That(plain).Contains("slug: 2024/03/04/plain");
         await Assert.That(File.Exists(Path.Combine(destination, "docs/guide/index.md"))).IsTrue();
@@ -150,10 +157,10 @@ public sealed class DocusaurusMigrationTests
         var manifest = result.Manifest;
         DocusaurusMigrationVariant Variant(string version, string locale) =>
             manifest.Variants.Single(variant => variant.Version == version && variant.Locale == locale);
-        await Assert.That(Variant("current", "en").InputDirectory).IsEqualTo("docs");
-        await Assert.That(Variant("current", "en").SuggestedRoutePrefix).IsEqualTo("docs");
+        await Assert.That(Variant("next", "en").InputDirectory).IsEqualTo("docs");
+        await Assert.That(Variant("next", "en").SuggestedRoutePrefix).IsEqualTo("docs/next");
         await Assert.That(Variant("1.0", "en").InputDirectory).IsEqualTo("versioned_docs/version-1.0");
-        await Assert.That(Variant("1.0", "en").SuggestedRoutePrefix).IsEqualTo("docs/1.0");
+        await Assert.That(Variant("1.0", "en").SuggestedRoutePrefix).IsEqualTo("docs");
         await Assert.That(Variant("current", "ja").InputDirectory).IsEqualTo("i18n/ja/docusaurus-plugin-content-docs/current");
         await Assert.That(Variant("current", "ja").SuggestedRoutePrefix).IsEqualTo("ja/docs");
         await Assert.That(manifest.VersionedSidebars["1.0"]).IsEqualTo("versioned_sidebars/version-1.0-sidebars.json");
@@ -203,14 +210,15 @@ public sealed class DocusaurusMigrationTests
 
         var expected = new[]
         {
-            Path.Combine(output, "docs/start/index.html"),
-            Path.Combine(output, "docs/guide/index.html"),
-            Path.Combine(output, "docs/guide/tabs/index.html"),
-            Path.Combine(output, "docs/linkfix/index.html"),
-            Path.Combine(output, "docs/1.0/intro/index.html"),
+            Path.Combine(output, "docs/next/start/index.html"),
+            Path.Combine(output, "docs/next/guide/index.html"),
+            Path.Combine(output, "docs/next/guide/tabs/index.html"),
+            Path.Combine(output, "docs/next/linkfix/index.html"),
+            Path.Combine(output, "docs/intro/index.html"),
             Path.Combine(output, "ja/docs/intro/index.html"),
             Path.Combine(output, "blog/2024/01/02/hello/index.html"),
             Path.Combine(output, "blog/2024/03/04/plain/index.html"),
+            Path.Combine(output, "blog/2024/05/06/nested/index.html"),
         };
         await Assert.That(expected.Where(file => !File.Exists(file)).ToArray()).IsEmpty();
     }
@@ -313,6 +321,230 @@ public sealed class DocusaurusMigrationTests
         var converted = await DocusaurusMigration.ConvertAsync(site, Path.Combine(workspace.Root, "out"), null, Options);
         await Assert.That(converted.ExitCode).IsEqualTo(DocusaurusMigration.ExitClean);
         await Assert.That(converted.WroteOutput).IsTrue();
+    }
+
+    [Test]
+    public async Task BarePackageImport_NeedsManualInstallDecision()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/bare.mdx"),
+            "---\ntitle: Bare\n---\nimport { Tweet } from \"react-tweet\";\nimport { useState } from \"react\";\n\n<Tweet id=\"1\" />\n\n```js\nimport { format } from \"prettier\";\n```\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/bare/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/bare.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
+        await Assert.That(file.Issues.Any(issue => issue.Id == "LSMIG004" && issue.Message.Contains("react-tweet"))).IsTrue();
+        await Assert.That(file.Issues.Any(issue => issue.Message.Contains("prettier") || issue.Message.Contains("useState"))).IsFalse();
+    }
+
+    [Test]
+    public async Task DeepTocMax_KeepsRangeNote()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/deep.md"),
+            "---\ntitle: Deep\ntoc_max_heading_level: 5\n---\n\nBody.\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/shallow.md"),
+            "---\ntitle: Shallow\ntoc_max_heading_level: 3\n---\n\nBody.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/deep/", "/mig/docs/shallow/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+        var deep = analyzed.Files.Single(item => item.SourcePath == "docs/deep.md");
+        await Assert.That(deep.Verdict).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
+        await Assert.That(deep.Issues.Any(issue => issue.Id == "LSMIG004" && issue.Message.Contains("h2-h3"))).IsTrue();
+        var shallow = analyzed.Files.Single(item => item.SourcePath == "docs/shallow.md");
+        await Assert.That(shallow.Issues.Any(issue => issue.Message.Contains("h2-h3"))).IsFalse();
+    }
+
+    [Test]
+    public async Task MissingFrontMatter_DerivesTitleAndRoutes()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/plain.mdx"), "# Plain Title\n\nBody.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/plain/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/plain.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.Convertible);
+
+        var destination = Path.Combine(workspace.Root, "converted");
+        _ = await DocusaurusMigration.ConvertAsync(site, destination, ["/mig/docs/plain/"], Options);
+        var converted = await File.ReadAllTextAsync(Path.Combine(destination, "docs/plain.mdx"));
+        await Assert.That(converted.StartsWith("---\ntitle: Plain Title\n---\n", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task NestedDateDirectory_WithIndexFile_ResolvesDate()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "blog", "2024", "05-07-colocated"));
+        await File.WriteAllTextAsync(Path.Combine(site, "blog/2024/05-06-nested.md"),
+            "---\ntitle: Nested\nsummary: N\n---\n\nNested body.\n");
+        Directory.CreateDirectory(Path.Combine(site, "blog/2024/05-07-colocated"));
+        await File.WriteAllTextAsync(Path.Combine(site, "blog/2024/05-07-colocated/index.md"),
+            "---\ntitle: Colocated\nsummary: C\n---\n\nColocated body.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site,
+            ["/mig/blog/2024/05/06/nested/", "/mig/blog/2024/05/07/colocated/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+    }
+
+    [Test]
+    public async Task NonDateDirectory_WithIndexFile_KeepsDirectoryRoute()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "blog/releases/3.8"));
+        await File.WriteAllTextAsync(Path.Combine(site, "blog/releases/3.8/index.mdx"),
+            "---\ntitle: Release\ndate: 2025-05-26\nsummary: R\n---\n\nRelease body.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/blog/releases/3.8/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+    }
+
+    [Test]
+    public async Task DuplicateExplicitIds_StayRoutedWithUniqueIds()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/first.md"),
+            "---\ntitle: First\nid: shared\nslug: first\n---\n\nFirst body.\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/second.md"),
+            "---\ntitle: Second\nid: shared\nslug: second\n---\n\nSecond body.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/first/", "/mig/docs/second/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+
+        var destination = Path.Combine(workspace.Root, "converted");
+        _ = await DocusaurusMigration.ConvertAsync(site, destination, ["/mig/docs/first/", "/mig/docs/second/"], Options);
+        var second = await File.ReadAllTextAsync(Path.Combine(destination, "docs/second.md"));
+        await Assert.That(second).Contains("id: shared-2");
+    }
+
+    [Test]
+    public async Task DanglingCategoryLink_IsRemovedWithManualNote()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs", "guide"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "guide", "deep.md"),
+            "---\ntitle: Deep\n---\n\nDeep body.\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "guide", "_category_.yml"),
+            "label: Guide\nlink:\n  type: doc\n  id: guide/missing\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "plain.md"),
+            "---\ntitle: Plain\n---\n\nPlain body.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/guide/deep/", "/mig/docs/plain/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+        var category = analyzed.Files.Single(item => item.SourcePath == "docs/guide/_category_.yml");
+        await Assert.That(category.Verdict).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
+
+        var destination = Path.Combine(workspace.Root, "converted");
+        _ = await DocusaurusMigration.ConvertAsync(site, destination, ["/mig/docs/guide/deep/", "/mig/docs/plain/"], Options);
+        var converted = await File.ReadAllTextAsync(Path.Combine(destination, "docs", "guide", "_category_.yml"));
+        await Assert.That(converted.Contains("missing")).IsFalse();
+        await Assert.That(converted.Contains("label: Guide")).IsTrue();
+    }
+
+    [Test]
+    public async Task KeyedInlineAuthor_CollapsesToProfileId()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "blog"));
+        await File.WriteAllTextAsync(Path.Combine(site, "blog/authors.yml"), "ada:\n  name: Ada Lovelace\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "blog/2024-06-07-keyed.md"),
+            "---\ntitle: Keyed\ndate: 2024-06-07\nsummary: K\nauthors:\n  - key: ada\n    title: Guest\n  - ada\n---\n\nKeyed body.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/blog/2024/06/07/keyed/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+
+        var destination = Path.Combine(workspace.Root, "converted");
+        _ = await DocusaurusMigration.ConvertAsync(site, destination, ["/mig/blog/2024/06/07/keyed/"], Options);
+        var converted = await File.ReadAllTextAsync(Path.Combine(destination, "blog/2024-06-07-keyed.md"));
+        await Assert.That(converted.Contains("- ada")).IsTrue();
+        await Assert.That(converted.Contains("key:")).IsFalse();
+    }
+
+    [Test]
+    public async Task FencedImportSample_NeitherReportsNorDrops()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/sample.mdx"),
+            "---\ntitle: Sample\n---\n\n```js\nimport Navbar from '@theme/Navbar';\n```\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/sample/"], Options);
+        await Assert.That(analyzed.MissingRoutes).IsEmpty();
+        await Assert.That(analyzed.ExtraRoutes).IsEmpty();
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/sample.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
+
+        var destination = Path.Combine(workspace.Root, "converted");
+        _ = await DocusaurusMigration.ConvertAsync(site, destination, ["/mig/docs/sample/"], Options);
+        var converted = await File.ReadAllTextAsync(Path.Combine(destination, "docs/sample.mdx"));
+        await Assert.That(converted.Contains("import Navbar from '@theme/Navbar';")).IsTrue();
+    }
+
+    [Test]
+    public async Task MdxCodeBlockImport_IsExecutableAndReports()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/block.mdx"),
+            "---\ntitle: Block\n---\n\n```mdx-code-block\nimport {useLocation} from '@docusaurus/router';\n```\n\nUse it.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/block/"], Options);
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/block.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
+        await Assert.That(file.Issues.Any(issue => issue.Message.Contains("@docusaurus/router"))).IsTrue();
+    }
+
+    [Test]
+    public async Task MdxCodeBlockInsideOuterSample_StaysNonExecutable()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/outer.mdx"),
+            "---\ntitle: Outer\n---\n\n````md\n```mdx-code-block\nimport {useLocation} from '@docusaurus/router';\n```\n````\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/outer/"], Options);
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/outer.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.Automatic);
+    }
+
+    [Test]
+    public async Task ShimmedHookImport_IsManualNotUnsupported()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs/hook.mdx"),
+            "---\ntitle: Hook\n---\n\nimport {useActiveDocContext} from '@docusaurus/plugin-content-docs/client';\n\nUse it.\n");
+
+        var analyzed = DocusaurusMigration.Analyze(site, ["/mig/docs/hook/"], Options);
+        var file = analyzed.Files.Single(item => item.SourcePath == "docs/hook.mdx");
+        await Assert.That(file.Verdict).IsEqualTo(DocusaurusMigrationVerdict.ManualActionRequired);
+        await Assert.That(file.Issues.Any(issue => issue.Message.Contains("plugin-content-docs"))).IsTrue();
     }
 
     [Test]

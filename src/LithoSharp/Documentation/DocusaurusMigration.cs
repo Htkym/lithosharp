@@ -41,7 +41,7 @@ internal sealed record DocusaurusMigrationIssue(string Id, SiteDiagnosticSeverit
 internal sealed record DocusaurusMigrationFile(string SourcePath, DocusaurusMigrationVerdict Verdict, string? ConvertedPath, IReadOnlyList<DocusaurusMigrationIssue> Issues, string SourceFingerprint, IReadOnlyList<DocusaurusMigrationEdit> Edits);
 
 /// <summary>One recorded mechanical rewrite. Line numbers use the analyzed source.</summary>
-/// <param name="Kind">ReplaceLines rewrites StartLine through EndLine; InsertAfter inserts Text lines after StartLine.</param>
+/// <param name="Kind">ReplaceLines rewrites StartLine through EndLine; InsertAfter inserts Text lines after StartLine (0 prepends).</param>
 /// <param name="StartLine">The 1-based first line.</param>
 /// <param name="EndLine">The 1-based last line. InsertAfter uses the anchor line.</param>
 /// <param name="Text">The replacement line, or the inserted lines joined with "\n". Empty removes the lines.</param>
@@ -104,16 +104,18 @@ internal static class DocusaurusMigration
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly Regex ImportRegex = new("(?:from\\s*|import\\s*)[\"'](?<name>@(?:docusaurus|theme)/[^\"']+)[\"']", RegexOptions.Compiled);
+    private static readonly Regex BareImportRegex = new("^ {0,3}import\\s[^;\\n]*?\\bfrom\\s*[\"'](?<name>[^\"']+)[\"']|^ {0,3}import\\s*[\"'](?<name>[^\"']+)[\"']", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex ImportStatementRegex = new("import\\s+(?<spec>[^;]+?)\\s+from\\s*[\"'](?<module>@(?:docusaurus|theme)/[^\"']+)[\"']", RegexOptions.Compiled);
     private static readonly Regex HookUseRegex = new("\\b(useBaseUrl|useDocusaurusContext)\\b", RegexOptions.Compiled);
     private static readonly Regex InlineImageRegex = new(@"!\[[^\]]*\]\((?<url>[^)\s]+)", RegexOptions.Compiled);
     private static readonly Regex ReferenceImageRegex = new(@"^\s{0,3}\[[^\]]+\]:\s*(?<url>\S+)", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex BlogDateRegex = new("^(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})-(?<rest>.+)$", RegexOptions.Compiled);
+    private static readonly Regex NestedBlogDateRegex = new("^(?<month>\\d{2})-(?<day>\\d{2})-(?<rest>.+)$", RegexOptions.Compiled);
 
     /// <summary>Blog front matter keys the migration understands. Tests pin this against MdxBlogFrontMatter.</summary>
     internal static readonly IReadOnlySet<string> BlogFrontMatterKeys = new HashSet<string>(StringComparer.Ordinal)
     {
-        "title", "slug", "date", "summary", "authors", "tags", "draft", "unlisted", "publish_until", "feed_text",
+        "title", "slug", "date", "summary", "authors", "tags", "draft", "unlisted", "publish_until", "feed_text", "image", "description",
     };
 
     /// <summary>Analyzes without writing. Nothing outside the source directory is touched.</summary>
@@ -225,6 +227,24 @@ internal static class DocusaurusMigration
         var versions = new List<string>();
         var versionDirs = new SortedSet<string>(StringComparer.Ordinal);
         var seenVariants = new HashSet<(string Version, string Locale, string Input)>();
+        var seenIds = new HashSet<(string Input, string Id)>();
+
+        // Docusaurus serves docs/ as "next" under docs/next/ whenever versions.json lists
+        // versions, and serves versions.json[0] at the version-less docs/ path. Read the list
+        // before analyzing documents so converted routes use the same prefixes. Malformed
+        // content is reported again with file context during enumeration.
+        var versionsPath = Path.Combine(source, "versions.json");
+        if (File.Exists(versionsPath))
+        {
+            try
+            {
+                versions = ReadVersions(File.ReadAllBytes(versionsPath), static (_, _) => { });
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                versions = [];
+            }
+        }
 
         void AddVariant(string version, string locale, string input, string prefix)
         {
@@ -252,7 +272,8 @@ internal static class DocusaurusMigration
                 if (level > verdict) verdict = level;
             }
 
-            if (name.StartsWith("docusaurus.config", StringComparison.Ordinal) || name.StartsWith("sidebars.", StringComparison.Ordinal))
+            if ((name.StartsWith("docusaurus.config", StringComparison.Ordinal) || name.StartsWith("sidebars.", StringComparison.Ordinal))
+                && extension is not ".md" and not ".mdx")
             {
                 Raise(DocusaurusMigrationVerdict.ManualActionRequired, new(ConfigNotExecuted, SiteDiagnosticSeverity.Warning,
                     "JavaScript configuration was not executed. Map routes, variants, sidebars and plugins explicitly to the C# preset.", 1,
@@ -304,7 +325,7 @@ internal static class DocusaurusMigration
             }
             else if (extension is ".md" or ".mdx")
             {
-                var document = AnalyzeDocument(relative, segments, bytes, options, authors, Raise, cancellationToken);
+                var document = AnalyzeDocument(relative, segments, bytes, options, versions, seenIds, authors, Raise, cancellationToken);
                 converted = document.ConvertedPath;
                 bytes = document.Bytes;
                 edits = document.Edits;
@@ -336,12 +357,18 @@ internal static class DocusaurusMigration
                 RaiseFile(files, route.SourceFile, DocusaurusMigrationVerdict.Unsupported, new(Unconvertible, SiteDiagnosticSeverity.Error,
                     $"Converted route '{route.Route}' collides with another document.", 1, null, null));
 
+        ValidateCategoryLinks(files, outputs, seenIds);
+
         var ordered = files.OrderBy(file => file.SourcePath, StringComparer.Ordinal).ToArray();
 
         if (ordered.Any(file => file.SourcePath.StartsWith("docs/", StringComparison.Ordinal)))
-            AddVariant("current", options.DefaultLocale, "docs", options.DocsRoutePrefix);
+            AddVariant(versions.Count > 0 ? "next" : "current", options.DefaultLocale, "docs",
+                versions.Count > 0 ? $"{options.DocsRoutePrefix}/next" : options.DocsRoutePrefix);
         foreach (var version in versionDirs)
-            AddVariant(version, options.DefaultLocale, $"versioned_docs/version-{version}", $"{options.DocsRoutePrefix}/{version}");
+            AddVariant(version, options.DefaultLocale, $"versioned_docs/version-{version}",
+                string.Equals(version, versions.FirstOrDefault(), StringComparison.Ordinal)
+                    ? options.DocsRoutePrefix
+                    : $"{options.DocsRoutePrefix}/{version}");
         foreach (var (version, locale) in ordered
             .Where(file => file.SourcePath.StartsWith("i18n/", StringComparison.Ordinal))
             .Select(file => file.SourcePath.Split('/'))
@@ -391,6 +418,106 @@ internal static class DocusaurusMigration
         };
     }
 
+    private static void ValidateCategoryLinks(
+        List<DocusaurusMigrationFile> files,
+        List<KeyValuePair<string, byte[]>> outputs,
+        HashSet<(string Input, string Id)> seenIds)
+    {
+        // A category link to a missing document id fails the build while Docusaurus
+        // tolerates it: neutralize dangling doc links so the category stays readable.
+        // generated-index links always resolve; exotic block shapes stay manual-only.
+        foreach (var file in files.Where(file => file.ConvertedPath is not null
+            && file.SourcePath.Split('/')[^1] is "_category_.json" or "_category_.yml" or "_category_.yaml").ToArray())
+        {
+            var output = outputs.FindIndex(pair => pair.Key == file.ConvertedPath);
+            if (output < 0 || !TryDecode(outputs[output].Value, out var text)) continue;
+            if (file.SourcePath.EndsWith(".json", StringComparison.Ordinal))
+            {
+                // JSON link blocks keep their bytes; doc-type links still need human
+                // verification (generated-index links always resolve).
+                if (text.Contains("\"link\"", StringComparison.Ordinal) && text.Contains("\"doc\"", StringComparison.Ordinal))
+                    RaiseFile(files, file.SourcePath, DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                        $"Category link in '{file.SourcePath}' needs human verification (JSON link blocks are not rewritten).", 1,
+                        null, "Verify the category link target."));
+                continue;
+            }
+
+            var newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            var lines = text.Split(["\r\n", "\n"], StringSplitOptions.None).ToList();
+            var drops = new List<int>();
+            var exotic = new List<int>();
+            for (var index = 0; index < lines.Count; index++)
+            {
+                if (!lines[index].StartsWith("link:", StringComparison.Ordinal)
+                    || !string.IsNullOrWhiteSpace(lines[index]["link:".Length..])) continue;
+                var end = index;
+                while (end + 1 < lines.Count && lines[end + 1].Length > 0
+                    && lines[end + 1][0] is ' ' or '\t') end++;
+                var block = lines[(index + 1)..(end + 1)];
+                var type = block.Select(line => line.Trim()).FirstOrDefault(line => line.StartsWith("type:", StringComparison.Ordinal));
+                if (type is null || !type["type:".Length..].Trim().Equals("doc", StringComparison.Ordinal)) continue;
+                var idLine = block.Select((line, offset) => (line, offset)).FirstOrDefault(pair => pair.line.TrimStart().StartsWith("id:", StringComparison.Ordinal));
+                if (idLine == default || block.Any(line =>
+                    {
+                        var trimmed = line.Trim();
+                        return trimmed.Contains(':') && !trimmed.StartsWith("type:", StringComparison.Ordinal)
+                            && !trimmed.StartsWith("id:", StringComparison.Ordinal);
+                    }))
+                {
+                    exotic.Add(index + 1);
+                    continue;
+                }
+
+                var id = YamlScalar(idLine.line.Trim()["id:".Length..].Trim());
+                var input = CategoryVariantInput(file.SourcePath);
+                if (input is not null && seenIds.Contains((input, id))) continue;
+                for (var line = index + 1; line <= end + 1; line++) drops.Add(line);
+                var at = files.FindIndex(item => item.SourcePath == file.SourcePath);
+                var current = files[at];
+                files[at] = current with
+                {
+                    Verdict = DocusaurusMigrationVerdict.ManualActionRequired > current.Verdict
+                        ? DocusaurusMigrationVerdict.ManualActionRequired : current.Verdict,
+                    Issues = current.Issues.Concat([new DocusaurusMigrationIssue(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                        $"Category link id '{id}' matches no converted document; the link is removed, the category stays.", index + 1,
+                        null, "Restore the link with a valid document id, or keep the unlinked category.")])
+                        .OrderByDescending(item => item.Severity).ThenBy(item => item.Line).ToArray(),
+                    Edits = current.Edits.Concat(drops.Skip(drops.Count - (end - index + 1))
+                        .Select(line => new DocusaurusMigrationEdit(MigrationActionKind.ReplaceLines, line, line, ""))).ToArray(),
+                };
+            }
+
+            foreach (var line in exotic)
+                RaiseFile(files, file.SourcePath, DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                    $"Category link in '{file.SourcePath}' has an unexpected shape; verify its target.", line,
+                    null, "Verify the category link target and shape."));
+            if (drops.Count == 0) continue;
+            foreach (var line in drops.OrderByDescending(line => line)) lines.RemoveAt(line - 1);
+            outputs[output] = new(outputs[output].Key, StrictUtf8.GetBytes(string.Join(newline, lines)));
+        }
+    }
+
+    private static string? CategoryVariantInput(string sourcePath)
+    {
+        var segments = sourcePath.Split('/');
+        if (segments[0] == "docs") return "docs";
+        if (segments[0] == "versioned_docs" && segments.Length > 1 && segments[1].StartsWith("version-", StringComparison.Ordinal))
+            return $"versioned_docs/{segments[1]}";
+        if (segments[0] == "i18n" && segments.Length > 4 && segments[2] == "docusaurus-plugin-content-docs"
+            && (segments[3] == "current" || segments[3].StartsWith("version-", StringComparison.Ordinal)))
+            return string.Join('/', segments[..4]);
+        return null;
+    }
+
+    private static string YamlScalar(string value)
+    {
+        var text = value.Trim();
+        if (text.Length >= 2 && ((text[0] == '"' && text[^1] == '"') || (text[0] == '\'' && text[^1] == '\'')))
+            return text[1..^1];
+        var hash = text.IndexOf(" #", StringComparison.Ordinal);
+        return (hash < 0 ? text : text[..hash]).Trim();
+    }
+
     private sealed record AnalyzedDocument(string? ConvertedPath, byte[] Bytes, string Kind, DocusaurusMigrationRoute? Route, IReadOnlyList<DocusaurusMigrationEdit> Edits);
 
     private static string Fingerprint(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
@@ -412,7 +539,7 @@ internal static class DocusaurusMigration
 
     private static AnalyzedDocument AnalyzeDocument(
         string relative, string[] segments, byte[] bytes,
-        DocusaurusMigrationOptions options, SortedDictionary<string, string> authors,
+        DocusaurusMigrationOptions options, IReadOnlyList<string> versions, HashSet<(string Input, string Id)> seenIds, SortedDictionary<string, string> authors,
         Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise,
         CancellationToken cancellationToken)
     {
@@ -426,7 +553,8 @@ internal static class DocusaurusMigration
             scope = segments[1..];
             variantInput = "docs";
             kind = "doc";
-            prefix = options.DocsRoutePrefix;
+            // With versions.json present, docs/ is the unreleased "next" version.
+            prefix = versions.Count > 0 ? $"{options.DocsRoutePrefix}/next" : options.DocsRoutePrefix;
         }
         else if (segments[0] == "blog")
         {
@@ -441,7 +569,10 @@ internal static class DocusaurusMigration
             var version = segments[1][8..];
             variantInput = $"versioned_docs/version-{version}";
             kind = "doc";
-            prefix = $"{options.DocsRoutePrefix}/{version}";
+            // versions.json[0] is served at the version-less path; later versions keep theirs.
+            prefix = string.Equals(version, versions.FirstOrDefault(), StringComparison.Ordinal)
+                ? options.DocsRoutePrefix
+                : $"{options.DocsRoutePrefix}/{version}";
         }
         else if (segments[0] == "i18n" && segments.Length > 4 && segments[2] == "docusaurus-plugin-content-docs"
             && (segments[3] == "current" || segments[3].StartsWith("version-", StringComparison.Ordinal)))
@@ -490,6 +621,22 @@ internal static class DocusaurusMigration
         }
 
         var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
+        var titleEdits = new List<DocusaurusMigrationEdit>();
+        if (split.Status == FrontMatterSplitStatus.MissingFrontMatter)
+        {
+            // Docusaurus derives the title from the first heading or file name: inject the
+            // same minimal front matter instead of leaving the page unrouted. The prepend is
+            // recorded as InsertAfter(0, 0, ...) so replays reproduce the converted bytes.
+            var derived = DeriveTitle(text, scope);
+            var header = "---\ntitle: " + YamlQuote(derived) + "\n---";
+            titleEdits.Add(new(MigrationActionKind.InsertAfter, 0, 0, header));
+            text = header + "\n\n" + text;
+            split = FrontMatterSplitter.TrySplit(text, cancellationToken);
+            raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                $"Front matter title is derived: '{derived}'.", 1,
+                $"Set title '{derived}'.", null));
+        }
+
         if (split.Status != FrontMatterSplitStatus.Ok)
         {
             raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
@@ -536,6 +683,15 @@ internal static class DocusaurusMigration
                         diagnostic.Message, diagnostic.Location?.Line ?? 2, null, null));
             }
 
+            // The table of contents renders h2-h3: deeper requests bind for compatibility
+            // but keep their visible range note.
+            if (Scalar(mapping, "toc_max_heading_level") is { } tocMax
+                && int.TryParse(tocMax, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var tocLevel)
+                && tocLevel > 3)
+                raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                    $"The table of contents renders h2-h3; requested max level is {tocLevel}.", 2,
+                    null, "Narrow toc_max_heading_level to 3 or accept the h2-h3 range."));
+
             var stem = Path.GetFileNameWithoutExtension(scope[^1]);
             var parentId = string.Join('/', scope[..^1].Select(DocumentCatalog.RemoveNumericPrefix));
             if (stem is "README" or "index")
@@ -575,9 +731,26 @@ internal static class DocusaurusMigration
 
             scope = scope[..^1].Concat([Path.GetFileName(convertedRelative)]).ToArray();
             var routeId = id ?? DocumentCatalog.DefaultId(string.Join('/', scope));
+            // Explicit ids collide in real sites (docusaurus.io ships three id:introduction
+            // pages); routes stay slug-based, so only the collection identity is disambiguated.
+            // Enumeration order is deterministic, so the winner is stable.
+            var uniqueId = routeId;
+            var discriminator = 2;
+            while (!seenIds.Add((variantInput!, uniqueId))) uniqueId = $"{routeId}-{discriminator++}";
+            if (!string.Equals(uniqueId, routeId, StringComparison.Ordinal))
+            {
+                if (id is not null)
+                    replacements.Add((mapping.GetKeyLocation("id").Line ?? 2, "id: " + uniqueId));
+                else
+                    injections.Add("id: " + uniqueId);
+                raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                    $"Duplicate id '{routeId}' in '{variantInput}'; using unique id '{uniqueId}'.", 2,
+                    $"Set id '{uniqueId}'.", null));
+            }
+
             return FinishDocument(text, convertedRelative, kind,
                 SiteRoute.ForDirectoryIndex(prefix.Trim('/') + "/" + (slug ?? routeId).Trim('/'), options.BaseUrl).PublicPath,
-                lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise);
+                lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise, titleEdits);
         }
 
         foreach (var key in mapping.Keys)
@@ -589,7 +762,45 @@ internal static class DocusaurusMigration
         var blogStem = Path.GetFileNameWithoutExtension(scope[^1]);
         var blogDirectory = string.Join('/', scope[..^1]);
         var dateMatch = BlogDateRegex.Match(blogStem);
+        var nestedMatch = NestedBlogDateRegex.Match(blogStem);
+        var nestedYear = blogDirectory.Length == 4 && blogDirectory.All(static ch => ch is >= '0' and <= '9')
+            ? blogDirectory : null;
+        // Colocated assets layout (blog/2021/05-12-slug/index.mdx): the year comes from
+        // the grandparent directory, month and day from the parent directory.
+        System.Text.RegularExpressions.Match? parentDate = null;
+        string? indexNestedYear = null;
+        if ((blogStem is "index" or "README") && scope.Length >= 3)
+        {
+            var candidate = NestedBlogDateRegex.Match(scope[^2]);
+            if (candidate.Success && scope[^3].Length == 4
+                && scope[^3].All(static ch => ch is >= '0' and <= '9')
+                && DateOnly.TryParse($"{scope[^3]}-{candidate.Groups["month"].Value}-{candidate.Groups["day"].Value}",
+                    System.Globalization.CultureInfo.InvariantCulture, out _))
+            {
+                parentDate = candidate;
+                indexNestedYear = scope[^3];
+            }
+        }
+
         string? date = Scalar(mapping, "date");
+        if (date is null && !dateMatch.Success && nestedYear is not null && nestedMatch is { Success: true }
+            && DateOnly.TryParse($"{nestedYear}-{nestedMatch.Groups["month"].Value}-{nestedMatch.Groups["day"].Value}",
+                System.Globalization.CultureInfo.InvariantCulture, out _))
+        {
+            // Old year-directory layout (blog/2017/12-14-slug): the year comes from the
+            // directory, month and day from the file name, matching Docusaurus routing.
+            date = $"{nestedYear}-{nestedMatch.Groups["month"].Value}-{nestedMatch.Groups["day"].Value}";
+            injections.Add("date: " + date);
+            raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                $"Blog date is taken from the directory and file name: '{date}'.", 2, $"Set date '{date}'.", null));
+        }
+        if (date is null && !dateMatch.Success && parentDate is not null && indexNestedYear is not null)
+        {
+            date = $"{indexNestedYear}-{parentDate.Groups["month"].Value}-{parentDate.Groups["day"].Value}";
+            injections.Add("date: " + date);
+            raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                $"Blog date is taken from the directory and file name: '{date}'.", 2, $"Set date '{date}'.", null));
+        }
         if ((date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
             && dateMatch.Success && DateOnly.TryParse($"{dateMatch.Groups["year"].Value}-{dateMatch.Groups["month"].Value}-{dateMatch.Groups["day"].Value}",
                 System.Globalization.CultureInfo.InvariantCulture, out _))
@@ -607,13 +818,30 @@ internal static class DocusaurusMigration
             return new(relative, bytes, kind, null, Edits: []);
         }
 
-        var namePart = dateMatch.Success ? dateMatch.Groups["rest"].Value : blogStem;
+        var namePart = dateMatch.Success ? dateMatch.Groups["rest"].Value
+            : nestedYear is not null && nestedMatch is { Success: true } ? nestedMatch.Groups["rest"].Value
+            : parentDate is not null ? parentDate.Groups["rest"].Value
+            : blogStem;
+        // A year directory consumed for the date never repeats inside the slug.
+        var slugDirectory = dateMatch.Success ? blogDirectory : "";
         if (slug is null)
         {
-            slug = $"{parsedDate:yyyy/MM/dd}/" + (blogDirectory.Length == 0 ? namePart : blogDirectory + "/" + namePart);
-            injections.Add("slug: " + slug);
-            raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
-                $"Blog slug is set to '{slug}' to preserve the dated route.", 2, $"Set slug '{slug}'.", null));
+            if ((blogStem is "index" or "README") && parentDate is null && nestedYear is null && blogDirectory.Length > 0)
+            {
+                // Folder post without date info (blog/releases/3.8/index.mdx): Docusaurus
+                // serves the directory path, so no dated slug is derived from the post date.
+                slug = blogDirectory;
+                injections.Add("slug: " + slug);
+                raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                    $"Blog slug is set to '{slug}' to preserve the directory route.", 2, $"Set slug '{slug}'.", null));
+            }
+            else
+            {
+                slug = $"{parsedDate:yyyy/MM/dd}/" + (slugDirectory.Length == 0 ? namePart : slugDirectory + "/" + namePart);
+                injections.Add("slug: " + slug);
+                raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                    $"Blog slug is set to '{slug}' to preserve the dated route.", 2, $"Set slug '{slug}'.", null));
+            }
         }
         else
         {
@@ -628,6 +856,58 @@ internal static class DocusaurusMigration
             slug = normalized;
         }
 
+        // Docusaurus accepts a scalar authors value; the LithoSharp binder needs a list.
+        if (mapping.TryGetValue("authors", out var authorsValue)
+            && LocatedYamlValue.Unwrap(authorsValue) is { } authorsUnwrapped
+            && authorsUnwrapped is not IReadOnlyList<object?>)
+        {
+            var author = authorsUnwrapped.ToString()!;
+            var item = author.Length > 0 && author.All(static ch => ch is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-' or '.' or '/')
+                ? author : "\"" + author.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+            var authorsLine = mapping.GetKeyLocation("authors").Line ?? 2;
+            replacements.Add((authorsLine, "authors: [" + item + "]"));
+            raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                $"Blog scalar authors value is wrapped into a list.", authorsLine,
+                $"Set authors '[{item}]'.", null));
+        }
+
+        // Inline `{key: ID, ...}` author objects reference a registered profile with
+        // per-post overrides: collapse them to the ID so the strict binder accepts them.
+        // Other object shapes stay manual (replacing them would invent profile data).
+        if (mapping.TryGetValue("authors", out var authorsListValue)
+            && LocatedYamlValue.Unwrap(authorsListValue) is IReadOnlyList<object?>)
+        {
+            var authorsKeyLine = mapping.GetKeyLocation("authors").Line ?? 2;
+            var sourceLines = text.Split(["\r\n", "\n"], StringSplitOptions.None);
+            var keyIndent = sourceLines[authorsKeyLine - 1].TakeWhile(static ch => ch is ' ' or '\t').Count();
+            for (var index = authorsKeyLine; index < sourceLines.Length; index++)
+            {
+                var line = sourceLines[index];
+                if (line.Length > 0 && line.TakeWhile(static ch => ch is ' ' or '\t').Count() <= keyIndent) break;
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"^(\s*)-\s*key:\s*(\S.*)$");
+                if (!match.Success) continue;
+                var indent = match.Groups[1].Value;
+                var authorId = YamlScalar(match.Groups[2].Value);
+                var end = index;
+                while (end + 1 < sourceLines.Length && sourceLines[end + 1].Length > indent.Length + 2
+                    && sourceLines[end + 1].StartsWith(indent, StringComparison.Ordinal)
+                    && sourceLines[end + 1][indent.Length] is ' ' or '\t'
+                    && !System.Text.RegularExpressions.Regex.IsMatch(sourceLines[end + 1].Substring(indent.Length), @"^-\s")) end++;
+                // A blank line inside the item would orphan the remaining lines: skip those.
+                if (authorId.Length == 0 || (end + 1 < sourceLines.Length && sourceLines[end + 1].Length == 0
+                    && end + 2 < sourceLines.Length && sourceLines[end + 2].Length > indent.Length + 2)) continue;
+                replacements.Add((index + 1, indent + "- " + YamlQuote(authorId)));
+                for (var drop = index + 2; drop <= end + 1; drop++) lineDrops.Add(drop);
+                raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
+                    $"Blog inline author is collapsed to profile id '{authorId}'.", index + 1,
+                    $"Set author '{authorId}'.", null));
+                if (authors.Count > 0 && !authors.ContainsKey(authorId))
+                    raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                        $"Blog author '{authorId}' needs an explicit profile.", index + 1,
+                        null, "Register blog author profiles explicitly."));
+            }
+        }
+
         if (Scalar(mapping, "title") is null)
             raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
                 $"Blog entry '{relative}' has no title.", 2, null, "Add an explicit title."));
@@ -639,7 +919,7 @@ internal static class DocusaurusMigration
         ScanImports(text, lineDrops, raise);
         return FinishDocument(text, convertedRelative, kind,
             SiteRoute.ForDirectoryIndex(prefix.Trim('/') + "/" + slug.Trim('/'), options.BaseUrl).PublicPath,
-            lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise);
+            lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise, titleEdits);
     }
 
     private static byte[] DropLines(string text, SortedSet<int> lineDrops)
@@ -654,13 +934,16 @@ internal static class DocusaurusMigration
     private static AnalyzedDocument FinishDocument(
         string text, string convertedRelative, string kind, string route,
         SortedSet<int> lineDrops, List<string> injections, List<(int Line, string Text)> replacements, string body, string relative, int bodyFirstLine,
-        Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise)
+        Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise,
+        IReadOnlyList<DocusaurusMigrationEdit>? leadingEdits = null)
     {
         var exactLinkRemoved = ScanImports(text, lineDrops, raise);
         ScanRelativeImages(body, relative, bodyFirstLine, raise);
         var preRewrite = text;
         if (exactLinkRemoved) text = RewriteLinkToAttributes(text);
         var edits = new List<DocusaurusMigrationEdit>();
+        // Prepended front matter (InsertAfter 0) replays before every other insertion.
+        if (leadingEdits is not null) edits.AddRange(leadingEdits);
         AddLinkRewriteEdits(edits, preRewrite, text, lineDrops, replacements);
         var newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
         var lines = text.Split(["\r\n", "\n"], StringSplitOptions.None).ToList();
@@ -769,7 +1052,12 @@ internal static class DocusaurusMigration
     private static bool ScanImports(string text, SortedSet<int> lineDrops, Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise)
     {
         var exactLinkRemoved = false;
-        foreach (Match match in ImportRegex.Matches(text))
+        // Regular fenced samples document imports without executing them: match on blanked
+        // text (offsets are preserved) so samples neither report nor lose lines. Docusaurus
+        // mdx-code-block fences wrap executable MDX, so their inner imports stay visible
+        // and report here. TryRemovableImport and line lookups below keep reading the
+        // original text at the same offsets.
+        foreach (Match match in ImportRegex.Matches(BlankNonExecutable(text)))
         {
             var name = match.Groups["name"].Value;
             var line = LineOf(text, match.Index);
@@ -807,16 +1095,133 @@ internal static class DocusaurusMigration
                 continue;
             }
 
+            // The worker provides SSR-safe shims for these hooks so vendored components
+            // and mdx-code-block demos render statically. Direct document usage builds
+            // with degraded output (empty locations, current version) and needs human
+            // verification, but it is not an unsupported blocker.
+            if (name is "@docusaurus/router" or "@docusaurus/useBrokenLinks" or "@docusaurus/useIsBrowser"
+                or "@docusaurus/theme-common" or "@docusaurus/plugin-content-docs/client")
+            {
+                raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                    $"'{name}' renders with static fallback values; verify the output or rewrite call sites to usePageContext from @lithosharp/runtime.", line,
+                    null, "Verify the static fallback output, or rewrite call sites to usePageContext from @lithosharp/runtime."));
+                continue;
+            }
+
             raise(DocusaurusMigrationVerdict.Unsupported, new(UnsupportedImport, SiteDiagnosticSeverity.Error,
                 "Unsupported import requires an explicit replacement: " + name, line, null, null));
         }
 
-        if (text.Contains("@docusaurus/plugin-", StringComparison.Ordinal) || text.Contains("@docusaurus/theme-", StringComparison.Ordinal))
-            raise(DocusaurusMigrationVerdict.Unsupported, new(UnsupportedPlugin, SiteDiagnosticSeverity.Error,
-                "Docusaurus plugins and themes are not loaded by LithoSharp. Select a supported C# or Remark/Rehype extension.", 1, null, null));
-
+        // Prose and fenced samples that merely mention plugin or theme package names are not
+        // convertible inputs: only real imports (matched above) report. Code files keep the
+        // strict substring check in ScanText.
+        ScanBareImports(text, raise);
         return exactLinkRemoved;
     }
+
+    private static void ScanBareImports(string text, Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise)
+    {
+        // Bare third-party imports (react-tweet) never match ImportRegex, and the worker only
+        // provides react itself: flag them for a human install-or-rewrite decision instead of
+        // failing silently at build time. Relative imports resolve from the converted tree and
+        // fail explicitly at build when they cannot, so they stay quiet here. Fenced samples
+        // are blanked first so documented import examples never report.
+        var visible = BlankNonExecutable(text);
+        foreach (Match match in BareImportRegex.Matches(visible))
+        {
+            var name = match.Groups["name"].Value;
+            if (name.StartsWith("@docusaurus/", StringComparison.Ordinal) || name.StartsWith("@theme/", StringComparison.Ordinal))
+                continue;
+            if (name is "react" || name is "react-dom" || name.StartsWith("react-dom/", StringComparison.Ordinal)
+                || name is "react/jsx-runtime" || name.StartsWith("@lithosharp/", StringComparison.Ordinal)
+                || name is "lithosharp:live-runtime" || name.StartsWith("./", StringComparison.Ordinal)
+                || name.StartsWith("../", StringComparison.Ordinal))
+                continue;
+            var line = LineOf(text, match.Index);
+            raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                $"Bare package import '{name}' is not installed by migration; install it in the target project or rewrite the usage.", line,
+                null, $"Install '{name}' in the target site project, or replace the usage."));
+        }
+    }
+
+    private static string BlankNonExecutable(string text, bool blankDirectives = true)
+    {
+        // ESM imports only execute at the top level of a document: blank fenced code
+        // and (optionally) ::: directive bodies so documented import examples never report.
+        // Docusaurus mdx-code-block fences wrap executable MDX (imports, component
+        // definitions, JSX open/close tags spanning markdown) rather than display code,
+        // so their inner content stays visible like top-level prose. Only top-level
+        // mdx-code-block fences unwrap: samples inside outer fenced blocks stay blanked.
+        // Fence length is tracked so outer ```` blocks enclose inner ``` samples.
+        var lines = text.Split('\n');
+        var inFence = false;
+        var fenceLength = 0;
+        var fenceChar = '\0';
+        var inMdxBlock = false;
+        var mdxLength = 0;
+        var mdxChar = '\0';
+        var inDirective = false;
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var trimmed = lines[index].TrimStart();
+            var markerLength = FenceMarkerLength(trimmed);
+            if (markerLength > 0)
+            {
+                var markerChar = trimmed[0];
+                if (inMdxBlock)
+                {
+                    if (markerChar == mdxChar && markerLength >= mdxLength)
+                        inMdxBlock = false;
+                    else
+                        lines[index] = new string(' ', lines[index].Length);
+                    continue;
+                }
+
+                if (!inFence)
+                {
+                    var rest = trimmed[markerLength..];
+                    if (IsMdxCodeBlockOpen(rest))
+                    {
+                        inMdxBlock = true;
+                        mdxLength = markerLength;
+                        mdxChar = markerChar;
+                        continue;
+                    }
+
+                    inFence = true;
+                    fenceLength = markerLength;
+                    fenceChar = markerChar;
+                    continue;
+                }
+
+                if (markerChar == fenceChar && markerLength >= fenceLength)
+                    inFence = false;
+                continue;
+            }
+
+            if (blankDirectives && trimmed.StartsWith(":::", StringComparison.Ordinal))
+            {
+                inDirective = !inDirective;
+                continue;
+            }
+
+            if (inFence || inDirective) lines[index] = new string(' ', lines[index].Length);
+        }
+
+        return string.Join('\n', lines);
+    }
+
+    private static int FenceMarkerLength(string trimmed)
+    {
+        if (trimmed.Length == 0 || (trimmed[0] != '`' && trimmed[0] != '~')) return 0;
+        var length = 0;
+        while (length < trimmed.Length && trimmed[length] == trimmed[0]) length++;
+        return length >= 3 ? length : 0;
+    }
+
+    private static bool IsMdxCodeBlockOpen(string rest) =>
+        rest.StartsWith("mdx-code-block", StringComparison.Ordinal)
+        && (rest.Length == "mdx-code-block".Length || char.IsWhiteSpace(rest["mdx-code-block".Length]));
 
     private static string ImportLine(string text, Match match)
     {
@@ -1109,6 +1514,34 @@ internal static class DocusaurusMigration
 
     private static string? Scalar(LocatedYamlMapping mapping, string key) =>
         mapping.TryGetValue(key, out var value) ? LocatedYamlValue.Unwrap(value)?.ToString() : null;
+
+    private static string DeriveTitle(string text, string[] scope)
+    {
+        foreach (var line in BlankNonExecutable(text, blankDirectives: false).Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length < 2 || trimmed[0] != '#') continue;
+            var level = 0;
+            while (level < trimmed.Length && level < 6 && trimmed[level] == '#') level++;
+            if (level < trimmed.Length && trimmed[level] is ' ' or '\t')
+            {
+                var title = trimmed[level..].Trim().TrimEnd('#').Trim();
+                if (title.Length > 0) return title;
+            }
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(scope[^1]);
+        return stem is "README" or "index" && scope.Length > 1 ? scope[^2] : stem;
+    }
+
+    private static string YamlQuote(string value)
+    {
+        if (value.Length > 0 && value.All(static ch => ch is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9')
+                or ' ' or '_' or '-' or '.' or '/')
+            && !value.Contains(": ", StringComparison.Ordinal) && !value.Contains(" #", StringComparison.Ordinal))
+            return value;
+        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    }
 
     private static bool TryDecode(byte[] bytes, out string text)
     {

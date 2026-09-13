@@ -45,7 +45,7 @@ internal static class DocusaurusProfile
 
     /// <summary>Component names importable from <c>@theme/</c>. Mirrors the worker allowlist.</summary>
     public static IReadOnlyList<string> SupportedThemeImports { get; } =
-        ["Tabs", "TabItem", "Admonition", "Details", "CodeBlock", "TOCInline", "Card", "MDXComponents", "BrowserOnly"];
+        ["Tabs", "TabItem", "Admonition", "Details", "CodeBlock", "TOCInline", "Card", "DocCardList", "MDXComponents", "BrowserOnly", "IdealImage", "ThemedImage", "Heading"];
 
     /// <summary>JSX components that render without requesting page hydration. The worker extends this with request.StaticComponents.</summary>
     public static IReadOnlyList<string> BuiltInStaticComponents { get; } =
@@ -71,14 +71,24 @@ internal static class DocusaurusProfile
             "Fenced code renders statically with shared title, highlight, and line-number metadata. Copy controls hydrate in the browser. Bare <CodeBlock> usage requests page hydration."),
         new("Card", DocusaurusSupportLevel.Supported, "@theme/Card",
             "Static-safe card with a linked title. Renders without hydration."),
+        new("DocCardList", DocusaurusSupportLevel.Supported, "@theme/DocCardList",
+            "Bare usage renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures."),
         new("MDXComponents", DocusaurusSupportLevel.Partial, "@theme/MDXComponents",
             "The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component."),
         new("TOCInline", DocusaurusSupportLevel.Supported, "@theme/TOCInline",
             "Static-safe. Receives the page toc export built from worker headings, levels 2-3 by default."),
         new("Link", DocusaurusSupportLevel.Supported, null,
             "Bare component only; no @docusaurus/Link import path exists. In MDX, `a` elements and bare usage resolve to it and unsafe schemes fail the build; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged."),
+        new("Zoom", DocusaurusSupportLevel.Supported, null,
+            "Bare image-zoom wrapper with no import path; renders children without zoom interaction."),
         new("BrowserOnly", DocusaurusSupportLevel.Supported, "@docusaurus/BrowserOnly",
             "Also importable from @theme/BrowserOnly. Renders its fallback statically and hydrates content in the browser."),
+        new("IdealImage", DocusaurusSupportLevel.Supported, "@theme/IdealImage",
+            "Static image passthrough; responsive variants render the base image."),
+        new("ThemedImage", DocusaurusSupportLevel.Supported, "@theme/ThemedImage",
+            "Renders the light source statically; color-mode switching needs hydration."),
+        new("Heading", DocusaurusSupportLevel.Supported, "@theme/Heading",
+            "Renders the requested heading level statically without anchor automation."),
         new("Translate", DocusaurusSupportLevel.Supported, null,
             "Bare component only; no @docusaurus/Translate import path exists. Renders the translation catalog message or its children as fallback."),
         new("useBaseUrl", DocusaurusSupportLevel.Unsupported, null,

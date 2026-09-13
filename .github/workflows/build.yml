@@ -15,7 +15,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Pinned images with explicit architectures (R22). Never infer the
+        # architecture from the runner name: the Log step below asserts it.
+        include:
+          - os: windows-2025
+            arch: X64
+          - os: ubuntu-24.04
+            arch: X64
+          - os: macos-15
+            arch: Arm64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -34,6 +42,16 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24.13.0
+
+      - name: Log OS and architecture
+        shell: pwsh
+        run: |
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+          Write-Host "Runner image: ${{ matrix.os }} (matrix arch: ${{ matrix.arch }})"
+          Write-Host "Actual OS: $([System.Runtime.InteropServices.RuntimeInformation]::OSDescription) / $arch"
+          if ($arch -ne '${{ matrix.arch }}') { throw "Architecture mismatch: expected ${{ matrix.arch }}, got $arch." }
+          dotnet --info | Select-String -Pattern 'RID:|OS Architecture:'
+          node -p "process.platform + '/' + process.arch"
 
       - name: Restore and test MDX worker
         working-directory: src/LithoSharp.Mdx/worker
@@ -74,6 +92,10 @@ jobs:
           ./eng/Test-Tool.ps1
           ./eng/Test-MdxWatch.ps1
           ./eng/Test-DocumentationVerification.ps1
+
+      - name: Migration smoke
+        shell: pwsh
+        run: ./eng/Test-MigrationSmoke.ps1
 
       - name: Pack and check CLI and project templates
         shell: pwsh

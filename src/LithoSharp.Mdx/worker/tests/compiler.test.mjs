@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, rm, cp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {compileSite, extractRegion} from '../compiler.mjs';
+import {compileSite, extractRegion, unwrapMdxCodeBlocks} from '../compiler.mjs';
 
 test('official MDX produces server HTML and shared browser assets without unused exports', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-mdx-check-'));
@@ -109,6 +109,164 @@ test('Docusaurus profile built-ins render and unsupported aliases fail explicitl
         sources: {'bad.mdx': source}, pages: [{id: 'bad', source: 'bad.mdx', url: '/product/bad/', title: 'Bad', locale: 'en', props: {}}]}),
         pattern);
     }
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('mdx-code-block fences unwrap to executable MDX while outer samples stay display', () => {
+  const source = [
+    '# Title',
+    '',
+    '```mdx-code-block',
+    "import Widget from './Widget.jsx';",
+    '```',
+    '',
+    '```mdx-code-block',
+    '<Widget>',
+    '```',
+    '',
+    'Body text.',
+    '',
+    '```mdx-code-block',
+    '</Widget>',
+    '```',
+    '',
+    '````md',
+    '```mdx-code-block',
+    '<Widget>',
+    '```',
+    '````',
+  ].join('\n');
+  const unwrapped = unwrapMdxCodeBlocks(source);
+  assert.ok(unwrapped.includes("import Widget from './Widget.jsx';"));
+  assert.ok(unwrapped.includes('<Widget>'));
+  assert.ok(unwrapped.includes('Body text.'));
+  // The display sample inside the outer ````md fence keeps its fences.
+  assert.ok(unwrapped.includes('````md'));
+  assert.equal((unwrapped.match(/```mdx-code-block/g) ?? []).length, 1);
+});
+
+test('mdx-code-block imports and docs-client hooks render statically', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-mdxblock-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot, {recursive: true}); await mkdir(workRoot);
+    await mkdir(path.join(projectRoot, 'src', 'components', 'BrowserWindow'), {recursive: true});
+    await writeFile(path.join(projectRoot, 'src', 'components', 'BrowserWindow', 'index.jsx'),
+      `import React from 'react';\nexport default function BrowserWindow({children}) { return <div className="browser">{children}</div>; }\n`);
+    const source = [
+      '```mdx-code-block',
+      "import BrowserWindow from '@site/src/components/BrowserWindow';",
+      "import {useLocation} from '@docusaurus/router';",
+      "import {useActiveDocContext} from '@docusaurus/plugin-content-docs/client';",
+      '```',
+      '',
+      '# Demo',
+      '',
+      '```mdx-code-block',
+      'export const PathName = () => <code>{useLocation().pathname}</code>;',
+      '```',
+      '',
+      'Current: <PathName />',
+      '',
+      '<BrowserWindow>',
+      '',
+      'Version: {useActiveDocContext().activeVersion.name}',
+      '',
+      '</BrowserWindow>',
+    ].join('\n');
+    await writeFile(path.join(projectRoot, 'demo.mdx'), source);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
+      sources: {'demo.mdx': source},
+      pages: [{id: 'demo', source: 'demo.mdx', url: '/demo/', title: 'Demo', locale: 'en', props: {}}]};
+    const result = await compileSite(request);
+    assert.match(result.pages[0].html, /browser/);
+    assert.match(result.pages[0].html, /current/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('absolute document links pass through the link map', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-link-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const sources = {
+      'doc.mdx': `# Doc\n\n[external](https://github.com/example/repo/blob/main/commands.md)\n\n[relative](./other.mdx)\n\n[dangling](./missing.mdx)\n`,
+      'other.mdx': `# Other\n`};
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
+      linkMap: {'other.mdx': '/other/'},
+      sources, pages: [{id: 'doc', source: 'doc.mdx', url: '/doc/', title: 'Doc', locale: 'en', props: {}}]};
+    const result = await compileSite(request);
+    assert.match(result.pages[0].html, /href="https:\/\/github\.com\/example\/repo\/blob\/main\/commands\.md"/);
+    assert.match(result.pages[0].html, /href="\/other\/"/);
+    assert.match(result.pages[0].html, /href="\.\/missing\.mdx"/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('unknown directives fall back to divs and DocCardList renders sibling cards', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-cards-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const sources = {
+      'index.mdx': `# Index\n\n<DocCardList />\n`,
+      'sibling.mdx': `# Sibling\n\nSibling body.\n`,
+      'custom.mdx': `:::my-custom-admonition\n\nCustom body.\n:::\n`};
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    const pages = [
+      {id: 'index', source: 'index.mdx', url: '/index/', title: 'Index', description: null, locale: 'en', props: {}},
+      {id: 'sibling', source: 'sibling.mdx', url: '/sibling/', title: 'Sibling', description: 'Sibling words', locale: 'en', props: {}},
+      {id: 'custom', source: 'custom.mdx', url: '/custom/', title: 'Custom', description: null, locale: 'en', props: {}}];
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, pages};
+    const result = await compileSite(request);
+    const index = result.pages.find(page => page.id === 'index');
+    assert.match(index.html, /mdx-doc-card-list/);
+    assert.match(index.html, /href="\/sibling\/"/);
+    assert.match(index.html, /Sibling words/);
+    assert.doesNotMatch(index.html, /\/index\/">Index/);
+    const custom = result.pages.find(page => page.id === 'custom');
+    assert.match(custom.html, /<div class="my-custom-admonition">/);
+    assert.match(custom.html, /Custom body/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('bare Zoom passes children through', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-zoom-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const sources = {'zoom.mdx': `# Zoom\n\n<Zoom>\n\n![Alt text](./pic.png)\n\n</Zoom>\n`};
+    await writeFile(path.join(projectRoot, 'pic.png'), Buffer.from([137, 80, 78, 71]));
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
+      sources, pages: [{id: 'zoom', source: 'zoom.mdx', url: '/zoom/', title: 'Zoom', locale: 'en', props: {}}]};
+    const result = await compileSite(request);
+    assert.match(result.pages[0].html, /Alt text/);
+    assert.doesNotMatch(result.pages[0].html, /<Zoom/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('vendored components resolve docusaurus shims and npm helpers', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-vendor-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot, {recursive: true}); await mkdir(workRoot);
+    await mkdir(path.join(projectRoot, 'src', 'components'), {recursive: true});
+    await mkdir(path.join(projectRoot, 'src', 'components', 'Box'), {recursive: true});
+    await writeFile(path.join(projectRoot, 'src', 'components', 'Box', 'index.jsx'),
+      `import React from 'react';\n\nexport default function Box({children}) { return <div className="box">{children}</div>; }\n`);
+    await writeFile(path.join(projectRoot, 'src', 'components', 'Widget.jsx'),
+      `import clsx from 'clsx';\nimport Link from '@docusaurus/Link';\nimport Translate from '@docusaurus/Translate';\nimport useIsBrowser from '@docusaurus/useIsBrowser';\nimport {useHistory} from '@docusaurus/router';\nimport {useColorMode} from '@docusaurus/theme-common';\nimport useBrokenLinks from '@docusaurus/useBrokenLinks';\nimport React from 'react';\n\nexport default function Widget() {\n  const history = useHistory();\n  const {colorMode} = useColorMode();\n  useBrokenLinks().collectAnchor('a');\n  return <span className={clsx('w', colorMode)}><Link href="/product/other/">Other</Link><Translate>Fallback</Translate>{useIsBrowser() ? 'client' : 'server'}{history.location.pathname}</span>;\n}\n`);
+    const sources = {'page.mdx': `import Widget from './src/components/Widget.jsx';\nimport Box from './src/components/Box';\nimport SiteBox from '@site/src/components/Box';\n\n# Page\n\n<Widget /><Box>Boxed</Box><SiteBox>SiteBoxed</SiteBox>\n`};
+    await writeFile(path.join(projectRoot, 'page.mdx'), sources['page.mdx']);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
+      sources, pages: [{id: 'page', source: 'page.mdx', url: '/page/', title: 'Page', locale: 'en', props: {}}]};
+    const result = await compileSite(request);
+    assert.match(result.pages[0].html, /Other/);
+    assert.match(result.pages[0].html, /Fallback/);
+    assert.match(result.pages[0].html, /server/);
+    assert.match(result.pages[0].html, /Boxed/);
+    assert.match(result.pages[0].html, /SiteBoxed/);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 

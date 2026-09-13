@@ -71,7 +71,7 @@ JS、JSX、TS、TSX、JSON、CSS、CSS modules、画像、`?raw` import は esbu
 公開ページから draft や未登録の文書を import することはできません。共有する内容は
 `_` で始まる partial へ移してください。MDX の export は JavaScript の意味を保ちます。
 
-Tabs、TabItem、Admonition、Details、CodeBlock、TOCInline、Card、MDXComponents、
+Tabs、TabItem、Admonition、Details、CodeBlock、TOCInline、Card、DocCardList、MDXComponents、
 Link、BrowserOnly、Translate などの互換部品を用意しています。GFM、見出しアンカー、Prism、KaTeX、
 Mermaid も利用できます。正確な alias と判定一覧は [英語版](mdx.md) の
 Docusaurus compatibility 節と

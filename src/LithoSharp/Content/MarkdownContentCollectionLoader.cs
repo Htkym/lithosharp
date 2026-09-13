@@ -130,8 +130,11 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     {
         cancellationToken.ThrowIfCancellationRequested();
         var discovery = ContentPath.Discover(_inputRoot, [".md"], cancellationToken);
-        var paths = discovery.Files;
-        var entries = new List<ContentEntry<TFrontMatter, string>>(paths.Count);
+        // Underscore-prefixed partials never publish (MDX parity): the Markdown renderer
+        // has no partial imports, so they are skipped before front matter parsing instead
+        // of failing the whole load on their missing front matter.
+        var paths = discovery.Files.Where(static path => !IsPartial(path.RelativePath)).ToArray();
+        var entries = new List<ContentEntry<TFrontMatter, string>>(paths.Length);
         var diagnostics = new List<SiteDiagnostic>(discovery.Diagnostics);
         foreach (var path in paths)
         {
@@ -707,6 +710,9 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Normalize(NormalizationForm.FormC);
+
+    internal static bool IsPartial(string relativePath) =>
+        relativePath.Split('/').Any(static segment => segment.StartsWith('_'));
 
     internal sealed record MarkdownSourceDocument(string Yaml, string Body, int YamlStartLine)
     {
