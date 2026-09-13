@@ -276,15 +276,17 @@ public sealed class CompatibilityContractTests
         var readAll = typeof(MarkdownPostReader).GetMethod(
             nameof(MarkdownPostReader.ReadAllAsync),
             BindingFlags.Instance | BindingFlags.Public,
-            [typeof(string)]);
+            [typeof(string), typeof(CancellationToken)]);
         var readOne = typeof(MarkdownPostReader).GetMethod(
             nameof(MarkdownPostReader.ReadAsync),
             BindingFlags.Instance | BindingFlags.Public,
-            [typeof(string), typeof(string)]);
+            [typeof(string), typeof(string), typeof(CancellationToken)]);
         await Assert.That(readAll).IsNotNull();
         await Assert.That(readAll!.ReturnType).IsEqualTo(typeof(Task<IReadOnlyList<MarkdownPost>>));
+        await Assert.That(readAll.GetParameters()[1].IsOptional).IsTrue();
         await Assert.That(readOne).IsNotNull();
         await Assert.That(readOne!.ReturnType).IsEqualTo(typeof(Task<MarkdownPost>));
+        await Assert.That(readOne.GetParameters()[2].IsOptional).IsTrue();
         await Assert.That(typeof(MarkdownPostReader).GetConstructor(Type.EmptyTypes)).IsNotNull();
 
         var customization = new SiteCustomization();

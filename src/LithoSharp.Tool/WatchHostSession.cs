@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace LithoSharp.Tool;
 
 /// <summary>Keeps trusted MDX loaders and their Node worker alive between content edits.</summary>
-internal sealed class WatchHostSession : IAsyncDisposable
+internal sealed class WatchHostSession(bool machineOutput = false) : IAsyncDisposable
 {
     private Process? process;
     private Task? stdout, stderr;
@@ -21,7 +21,8 @@ internal sealed class WatchHostSession : IAsyncDisposable
             if (options.Value("output") is { } output) { start.ArgumentList.Add("--output"); start.ArgumentList.Add(Path.GetFullPath(output)); }
             if (options.Has("clean")) start.ArgumentList.Add("--clean");
             process = Process.Start(start) ?? throw new IOException("Cannot start the site watch host.");
-            stdout = CopyAsync(process.StandardOutput, Console.Out); stderr = CopyAsync(process.StandardError, Console.Error);
+            // In machine mode stdout must stay pure JSON Lines, so forward child output to stderr.
+            stdout = CopyAsync(process.StandardOutput, machineOutput ? Console.Error : Console.Out); stderr = CopyAsync(process.StandardError, Console.Error);
         }
         else { await process.StandardInput.WriteLineAsync("build".AsMemory(), cancellationToken).ConfigureAwait(false); await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false); }
         try

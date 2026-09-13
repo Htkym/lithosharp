@@ -25,6 +25,9 @@ const textOf = node => node.type === 'text' || node.type === 'inlineCode' ? node
 const moduleCache = new Map();
 const renderCache = new Map();
 function remember(cache, key, value, limit) { if (cache.size >= limit) cache.delete(cache.keys().next().value); cache.set(key, value); }
+// These lists mirror DocusaurusProfile in src/LithoSharp/Documentation; the .NET profile tests parse them.
+const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'MDXComponents', 'BrowserOnly'];
+const staticMdxComponents = ['Admonition', 'Details', 'Card', 'TOCInline', 'Translate', 'FormattedDate'];
 
 export function extractRegion(source, name) {
   if (!name) return source;
@@ -131,7 +134,7 @@ export async function compileSite(request) {
                 throw new Error('frontMatter, toc and contentTitle are reserved MDX metadata exports.');
             }
           }
-          if (node.type === 'link' || node.type === 'image') info.links.push({url: node.url, line: node.position?.start.line ?? 1});
+          if (node.type === 'link' || node.type === 'image') info.links.push({url: node.url, line: node.position?.start.line ?? 1, image: node.type === 'image'});
           if (node.type === 'mdxFlowExpression' || node.type === 'mdxTextExpression') {
             const expression = node.data?.estree?.body?.[0]?.expression;
             if (expression?.type !== 'Literal' && !(expression?.type === 'MemberExpression' && expression.object?.name === 'frontMatter'))
@@ -160,7 +163,7 @@ export async function compileSite(request) {
               if (!binding?.exportName) throw new Error('Island component must reference a statically imported default or named component.');
               const module = binding.module.startsWith('.') ? './' + relative(projectRoot, path.resolve(path.dirname(file), binding.module)) : binding.module;
               node.attributes.push({type: 'mdxJsxAttribute', name: 'module', value: module}, {type: 'mdxJsxAttribute', name: 'exportName', value: binding.exportName});
-            } else if (node.name && /^[A-Z]/.test(node.name) && !['Admonition', 'Details', 'Card', 'TOCInline', 'Translate', 'FormattedDate', ...(request.staticComponents ?? [])].includes(node.name)) {
+            } else if (node.name && /^[A-Z]/.test(node.name) && ![...staticMdxComponents, ...(request.staticComponents ?? [])].includes(node.name)) {
               info.fallback ??= `Component '${node.name}' is not declared static or enclosed in an explicit Island.`;
             }
             if (node.name === 'CodeBlock') {
@@ -215,7 +218,7 @@ export async function compileSite(request) {
       builder.onResolve({filter: /^@docusaurus\/BrowserOnly$/}, () => ({path: 'BrowserOnly', namespace: 'theme'}));
       builder.onResolve({filter: /^@theme\//}, args => {
         const name = args.path.slice(7);
-        if (!['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'MDXComponents', 'BrowserOnly'].includes(name))
+        if (!supportedThemeComponents.includes(name))
           return {errors: [{text: `Unsupported Docusaurus alias '${args.path}'.`}]};
         return {path: name, namespace: 'theme'};
       });

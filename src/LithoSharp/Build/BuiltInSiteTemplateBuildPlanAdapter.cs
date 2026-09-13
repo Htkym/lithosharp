@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Content.Compilation;
 using LithoSharp.Routing;
 
 namespace LithoSharp.Build;
@@ -258,7 +259,10 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                     Value("page.title", post.FrontMatter.Title),
                     Value("page.summary", post.FrontMatter.Summary),
                     Value("page.date", Format(post.FrontMatter.Date)),
-                    Value("page.body", post.MarkdownBody),
+                    // Source fingerprint, not raw text: the same change detection
+                    // with small execution keys. Semantic and render fingerprints
+                    // stay separate (compiler fingerprint, layout inputs).
+                    Value("page.body", MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody)),
                     Configuration(
                         "text.tableOfContents",
                         Json(new
@@ -442,7 +446,9 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                     Value("page.summary", post.FrontMatter.Summary),
                     Value("page.date", Format(post.FrontMatter.Date)),
                     Value("page.tags", Json(post.FrontMatter.Tags)),
-                    Value("page.body", post.MarkdownBody),
+                    // Source fingerprint, not raw text: the same change detection
+                    // with small execution keys (see the docs-site node above).
+                    Value("page.body", MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody)),
                 ],
                 [navigationNodeId]);
         }

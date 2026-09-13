@@ -57,6 +57,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         {
             var loaded = await loader.LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!loaded.IsSuccess) throw new SiteBuildExtensionException(loaded.Diagnostics);
+            var loadDiagnostics = loaded.Diagnostics;
             var collection = loaded.Collection!;
             var published = collection.Entries.Where(entry => PagePublicationPolicy.ShouldPublish(
                 collection.PublicationMapper(entry), context.BuildTimestamp, context.Options.EnvironmentName)).ToArray();
@@ -76,7 +77,18 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         $"<link rel=\"stylesheet\" href=\"{WebUtility.HtmlEncode(AssetUrl(context, css.GetString()!))}\">"))
                         + $"<div id=\"{pages[index].Id}\">{page.GetProperty("html").GetString()}</div>"
                         + (page.GetProperty("entry").ValueKind == JsonValueKind.Null ? "" : $"<script type=\"module\" src=\"{WebUtility.HtmlEncode(AssetUrl(context, page.GetProperty("entry").GetString()!))}\"></script>");
-                    var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine) { RenderedHtml = html, PlainText = page.GetProperty("text").GetString() };
+                    var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine, entry.Body.BodyStartOffset)
+                    {
+                        RenderedHtml = html,
+                        PlainText = page.GetProperty("text").GetString(),
+                        Semantics = MdxSemantics.FromWorker(
+                            entry.SourcePath,
+                            entry.Body,
+                            page.GetProperty("headings"),
+                            page.GetProperty("links"),
+                            page.GetProperty("islands"),
+                            page.GetProperty("text").GetString()),
+                    };
                     var dependencies = entry.DeclaredDependencies.Concat(executionDependencies).Append(ContentDependency.FromAsset(AssetId("third-party-notices.txt"))).Concat(
                         page.GetProperty("css").EnumerateArray().Select(css => ContentDependency.FromAsset(AssetId(css.GetString()!))))
                         .Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { ContentDependency.FromAsset(AssetId(page.GetProperty("entry").GetString()!)) })
@@ -90,7 +102,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 return new SiteContentCollection<TFrontMatter, MdxDocument>(prepared,
                     renderer ?? ((entry, rendering) => rendering.RenderDocument(entry.Body.ToHtmlString())))
                 { RendererFingerprint = options.Cacheable ? "mdx-v1" : null, IsThreadSafe = renderer is null };
-            });
+            }, loadDiagnostics);
         });
     }
 
@@ -107,7 +119,8 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             var loaded = new List<Loaded>();
             foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
             var pages = loaded.SelectMany(value => value.Pages).ToArray();
-            if (pages.Length == 0) return new();
+            var loadDiagnostics = loaded.SelectMany(value => value.Diagnostics).ToArray();
+            if (pages.Length == 0) return new() { Diagnostics = loadDiagnostics };
             var routes = new SiteRouteTable();
             foreach (var page in pages) routes.Register(SiteRoute.ForDirectoryIndex(page.Url.Trim('/')), page.Id);
             routes.ValidateOrThrow();
@@ -210,7 +223,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 assets = assets.Select(asset => new { asset.Id, asset.RelativeOutputPath, asset.ReferencedAssetIds }),
                 modules = result.GetProperty("inputs").EnumerateArray().Select(input => new { file = IsWithin(options.ProjectDirectory, input.GetProperty("file").GetString()!)
                     ? RelativeSource(input.GetProperty("file").GetString()!) : "@worker/" + Path.GetRelativePath(options.WorkerDirectory, input.GetProperty("file").GetString()!).Replace('\\', '/'), hash = input.GetProperty("hash").GetString() }) }, MdxJson.Options);
-            return new() { Assets = assets, ContentCollections = loaded.Select(value => value.Create(results)).ToArray() };
+            return new() { Assets = assets, ContentCollections = loaded.Select(value => value.Create(results)).ToArray(), Diagnostics = loadDiagnostics };
         }
         finally { gate.Release(); }
     }
@@ -313,5 +326,5 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         finally { gate.Release(); }
     }
     private sealed record Page(string Id, string Source, string Code, string Url, string Title, JsonElement Props, string Locale, bool Discoverable);
-    private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create);
+    private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics);
 }

@@ -28,42 +28,61 @@ public sealed record DocumentVariant(string Version, string Locale, string Input
 public sealed class DocumentFrontMatter
 {
     /// <summary>A stable ID; defaults to the path without numeric prefixes or extension.</summary>
+    [System.ComponentModel.Description("A stable ID; defaults to the path without numeric prefixes or extension.")]
     public string? Id { get; set; }
     /// <summary>The page title.</summary>
+    [System.ComponentModel.Description("The page title.")]
     public string Title { get; set; } = "";
     /// <summary>The page description.</summary>
+    [System.ComponentModel.Description("The page description.")]
     public string? Description { get; set; }
     /// <summary>An explicit path within the variant.</summary>
+    [System.ComponentModel.Description("An explicit path within the variant.")]
     public string? Slug { get; set; }
     /// <summary>A sidebar label independent of the title.</summary>
+    [System.ComponentModel.Description("A sidebar label independent of the title.")]
     public string? SidebarLabel { get; set; }
     /// <summary>An explicit order before filename-derived order.</summary>
+    [System.ComponentModel.Description("An explicit order before filename-derived order.")]
     public double? SidebarPosition { get; set; }
     /// <summary>The canonical sidebar membership when a page occurs in several sidebars.</summary>
+    [System.ComponentModel.Description("The canonical sidebar membership when a page occurs in several sidebars.")]
     public string? DisplayedSidebar { get; set; }
     /// <summary>Whether the document is never published.</summary>
+    [System.ComponentModel.Description("Whether the document is never published.")]
     public bool Draft { get; set; }
     /// <summary>Whether the document is accessible only by direct links.</summary>
+    [System.ComponentModel.Description("Whether the document is accessible only by direct links.")]
     public bool Unlisted { get; set; }
     /// <summary>Excludes this published page from site search without hiding it from navigation.</summary>
+    [System.ComponentModel.Description("Excludes this published page from site search without hiding it from navigation.")]
     public bool SearchExclude { get; set; }
     /// <summary>The inclusive publication start.</summary>
+    [System.ComponentModel.Description("The inclusive publication start.")]
     public DateTimeOffset? PublishFrom { get; set; }
     /// <summary>The exclusive publication end.</summary>
+    [System.ComponentModel.Description("The exclusive publication end.")]
     public DateTimeOffset? PublishUntil { get; set; }
     /// <summary>Tags used by generated listings and search.</summary>
+    [System.ComponentModel.Description("Tags used by generated listings and search.")]
     public List<string> Tags { get; set; } = [];
     /// <summary>An explicit previous document ID; an empty string hides the link.</summary>
+    [System.ComponentModel.Description("An explicit previous document ID; an empty string hides the link.")]
     public string? PaginationPrev { get; set; }
     /// <summary>An explicit next document ID; an empty string hides the link.</summary>
+    [System.ComponentModel.Description("An explicit next document ID; an empty string hides the link.")]
     public string? PaginationNext { get; set; }
     /// <summary>An optional absolute HTTP edit link.</summary>
+    [System.ComponentModel.Description("An optional absolute HTTP edit link.")]
     public string? CustomEditUrl { get; set; }
     /// <summary>Whether to omit the layout's title.</summary>
+    [System.ComponentModel.Description("Whether to omit the layout's title.")]
     public bool HideTitle { get; set; }
     /// <summary>Whether to omit the layout's table of contents.</summary>
+    [System.ComponentModel.Description("Whether to omit the layout's table of contents.")]
     public bool HideTableOfContents { get; set; }
     /// <summary>Optional explicit update metadata, taking precedence over Git discovery.</summary>
+    [System.ComponentModel.Description("Optional explicit update metadata, taking precedence over Git discovery.")]
     public DocumentUpdate? LastUpdate { get; set; }
 }
 
@@ -71,8 +90,10 @@ public sealed class DocumentFrontMatter
 public sealed class DocumentUpdate
 {
     /// <summary>The update timestamp.</summary>
+    [System.ComponentModel.Description("The update timestamp.")]
     public DateTimeOffset? Date { get; set; }
     /// <summary>The public author display name.</summary>
+    [System.ComponentModel.Description("The public author display name.")]
     public string? Author { get; set; }
 }
 

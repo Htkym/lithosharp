@@ -18,6 +18,18 @@ public sealed class SiteQualityReportTests
     }
 
     [Test]
+    public async Task Text_ContainsEndPositionAndCategory()
+    {
+        var report = new SiteQualityReport([
+            new SiteDiagnostic("LS009", SiteDiagnosticSeverity.Warning, "spans lines",
+                new SiteSourceLocation("c.md", 2, 3, 4, 5), "links", null),
+        ]);
+
+        await Assert.That(report.Format(SiteDiagnosticFormat.Text))
+            .IsEqualTo("WARNING LS009 [links]: spans lines (c.md:2:3-4:5)");
+    }
+
+    [Test]
     public async Task Json_ContainsLocations()
     {
         using var json = JsonDocument.Parse(new SiteQualityReport([

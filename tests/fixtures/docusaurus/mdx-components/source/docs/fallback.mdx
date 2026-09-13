@@ -1,0 +1,7 @@
+---
+title: Fallback
+---
+
+import BrowserOnly from '@docusaurus/BrowserOnly';
+
+<BrowserOnly fallback={<p>Static fallback</p>}>{() => <p>{window.location.href}</p>}</BrowserOnly>

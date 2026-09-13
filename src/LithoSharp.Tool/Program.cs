@@ -21,6 +21,21 @@ internal static class Program
         {
             return 130;
         }
+        catch (CliUsageException exception) when (Cli.WantsMachineOutput(args))
+        {
+            Cli.WriteErrorEnvelope(2, exception.Message);
+            return 2;
+        }
+        catch (ProjectCompilationException exception) when (Cli.WantsMachineOutput(args))
+        {
+            Cli.WriteErrorEnvelope(2, exception.Message);
+            return 2;
+        }
+        catch (Exception exception) when (Cli.WantsMachineOutput(args))
+        {
+            Cli.WriteErrorEnvelope(1, exception.Message);
+            return 1;
+        }
         catch (CliUsageException exception)
         {
             Console.Error.WriteLine(exception.Message);

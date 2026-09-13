@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
 using LithoSharp.Mdx;
 using LithoSharp.Pages;
 using LithoSharp.Routing;
@@ -120,6 +121,31 @@ public sealed class MdxIntegrationTests
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"), "export default !!!");
         await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default)).ThrowsException();
         await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+    }
+
+    [Test]
+    public async Task MdxSite_ForwardsLoaderWarningsWithoutStartingNode()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(workspace.Root, "missing-worker")));
+        mdx.AddCollection(new WarningLoader());
+        var output = Path.Combine(workspace.Root, "out");
+        var generation = await new SiteGenerator().GenerateWithOptionsAsync(
+            new SiteSettings(), [], output, clean: true, null,
+            new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, CancellationToken.None);
+
+        await Assert.That(mdx.Metrics.WorkerStarts).IsEqualTo(0);
+        await Assert.That(generation.BuildReport.Diagnostics.Any(diagnostic =>
+            diagnostic.Id == "LSMIG004")).IsTrue();
+    }
+
+    private sealed class WarningLoader : IContentCollectionLoader<FrontMatter, MdxDocument>
+    {
+        public ValueTask<ContentLoadResult<FrontMatter, MdxDocument>> LoadAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(ContentLoadResult<FrontMatter, MdxDocument>.Success(
+                new(new("warnings"), Path.GetTempPath(), [], entry => SiteRoute.ForDirectoryIndex("unused"),
+                    entry => new(entry.FrontMatter.Title)),
+                [new("LSMIG004", SiteDiagnosticSeverity.Warning, "Synthetic loader warning.")]));
     }
 
     [Test]

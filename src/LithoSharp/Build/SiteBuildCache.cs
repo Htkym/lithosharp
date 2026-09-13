@@ -122,6 +122,88 @@ internal sealed class SiteBuildCache
         }
     }
 
+    internal async Task<string> StorePostParseAsync(CachedPostParse parse, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(parse);
+        if (parse.Version != CachedPostParse.CurrentVersion
+            || string.IsNullOrWhiteSpace(parse.Compiler)
+            || !IsDigest(parse.SourceHash)
+            || !parse.HasValidContent())
+            throw new ArgumentException("The cached post parse is incomplete.", nameof(parse));
+        parse = parse with { Integrity = parse.ComputeIntegrity() };
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = CachedPostParse.CacheKey(parse.Compiler, parse.SourceHash);
+        var directory = Path.Combine(_directory, "parses");
+        var path = Path.Combine(directory, key + ".json");
+        EnsureSafePath(path);
+        Directory.CreateDirectory(directory);
+        EnsureSafePath(path);
+        var temporary = Path.Combine(directory, $".{key}-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            EnsureSafePath(temporary);
+            await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 81920, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                EnsureSafePath(temporary);
+                await JsonSerializer.SerializeAsync(stream, parse, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureSafePath(temporary);
+            EnsureSafePath(path);
+            // Same-key bytes are deterministic for the same inputs; last writer wins harmlessly.
+            File.Move(temporary, path, overwrite: true);
+            return key;
+        }
+        finally
+        {
+            try
+            {
+                EnsureSafePath(temporary);
+                File.Delete(temporary);
+            }
+            catch (Exception exception) when (IsCacheReadFailure(exception)) { }
+        }
+    }
+
+    /// <summary>
+    /// Reads a cached post parse. Returns null for missing, corrupt, foreign-version,
+    /// or mismatched records: callers re-parse instead of failing the build.
+    /// </summary>
+    internal async Task<CachedPostParse?> ReadPostParseAsync(
+        string compiler, string sourceHash, int sourceLength, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(compiler) || !IsDigest(sourceHash)) return null;
+        try
+        {
+            var path = Path.Combine(_directory, "parses", CachedPostParse.CacheKey(compiler, sourceHash) + ".json");
+            EnsureSafePath(path);
+            await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(_directory, path, asynchronous: true);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var parse = JsonSerializer.Deserialize<CachedPostParse>(buffer.ToArray());
+            if (parse is null
+                || parse.Version != CachedPostParse.CurrentVersion
+                || !string.Equals(parse.Compiler, compiler, StringComparison.Ordinal)
+                || !string.Equals(parse.SourceHash, sourceHash, StringComparison.OrdinalIgnoreCase)
+                || parse.SourceLength != sourceLength
+                || !parse.HasValidContent()
+                || !IsDigest(parse.Integrity)
+                || parse.Integrity != parse.ComputeIntegrity())
+                return null;
+            return parse;
+        }
+        catch (Exception exception) when (IsCacheReadFailure(exception))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return null;
+        }
+    }
+
     private async Task<byte[]?> ReadVerifiedAsync(
         string folder, string digest, string extension, CancellationToken cancellationToken)
     {
@@ -213,3 +295,67 @@ internal sealed record CachedBuildNode(
 internal sealed record CachedBuildArtifact(string ArtifactId, string RelativePath, long Length, string Sha256);
 
 internal sealed record CachedBuildInput(BuildInputKind Kind, string Key, string? Value);
+
+/// <summary>
+/// A layout-independent post parse for cross-build reuse: raw analysis HTML plus the
+/// semantic model. Post-processing (heading demotion, external-link attributes) is
+/// re-applied per build because it depends on site configuration. Records carrying
+/// components or diagnostics are never cached: dropping them on a hit would lose output.
+/// </summary>
+internal sealed record CachedPostParse(
+    int Version,
+    string Compiler,
+    string SourceHash,
+    int SourceLength,
+    string RawHtml,
+    string PlainText,
+    IReadOnlyList<CachedPostHeading> Headings,
+    IReadOnlyList<CachedPostLink> Links,
+    IReadOnlyList<CachedPostAsset> Assets)
+{
+    internal const int CurrentVersion = 2;
+
+    public string? Integrity { get; init; }
+
+    internal string ComputeIntegrity() => Convert.ToHexStringLower(SHA256.HashData(
+        JsonSerializer.SerializeToUtf8Bytes(this with { Integrity = null })));
+
+    internal bool HasValidContent() => SourceLength >= 0 && RawHtml is not null && PlainText is not null
+        && Headings is not null && Links is not null && Assets is not null
+        && Headings.All(heading => heading is not null && heading.Text is not null
+            && heading.RawLevel is >= 1 and <= 6 && heading.OutputLevel is >= 1 and <= 6
+            && ValidSpan(heading.SpanStart, heading.SpanLength))
+        && Links.All(link => link is not null && link.RawText is not null && link.Url is not null
+            && ValidSpan(link.SpanStart, link.SpanLength))
+        && Assets.All(asset => asset is not null && asset.Url is not null
+            && ValidSpan(asset.SpanStart, asset.SpanLength));
+
+    private bool ValidSpan(int start, int length) =>
+        start >= 0 && length >= 0 && start <= SourceLength && length <= SourceLength - start;
+
+    internal static string CacheKey(string compiler, string sourceHash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(compiler);
+        ArgumentNullException.ThrowIfNull(sourceHash);
+        return Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes(compiler + "\n" + sourceHash)));
+    }
+}
+
+internal sealed record CachedPostHeading(
+    string Text,
+    string? Id,
+    int RawLevel,
+    int OutputLevel,
+    int SpanStart,
+    int SpanLength);
+
+internal sealed record CachedPostLink(
+    string RawText,
+    string Url,
+    string? Title,
+    bool IsImage,
+    int SpanStart,
+    int SpanLength);
+
+internal sealed record CachedPostAsset(string Url, int SpanStart, int SpanLength);

@@ -1,0 +1,1 @@
+{"exitCode": 0, "verdicts": {"blog/authors.yml": "Convertible", "blog/2023-05-06-hello.md": "Convertible", "blog/plain.md": "Convertible"}, "issues": {}, "variants": [], "artifacts": ["blog/2023/05/06/hello/index.html", "blog/2023/04/05/plain/index.html"], "dom": {"blog/2023/05/06/hello/index.html": {"contains": ["Hello body", "Ada Lovelace"], "notContains": []}}}

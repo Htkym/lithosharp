@@ -1,5 +1,6 @@
 [CmdletBinding()]
-param([ValidateRange(30, 600)] [int] $TimeoutSeconds = 180)
+param([ValidateRange(30, 600)] [int] $TimeoutSeconds = 180,
+    [ValidateRange(5, 1000)] [int] $StressEdits = 20)
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture = Join-Path $repo ('.tmp/mdx-watch-' + [Guid]::NewGuid().ToString('N'))
@@ -51,6 +52,27 @@ function Wait-For([scriptblock] $Condition, [string] $Description) {
 }
 function State { Invoke-RestMethod "$origin/_lithosharp/diagnostics" -NoProxy -TimeoutSec 5 }
 function Page { (Invoke-WebRequest "$origin/guide/index/" -NoProxy -TimeoutSec 5).Content }
+function Get-Url([string] $Path) {
+    return Invoke-WebRequest -Uri ($origin + $Path) -NoProxy -SkipHttpErrorCheck -TimeoutSec 5
+}
+function Sample-ServeResources([string] $Label) {
+    $process.Refresh()
+    $handles = -1
+    try { $handles = $process.HandleCount } catch { $handles = -1 }
+    $threads = -1
+    try { $threads = $process.Threads.Count } catch { $threads = -1 }
+    $dist = Join-Path $project 'dist'
+    $distFiles = 0
+    if (Test-Path -LiteralPath $dist) { $distFiles = @(Get-ChildItem -LiteralPath $dist -Recurse -File -Force -ErrorAction SilentlyContinue).Count }
+    return [pscustomobject]@{
+        label = $Label
+        time = [DateTimeOffset]::UtcNow.ToString('o')
+        workingSetBytes = $process.WorkingSet64
+        handleCount = $handles
+        threadCount = $threads
+        distFiles = $distFiles
+    }
+}
 try {
     Wait-For { (Page) -match 'Count (<!-- -->)?1' } 'initial MDX build'
     if ((State).extensions[0].mdx.metrics.workerStarts -ne 1) { throw 'Initial build did not start one worker.' }
@@ -67,6 +89,67 @@ try {
     if ((Page) -notmatch 'Recovered content') { throw 'Failed C# replaced the published page.' }
     [IO.File]::WriteAllText($factoryPath, $factory.Replace('new SiteSettings()', 'new SiteSettings { Title="Factory recovered" }'))
     Wait-For { (State).success -and (Page) -match 'Factory recovered' } 'factory restart'
+    $restartWorkerStarts = (State).extensions[0].mdx.metrics.workerStarts
+    Write-Host "Factory restart recovered with workerStarts=$restartWorkerStarts."
+    $resources = [Collections.Generic.List[object]]::new()
+    $resources.Add((Sample-ServeResources 'baseline-after-restart'))
+
+    Write-Host 'Checking watch add/delete/rename...'
+    $extraPath = Join-Path $content 'extra.mdx'
+    $extraSource = "---`ntitle: Extra`n---`n# Extra`n`nExtra body.`n"
+    [IO.File]::WriteAllText($extraPath, $extraSource)
+    Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 200 -and (Get-Url '/guide/extra/').Content -match 'Extra body' } 'watch add'
+    if (!(State).success) { throw 'Add broke the build.' }
+    Remove-Item -LiteralPath $extraPath
+    Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 404 } 'watch delete'
+    if (!(State).success) { throw 'Delete broke the build.' }
+    if ((Page) -notmatch 'Factory recovered') { throw 'Delete replaced the surviving page.' }
+    $renamedPath = Join-Path $content 'renamed.mdx'
+    [IO.File]::WriteAllText($extraPath, $extraSource)
+    Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 200 } 'watch re-add'
+    Move-Item -LiteralPath $extraPath -Destination $renamedPath
+    Wait-For { (Get-Url '/guide/renamed/').StatusCode -eq 200 -and (Get-Url '/guide/extra/').StatusCode -eq 404 } 'watch rename'
+    if (!(State).success) { throw 'Rename broke the build.' }
+    Remove-Item -LiteralPath $renamedPath
+    Wait-For { (Get-Url '/guide/renamed/').StatusCode -eq 404 -and (State).success } 'watch rename cleanup'
+    $resources.Add((Sample-ServeResources 'after-add-delete-rename'))
+
+    Write-Host "Checking $StressEdits continuous watch edits..."
+    $baseSource = [IO.File]::ReadAllText($pagePath)
+    for ($edit = 1; $edit -le $StressEdits; $edit++) {
+        [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n")
+        if ($edit % 5 -eq 0) { $resources.Add((Sample-ServeResources "edit-$edit")) }
+    }
+    Wait-For { (Page) -match "Revision $StressEdits" -and (State).success } 'continuous edits convergence'
+    $resources.Add((Sample-ServeResources 'after-continuous-edits'))
+
+    Write-Host 'Checking stale coalescing converges to the latest edit...'
+    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision stale-9999.`n")
+    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`n")
+    Wait-For { (Page) -match 'Revision final-10000' -and (State).success } 'stale coalescing'
+    if ((Page) -match 'Revision stale-9999' -and (Page) -notmatch 'Revision final-10000') { throw 'A stale edit overwrote the latest result.' }
+    $resources.Add((Sample-ServeResources 'after-stale-coalescing'))
+
+    Write-Host 'Checking failed rebuild keeps the previous output after long use...'
+    $beforeLongFailure = (Get-Url '/guide/index/').Content
+    [IO.File]::WriteAllText($pagePath, $baseSource + "`n<Unclosed")
+    Wait-For { !(State).success } 'long-use MDX diagnostic'
+    if ((Page) -notmatch 'Revision final-10000') { throw 'Long-use failure replaced the published page.' }
+    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`nRecovered after soak.`n")
+    Wait-For { (Page) -match 'Recovered after soak' -and (State).success } 'long-use recovery'
+    $resources.Add((Sample-ServeResources 'after-recovery'))
+
+    $first = $resources[0]
+    $last = $resources[$resources.Count - 1]
+    $workingGrowth = $last.workingSetBytes - $first.workingSetBytes
+    $handleGrowth = ($last.handleCount - $first.handleCount)
+    Write-Host ("Watch resources: first workingSet={0}MB handles={1} threads={2} distFiles={3}; last workingSet={4}MB handles={5} threads={6} distFiles={7}; growth workingSet={8}MB handles={9}." -f `
+        ([Math]::Round($first.workingSetBytes / 1MB, 1)), $first.handleCount, $first.threadCount, $first.distFiles, `
+        ([Math]::Round($last.workingSetBytes / 1MB, 1)), $last.handleCount, $last.threadCount, $last.distFiles, `
+        ([Math]::Round($workingGrowth / 1MB, 1)), $handleGrowth)
+    if ($workingGrowth -gt 500MB) { throw "Unexplained working-set growth: $([Math]::Round($workingGrowth / 1MB, 1))MB." }
+    if ($first.handleCount -ge 0 -and $last.handleCount -ge 0 -and $handleGrowth -gt 300) { throw "Unexplained handle growth: $handleGrowth." }
+    [IO.File]::WriteAllText((Join-Path $fixture 'watch-resources.json'), ($resources | ConvertTo-Json -Depth 5))
     Write-Host 'MDX watch passed: imported component reuse, MDX/C# errors, output preservation and recovery.'
 } finally {
     if (!$process.HasExited) { $process.Kill($true); $process.WaitForExit() }

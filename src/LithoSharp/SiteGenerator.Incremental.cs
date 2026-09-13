@@ -62,6 +62,11 @@ public sealed partial class SiteGenerator
     {
         var cache = new SiteBuildCache(cacheRoot, transaction.OutputIdentity);
         var previous = await cache.LoadAsync(clean ? null : await transaction.ReadPreviousBuildCacheKeyAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        // Layout-independent post parses are reused across builds (keyed by compiler
+        // fingerprint plus source hash), so no-op builds parse nothing and layout-only
+        // changes re-render without re-parsing. Clean builds still re-execute every
+        // node; only the analysis step is shared through the verified cache.
+        configuration.CompiledBodies.AttachPersistentCache(cache, _markdownCompiler.Fingerprint);
         var completed = new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
         var reports = new Dictionary<string, SiteBuildReportNode>(StringComparer.Ordinal);
         var pagesByNode = pages.ToDictionary(page => page.OwnerId, StringComparer.Ordinal);
@@ -138,7 +143,7 @@ public sealed partial class SiteGenerator
             var keyBytes = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 Implementation = typeof(SiteGenerator).Module.ModuleVersionId,
-                Markdown = typeof(Markdig.Markdown).Module.ModuleVersionId,
+                MarkdownCompiler = _markdownCompiler.Fingerprint,
                 node.Id.Value, Inputs = inputs,
                 Dependencies = dependencies.Select(id => new { Id = id, completed[id].NodeKey }),
                 Artifacts = node.Artifacts.Select(artifact => new { artifact.Id.Value, artifact.RelativeOutputPath }),

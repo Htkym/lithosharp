@@ -1,5 +1,6 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Build;
 
@@ -48,4 +49,9 @@ public sealed record SiteBuildContribution
     public IReadOnlyList<SiteContentCollection> ContentCollections { get; init; } = [];
     /// <summary>Prepared assets, each with one declared owner.</summary>
     public IReadOnlyList<SiteGeneratedAsset> Assets { get; init; } = [];
+    /// <summary>
+    /// Non-fatal preparation diagnostics (warnings and info) surfaced in the
+    /// build report. Errors fail preparation with an exception instead.
+    /// </summary>
+    public IReadOnlyList<SiteDiagnostic> Diagnostics { get; init; } = [];
 }

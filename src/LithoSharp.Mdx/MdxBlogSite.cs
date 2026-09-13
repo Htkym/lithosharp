@@ -120,7 +120,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
             foreach (var (file, content) in new[] { ("atom.xml", atomFeed.ToString()), ("rss.xml", rss.ToString()), ("feed.json", json) })
                 assets.Add(new("blog:" + blog.Id + ":" + file, blog.RoutePrefix.Trim('/') + "/" + file, Encoding.UTF8.GetBytes(content)));
         }
-        return new() { ContentCollections = collections, Assets = assets };
+        return new() { ContentCollections = collections, Assets = assets, Diagnostics = prepared.Diagnostics };
     }
     private static string Profile(MdxBlogCollection blog, string id, string baseUrl)
     {
@@ -148,7 +148,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
                     throw new ArgumentException("Blog entries require a date and known author IDs: " + entry.SourcePath);
             return ContentLoadResult<MdxBlogFrontMatter, MdxDocument>.Success(new(source.Id, source.InputRoot, source.Entries.Select(entry =>
                 new ContentEntry<MdxBlogFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, entry.Body, entry.SourceLocation)
-                { DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : GeneratedPageDerivedSurfaces.All }), source.RouteConvention, source.PublicationMapper,
+                { DeclaredDependencies = entry.DeclaredDependencies, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : GeneratedPageDerivedSurfaces.All }), source.RouteConvention, source.PublicationMapper,
                 declaredDependencies: [ContentDependency.FromValue("blog.options", JsonSerializer.Serialize(blog))], transformationId: new("mdx-blog-v1"), isCacheable: true));
         }
     }

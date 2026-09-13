@@ -254,6 +254,9 @@ public static class Program
     Assert-True ($json.diagnostics.Count -gt 0) 'JSON check did not produce a diagnostic report.'
     $sarif = Invoke-Dotnet -Arguments (@($ToolPath, 'check') + $common + @('--format', 'sarif')) | ConvertFrom-Json
     Assert-True ($sarif.version -eq '2.1.0' -and $sarif.runs[0].results.Count -gt 0) 'SARIF check did not produce valid diagnostic results.'
+    Assert-True ($build.schemaVersion -eq '1.0' -and $build.exitCode -eq 0) 'Build JSON omitted the stable envelope.'
+    Assert-True ($build.diagnostics -is [array]) 'Build JSON omitted the structured diagnostic array.'
+    Assert-True ($inspect.schemaVersion -eq '1.0' -and $inspect.exitCode -eq 0) 'Inspect JSON omitted the stable envelope.'
     Assert-True ($beforeCheck -ceq (Get-Snapshot $cliOutput)) 'Check changed published output.'
     Assert-True ($cacheBeforeCheck -ceq (Get-Snapshot (Join-Path $site '.lithosharp'))) 'Check changed the normal build cache.'
 
@@ -265,6 +268,11 @@ public static class Program
         $null = Invoke-Dotnet -Arguments @($fixtureDll, $site, $directOutput, $directReportPath) -ExpectedExit 1
         Assert-True ($routeDiagnostics.Trim() -ceq (Get-Content -LiteralPath $directReportPath -Raw)) 'CLI dropped or changed library route diagnostics.'
         Assert-True (($routeDiagnostics | ConvertFrom-Json).diagnostics.Count -gt 0) 'Route collision returned no diagnostics.'
+    Write-Host 'Checking machine-readable failures...'
+    $usage = Invoke-Dotnet -Arguments @($ToolPath, 'build', '--format', 'json', '--bogus-option') -ExpectedExit 2 | ConvertFrom-Json
+    Assert-True ($usage.schemaVersion -eq '1.0' -and $usage.success -eq $false -and $usage.exitCode -eq 2) 'JSON usage error omitted the stable envelope.'
+    $migrateUsage = Invoke-Dotnet -Arguments @($ToolPath, 'migrate', 'docusaurus') -ExpectedExit 2 | ConvertFrom-Json
+    Assert-True ($migrateUsage.schemaVersion -eq '1.0' -and $migrateUsage.success -eq $false -and $migrateUsage.exitCode -eq 2) 'Migrate usage error omitted the stable envelope.'
         Assert-True ($beforeCheck -ceq (Get-Snapshot $cliOutput)) 'Failed route validation changed published output.'
     }
     finally { Remove-Item -LiteralPath $routeFlag }
@@ -284,7 +292,7 @@ public static class Program
     # A separate hidden console permits a real Windows Ctrl+C without interrupting this test runner.
     $controllerPath = Join-Path $fixture 'serve-controller.ps1'
     [IO.File]::WriteAllText($controllerPath, @'
-param([string] $Mode, [string] $Tool, [string] $Project, [string] $Output, [string] $PidFile, [int] $Port, [int] $SignalPid)
+param([string] $Mode, [string] $Tool, [string] $Project, [string] $Output, [string] $PidFile, [int] $Port, [int] $SignalPid, [string] $Format)
 $ErrorActionPreference = 'Stop'
 if ($IsWindows) {
     Add-Type -TypeDefinition @"
@@ -338,6 +346,7 @@ $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
 $start.RedirectStandardOutput = $true
 $start.RedirectStandardError = $true
 foreach ($argument in @($Tool, 'serve', $Project, '-c', 'Release', '-o', $Output, '--port', $Port.ToString())) { $start.ArgumentList.Add($argument) }
+if ($Format) { $start.ArgumentList.Add('--format'); $start.ArgumentList.Add($Format) }
 $server = [Diagnostics.Process]::Start($start)
 [IO.File]::WriteAllText($PidFile, $server.Id.ToString())
 $stdout = $server.StandardOutput.ReadToEndAsync()
@@ -457,8 +466,126 @@ finally {
     $null = Complete-TestProcess $server @(0, 130)
     Wait-Until { $null -eq (Get-Process -Id $hostPid -ErrorAction SilentlyContinue) } 'factory child termination'
     Assert-True ($null -eq (Get-Process -Id $toolPid -ErrorAction SilentlyContinue)) 'Serve process remained alive after cancellation.'
+    if ($sseReader) { $sseReader.Dispose(); $sseReader = $null }
+    if ($sseResponse) { $sseResponse.Dispose(); $sseResponse = $null }
+    if ($http) { $http.Dispose(); $http = $null }
+
+    Write-Host 'Checking serve machine control contract (JSON Lines)...'
+    Remove-Item -LiteralPath (Join-Path $site 'wait.flag') -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $childPidPath -ErrorAction SilentlyContinue
+    [IO.File]::WriteAllText((Join-Path $site 'one.txt'), 'content-machine-v1')
+    function Get-MachineEvents([string] $Path) {
+        $events = @()
+        if (!(Test-Path -LiteralPath $Path)) { return $events }
+        foreach ($line in (Get-Content -LiteralPath $Path)) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $events += ($line | ConvertFrom-Json)
+        }
+        return $events
+    }
+    function Assert-MachinePure([string] $Path, [string] $Name) {
+        foreach ($line in (Get-Content -LiteralPath $Path)) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            try { $null = $line | ConvertFrom-Json } catch { throw "$Name stdout was not pure JSON Lines: $line" }
+        }
+    }
+    # Dynamic port allocation, rebuild success/failure/recovery via direct process with file redirect.
+    $mOutput = Join-Path $site 'server-machine-output'
+    $mStdout = Join-Path $logs 'machine-stdout.log'
+    $mStderr = Join-Path $logs 'machine-stderr.log'
+    if (Test-Path -LiteralPath $mStdout) { Remove-Item -LiteralPath $mStdout }
+    if (Test-Path -LiteralPath $mStderr) { Remove-Item -LiteralPath $mStderr }
+    $mProc = Start-Process -FilePath 'dotnet' -ArgumentList @($ToolPath, 'serve', $project, '-c', 'Release', '-o', $mOutput, '--port', '0', '--format', 'json') -WorkingDirectory $site -RedirectStandardOutput $mStdout -RedirectStandardError $mStderr -PassThru
+    try {
+    $mPid = $mProc.Id
+    Wait-Until {
+        foreach ($event in (Get-MachineEvents $mStdout)) { if ($event.event -eq 'startup') { return $true } }
+        if ($mProc.HasExited) { throw "Machine serve exited before startup: $(Get-Content -LiteralPath $mStderr -Raw -ErrorAction SilentlyContinue)" }
+        return $false
+    } 'machine startup event'
+    $mStartup = @(Get-MachineEvents $mStdout | Where-Object { $_.event -eq 'startup' })[0]
+    Assert-True ($mStartup.schemaVersion -eq '1.0') 'Machine startup omitted schemaVersion.'
+    Assert-True ($mStartup.requestedPort -eq 0) 'Machine startup did not report requested port 0.'
+    Assert-True ($mStartup.actualPort -gt 0 -and $mStartup.url -eq "http://127.0.0.1:$($mStartup.actualPort)") 'Machine startup URL/port mismatch.'
+    Assert-True ($mStartup.basePath -eq '/') 'Machine startup omitted basePath.'
+    Assert-True (![string]::IsNullOrWhiteSpace($mStartup.outputDirectory)) 'Machine startup omitted outputDirectory.'
+    Assert-MachinePure $mStdout 'Machine serve'
+    $mUrl = $mStartup.url
+    Wait-Until { try { (Get-Http "$mUrl/typed/one/").StatusCode -eq 200 } catch { $false } } 'machine serve startup'
+    Assert-True ((Get-Http "$mUrl/typed/one/").Content.Contains('content-machine-v1')) 'Machine serve did not serve initial content.'
+    $mState = (Get-Http "$mUrl/_lithosharp/diagnostics").Content | ConvertFrom-Json
+    Assert-True ($mState.success -and $mState.schemaVersion -eq '1.0') 'Machine diagnostics endpoint did not expose structured state.'
+    [IO.File]::WriteAllText((Join-Path $site 'one.txt'), 'content-machine-v2')
+    Wait-Until {
+        foreach ($event in (Get-MachineEvents $mStdout)) { if ($event.event -eq 'rebuild-succeeded') { return $true } }
+        return $false
+    } 'machine rebuild-succeeded'
+    Wait-Until { (Get-Http "$mUrl/typed/one/").Content.Contains('content-machine-v2') } 'machine content rebuild'
+    Assert-MachinePure $mStdout 'Machine serve after rebuild'
+    Remove-Item -LiteralPath (Join-Path $site 'one.txt')
+    Wait-Until {
+        foreach ($event in (Get-MachineEvents $mStdout)) { if ($event.event -eq 'rebuild-failed') { return $true } }
+        return $false
+    } 'machine rebuild-failed'
+    Assert-True ((Get-Http "$mUrl/typed/one/").Content.Contains('content-machine-v2')) 'Machine serve lost last good page after rebuild failure.'
+    $mFailState = (Get-Http "$mUrl/_lithosharp/diagnostics").Content | ConvertFrom-Json
+    Assert-True (!$mFailState.success -and ![string]::IsNullOrWhiteSpace($mFailState.error)) 'Machine rebuild failure did not reach diagnostics endpoint.'
+    [IO.File]::WriteAllText((Join-Path $site 'one.txt'), 'content-machine-v3')
+    Wait-Until { (Get-Http "$mUrl/typed/one/").Content.Contains('content-machine-v3') } 'machine recovery'
+    Assert-MachinePure $mStdout 'Machine serve after recovery'
+    } finally {
+        if ($mProc -and !$mProc.HasExited) { $mProc.Kill($true); $null = $mProc.WaitForExit(10000) }
+        $mProc.Dispose()
+    }
+    Wait-Until { $null -eq (Get-Process -Id $mPid -ErrorAction SilentlyContinue) } 'machine server termination'
+    # Port conflict must report structured startup-failed without regex parsing.
+    $conflictListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $conflictListener.Start()
+    $conflictPort = $conflictListener.LocalEndpoint.Port
+    try {
+        $conflictOut = Invoke-Dotnet -Arguments @($ToolPath, 'serve', $project, '-c', 'Release', '-o', (Join-Path $site 'conflict-output'), '--port', $conflictPort.ToString(), '--format', 'json') -ExpectedExit 1
+        $conflictLines = @($conflictOut -split "`r?`n" | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+        Assert-True ($conflictLines.Count -eq 1) 'Port conflict did not emit a single machine event.'
+        $conflictEvent = $conflictLines[0] | ConvertFrom-Json
+        Assert-True ($conflictEvent.event -eq 'startup-failed' -and $conflictEvent.schemaVersion -eq '1.0' -and $conflictEvent.success -eq $false) 'Port conflict omitted structured startup-failed.'
+    } finally { $conflictListener.Stop() }
+    # Initial build failure must report structured startup-failed.
+    $oneBackup = Get-Content -LiteralPath (Join-Path $site 'one.txt') -Raw
+    Remove-Item -LiteralPath (Join-Path $site 'one.txt')
+    try {
+        $failOut = Invoke-Dotnet -Arguments @($ToolPath, 'serve', $project, '-c', 'Release', '-o', (Join-Path $site 'fail-output'), '--port', '0', '--format', 'json') -ExpectedExit 1
+        $failEvent = ($failOut -split "`r?`n" | Where-Object { ![string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1) | ConvertFrom-Json
+        Assert-True ($failEvent.event -eq 'startup-failed' -and $failEvent.schemaVersion -eq '1.0') 'Initial build failure omitted structured startup-failed.'
+    } finally { [IO.File]::WriteAllText((Join-Path $site 'one.txt'), $oneBackup) }
+    # Graceful Ctrl+C must emit startup and shutdown JSON and leave no server/worker behind.
+    $gmListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $gmListener.Start()
+    $gmPort = $gmListener.LocalEndpoint.Port
+    $gmListener.Stop()
+    $gmUrl = "http://127.0.0.1:$gmPort"
+    $gmOutput = Join-Path $site 'server-grace-output'
+    $gmPidFile = Join-Path $fixture 'grace-machine.pid'
+    $gmServer = Start-TestProcess $pwsh @('-NoProfile', '-File', $controllerPath, '-Mode', 'serve', '-Tool', $ToolPath,
+        '-Project', $project, '-Output', $gmOutput, '-PidFile', $gmPidFile, '-Port', $gmPort.ToString(), '-Format', 'json') 'serve-machine'
+    Wait-Until {
+        if ($gmServer.Process.HasExited) { throw "Machine serve exited before listening." }
+        try { return (Get-Http "$gmUrl/typed/one/").StatusCode -eq 200 } catch { return $false }
+    } 'machine graceful startup'
+    $gmToolPid = [int](Get-Content -LiteralPath $gmPidFile -Raw)
+    $gmSignal = Start-TestProcess $pwsh @('-NoProfile', '-File', $controllerPath, '-Mode', 'signal', '-SignalPid', $gmToolPid.ToString()) 'cancel-machine'
+    $null = Complete-TestProcess $gmSignal
+    $gmStdout = Complete-TestProcess $gmServer @(0, 130)
+    $gmLines = @($gmStdout -split "`r?`n" | Where-Object { ![string]::IsNullOrWhiteSpace($_) -and !$_.StartsWith('WARNING:') })
+    # Controller forwards only the serve stdout; every line must be a machine event.
+    foreach ($line in $gmLines) { try { $null = $line | ConvertFrom-Json } catch { throw "Graceful machine stdout was not pure JSON Lines: $line" } }
+    $gmParsed = @($gmLines | ForEach-Object { $_ | ConvertFrom-Json })
+    Assert-True (($gmParsed | Where-Object { $_.event -eq 'startup' }).Count -eq 1) 'Graceful machine run omitted startup.'
+    Assert-True (($gmParsed | Where-Object { $_.event -eq 'shutdown' }).Count -eq 1) 'Graceful machine run omitted shutdown.'
+    $gmStartup = $gmParsed | Where-Object { $_.event -eq 'startup' } | Select-Object -First 1
+    Assert-True ($gmStartup.url -eq $gmUrl -and $gmStartup.actualPort -eq $gmPort) 'Graceful machine startup URL did not match selected port.'
+    Assert-True ($null -eq (Get-Process -Id $gmToolPid -ErrorAction SilentlyContinue)) 'Machine serve remained alive after cancellation.'
     $passed = $true
-    Write-Host 'Tool integration passed: build/library equivalence, cache inspection, check formats, clean ownership, serve rebuilds, path safety, and cancellation.'
+    Write-Host 'Tool integration passed: build/library equivalence, cache inspection, check formats, clean ownership, serve rebuilds, path safety, cancellation, and machine control contract.'
 }
 finally {
     if ($sseReader) { $sseReader.Dispose() }

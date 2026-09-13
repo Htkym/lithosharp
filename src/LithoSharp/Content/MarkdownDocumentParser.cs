@@ -1,5 +1,7 @@
 namespace LithoSharp.Content;
 
+using LithoSharp.Content.Compilation;
+
 /// <summary>
 /// Splits a Markdown document that has front matter.
 /// </summary>
@@ -14,25 +16,19 @@ public static class MarkdownDocumentParser
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        if (!text.StartsWith("---", StringComparison.Ordinal))
+        var split = FrontMatterSplitter.TrySplit(text);
+        return split.Status switch
         {
-            throw new InvalidOperationException($"Markdown document '{path}' must start with YAML front matter.");
-        }
-
-        using var reader = new StringReader(text);
-        _ = reader.ReadLine();
-        var yaml = new List<string>();
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
-        {
-            if (line == "---")
-            {
-                return (string.Join(Environment.NewLine, yaml), reader.ReadToEnd());
-            }
-
-            yaml.Add(line);
-        }
-
-        throw new InvalidOperationException($"Markdown document '{path}' has no closing front matter marker.");
+            // A leading BOM is skipped by the shared scanner, matching the
+            // collection loader and MDX handling. Previously a BOM-prefixed
+            // document failed the opening marker check here.
+            FrontMatterSplitStatus.Ok => (split.Yaml, split.Body),
+            // Empty front matter still yields the body after the closing
+            // marker, matching the previous StringReader implementation.
+            FrontMatterSplitStatus.EmptyFrontMatter => (split.Yaml, split.Body),
+            FrontMatterSplitStatus.UnterminatedFrontMatter =>
+                throw new InvalidOperationException($"Markdown document '{path}' has no closing front matter marker."),
+            _ => throw new InvalidOperationException($"Markdown document '{path}' must start with YAML front matter."),
+        };
     }
 }

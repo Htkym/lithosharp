@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Logging;
 
 namespace LithoSharp.Tool;
 
@@ -22,12 +23,22 @@ internal static class DevServer
     internal static async Task<int> RunAsync(
         string project, string configuration, CommandOptions options, CancellationToken cancellationToken)
     {
-        var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken);
-        await using var session = new WatchHostSession();
+        var machine = string.Equals(options.Value("format"), "json", StringComparison.Ordinal);
+        var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
+        await using var session = new WatchHostSession(machine);
         var latest = await session.BuildAsync(assembly, project, options, cancellationToken);
         if (!latest.Success)
         {
             if (!string.IsNullOrWhiteSpace(latest.Error)) Console.Error.WriteLine(latest.Error);
+            if (machine) WriteMachine(new
+            {
+                SchemaVersion = MachineOutput.SchemaVersion,
+                Event = "startup-failed",
+                Success = false,
+                latest.ExitCode,
+                latest.Error,
+                latest.OutputDirectory,
+            });
             return latest.ExitCode;
         }
         var outputRoot = Path.GetFullPath(latest.OutputDirectory
@@ -39,6 +50,8 @@ internal static class DevServer
         var hub = new ReloadHub();
         var state = new ServerState(latest);
         var builder = WebApplication.CreateSlimBuilder();
+        // Machine mode keeps stdout as pure JSON Lines, so ASP.NET logs must not pollute it.
+        if (machine) builder.Logging.ClearProviders();
         builder.WebHost.UseUrls(url);
         var app = builder.Build();
         app.MapGet("/_lithosharp/reload", context => hub.ConnectAsync(context, cancellationToken));
@@ -54,11 +67,54 @@ internal static class DevServer
         { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
         using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
             path => { if (Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1); changes.Writer.TryWrite(true); });
-        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, cancellationToken);
-        await app.StartAsync(cancellationToken);
-        var actualUrl = app.Services.GetRequiredService<IServer>().Features
+        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, cancellationToken);
+        var requestedPort = port;
+        var started = false;
+        string actualUrl = url;
+        try
+        {
+            await app.StartAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Console.Error.WriteLine(exception.Message);
+            if (machine) WriteMachine(new
+            {
+                SchemaVersion = MachineOutput.SchemaVersion,
+                Event = "startup-failed",
+                Success = false,
+                ExitCode = 1,
+                Error = exception.Message,
+                OutputDirectory = (string?)null,
+            });
+            changes.Writer.TryComplete();
+            try { await rebuild; } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            await app.StopAsync(CancellationToken.None);
+            return 1;
+        }
+        actualUrl = app.Services.GetRequiredService<IServer>().Features
             .Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault() ?? url;
-        Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
+        started = true;
+        var actualPort = TryGetPort(actualUrl) ?? requestedPort;
+        if (machine)
+        {
+            Console.Error.WriteLine($"Serving {outputRoot} at {actualUrl}");
+            WriteMachine(new
+            {
+                SchemaVersion = MachineOutput.SchemaVersion,
+                Event = "startup",
+                Host = host,
+                RequestedPort = requestedPort,
+                ActualPort = actualPort,
+                Url = actualUrl,
+                OutputDirectory = outputRoot,
+                BasePath = "/",
+            });
+        }
+        else
+        {
+            Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
+        }
         if (options.Has("open")) OpenBrowser(actualUrl);
         try { await app.WaitForShutdownAsync(cancellationToken); }
         finally
@@ -66,24 +122,31 @@ internal static class DevServer
             changes.Writer.TryComplete();
             try { await rebuild; } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
+            if (machine && started) WriteMachine(new
+            {
+                SchemaVersion = MachineOutput.SchemaVersion,
+                Event = "shutdown",
+                ExitCode = cancellationToken.IsCancellationRequested ? 130 : 0,
+            });
         }
-        return 0;
+        return cancellationToken.IsCancellationRequested ? 130 : 0;
     }
 
     private static async Task RebuildLoopAsync(
         ChannelReader<bool> changes, string project, string configuration, CommandOptions options,
-        ServerState state, ReloadHub hub, WatchHostSession session, string assembly, CancellationToken cancellationToken)
+        ServerState state, ReloadHub hub, WatchHostSession session, string assembly, bool machine, CancellationToken cancellationToken)
     {
         await foreach (var ignored in changes.ReadAllAsync(cancellationToken))
         {
             await Task.Delay(150, cancellationToken);
             while (changes.TryRead(out _)) { }
+            if (machine) WriteMachine(new { SchemaVersion = MachineOutput.SchemaVersion, Event = "rebuild-started" });
             try
             {
                 if (Interlocked.Exchange(ref state.Restart, 0) != 0)
                 {
                     await session.StopAsync();
-                    assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken);
+                    assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
                 }
                 var response = await session.BuildAsync(assembly, project, options, cancellationToken);
                 state.Latest = response;
@@ -93,7 +156,28 @@ internal static class DevServer
                     state.IgnoredPaths = response.IgnoredPaths;
                 }
                 if (!response.Success && !string.IsNullOrWhiteSpace(response.Error)) Console.Error.WriteLine(response.Error);
+                else if (machine) Console.Error.WriteLine($"Rebuilt at {DateTimeOffset.Now:T}");
                 else Console.WriteLine($"Rebuilt at {DateTimeOffset.Now:T}");
+                if (machine)
+                {
+                    if (response.Success) WriteMachine(new
+                    {
+                        SchemaVersion = MachineOutput.SchemaVersion,
+                        Event = "rebuild-succeeded",
+                        Success = true,
+                        response.ExitCode,
+                        OutputDirectory = state.OutputRoot,
+                    });
+                    else WriteMachine(new
+                    {
+                        SchemaVersion = MachineOutput.SchemaVersion,
+                        Event = "rebuild-failed",
+                        Success = false,
+                        response.ExitCode,
+                        response.Error,
+                        OutputDirectory = state.OutputRoot,
+                    });
+                }
                 hub.Publish(response.Success ? "reload" : "error");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -102,9 +186,33 @@ internal static class DevServer
                 Interlocked.Exchange(ref state.Restart, 1);
                 state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message };
                 Console.Error.WriteLine(exception.Message);
+                if (machine) WriteMachine(new
+                {
+                    SchemaVersion = MachineOutput.SchemaVersion,
+                    Event = "rebuild-failed",
+                    Success = false,
+                    ExitCode = 1,
+                    Error = exception.Message,
+                    OutputDirectory = state.OutputRoot,
+                });
                 hub.Publish("error");
             }
         }
+    }
+
+    private static readonly JsonSerializerOptions MachineOptions = new(JsonSerializerDefaults.Web);
+
+    private static void WriteMachine(object value) =>
+        Console.WriteLine(JsonSerializer.Serialize(value, MachineOptions));
+
+    private static int? TryGetPort(string url)
+    {
+        try
+        {
+            var port = new Uri(url, UriKind.Absolute).Port;
+            return port is >= 0 and <= 65535 ? port : null;
+        }
+        catch (UriFormatException) { return null; }
     }
 
     private static FileSystemWatcher CreateWatcher(

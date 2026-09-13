@@ -55,6 +55,9 @@ if ($metadata.license.type -ne 'expression' -or $metadata.license.'#text' -ne 'M
     $metadata.repository.type -ne 'git' -or $metadata.repository.url -ne 'https://github.com/Htkym/lithosharp') {
     throw 'Package license, icon, README or repository metadata is incorrect.'
 }
+if (@($metadata.dependencies.group.dependency.id) -contains 'Markdig') {
+    throw 'Package metadata must not reference Markdig.'
+}
 foreach ($dependency in @($metadata.dependencies.group.dependency)) {
     if ($dependency.id -like 'LithoSharp*' -and $dependency.version -notin @($metadata.version, "[$($metadata.version), )")) {
         throw "Package dependency version is not aligned: $($dependency.id) $($dependency.version)."
@@ -117,7 +120,7 @@ if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('AngleSharp', 'Markdig', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet')) {
+foreach ($expected in @('AngleSharp', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

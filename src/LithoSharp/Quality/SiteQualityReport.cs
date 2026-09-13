@@ -33,7 +33,11 @@ public sealed class SiteQualityReport
             .ThenBy(static value => value.Location?.Column)
             .ThenBy(static value => value.Severity)
             .ThenBy(static value => value.Message, StringComparer.Ordinal)
-            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column))
+            .ThenBy(static value => value.Location?.EndLine)
+            .ThenBy(static value => value.Location?.EndColumn)
+            .ThenBy(static value => value.Category, StringComparer.Ordinal)
+            .ThenBy(static value => RelatedKey(value), StringComparer.Ordinal)
+            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column, value.Location?.EndLine, value.Location?.EndColumn, value.Category, RelatedKey(value)))
             .ToArray());
     }
 
@@ -53,8 +57,14 @@ public sealed class SiteQualityReport
     };
 
     private string FormatText() => string.Join("\n", Diagnostics.Select(static diagnostic =>
-        $"{diagnostic.Severity.ToString().ToUpperInvariant()} {diagnostic.Id}: {diagnostic.Message}"
-        + (diagnostic.Location is null ? "" : $" ({diagnostic.Location.FilePath}:{diagnostic.Location.Line?.ToString() ?? "?"}:{diagnostic.Location.Column?.ToString() ?? "?"})")));
+        $"{diagnostic.Severity.ToString().ToUpperInvariant()} {diagnostic.Id}"
+        + (string.IsNullOrEmpty(diagnostic.Category) ? "" : $" [{diagnostic.Category}]")
+        + $": {diagnostic.Message}"
+        + (diagnostic.Location is null ? "" : FormatTextLocation(diagnostic.Location))));
+
+    private static string FormatTextLocation(SiteSourceLocation location) =>
+        $" ({location.FilePath}:{location.Line?.ToString() ?? "?"}:{location.Column?.ToString() ?? "?"}" +
+        (location.EndLine is null ? "" : $"-{location.EndLine}:{location.EndColumn?.ToString() ?? "?"}") + ")";
 
     private string FormatJson()
     {
@@ -98,10 +108,34 @@ public sealed class SiteQualityReport
                         writer.WriteStartObject("region");
                         writer.WriteNumber("startLine", line);
                         if (location.Column is { } column) writer.WriteNumber("startColumn", column);
+                        if (location.EndLine is { } endLine) writer.WriteNumber("endLine", endLine);
+                        if (location.EndColumn is { } endColumn) writer.WriteNumber("endColumn", endColumn);
                         writer.WriteEndObject();
                     }
                     writer.WriteEndObject();
                     writer.WriteEndObject();
+                    writer.WriteEndArray();
+                }
+                if (diagnostic.Category is { } category) { writer.WriteStartObject("properties"); writer.WriteString("category", category); writer.WriteEndObject(); }
+                if (diagnostic.RelatedLocations.Count > 0)
+                {
+                    writer.WriteStartArray("relatedLocations");
+                    foreach (var related in diagnostic.RelatedLocations)
+                    {
+                        writer.WriteStartObject(); writer.WriteStartObject("physicalLocation"); writer.WriteStartObject("artifactLocation");
+                        writer.WriteString("uri", ArtifactUri(related.FilePath));
+                        writer.WriteEndObject();
+                        if (related.Line is { } relatedLine)
+                        {
+                            writer.WriteStartObject("region");
+                            writer.WriteNumber("startLine", relatedLine);
+                            if (related.Column is { } relatedColumn) writer.WriteNumber("startColumn", relatedColumn);
+                            if (related.EndLine is { } relatedEndLine) writer.WriteNumber("endLine", relatedEndLine);
+                            if (related.EndColumn is { } relatedEndColumn) writer.WriteNumber("endColumn", relatedEndColumn);
+                            writer.WriteEndObject();
+                        }
+                        writer.WriteEndObject(); writer.WriteEndObject();
+                    }
                     writer.WriteEndArray();
                 }
                 writer.WriteEndObject();
@@ -118,10 +152,24 @@ public sealed class SiteQualityReport
         return string.Join("/", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
     }
 
+    private static string RelatedKey(SiteDiagnostic diagnostic) =>
+        string.Join(";", diagnostic.RelatedLocations.Select(static related => string.Concat(related.FilePath, ":", related.Line?.ToString(), ":", related.Column?.ToString(), "-", related.EndLine?.ToString(), ":", related.EndColumn?.ToString())));
+
+    private static void WriteLocationBody(Utf8JsonWriter writer, SiteSourceLocation location)
+    {
+        writer.WriteString("filePath", location.FilePath);
+        if (location.Line is { } line) writer.WriteNumber("line", line);
+        if (location.Column is { } column) writer.WriteNumber("column", column);
+        if (location.EndLine is { } endLine) writer.WriteNumber("endLine", endLine);
+        if (location.EndColumn is { } endColumn) writer.WriteNumber("endColumn", endColumn);
+    }
+
     private static void WriteDiagnostic(Utf8JsonWriter writer, SiteDiagnostic diagnostic)
     {
         writer.WriteStartObject(); writer.WriteString("id", diagnostic.Id); writer.WriteString("severity", diagnostic.Severity.ToString()); writer.WriteString("message", diagnostic.Message);
-        if (diagnostic.Location is { } location) { writer.WriteStartObject("location"); writer.WriteString("filePath", location.FilePath); if (location.Line is { } line) writer.WriteNumber("line", line); if (location.Column is { } column) writer.WriteNumber("column", column); writer.WriteEndObject(); }
+        if (diagnostic.Category is { } category) writer.WriteString("category", category);
+        if (diagnostic.Location is { } location) { writer.WriteStartObject("location"); WriteLocationBody(writer, location); writer.WriteEndObject(); }
+        if (diagnostic.RelatedLocations.Count > 0) { writer.WriteStartArray("relatedLocations"); foreach (var related in diagnostic.RelatedLocations) { writer.WriteStartObject(); WriteLocationBody(writer, related); writer.WriteEndObject(); } writer.WriteEndArray(); }
         writer.WriteEndObject();
     }
 }

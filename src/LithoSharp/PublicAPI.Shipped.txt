@@ -302,8 +302,8 @@ LithoSharp.Content.MarkdownPost.Slug.get -> string!
 LithoSharp.Content.MarkdownPost.Slug.init -> void
 LithoSharp.Content.MarkdownPostReader
 LithoSharp.Content.MarkdownPostReader.MarkdownPostReader() -> void
-LithoSharp.Content.MarkdownPostReader.ReadAllAsync(string! contentDirectory) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!>!
-LithoSharp.Content.MarkdownPostReader.ReadAsync(string! path, string! contentRoot) -> System.Threading.Tasks.Task<LithoSharp.Content.MarkdownPost!>!
+LithoSharp.Content.MarkdownPostReader.ReadAllAsync(string! contentDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownPost!>!>!
+LithoSharp.Content.MarkdownPostReader.ReadAsync(string! path, string! contentRoot, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Content.MarkdownPost!>!
 LithoSharp.Content.PostFrontMatter
 LithoSharp.Content.PostFrontMatter.Date.get -> System.DateTimeOffset
 LithoSharp.Content.PostFrontMatter.Date.init -> void

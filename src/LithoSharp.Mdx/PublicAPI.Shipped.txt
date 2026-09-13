@@ -155,7 +155,8 @@ LithoSharp.Mdx.MdxContentCollectionLoader<TFrontMatter>.TransformationFingerprin
 LithoSharp.Mdx.MdxDocument
 LithoSharp.Mdx.MdxDocument.Body.get -> string!
 LithoSharp.Mdx.MdxDocument.BodyStartLine.get -> int
-LithoSharp.Mdx.MdxDocument.MdxDocument(string! body, int bodyStartLine = 1) -> void
+LithoSharp.Mdx.MdxDocument.BodyStartOffset.get -> int
+LithoSharp.Mdx.MdxDocument.MdxDocument(string! body, int bodyStartLine = 1, int bodyStartOffset = 0) -> void
 LithoSharp.Mdx.MdxDocument.PlainText.get -> string?
 LithoSharp.Mdx.MdxDocument.ToHtmlString() -> string!
 LithoSharp.Mdx.MdxOptions

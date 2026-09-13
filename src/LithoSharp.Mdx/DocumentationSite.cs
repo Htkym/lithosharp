@@ -45,6 +45,16 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
     private DocumentCatalog catalog = new([]);
     private string browserHead = "";
     private readonly List<DocumentKey> missingTranslations = [];
+    private readonly SiteGenerator markdownRenderer = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> markdownHtmlCache = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Renders Markdown without Node through one shared compiler with a
+    /// per-site cache, so search preparation and page rendering share a
+    /// single parse per distinct body instead of parsing twice.
+    /// </summary>
+    private string RenderMarkdownCached(string markdown) =>
+        markdownHtmlCache.GetOrAdd(markdown, static (body, renderer) => renderer.RenderMarkdown(body), markdownRenderer);
     /// <summary>Optional progressive navigation and theme controls.</summary>
     public DocumentationBrowserOptions? Browser { get; init; }
     /// <summary>The public C# layout contract, including sidebar, body, table of contents and head regions.</summary>
@@ -97,6 +107,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
     {
         var documents = new List<DocumentPage>();
         var browserAssets = new List<SiteGeneratedAsset>();
+        var loadDiagnostics = new List<LithoSharp.Diagnostics.SiteDiagnostic>();
         browserHead = "";
         missingTranslations.Clear();
         if (Browser is { } browser)
@@ -127,8 +138,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
         {
             var options = registration.Options;
             var variant = registration.Variant;
-            var collectionId = new ContentCollectionId($"docs:{options.Id}:{variant.Version}:{variant.Locale}");
-            SiteRoute Route(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => SiteRoute.ForDirectoryIndex(
+            var collectionId = new ContentCollectionId($"docs:{options.Id}:{variant.Version}:{variant.Locale}");            SiteRoute Route(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => SiteRoute.ForDirectoryIndex(
                 variant.RoutePrefix.Trim('/') + "/" + (entry.FrontMatter.Slug ?? entry.Id.Value).Trim('/'), context.Site.BaseUrl);
             PageMetadata Metadata(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => new(entry.FrontMatter.Title,
                 entry.FrontMatter.Description, entry.FrontMatter.Draft, entry.FrontMatter.PublishFrom, entry.FrontMatter.PublishUntil)
@@ -143,6 +153,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
                 var result = await new MdxContentCollectionLoader<DocumentFrontMatter>(collectionId, variant.InputDirectory, Route, Metadata)
                     { IncludeMarkdown = true, TransformationFingerprint = "docs-v1" }.LoadAsync(cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess) throw new SiteBuildExtensionException(result.Diagnostics);
+                loadDiagnostics.AddRange(result.Diagnostics);
                 raw = result.Collection!;
             }
             else
@@ -151,13 +162,15 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
                     _ => SiteRoute.ForDirectoryIndex("unused"), entry => new PageMetadata(entry.FrontMatter.Title))
                     .LoadAsync(cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess) throw new SiteBuildExtensionException(result.Diagnostics);
+                loadDiagnostics.AddRange(result.Diagnostics);
                 raw = new(collectionId, variant.InputDirectory, result.Collection!.Entries.Select(entry => new ContentEntry<DocumentFrontMatter, MdxDocument>(
-                    entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, new(entry.Body), entry.SourceLocation)), Route, Metadata);
+                    entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, new(entry.Body), entry.SourceLocation)
+                { DeclaredDependencies = entry.DeclaredDependencies, DerivedSurfaces = entry.DerivedSurfaces }), Route, Metadata);
             }
             var entries = raw.Entries.Where(entry => !MdxContentCollectionLoader<DocumentFrontMatter>.IsPartial(entry.SourcePath)).Select(entry => new ContentEntry<DocumentFrontMatter, MdxDocument>(
                 new(entry.FrontMatter.Id ?? DocumentCatalog.DefaultId(entry.SourcePath)), entry.SourcePath, entry.SourceFingerprint,
                 entry.FrontMatter, entry.Body, entry.SourceLocation)
-            { DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : (GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation) & (entry.FrontMatter.SearchExclude ? ~GeneratedPageDerivedSurfaces.Search : GeneratedPageDerivedSurfaces.All) }).ToArray();
+            { DeclaredDependencies = entry.DeclaredDependencies, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : (GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation) & (entry.FrontMatter.SearchExclude ? ~GeneratedPageDerivedSurfaces.Search : GeneratedPageDerivedSurfaces.All) }).ToArray();
             registration.Collection = new(collectionId, variant.InputDirectory, entries, Route, Metadata,
                 transformationId: new("docs-v1"), isCacheable: true);
             if (options.GitMetadata)
@@ -210,11 +223,21 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
                 var documentsForSearch = (collection?.Entries ?? []).Where(entry => !entry.FrontMatter.Unlisted && !entry.FrontMatter.SearchExclude
                     && PagePublicationPolicy.ShouldPublish(collection!.PublicationMapper(entry), context.BuildTimestamp, context.Options.EnvironmentName)).Select(entry =>
                 {
-                    var html = registration.Options.UseMdx ? entry.Body.ToHtmlString() : new SiteGenerator().RenderMarkdown(entry.Body.Body);
-                    var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
-                    foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
+                    // Static text comes from the common semantic model (worker-extracted
+                    // for MDX, compiler analysis otherwise). Section anchors still come
+                    // from rendered HTML: React-generated content cannot be inferred.
+                    var semantics = registration.Options.UseMdx ? entry.Body.Semantics : null;
+                    var html = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
+                    var text = semantics?.PlainText;
+                    if (text is null)
+                    {
+                        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
+                        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
+                        text = document.Body?.TextContent ?? "";
+                    }
+
                     return new LithoSharp.Search.SearchDocument(entry.FrontMatter.Title, entry.FrontMatter.Description ?? "", entry.FrontMatter.Tags,
-                        collection!.RouteConvention(entry).PublicPath, "", SiteGenerator.NormalizeForIndex(document.Body?.TextContent ?? ""))
+                        collection!.RouteConvention(entry).PublicPath, "", SiteGenerator.NormalizeForIndex(text))
                     { Collection = registration.Options.Id, Version = registration.Variant.Version, Locale = registration.Variant.Locale, Sections = SiteGenerator.ExtractSearchSections(html) };
                 }).ToArray();
                 var path = registration.Variant.RoutePrefix.Trim('/') + "/_search.json";
@@ -282,7 +305,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
                 (page, rendering) => rendering.RenderDocument("<h1>" + Html.Encode(page.Metadata.Title!) + "</h1>" + Cards(registration, page.Content)),
                 transformationId: new("docs-tags-v1"), isCacheable: true));
         }
-        return new() { ContentCollections = collections, Assets = [.. prepared.Assets, .. browserAssets] };
+        return new() { ContentCollections = collections, Assets = [.. prepared.Assets, .. browserAssets],
+            Diagnostics = [.. loadDiagnostics, .. prepared.Diagnostics] };
     }
 
     private string Render(Registration registration, ContentEntry<DocumentFrontMatter, MdxDocument> entry, ContentPageRenderingContext context)
@@ -293,11 +317,22 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
         if (!registration.Navigation.TryGetValue(selected, out var navigation)) throw new ArgumentException($"Unknown sidebar '{selected}'.");
         var breadcrumbs = DocumentCatalog.Breadcrumbs(key, navigation);
         var adjacent = catalog.Adjacent(key, navigation);
-        var article = registration.Options.UseMdx ? entry.Body.ToHtmlString() : context.RenderMarkdown(entry.Body.Body);
+        var article = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
         context.SetDerivedContent(article);
+        // Table-of-contents headings come from the common semantic model for MDX
+        // (worker-extracted, line-mapped); Markdown posts keep the shared post
+        // compilation path. Only h2/h3 with anchors participate, as before.
+        var articleHeadings = registration.Options.UseMdx && entry.Body.Semantics is { } semantics
+            ? semantics.Headings
+                .Where(heading => heading.OutputLevel is 2 or 3
+                    && !string.IsNullOrWhiteSpace(heading.Id)
+                    && !string.IsNullOrWhiteSpace(heading.Text))
+                .Select(heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text))
+                .ToArray()
+            : SiteGenerator.ExtractTemplateHeadings(article);
         var body = (registration.Variant.Banner is { } banner ? "<aside role=\"note\">" + Html.Encode(banner) + "</aside>" : "")
             + "<nav aria-label=\"" + Html.Encode(T("breadcrumb", "Breadcrumb")) + "\"><ol>" + string.Concat(breadcrumbs.Select(item => "<li>" + Link(item.Label, item.Url) + "</li>")) + "</ol></nav>"
-            + (!entry.FrontMatter.HideTitle && !SiteGenerator.ExtractTemplateHeadings(article).Any(heading => heading.Level == 1) ? "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" : "")
+            + (!entry.FrontMatter.HideTitle && !HasLevelOneHeading(registration, entry, article) ? "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" : "")
             + article
             + "<nav aria-label=\"" + Html.Encode(T("adjacent", "Previous and next documents")) + "\">" + PageLink(adjacent.Previous, "prev") + PageLink(adjacent.Next, "next") + "</nav>";
         var edit = entry.FrontMatter.CustomEditUrl ?? (registration.Options.EditUrl is { } prefix ? prefix.TrimEnd('/') + "/" + string.Join('/', entry.SourcePath.Split('/').Select(Uri.EscapeDataString)) : null);
@@ -318,8 +353,14 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
         var layoutContext = context.CreateLayoutContext();
         return Layout.Render(new SitePage<PageLayoutContent>(new("docs:" + key), context.Route,
             new(Html.UnsafeRaw(body)) { Sidebar = Html.UnsafeRaw(RenderNavigation(navigation, key)), Head = Html.UnsafeRaw(browserHead), IncludeDefaultScript = Browser is null,
-                TableOfContents = entry.FrontMatter.HideTableOfContents ? null : new TableOfContentsComponent().Render(SiteGenerator.ExtractTemplateHeadings(article), layoutContext) }, context.Metadata), layoutContext).ToHtmlString();
+                TableOfContents = entry.FrontMatter.HideTableOfContents ? null : new TableOfContentsComponent().Render(articleHeadings, layoutContext) }, context.Metadata), layoutContext).ToHtmlString();
     }
+
+    private static bool HasLevelOneHeading(
+        Registration registration, ContentEntry<DocumentFrontMatter, MdxDocument> entry, string article) =>
+        registration.Options.UseMdx && entry.Body.Semantics is { } semantics
+            ? semantics.Headings.Any(heading => heading.RawLevel == 1)
+            : SiteGenerator.ExtractTemplateHeadings(article).Any(heading => heading.Level == 1);
     private string Cards(Registration registration, IReadOnlyList<ContentEntry<DocumentFrontMatter, MdxDocument>> entries) =>
         "<ul>" + string.Concat(entries.Select(entry => "<li>" + Link(entry.FrontMatter.Title, SiteUrl.FromRoute(catalog.Resolve(
             new(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, entry.Id.Value)).Route)) + "</li>")) + "</ul>";

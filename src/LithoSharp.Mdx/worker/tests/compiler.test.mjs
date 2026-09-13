@@ -66,11 +66,49 @@ test('TSX, npm components, CSS, images, partial MDX and compiler plugins retain 
     assert.match(result.pages[0].html, /src="\/product\/_mdx\/assets\/icon-/);
     assert.match(result.pages[0].html, /href="\/product\/api\/example\/"/);
     assert.match(result.pages[0].html, /plugin-one/);
-    assert.ok(result.inputs.some(input => input.file.endsWith('label.mjs')));
+    assert.ok(result.pages[0].links.some(link => link.url === 'xref:T:Example' && link.image === false));    assert.ok(result.inputs.some(input => input.file.endsWith('label.mjs')));
     assert.ok(result.assets.some(asset => asset.path.endsWith('.svg')));
     await writeFile(path.join(projectRoot, 'label.mjs'), `export const label='plugin-two'`);
     result = await compileSite({...request, workRoot: await mkdtemp(path.join(root, 'next-'))});
     assert.match(result.pages[0].html, /plugin-two/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('Docusaurus profile built-ins render and unsupported aliases fail explicitly', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-profile-check-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const sources = {
+      'profile.mdx': `# Profile\n\n## Section\n\n<Admonition type="tip">Callout</Admonition>\n\n<Details summary="More">Hidden</Details>\n\n<Tabs><TabItem value="a" label="A">Alpha</TabItem><TabItem value="b" label="B">Beta</TabItem></Tabs>\n\n<Translate id="missing-key">Fallback words</Translate>\n\n<Link href="/product/other/">Other</Link>\n\n<Link to="/product/legacy/">Legacy</Link>\n\n<Card title="T" href="/product/other/">Card body</Card>\n\n<CodeBlock language="js">const bare = 2;</CodeBlock>\n\n<TOCInline toc={toc} />\n\n\`\`\`js\nconst code = 1;\n\`\`\`\n`,
+      'context.mdx': `import {usePageContext} from '@lithosharp/runtime';\n\n# Context\n\nBase: {usePageContext().basePath}\n`};
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    const request = {projectRoot, workRoot, assetBaseUrl: '/product/_mdx', basePath: '/product/', sources, hydration: 'selective',
+      pages: [{id: 'profile', source: 'profile.mdx', url: '/product/profile/', title: 'Profile', locale: 'en', props: {}},
+        {id: 'context', source: 'context.mdx', url: '/product/context/', title: 'Context', locale: 'en', props: {}}]};
+    const result = await compileSite(request);
+    const profile = result.pages.find(page => page.id === 'profile');
+    assert.match(profile.html, /mdx-admonition mdx-tip/); assert.match(profile.html, /Callout/);
+    assert.match(profile.html, /<details/); assert.match(profile.html, /Hidden/);
+    assert.match(profile.html, /mdx-tabs/); assert.match(profile.html, /Alpha/);
+    assert.match(profile.html, /Fallback words/);
+    assert.match(profile.html, /href="\/product\/other\/"/);
+    assert.match(profile.html, /href="\/product\/legacy\/"/);
+    assert.match(profile.html, /mdx-card/); assert.match(profile.html, /Card body/);
+    assert.match(profile.html, /const bare = 2;/);
+    assert.match(profile.html, /On this page/); assert.match(profile.html, /href="#section"/);
+    assert.match(profile.html, /mdx-code/);
+    assert.equal(profile.hydration, 'page');
+    assert.match(profile.fallback, /Tabs/);
+    const context = result.pages.find(page => page.id === 'context');
+    assert.match(context.html, /Base: (?:<!-- -->)?\/product\//);
+    for (const [source, pattern] of [[`import useBaseUrl from '@docusaurus/useBaseUrl';\n\n# Hook\n`, /Could not resolve "@docusaurus\/useBaseUrl"/],
+      [`import Layout from '@theme/Layout';\n\n# Layout\n`, /Unsupported Docusaurus alias '@theme\/Layout'/]]) {
+      await writeFile(path.join(projectRoot, 'bad.mdx'), source);
+      await assert.rejects(compileSite({...request, workRoot: await mkdtemp(path.join(root, 'bad-')),
+        sources: {'bad.mdx': source}, pages: [{id: 'bad', source: 'bad.mdx', url: '/product/bad/', title: 'Bad', locale: 'en', props: {}}]}),
+        pattern);
+    }
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 

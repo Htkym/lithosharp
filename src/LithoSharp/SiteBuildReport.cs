@@ -56,25 +56,30 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
                 diagnostic.Id,
                 diagnostic.Severity,
                 diagnostic.Message,
-                diagnostic.Location is null
-                    ? null
-                    : new SiteSourceLocation(
-                        diagnostic.Location.FilePath,
-                        diagnostic.Location.Line,
-                        diagnostic.Location.Column)))
+                diagnostic.Location is null ? null : CopyLocation(diagnostic.Location),
+                diagnostic.Category,
+                diagnostic.RelatedLocations.Select(static related => CopyLocation(related))))
             .OrderBy(diagnostic => diagnostic.Id, StringComparer.Ordinal)
             .ThenBy(diagnostic => diagnostic.Severity)
             .ThenBy(diagnostic => diagnostic.Message, StringComparer.Ordinal)
             .ThenBy(diagnostic => diagnostic.Location?.FilePath, StringComparer.Ordinal)
             .ThenBy(diagnostic => diagnostic.Location?.Line)
             .ThenBy(diagnostic => diagnostic.Location?.Column)
+            .ThenBy(diagnostic => diagnostic.Location?.EndLine)
+            .ThenBy(diagnostic => diagnostic.Location?.EndColumn)
+            .ThenBy(diagnostic => diagnostic.Category, StringComparer.Ordinal)
+            .ThenBy(diagnostic => RelatedKey(diagnostic), StringComparer.Ordinal)
             .DistinctBy(static diagnostic => (
                 diagnostic.Id,
                 diagnostic.Severity,
                 diagnostic.Message,
                 diagnostic.Location?.FilePath,
                 diagnostic.Location?.Line,
-                diagnostic.Location?.Column)));
+                diagnostic.Location?.Column,
+                diagnostic.Location?.EndLine,
+                diagnostic.Location?.EndColumn,
+                diagnostic.Category,
+                RelatedKey(diagnostic))));
         TransactionOutcome = transactionOutcome;
         RetainedRecoveryState = retainedRecoveryState;
     }
@@ -132,12 +137,28 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
             && pair.First.Message == pair.Second.Message
             && pair.First.Location?.FilePath == pair.Second.Location?.FilePath
             && pair.First.Location?.Line == pair.Second.Location?.Line
-            && pair.First.Location?.Column == pair.Second.Location?.Column);
+            && pair.First.Location?.Column == pair.Second.Location?.Column
+            && pair.First.Location?.EndLine == pair.Second.Location?.EndLine
+            && pair.First.Location?.EndColumn == pair.Second.Location?.EndColumn
+            && pair.First.Category == pair.Second.Category
+            && pair.First.RelatedLocations.Count == pair.Second.RelatedLocations.Count
+            && pair.First.RelatedLocations.Zip(pair.Second.RelatedLocations).All(related =>
+                related.First.FilePath == related.Second.FilePath
+                && related.First.Line == related.Second.Line
+                && related.First.Column == related.Second.Column
+                && related.First.EndLine == related.Second.EndLine
+                && related.First.EndColumn == related.Second.EndColumn));
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => Equals(obj as SiteBuildReport);
     /// <inheritdoc />
     public override int GetHashCode() => HashCode.Combine(Version, BuildTimestamp, EnvironmentName, TemplateIdentity);
+
+    private static SiteSourceLocation CopyLocation(SiteSourceLocation location) =>
+        new(location.FilePath, location.Line, location.Column, location.EndLine, location.EndColumn);
+
+    private static string RelatedKey(SiteDiagnostic diagnostic) =>
+        string.Join(";", diagnostic.RelatedLocations.Select(static related => string.Concat(related.FilePath, ":", related.Line?.ToString(), ":", related.Column?.ToString(), "-", related.EndLine?.ToString(), ":", related.EndColumn?.ToString())));
 
     private static IReadOnlyList<string> SnapshotStrings(IEnumerable<string>? values) =>
         ReadOnly((values ?? []).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));

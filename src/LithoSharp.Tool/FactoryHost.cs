@@ -110,7 +110,8 @@ internal static class FactoryHost
                         catch (Exception exception) when (watch && exception is not OperationCanceledException)
                         {
                             response = new HostResponse { ExitCode = 1, OutputDirectory = outputDirectory, Error = Describe(exception),
-                                DiagnosticsText = exception is SiteBuildExtensionException failure ? new SiteQualityReport(failure.Diagnostics).Format(format) : Describe(exception) };
+                                DiagnosticsText = exception is SiteBuildExtensionException failure ? new SiteQualityReport(failure.Diagnostics).Format(format) : Describe(exception),
+                                Diagnostics = exception is SiteBuildExtensionException structured ? ToHostDiagnostics(structured.Diagnostics) : [] };
                         }
                         if (!watch) break;
                         await WriteResponseAsync(responsePath, response).ConfigureAwait(false);
@@ -136,6 +137,7 @@ internal static class FactoryHost
                 OutputDirectory = outputDirectory,
                 Error = exception.Message,
                 DiagnosticsText = exception.Report.Format(format),
+                Diagnostics = ToHostDiagnostics(exception.Report.Diagnostics),
             };
         }
         catch (OperationCanceledException)
@@ -155,7 +157,8 @@ internal static class FactoryHost
             response = new HostResponse
             {
                 ExitCode = 1, OutputDirectory = outputDirectory, Error = Describe(exception),
-                DiagnosticsText = new SiteQualityReport(diagnostics).Format(format)
+                DiagnosticsText = new SiteQualityReport(diagnostics).Format(format),
+                Diagnostics = ToHostDiagnostics(diagnostics)
             };
         }
 
@@ -186,6 +189,7 @@ internal static class FactoryHost
             OutputDirectory = result.OutputDirectory,
             Extensions = options.Extensions.Select(extension => extension.GetInspection()).Where(value => value.HasValue).Select(value => value!.Value).ToArray(),
             DiagnosticsText = result.QualityReport.Format(format),
+            Diagnostics = ToHostDiagnostics(result.QualityReport.Diagnostics),
             GeneratedFiles = result.GeneratedFiles.Select(path => Path.GetRelativePath(result.OutputDirectory, path).Replace('\\', '/'))
                 .Order(StringComparer.Ordinal).ToArray(),
             IgnoredPaths = new[]
@@ -228,6 +232,20 @@ internal static class FactoryHost
     private static string Required(IReadOnlyDictionary<string, string> options, string name) =>
         options.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value : throw new ArgumentException($"Host option '{name}' is required.");
+
+    private static HostDiagnostic[] ToHostDiagnostics(IEnumerable<SiteDiagnostic> diagnostics) =>
+        diagnostics.Select(diagnostic => new HostDiagnostic(
+            diagnostic.Id,
+            diagnostic.Severity.ToString(),
+            diagnostic.Message,
+            diagnostic.Location?.FilePath,
+            diagnostic.Location?.Line,
+            diagnostic.Location?.Column,
+            diagnostic.Location?.EndLine,
+            diagnostic.Location?.EndColumn,
+            diagnostic.Category,
+            diagnostic.RelatedLocations.Select(location => new HostSourceLocation(
+                location.FilePath, location.Line, location.Column, location.EndLine, location.EndColumn)).ToArray())).ToArray();
 
     private static string Describe(Exception exception) => exception is ReflectionTypeLoadException types
         ? string.Join(Environment.NewLine, types.LoaderExceptions.Where(item => item is not null).Select(item => item!.Message))
@@ -279,7 +297,9 @@ internal static class FactoryHost
 
 internal sealed record HostResponse
 {
+    public string SchemaVersion { get; init; } = MachineOutput.SchemaVersion;
     public bool Success { get; init; }
+    public HostDiagnostic[] Diagnostics { get; init; } = [];
     public int ExitCode { get; init; }
     public string? OutputDirectory { get; init; }
     public string? Error { get; init; }
@@ -291,6 +311,25 @@ internal sealed record HostResponse
     public HostBuildNode[] BuildPlan { get; init; } = [];
     public JsonElement[] Extensions { get; init; } = [];
 }
+
+internal static class MachineOutput
+{
+    internal const string SchemaVersion = ToolingContracts.CurrentSchemaVersion;
+}
+
+internal sealed record HostDiagnostic(
+    string Id,
+    string Severity,
+    string Message,
+    string? File,
+    int? Line,
+    int? Column = null,
+    int? EndLine = null,
+    int? EndColumn = null,
+    string? Category = null,
+    HostSourceLocation[]? RelatedLocations = null);
+
+internal sealed record HostSourceLocation(string File, int? Line, int? Column, int? EndLine, int? EndColumn);
 
 internal sealed record HostBuildReport(int CacheHitCount, int CacheMissCount, string[] GeneratedArtifacts,
     string[] SkippedArtifacts, string[] StaleRemovedArtifacts, string TransactionOutcome, bool RetainedRecoveryState,

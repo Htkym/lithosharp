@@ -1,0 +1,1 @@
+{"exitCode": 0, "verdicts": {"docs/intro.md": "Automatic"}, "issues": {}, "variants": [{"version": "current", "locale": "en", "input": "docs", "prefix": "docs"}], "artifacts": ["docs/intro/index.html"], "dom": {"docs/intro/index.html": {"contains": ["Hello minimal"], "notContains": []}}}

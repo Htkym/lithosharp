@@ -1,8 +1,10 @@
 using System.Collections;
+using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using LithoSharp.Inspection;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -68,6 +70,154 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         return diagnostics.Count == 0
             ? ContentParseResult<TFrontMatter>.Success((TFrontMatter)value)
             : ContentParseResult<TFrontMatter>.Failure(diagnostics);
+    }
+
+    /// <summary>このバインダーと同じ情報源からfront matter schemaを記述します。</summary>
+    /// <param name="name">schema名。組み込みは固定名、利用者定義は型名を使います。</param>
+    /// <param name="isBuiltIn">組み込みschemaの場合は <see langword="true"/>。</param>
+    /// <returns>キー、型、必須性、enum、非推奨、説明を持つ不変snapshot。</returns>
+    /// <remarks>YAML名・必須判定・型分類は検証時と同一の binding plan を使います。補完用の固定キー一覧は持ちません。</remarks>
+    internal FrontMatterSchema DescribeSchema(string name, bool isBuiltIn) =>
+        DescribeObject(typeof(TFrontMatter), name, isBuiltIn, _plan, RejectUnknownFields, new HashSet<Type>());
+
+    private static FrontMatterSchema DescribeObject(
+        Type root, string name, bool isBuiltIn, ReflectionBindingPlan plan, bool rejectUnknown, HashSet<Type> stack)
+    {
+        stack.Add(root);
+        try
+        {
+            var instance = plan.CreateInstance();
+            var fields = plan.Members.Values.OrderBy(member => member.YamlName, StringComparer.Ordinal)
+                .Select(member => DescribeField(member, instance, stack)).ToArray();
+            return new FrontMatterSchema(name, isBuiltIn, root, rejectUnknown, fields);
+        }
+        finally
+        {
+            stack.Remove(root);
+        }
+    }
+
+    private static FrontMatterFieldInfo DescribeField(
+        ReflectionBindingMember member, object instance, HashSet<Type> stack)
+    {
+        var valueType = Nullable.GetUnderlyingType(member.ValueType) ?? member.ValueType;
+        var allowsNull = AllowsNull(member.ValueType, member.Nullability);
+        var required = member.IsRequired || (member.GetValue(instance) is null && !allowsNull);
+        var description = member.Member.GetCustomAttribute<DescriptionAttribute>()?.Description;
+        var obsolete = member.Member.GetCustomAttribute<ObsoleteAttribute>();
+        var deprecated = obsolete is not null;
+        if (valueType.IsEnum)
+        {
+            return new FrontMatterFieldInfo(member.YamlName, "enum", null, required, allowsNull,
+                Enum.GetNames(valueType), deprecated, obsolete?.Message, description, []);
+        }
+        if (IsScalarType(valueType))
+        {
+            return new FrontMatterFieldInfo(member.YamlName, FriendlyScalarName(valueType), null, required,
+                allowsNull, [], deprecated, obsolete?.Message, description, []);
+        }
+        if (valueType == typeof(object))
+        {
+            return new FrontMatterFieldInfo(member.YamlName, "any", null, required,
+                allowsNull, [], deprecated, obsolete?.Message, description, []);
+        }
+        if (TryGetSequenceElementType(valueType, out var elementType))
+        {
+            var element = Nullable.GetUnderlyingType(elementType) ?? elementType;
+            return new FrontMatterFieldInfo(member.YamlName, "array", FriendlyName(element), required,
+                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(element, stack));
+        }
+        if (TryGetDictionaryValueType(valueType, out var dictionaryValueType))
+        {
+            var value = Nullable.GetUnderlyingType(dictionaryValueType) ?? dictionaryValueType;
+            return new FrontMatterFieldInfo(member.YamlName, "dictionary", FriendlyName(value), required,
+                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(value, stack));
+        }
+        return new FrontMatterFieldInfo(member.YamlName, "object", null, required,
+            allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(valueType, stack));
+    }
+
+    private static IReadOnlyList<FrontMatterFieldInfo> NestedFields(Type type, HashSet<Type> stack)
+    {
+        if (type == typeof(object) || type.IsEnum || IsScalarType(type) || stack.Contains(type))
+        {
+            return [];
+        }
+        stack.Add(type);
+        try
+        {
+            var nested = ReflectionBindingPlan.Create(type);
+            var instance = nested.CreateInstance();
+            return nested.Members.Values.OrderBy(member => member.YamlName, StringComparer.Ordinal)
+                .Select(member => DescribeField(member, instance, stack)).ToArray();
+        }
+        finally
+        {
+            stack.Remove(type);
+        }
+    }
+
+    private static string FriendlyName(Type type)
+    {
+        if (type.IsEnum)
+        {
+            return "enum";
+        }
+        if (IsScalarType(type))
+        {
+            return FriendlyScalarName(type);
+        }
+        if (type == typeof(object))
+        {
+            return "any";
+        }
+        if (TryGetSequenceElementType(type, out _))
+        {
+            return "array";
+        }
+        if (TryGetDictionaryValueType(type, out _))
+        {
+            return "dictionary";
+        }
+        return "object";
+    }
+
+    private static string FriendlyScalarName(Type type)
+    {
+        if (type == typeof(bool))
+        {
+            return "boolean";
+        }
+        if (type == typeof(sbyte) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort)
+            || type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong))
+        {
+            return "integer";
+        }
+        if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
+        {
+            return "number";
+        }
+        if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
+        {
+            return "date-time";
+        }
+        if (type == typeof(DateOnly))
+        {
+            return "date";
+        }
+        if (type == typeof(TimeOnly))
+        {
+            return "time";
+        }
+        if (type == typeof(Guid))
+        {
+            return "uuid";
+        }
+        if (type == typeof(Uri))
+        {
+            return "uri";
+        }
+        return "string";
     }
 
     private object BindObject(
@@ -479,7 +629,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
                         nullability.Create(property),
                         property.IsDefined(typeof(RequiredMemberAttribute)),
                         property.GetValue,
-                        property.SetValue));
+                        property.SetValue,
+                        property));
             }
 
             foreach (var field in type.GetFields(BindingFlags.Instance | BindingFlags.Public))
@@ -497,7 +648,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
                         nullability.Create(field),
                         field.IsDefined(typeof(RequiredMemberAttribute)),
                         field.GetValue,
-                        field.SetValue));
+                        field.SetValue,
+                        field));
             }
 
             return new ReflectionBindingPlan(
@@ -534,7 +686,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         NullabilityInfo Nullability,
         bool IsRequired,
         Func<object, object?> GetValue,
-        Action<object, object?> SetValue);
+        Action<object, object?> SetValue,
+        MemberInfo Member);
 }
 
 internal abstract class LocatedYamlValue(Diagnostics.SiteSourceLocation location)

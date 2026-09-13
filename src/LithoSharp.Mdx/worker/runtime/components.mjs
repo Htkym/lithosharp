@@ -20,7 +20,10 @@ const plainText = value => typeof value === 'string' || typeof value === 'number
   : Children.toArray(value).map(child => child?.props ? plainText(child.props.children) : typeof child === 'string' ? child : '').join('');
 const storageKey = (page, group) => `lithosharp:${page.basePath}:tabs:${group}`;
 
-export function Link({href = '', children, ...props}) {
+export function Link({href = '', to, children, ...props}) {
+  // The migration rewrites Docusaurus `to` to `href`; unmigrated content
+  // keeps rendering through this alias instead of an empty target.
+  if (to !== undefined && (href === undefined || href === '')) href = to;
   const page = useContext(PageContext);
   if (/^\s*(?:javascript|vbscript|data):/i.test(href)) throw new Error('Unsafe link protocol.');
   if (href.startsWith('xref:')) {
@@ -172,5 +175,5 @@ export function Mermaid({chart, children, description = 'Diagram'}) {
     error ? h('p', {role: 'status'}, 'Diagram rendering unavailable; source is shown.') : null);
 }
 
-export const components = {a: Link, pre: CodeBlock, Tabs, TabItem, Admonition, Details, CodeBlock, TOCInline, Card, BrowserOnly, ClientOnly, Mermaid, Translate, FormattedDate, Island};
+export const components = {a: Link, Link, pre: CodeBlock, Tabs, TabItem, Admonition, Details, CodeBlock, TOCInline, Card, BrowserOnly, ClientOnly, Mermaid, Translate, FormattedDate, Island};
 export default components;

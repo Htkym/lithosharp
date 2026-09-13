@@ -22,6 +22,8 @@ internal static class Cli
         if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
             return await ContentCommands.RunAsync(args, cancellationToken);
+        if (args[0] == "migrate" && args.Length > 1 && args[1] == "docusaurus")
+            return await ContentCommands.RunAsync(args, cancellationToken);
 
         var options = CommandOptions.Parse(args[1..]);
         var project = ProjectCompiler.ResolveProject(options.Project);
@@ -50,6 +52,26 @@ internal static class Cli
                 Directory.Delete(temporaryRoot, recursive: true);
         }
     }
+
+    internal static bool WantsMachineOutput(string[] args)
+    {
+        if (args.Length == 0 || args[0] == "__host") return false;
+        if (args[0] is "migrate-docusaurus" or "migrate" or "extract-translations") return true;
+        for (var index = 1; index < args.Length; index++)
+        {
+            if (args[index] is "-f" or "--format" && index + 1 < args.Length)
+                return args[index + 1] is "json" or "sarif";
+        }
+        return false;
+    }
+
+    internal static void WriteErrorEnvelope(int exitCode, string error) =>
+        Console.WriteLine(JsonSerializer.Serialize(new HostResponse
+        {
+            Success = false,
+            ExitCode = exitCode,
+            Error = error,
+        }, JsonOptions));
 
     internal static async Task<HostResponse> RunHostAsync(
         string assembly, string project, string command, CommandOptions options,
@@ -175,9 +197,10 @@ internal static class Cli
           lithosharp snapshot <source> <destination> <version>
           lithosharp extract-translations <source>
           lithosharp restore-mdx <worker-directory> [--allow-scripts]
-          lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config)
+          lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)
+          lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
-          lithosharp serve [project] [-o directory] [--port number] [-c configuration]
+          lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]

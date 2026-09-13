@@ -7,8 +7,9 @@ public sealed class MarkdownPostReader
 {
     /// <summary>Reads the Markdown posts under the given directory.</summary>
     /// <param name="contentDirectory">The content directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The posts ordered newest first.</returns>
-    public async Task<IReadOnlyList<MarkdownPost>> ReadAllAsync(string contentDirectory)
+    public async Task<IReadOnlyList<MarkdownPost>> ReadAllAsync(string contentDirectory, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(contentDirectory);
 
@@ -20,7 +21,7 @@ public sealed class MarkdownPostReader
         var discovery = ContentPath.Discover(
             contentDirectory,
             [".md"],
-            CancellationToken.None);
+            cancellationToken);
         if (discovery.Diagnostics.Any(static diagnostic =>
                 diagnostic.Severity == Diagnostics.SiteDiagnosticSeverity.Error))
         {
@@ -34,7 +35,8 @@ public sealed class MarkdownPostReader
         var posts = new List<MarkdownPost>();
         foreach (var file in discovery.Files)
         {
-            posts.Add(await ReadAsync(file.FullPath, contentDirectory).ConfigureAwait(false));
+            cancellationToken.ThrowIfCancellationRequested();
+            posts.Add(await ReadAsync(file.FullPath, contentDirectory, cancellationToken).ConfigureAwait(false));
         }
 
         return posts
@@ -47,13 +49,14 @@ public sealed class MarkdownPostReader
     /// <summary>Reads a single Markdown post.</summary>
     /// <param name="path">Path to the Markdown file.</param>
     /// <param name="contentRoot">Root of the content directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The post that was read.</returns>
-    public async Task<MarkdownPost> ReadAsync(string path, string contentRoot)
+    public async Task<MarkdownPost> ReadAsync(string path, string contentRoot, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentRoot);
 
-        var text = await File.ReadAllTextAsync(path).ConfigureAwait(false);
+        var text = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
         var (yaml, body) = MarkdownDocumentParser.SplitFrontMatter(text, path);
         if (string.IsNullOrWhiteSpace(yaml))
         {
@@ -63,6 +66,27 @@ public sealed class MarkdownPostReader
         var frontMatter = MarkdownFrontMatterYaml.Deserialize(yaml)
             ?? throw new InvalidOperationException($"Post '{path}' has empty front matter.");
         Validate(frontMatter, path);
+
+        // Code inclusions resolve before parsing so every compiler sees the
+        // same body; failures throw like other post errors.
+        var inclusion = await MarkdownCodeInclusion.ResolveAsync(
+            text,
+            body,
+            Path.GetDirectoryName(Path.GetFullPath(path))!,
+            Path.GetFullPath(contentRoot),
+            Path.GetRelativePath(contentRoot, path),
+            cancellationToken).ConfigureAwait(false);
+        if (inclusion.Diagnostics.Any(static diagnostic =>
+                diagnostic.Severity == Diagnostics.SiteDiagnosticSeverity.Error))
+        {
+            throw new InvalidOperationException(
+                string.Join(
+                    Environment.NewLine,
+                    inclusion.Diagnostics.Select(static diagnostic =>
+                        $"{diagnostic.Id} ({diagnostic.Location?.Line}:{diagnostic.Location?.Column}): {diagnostic.Message}")));
+        }
+
+        body = inclusion.Body;
 
         var relative = Path.GetRelativePath(contentRoot, path);
         var normalizedOutput = Path.ChangeExtension(relative, ".html")

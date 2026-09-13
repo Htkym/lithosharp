@@ -250,6 +250,25 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
 
         cancellationToken.ThrowIfCancellationRequested();
         var document = documentResult.Value!;
+
+        // Code inclusions resolve before binding so every consumer sees the same
+        // body. Target bytes fold into the fingerprint: a target-only change
+        // invalidates through the existing source-fingerprint inputs.
+        var inclusion = await MarkdownCodeInclusion.ResolveAsync(
+            text,
+            document.Body,
+            Path.GetDirectoryName(Path.GetFullPath(path))!,
+            Path.GetFullPath(_inputRoot),
+            relativePath,
+            cancellationToken).ConfigureAwait(false);
+        if (inclusion.Diagnostics.Any(static diagnostic =>
+                diagnostic.Severity == SiteDiagnosticSeverity.Error))
+        {
+            return ContentParseResult<ContentEntry<TFrontMatter, string>>.Failure(
+                inclusion.Diagnostics);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         var yamlResult = ParseYaml(
             document.Yaml,
             relativePath,
@@ -272,16 +291,58 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
         }
 
         var fingerprint = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
-        var entry = new ContentEntry<TFrontMatter, string>(
-            new ContentEntryId(relativePath),
-            relativePath,
-            fingerprint,
-            bindResult.Value!,
-            document.Body,
-            new SiteSourceLocation(relativePath, 1, 1));
+
+        ContentEntry<TFrontMatter, string> entry;
+        if (inclusion.Resolved.Count != 0)
+        {
+            // Inclusion targets stay as declared file dependencies (hashed at
+            // build time) plus a resolved-content value: the source fingerprint
+            // remains the raw file hash so MDX integrity checks and raw-byte
+            // comparisons keep working, while target-only changes still
+            // invalidate through the build inputs.
+            using var combined = new MemoryStream();
+            foreach (var resolved in inclusion.Resolved)
+            {
+                combined.Write(resolved.TargetBytes);
+                combined.WriteByte(0);
+            }
+
+            var resolvedHash = Convert.ToHexString(SHA256.HashData(combined.ToArray())).ToLowerInvariant();
+            var dependencies = inclusion.Resolved
+                .Select(static resolved => ContentDependency.FromFile(resolved.TargetRelativePath))
+                .Append(ContentDependency.FromValue("markdown.inclusion", resolvedHash))
+                .ToArray();
+            entry = new ContentEntry<TFrontMatter, string>(
+                new ContentEntryId(relativePath),
+                relativePath,
+                fingerprint,
+                bindResult.Value!,
+                inclusion.Body,
+                new SiteSourceLocation(relativePath, 1, 1))
+            {
+                DeclaredDependencies = ContentDependency.Snapshot(dependencies),
+            };
+        }
+        else
+        {
+            entry = new ContentEntry<TFrontMatter, string>(
+                new ContentEntryId(relativePath),
+                relativePath,
+                fingerprint,
+                bindResult.Value!,
+                inclusion.Body,
+                new SiteSourceLocation(relativePath, 1, 1));
+        }
+
         return ContentParseResult<ContentEntry<TFrontMatter, string>>.Success(
             entry,
-            bindResult.Diagnostics);
+            [.. bindResult.Diagnostics,
+                .. (Compilation.LithoLimits.FindFootnoteWarning(inclusion.Body, relativePath) is { } footnote
+                    ? (IReadOnlyList<SiteDiagnostic>) [footnote]
+                    : []),
+                .. (Compilation.LithoLimits.FindBrowserAssetWarning(inclusion.Body, relativePath) is { } browserAsset
+                    ? (IReadOnlyList<SiteDiagnostic>) [browserAsset]
+                    : [])]);
     }
 
     private ContentCollection<TFrontMatter, string> CreateCollection(
@@ -655,72 +716,30 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var start = text.Length > 0 && text[0] == '\uFEFF' ? 1 : 0;
-            var openingEnd = FindLineEnd(text, start);
-            if (!LineEquals(text, start, openingEnd, "---"))
+            var split = Compilation.FrontMatterSplitter.TrySplit(text, cancellationToken);
+            return split.Status switch
             {
-                return DocumentFailure(
+                Compilation.FrontMatterSplitStatus.Ok => ContentParseResult<MarkdownSourceDocument>.Success(
+                    new MarkdownSourceDocument(split.Yaml, split.Body, 2)),
+                Compilation.FrontMatterSplitStatus.MissingFrontMatter => DocumentFailure(
                     MarkdownContentDiagnosticIds.MissingFrontMatter,
                     "Markdown document must start with YAML front matter.",
                     relativePath,
                     1,
-                    1);
-            }
-
-            var yamlStart = SkipLineBreak(text, openingEnd);
-            var line = 2;
-            var lineStart = yamlStart;
-            while (lineStart < text.Length)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var lineEnd = FindLineEnd(text, lineStart);
-                if (LineEquals(text, lineStart, lineEnd, "---"))
-                {
-                    var bodyStart = SkipLineBreak(text, lineEnd);
-                    var yaml = text[yamlStart..lineStart];
-                    if (string.IsNullOrWhiteSpace(yaml))
-                    {
-                        return DocumentFailure(
-                            MarkdownContentDiagnosticIds.EmptyFrontMatter,
-                            "YAML front matter must not be empty.",
-                            relativePath,
-                            2,
-                            1);
-                    }
-
-                    return ContentParseResult<MarkdownSourceDocument>.Success(
-                        new MarkdownSourceDocument(yaml, text[bodyStart..], 2));
-                }
-
-                lineStart = SkipLineBreak(text, lineEnd);
-                line++;
-            }
-
-            return DocumentFailure(
-                MarkdownContentDiagnosticIds.UnterminatedFrontMatter,
-                "Markdown document has no closing front matter marker.",
-                relativePath,
-                line,
-                1);
-        }
-
-        private static int FindLineEnd(string text, int start)
-        {
-            var index = text.IndexOf('\n', start);
-            return index < 0 ? text.Length : index;
-        }
-
-        private static int SkipLineBreak(string text, int lineEnd) =>
-            lineEnd < text.Length ? lineEnd + 1 : lineEnd;
-
-        private static bool LineEquals(string text, int start, int end, string expected)
-        {
-            if (end > start && text[end - 1] == '\r')
-            {
-                end--;
-            }
-
-            return text.AsSpan(start, end - start).SequenceEqual(expected);
+                    1),
+                Compilation.FrontMatterSplitStatus.UnterminatedFrontMatter => DocumentFailure(
+                    MarkdownContentDiagnosticIds.UnterminatedFrontMatter,
+                    "Markdown document has no closing front matter marker.",
+                    relativePath,
+                    split.FailureLine,
+                    1),
+                _ => DocumentFailure(
+                    MarkdownContentDiagnosticIds.EmptyFrontMatter,
+                    "YAML front matter must not be empty.",
+                    relativePath,
+                    2,
+                    1),
+            };
         }
 
         private static ContentParseResult<MarkdownSourceDocument> DocumentFailure(

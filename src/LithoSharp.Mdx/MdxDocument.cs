@@ -9,21 +9,27 @@ namespace LithoSharp.Mdx;
 public sealed class MdxDocument : IHtmlContent
 {
     /// <summary>Creates a source document. The first body line is one-based.</summary>
-    public MdxDocument(string body, int bodyStartLine = 1)
+    public MdxDocument(string body, int bodyStartLine = 1, int bodyStartOffset = 0)
     {
         ArgumentNullException.ThrowIfNull(body);
         ArgumentOutOfRangeException.ThrowIfLessThan(bodyStartLine, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(bodyStartOffset, 0);
         Body = body;
         BodyStartLine = bodyStartLine;
+        BodyStartOffset = bodyStartOffset;
     }
     /// <summary>The unmodified MDX body, excluding YAML.</summary>
     public string Body { get; }
     /// <summary>The original first line of the body.</summary>
     public int BodyStartLine { get; }
+    /// <summary>UTF-16 offset of the body start in the original file.</summary>
+    public int BodyStartOffset { get; }
     internal string CompilerSource => new string('\n', BodyStartLine - 1) + Body;
     internal string? RenderedHtml { get; init; }
     /// <summary>Plain text extracted from the MDX syntax tree during compilation.</summary>
     public string? PlainText { get; internal init; }
+    /// <summary>Worker-extracted information in the common semantic model (set after compilation).</summary>
+    internal Content.Compilation.DocumentSemantics? Semantics { get; init; }
     /// <summary>Returns the prepared React fragment, or fails if this document has not been compiled.</summary>
     public string ToHtmlString() => RenderedHtml ?? throw new InvalidOperationException("Register the collection with MdxSite before rendering its body.");
 }
@@ -76,9 +82,25 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
             if (entry.SourceFingerprint != "sha256:" + Convert.ToHexStringLower(SHA256.HashData(bytes)))
                 throw new IOException("MDX source changed while loading; retry the build.");
             var original = new UTF8Encoding(false, true).GetString(bytes);
-            var start = original.AsSpan(0, original.Length - entry.Body.Length).Count('\n') + 1;
-            entries.Add(new(entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter,
-                new MdxDocument(entry.Body, start), entry.SourceLocation));
+            // The markdown entry body is inclusion-resolved, so the raw body
+            // start comes from re-splitting the original text (front matter
+            // only), not from the resolved length.
+            var split = Content.Compilation.FrontMatterSplitter.TrySplit(original, cancellationToken);
+            if (split.Status != Content.Compilation.FrontMatterSplitStatus.Ok)
+                throw new IOException("MDX source changed while loading; retry the build.");
+            var bodyOffset = split.BodyStartOffset;
+            if (bodyOffset < 0 || bodyOffset > original.Length)
+                throw new IOException("MDX source changed while loading; retry the build.");
+            var start = original.AsSpan(0, bodyOffset).Count('\n') + 1;
+            var mdxBody = new MdxDocument(entry.Body, start, bodyOffset);
+            var mdxEntry = new ContentEntry<TFrontMatter, MdxDocument>(
+                entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter,
+                mdxBody, entry.SourceLocation)
+            {
+                DeclaredDependencies = entry.DeclaredDependencies,
+                DerivedSurfaces = entry.DerivedSurfaces,
+            };
+            entries.Add(mdxEntry);
         }
         if (diagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
             return ContentLoadResult<TFrontMatter, MdxDocument>.Failure(diagnostics);

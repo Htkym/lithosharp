@@ -12,6 +12,7 @@ using LithoSharp.Build;
 using LithoSharp.Compatibility;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
@@ -19,7 +20,6 @@ using LithoSharp.Quality;
 using LithoSharp.Routing;
 using LithoSharp.Search;
 using LithoSharp.Validation;
-using Markdig;
 
 namespace LithoSharp;
 
@@ -30,10 +30,23 @@ namespace LithoSharp;
 /// </summary>
 public sealed partial class SiteGenerator
 {
-    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .DisableHtml()
-        .Build();
+    private readonly IMarkdownCompiler _markdownCompiler = new LithoMarkdownCompiler();
+
+    /// <summary>Creates a generator with the default Markdown compiler.</summary>
+    public SiteGenerator()
+    {
+    }
+
+    /// <summary>Creates a generator with the given Markdown compiler.</summary>
+    internal SiteGenerator(IMarkdownCompiler markdownCompiler)
+    {
+        ArgumentNullException.ThrowIfNull(markdownCompiler);
+        _markdownCompiler = markdownCompiler;
+    }
+
+    internal string MarkdownCompilerFingerprint => _markdownCompiler.Fingerprint;
+
+    internal IMarkdownCompiler MarkdownCompiler => _markdownCompiler;
     private const string OutputManifestRelativePath = ".lithosharp-output-manifest.json";
     private const int OutputManifestVersion = 1;
     private const int OutputOwnershipStateVersion = 1;
@@ -96,7 +109,14 @@ public sealed partial class SiteGenerator
         bool HasFaviconAssets,
         bool HasSocialImage,
         DateTimeOffset BuildTimestamp,
-        SiteRouteCatalog Routes);
+        SiteRouteCatalog Routes)
+    {
+        /// <summary>Per-build cache so post HTML, TOC, search text, and links share one parse.</summary>
+        public CompiledPostBodyCache CompiledBodies { get; init; } = new();
+
+        /// <summary>Build cancellation, honored by post analysis and parse-cache IO.</summary>
+        public CancellationToken Cancellation { get; init; }
+    }
 
     private sealed record PageClaim<TContent>(
         SitePage<TContent> Page,
@@ -252,6 +272,7 @@ public sealed partial class SiteGenerator
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
         ArgumentNullException.ThrowIfNull(options.Extensions);
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        var extensionDiagnostics = new List<SiteDiagnostic>();
         foreach (var extension in options.Extensions)
         {
             ArgumentNullException.ThrowIfNull(extension);
@@ -260,6 +281,8 @@ public sealed partial class SiteGenerator
                 ?? throw new InvalidOperationException("A build extension returned no contribution.");
             ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
             ArgumentNullException.ThrowIfNull(contribution.Assets);
+            ArgumentNullException.ThrowIfNull(contribution.Diagnostics);
+            extensionDiagnostics.AddRange(contribution.Diagnostics);
             options = options with
             {
                 ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
@@ -301,6 +324,18 @@ public sealed partial class SiteGenerator
         var publishedPosts = publishedMarkdownClaims
             .Select(claim => claim.Page.Content)
             .ToArray();
+        // Unsupported-syntax warnings (for example, footnotes kept as literal
+        // text) are reported once per generation from the post bodies directly,
+        // so clean and incremental builds report identically without extra parses.
+        var compilerWarnings = publishedPosts
+            .SelectMany(post => new[]
+            {
+                LithoLimits.FindFootnoteWarning(post.MarkdownBody, post.FilePath),
+                LithoLimits.FindBrowserAssetWarning(post.MarkdownBody, post.FilePath),
+            })
+            .Where(warning => warning is not null)
+            .Select(warning => warning!)
+            .ToArray();
         var publishedExtraPages = publishedExtraPageClaims
             .Select(claim => claim.Page.Content)
             .ToArray();
@@ -321,7 +356,10 @@ public sealed partial class SiteGenerator
             hasFaviconAssets,
             hasSocialImage,
             buildTimestamp,
-            routes);
+            routes)
+        {
+            Cancellation = cancellationToken,
+        };
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
                 this,
@@ -734,7 +772,7 @@ public sealed partial class SiteGenerator
                 generated,
                 unpublishedPages,
                 staleRemovedArtifacts,
-                outputTransaction.Diagnostics.Concat(qualityReport.Diagnostics).ToArray(),
+                outputTransaction.Diagnostics.Concat(qualityReport.Diagnostics).Concat(compilerWarnings).Concat(extensionDiagnostics).ToArray(),
                 outputTransaction.RetainedRecoveryState,
                 template,
                 execution),
@@ -1003,7 +1041,109 @@ public sealed partial class SiteGenerator
         }
     }
 
-    internal string RenderMarkdown(string markdown) => Markdown.ToHtml(markdown, _pipeline);
+    internal string RenderMarkdown(string markdown) => _markdownCompiler.Compile(markdown).Html;
+
+    /// <summary>
+    /// Compiles a legacy post body once per build. HTML, TOC headings, search text,
+    /// links, and assets all come from the same parse result.
+    /// </summary>
+    private CompiledPostBody CompilePostBody(RenderContext configuration, MarkdownPost post) =>
+        configuration.CompiledBodies.GetOrAdd(
+            candidate => CompilePostBodyUncached(configuration, candidate),
+            post);
+
+    private CompiledPostBody CompilePostBodyUncached(RenderContext configuration, MarkdownPost post)
+    {
+        var cancellation = configuration.Cancellation;
+        cancellation.ThrowIfCancellationRequested();
+        var sourceHash = MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody);
+        var persistent = configuration.CompiledBodies.PersistentParseCache;
+        if (persistent is not null)
+        {
+            // The render path is synchronous, so local-disk cache IO blocks here
+            // (precedent: SetBodyProvider). Cache reads degrade to a miss and the
+            // post is analyzed instead; cache writes are best-effort and never
+            // fail the build.
+            var cached = persistent.Value.Cache.ReadPostParseAsync(
+                persistent.Value.CompilerFingerprint, sourceHash, post.MarkdownBody.Length, cancellation).GetAwaiter().GetResult();
+            if (cached is not null)
+            {
+                var cachedHeadings = cached.Headings.Select(heading => new DocumentHeading(
+                    heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
+                    new SourceSpan(heading.SpanStart, heading.SpanLength))).ToArray();
+                return BuildCompiledBody(
+                    configuration,
+                    cached.RawHtml,
+                    new DocumentSemantics(
+                        new DocumentSource(null, 0),
+                        DocumentSemantics.TitleOf(cachedHeadings),
+                        cached.PlainText,
+                        cachedHeadings,
+                        cached.Links.Select(link => new DocumentLink(
+                            link.RawText, link.Url, link.Title, link.IsImage,
+                            new SourceSpan(link.SpanStart, link.SpanLength))).ToArray(),
+                        cached.Assets.Select(asset => new DocumentAsset(
+                            asset.Url, new SourceSpan(asset.SpanStart, asset.SpanLength))).ToArray(),
+                        [],
+                        []));
+            }
+        }
+
+        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, null, cancellation);
+        if (persistent is not null
+            && analyzed.Semantics is { Components.Count: 0, Diagnostics.Count: 0 } semantics)
+        {
+            try
+            {
+                persistent.Value.Cache.StorePostParseAsync(
+                    new CachedPostParse(
+                        CachedPostParse.CurrentVersion,
+                        persistent.Value.CompilerFingerprint,
+                        sourceHash,
+                        post.MarkdownBody.Length,
+                        analyzed.Html,
+                        semantics.PlainText,
+                        semantics.Headings.Select(heading => new CachedPostHeading(
+                            heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
+                            heading.Span.Start, heading.Span.Length)).ToArray(),
+                        semantics.Links.Select(link => new CachedPostLink(
+                            link.RawText, link.Url, link.Title, link.IsImage,
+                            link.Span.Start, link.Span.Length)).ToArray(),
+                        semantics.Assets.Select(asset => new CachedPostAsset(
+                            asset.Url, asset.Span.Start, asset.Span.Length)).ToArray()),
+                    cancellation).GetAwaiter().GetResult();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Best-effort write: the analyzed result below is still returned.
+            }
+        }
+
+        return BuildCompiledBody(configuration, analyzed.Html, analyzed.Semantics);
+    }
+
+    private static CompiledPostBody BuildCompiledBody(
+        RenderContext configuration, string rawHtml, DocumentSemantics? semantics)
+    {
+        // Heading demotion and external link attributes stay single-pass string transforms
+        // over the shared HTML: positions refer to Markdown, so the model cannot rewrite HTML.
+        // The demotion rule mirrors DocumentHeading.OutputLevel.
+        var html = AddNewTabAttributesToExternalPostLinks(
+            configuration,
+            NormalizePostBodyHeadings(rawHtml));
+        var toc = semantics?.Headings
+            .Where(heading => heading.OutputLevel is 2 or 3
+                && !string.IsNullOrWhiteSpace(heading.Id)
+                && !string.IsNullOrWhiteSpace(heading.Text))
+            .Select(heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text))
+            .ToArray() ?? [];
+        return new CompiledPostBody(
+            html,
+            toc,
+            semantics?.PlainText ?? string.Empty,
+            semantics?.Links ?? [],
+            semantics?.Assets ?? []);
+    }
 
     internal string GetSitePath(RenderContext configuration, string relativePath) =>
         relativePath.Length == 0
@@ -1339,15 +1479,13 @@ public sealed partial class SiteGenerator
         var pages = orderedPosts
             .Select(post =>
             {
-                var contentHtml = !renderContent ? string.Empty : AddNewTabAttributesToExternalPostLinks(
-                    configuration,
-                    NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
+                var compiled = !renderContent ? null : CompilePostBody(configuration, post);
                 return new SiteTemplatePage
                 {
                     Post = post,
                     Url = configuration.Routes.PublicPath(configuration.Routes.Post(post)),
-                    ContentHtml = contentHtml,
-                    Headings = ExtractTemplateHeadings(contentHtml)
+                    ContentHtml = compiled?.Html ?? string.Empty,
+                    Headings = compiled?.TocHeadings ?? []
                 };
             })
             .ToArray();
@@ -1468,9 +1606,8 @@ public sealed partial class SiteGenerator
         IReadOnlyList<MarkdownPost> orderedPosts,
         MarkdownPost post)
     {
-        var postBody = AddNewTabAttributesToExternalPostLinks(
-            configuration,
-            NormalizePostBodyHeadings(RenderMarkdown(post.MarkdownBody)));
+        var compiled = CompilePostBody(configuration, post);
+        var postBody = compiled.Html;
         var currentIndex = Array.IndexOf(orderedPosts.ToArray(), post);
         var body = new StringBuilder();
         body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
@@ -1488,7 +1625,7 @@ public sealed partial class SiteGenerator
             body.ToString(),
             post.RelativeOutputPath,
             post.RelativeOutputPath,
-            RenderDocsTableOfContents(configuration, postBody),
+            RenderDocsTableOfContents(configuration, compiled.TocHeadings),
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
@@ -1501,8 +1638,8 @@ public sealed partial class SiteGenerator
         SiteExtraPage page) =>
         DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, page.RelativePath, null);
 
-    private static string RenderDocsTableOfContents(RenderContext configuration, string postBody) =>
-        RenderTableOfContents(configuration, postBody)
+    private static string RenderDocsTableOfContents(RenderContext configuration, IReadOnlyList<SiteTemplateHeading> headings) =>
+        RenderTemplateTableOfContents(configuration, headings)
             .Replace("class=\"post-toc\"", "class=\"post-toc docs-toc\"", StringComparison.Ordinal);
 
     private static string RenderDocsSidebar(
@@ -1690,10 +1827,9 @@ public sealed partial class SiteGenerator
 
     private string RenderPost(RenderContext configuration, MarkdownPost post)
     {
-        var postBody = AddNewTabAttributesToExternalPostLinks(
-            configuration,
-            NormalizePostBodyHeadings(Markdown.ToHtml(post.MarkdownBody, _pipeline)));
-        var toc = RenderTableOfContents(configuration, postBody);
+        var compiled = CompilePostBody(configuration, post);
+        var postBody = compiled.Html;
+        var toc = RenderTemplateTableOfContents(configuration, compiled.TocHeadings);
         var body = new StringBuilder();
         body.AppendLine("<div class=\"post-layout\">");
         body.AppendLine("<article class=\"post\">");
@@ -1728,13 +1864,6 @@ public sealed partial class SiteGenerator
             "article",
             post.FrontMatter.Date,
             configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
-    }
-
-    private static string RenderTableOfContents(RenderContext configuration, string postBody)
-    {
-        return RenderTemplateTableOfContents(
-            configuration,
-            ExtractTemplateHeadings(postBody));
     }
 
     internal static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
@@ -1881,14 +2010,14 @@ public sealed partial class SiteGenerator
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
         {
-            var plain = Markdown.ToPlainText(post.MarkdownBody, _pipeline);
+            var compiled = CompilePostBody(configuration, post);
             documents.Add(new SearchDocument(
                 post.FrontMatter.Title,
                 post.FrontMatter.Summary,
                 post.FrontMatter.Tags,
                 configuration.Routes.PublicPath(configuration.Routes.Post(post)),
                 SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date),
-                NormalizeForIndex(plain)));
+                NormalizeForIndex(compiled.PlainText)));
         }
 
         foreach (var page in contentPages

@@ -8,8 +8,12 @@ using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 
+using LithoSharp.Performance;
+
 const int defaultPageCount = 100;
 var arguments = BenchmarkArguments.Parse(args);
+var runSite = arguments.Mode is "site" or "all";
+var runEngine = arguments.Mode is "engine" or "all";
 var pageCount = arguments.PageCount ?? defaultPageCount;
 if (pageCount is not (100 or 1_000 or 10_000))
 {
@@ -24,6 +28,29 @@ var outputPath = Path.GetFullPath(arguments.OutputPath ?? Path.Combine(
 var outputDirectory = Path.GetDirectoryName(outputPath)
     ?? throw new InvalidOperationException("The result output path must include a directory.");
 Directory.CreateDirectory(outputDirectory);
+
+var engineOutputPath = Path.GetFullPath(arguments.EngineOutputPath ?? Path.Combine(
+    outputDirectory,
+    $"engine-{pageCount}.json"));
+Directory.CreateDirectory(Path.GetDirectoryName(engineOutputPath)!);
+
+if (runEngine)
+{
+    var engineResult = EngineBenchmark.Run(
+        pageCount,
+        arguments.Warmup,
+        arguments.Iterations,
+        args);
+    await File.WriteAllTextAsync(
+        engineOutputPath,
+        JsonSerializer.Serialize(engineResult, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+    Console.WriteLine($"Wrote engine benchmark result to {engineOutputPath}");
+}
+
+if (!runSite)
+{
+    return;
+}
 
 var corpusDirectory = Path.Combine(outputDirectory, $"corpus-{pageCount}");
 var siteDirectory = Path.Combine(outputDirectory, $"site-{pageCount}");
@@ -123,7 +150,12 @@ var measurement = new BenchmarkResult
         WorkingSetSamplingIntervalMilliseconds = workingSetMonitor.SamplingIntervalMilliseconds,
         GeneratedFileCount = generatedFileCount
     },
-    Environment = EnvironmentMetadata.Create()
+    Environment = EnvironmentMetadata.Create(),
+    // Site workloads execute once per process; --warmup/--iterations apply to
+    // engine workloads only. The provenance records the actual site execution
+    // counts so the record matches the measurement. Official comparison
+    // repeats whole processes (at least 5 per size); see README.
+    Provenance = ProvenanceMetadata.Create(args, warmup: 0, iterations: 1, corpusDirectory),
 };
 
 var workloads = new List<WorkloadMeasurement>
@@ -242,12 +274,20 @@ internal sealed class BenchmarkArguments
     public int? PageCount { get; private init; }
     public string? OutputPath { get; private init; }
     public bool Smoke { get; private init; }
+    public string Mode { get; private init; } = "site";
+    public int Warmup { get; private init; } = 1;
+    public int Iterations { get; private init; } = 5;
+    public string? EngineOutputPath { get; private init; }
 
     public static BenchmarkArguments Parse(string[] args)
     {
         int? pageCount = null;
         string? outputPath = null;
         var smoke = false;
+        var mode = "site";
+        var warmup = 1;
+        var iterations = 5;
+        string? engineOutput = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -261,9 +301,23 @@ internal sealed class BenchmarkArguments
                 case "--smoke":
                     smoke = true;
                     break;
+                case "--mode" when index + 1 < args.Length:
+                    mode = args[++index].ToLowerInvariant();
+                    if (mode is not ("site" or "engine" or "all"))
+                        throw new ArgumentException("The mode must be site, engine, or all.", nameof(args));
+                    break;
+                case "--warmup" when index + 1 < args.Length:
+                    warmup = int.Parse(args[++index], CultureInfo.InvariantCulture);
+                    break;
+                case "--iterations" when index + 1 < args.Length:
+                    iterations = int.Parse(args[++index], CultureInfo.InvariantCulture);
+                    break;
+                case "--engine-output" when index + 1 < args.Length:
+                    engineOutput = args[++index];
+                    break;
                 case "--help":
                 case "-h":
-                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke]");
+                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--mode site|engine|all] [--warmup N] [--iterations N] [--engine-output path]");
                     Environment.Exit(0);
                     break;
                 default:
@@ -271,7 +325,10 @@ internal sealed class BenchmarkArguments
             }
         }
 
-        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke };
+        if (warmup < 0 || iterations < 1)
+            throw new ArgumentException("Warmup must be >= 0 and iterations must be >= 1.", nameof(args));
+
+        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput };
     }
 }
 
@@ -325,6 +382,8 @@ internal sealed class BenchmarkResult
     public Measurement Measurement { get; init; } = new();
     public EnvironmentMetadata Environment { get; init; } = new();
     public IReadOnlyList<WorkloadMeasurement> Workloads { get; set; } = [];
+    public ProvenanceMetadata? Provenance { get; init; }
+    public MeasurementScope? Scope { get; init; } = MeasurementScope.SiteDefault;
 }
 
 internal sealed class CorpusMetadata
@@ -429,6 +488,8 @@ internal sealed class EnvironmentMetadata
     public string Architecture { get; init; } = string.Empty;
     public int ProcessorCount { get; init; }
     public string ProcessArchitecture { get; init; } = string.Empty;
+    public string SdkVersion { get; init; } = string.Empty;
+    public string Commit { get; init; } = string.Empty;
 
     public static EnvironmentMetadata Create() => new()
     {
@@ -437,6 +498,159 @@ internal sealed class EnvironmentMetadata
         OSDescription = RuntimeInformation.OSDescription,
         Architecture = RuntimeInformation.OSArchitecture.ToString(),
         ProcessorCount = Environment.ProcessorCount,
-        ProcessArchitecture = RuntimeInformation.ProcessArchitecture.ToString()
+        ProcessArchitecture = RuntimeInformation.ProcessArchitecture.ToString(),
+        SdkVersion = ProvenanceMetadata.CurrentSdkVersion,
+        Commit = ProvenanceMetadata.CurrentCommit,
+    };
+}
+
+internal sealed record MeasurementScope(string Measured, string OutOfScope, string WorkingSetNote)
+{
+    public static MeasurementScope SiteDefault => new(
+        "Blog-template pipeline: clean, no-op, single-page-change, layout-change with elapsed, allocation, sampled working set, generated/invalidated nodes, artifacts.",
+        "Engine micro-benchmarks (parse-only, render-only, parse+render, analyze) are in engine-*.json. No timing thresholds enforced. MDX/Node excluded.",
+        "GenerationPeakWorkingSetBytes is the max sampled WorkingSet64 during generation at 10ms intervals, not the OS process-lifetime peak.");
+
+    public static MeasurementScope EngineDefault => new(
+        "Litho engine: parse-only, render-only (pre-prepared render, no parse in timer), parse+render, and analyze (one parse with HTML, syntax, and semantics).",
+        "Site pipeline, MDX/Node, OS peak working set, and timing thresholds are out of scope for this file. Link new-tab attributes need site context and are covered by site workloads.",
+        "Engine files record elapsed and allocation per iteration with raw values, median, mean, variance, first-vs-warm. Working-set peak is site-level only.");
+}
+
+internal sealed record ProvenanceMetadata(
+    string Commit,
+    string SdkVersion,
+    string OS,
+    string Cpu,
+    IReadOnlyDictionary<string, string> DependencyVersions,
+    IReadOnlyList<string> Arguments,
+    int Warmup,
+    int Iterations,
+    string? InputHash)
+{
+    /// <summary>
+    /// The .NET SDK that built and runs this benchmark (<c>dotnet --version</c>).
+    /// The assembly informational version (for example, <c>1.0.0+&lt;commit&gt;</c>)
+    /// is a product version, not the SDK, so it is only a fallback here.
+    /// </summary>
+    public static string CurrentSdkVersion
+    {
+        get
+        {
+            try
+            {
+                var start = new ProcessStartInfo("dotnet", "--version")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var process = Process.Start(start);
+                if (process is not null)
+                {
+                    var output = process.StandardOutput.ReadToEnd().Trim();
+                    process.WaitForExit(5000);
+                    if (process.ExitCode == 0 && output.Length > 0) return output;
+                }
+            }
+            catch
+            {
+            }
+
+            return System.Reflection.Assembly.GetExecutingAssembly()
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?.InformationalVersion ?? Environment.Version.ToString();
+        }
+    }
+
+    public static string CurrentCommit
+    {
+        get
+        {
+            try
+            {
+                var start = new ProcessStartInfo("git", "rev-parse HEAD")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var process = Process.Start(start);
+                if (process is null) return "unknown";
+                var output = process.StandardOutput.ReadToEnd().Trim();
+                process.WaitForExit(5000);
+                return process.ExitCode == 0 && output.Length >= 7 ? output : "unknown";
+            }
+            catch
+            {
+                return "unknown";
+            }
+        }
+    }
+
+    public static ProvenanceMetadata Create(string[] args, int warmup, int iterations, string? corpusDirectory)
+    {
+        string? inputHash = null;
+        try
+        {
+            if (corpusDirectory is not null && Directory.Exists(corpusDirectory))
+            {
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                var files = Directory.EnumerateFiles(corpusDirectory, "*.md", SearchOption.AllDirectories)
+                    .OrderBy(path => path, StringComparer.Ordinal).ToArray();
+                foreach (var file in files)
+                {
+                    var bytes = File.ReadAllBytes(file);
+                    sha.TransformBlock(bytes, 0, bytes.Length, null, 0);
+                }
+
+                sha.TransformFinalBlock([], 0, 0);
+                inputHash = Convert.ToHexStringLower(sha.Hash!);
+            }
+        }
+        catch
+        {
+            inputHash = null;
+        }
+
+        return new ProvenanceMetadata(
+            CurrentCommit,
+            CurrentSdkVersion,
+            RuntimeInformation.OSDescription,
+            $"{RuntimeInformation.OSArchitecture}/{RuntimeInformation.ProcessArchitecture}x{Environment.ProcessorCount}",
+            new Dictionary<string, string>
+            {
+                ["TargetFramework"] = "net10.0",
+                ["Runtime"] = RuntimeInformation.FrameworkDescription,
+            },
+            args.ToArray(),
+            warmup,
+            iterations,
+            inputHash);
+    }
+}
+
+internal static class EngineBenchmark
+{
+    public sealed record EngineResult
+    {
+        public int SchemaVersion { get; init; } = 5;
+        public string Benchmark { get; init; } = "litho-engine-workloads";
+        public int PageCount { get; init; }
+        public IReadOnlyList<LithoEngineWorkload.LithoCorpusMeasurement> LithoCorpora { get; init; } = [];
+        public EnvironmentMetadata Environment { get; init; } = new();
+        public ProvenanceMetadata? Provenance { get; init; }
+        public MeasurementScope? Scope { get; init; } = MeasurementScope.EngineDefault;
+    }
+
+    public static EngineResult Run(int pageCount, int warmup, int iterations, string[] args) => new()
+    {
+        PageCount = pageCount,
+        LithoCorpora = LithoEngineWorkload.Measure(warmup, iterations),
+        Environment = EnvironmentMetadata.Create(),
+        Provenance = ProvenanceMetadata.Create(args, warmup, iterations, corpusDirectory: null),
     };
 }

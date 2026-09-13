@@ -312,6 +312,32 @@ public sealed class MarkdownContentCollectionLoaderTests
         {body}
         """;
 
+    [Test]
+    public async Task LoadAsync_WarnsWhenFootnoteSyntaxStaysLiteral()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "note.md", Document("Note", "Note[^a]\n\n[^a]: footnote text\n"));
+
+        var result = await Loader<TypedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        var diagnostic = result.Diagnostics.Single(item =>
+            item.Id == LithoSharp.Content.Compilation.LithoLimits.UnsupportedFootnoteDiagnosticId);
+        await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("note.md");
+    }
+
+    [Test]
+    public async Task LoadAsync_NoWarningWithoutFootnoteSyntax()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "plain.md", Document("Plain", "Body text.\n"));
+
+        var result = await Loader<TypedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Diagnostics).IsEmpty();
+    }
+
     internal sealed class TypedFrontMatter
     {
         public TypedFrontMatter()

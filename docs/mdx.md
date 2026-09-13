@@ -73,15 +73,58 @@ Published entries cannot import draft, excluded or unregistered documents;
 move reusable modules into underscore-prefixed partials. MDX modules keep
 their JavaScript export semantics. Only selected browser data is published.
 
-Built-ins include `@theme/Tabs`, `@theme/TabItem`, `@theme/Admonition`,
-`@theme/Details`, `@theme/CodeBlock`, `@theme/TOCInline`,
-`@docusaurus/Link`, `@docusaurus/BrowserOnly`, `@docusaurus/useBaseUrl`,
-`@docusaurus/useDocusaurusContext` and `@docusaurus/Translate`.
+`@theme/Tabs`, `@theme/TabItem`, `@theme/Admonition`, `@theme/Details`,
+`@theme/CodeBlock`, `@theme/TOCInline`, `@theme/Card`, `@theme/MDXComponents`,
+`@theme/BrowserOnly` and `@docusaurus/BrowserOnly` are supported imports.
+The same components, plus `Link` and `Translate`, also resolve as bare JSX
+names from the runtime component map. `useBaseUrl` and
+`useDocusaurusContext` do not exist; read `basePath`, locale and messages
+from `usePageContext` in `@lithosharp/runtime` instead.
 The preset provides GFM, heading anchors, directive admonitions, Prism code,
 math with KaTeX and Mermaid. See the sample's content files for executable
 examples, including browser-only dynamic imports and code inclusion.
 Unsupported Docusaurus aliases fail explicitly; arbitrary Docusaurus plugins
 and configuration execution are not supported.
+
+## Docusaurus compatibility
+
+The compared release is Docusaurus 3.10.2 with `@mdx-js/mdx` 3.1.1, React
+19.2.4 and esbuild 0.25.12 on Node.js 24.13.0, pinned in
+`tests/fixtures/mdx-baseline`. `DocusaurusProfile` in
+`src/LithoSharp/Documentation` is the single source of truth for these
+judgments; the migration report and the worker alias handling agree with it.
+Only verified behavior is listed as supported. The Fixture column names the
+`tests/fixtures/docusaurus` corpus fixtures covering each row.
+
+| Construct | Judgment | Notes | Fixture |
+| --- | --- | --- | --- |
+| `Tabs`, `TabItem` | Supported | Stateful tabs with a server-rendered initial tab and a noscript fallback. Requests page hydration unless enclosed in an explicit `Island`. | mdx-components |
+| `Admonition` | Supported | Static-safe. Markdown `:::` directives render the same aside shape. | mdx-components, admonitions |
+| `Details` | Supported | Static-safe. | mdx-components |
+| `CodeBlock` | Supported | Fenced code renders statically with shared title, highlight and line-number metadata. Copy controls hydrate in the browser. Bare `<CodeBlock>` usage requests page hydration. | mdx-components, admonitions |
+| `Card` | Supported | Static-safe card with a linked title. Renders without hydration. | mdx-components |
+| `MDXComponents` | Partial | The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component. | mdx-components |
+| `TOCInline` | Supported | Static-safe. Receives the page `toc` export built from worker headings, levels 2-3 by default. | mdx-components |
+| `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it and unsafe schemes fail the build; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. | mdx-components |
+| `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. | mdx-components |
+| `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. | mdx-components |
+| `useBaseUrl` | Unsupported | No such export. Read `basePath` from `usePageContext` in `@lithosharp/runtime`. | full-site |
+| `useDocusaurusContext` | Unsupported | No such export. Use `usePageContext` from `@lithosharp/runtime`. | full-site |
+| Other `@theme/*` | Unsupported | The build fails with `Unsupported Docusaurus alias`. | full-site |
+| Other `@docusaurus/*` | Unsupported | The build cannot resolve them; the migration report flags `LSMIG002`. | full-site |
+
+Native conversion targets: front matter maps to `DocumentFrontMatter`
+(strict snake_case keys; unknown and duplicate keys are diagnosed), routes,
+sidebars, categories and previous/next links map to `DocumentCatalog` with
+`SidebarItem` and `DocumentCategory`, versions and locales map to
+`DocumentVariant`, and UI messages map to `TranslationCatalog` with
+locale-specific input directories. Assets use the existing asset pipeline
+with project containment. CommonMark and GFM come from the preset pipeline,
+Litho Markdown extensions share the admonition and code metadata shapes, and
+the table above is the Docusaurus interpretation layer. Arbitrary plugins and
+themes, theme overrides outside the import list, and JavaScript configuration
+execution stay unsupported; migration reports them as `LSMIG001`/`LSMIG003`
+without executing configuration.
 
 ## Browser ownership and public data
 
