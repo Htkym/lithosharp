@@ -117,12 +117,15 @@ internal static class DocusaurusMigration
     };
 
     /// <summary>Analyzes without writing. Nothing outside the source directory is touched.</summary>
+    /// <param name="sourceDirectory">The Docusaurus site directory to analyze.</param>
     /// <param name="expectedRoutes">
     /// Expected routes in canonical <see cref="SiteRoute"/> public-path form
     /// (leading and trailing slash, percent-encoded). Comparison is ordinal-exact
     /// so representation variance surfaces as explicit missing/extra entries
     /// instead of passing silently.
     /// </param>
+    /// <param name="options">Route prefixes and the default locale. Null uses defaults.</param>
+    /// <param name="cancellationToken">Cancels the analysis.</param>
     public static DocusaurusMigrationResult Analyze(
         string sourceDirectory,
         IReadOnlyList<string>? expectedRoutes = null,
@@ -135,12 +138,16 @@ internal static class DocusaurusMigration
     }
 
     /// <summary>Converts into an explicit separate destination. Existing inputs are never overwritten.</summary>
+    /// <param name="sourceDirectory">The Docusaurus site directory to convert.</param>
+    /// <param name="destinationDirectory">The separate destination directory. It must not exist yet.</param>
     /// <param name="expectedRoutes">
     /// Expected routes in canonical <see cref="SiteRoute"/> public-path form
     /// (leading and trailing slash, percent-encoded). Comparison is ordinal-exact
     /// so representation variance surfaces as explicit missing/extra entries
     /// instead of passing silently.
     /// </param>
+    /// <param name="options">Route prefixes and the default locale. Null uses defaults.</param>
+    /// <param name="cancellationToken">Cancels the conversion.</param>
     public static async Task<DocusaurusMigrationResult> ConvertAsync(
         string sourceDirectory,
         string destinationDirectory,

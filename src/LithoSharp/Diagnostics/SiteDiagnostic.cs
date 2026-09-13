@@ -27,10 +27,14 @@ public sealed class SiteSourceLocation
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="line"/> または <paramref name="column"/> が 1 未満です。
     /// </exception>
+    // RS0027 は意図的に抑制する。短い overload の 0.x 互換の省略可能引数を保ち、
+    // 引数の多い overload は既定値を持たないため既存呼び出しの解決は変わらない。
+#pragma warning disable RS0027
     public SiteSourceLocation(string filePath, int? line = null, int? column = null)
         : this(filePath, line, column, null, null)
     {
     }
+#pragma warning restore RS0027
 
     /// <summary>終了位置付きのソース位置を作成します。</summary>
     /// <param name="filePath">関連するソースファイルのパス。</param>
@@ -129,6 +133,9 @@ public sealed class SiteDiagnostic
     /// <exception cref="ArgumentException">
     /// <paramref name="id"/> または <paramref name="message"/> が空白です。
     /// </exception>
+    // RS0027 は意図的に抑制する。短い overload の 0.x 互換の省略可能引数を保ち、
+    // 引数の多い overload は既定値を持たないため既存呼び出しの解決は変わらない。
+#pragma warning disable RS0027
     public SiteDiagnostic(
         string id,
         SiteDiagnosticSeverity severity,
@@ -137,6 +144,7 @@ public sealed class SiteDiagnostic
         : this(id, severity, message, location, null, null)
     {
     }
+#pragma warning restore RS0027
 
     /// <summary>分類と関連位置付きの診断を作成します。</summary>
     /// <param name="id">バージョン間で安定した診断識別子。</param>
