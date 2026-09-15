@@ -119,22 +119,13 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     }
 
     /// <summary>Assigns ids from entity-decoded heading text, matching the reference slugs.</summary>
-    private static IReadOnlyList<string> AssignIds(List<string> texts)
-    {
-        var decoded = new List<string>(texts.Count);
-        foreach (var text in texts)
-        {
-            decoded.Add(System.Net.WebUtility.HtmlDecode(text));
-        }
-
-        return LithoSlug.Assign(decoded);
-    }
+    private static IReadOnlyList<string> AssignIds(List<string> texts) => LithoSlug.Assign(texts);
 
     private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts)
     {
         foreach (var heading in WalkHeadings(blocks))
         {
-            texts.Add(StripTags(LithoHtmlRenderer.RenderInlines(heading.Inlines)));
+            texts.Add(System.Net.WebUtility.HtmlDecode(StripTags(LithoHtmlRenderer.RenderInlines(heading.Inlines))));
         }
     }
 
@@ -293,7 +284,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                 var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
                 var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
                 headings.Add(new DocumentHeading(
-                    System.Net.WebUtility.HtmlDecode(text),
+                    text,
                     id,
                     heading.Level,
                     heading.Level == 1 ? 2 : heading.Level,
