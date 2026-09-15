@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   build:
+    # Keep the required status names while pinning the runner images below.
+    name: build (${{ matrix.check-name }})
     strategy:
       fail-fast: false
       matrix:
@@ -20,10 +22,13 @@ jobs:
         include:
           - os: windows-2025
             arch: X64
+            check-name: windows-latest
           - os: ubuntu-24.04
             arch: X64
+            check-name: ubuntu-latest
           - os: macos-15
             arch: Arm64
+            check-name: macos-latest
     runs-on: ${{ matrix.os }}
 
     steps:

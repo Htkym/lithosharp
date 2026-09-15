@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-LithoSharp is in the `0.x` series. Security fixes are made against the latest
-released version. There is no long-term support for older `0.x` releases while the
-API is still stabilizing.
+Security fixes are made against the latest released version of LithoSharp.
+Older releases do not receive long-term support; update to the latest release
+to receive fixes.
 
 ## Reporting a vulnerability
 

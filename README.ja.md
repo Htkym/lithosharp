@@ -77,12 +77,18 @@ esbuild 0.25.12を固定しています。本番出力の配信には静的HTTP 
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 0.2.0からの更新
+## 1.0.0への更新
 
-検証した従来のソースとバイナリは0.3.0でも動作します。出力のserialization、欠落画像のmetadata、
-searchのfingerprint、安全性検証には確認が必要です。[移行ガイド](docs/migration-0.3.ja.md)と
-[変更履歴](CHANGELOG.ja.md)を参照してください。任意packageの追加に伴って、既存Markdownサイトが
-MDXを採用する必要はありません。0.xの間は、今後のminor releaseで公開APIが変わる可能性があります。
+利用しているLithoSharpのパッケージとCLIを1.0.0に揃えて更新し、サイトを再生成して、
+コンテンツの警告、リンク、独自CSSの表示を確認してください。既存の公開シグネチャは維持していますが、
+Markdownコンパイラーの変更に伴い、脚注や定義リストなど一部のMarkdig拡張は非対応になりました。
+更新前に[Markdownの制約](docs/known-limitations.ja.md#markdown-の互換性)と
+[1.0.0の変更履歴](CHANGELOG.ja.md#100)を確認してください。
+
+[APIの互換性契約](docs/compatibility-contract.ja.md#api-の互換性)と
+[1.xのTooling互換方針](docs/cli.ja.md#構造化出力と-1x-の互換性)も参照してください。
+0.2.0から更新する場合は、[0.3への移行ガイド](docs/migration-0.3.ja.md)も必要です。
+MDXの導入は引き続き任意です。
 
 ## 既知の制約
 
@@ -92,10 +98,10 @@ trimming、Native AOTは非対応です。実行環境を選ぶ前に[既知の�
 
 ## 性能
 
-測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
+0.3.0で測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
 hydration rootが1から0になりました。全islandやfallbackの結果ではありません。
 10,000ページMDX corpusのcoldは274.30秒、no-opは105.13秒でした。100件と1,000件の
-競合比較の要点も併記しています。
+競合比較の要点と、1.0.0候補で再測定したMarkdownの結果も併記しています。
 [測定条件・制約・再現手順](docs/performance.ja.md)を参照してください。
 
 ## 貢献とライセンス

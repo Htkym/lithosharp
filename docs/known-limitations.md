@@ -21,12 +21,13 @@ Markdown before upgrading. The compiler is not a complete CommonMark/GFM impleme
 
 ## Build cost and platform coverage
 
-The measured 10,000-page MDX corpus took 274.30 s cold, 105.13 s for a no-op and
+The 10,000-page MDX corpus measured with 0.3.0 took 274.30 s cold, 105.13 s for a no-op and
 213.39 s for one body edit. That edit compiled and rendered one module/page but
 bundled 2,000 interactive entries. Across ten scenarios the observed simultaneous
 process-tree working-set maximum was 11.807 GiB; this is not a minimum RAM
 requirement or a single cold-build peak. A no-op still validates inputs and output.
 `MdxOptions.Timeout` defaults to two minutes per request; this corpus used fifteen.
+These scenarios have not been rerun in full against the final 1.0.0 candidate.
 
 Performance measurements cover Windows only; the continuous build runs
 Windows x64, Linux x64 and macOS arm64. Browser behavior is exercised in

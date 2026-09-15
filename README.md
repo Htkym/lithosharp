@@ -87,13 +87,19 @@ esbuild 0.25.12. Production output needs only a static HTTP host.
 - [Testing](docs/testing.md), [HTML/CSS contract](docs/layout-css-contract.md),
   [compatibility contract](docs/compatibility-contract.md)
 
-## Upgrade from 0.2.0
+## Upgrade to 1.0.0
 
-The tested legacy source and binaries work with 0.3.0. Output serialization,
-missing-image metadata, search fingerprints and safety validation need review.
-See the [migration guide](docs/migration-0.3.md) and [changelog](CHANGELOG.md).
-Optional packages do not require an existing Markdown site to adopt MDX.
-While versions remain 0.x, future minor releases may change public APIs.
+Update the LithoSharp packages and CLI together to 1.0.0, then rebuild your site
+and check content warnings, links and custom CSS. Existing public signatures are
+retained, but the Markdown compiler has changed: footnotes, definition lists and
+some other Markdig extensions are unsupported. Review the
+[Markdown limitations](docs/known-limitations.md#markdown-compatibility) and
+[1.0.0 changes](CHANGELOG.md#100) before upgrading.
+
+See the [API compatibility contract](docs/compatibility-contract.md#api-compatibility)
+and [1.x tooling policy](docs/cli.md#structured-output-and-1x-compatibility).
+Sites upgrading from 0.2.0 should also follow the
+[0.3 migration guide](docs/migration-0.3.md). MDX remains optional.
 
 ## Known limitations
 
@@ -104,11 +110,12 @@ Docusaurus plugins, trimming and Native AOT are unsupported. Read
 
 ## Performance
 
-In the measured static-page fixture, selective hydration reduced JS from
+In the static-page fixture measured with 0.3.0, selective hydration reduced JS from
 449,585 to 15,817 bytes and hydration roots from one to zero. This does not
 represent all island or fallback pages. The 10,000-page MDX corpus took 274.30 s
 cold and 105.13 s for a no-op. A 100/1,000-page competitor comparison is
-summarized alongside. See [conditions, limits and reproduction](docs/performance.md).
+summarized alongside the Markdown results remeasured with the 1.0.0 candidate.
+See [conditions, limits and reproduction](docs/performance.md).
 
 ## Contribute and license
 

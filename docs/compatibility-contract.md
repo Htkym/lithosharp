@@ -1,7 +1,7 @@
 # Generated site compatibility contract
 
-This document describes the compatibility contract for legacy Markdown sites and
-public APIs. Implementation details are not compatibility guarantees.
+This document describes the LithoSharp 1.0.0 compatibility contract for generated
+sites and public APIs. Implementation details are not compatibility guarantees.
 
 ## API compatibility
 

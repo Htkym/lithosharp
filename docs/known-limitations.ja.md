@@ -12,7 +12,8 @@ Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer�
 
 ## 生成コストと検証環境
 
-10,000ページのMDX corpusでは、coldが274.30秒、no-opが105.13秒、本文1件の変更が213.39秒でした。
+0.3.0で測定した10,000ページのMDX corpusでは、coldが274.30秒、no-opが105.13秒、本文1件の変更が213.39秒でした。
+最終1.0.0候補での全ケースの再測定は行っていません。
 1件変更ではcompileとrenderが各1件でも、interactive entryを2,000件bundleしています。
 10ケースを通したprocess treeの同時working-set観測最大値は11.807 GiBでした。
 最低限必要なRAMでも、単一cold buildのpeakでもありません。no-opでも入力と出力を検証します。
