@@ -163,6 +163,7 @@ internal static class DocusaurusMigration
         if (Within(source, destination) || Within(destination, source))
             throw new ArgumentException("Migration source and destination must not overlap.");
         if (Path.Exists(destination)) throw new IOException("The migration destination already exists; conversion never overwrites it.");
+        SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(source)!, source);
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(destination)!, destination);
         var plan = AnalyzeFiles(source, options ?? new(), cancellationToken);
         var parent = Path.GetDirectoryName(destination)!;

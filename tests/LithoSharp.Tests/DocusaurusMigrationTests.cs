@@ -15,17 +15,22 @@ namespace LithoSharp.Tests;
 public sealed class DocusaurusMigrationTests
 {
     [Test]
-    public async Task ConversionRejectsDestinationThroughSourceDirectoryLink()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ConversionRejectsOverlapThroughDirectoryLink(bool sourceIsLink)
     {
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "source");
         Directory.CreateDirectory(Path.Combine(source, "docs"));
         await File.WriteAllTextAsync(Path.Combine(source, "docs", "intro.md"), "# Intro\n");
         var link = Path.Combine(workspace.Root, "alias");
-        Directory.CreateSymbolicLink(link, source);
+        try { Directory.CreateSymbolicLink(link, source); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { return; }
         try
         {
-            await Assert.That(async () => { await DocusaurusMigration.ConvertAsync(source, Path.Combine(link, "converted")); })
+            var input = sourceIsLink ? link : source;
+            var output = Path.Combine(sourceIsLink ? source : link, "converted");
+            await Assert.That(async () => { await DocusaurusMigration.ConvertAsync(input, output); })
                 .Throws<InvalidOperationException>();
             await Assert.That(Directory.Exists(Path.Combine(source, "converted"))).IsFalse();
         }

@@ -49,7 +49,7 @@
       "lithosharp.images": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[0.3.1, )"
+          "LithoSharp": "[1.0.0, )"
         }
       }
     }

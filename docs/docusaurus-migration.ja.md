@@ -5,6 +5,8 @@
 `migrate docusaurus` は Docusaurus サイトを解析し、`--output` で別出力先へ
 変換する。JavaScript 設定は実行しない。`docusaurus.config`、sidebar、plugin
 は参照扱いのまま警告になる。入力ツリーは上書きしない。
+変換時は、移行元と出力先のパスに親ディレクトリも含めてディレクトリリンクがあると拒否する。
+リンクを経由せず、互いに重ならない実ディレクトリのパスを指定する。
 
 移行対象は MDX、Markdown、静的資産、front matter、category、sidebar、版、
 言語である。部品の判定は [MDX 互換表](mdx.md#docusaurus-compatibility) にある。

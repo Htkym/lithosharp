@@ -6,6 +6,8 @@
 converts it into a separate directory. It never executes JavaScript
 configuration: `docusaurus.config`, sidebars and plugins stay reference-only
 inputs with a warning. The input tree is never overwritten.
+Conversion rejects directory links in the source and destination paths, including
+their parents. Use the real paths of separate directories.
 
 Only MDX, Markdown, static assets, front matter, categories, sidebars,
 versions and locales migrate. The component judgments live in the
