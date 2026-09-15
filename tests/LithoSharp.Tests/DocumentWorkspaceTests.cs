@@ -31,11 +31,11 @@ public sealed class DocumentWorkspaceTests
         var foundFirst = first.TryGet("docs/same.md", out var firstInfo);
         var foundSecond = second.TryGet("docs/same.md", out var secondInfo);
 
-        await Assert.That(foundFirst).IsEqualTo(true);
-        await Assert.That(foundSecond).IsEqualTo(true);
+        await Assert.That(foundFirst).IsTrue();
+        await Assert.That(foundSecond).IsTrue();
         await Assert.That(firstInfo!.Title).IsEqualTo("Alpha");
         await Assert.That(secondInfo!.Title).IsEqualTo("Beta");
-        await Assert.That(first.Id == second.Id).IsEqualTo(false);
+        await Assert.That(first.Id == second.Id).IsFalse();
     }
 
     [Test]
@@ -54,9 +54,9 @@ public sealed class DocumentWorkspaceTests
             canceled = true;
         }
 
-        await Assert.That(canceled).IsEqualTo(true);
+        await Assert.That(canceled).IsTrue();
         var found = workspace.TryGet("docs/c.md", out var kept);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(kept!.Title).IsEqualTo("Alpha");
 
         var next = await workspace.InspectAsync("docs/c.md", SampleB);
@@ -72,7 +72,7 @@ public sealed class DocumentWorkspaceTests
 
         var reads = await Task.WhenAll(Enumerable.Range(0, 20).Select(i =>
             Task.Run(() => workspace.TryGet("p" + i, out _))));
-        await Assert.That(reads.All(x => x)).IsEqualTo(true);
+        await Assert.That(reads.All(x => x)).IsTrue();
     }
 
     [Test]
@@ -82,7 +82,7 @@ public sealed class DocumentWorkspaceTests
         var snapshot = await workspace.InspectAsync("docs/d.md", SampleA);
         await workspace.DisposeAsync();
 
-        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsEqualTo(false);
+        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
         await Assert.That(snapshot.Title).IsEqualTo("Alpha");
 
         var disposed = false;
@@ -95,7 +95,7 @@ public sealed class DocumentWorkspaceTests
             disposed = true;
         }
 
-        await Assert.That(disposed).IsEqualTo(true);
+        await Assert.That(disposed).IsTrue();
     }
 
     [Test]
@@ -105,8 +105,8 @@ public sealed class DocumentWorkspaceTests
         await workspace.InspectAsync("docs/d.md", SampleA);
         await workspace.DisposeAsync();
 
-        await Assert.That(workspace.Remove("docs/d.md")).IsEqualTo(false);
-        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsEqualTo(false);
+        await Assert.That(workspace.Remove("docs/d.md")).IsFalse();
+        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
     }
 
     [Test]
@@ -125,9 +125,9 @@ public sealed class DocumentWorkspaceTests
             failed = true;
         }
 
-        await Assert.That(failed).IsEqualTo(true);
+        await Assert.That(failed).IsTrue();
         var found = workspace.TryGet("docs/good.md", out var kept);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(kept!.Title).IsEqualTo("Alpha");
     }
 
@@ -187,7 +187,7 @@ public sealed class DocumentWorkspaceTests
         }
 
         var found = workspace.TryGet("docs/long.md", out var latest);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(latest!.Title).IsEqualTo("Heading 999");
         await Assert.That(latest.Headings.Count).IsEqualTo(1);
         await Assert.That(latest.Headings[0].Text).IsEqualTo("Heading 999");
@@ -197,7 +197,7 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(stale!.Title).IsEqualTo("Heading 500");
 
         // Same DocumentId overwrites: no unbounded snapshot accumulation.
-        await Assert.That(workspace.TryGet("docs/unknown.md", out _)).IsEqualTo(false);
+        await Assert.That(workspace.TryGet("docs/unknown.md", out _)).IsFalse();
 
         // Post-warmup resource stability: allow noise but fail on continuous leak.
         var managed = series.Select(item => (long)((dynamic)item).ManagedBytes).ToArray();
@@ -249,27 +249,27 @@ public sealed class DocumentWorkspaceTests
         await using var workspace = new DocumentWorkspace();
         await workspace.InspectAsync("docs/a.md", SampleA);
         await workspace.InspectAsync("docs/b.md", SampleB);
-        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsEqualTo(true);
+        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsTrue();
 
-        await Assert.That(workspace.Remove("docs/a.md")).IsEqualTo(true);
-        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsEqualTo(false);
-        await Assert.That(workspace.TryGet("docs/b.md", out var keptB)).IsEqualTo(true);
+        await Assert.That(workspace.Remove("docs/a.md")).IsTrue();
+        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsFalse();
+        await Assert.That(workspace.TryGet("docs/b.md", out var keptB)).IsTrue();
         await Assert.That(keptB!.Title).IsEqualTo("Beta");
 
         // Re-add with new content converges to the latest text.
         var readded = await workspace.InspectAsync("docs/a.md", SampleB);
         await Assert.That(readded.Title).IsEqualTo("Beta");
-        await Assert.That(workspace.TryGet("docs/a.md", out var latestA)).IsEqualTo(true);
+        await Assert.That(workspace.TryGet("docs/a.md", out var latestA)).IsTrue();
         await Assert.That(latestA!.Title).IsEqualTo("Beta");
 
         // Rename: old id disappears, new id carries the content.
-        await Assert.That(workspace.Remove("docs/a.md")).IsEqualTo(true);
+        await Assert.That(workspace.Remove("docs/a.md")).IsTrue();
         await workspace.InspectAsync("docs/renamed.md", SampleA);
-        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsEqualTo(false);
-        await Assert.That(workspace.TryGet("docs/renamed.md", out var renamed)).IsEqualTo(true);
+        await Assert.That(workspace.TryGet("docs/a.md", out _)).IsFalse();
+        await Assert.That(workspace.TryGet("docs/renamed.md", out var renamed)).IsTrue();
         await Assert.That(renamed!.Title).IsEqualTo("Alpha");
 
-        await Assert.That(workspace.Remove("docs/missing.md")).IsEqualTo(false);
+        await Assert.That(workspace.Remove("docs/missing.md")).IsFalse();
     }
 
     [Test]
@@ -302,7 +302,7 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(first.Title).IsEqualTo("Alpha");
         await Assert.That(second.Title).IsEqualTo("Beta");
         var found = workspace.TryGet("v-doc", out var latest);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(latest!.Version).IsEqualTo("v2");
         await Assert.That(latest.Locale).IsEqualTo("ja");
     }
@@ -317,11 +317,11 @@ public sealed class DocumentWorkspaceTests
         await using var reloaded = new DocumentWorkspace();
         await reloaded.InspectAsync("docs/same.md", SampleB);
 
-        await Assert.That(old.TryGet("docs/same.md", out _)).IsEqualTo(false);
+        await Assert.That(old.TryGet("docs/same.md", out _)).IsFalse();
         var found = reloaded.TryGet("docs/same.md", out var latest);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(latest!.Title).IsEqualTo("Beta");
-        await Assert.That(old.Id == reloaded.Id).IsEqualTo(false);
+        await Assert.That(old.Id == reloaded.Id).IsFalse();
     }
 
     [Test]
@@ -342,7 +342,7 @@ public sealed class DocumentWorkspaceTests
                 {
                     canceled = true;
                 }
-                await Assert.That(canceled).IsEqualTo(true);
+                await Assert.That(canceled).IsTrue();
             }
             else
             {
@@ -352,7 +352,7 @@ public sealed class DocumentWorkspaceTests
         }
 
         var found = workspace.TryGet("docs/cancel.md", out var latest);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(lastApplied).IsEqualTo(198);
         await Assert.That(latest!.Title).IsEqualTo("Heading 198");
     }
@@ -367,7 +367,7 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(first.Title).IsEqualTo("Heading 1");
         await Assert.That(second.Title).IsEqualTo("Heading 2");
         var found = workspace.TryGet("docs/rapid.md", out var latest);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(latest!.Title).IsEqualTo("Heading 2");
         // The stale object still reports its own revision.
         await Assert.That(first.Title).IsEqualTo("Heading 1");

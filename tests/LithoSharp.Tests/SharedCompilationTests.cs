@@ -110,7 +110,7 @@ public sealed class SharedCompilationTests
 
             Body text with [link](https://example.org/a).
 
-            ## Section
+            ## A &amp; B
             """);
         var posts = await new MarkdownPostReader().ReadAllAsync(content);
         var output = Path.Combine(workspace.Root, "output");
@@ -125,6 +125,8 @@ public sealed class SharedCompilationTests
         await Assert.That(post).Contains("<h2 id=\"body-title\">");
         await Assert.That(post).Contains("target=\"_blank\"");
         await Assert.That(post).Contains("class=\"toc-list\"");
+        using var dom = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(post);
+        await Assert.That(dom.QuerySelector("a[data-toc-link][href='#a-b']")?.TextContent).IsEqualTo("A & B");
 
         await using var stream = File.OpenRead(Path.Combine(output, "search-index.json"));
         using var document = await JsonDocument.ParseAsync(stream);
@@ -198,6 +200,8 @@ public sealed class SharedCompilationTests
 
         await Assert.That(generation.BuildReport.Diagnostics.Any(diagnostic =>
             diagnostic.Id == LithoLimits.UnsupportedFootnoteDiagnosticId)).IsTrue();
+        await Assert.That(generation.BuildReport.Diagnostics.Single(diagnostic =>
+            diagnostic.Id == LithoLimits.UnsupportedFootnoteDiagnosticId).Location?.Line).IsEqualTo(9);
     }
 
     private static string Demote(string html) =>

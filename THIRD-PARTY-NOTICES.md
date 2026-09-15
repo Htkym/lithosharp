@@ -3,6 +3,11 @@
 LithoSharp redistributes, or depends on, the following third-party packages.
 Each remains under its own license.
 
+## AngleSharp
+
+- License: MIT
+- Project: https://github.com/AngleSharp/AngleSharp
+
 ## YamlDotNet
 
 - License: MIT

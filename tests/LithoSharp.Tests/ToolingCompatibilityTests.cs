@@ -10,6 +10,19 @@ namespace LithoSharp.Tests;
 public sealed class ToolingCompatibilityTests
 {
     [Test]
+    [Arguments("1.")]
+    [Arguments("1.invalid")]
+    [Arguments("1.-2")]
+    [Arguments("1.0junk")]
+    [Arguments("+1.0")]
+    public async Task InvalidVersionSuffixIsRejected(string version)
+    {
+        await Assert.That(ToolingCompatibility.IsCompatible(version)).IsFalse();
+        await Assert.That(ToolingCompatibility.IsCompatible("1.0", version)).IsFalse();
+        await Assert.That(() => ToolingCompatibility.CheckSchemaVersion(version)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task ContractsAreClassified()
     {
         var byName = ToolingContracts.All.ToDictionary(contract => contract.Name, StringComparer.Ordinal);
@@ -20,7 +33,7 @@ public sealed class ToolingCompatibilityTests
         {
             await Assert.That(contract.Maturity).IsEqualTo(ToolingContractMaturity.Stable);
             await Assert.That(contract.SchemaVersion).IsEqualTo("1.0");
-            await Assert.That(string.IsNullOrWhiteSpace(contract.Description)).IsEqualTo(false);
+            await Assert.That(string.IsNullOrWhiteSpace(contract.Description)).IsFalse();
         }
         await Assert.That(ToolingContracts.MigrationReport.SchemaVersion).IsEqualTo(
             ReportSchemaVersion());
@@ -44,13 +57,13 @@ public sealed class ToolingCompatibilityTests
     [Test]
     public async Task SchemaVersionNegotiation()
     {
-        await Assert.That(ToolingCompatibility.IsCompatible("1.0")).IsEqualTo(true);
-        await Assert.That(ToolingCompatibility.IsCompatible("1.10")).IsEqualTo(true);
-        await Assert.That(ToolingCompatibility.IsCompatible("1.0", "1.1")).IsEqualTo(true);
-        await Assert.That(ToolingCompatibility.IsCompatible("2.0")).IsEqualTo(false);
-        await Assert.That(ToolingCompatibility.IsCompatible("0.9")).IsEqualTo(false);
-        await Assert.That(ToolingCompatibility.IsCompatible("latest")).IsEqualTo(false);
-        await Assert.That(ToolingCompatibility.IsCompatible(string.Empty)).IsEqualTo(false);
+        await Assert.That(ToolingCompatibility.IsCompatible("1.0")).IsTrue();
+        await Assert.That(ToolingCompatibility.IsCompatible("1.10")).IsTrue();
+        await Assert.That(ToolingCompatibility.IsCompatible("1.0", "1.1")).IsTrue();
+        await Assert.That(ToolingCompatibility.IsCompatible("2.0")).IsFalse();
+        await Assert.That(ToolingCompatibility.IsCompatible("0.9")).IsFalse();
+        await Assert.That(ToolingCompatibility.IsCompatible("latest")).IsFalse();
+        await Assert.That(ToolingCompatibility.IsCompatible(string.Empty)).IsFalse();
 
         await Assert.That(ToolingCompatibility.CheckSchemaVersion("1.0")).IsEqualTo("1.0");
         await Assert.That(ToolingCompatibility.CheckSchemaVersion("1.4")).IsEqualTo("1.4");
@@ -62,10 +75,10 @@ public sealed class ToolingCompatibilityTests
         catch (InvalidOperationException exception)
         {
             failed = true;
-            await Assert.That(exception.Message.Contains("2.0", StringComparison.Ordinal)).IsEqualTo(true);
-            await Assert.That(exception.Message.Contains(ToolingContracts.CurrentSchemaVersion, StringComparison.Ordinal)).IsEqualTo(true);
+            await Assert.That(exception.Message.Contains("2.0", StringComparison.Ordinal)).IsTrue();
+            await Assert.That(exception.Message.Contains(ToolingContracts.CurrentSchemaVersion, StringComparison.Ordinal)).IsTrue();
         }
-        await Assert.That(failed).IsEqualTo(true);
+        await Assert.That(failed).IsTrue();
     }
 
     [Test]

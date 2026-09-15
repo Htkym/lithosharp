@@ -2,19 +2,35 @@
 
 [日本語](known-limitations.ja.md)
 
-These limits apply to 0.3.1. See [performance](performance.md) for
+These limits apply to 1.0.0. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
+
+## Markdown compatibility
+
+The runtime uses the Litho compiler, with a tested subset of CommonMark 0.31.2
+and GFM 0.29. It supports tables, task lists, strikethrough, autolinks,
+admonitions, containers and code metadata. Math and diagrams need browser assets
+provided by the template; `LIT002` identifies this requirement.
+
+The Markdig extensions for footnotes, definition lists, abbreviations, citations,
+figures, footers, media embeds, grid tables, generic attributes, alphabetical or
+Roman list markers, subscript/superscript, inserted/marked text, emoji and smart
+punctuation are not implemented. Unsupported syntax remains literal text;
+footnotes additionally produce `LIT001`. Replace those constructs with supported
+Markdown before upgrading. The compiler is not a complete CommonMark/GFM implementation.
 
 ## Build cost and platform coverage
 
-The measured 10,000-page MDX corpus took 274.30 s cold, 105.13 s for a no-op and
+The 10,000-page MDX corpus measured with 0.3.0 took 274.30 s cold, 105.13 s for a no-op and
 213.39 s for one body edit. That edit compiled and rendered one module/page but
 bundled 2,000 interactive entries. Across ten scenarios the observed simultaneous
 process-tree working-set maximum was 11.807 GiB; this is not a minimum RAM
 requirement or a single cold-build peak. A no-op still validates inputs and output.
 `MdxOptions.Timeout` defaults to two minutes per request; this corpus used fifteen.
+These scenarios have not been rerun in full against the final 1.0.0 candidate.
 
-Performance measurements cover Windows only. Browser behavior is exercised in
+Performance measurements cover Windows only; the continuous build runs
+Windows x64, Linux x64 and macOS arm64. Browser behavior is exercised in
 Chromium; no equivalent Firefox or Safari verification is claimed. Static content
 and ordinary links remain available without JavaScript, but interactive features
 need the corresponding browser APIs. Trimming and Native AOT are unsupported for
@@ -25,7 +41,7 @@ trusted `avifenc`; real AVIF encoding remains unverified in this environment.
 
 ## MDX and browser scope
 
-The 0.3.1 Docs/Blog palettes require CSS `light-dark()` support. Restoring
+The 1.0.0 Docs/Blog palettes require CSS `light-dark()` support. Restoring
 a saved theme uses an inline head script, which must be allowed by the host's CSP.
 See [theme configuration](layout-css-contract.md#theme-switching--テーマ切り替え).
 
@@ -78,3 +94,14 @@ Output staging and rollback protect cooperating same-user builds, not privileged
 or hostile filesystem writers. Atomic rename support is required. Unix ACLs,
 extended attributes and ownership are not portable preservation guarantees.
 After-build observer failures occur after commit and cannot roll back publication.
+
+## Deployment and migration scope
+
+Published routes use trailing slashes with directory indexes; originals built
+with `trailingSlash: false` use flat files, so route comparisons normalize the
+slash style. No `404.html` is emitted; unknown paths fall back to the host's
+default 404 response. Docusaurus category indexes and blog authors, archive,
+pagination and tag indexes have no 1:1 source documents and stay outside the
+migration route scope; monthly archives and directory indexes may appear as a
+documented superset. Markdown link targets pass through the build unchanged;
+`check` reports unsupported schemes while MDX anchors fail the build.

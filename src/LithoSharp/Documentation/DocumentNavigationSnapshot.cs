@@ -28,7 +28,7 @@ public sealed class DocumentNavigationEntry
         Route = route;
         Label = label;
         Publication = publication;
-        Sidebars = sidebars;
+        Sidebars = Array.AsReadOnly(sidebars.ToArray());
     }
 
     /// <summary>collection・version・localeを含む安定した文書識別子を取得します。</summary>
@@ -104,8 +104,9 @@ public sealed class DocumentNavigationSnapshot
         Collection = collection;
         Version = version;
         Locale = locale;
-        Sidebars = sidebars;
-        Documents = documents;
+        Sidebars = new System.Collections.ObjectModel.ReadOnlyDictionary<string, IReadOnlyList<DocumentNavigationItem>>(
+            sidebars.ToDictionary(pair => pair.Key, pair => SnapshotItems(pair.Value), StringComparer.Ordinal));
+        Documents = Array.AsReadOnly(documents.ToArray());
         this.defaultSidebar = defaultSidebar;
         pages = documents.Select(document => catalog.Resolve(document.Key))
             .ToDictionary(page => page.Key);
@@ -299,4 +300,7 @@ public sealed class DocumentNavigationSnapshot
 
     private static IEnumerable<DocumentKey> Flatten(IEnumerable<DocumentNavigationItem> items) =>
         items.SelectMany(item => (item.Document is null ? Enumerable.Empty<DocumentKey>() : [item.Document]).Concat(Flatten(item.Children)));
+
+    private static IReadOnlyList<DocumentNavigationItem> SnapshotItems(IReadOnlyList<DocumentNavigationItem> items) =>
+        Array.AsReadOnly(items.Select(item => item with { Children = SnapshotItems(item.Children) }).ToArray());
 }

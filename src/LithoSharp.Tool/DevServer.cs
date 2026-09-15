@@ -221,6 +221,7 @@ internal static class DevServer
         var watcher = new FileSystemWatcher(root)
         {
             IncludeSubdirectories = true,
+            InternalBufferSize = 64 * 1024,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
         FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath); };
@@ -233,6 +234,11 @@ internal static class DevServer
         watcher.Created += onChange;
         watcher.Deleted += onChange;
         watcher.Renamed += onRename;
+        watcher.Error += (_, eventArgs) =>
+        {
+            Console.Error.WriteLine($"File watching lost changes: {eventArgs.GetException().Message} Rebuilding the site.");
+            changed(root);
+        };
         watcher.EnableRaisingEvents = true;
         return watcher;
     }

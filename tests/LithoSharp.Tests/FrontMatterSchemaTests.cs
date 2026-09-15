@@ -7,6 +7,17 @@ namespace LithoSharp.Tests;
 
 public sealed class FrontMatterSchemaTests
 {
+    [Test]
+    public async Task SchemaCollectionsCannotBeChangedByConsumers()
+    {
+        var schema = FrontMatterSchemas.For<FixtureFrontMatter>();
+        await Assert.That(() => ((IList<FrontMatterFieldInfo>)schema.Fields)[0] = null!).Throws<NotSupportedException>();
+        var nested = schema.Fields.Single(field => field.Key == "nested");
+        await Assert.That(() => ((IList<FrontMatterFieldInfo>)nested.Fields)[0] = null!).Throws<NotSupportedException>();
+        var priority = schema.Fields.Single(field => field.Key == "priority");
+        await Assert.That(() => ((IList<string>)priority.EnumValues)[0] = "invalid").Throws<NotSupportedException>();
+    }
+
     private enum FixturePriority
     {
         Low,
@@ -46,9 +57,9 @@ public sealed class FrontMatterSchemaTests
         var schema = FrontMatterSchemas.Document;
 
         await Assert.That(schema.Name).IsEqualTo("document");
-        await Assert.That(schema.IsBuiltIn).IsEqualTo(true);
+        await Assert.That(schema.IsBuiltIn).IsTrue();
         await Assert.That(schema.FrontMatterType).IsEqualTo(typeof(DocumentFrontMatter));
-        await Assert.That(schema.RejectUnknownFields).IsEqualTo(true);
+        await Assert.That(schema.RejectUnknownFields).IsTrue();
 
         var byKey = schema.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
         await Assert.That(byKey["title"].Type).IsEqualTo("string");
@@ -70,8 +81,8 @@ public sealed class FrontMatterSchemaTests
 
         foreach (var field in schema.Fields)
         {
-            await Assert.That(string.IsNullOrWhiteSpace(field.Description)).IsEqualTo(false);
-            await Assert.That(field.Deprecated).IsEqualTo(false);
+            await Assert.That(string.IsNullOrWhiteSpace(field.Description)).IsFalse();
+            await Assert.That(field.Deprecated).IsFalse();
             await Assert.That(field.DeprecationMessage).IsNull();
         }
 
@@ -84,7 +95,7 @@ public sealed class FrontMatterSchemaTests
         var schema = FrontMatterSchemas.Post;
 
         await Assert.That(schema.Name).IsEqualTo("post");
-        await Assert.That(schema.IsBuiltIn).IsEqualTo(true);
+        await Assert.That(schema.IsBuiltIn).IsTrue();
         await Assert.That(schema.FrontMatterType).IsEqualTo(typeof(PostFrontMatter));
 
         var byKey = schema.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
@@ -99,11 +110,11 @@ public sealed class FrontMatterSchemaTests
         await Assert.That(sources.ItemType).IsEqualTo("object");
         var nested = sources.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
         await Assert.That(nested["type"].Description).IsEqualTo("Kind of source (for example feed, article, or repo).");
-        await Assert.That(nested["url"].AllowsNull).IsEqualTo(true);
+        await Assert.That(nested["url"].AllowsNull).IsTrue();
 
         foreach (var field in schema.Fields)
         {
-            await Assert.That(string.IsNullOrWhiteSpace(field.Description)).IsEqualTo(false);
+            await Assert.That(string.IsNullOrWhiteSpace(field.Description)).IsFalse();
         }
 
         await CheckConsistencyAsync(schema, new ReflectionContentFrontMatterBinder<PostFrontMatter>());
@@ -114,15 +125,15 @@ public sealed class FrontMatterSchemaTests
     {
         var schema = FrontMatterSchemas.For<FixtureFrontMatter>();
 
-        await Assert.That(schema.IsBuiltIn).IsEqualTo(false);
+        await Assert.That(schema.IsBuiltIn).IsFalse();
         await Assert.That(schema.Name).IsEqualTo(nameof(FixtureFrontMatter));
         await Assert.That(schema.FrontMatterType).IsEqualTo(typeof(FixtureFrontMatter));
 
         var byKey = schema.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
-        await Assert.That(byKey["title"].Required).IsEqualTo(true);
-        await Assert.That(byKey["custom_name"].Required).IsEqualTo(false);
-        await Assert.That(byKey["custom_name"].AllowsNull).IsEqualTo(true);
-        await Assert.That(byKey.ContainsKey("renamed")).IsEqualTo(false);
+        await Assert.That(byKey["title"].Required).IsTrue();
+        await Assert.That(byKey["custom_name"].Required).IsFalse();
+        await Assert.That(byKey["custom_name"].AllowsNull).IsTrue();
+        await Assert.That(byKey.ContainsKey("renamed")).IsFalse();
 
         var priority = byKey["priority"];
         await Assert.That(priority.Type).IsEqualTo("enum");
@@ -130,10 +141,10 @@ public sealed class FrontMatterSchemaTests
 
         var noted = byKey["noted"];
         await Assert.That(noted.Description).IsEqualTo("A noted field.");
-        await Assert.That(noted.Deprecated).IsEqualTo(false);
+        await Assert.That(noted.Deprecated).IsFalse();
 
         var legacy = byKey["legacy"];
-        await Assert.That(legacy.Deprecated).IsEqualTo(true);
+        await Assert.That(legacy.Deprecated).IsTrue();
         await Assert.That(legacy.DeprecationMessage).IsEqualTo("Use Noted.");
         await Assert.That(legacy.Description).IsNull();
 
@@ -154,7 +165,7 @@ public sealed class FrontMatterSchemaTests
     {
         var schema = FrontMatterSchemas.For<MdxBlogFrontMatter>();
 
-        await Assert.That(schema.IsBuiltIn).IsEqualTo(false);
+        await Assert.That(schema.IsBuiltIn).IsFalse();
         var byKey = schema.Fields.ToDictionary(field => field.Key, StringComparer.Ordinal);
         await Assert.That(byKey["title"].Type).IsEqualTo("string");
         await Assert.That(byKey["authors"].Type).IsEqualTo("array");
@@ -167,10 +178,10 @@ public sealed class FrontMatterSchemaTests
     [Test]
     public async Task BuiltInAndCustomAreDistinguished()
     {
-        await Assert.That(FrontMatterSchemas.Document.IsBuiltIn).IsEqualTo(true);
-        await Assert.That(FrontMatterSchemas.Post.IsBuiltIn).IsEqualTo(true);
+        await Assert.That(FrontMatterSchemas.Document.IsBuiltIn).IsTrue();
+        await Assert.That(FrontMatterSchemas.Post.IsBuiltIn).IsTrue();
         await Assert.That(FrontMatterSchemas.Document.Name).IsNotEqualTo(FrontMatterSchemas.Post.Name);
-        await Assert.That(FrontMatterSchemas.For<FixtureFrontMatter>().IsBuiltIn).IsEqualTo(false);
+        await Assert.That(FrontMatterSchemas.For<FixtureFrontMatter>().IsBuiltIn).IsFalse();
     }
 
     private static async Task CheckConsistencyAsync<TFrontMatter>(
@@ -178,7 +189,7 @@ public sealed class FrontMatterSchemaTests
         where TFrontMatter : notnull
     {
         var full = MappingFromFields(schema.Fields);
-        await Assert.That(binder.Bind(full).IsSuccess).IsEqualTo(true);
+        await Assert.That(binder.Bind(full).IsSuccess).IsTrue();
 
         foreach (var required in schema.Fields.Where(field => field.Required))
         {
@@ -186,7 +197,7 @@ public sealed class FrontMatterSchemaTests
             missing.Remove(required.Key);
             var result = binder.Bind(missing);
             await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Id == ContentFrontMatterDiagnosticIds.MissingRequiredField))
-                .IsEqualTo(true);
+                .IsTrue();
         }
 
         var unknown = new Dictionary<string, object?>(full, StringComparer.Ordinal)
@@ -195,13 +206,13 @@ public sealed class FrontMatterSchemaTests
         };
         var rejected = binder.Bind(unknown);
         await Assert.That(rejected.Diagnostics.Any(diagnostic => diagnostic.Id == ContentFrontMatterDiagnosticIds.UnknownField))
-            .IsEqualTo(true);
+            .IsTrue();
 
         var empty = binder.Bind(new Dictionary<string, object?>(StringComparer.Ordinal));
         var expectedMissing = schema.Fields.Where(field => field.Required).Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
         if (expectedMissing.Count == 0)
         {
-            await Assert.That(empty.IsSuccess).IsEqualTo(true);
+            await Assert.That(empty.IsSuccess).IsTrue();
         }
         else
         {

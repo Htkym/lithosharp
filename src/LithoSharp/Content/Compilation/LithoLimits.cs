@@ -78,7 +78,7 @@ internal static class LithoLimits
     /// stay literal like the parser. Returns one informational at the first
     /// occurrence, or null when absent.
     /// </summary>
-    internal static Diagnostics.SiteDiagnostic? FindBrowserAssetWarning(string body, string? filePath)
+    internal static Diagnostics.SiteDiagnostic? FindBrowserAssetWarning(string body, string? filePath, int bodyStartLine = 1)
     {
         ArgumentNullException.ThrowIfNull(body);
         var lines = SplitBodyLines(body);
@@ -102,7 +102,7 @@ internal static class LithoLimits
                 else
                 {
                     inMathFence = false;
-                    return BrowserAsset(body, filePath, mathFenceOffset);
+                    return BrowserAsset(body, filePath, mathFenceOffset, bodyStartLine);
                 }
 
                 continue;
@@ -122,7 +122,7 @@ internal static class LithoLimits
                     fenceRun = run;
                     if (IsDiagramInfo(text, run))
                     {
-                        return BrowserAsset(body, filePath, offset);
+                        return BrowserAsset(body, filePath, offset, bodyStartLine);
                     }
                 }
                 else if (marker == fenceChar && run >= fenceRun)
@@ -140,20 +140,20 @@ internal static class LithoLimits
 
             if (FindInlineMath(text) is { } column)
             {
-                return BrowserAsset(body, filePath, offset + column);
+                return BrowserAsset(body, filePath, offset + column, bodyStartLine);
             }
         }
 
         return null;
     }
 
-    private static Diagnostics.SiteDiagnostic BrowserAsset(string body, string? filePath, int offset)
+    private static Diagnostics.SiteDiagnostic BrowserAsset(string body, string? filePath, int offset, int bodyStartLine)
     {
         var (line, column) = new SourceText(body).GetLineAndColumn(offset);
         Diagnostics.SiteSourceLocation? location = null;
         if (!string.IsNullOrWhiteSpace(filePath))
         {
-            location = new Diagnostics.SiteSourceLocation(filePath, line, column);
+            location = new Diagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column);
         }
 
         return new Diagnostics.SiteDiagnostic(
@@ -255,7 +255,7 @@ internal static class LithoLimits
     /// previous Markdig pipeline, so callers report it instead of staying silent.
     /// Returns one warning at the first occurrence, or null when absent.
     /// </summary>
-    internal static Diagnostics.SiteDiagnostic? FindFootnoteWarning(string body, string? filePath)
+    internal static Diagnostics.SiteDiagnostic? FindFootnoteWarning(string body, string? filePath, int bodyStartLine = 1)
     {
         ArgumentNullException.ThrowIfNull(body);
         var lines = SplitBodyLines(body);
@@ -297,7 +297,7 @@ internal static class LithoLimits
             Diagnostics.SiteSourceLocation? location = null;
             if (!string.IsNullOrWhiteSpace(filePath))
             {
-                location = new Diagnostics.SiteSourceLocation(filePath, line, column);
+                location = new Diagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column);
             }
 
             return new Diagnostics.SiteDiagnostic(

@@ -126,15 +126,15 @@ public sealed class DocumentInfo
         DocumentId = documentId;
         SourcePath = sourcePath;
         Title = title;
-        Headings = headings;
-        Links = links;
-        Assets = assets;
+        Headings = Array.AsReadOnly(headings.ToArray());
+        Links = Array.AsReadOnly(links.ToArray());
+        Assets = Array.AsReadOnly(assets.ToArray());
         Route = route;
-        Components = components;
+        Components = Array.AsReadOnly(components.ToArray());
         FrontMatter = frontMatter;
         Version = version;
         Locale = locale;
-        Diagnostics = diagnostics;
+        Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
     }
 
     /// <summary>文書識別子を取得します。</summary>

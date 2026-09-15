@@ -2,8 +2,9 @@
 
 [日本語](performance.ja.md)
 
-These are measurements of the implemented 0.3.0 runtime, taken on 2026-09-08.
-They are not comparisons with Docusaurus or Astro and are not service-level promises.
+This document separates measurements of the 1.0.0 candidate, earlier 0.3.0
+measurements from 2026-09-08, and competitor comparisons from 2026-09-13.
+Each result applies to its stated fixture and environment, not a service-level promise.
 
 ## What was measured
 
@@ -16,15 +17,37 @@ Environment: Windows build 26200 x64, Intel Core Ultra 7 258V, 8 logical process
 32 GB RAM, .NET SDK 10.0.300/runtime 10.0.8, Node.js 24.13.0, Chromium 153.0.8010.12.
 The worker lockfile pins MDX 3.1.1, React 19.2.4 and esbuild 0.25.12.
 
-## Markdown compatibility
+## 1.0.0 Markdown generation
 
-For 100 and 1,000 pages, the baseline and current implementation were alternated
+The 2026-09-15 measurements used the final compiler source at `5cc8581` on the
+Windows/.NET environment above. The table reports medians from five independent
+processes for 100 and 1,000 pages and two for 10,000 pages. MB means decimal MB;
+allocations cover managed memory, not peak resident memory.
+
+| Pages | Clean build | Managed allocation | One body edit |
+| --- | ---: | ---: | ---: |
+| 100 | 426.14 ms | 40.67 MB | 211.61 ms |
+| 1,000 | 5,083.53 ms | 359.58 MB | 3,410.56 ms |
+| 10,000 | 71,195.96 ms | 3,564.19 MB | 75,680.04 ms |
+
+No-op builds invalidated no documents. Earlier runs showed substantial timing
+variation, including runs above the release thresholds; the final measurements
+ran without overlapping local verification work. The 10,000-page sample is small
+and does not establish a latency guarantee. These results do not remeasure the
+large-site MDX or browser scenarios below.
+
+## Earlier Markdown compatibility measurements
+
+For 100 and 1,000 pages, the baseline and 0.3.0 implementation were alternated
 five times. Median time, allocation and resident-memory increases were all within
 10%. Individual runs exceeded a 10% time difference; this does not establish zero
 regression in every run. This is the Markdown benchmark baseline, not a timing
 comparison against the published NuGet 0.2.0 upgrade consumer.
 
 ## MDX generation and large sites
+
+These 0.3.0 measurements were taken on 2026-09-08 and have not been rerun in full
+against the final 1.0.0 candidate.
 
 | 10,000-page corpus | Elapsed |
 | --- | ---: |
@@ -40,6 +63,8 @@ are not peak RSS. The worker timeout was fifteen minutes, above the two-minute
 default. Incremental compilation does not imply an instant end-to-end rebuild.
 
 ## Selective hydration
+
+These browser measurements were taken on 2026-09-08 with 0.3.0.
 
 Static-page fixture, five navigations per mode, alternating mode order, fresh
 browser contexts, service workers blocked, 1280 × 720 viewport, measured at
@@ -61,9 +86,29 @@ With all deferred islands activated at 640 × 600 then 1200 × 800, script durat
 was 16.101 → 18.056 ms and hydration 13.1 → 14.6 ms; CLS was 0.157 in both modes.
 The initial static viewport and fully activated layout are different scenarios.
 
+## Competitor comparison
+
+On 2026-09-13 the same machine and fixed corpora compared production builds
+of LithoSharp against Docusaurus 3.10.2 with React 19.2.4, Astro 7.3.2 with
+Starlight 0.42.0, Hugo 0.166.0 extended and MkDocs 1.6.1 with Material 9.7.7,
+using Plain Markdown, Documentation and MDX/Interactive profiles. Medians
+below are per-profile build times; feature differences in search, highlight,
+navigation and JavaScript behavior apply and unsupported combinations are not
+reported as zero.
+
+| 1,000 pages | LithoSharp | Hugo | MkDocs | Astro | Docusaurus |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain | 6.7 s | 2.8 s | 21.3 s | 6.6 s | 34.6 s (blog) |
+| Docs | 12.4 s | 0.76 s | 23.9 s | 14.3 s (Starlight) | 23.9 s |
+
+At 10,000 pages Hugo and Astro finished, Docusaurus ran out of memory and
+MkDocs exceeded the ten-minute limit. Hugo and MkDocs do not support MDX.
+Raw results stay local; the procedure is reproducible from the repository
+harness. Windows results do not predict Linux/macOS throughput.
+
 ## What this does not prove
 
-No equivalent competitor benchmark was run. Windows results do not predict
+The 10,000-page MDX figures above have no equivalent competitor run. Windows results do not predict
 Linux/macOS throughput. Fixture savings do not imply that every MDX page is
 zero-JS, that all islands become faster, or that arbitrary npm dependencies work.
 See [Known limitations](known-limitations.md) for execution and platform boundaries.

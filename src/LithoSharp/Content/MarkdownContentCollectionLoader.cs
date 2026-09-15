@@ -337,13 +337,14 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 new SiteSourceLocation(relativePath, 1, 1));
         }
 
+        var bodyStartLine = new Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;
         return ContentParseResult<ContentEntry<TFrontMatter, string>>.Success(
             entry,
             [.. bindResult.Diagnostics,
-                .. (Compilation.LithoLimits.FindFootnoteWarning(inclusion.Body, relativePath) is { } footnote
+                .. (Compilation.LithoLimits.FindFootnoteWarning(document.Body, relativePath, bodyStartLine) is { } footnote
                     ? (IReadOnlyList<SiteDiagnostic>) [footnote]
                     : []),
-                .. (Compilation.LithoLimits.FindBrowserAssetWarning(inclusion.Body, relativePath) is { } browserAsset
+                .. (Compilation.LithoLimits.FindBrowserAssetWarning(document.Body, relativePath, bodyStartLine) is { } browserAsset
                     ? (IReadOnlyList<SiteDiagnostic>) [browserAsset]
                     : [])]);
     }

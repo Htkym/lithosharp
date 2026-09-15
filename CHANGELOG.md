@@ -2,6 +2,28 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 1.0.0
+
+- Replace the runtime Markdig dependency with the Litho Markdown compiler. HTML,
+  headings, links, assets and search text share a parsed document; persistent
+  parse records are verified before reuse.
+- Add stable document inspection, workspace snapshots, front matter schemas,
+  navigation lookups, structured diagnostics and versioned CLI/serve output.
+- Add Docusaurus migration analysis, conversion into a separate directory,
+  route comparison and fingerprinted suggested edits. Configuration is never
+  executed during migration; unsupported constructs require the documented steps.
+- Extend the supported MDX component subset and preserve original diagnostic
+  lines when processing `mdx-code-block` fences.
+- Protect inspection, schema and navigation snapshots from mutation, decode
+  heading text once in tables of contents, and reject symbolic migration destinations.
+
+Public API additions preserve the existing signatures. Markdown compatibility is
+limited to the [documented subset](docs/known-limitations.md#markdown-compatibility): footnotes,
+definition lists and other listed Markdig extensions are not implemented.
+Regenerate sites and review content warnings before upgrading. See the
+[Docusaurus migration guide](docs/docusaurus-migration.md) and
+[tooling compatibility policy](docs/cli.md#structured-output-and-1x-compatibility).
+
 ## 0.3.1 — 2026-09-09
 
 - Refresh the built-in Docs and Blog layouts, typography, spacing and responsive navigation.

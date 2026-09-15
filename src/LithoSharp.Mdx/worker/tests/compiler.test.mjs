@@ -143,6 +143,8 @@ test('mdx-code-block fences unwrap to executable MDX while outer samples stay di
   // The display sample inside the outer ````md fence keeps its fences.
   assert.ok(unwrapped.includes('````md'));
   assert.equal((unwrapped.match(/```mdx-code-block/g) ?? []).length, 1);
+  assert.equal(unwrapped.split('\n').length, source.split('\n').length);
+  assert.equal(unwrapped.split('\n').indexOf('Body text.'), source.split('\n').indexOf('Body text.'));
 });
 
 test('mdx-code-block imports and docs-client hooks render statically', async () => {
@@ -181,6 +183,7 @@ test('mdx-code-block imports and docs-client hooks render statically', async () 
     const result = await compileSite(request);
     assert.match(result.pages[0].html, /browser/);
     assert.match(result.pages[0].html, /current/);
+    assert.equal(result.pages[0].headings[0].line, 7);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 

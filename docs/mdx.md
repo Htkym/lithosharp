@@ -8,8 +8,8 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 ## Start a site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.1
-dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.0.0
+dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -75,12 +75,18 @@ their JavaScript export semantics. Only selected browser data is published.
 
 `@theme/Tabs`, `@theme/TabItem`, `@theme/Admonition`, `@theme/Details`,
 `@theme/CodeBlock`, `@theme/TOCInline`, `@theme/Card`, `@theme/DocCardList`,
-`@theme/MDXComponents`,
+`@theme/MDXComponents`, `@theme/IdealImage`, `@theme/ThemedImage`,
+`@theme/Heading`,
 `@theme/BrowserOnly` and `@docusaurus/BrowserOnly` are supported imports.
-The same components, plus `Link` and `Translate`, also resolve as bare JSX
-names from the runtime component map. `useBaseUrl` and
+The same components, plus `Link`, `Translate`, `Highlight`, `TweetQuote` and
+`Code`, also resolve as bare JSX names from the runtime component map.
+`@docusaurus/router` and `@docusaurus/plugin-content-docs/client` hooks render
+with static fallback values for vendored components; verify the output or
+rewrite call sites to `usePageContext`. `useBaseUrl` and
 `useDocusaurusContext` do not exist; read `basePath`, locale and messages
 from `usePageContext` in `@lithosharp/runtime` instead.
+Top-level ` ```mdx-code-block ` fences wrap executable MDX; see the
+[migration guide](docusaurus-migration.md).
 The preset provides GFM, heading anchors, directive admonitions, Prism code,
 math with KaTeX and Mermaid. See the sample's content files for executable
 examples, including browser-only dynamic imports and code inclusion.
@@ -93,9 +99,11 @@ The compared release is Docusaurus 3.10.2 with `@mdx-js/mdx` 3.1.1, React
 19.2.4 and esbuild 0.25.12 on Node.js 24.13.0, pinned in
 `tests/fixtures/mdx-baseline`. `DocusaurusProfile` in
 `src/LithoSharp/Documentation` is the single source of truth for these
-judgments; the migration report and the worker alias handling agree with it.
+ judgments; the migration report and the worker alias handling agree with it.
 Only verified behavior is listed as supported. The Fixture column names the
-`tests/fixtures/docusaurus` corpus fixtures covering each row.
+`tests/fixtures/docusaurus` corpus fixtures covering each row; rows marked
+docusaurus.io cite the migrated real site instead (see the
+[migration guide](docusaurus-migration.md)).
 
 | Construct | Judgment | Notes | Fixture |
 | --- | --- | --- | --- |
@@ -111,6 +119,11 @@ Only verified behavior is listed as supported. The Fixture column names the
 | `Zoom` | Supported | Bare image-zoom wrapper with no import path; renders children without zoom interaction. | mdx-components |
 | `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. | mdx-components |
 | `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. | mdx-components |
+| `IdealImage` | Supported | Static image passthrough; responsive variants render the base image. | docusaurus.io (R21) |
+| `ThemedImage` | Supported | Renders the light source statically; color-mode switching needs hydration. | docusaurus.io (R21) |
+| `Heading` | Supported | Renders the requested heading level statically without anchor automation. | docusaurus.io (R21) |
+| `Highlight`, `TweetQuote`, `Code` | Supported | Bare globals from the site compatibility map. | docusaurus.io (R21) |
+| `@docusaurus/router`, `plugin-content-docs/client` hooks | Partial | SSR-safe static fallbacks (empty location, current version); verify the output or rewrite to `usePageContext`. | docusaurus.io (R21) |
 | `useBaseUrl` | Unsupported | No such export. Read `basePath` from `usePageContext` in `@lithosharp/runtime`. | full-site |
 | `useDocusaurusContext` | Unsupported | No such export. Use `usePageContext` from `@lithosharp/runtime`. | full-site |
 | Other `@theme/*` | Unsupported | The build fails with `Unsupported Docusaurus alias`. | full-site |

@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   build:
+    # Keep the required status names while pinning the runner images below.
+    name: build (${{ matrix.check-name }})
     strategy:
       fail-fast: false
       matrix:
@@ -20,10 +22,13 @@ jobs:
         include:
           - os: windows-2025
             arch: X64
+            check-name: windows-latest
           - os: ubuntu-24.04
             arch: X64
+            check-name: ubuntu-latest
           - os: macos-15
             arch: Arm64
+            check-name: macos-latest
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -173,6 +178,10 @@ jobs:
             node tests/fixtures/mdx-browser/offline-update.mjs http://127.0.0.1:4317
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { if (!$server.HasExited) { $server.Kill($true); $server.WaitForExit() }; $server.Dispose() }
+
+      - name: Check sub-path deployment
+        shell: pwsh
+        run: ./eng/Test-Deployment.ps1
 
       - name: Upload sample site
         uses: actions/upload-artifact@v7

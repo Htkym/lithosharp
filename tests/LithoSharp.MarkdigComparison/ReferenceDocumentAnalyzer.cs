@@ -196,10 +196,10 @@ internal static class ReferenceDocumentAnalyzer
         return body.Substring(span.Start, length);
     }
 
-    /// <summary>Heading display text, byte-identical to stripping the rendered heading HTML.</summary>
+    /// <summary>Decoded heading display text from the reference HTML.</summary>
     /// <remarks>
     /// The inline subtree is rendered with the same pipeline (no re-parse) and tags are
-    /// stripped exactly like the legacy template heading extraction, so TOC text is unchanged.
+    /// stripped and entities decoded once, matching the text shown by a browser.
     /// </remarks>
     private static string RenderInlineText(ContainerInline? inline, MarkdownPipeline pipeline)
     {
@@ -213,7 +213,7 @@ internal static class ReferenceDocumentAnalyzer
         pipeline.Setup(renderer);
         renderer.Render(inline);
         writer.Flush();
-        return StripTagsRegex.Replace(writer.ToString(), string.Empty);
+        return System.Net.WebUtility.HtmlDecode(StripTagsRegex.Replace(writer.ToString(), string.Empty));
     }
 
     private static readonly Regex StripTagsRegex = new("<.*?>", RegexOptions.Singleline);

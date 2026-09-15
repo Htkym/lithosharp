@@ -26,7 +26,7 @@ public static class DocumentInspection
         var diagnostics = new List<SiteDiagnostic>();
         string body;
         int bodyStartOffset;
-        IReadOnlyDictionary<string, object?> frontMatter = new Dictionary<string, object?>(StringComparer.Ordinal);
+        IReadOnlyDictionary<string, object?> frontMatter = System.Collections.ObjectModel.ReadOnlyDictionary<string, object?>.Empty;
         switch (split.Status)
         {
             case FrontMatterSplitStatus.Ok:
@@ -71,11 +71,14 @@ public static class DocumentInspection
                 break;
         }
 
-        var analyzed = new LithoMarkdownCompiler().Analyze(body, new DocumentSource(sourcePath, bodyStartOffset), cancellationToken);
+        var locator = new SourceText(text);
+        var analyzed = new LithoMarkdownCompiler().Analyze(body, new DocumentSource(sourcePath, bodyStartOffset)
+        {
+            BodyStartLine = locator.GetLineAndColumn(bodyStartOffset).Line,
+        }, cancellationToken);
         var semantics = analyzed.Semantics!;
         diagnostics.AddRange(semantics.Diagnostics);
 
-        var locator = new SourceText(text);
         return new DocumentInfo(
             options?.DocumentId ?? sourcePath,
             sourcePath,
@@ -96,10 +99,17 @@ public static class DocumentInspection
         var result = new Dictionary<string, object?>(mapping.Count, StringComparer.Ordinal);
         foreach (var entry in mapping)
         {
-            result[entry.Key] = LocatedYamlValue.Unwrap(entry.Value);
+            result[entry.Key] = UnwrapValue(entry.Value);
         }
-        return result;
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, object?>(result);
     }
+
+    private static object? UnwrapValue(object? value) => value switch
+    {
+        LocatedYamlMapping mapping => UnwrapMapping(mapping),
+        LocatedYamlSequence sequence => Array.AsReadOnly(sequence.Select(UnwrapValue).ToArray()),
+        _ => LocatedYamlValue.Unwrap(value),
+    };
 
     private static SiteSourceLocation Locate(SourceText locator, string sourcePath, SourceSpan span)
     {

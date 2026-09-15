@@ -43,8 +43,8 @@ public sealed class MigrationReportTests
         var report = DocusaurusMigrationReport.Analyze(site, options: Options);
 
         await Assert.That(report.SchemaVersion).IsEqualTo("1.0");
-        await Assert.That(report.DryRun).IsEqualTo(true);
-        await Assert.That(report.WroteOutput).IsEqualTo(false);
+        await Assert.That(report.DryRun).IsTrue();
+        await Assert.That(report.WroteOutput).IsFalse();
         await Assert.That(report.Destination).IsNull();
         await Assert.That(report.Summary.TotalFiles).IsEqualTo(report.Files.Count);
         await Assert.That(report.Summary.Automatic + report.Summary.Convertible + report.Summary.ManualActionRequired + report.Summary.Unsupported)
@@ -79,13 +79,13 @@ public sealed class MigrationReportTests
         var destination = Path.Combine(workspace.Root, "out");
         var report = await DocusaurusMigrationReport.ConvertAsync(site, destination, options: Options);
 
-        await Assert.That(report.DryRun).IsEqualTo(false);
-        await Assert.That(report.WroteOutput).IsEqualTo(true);
+        await Assert.That(report.DryRun).IsFalse();
+        await Assert.That(report.WroteOutput).IsTrue();
 
         foreach (var file in report.Files.Where(file => file.SuggestedActions.Count > 0))
         {
             var automatic = file.Verdict is MigrationVerdict.Automatic or MigrationVerdict.Convertible;
-            await Assert.That(file.SuggestedActions.All(action => action.CanApplyAutomatically == automatic)).IsEqualTo(true);
+            await Assert.That(file.SuggestedActions.All(action => action.CanApplyAutomatically == automatic)).IsTrue();
             foreach (var action in file.SuggestedActions)
             {
                 await Assert.That(action.SourcePath).IsEqualTo(file.SourcePath);
@@ -102,17 +102,17 @@ public sealed class MigrationReportTests
         var readme = ByPath("docs/guide/README.md");
         await Assert.That(readme.SuggestedActions.Count).IsEqualTo(1);
         await Assert.That(readme.SuggestedActions[0].Kind).IsEqualTo(MigrationActionKind.InsertAfter);
-        await Assert.That(readme.SuggestedActions[0].ReplacementText.Contains("slug:")).IsEqualTo(true);
+        await Assert.That(readme.SuggestedActions[0].ReplacementText.Contains("slug:")).IsTrue();
 
         var linkfix = ByPath("docs/linkfix.mdx");
         await Assert.That(linkfix.SuggestedActions.Any(action =>
-            action.Kind == MigrationActionKind.ReplaceLines && action.ReplacementText.Length == 0)).IsEqualTo(true);
+            action.Kind == MigrationActionKind.ReplaceLines && action.ReplacementText.Length == 0)).IsTrue();
         await Assert.That(linkfix.SuggestedActions.Any(action =>
-            action.Kind == MigrationActionKind.ReplaceLines && action.ReplacementText.Contains("href="))).IsEqualTo(true);
+            action.Kind == MigrationActionKind.ReplaceLines && action.ReplacementText.Contains("href="))).IsTrue();
 
         var hello = ByPath("blog/2024-01-02-hello.md");
         await Assert.That(hello.SuggestedActions.Count).IsEqualTo(1);
-        await Assert.That(hello.SuggestedActions[0].ReplacementText.Contains("date:")).IsEqualTo(true);
+        await Assert.That(hello.SuggestedActions[0].ReplacementText.Contains("date:")).IsTrue();
 
         var authors = ByPath("blog/authors.yml");
         await Assert.That(authors.Verdict).IsEqualTo(MigrationVerdict.Convertible);
@@ -128,18 +128,18 @@ public sealed class MigrationReportTests
 
         var custom = report.Files.Single(file => file.SourcePath == "docs/guide/custom.md");
         await Assert.That(custom.SuggestedActions.Count).IsGreaterThan(0);
-        await Assert.That(custom.SuggestedActions.All(action => action.CanApplyAutomatically)).IsEqualTo(false);
+        await Assert.That(custom.SuggestedActions.All(action => action.CanApplyAutomatically)).IsFalse();
         foreach (var action in custom.SuggestedActions)
         {
-            await Assert.That(action.ApplyCondition.Contains("manual", StringComparison.OrdinalIgnoreCase)).IsEqualTo(true);
+            await Assert.That(action.ApplyCondition.Contains("manual", StringComparison.OrdinalIgnoreCase)).IsTrue();
         }
 
         var source = await File.ReadAllBytesAsync(Path.Combine(site, "docs/guide/custom.md"));
         var action0 = custom.SuggestedActions[0];
-        await Assert.That(action0.MatchesSource(source)).IsEqualTo(true);
-        await Assert.That(action0.MatchesSourceText(Encoding.UTF8.GetString(source))).IsEqualTo(true);
+        await Assert.That(action0.MatchesSource(source)).IsTrue();
+        await Assert.That(action0.MatchesSourceText(Encoding.UTF8.GetString(source))).IsTrue();
         var edited = source.Concat([ (byte)'\n' ]).ToArray();
-        await Assert.That(action0.MatchesSource(edited)).IsEqualTo(false);
+        await Assert.That(action0.MatchesSource(edited)).IsFalse();
     }
 
     [Test]

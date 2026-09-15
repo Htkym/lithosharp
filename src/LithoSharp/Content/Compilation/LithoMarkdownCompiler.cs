@@ -16,7 +16,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// Bump on any output or semantics behavior change so persistent parse
     /// records from older implementations miss instead of rendering stale HTML.
     /// </summary>
-    internal const string ImplementationVersion = "1";
+    internal const string ImplementationVersion = "2";
 
     /// <summary>Pinned CommonMark/GFM specification versions (C04).</summary>
     internal const string SpecVersion = "commonmark-0.31.2+gfm-0.29";
@@ -119,22 +119,13 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     }
 
     /// <summary>Assigns ids from entity-decoded heading text, matching the reference slugs.</summary>
-    private static IReadOnlyList<string> AssignIds(List<string> texts)
-    {
-        var decoded = new List<string>(texts.Count);
-        foreach (var text in texts)
-        {
-            decoded.Add(System.Net.WebUtility.HtmlDecode(text));
-        }
-
-        return LithoSlug.Assign(decoded);
-    }
+    private static IReadOnlyList<string> AssignIds(List<string> texts) => LithoSlug.Assign(texts);
 
     private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts)
     {
         foreach (var heading in WalkHeadings(blocks))
         {
-            texts.Add(StripTags(LithoHtmlRenderer.RenderInlines(heading.Inlines)));
+            texts.Add(System.Net.WebUtility.HtmlDecode(StripTags(LithoHtmlRenderer.RenderInlines(heading.Inlines))));
         }
     }
 
@@ -193,12 +184,12 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         var links = new List<DocumentLink>();
         var assets = new List<DocumentAsset>();
         var diagnostics = new List<LithoSharp.Diagnostics.SiteDiagnostic>();
-        if (LithoLimits.FindFootnoteWarning(body, source.FilePath) is { } footnote)
+        if (LithoLimits.FindFootnoteWarning(body, source.FilePath, source.BodyStartLine) is { } footnote)
         {
             diagnostics.Add(footnote);
         }
 
-        if (LithoLimits.FindBrowserAssetWarning(body, source.FilePath) is { } browserAsset)
+        if (LithoLimits.FindBrowserAssetWarning(body, source.FilePath, source.BodyStartLine) is { } browserAsset)
         {
             diagnostics.Add(browserAsset);
         }
