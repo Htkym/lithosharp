@@ -54,9 +54,27 @@ hydration時間の合計が13.2 → 18.2 msでした。hydration区間は重複�
 640 × 600から1200 × 800へ変更して全遅延islandを起動した場合、scriptは16.101 → 18.056 ms、
 hydrationは13.1 → 14.6 ms、CLSは両modeとも0.157でした。初期viewportと起動後のlayoutは別条件です。
 
+## 競合比較
+
+2026-09-13に同一マシンと固定corpusで、製品buildの比較を行った。対象は
+Docusaurus 3.10.2とReact 19.2.4、Astro 7.3.2とStarlight 0.42.0、Hugo 0.166.0
+extended、MkDocs 1.6.1とMaterial 9.7.7であり、Plain MarkdownとDocumentationと
+MDX・Interactiveのprofileで測った。下表はprofile別のbuild時間の中央値である。
+検索、highlight、navigation、JS機能の差があり、非対応の組合せは0msにしない。
+
+| 1,000 pages | LithoSharp | Hugo | MkDocs | Astro | Docusaurus |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain | 6.7 s | 2.8 s | 21.3 s | 6.6 s | 34.6 s (blog) |
+| Docs | 12.4 s | 0.76 s | 23.9 s | 14.3 s (Starlight) | 23.9 s |
+
+10,000 pagesではHugoとAstroが完走し、Docusaurusはメモリ不足、MkDocsは10分制限を
+超えた。HugoとMkDocsにMDX対応はない。raw結果はローカルに置き、手順は
+リポジトリの harness から再現できる。Windowsの結果からLinux/macOSのthroughputは
+推定できない。
+
 ## この測定からは言えないこと
 
-同等条件での競合benchmarkはありません。Windowsの結果からLinux/macOSのthroughputは推定できません。
+上の10,000-page MDXの数値に同等の競合測定はない。Windowsの結果からLinux/macOSのthroughputは推定できません。
 fixtureの削減は、全MDXページがzero-JSになること、全islandが速くなること、任意のnpm依存が動くことを
 示しません。実行とplatformの境界は[既知の制約](known-limitations.ja.md)を参照してください。
 

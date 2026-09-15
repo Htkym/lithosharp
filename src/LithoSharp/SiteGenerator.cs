@@ -328,13 +328,11 @@ public sealed partial class SiteGenerator
         // text) are reported once per generation from the post bodies directly,
         // so clean and incremental builds report identically without extra parses.
         var compilerWarnings = publishedPosts
-            .SelectMany(post => new[]
+            .SelectMany(post => post.CompilerDiagnostics ?? new[]
             {
                 LithoLimits.FindFootnoteWarning(post.MarkdownBody, post.FilePath),
                 LithoLimits.FindBrowserAssetWarning(post.MarkdownBody, post.FilePath),
-            })
-            .Where(warning => warning is not null)
-            .Select(warning => warning!)
+            }.OfType<LithoSharp.Diagnostics.SiteDiagnostic>())
             .ToArray();
         var publishedExtraPages = publishedExtraPageClaims
             .Select(claim => claim.Page.Content)
@@ -1872,7 +1870,7 @@ public sealed partial class SiteGenerator
             {
                 Level = int.Parse(match.Groups["level"].Value, CultureInfo.InvariantCulture),
                 Id = match.Groups["id"].Value,
-                Text = StripTagsRegex.Replace(match.Groups["text"].Value, string.Empty)
+                Text = WebUtility.HtmlDecode(StripTagsRegex.Replace(match.Groups["text"].Value, string.Empty))
             })
             .Where(heading => !string.IsNullOrWhiteSpace(heading.Id) && !string.IsNullOrWhiteSpace(heading.Text))
             .Select(heading => new SiteTemplateHeading(heading.Level, heading.Id, heading.Text))

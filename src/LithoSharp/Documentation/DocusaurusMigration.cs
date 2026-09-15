@@ -163,6 +163,7 @@ internal static class DocusaurusMigration
         if (Within(source, destination) || Within(destination, source))
             throw new ArgumentException("Migration source and destination must not overlap.");
         if (Path.Exists(destination)) throw new IOException("The migration destination already exists; conversion never overwrites it.");
+        SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(destination)!, destination);
         var plan = AnalyzeFiles(source, options ?? new(), cancellationToken);
         var parent = Path.GetDirectoryName(destination)!;
         Directory.CreateDirectory(parent);
@@ -174,6 +175,7 @@ internal static class DocusaurusMigration
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var path = Path.Combine(staging, relative);
+                SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(staging)!, path);
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 await File.WriteAllBytesAsync(path, bytes, cancellationToken).ConfigureAwait(false);
             }
@@ -185,11 +187,19 @@ internal static class DocusaurusMigration
                 JsonSerializer.SerializeToUtf8Bytes(plan.Routes.Select(route => route.Route).ToArray(), json), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (Path.Exists(destination)) throw new IOException("The migration destination already exists; conversion never overwrites it.");
+            SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(destination)!, destination);
             Directory.Move(staging, destination);
         }
         finally
         {
-            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+            if (Directory.Exists(staging))
+            {
+                SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(staging)!, staging);
+                if (Directory.EnumerateFileSystemEntries(staging, "*", SearchOption.AllDirectories)
+                    .Any(path => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0))
+                    throw new IOException("Migration staging contains a symbolic path and was preserved.");
+                Directory.Delete(staging, recursive: true);
+            }
         }
 
         return Finish(plan, expectedRoutes, wroteOutput: true);
@@ -234,7 +244,7 @@ internal static class DocusaurusMigration
         // before analyzing documents so converted routes use the same prefixes. Malformed
         // content is reported again with file context during enumeration.
         var versionsPath = Path.Combine(source, "versions.json");
-        if (File.Exists(versionsPath))
+        if (File.Exists(versionsPath) && (File.GetAttributes(versionsPath) & FileAttributes.ReparsePoint) == 0)
         {
             try
             {

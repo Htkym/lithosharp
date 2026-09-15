@@ -8,7 +8,7 @@
 C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
 .NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-現在のリリースは **0.3.1** です。
+バージョンは **1.0.0** です。
 
 ## サンプルサイト
 
@@ -38,8 +38,8 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 .NET 10 SDKを用意して実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.1
-dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.0.0
+dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -49,7 +49,7 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 `DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存applicationでは`dotnet add package LithoSharp --version 0.3.1`でライブラリを追加し、
+既存applicationでは`dotnet add package LithoSharp --version 1.0.0`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -94,8 +94,9 @@ trimming、Native AOTは非対応です。実行環境を選ぶ前に[既知の�
 
 測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
 hydration rootが1から0になりました。全islandやfallbackの結果ではありません。
-10,000ページMDX corpusのcoldは274.30秒、no-opは105.13秒でした。
-[測定条件・制約・再現手順](docs/performance.ja.md)を参照してください。同等条件の競合benchmarkはありません。
+10,000ページMDX corpusのcoldは274.30秒、no-opは105.13秒でした。100件と1,000件の
+競合比較の要点も併記しています。
+[測定条件・制約・再現手順](docs/performance.ja.md)を参照してください。
 
 ## 貢献とライセンス
 

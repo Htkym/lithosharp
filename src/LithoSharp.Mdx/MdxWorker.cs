@@ -43,7 +43,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                     if (pair.Key is "NODE_OPTIONS" or "NODE_PATH") throw new ArgumentException("Node loader overrides must not be passed as MDX environment data.");
                     start.Environment[pair.Key] = pair.Value;
                 }
-                process = Process.Start(start) ?? throw Failure("LSMDX002", "The Node worker could not be started.");
+                process = StartWorker(start);
                 Starts++;
                 stderrTask = DrainErrorsAsync(process.StandardError);
                 var ready = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
@@ -136,6 +136,22 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
 
     internal static SiteBuildExtensionException Failure(string id, string message, string? file = null, int? line = null, int? column = null) =>
         new([new SiteDiagnostic(id, SiteDiagnosticSeverity.Error, message, file is null ? null : new SiteSourceLocation(file, line, column))]);
+
+    private Process StartWorker(ProcessStartInfo start)
+    {
+        try
+        {
+            return Process.Start(start) ?? throw Failure("LSMDX002", NodeStartMessage());
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception
+            or FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException)
+        {
+            throw Failure("LSMDX002", NodeStartMessage());
+        }
+    }
+
+    private string NodeStartMessage() =>
+        $"The Node worker could not be started ('{options.NodeExecutable}'). Install Node.js 24.13.0 and restore the worker dependencies.";
 }
 
 internal static class MdxJson

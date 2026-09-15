@@ -2,6 +2,16 @@
 
 [English](CHANGELOG.md)
 
+## 1.0.0
+
+- 実行時の Markdig 依存を Litho Markdown コンパイラーへ置き換えました。HTML、見出し、リンク、画像、検索文字列を同じ解析結果から取得し、永続キャッシュは内容を検証して再利用します。
+- 文書 inspection、workspace の snapshot、front matter schema、navigation の相互参照、構造化診断、バージョン付きの CLI・serve 出力を安定契約として追加しました。
+- Docusaurus の移行分析、別ディレクトリへの変換、route 比較、元文書の fingerprint を持つ修正候補を追加しました。移行時に設定コードを実行せず、未対応の構文は文書化した手順で対応します。
+- MDX の対応コンポーネントを追加し、`mdx-code-block` の処理後も診断の元行番号を保つようにしました。
+- inspection、schema、navigation の snapshot を書き換えから保護し、目次の二重エンコードとリンク経由の移行先検証を修正しました。
+
+既存の公開シグネチャは維持しています。Markdown の互換性は[記載した範囲](docs/known-limitations.ja.md#markdown-の互換性)に限られ、脚注や定義リストなど一部の Markdig 拡張には対応していません。更新後は再生成し、コンテンツの警告を確認してください。[Docusaurus 移行手順](docs/docusaurus-migration.ja.md)と[Tooling 互換方針](docs/cli.ja.md#構造化出力と-1x-の互換性)も参照してください。
+
 ## 0.3.1 — 2026-09-09
 
 - 標準のDocs・Blogのレイアウト、書体、余白、画面幅に応じたナビゲーションを刷新しました。

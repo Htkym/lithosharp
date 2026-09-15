@@ -99,6 +99,12 @@ public sealed class MarkdownPostReader
                         $"{diagnostic.Id} ({diagnostic.Location?.Line}:{diagnostic.Location?.Column}): {diagnostic.Message}")));
         }
 
+        var bodyStartLine = new Compilation.SourceText(text).GetLineAndColumn(text.Length - body.Length).Line;
+        var compilerDiagnostics = new[]
+        {
+            Compilation.LithoLimits.FindFootnoteWarning(body, path, bodyStartLine),
+            Compilation.LithoLimits.FindBrowserAssetWarning(body, path, bodyStartLine),
+        }.OfType<Diagnostics.SiteDiagnostic>().ToArray();
         body = inclusion.Body;
 
         var relative = Path.GetRelativePath(contentRoot, path);
@@ -110,7 +116,10 @@ public sealed class MarkdownPostReader
             SlugHelper.ToSlug(Path.GetFileNameWithoutExtension(path)),
             frontMatter,
             body.Trim(),
-            $"posts/{normalizedOutput}");
+            $"posts/{normalizedOutput}")
+        {
+            CompilerDiagnostics = compilerDiagnostics,
+        };
     }
 
     private static void Validate(PostFrontMatter frontMatter, string path)

@@ -79,6 +79,7 @@ export function unwrapMdxCodeBlocks(source) {
       if (inMdxBlock) {
         if (char === mdxChar && length >= mdxLength) {
           inMdxBlock = false;
+          output.push('');
           continue;
         }
         output.push(line);
@@ -90,6 +91,7 @@ export function unwrapMdxCodeBlocks(source) {
           inMdxBlock = true;
           mdxLength = length;
           mdxChar = char;
+          output.push('');
           continue;
         }
         inFence = true;

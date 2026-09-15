@@ -6,6 +6,17 @@ namespace LithoSharp.Tests;
 
 public sealed class DocumentNavigationTests
 {
+    [Test]
+    public async Task SnapshotCollectionsCannotInvalidateLookups()
+    {
+        var snapshot = DocumentNavigationSnapshot.Create(GuideCatalog(), "guide", "v1", "en");
+        await Assert.That(() => ((IList<DocumentNavigationEntry>)snapshot.Documents)[0] = null!).Throws<NotSupportedException>();
+        await Assert.That(() => ((IDictionary<string, IReadOnlyList<DocumentNavigationItem>>)snapshot.Sidebars).Clear())
+            .Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<DocumentNavigationItem>)snapshot.Sidebars["default"])[0] = null!)
+            .Throws<NotSupportedException>();
+    }
+
     private const string BaseUrl = "https://example.test/";
 
     private static DocumentPage Page(string collection, string version, string locale, string id, string source, string title, string slug, bool unlisted = false) =>
@@ -28,33 +39,33 @@ public sealed class DocumentNavigationTests
         var snapshot = DocumentNavigationSnapshot.Create(GuideCatalog(), "guide", "v1", "en");
 
         await Assert.That(snapshot.Collection).IsEqualTo("guide");
-        await Assert.That(snapshot.Sidebars.ContainsKey("default")).IsEqualTo(true);
+        await Assert.That(snapshot.Sidebars.ContainsKey("default")).IsTrue();
 
         var foundSource = snapshot.TryGetBySourcePath("02-setup.md", out var setup);
-        await Assert.That(foundSource).IsEqualTo(true);
+        await Assert.That(foundSource).IsTrue();
         await Assert.That(setup!.Key).IsEqualTo(new DocumentKey("guide", "v1", "en", "setup"));
         await Assert.That(setup.Label).IsEqualTo("Setup");
         await Assert.That(setup.Publication).IsEqualTo(DocumentPublicationState.Published);
         await Assert.That(setup.Sidebars).IsEquivalentTo(["default"]);
 
         var foundPublic = snapshot.TryGetByPublicPath(setup.Route.PublicPath, out var byPublic);
-        await Assert.That(foundPublic).IsEqualTo(true);
+        await Assert.That(foundPublic).IsTrue();
         await Assert.That(byPublic!.Key).IsEqualTo(setup.Key);
 
         var foundOutput = snapshot.TryGetByOutputPath(setup.Route.RelativeOutputPath, out var byOutput);
-        await Assert.That(foundOutput).IsEqualTo(true);
+        await Assert.That(foundOutput).IsTrue();
         await Assert.That(byOutput!.Key).IsEqualTo(setup.Key);
 
-        await Assert.That(snapshot.TryGetByPublicPath("/guide/unknown/", out _)).IsEqualTo(false);
-        await Assert.That(snapshot.TryGetByOutputPath("route/guide/v1/en/unknown/index.html", out _)).IsEqualTo(false);
-        await Assert.That(snapshot.TryGetBySourcePath("missing.md", out _)).IsEqualTo(false);
-        await Assert.That(snapshot.TryGet(new DocumentKey("guide", "v1", "en", "missing"), out _)).IsEqualTo(false);
+        await Assert.That(snapshot.TryGetByPublicPath("/guide/unknown/", out _)).IsFalse();
+        await Assert.That(snapshot.TryGetByOutputPath("route/guide/v1/en/unknown/index.html", out _)).IsFalse();
+        await Assert.That(snapshot.TryGetBySourcePath("missing.md", out _)).IsFalse();
+        await Assert.That(snapshot.TryGet(new DocumentKey("guide", "v1", "en", "missing"), out _)).IsFalse();
 
         // Same id in another collection resolves only within its own scope.
-        await Assert.That(snapshot.TryGet(new DocumentKey("api", "v1", "en", "intro"), out _)).IsEqualTo(false);
+        await Assert.That(snapshot.TryGet(new DocumentKey("api", "v1", "en", "intro"), out _)).IsFalse();
         var api = DocumentNavigationSnapshot.Create(GuideCatalog(), "api", "v1", "en");
         var foundApi = api.TryGetBySourcePath("intro.md", out var apiIntro);
-        await Assert.That(foundApi).IsEqualTo(true);
+        await Assert.That(foundApi).IsTrue();
         await Assert.That(apiIntro!.Route.PublicPath).IsNotEqualTo(setup.Route.PublicPath);
     }
 
@@ -64,7 +75,7 @@ public sealed class DocumentNavigationTests
         var snapshot = DocumentNavigationSnapshot.Create(GuideCatalog(), "guide", "v1", "en");
 
         var found = snapshot.TryGetBySourcePath("secret.md", out var secret);
-        await Assert.That(found).IsEqualTo(true);
+        await Assert.That(found).IsTrue();
         await Assert.That(secret!.Publication).IsEqualTo(DocumentPublicationState.Unlisted);
         await Assert.That(secret.Sidebars.Count).IsEqualTo(0);
         await Assert.That(snapshot.Breadcrumbs(secret.Key).Count).IsEqualTo(0);
@@ -145,14 +156,14 @@ public sealed class DocumentNavigationTests
         await Assert.That(setup.Count).IsEqualTo(3);
         await Assert.That(setup[0].Version).IsEqualTo("v1");
         await Assert.That(setup[0].Locale).IsEqualTo("en");
-        await Assert.That(setup[0].Exists).IsEqualTo(true);
+        await Assert.That(setup[0].Exists).IsTrue();
         await Assert.That(setup[0].Route).IsNotNull();
-        await Assert.That(setup[1].Exists).IsEqualTo(false);
+        await Assert.That(setup[1].Exists).IsFalse();
         await Assert.That(setup[1].Route).IsNull();
-        await Assert.That(setup[2].Exists).IsEqualTo(false);
+        await Assert.That(setup[2].Exists).IsFalse();
 
         var intro = snapshot.Variants("intro");
-        await Assert.That(intro.All(link => link.Exists)).IsEqualTo(true);
+        await Assert.That(intro.All(link => link.Exists)).IsTrue();
 
         await Assert.That(snapshot.Variants("unknown-id").Count).IsEqualTo(0);
     }

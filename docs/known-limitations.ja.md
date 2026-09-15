@@ -2,7 +2,13 @@
 
 [English](known-limitations.md)
 
-0.3.1の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.0.0の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+
+## Markdown の互換性
+
+実行時は Litho コンパイラーを使い、CommonMark 0.31.2 と GFM 0.29 の一部をテストしています。表、タスクリスト、取り消し線、自動リンク、admonition、コンテナー、コードのメタデータに対応します。数式と図の描画にはテンプレート側でブラウザー用の資材が必要で、`LIT002` で案内します。
+
+Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。未対応の構文は文字列として残り、脚注では `LIT001` も返します。更新前に対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。
 
 ## 生成コストと検証環境
 
@@ -12,7 +18,8 @@
 最低限必要なRAMでも、単一cold buildのpeakでもありません。no-opでも入力と出力を検証します。
 `MdxOptions.Timeout`は1要求あたり既定2分で、このcorpusでは15分に延長しました。
 
-性能測定はWindowsのみです。ブラウザーの挙動はChromiumで検証しており、FirefoxとSafariで
+性能測定はWindowsのみです。継続 build は Windows x64、Linux x64、macOS arm64で
+動きます。ブラウザーの挙動はChromiumで検証しており、FirefoxとSafariで
 同等の検証をしたとは主張しません。JavaScriptがなくても静的本文と通常のリンクは利用できますが、
 対話機能には対応するbrowser APIが必要です。動的に読み込むCLI/site経路ではtrimmingと
 Native AOTは非対応であり、その配布形態の動作保証はありません。
@@ -22,7 +29,7 @@ PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定�
 
 ## MDXとブラウザー機能の範囲
 
-0.3.1のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
+1.0.0のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
 保存済み配色の復元にはインラインスクリプトを使うため、ホスト側のCSPで実行を許可してください。
 詳しくは[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
 
@@ -64,3 +71,13 @@ offline機能はopt-inで、HTTPSまたはlocalhostが必要です。revision全
 出力のstagingとrollbackは協調する同一userのbuildを保護するもので、特権userや攻撃的なfilesystem
 writerへの防御ではありません。atomic renameが必要です。Unix ACL、拡張属性、ownershipの保持は
 portableな保証に含みません。after-build observerはcommit後に実行するため、失敗しても配置を戻せません。
+
+## 配置と移行の範囲
+
+公開 route は末尾 slash の directory index 形式です。`trailingSlash: false` の原本は
+flat ファイルのため、route 比較では slash 形式を正規化します。`404.html` は出さず、
+欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
+authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
+月別 archive と directory index は文書化した上積みとして出す場合があります。
+Markdown の link 先は build を通し、`check` が非対応 scheme を指摘します。MDX の
+anchor は build で落とします。

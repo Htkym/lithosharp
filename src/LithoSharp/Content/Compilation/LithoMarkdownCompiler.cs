@@ -16,7 +16,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// Bump on any output or semantics behavior change so persistent parse
     /// records from older implementations miss instead of rendering stale HTML.
     /// </summary>
-    internal const string ImplementationVersion = "1";
+    internal const string ImplementationVersion = "2";
 
     /// <summary>Pinned CommonMark/GFM specification versions (C04).</summary>
     internal const string SpecVersion = "commonmark-0.31.2+gfm-0.29";
@@ -193,12 +193,12 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         var links = new List<DocumentLink>();
         var assets = new List<DocumentAsset>();
         var diagnostics = new List<LithoSharp.Diagnostics.SiteDiagnostic>();
-        if (LithoLimits.FindFootnoteWarning(body, source.FilePath) is { } footnote)
+        if (LithoLimits.FindFootnoteWarning(body, source.FilePath, source.BodyStartLine) is { } footnote)
         {
             diagnostics.Add(footnote);
         }
 
-        if (LithoLimits.FindBrowserAssetWarning(body, source.FilePath) is { } browserAsset)
+        if (LithoLimits.FindBrowserAssetWarning(body, source.FilePath, source.BodyStartLine) is { } browserAsset)
         {
             diagnostics.Add(browserAsset);
         }
@@ -293,7 +293,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                 var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
                 var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
                 headings.Add(new DocumentHeading(
-                    text,
+                    System.Net.WebUtility.HtmlDecode(text),
                     id,
                     heading.Level,
                     heading.Level == 1 ? 2 : heading.Level,

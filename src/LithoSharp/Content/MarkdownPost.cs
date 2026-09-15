@@ -13,4 +13,8 @@ public sealed record MarkdownPost(
     string Slug,
     PostFrontMatter FrontMatter,
     string MarkdownBody,
-    string RelativeOutputPath);
+    string RelativeOutputPath)
+{
+    // The reader retains diagnostics before trimming or expanding code inclusions.
+    internal IReadOnlyList<Diagnostics.SiteDiagnostic>? CompilerDiagnostics { get; init; }
+}

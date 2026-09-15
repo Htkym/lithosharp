@@ -6,7 +6,7 @@
 
 ```powershell
 dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.0.3.1.nupkg
+dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.1.0.0.nupkg
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -64,12 +64,14 @@ CLI の `-o` はシェルの作業ディレクトリを基準にします。
 
 | コマンド | 動作 |
 | --- | --- |
-| `new docs\|blog\|empty` | インストール済みのテンプレートから作成する。 |
+| `new docs\|blog\|empty\|mdx` | インストール済みのテンプレートから作成する。 |
 | `build [project]` | コンパイル後に差分生成する。`--clean` は出力全体を置き換える。 |
 | `serve [project]` | ビルドし、ファイル変更を監視してループバックで配信する。ポートは `--port` で指定する。 |
 | `check [project]` | 一時出力で品質を検証し、設定済みの公開先を変更しない。 |
 | `clean [project]` | 所有情報を検証し、生成後に変更されていない成果物を削除する。 |
 | `inspect [project]` | サイトを更新し、グラフ、出力パス、所有者、キャッシュのヒットとミスの理由を表示する。 |
+| `restore-mdx <worker>` | MDX worker の固定依存を明示的に復元する。 |
+| `migrate docusaurus <source>` | Docusaurus サイトを解析する。JavaScript 設定は実行しない。`--output <directory>` で別出力先へ変換し、入力は上書きしない。`--expected-routes <file>` で route を照合し、`--base-url` と `--default-locale` で前提を定める。[移行手順](docusaurus-migration.ja.md) を参照する。 |
 
 プロジェクトファイル、またはプロジェクトが1つだけあるディレクトリを指定します。
 `-c Release` で構成を変更できます。`check --format text|json|sarif` はライブラリと
@@ -91,6 +93,23 @@ CLI の `-o` はシェルの作業ディレクトリを基準にします。
 確定前にキャンセルした場合は、既存の出力を維持します。
 `build --clean` は従来どおりの全体置換で、この選択的な `clean` とは動作が異なります。
 キャッシュは削除権限の根拠にはせず、`clean` でも削除しません。
+
+## 構造化出力と 1.x の互換性
+
+`build`、`check`、`inspect`、`migrate`、開発サーバーは機械可読な結果を出す。
+成功と失敗の JSON は `schemaVersion`（現在は `"1.0"`）を持つ安定した形式であり、
+未知 field は無視するため、加算的な拡張は動作を保つ。終了コードは成功が `0`、
+失敗が `1`、使い方の誤りが `2`、移行の要手動または変換不能が `3` である。
+開発サーバーは起動、再ビルド、停止を1行1件の JSON で出す。診断 code、
+inspection 形状、移行 report は 1.x の範囲で加算的に保ち、それ以外は 2.0 へ送る。
+
+## 困ったときは
+
+- ポート競合: `serve` は構造化された起動失敗を出し、別のポートを推測しない。空いた `--port` を指定する。
+- Node 不足: Markdown のみのサイトは Node なしで build できる。MDX は `LSMDX002` で設定した実行ファイル名を示す。Node.js 24.13.0 を入れて worker 依存を復元する。
+- 未復元の依存: .NET は `dotnet restore --locked-mode`、MDX は `restore-mdx`（または worker での `npm ci --ignore-scripts --no-audit --no-fund`）で復元してから build する。
+- worker の版ずれ: 固定外の Node、MDX、React、esbuild は bundle せずに拒否する。
+- 厳格な front matter と route 衝突は位置付き診断で落とす。出力を直さず内容を直す。
 
 ## 配布方式の制限
 

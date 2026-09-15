@@ -90,4 +90,43 @@ public sealed class DocumentInspectionTests
 
         await Assert.That(Directory.GetFiles(directory, "*", SearchOption.AllDirectories).Length).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task Inspect_HeadingTextIsDecodedExactlyOnce()
+    {
+        var info = DocumentInspection.Inspect("a.md", "---\ntitle: Test\n---\n# A &amp; B &amp;lt;C&amp;gt;\n");
+
+        await Assert.That(info.Title).IsEqualTo("A & B &lt;C&gt;");
+        await Assert.That(info.Headings[0].Text).IsEqualTo("A & B &lt;C&gt;");
+    }
+
+    [Test]
+    [Arguments("\n", "See [^note]", "LIT001")]
+    [Arguments("\r\n", "See $x$", "LIT002")]
+    public async Task Inspect_BodyDiagnosticsUseOriginalFileLines(string newline, string body, string id)
+    {
+        var info = DocumentInspection.Inspect("a.md", string.Join(newline, "---", "title: Test", "---", "", body));
+
+        var diagnostic = info.Diagnostics.Single(item => item.Id == id);
+        await Assert.That(diagnostic.Location?.Line).IsEqualTo(5);
+        await Assert.That(diagnostic.Location?.Column).IsEqualTo(5);
+    }
+
+    [Test]
+    public async Task Inspect_WorkspaceSnapshotCannotBeMutatedByConsumers()
+    {
+        await using var workspace = new DocumentWorkspace();
+        var info = await workspace.InspectAsync("a.md", "---\ntitle: Test\ncustom:\n  values: [one, two]\n---\n# Test\n");
+
+        await Assert.That(() => ((IList<DocumentHeadingInfo>)info.Headings)[0] = null!)
+            .Throws<NotSupportedException>();
+        await Assert.That(() => ((IDictionary<string, object?>)info.FrontMatter)["title"] = "Changed")
+            .Throws<NotSupportedException>();
+        var nested = (IReadOnlyDictionary<string, object?>)info.FrontMatter["custom"]!;
+        await Assert.That(() => ((IDictionary<string, object?>)nested).Clear()).Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<object?>)nested["values"]!)[0] = "Changed")
+            .Throws<NotSupportedException>();
+        await Assert.That(workspace.TryGet("a.md", out var saved)).IsTrue();
+        await Assert.That(saved!.Headings[0].Text).IsEqualTo("Test");
+    }
 }

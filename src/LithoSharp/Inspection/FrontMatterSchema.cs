@@ -23,11 +23,11 @@ public sealed class FrontMatterFieldInfo
         ItemType = itemType;
         Required = required;
         AllowsNull = allowsNull;
-        EnumValues = enumValues;
+        EnumValues = Array.AsReadOnly(enumValues.ToArray());
         Deprecated = deprecated;
         DeprecationMessage = deprecationMessage;
         Description = description;
-        Fields = fields;
+        Fields = Array.AsReadOnly(fields.ToArray());
     }
 
     /// <summary>YAMLのキー名を取得します。</summary>
@@ -75,7 +75,7 @@ public sealed class FrontMatterSchema
         IsBuiltIn = isBuiltIn;
         FrontMatterType = frontMatterType;
         RejectUnknownFields = rejectUnknownFields;
-        Fields = fields;
+        Fields = Array.AsReadOnly(fields.ToArray());
     }
 
     /// <summary>schema名を取得します。組み込みは固定名、利用者定義は型名です。</summary>

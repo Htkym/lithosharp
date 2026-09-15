@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param([ValidateRange(30, 600)] [int] $TimeoutSeconds = 180,
-    [ValidateRange(5, 1000)] [int] $StressEdits = 20)
+    [ValidateRange(5, 1000)] [int] $StressEdits = 20,
+    [ValidateRange(0, 120)] [int] $SoakMinutes = 0)
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture = Join-Path $repo ('.tmp/mdx-watch-' + [Guid]::NewGuid().ToString('N'))
@@ -64,6 +65,29 @@ function Sample-ServeResources([string] $Label) {
     $dist = Join-Path $project 'dist'
     $distFiles = 0
     if (Test-Path -LiteralPath $dist) { $distFiles = @(Get-ChildItem -LiteralPath $dist -Recurse -File -Force -ErrorAction SilentlyContinue).Count }
+    $treeWorkingSet = $null
+    $treeProcessCount = $null
+    if ($IsWindows) {
+        $ids = [Collections.Generic.HashSet[int]]::new()
+        $null = $ids.Add($process.Id)
+        $all = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId)
+        do {
+            $added = $false
+            foreach ($child in $all) {
+                if ($ids.Contains([int]$child.ParentProcessId) -and $ids.Add([int]$child.ProcessId)) { $added = $true }
+            }
+        } while ($added)
+        $treeWorkingSet = 0L
+        $treeProcessCount = 0
+        foreach ($childId in $ids) {
+            try {
+                $child = [Diagnostics.Process]::GetProcessById($childId)
+                $treeWorkingSet += $child.WorkingSet64
+                $treeProcessCount++
+                $child.Dispose()
+            } catch [ArgumentException] { }
+        }
+    }
     return [pscustomobject]@{
         label = $Label
         time = [DateTimeOffset]::UtcNow.ToString('o')
@@ -71,6 +95,8 @@ function Sample-ServeResources([string] $Label) {
         handleCount = $handles
         threadCount = $threads
         distFiles = $distFiles
+        processTreeWorkingSetBytes = $treeWorkingSet
+        processTreeCount = $treeProcessCount
     }
 }
 try {
@@ -116,12 +142,20 @@ try {
 
     Write-Host "Checking $StressEdits continuous watch edits..."
     $baseSource = [IO.File]::ReadAllText($pagePath)
+    $soak = [Diagnostics.Stopwatch]::StartNew()
     for ($edit = 1; $edit -le $StressEdits; $edit++) {
         [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n")
+        if ($SoakMinutes -gt 0) {
+            Wait-For { (Page) -match "Revision $edit\." -and (State).success } "edit $edit convergence"
+            $due = $SoakMinutes * 60 * $edit / $StressEdits
+            while ($soak.Elapsed.TotalSeconds -lt $due) { Start-Sleep -Milliseconds 150 }
+        }
         if ($edit % 5 -eq 0) { $resources.Add((Sample-ServeResources "edit-$edit")) }
+        if ($edit % 25 -eq 0) { Write-Host "Watch edit $edit/$StressEdits; elapsed $([Math]::Round($soak.Elapsed.TotalSeconds)) seconds." }
     }
     Wait-For { (Page) -match "Revision $StressEdits" -and (State).success } 'continuous edits convergence'
     $resources.Add((Sample-ServeResources 'after-continuous-edits'))
+    Write-Host "Completed $StressEdits edits over $([Math]::Round($soak.Elapsed.TotalSeconds, 1)) seconds (requested minimum: $SoakMinutes minutes)."
 
     Write-Host 'Checking stale coalescing converges to the latest edit...'
     [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision stale-9999.`n")
@@ -149,6 +183,7 @@ try {
         ([Math]::Round($workingGrowth / 1MB, 1)), $handleGrowth)
     if ($workingGrowth -gt 500MB) { throw "Unexplained working-set growth: $([Math]::Round($workingGrowth / 1MB, 1))MB." }
     if ($first.handleCount -ge 0 -and $last.handleCount -ge 0 -and $handleGrowth -gt 300) { throw "Unexplained handle growth: $handleGrowth." }
+    if ($IsWindows -and $last.processTreeCount -gt $first.processTreeCount + 2) { throw 'Unexplained child process growth.' }
     [IO.File]::WriteAllText((Join-Path $fixture 'watch-resources.json'), ($resources | ConvertTo-Json -Depth 5))
     Write-Host 'MDX watch passed: imported component reuse, MDX/C# errors, output preservation and recovery.'
 } finally {

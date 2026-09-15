@@ -9,7 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-Current release: **0.3.1**.
+Version: **1.0.0**.
 
 ## Features
 
@@ -34,8 +34,8 @@ Current release: **0.3.1**.
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::0.3.1
-dotnet tool install LithoSharp.Tool --version 0.3.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.0.0
+dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -46,7 +46,7 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 0.3.1`
+Existing applications can use `dotnet add package LithoSharp --version 1.0.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -107,8 +107,8 @@ Docusaurus plugins, trimming and Native AOT are unsupported. Read
 In the measured static-page fixture, selective hydration reduced JS from
 449,585 to 15,817 bytes and hydration roots from one to zero. This does not
 represent all island or fallback pages. The 10,000-page MDX corpus took 274.30 s
-cold and 105.13 s for a no-op. See [conditions, limits and reproduction](docs/performance.md).
-No equivalent competitor benchmark is claimed.
+cold and 105.13 s for a no-op. A 100/1,000-page competitor comparison is
+summarized alongside. See [conditions, limits and reproduction](docs/performance.md).
 
 ## Contribute and license
 

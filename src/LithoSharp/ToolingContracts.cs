@@ -111,8 +111,12 @@ public static class ToolingCompatibility
     private static bool TryMajor(string version, out int major)
     {
         major = 0;
+        if (version.Length == 0 || version.Any(character => !char.IsAsciiDigit(character) && character != '.'))
+            return false;
         var dot = version.IndexOf('.');
-        var head = dot < 0 ? version : version[..dot];
-        return head.Length > 0 && int.TryParse(head, out major) && major >= 0;
+        if (dot < 0) return int.TryParse(version, out major);
+        if (!Version.TryParse(version, out var parsed)) return false;
+        major = parsed.Major;
+        return true;
     }
 }

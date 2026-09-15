@@ -5,7 +5,10 @@ namespace LithoSharp.Content.Compilation;
 /// <summary>Source identity for a compiled document (metadata).</summary>
 /// <param name="FilePath">Original file path, or null when compiling an in-memory snippet.</param>
 /// <param name="BodyStartOffset">UTF-16 offset where the Markdown body starts in the original file.</param>
-internal sealed record DocumentSource(string? FilePath, int BodyStartOffset);
+internal sealed record DocumentSource(string? FilePath, int BodyStartOffset)
+{
+    internal int BodyStartLine { get; init; } = 1;
+}
 
 /// <summary>A resolved heading: raw level is as written, output level is as rendered.</summary>
 /// <param name="Text">Plain heading text.</param>
