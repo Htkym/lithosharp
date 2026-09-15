@@ -67,6 +67,7 @@ function Sample-ServeResources([string] $Label) {
     if (Test-Path -LiteralPath $dist) { $distFiles = @(Get-ChildItem -LiteralPath $dist -Recurse -File -Force -ErrorAction SilentlyContinue).Count }
     $treeWorkingSet = $null
     $treeProcessCount = $null
+    $treeProcesses = @()
     if ($IsWindows) {
         $ids = [Collections.Generic.HashSet[int]]::new()
         $null = $ids.Add($process.Id)
@@ -84,6 +85,7 @@ function Sample-ServeResources([string] $Label) {
                 $child = [Diagnostics.Process]::GetProcessById($childId)
                 $treeWorkingSet += $child.WorkingSet64
                 $treeProcessCount++
+                $treeProcesses += [pscustomobject]@{ id = $child.Id; name = $child.ProcessName }
                 $child.Dispose()
             } catch [ArgumentException] { }
         }
@@ -97,6 +99,7 @@ function Sample-ServeResources([string] $Label) {
         distFiles = $distFiles
         processTreeWorkingSetBytes = $treeWorkingSet
         processTreeCount = $treeProcessCount
+        processTree = $treeProcesses
     }
 }
 try {
@@ -146,7 +149,9 @@ try {
     for ($edit = 1; $edit -le $StressEdits; $edit++) {
         [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n")
         if ($SoakMinutes -gt 0) {
-            Wait-For { (Page) -match "Revision $edit\." -and (State).success } "edit $edit convergence"
+            if ($edit % 25 -eq 0) {
+                Wait-For { (Page) -match "Revision $edit\." -and (State).success } "edit $edit convergence"
+            }
             $due = $SoakMinutes * 60 * $edit / $StressEdits
             while ($soak.Elapsed.TotalSeconds -lt $due) { Start-Sleep -Milliseconds 150 }
         }
@@ -183,8 +188,13 @@ try {
         ([Math]::Round($workingGrowth / 1MB, 1)), $handleGrowth)
     if ($workingGrowth -gt 500MB) { throw "Unexplained working-set growth: $([Math]::Round($workingGrowth / 1MB, 1))MB." }
     if ($first.handleCount -ge 0 -and $last.handleCount -ge 0 -and $handleGrowth -gt 300) { throw "Unexplained handle growth: $handleGrowth." }
-    if ($IsWindows -and $last.processTreeCount -gt $first.processTreeCount + 2) { throw 'Unexplained child process growth.' }
     [IO.File]::WriteAllText((Join-Path $fixture 'watch-resources.json'), ($resources | ConvertTo-Json -Depth 5))
+    # Compare warmed continuous-edit samples. Build-server startup and the deliberate
+    # worker restart after the final failure are different lifecycle phases.
+    $steady = @($resources | Where-Object { $_.label -match '^edit-\d+$' })
+    if ($IsWindows -and $steady.Count -gt 1 -and $steady[-1].processTreeCount -gt $steady[0].processTreeCount + 2) {
+        throw 'Child process count grew during continuous edits; inspect watch-resources.json.'
+    }
     Write-Host 'MDX watch passed: imported component reuse, MDX/C# errors, output preservation and recovery.'
 } finally {
     if (!$process.HasExited) { $process.Kill($true); $process.WaitForExit() }

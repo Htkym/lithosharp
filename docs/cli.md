@@ -100,8 +100,9 @@ by `clean`.
 machine-readable results. Successful and failed JSON carries `schemaVersion`
 (currently `"1.0"`) with a stable envelope; unknown fields are ignored so that
 additive extensions keep working. Exit codes are `0` for success, `1` for
-failure, `2` for usage errors and `3` when migration content needs manual work
-or is unconvertible. The development server emits one JSON object per line for
+failure, `2` for usage errors and `3` when migration includes unsupported content.
+Manual-action findings remain in the report and do not by themselves change exit `0`.
+The development server emits one JSON object per line for
 startup, rebuilds and shutdown. Diagnostic codes, inspection shapes and the
 migration report stay additive within 1.x; anything else waits for 2.0.
 

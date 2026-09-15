@@ -48,3 +48,5 @@ if (!($issueIds -contains 'LSMIG003')) { throw 'Migration smoke omitted the unsu
 if (@($warned.Json.manifest.unsupported).Count -eq 0) { throw 'Migration smoke omitted manifest unsupported notes.' }
 if (@($warned.Json.routes.missing).Count -ne 0 -or @($warned.Json.routes.extra).Count -ne 0) { throw 'Migration smoke reported unexpected route changes.' }
 Write-Host 'Migration smoke passed on full-site (exit 3 with structured warnings).'
+# The child command intentionally returned 3; the verification script succeeded.
+$global:LASTEXITCODE = 0
