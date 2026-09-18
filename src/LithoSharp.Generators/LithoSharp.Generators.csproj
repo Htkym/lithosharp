@@ -22,7 +22,7 @@
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
     <Compile Include="..\LithoSharp\Routing\SiteRoute.cs" Link="Shared\SiteRoute.cs" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
     <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
