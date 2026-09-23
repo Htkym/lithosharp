@@ -27,8 +27,8 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
-    <EnablePackageValidation Condition="'$(GITHUB_ACTIONS)' == 'true'">true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <EnablePackageValidation>true</EnablePackageValidation>
     <ApiCompatValidateAssemblies>true</ApiCompatValidateAssemblies>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
   </PropertyGroup>

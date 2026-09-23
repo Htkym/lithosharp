@@ -14,7 +14,8 @@ per-task memos that reviewers need.
 | --- | --- | --- | --- |
 | V110-00 | VERIFIED | [tasks/V110-00.md](tasks/V110-00.md) | B0/B1 fixed; B1 test baseline is locally BLOCKED by the generator host incompatibility on the pinned SDK 10.0.300 |
 | V110-01 | VERIFIED | [tasks/V110-01.md](tasks/V110-01.md) | Fixture manifest, 18 scenario definitions, and the evidence runner with its self-test |
-| V110-02 | TODO | — | Must fix the CS9057 generator host gate found in V110-00 |
+| V110-02 | VERIFIED | [tasks/V110-02.md](tasks/V110-02.md) | Generator Roslyn reference pinned back to 4.14.0; 1.0.0 package baseline validation, consumer and generator-host gates wired into CI |
+| V110-03 | TODO | — | |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.

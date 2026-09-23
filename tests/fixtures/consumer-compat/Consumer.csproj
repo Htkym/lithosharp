@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ConsumerCompat</AssemblyName>
+    <RootNamespace>Fixture.ConsumerCompat</RootNamespace>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">1.0.0</LithoSharpVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" />
+  </ItemGroup>
+
+</Project>

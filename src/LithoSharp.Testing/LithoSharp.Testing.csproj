@@ -13,6 +13,8 @@
     <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;CS1591</WarningsAsErrors>
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />

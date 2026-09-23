@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <PackageId>Fixture.ApiCompat</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>LithoSharp fixtures</Authors>
+    <Description>Negative fixture: candidate package that removes an API from the baseline.</Description>
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Api.cs" />
+  </ItemGroup>
+
+</Project>

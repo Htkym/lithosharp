@@ -91,6 +91,14 @@ jobs:
       - name: Test
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
 
+      - name: Check 1.x compatibility gates
+        shell: pwsh
+        run: |
+          ./eng/Test-GeneratorHostCompatibility.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-CompatibilityGate.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Check CLI and development server
         shell: pwsh
         run: |
@@ -132,6 +140,15 @@ jobs:
           dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --no-build --no-restore --configuration Release --output artifacts/packages
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
+
+      - name: Check consumer compatibility
+        shell: pwsh
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
+          $null = New-Item -ItemType Directory -Force -Path $baseline
+          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/lithosharp/1.0.0/lithosharp.1.0.0.nupkg' -OutFile (Join-Path $baseline 'LithoSharp.1.0.0.nupkg')
+          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run sample
         run: |

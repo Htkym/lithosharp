@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "V110-02",
+  "description": "Local B1r verification after pinning the generator's Roslyn reference back to the 1.0.0 combination, plus a real sample build that proves the generator ran.",
+  "steps": [
+    {
+      "id": "b1r-build",
+      "command": ["dotnet", "build", "LithoSharp.slnx", "--no-restore", "-c", "Release", "-t:Rebuild"],
+      "cwd": ".",
+      "timeoutSeconds": 1800,
+      "allowedExitCodes": [0],
+      "notes": "Solution-wide clean build on the pinned SDK 10.0.300."
+    },
+    {
+      "id": "b1r-test",
+      "command": ["dotnet", "test", "--solution", "LithoSharp.slnx", "--no-build", "-c", "Release"],
+      "cwd": ".",
+      "timeoutSeconds": 2400,
+      "allowedExitCodes": [0],
+      "notes": "Solution-wide test run; V110-00 recorded this as BLOCKED on B1."
+    },
+    {
+      "id": "docs-sample-build",
+      "command": ["dotnet", "run", "--project", "samples/LithoSharp.DocsSample", "-c", "Release", "--no-build", "--", "--output", ".local/verification/1.1.0/v110-02-20260923/site-docs"],
+      "cwd": ".",
+      "timeoutSeconds": 1800,
+      "allowedExitCodes": [0],
+      "outputs": [".local/verification/1.1.0/v110-02-20260923/site-docs"],
+      "notes": "GeneratedArticles members must exist, which proves the source generator loaded and ran."
+    }
+  ]
+}
