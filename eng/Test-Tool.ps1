@@ -2,7 +2,8 @@
 param(
     [string] $ToolPath,
     [ValidateRange(30, 600)] [int] $TimeoutSeconds = 180,
-    [switch] $KeepFixture
+    [switch] $KeepFixture,
+    [switch] $SkipCancellation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,12 +28,12 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw $Message }
 }
 
-function Start-TestProcess([string] $Executable, [string[]] $Arguments, [string] $Name) {
+function Start-TestProcess([string] $Executable, [string[]] $Arguments, [string] $Name, [string] $WorkingDirectory = $site) {
     $start = [Diagnostics.ProcessStartInfo]::new($Executable)
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
-    $start.WorkingDirectory = $site
+    $start.WorkingDirectory = $WorkingDirectory
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.Environment['DOTNET_CLI_TELEMETRY_OPTOUT'] = '1'
@@ -70,9 +71,9 @@ function Complete-TestProcess($Running, [int[]] $ExpectedExit = @(0)) {
     return $stdout
 }
 
-function Invoke-Dotnet([string[]] $Arguments, [int] $ExpectedExit = 0) {
+function Invoke-Dotnet([string[]] $Arguments, [int] $ExpectedExit = 0, [string] $WorkingDirectory = $site) {
     $script:sequence++
-    $running = Start-TestProcess 'dotnet' $Arguments ('command-' + $script:sequence)
+    $running = Start-TestProcess 'dotnet' $Arguments ('command-' + $script:sequence) -WorkingDirectory $WorkingDirectory
     return Complete-TestProcess $running $ExpectedExit
 }
 
@@ -138,6 +139,27 @@ function Wait-Sse([string] $Event) {
         if ($line -eq "data: $Event") { return }
     }
     throw "Did not receive SSE '$Event'."
+}
+
+function Get-JsonShape($Node, [string] $Prefix = '') {
+    $paths = [Collections.Generic.List[string]]::new()
+    if ($null -eq $Node) { $paths.Add("$Prefix=<null>"); return $paths }
+    if ($Node -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($property in $Node.PSObject.Properties) {
+            foreach ($path in (Get-JsonShape $property.Value ($Prefix + '.' + $property.Name))) { $paths.Add($path) }
+        }
+        return $paths
+    }
+    if ($Node -is [System.Collections.IEnumerable] -and $Node -isnot [string]) {
+        $items = @($Node)
+        if ($items.Count -eq 0) { $paths.Add("$Prefix[]"); return $paths }
+        foreach ($item in $items) {
+            foreach ($path in (Get-JsonShape $item ($Prefix + '[]'))) { $paths.Add($path) }
+        }
+        return $paths
+    }
+    $paths.Add($Prefix)
+    return $paths
 }
 
 try {
@@ -295,9 +317,46 @@ public static class Program
         $null = Invoke-Dotnet -Arguments @($fixtureDll, $site, $directOutput, $directReportPath) -ExpectedExit 1
         Assert-True ($routeDiagnostics.Trim() -ceq (Get-Content -LiteralPath $directReportPath -Raw)) 'CLI dropped or changed library route diagnostics.'
         Assert-True (($routeDiagnostics | ConvertFrom-Json).diagnostics.Count -gt 0) 'Route collision returned no diagnostics.'
+    Write-Host 'Checking capability contract...'
+    $outsideProject = Join-Path $fixture 'no-project'
+    $null = New-Item -ItemType Directory -Path $outsideProject
+    [IO.File]::WriteAllText((Join-Path $outsideProject 'broken.csproj'), '<Project><ThisIsNotXml')
+    Push-Location $outsideProject
+    try {
+        $capabilitiesText = Invoke-Dotnet -Arguments @($ToolPath, 'capabilities', '--format', 'json') -WorkingDirectory $outsideProject
+        $capabilitiesTextPath = Invoke-Dotnet -Arguments @($ToolPath, 'capabilities') -WorkingDirectory $outsideProject
+    }
+    finally { Pop-Location }
+    $capabilities = $capabilitiesText | ConvertFrom-Json
+    Assert-True ($capabilities.schemaVersion -eq '1.0' -and $capabilities.success -and $capabilities.exitCode -eq 0) 'Capability report omitted the stable envelope.'
+    Assert-True (![string]::IsNullOrWhiteSpace($capabilities.tool.name) -and $capabilities.tool.version -match '^\d+\.\d+\.\d+$') 'Capability report omitted the tool identity.'
+    Assert-True (![string]::IsNullOrWhiteSpace($capabilities.core.name) -and $capabilities.core.version -match '^\d+\.\d+\.\d+$') 'Capability report omitted the bundled Core identity.'
+    Assert-True ($capabilities.project.resolved -eq $false -and $null -eq $capabilities.project.coreVersion) 'Capability report filled an unresolved project version.'
+    Assert-True (@($capabilities.contracts).Count -eq 5) 'Capability report did not list the five stable contracts.'
+    $capabilityNames = @($capabilities.capabilities | ForEach-Object name)
+    foreach ($required in @('document-inspection', 'versioned-snapshot', 'serve-shutdown', 'source-route-lookup')) {
+        Assert-True ($capabilityNames -contains $required) "Capability report omitted '$required'."
+    }
+    $inspectionCapability = @($capabilities.capabilities | Where-Object name -eq 'document-inspection')[0]
+    Assert-True ($inspectionCapability.scope -contains 'markdown' -and $inspectionCapability.scope -contains 'mdx') 'Document inspection did not declare its languages.'
+    Assert-True ($inspectionCapability.scope -contains 'syntax' -and $inspectionCapability.scope -contains 'runtime') 'Document inspection did not declare its stages.'
+    try { $null = [System.Text.Json.JsonDocument]::Parse($capabilitiesText) } catch { throw "Capability stdout was not one JSON document: $($_.Exception.Message)" }
+    foreach ($required in $capabilityNames) { Assert-True ($capabilitiesTextPath -match [regex]::Escape($required)) "Text capability output omitted '$required'." }
+    # The documented wire shape must stay in step with the golden sample.
+    $golden = Get-Content -LiteralPath (Join-Path $repo 'eng/verification/1.1.0/contracts/capabilities.golden.json') -Raw | ConvertFrom-Json
+    $goldenShape = (Get-JsonShape $golden | Sort-Object) -join "`n"
+    $actualShape = (Get-JsonShape $capabilities | Sort-Object) -join "`n"
+    Assert-True ($goldenShape -ceq $actualShape) "Capability report shape drifted from the golden sample.`n$goldenShape`n---`n$actualShape"
     Write-Host 'Checking machine-readable failures...'
     $usage = Invoke-Dotnet -Arguments @($ToolPath, 'build', '--format', 'json', '--bogus-option') -ExpectedExit 2 | ConvertFrom-Json
     Assert-True ($usage.schemaVersion -eq '1.0' -and $usage.success -eq $false -and $usage.exitCode -eq 2) 'JSON usage error omitted the stable envelope.'
+    # Snapshot the 1.0 envelope: empty arrays and null fields keep their shape for old consumers.
+    Assert-True ($usage.diagnostics -is [array] -and $usage.diagnostics.Count -eq 0) 'Failure envelope changed the empty diagnostics array.'
+    Assert-True ($null -eq $usage.buildReport -and $null -eq $usage.outputDirectory -and $null -eq $usage.diagnosticsText) 'Failure envelope changed its null fields.'
+    Assert-True (![string]::IsNullOrWhiteSpace($usage.error)) 'Failure envelope omitted the error message.'
+    Assert-True ($usage.generatedFiles -is [array] -and $usage.generatedFiles.Count -eq 0) 'Failure envelope changed the empty generatedFiles array.'
+    Assert-True ($usage.removedFiles -is [array] -and $usage.removedFiles.Count -eq 0 -and $usage.ignoredPaths.Count -eq 0) 'Failure envelope changed the empty removedFiles/ignoredPaths arrays.'
+    Assert-True ($usage.buildPlan -is [array] -and $usage.buildPlan.Count -eq 0 -and $usage.extensions.Count -eq 0) 'Failure envelope changed the empty buildPlan/extensions arrays.'
     $migrateUsage = Invoke-Dotnet -Arguments @($ToolPath, 'migrate', 'docusaurus') -ExpectedExit 2 | ConvertFrom-Json
     Assert-True ($migrateUsage.schemaVersion -eq '1.0' -and $migrateUsage.success -eq $false -and $migrateUsage.exitCode -eq 2) 'Migrate usage error omitted the stable envelope.'
         Assert-True ($beforeCheck -ceq (Get-Snapshot $cliOutput)) 'Failed route validation changed published output.'
@@ -488,11 +547,20 @@ finally {
     $hostPid = [int](Get-Content -LiteralPath $childPidPath -Raw)
     Assert-True ($null -ne (Get-Process -Id $hostPid -ErrorAction SilentlyContinue)) 'The cancellation fixture child was not running.'
     $toolPid = [int](Get-Content -LiteralPath $serverPidPath -Raw)
-    $signal = Start-TestProcess $pwsh @('-NoProfile', '-File', $controllerPath, '-Mode', 'signal', '-SignalPid', $toolPid.ToString()) 'cancel'
-    $null = Complete-TestProcess $signal
-    $null = Complete-TestProcess $server @(0, 130)
+    if ($SkipCancellation) {
+        # Some non-interactive hosts cannot deliver a console Ctrl+C; the structured shutdown
+        # path arrives with V110-13 and CI keeps running this check without the switch.
+        Write-Host 'Skipping the console-signal cancellation check (-SkipCancellation).'
+        Stop-TestProcess $server
+    }
+    else {
+        $signal = Start-TestProcess $pwsh @('-NoProfile', '-File', $controllerPath, '-Mode', 'signal', '-SignalPid', $toolPid.ToString()) 'cancel'
+        $null = Complete-TestProcess $signal
+        $null = Complete-TestProcess $server @(0, 130)
+    }
     Wait-Until { $null -eq (Get-Process -Id $hostPid -ErrorAction SilentlyContinue) } 'factory child termination'
     Assert-True ($null -eq (Get-Process -Id $toolPid -ErrorAction SilentlyContinue)) 'Serve process remained alive after cancellation.'
+    Remove-Item -LiteralPath (Join-Path $site 'wait.flag') -ErrorAction SilentlyContinue
     if ($sseReader) { $sseReader.Dispose(); $sseReader = $null }
     if ($sseResponse) { $sseResponse.Dispose(); $sseResponse = $null }
     if ($http) { $http.Dispose(); $http = $null }
@@ -585,6 +653,10 @@ finally {
         Assert-True ($failEvent.event -eq 'startup-failed' -and $failEvent.schemaVersion -eq '1.0') 'Initial build failure omitted structured startup-failed.'
     } finally { [IO.File]::WriteAllText((Join-Path $site 'one.txt'), $oneBackup) }
     # Graceful Ctrl+C must emit startup and shutdown JSON and leave no server/worker behind.
+    if ($SkipCancellation) {
+        Write-Host 'Skipping the machine console-signal shutdown check (-SkipCancellation).'
+    }
+    else {
     $gmListener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $gmListener.Start()
     $gmPort = $gmListener.LocalEndpoint.Port
@@ -611,8 +683,10 @@ finally {
     $gmStartup = $gmParsed | Where-Object { $_.event -eq 'startup' } | Select-Object -First 1
     Assert-True ($gmStartup.url -eq $gmUrl -and $gmStartup.actualPort -eq $gmPort) 'Graceful machine startup URL did not match selected port.'
     Assert-True ($null -eq (Get-Process -Id $gmToolPid -ErrorAction SilentlyContinue)) 'Machine serve remained alive after cancellation.'
+    }
     $passed = $true
-    Write-Host 'Tool integration passed: build/library equivalence, cache inspection, check formats, clean ownership, serve rebuilds, path safety, cancellation, and machine control contract.'
+    $cancellationNote = if ($SkipCancellation) { ' (console-signal cancellation skipped).' } else { ', cancellation.' }
+    Write-Host "Tool integration passed: build/library equivalence, cache inspection, check formats, clean ownership, serve rebuilds, path safety, and machine control contract$cancellationNote"
 }
 finally {
     if ($sseReader) { $sseReader.Dispose() }

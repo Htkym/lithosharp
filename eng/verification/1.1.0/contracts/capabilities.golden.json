@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0",
+  "success": true,
+  "exitCode": 0,
+  "tool": {
+    "name": "LithoSharp.Tool",
+    "version": "1.0.0"
+  },
+  "core": {
+    "name": "LithoSharp",
+    "version": "1.0.0"
+  },
+  "project": {
+    "resolved": false,
+    "coreVersion": null,
+    "reason": "This command does not evaluate a project. Resolve project context with an explicit inspect or build operation."
+  },
+  "contracts": [
+    {
+      "name": "DiagnosticCodes",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Diagnostic codes and source positions from T01. Codes keep their meaning in 1.x."
+    },
+    {
+      "name": "JsonEnvelopes",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Machine-readable CLI envelopes and exit codes from T04. Fields grow additively."
+    },
+    {
+      "name": "Inspection",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Document snapshots, workspace lifetime, front matter schemas and navigation from T02, T03 and T07, T08."
+    },
+    {
+      "name": "DevServer",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Machine control events with startup, rebuild and shutdown from T05. Event types grow additively."
+    },
+    {
+      "name": "MigrationReport",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Migration verdicts, aggregates and fix candidates from T09. Fingerprint rules stay stable."
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "document-inspection",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Unsaved document inspection. The syntax and front matter stages run without a project; project-resolution, generated-output and runtime stages require an explicit project operation.",
+      "scope": [
+        "markdown",
+        "mdx",
+        "syntax",
+        "front-matter",
+        "project-resolution",
+        "generated-output",
+        "runtime"
+      ]
+    },
+    {
+      "name": "versioned-snapshot",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Inspection snapshots carry the document version and project generation so stale results are discarded instead of published.",
+      "scope": [
+        "syntax",
+        "project-resolution"
+      ]
+    },
+    {
+      "name": "serve-shutdown",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Structured shutdown over stdin for the development server. Duplicate, in-flight and mid-startup shutdown requests are idempotent.",
+      "scope": []
+    },
+    {
+      "name": "source-route-lookup",
+      "maturity": "Stable",
+      "schemaVersion": "1.0",
+      "description": "Source to route lookup that keeps project, collection and variant identity and returns every candidate route instead of guessing one.",
+      "scope": [
+        "project-resolution"
+      ]
+    }
+  ],
+  "error": null
+}

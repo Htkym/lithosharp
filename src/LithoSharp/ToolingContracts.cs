@@ -33,6 +33,35 @@ public sealed class ToolingContract
     public string Description { get; }
 }
 
+/// <summary>1つの機能capabilityを表します。</summary>
+public sealed class ToolingCapability
+{
+    internal ToolingCapability(string name, ToolingContractMaturity maturity, string schemaVersion, string description,
+        IReadOnlyList<string>? scope = null)
+    {
+        Name = name;
+        Maturity = maturity;
+        SchemaVersion = schemaVersion;
+        Description = description;
+        Scope = scope ?? [];
+    }
+
+    /// <summary>capability名を取得します。</summary>
+    public string Name { get; }
+
+    /// <summary>成熟度を取得します。</summary>
+    public ToolingContractMaturity Maturity { get; }
+
+    /// <summary>capabilityのschema versionを取得します。</summary>
+    public string SchemaVersion { get; }
+
+    /// <summary>capabilityの説明を取得します。</summary>
+    public string Description { get; }
+
+    /// <summary>対象にする言語・解析段階・操作の名前を取得します。</summary>
+    public IReadOnlyList<string> Scope { get; }
+}
+
 /// <summary>1.xのTooling互換方針を表します。</summary>
 /// <remarks>
 /// 診断コード、JSON、inspection、dev server、migration reportを分類します。

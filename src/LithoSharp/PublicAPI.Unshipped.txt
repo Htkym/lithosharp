@@ -1,1 +1,58 @@
 #nullable enable
+const LithoSharp.ToolingCapabilities.DocumentInspection = "document-inspection" -> string!
+const LithoSharp.ToolingCapabilities.LanguageMarkdown = "markdown" -> string!
+const LithoSharp.ToolingCapabilities.LanguageMdx = "mdx" -> string!
+const LithoSharp.ToolingCapabilities.ServeShutdown = "serve-shutdown" -> string!
+const LithoSharp.ToolingCapabilities.SourceRouteLookup = "source-route-lookup" -> string!
+const LithoSharp.ToolingCapabilities.StageFrontMatter = "front-matter" -> string!
+const LithoSharp.ToolingCapabilities.StageGeneratedOutput = "generated-output" -> string!
+const LithoSharp.ToolingCapabilities.StageProjectResolution = "project-resolution" -> string!
+const LithoSharp.ToolingCapabilities.StageRuntime = "runtime" -> string!
+const LithoSharp.ToolingCapabilities.StageSyntax = "syntax" -> string!
+const LithoSharp.ToolingCapabilities.VersionedSnapshot = "versioned-snapshot" -> string!
+LithoSharp.ToolingCapabilities
+LithoSharp.ToolingCapabilitiesReport
+LithoSharp.ToolingCapabilitiesReport.Capabilities.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.ToolingCapabilityInfo!>!
+LithoSharp.ToolingCapabilitiesReport.Contracts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.ToolingContractInfo!>!
+LithoSharp.ToolingCapabilitiesReport.Core.get -> LithoSharp.ToolingIdentityInfo!
+LithoSharp.ToolingCapabilitiesReport.Error.get -> string?
+LithoSharp.ToolingCapabilitiesReport.ExitCode.get -> int
+LithoSharp.ToolingCapabilitiesReport.Project.get -> LithoSharp.ToolingProjectInfo!
+LithoSharp.ToolingCapabilitiesReport.SchemaVersion.get -> string!
+LithoSharp.ToolingCapabilitiesReport.Success.get -> bool
+LithoSharp.ToolingCapabilitiesReport.Tool.get -> LithoSharp.ToolingIdentityInfo!
+LithoSharp.ToolingCapabilitiesReport.ToolingCapabilitiesReport(string! schemaVersion, bool success, int exitCode, LithoSharp.ToolingIdentityInfo! tool, LithoSharp.ToolingIdentityInfo! core, LithoSharp.ToolingProjectInfo! project, System.Collections.Generic.IReadOnlyList<LithoSharp.ToolingContractInfo!>! contracts, System.Collections.Generic.IReadOnlyList<LithoSharp.ToolingCapabilityInfo!>! capabilities, string? error = null) -> void
+LithoSharp.ToolingCapability
+LithoSharp.ToolingCapability.Description.get -> string!
+LithoSharp.ToolingCapability.Maturity.get -> LithoSharp.ToolingContractMaturity
+LithoSharp.ToolingCapability.Name.get -> string!
+LithoSharp.ToolingCapability.SchemaVersion.get -> string!
+LithoSharp.ToolingCapability.Scope.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.ToolingCapabilityInfo
+LithoSharp.ToolingCapabilityInfo.Description.get -> string!
+LithoSharp.ToolingCapabilityInfo.Maturity.get -> string!
+LithoSharp.ToolingCapabilityInfo.Name.get -> string!
+LithoSharp.ToolingCapabilityInfo.SchemaVersion.get -> string!
+LithoSharp.ToolingCapabilityInfo.Scope.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.ToolingCapabilityInfo.ToolingCapabilityInfo(string! name, string! maturity, string! schemaVersion, string! description, System.Collections.Generic.IReadOnlyList<string!>! scope) -> void
+LithoSharp.ToolingContractInfo
+LithoSharp.ToolingContractInfo.Description.get -> string!
+LithoSharp.ToolingContractInfo.Maturity.get -> string!
+LithoSharp.ToolingContractInfo.Name.get -> string!
+LithoSharp.ToolingContractInfo.SchemaVersion.get -> string!
+LithoSharp.ToolingContractInfo.ToolingContractInfo(string! name, string! maturity, string! schemaVersion, string! description) -> void
+LithoSharp.ToolingIdentityInfo
+LithoSharp.ToolingIdentityInfo.Name.get -> string!
+LithoSharp.ToolingIdentityInfo.ToolingIdentityInfo(string! name, string! version) -> void
+LithoSharp.ToolingIdentityInfo.Version.get -> string!
+LithoSharp.ToolingProjectInfo
+LithoSharp.ToolingProjectInfo.CoreVersion.get -> string?
+LithoSharp.ToolingProjectInfo.Reason.get -> string!
+LithoSharp.ToolingProjectInfo.Resolved.get -> bool
+LithoSharp.ToolingProjectInfo.ToolingProjectInfo(bool resolved, string? coreVersion, string! reason) -> void
+static LithoSharp.ToolingCapabilities.All.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.ToolingCapability!>!
+static LithoSharp.ToolingCapabilities.CreateReport(LithoSharp.ToolingIdentityInfo! tool, LithoSharp.ToolingIdentityInfo! core, LithoSharp.ToolingProjectInfo? project = null, string? error = null) -> LithoSharp.ToolingCapabilitiesReport!
+static LithoSharp.ToolingCapabilities.Missing(System.Collections.Generic.IEnumerable<string!>! advertised, System.Collections.Generic.IEnumerable<string!>! required) -> System.Collections.Generic.IReadOnlyList<string!>!
+static LithoSharp.ToolingCapabilities.NotEvaluatedProject.get -> LithoSharp.ToolingProjectInfo!
+static LithoSharp.ToolingCapabilities.Require(System.Collections.Generic.IEnumerable<string!>! advertised, System.Collections.Generic.IEnumerable<string!>! required) -> void
+static LithoSharp.ToolingCapabilities.TryGet(string! name, out LithoSharp.ToolingCapability? capability) -> bool
