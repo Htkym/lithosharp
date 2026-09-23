@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "V110-01",
+  "description": "Demonstrate the evidence runner on real commands that work at B1: two identical rebuilds whose output hashes must match, plus the independent Markdig comparison suite.",
+  "steps": [
+    {
+      "id": "core-rebuild-1",
+      "command": ["dotnet", "build", "src/LithoSharp/LithoSharp.csproj", "--no-restore", "-c", "Release", "-t:Rebuild"],
+      "cwd": ".",
+      "timeoutSeconds": 900,
+      "allowedExitCodes": [0],
+      "fixtures": ["src/LithoSharp"],
+      "outputs": ["src/LithoSharp/bin/Release/net10.0/LithoSharp.dll"],
+      "notes": "First of two identical rebuilds; the recorded output hash must equal core-rebuild-2."
+    },
+    {
+      "id": "core-rebuild-2",
+      "command": ["dotnet", "build", "src/LithoSharp/LithoSharp.csproj", "--no-restore", "-c", "Release", "-t:Rebuild"],
+      "cwd": ".",
+      "timeoutSeconds": 900,
+      "allowedExitCodes": [0],
+      "fixtures": ["src/LithoSharp"],
+      "outputs": ["src/LithoSharp/bin/Release/net10.0/LithoSharp.dll"],
+      "notes": "Second of two identical rebuilds; equal output hash demonstrates a deterministic, fixture-stable result."
+    },
+    {
+      "id": "markdig-restore",
+      "command": ["dotnet", "restore", "tests/LithoSharp.MarkdigComparison/LithoSharp.MarkdigComparison.csproj", "--locked-mode"],
+      "cwd": ".",
+      "timeoutSeconds": 900,
+      "allowedExitCodes": [0],
+      "notes": "The comparison project stays outside LithoSharp.slnx; restore it explicitly."
+    },
+    {
+      "id": "markdig-comparison",
+      "command": ["dotnet", "test", "tests/LithoSharp.MarkdigComparison/LithoSharp.MarkdigComparison.csproj", "-c", "Release", "--no-restore", "--verbosity", "minimal"],
+      "cwd": ".",
+      "timeoutSeconds": 1800,
+      "allowedExitCodes": [0],
+      "notes": "Independent Markdig 1.3.2 shadow comparison required by the 1.x compatibility gate."
+    }
+  ]
+}

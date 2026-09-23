@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "1.0",
+  "planVersion": "1.1.0",
+  "taskId": "V110-01",
+  "generatedAt": "2026-09-23",
+  "baselineCommit": "324842d64ce8505957a1e84b227db6177cdd64bb",
+  "kinds": [
+    "markdown-only",
+    "mdx",
+    "typed-collection",
+    "blog",
+    "docs",
+    "version-locale",
+    "migration",
+    "inspection",
+    "multi-project",
+    "sample"
+  ],
+  "notes": [
+    "Existing fixtures are reused; this file classifies and points at them instead of duplicating content.",
+    "Paths are repository-relative and use the directories that exist in B1 (see docs/verification/1.1.0/tasks/V110-00.md).",
+    "Many site fixtures are generated in-code by tests through TemporaryWorkspace; the provider column names the owning test files.",
+    "Tree hashes computed by eng/Invoke-V110Verification.ps1 exclude node_modules/bin/obj per its recorded exclusion pattern."
+  ],
+  "fixtures": [
+    {
+      "id": "parser-unsupported",
+      "kind": "markdown-only",
+      "path": "tests/LithoSharp.Tests/Fixtures/LithoParser/Unsupported.md",
+      "provider": ["LithoSupportedSuiteTests", "LithoParserRobustnessTests"],
+      "notes": "Corpus of unsupported Markdown constructs; the V110-09 opt-in advisory targets these shapes."
+    },
+    {
+      "id": "litho-extensions",
+      "kind": "markdown-only",
+      "path": "tests/LithoSharp.Tests/Fixtures/LithoExtensions",
+      "provider": ["LithoExtensionTests", "LithoSupportedSuiteTests"],
+      "notes": "Supported extension fixtures: directives, admonition, mermaid, math, code meta, heading anchor."
+    },
+    {
+      "id": "markdig-baseline",
+      "kind": "markdown-only",
+      "path": "tests/LithoSharp.Tests/Fixtures/MarkdigBaseline",
+      "provider": ["tests/LithoSharp.MarkdigComparison (MarkdigBaselineTests)"],
+      "notes": "Read by the comparison project outside LithoSharp.slnx; not part of normal solution builds."
+    },
+    {
+      "id": "compatibility",
+      "kind": "markdown-only",
+      "path": "tests/LithoSharp.Tests/Fixtures/Compatibility",
+      "provider": ["CompatibilityContractTests"],
+      "notes": "Markdown plus Japanese paths and manifest files; used for artifact path and public URL contract checks."
+    },
+    {
+      "id": "mdx-worker-tests",
+      "kind": "mdx",
+      "path": "src/LithoSharp.Mdx/worker",
+      "provider": ["npm test (worker/tests/compiler.test.mjs)"],
+      "notes": "Worker unit tests. Needs npm ci; node_modules is excluded from fixture hashes."
+    },
+    {
+      "id": "mdx-baseline",
+      "kind": "mdx",
+      "path": "tests/fixtures/mdx-baseline",
+      "provider": ["CI step 'Check pinned Docusaurus reference' (npm ci/build/test)"],
+      "notes": "Pinned Docusaurus reference site for MDX comparison; also consumed by the Markdig comparison project."
+    },
+    {
+      "id": "mdx-browser",
+      "kind": "mdx",
+      "path": "tests/fixtures/mdx-browser",
+      "provider": ["CI step 'Check production MDX browser behavior' (Chromium via Playwright)"],
+      "notes": "Hydration, island, offline update and sub-path checks against samples/LithoSharp.MdxSample output."
+    },
+    {
+      "id": "docusaurus-corpus",
+      "kind": "migration",
+      "path": "tests/Fixtures/docusaurus",
+      "provider": ["DocusaurusCorpusTests"],
+      "cases": ["minimal", "docs", "docs-versioned", "docs-i18n", "blog", "mdx-components", "admonitions", "sidebars", "assets", "full-site"],
+      "notes": "Each case has build.json, expected.json and expected-routes.json. V110-20/21 extend the comparison fields."
+    },
+    {
+      "id": "docs-template",
+      "kind": "docs",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["SiteGeneratorTests", "DocumentationTests", "SiteGeneratorRouteIntegrationTests", "CompatibilityContractTests"],
+      "notes": "Docs site with navigation, TOC and search produced through TemporaryWorkspace."
+    },
+    {
+      "id": "blog-template",
+      "kind": "blog",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["SiteGeneratorTests", "OutputRegressionTests", "CompatibilityContractTests", "SiteGeneratorRouteIntegrationTests"],
+      "notes": "Blog site with feed, sitemap, tags and archive surfaces."
+    },
+    {
+      "id": "typed-collections",
+      "kind": "typed-collection",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["ContentCollectionGenerationTests", "GeneratedContentPageTests", "StructuredContentLoaderTests", "SiteTestHostTests", "GeneratorTests"],
+      "notes": "Markdown/JSON/CSV typed collections, generated derived pages, source generator binding."
+    },
+    {
+      "id": "version-locale",
+      "kind": "version-locale",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["DocumentIncrementalTests.DocsVersionAdded_UpdatesVersionSwitcherKeepingContent", "DocumentWorkspaceTests.VersionLocaleAndRouteSwitchingDoesNotMix", "DocumentNavigationTests.MissingVariantsAreExplicit"],
+      "notes": "Version switcher and locale variants; build-side locale switching coverage is partial."
+    },
+    {
+      "id": "inspection-workspace",
+      "kind": "inspection",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["DocumentInspectionTests", "DocumentWorkspaceTests", "DocumentNavigationTests", "FrontMatterSchemaTests"],
+      "notes": "Unsaved-text inspection, workspace snapshots, navigation lookups and front matter schema parity with the binder."
+    },
+    {
+      "id": "mdx-semantics",
+      "kind": "mdx",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["MdxSemanticsTests", "MdxIntegrationTests", "NodeRequirementTests"],
+      "notes": "Worker semantics mapping, MDX build/hydration/failure retention and Markdown-only Node independence."
+    },
+    {
+      "id": "atomic-output",
+      "kind": "docs",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["SiteGeneratorAtomicOutputTests", "SiteFactoryTests"],
+      "notes": "Staging, rollback, ownership state, locks, reparse/symlink rejection and clean=false semantics."
+    },
+    {
+      "id": "determinism",
+      "kind": "docs",
+      "path": "tests/LithoSharp.Tests (generated in-code)",
+      "provider": ["SiteGeneratorDeterminismTests"],
+      "notes": "Byte-identical clean builds, fixed timestamps, LF line endings, search artifact versions."
+    },
+    {
+      "id": "samples",
+      "kind": "sample",
+      "path": "samples",
+      "provider": ["CI: Run sample, Check asset sample, Check production MDX browser behavior, Performance smoke"],
+      "notes": "DocsSample, Sample and MdxSample are the end-to-end entry points; DocsSample needs the source generator (blocked on the B1 SDK issue until V110-02)."
+    },
+    {
+      "id": "multi-project",
+      "kind": "multi-project",
+      "path": "(none)",
+      "provider": [],
+      "coverage": "gap",
+      "gapTask": "V110-15 / V110-19",
+      "notes": "No two-project or multi-root fixture exists in B1. Needed for project selection, trust and LSP controller checks."
+    }
+  ]
+}
