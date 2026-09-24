@@ -282,6 +282,70 @@ public sealed class SiteGeneratorDeterminismTests
         }
     }
 
+    [Test]
+    public async Task GenerateAsync_NoOpBuildRetainsThePublishedOutputInPlace()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var (posts, output) = await PrepareBlogAsync(workspace, "bypass");
+        var generator = new SiteGenerator();
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var clean = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp, CollectTimings = true }, CancellationToken.None);
+        var before = await SnapshotAsync(output);
+
+        var noOp = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = clean.BuildPlan,
+            }, CancellationToken.None);
+
+        await Assert.That(noOp.BuildReport.CacheMissCount).IsEqualTo(0);
+        await Assert.That(noOp.Timings!.TransactionMilliseconds).IsLessThan(100);
+        // In-place retention: the bypass must not copy or republish the artifacts, so the
+        // published file's last-write time stays exactly as the clean build left it.
+        var publishedPost = Path.Combine(output, "posts", "post.html");
+        var publishedAt = File.GetLastWriteTimeUtc(publishedPost);
+        var after = await SnapshotAsync(output);
+        await Assert.That(after.Count).IsEqualTo(before.Count);
+        foreach (var (path, hash) in before)
+        {
+            await Assert.That(after[path]).IsEqualTo(hash);
+        }
+
+        await Assert.That(File.GetLastWriteTimeUtc(publishedPost)).IsEqualTo(publishedAt);
+
+        // An external edit of a published artifact must be detected and regenerated.
+        var tampered = publishedPost;
+        await File.WriteAllTextAsync(tampered, "tampered");
+        var repaired = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = noOp.BuildPlan,
+            }, CancellationToken.None);
+
+        await Assert.That(repaired.BuildReport.CacheMissCount).IsGreaterThan(0);
+        await Assert.That(await File.ReadAllTextAsync(tampered)).Contains("</html>");
+    }
+
+    private static async Task<Dictionary<string, string>> SnapshotAsync(string root)
+    {
+        var snapshot = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            snapshot[Path.GetRelativePath(root, path).Replace('\\', '/')] =
+                Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(path)));
+        }
+
+        return snapshot;
+    }
+
     private static SiteSettings TestSite() => new()
     {
         Title = "Test Site",

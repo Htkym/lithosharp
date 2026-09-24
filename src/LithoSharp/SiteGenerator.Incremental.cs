@@ -8,7 +8,7 @@ using LithoSharp.Content;
 namespace LithoSharp;
 
 public sealed partial class SiteGenerator
-{    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes);
+{    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes, bool PublishedOutputRetained = false);
 
     private Dictionary<string, Func<string?, string>> CreatePlannedTemplateRenders(SiteTemplateContext context, ISiteTemplate template)
     {
@@ -64,6 +64,24 @@ public sealed partial class SiteGenerator
         var cache = new SiteBuildCache(cacheRoot, transaction.OutputIdentity);
         var previous = await cache.LoadAsync(clean ? null : await transaction.ReadPreviousBuildCacheKeyAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         timing.MarkCacheLoad();
+
+        // A full no-op build verifies the published output in place instead of copying the whole
+        // tree into staging. Any unexpected state falls back to the staged copy below.
+        var bypass = !clean && !subset && previous.Count > 0 && assets.ExecutedTransformNodes.Count == 0
+            && !plan.Nodes.Any(static node => node.Inputs.Any(static input =>
+                input.Key.EndsWith("cachePolicy", StringComparison.Ordinal) && input.Value == "always-rebuild"))
+            && plan.Nodes.All(node => previous.TryGetValue(node.Id.Value, out var cached)
+                && cached.NodeKey == ComputeNodeKey(node, id => previous.TryGetValue(id, out var dependency) ? dependency.NodeKey : null)
+                && cached.Artifacts.Count == node.Artifacts.Count
+                && cached.Artifacts.Zip(node.Artifacts).All(static pair =>
+                    pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
+            && transaction.CanBypassPublishedOutput(
+                plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
+        if (!bypass)
+        {
+            await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
+            timing.MarkTransaction();
+        }
         // Layout-independent post parses are reused across builds (keyed by compiler
         // fingerprint plus source hash), so no-op builds parse nothing and layout-only
         // changes re-render without re-parsing. Clean builds still re-execute every
@@ -136,22 +154,28 @@ public sealed partial class SiteGenerator
             }
         }
         timing.MarkExecution();
-        var digest = await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
-        return new BuildExecutionResult(digest, reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray());
+        var cacheKey = bypass ? string.Empty : await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
+        return new BuildExecutionResult(cacheKey, reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray(), bypass);
+
+        string? ComputeNodeKey(BuildNode node, Func<string, string?> dependencyKey)
+        {
+            var keyBytes = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Implementation = typeof(SiteGenerator).Module.ModuleVersionId,
+                MarkdownCompiler = _markdownCompiler.Fingerprint,
+                node.Id.Value,
+                Inputs = node.Inputs.Select(static input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
+                Dependencies = node.Dependencies.Select(id => new { Id = id.Value, NodeKey = dependencyKey(id.Value) }),
+                Artifacts = node.Artifacts.Select(static artifact => new { artifact.Id.Value, artifact.RelativeOutputPath }),
+            });
+            return Convert.ToHexStringLower(SHA256.HashData(keyBytes));
+        }
 
         async Task<(CachedBuildNode Cache, SiteBuildReportNode Report)> ExecuteNodeAsync(BuildNode node, CancellationToken token)
         {
             var inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray();
             var dependencies = node.Dependencies.Select(id => id.Value).ToArray();
-            var keyBytes = JsonSerializer.SerializeToUtf8Bytes(new
-            {
-                Implementation = typeof(SiteGenerator).Module.ModuleVersionId,
-                MarkdownCompiler = _markdownCompiler.Fingerprint,
-                node.Id.Value, Inputs = inputs,
-                Dependencies = dependencies.Select(id => new { Id = id, completed[id].NodeKey }),
-                Artifacts = node.Artifacts.Select(artifact => new { artifact.Id.Value, artifact.RelativeOutputPath }),
-            });
-            var key = Convert.ToHexStringLower(SHA256.HashData(keyBytes));
+            var key = ComputeNodeKey(node, id => completed[id].NodeKey)!;
             pagesByNode.TryGetValue(node.Id.Value, out var page);
             var needsBody = page?.IsIncludedIn(GeneratedPageDerivedSurfaces.Search) == true;
             var reason = clean ? "Clean build." : assets.ExecutedTransformNodes.Contains(node.Id.Value) ? "The asset transform was executed."
@@ -168,10 +192,21 @@ public sealed partial class SiteGenerator
                 else
                     foreach (var artifact in old.Artifacts)
                     {
+                        var verifyRoot = bypass ? transaction.PublishedRoot : transaction.StagingRoot;
                         var verifyStart = Stopwatch.GetTimestamp();
-                        var verified = await VerifyCachedArtifactAsync(transaction.StagingRoot, artifact, token).ConfigureAwait(false);
+                        var verified = await VerifyCachedArtifactAsync(verifyRoot, artifact, token).ConfigureAwait(false);
                         timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
-                        if (!verified) { reason = "An artifact is missing or corrupt."; break; }
+                        if (!verified)
+                        {
+                            if (bypass)
+                            {
+                                // The published tree is not reusable after all; fall back to staging.
+                                await transaction.MaterializeExistingOutputCopyAsync(token).ConfigureAwait(false);
+                                bypass = false;
+                            }
+                            reason = "An artifact is missing or corrupt.";
+                            break;
+                        }
                         timing.CountVerifiedArtifact();
                     }
                 if (reason is null && needsBody && (old.DerivedBodyHash is null || await cache.ReadBodyAsync(old.DerivedBodyHash, token).ConfigureAwait(false) is null))

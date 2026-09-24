@@ -571,7 +571,8 @@ public sealed partial class SiteGenerator
         var outputTransaction = await OutputTransaction.CreateAsync(
                 outputRoot,
                 preserveExisting: !clean,
-                cancellationToken)
+                cancellationToken,
+                deferExistingCopy: builtInTemplate && !clean && outputScope.Length == 0)
             .ConfigureAwait(false);
         timing.MarkTransaction();
         var generatedInStaging = new List<string>();
@@ -581,17 +582,15 @@ public sealed partial class SiteGenerator
         var committed = false;
         try
         {
-            staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
-                    currentOwnedPaths,
-                    cancellationToken, InScope)
-                .ConfigureAwait(false);
-
             if (builtInTemplate)
             {
                 execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
                     assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
                     buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, timing, cancellationToken).ConfigureAwait(false);
-                generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                if (!execution.PublishedOutputRetained)
+                {
+                    generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                }
             }
             else
             {
@@ -703,14 +702,19 @@ public sealed partial class SiteGenerator
                 }
             }
 
+            staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
+                    currentOwnedPaths, cancellationToken, InScope)
+                .ConfigureAwait(false);
+
             if (options.Quality is { } qualityOptions)
             {
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
                     .Select(file => file.RelativePath).Concat(assetRegistry.Files
                         .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
                     .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
+                var validationRoot = execution?.PublishedOutputRetained == true ? outputRoot : outputTransaction.StagingRoot;
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
-                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
+                    (path, token) => ReadStagedTextAsync(validationRoot, path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
                     qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
@@ -718,23 +722,26 @@ public sealed partial class SiteGenerator
                     throw new SiteQualityValidationException(qualityReport);
             }
 
-            await WriteOutputManifestAsync(
-                    outputTransaction.StagingRoot,
-                    outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
-                    generatedInStaging,
-                    cancellationToken,
-                    execution?.CacheKey)
-                .ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            await outputTransaction.PrepareOwnershipStateAsync(
-                    generatedInStaging,
-                    cancellationToken, outputScope.Length == 0 ? null : InScope)
-                .ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
             timing.MarkQuality();
-            await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
-            committed = true;
-            timing.MarkCommit();
+            if (execution?.PublishedOutputRetained != true)
+            {
+                await WriteOutputManifestAsync(
+                        outputTransaction.StagingRoot,
+                        outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
+                        generatedInStaging,
+                        cancellationToken,
+                        execution?.CacheKey)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await outputTransaction.PrepareOwnershipStateAsync(
+                        generatedInStaging,
+                        cancellationToken, outputScope.Length == 0 ? null : InScope)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
+                committed = true;
+                timing.MarkCommit();
+            }
         }
         finally
         {
@@ -751,17 +758,19 @@ public sealed partial class SiteGenerator
             }
         }
 
-        var generated = generatedInStaging
-            .Where(path => !string.Equals(
-                Path.GetRelativePath(outputTransaction.StagingRoot, path)
-                    .Replace('\\', '/'),
-                OutputManifestRelativePath,
-                StringComparison.Ordinal))
-            .Select(path => SafeCombine(
-                outputRoot,
-                Path.GetRelativePath(outputTransaction.StagingRoot, path)))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var generated = execution?.PublishedOutputRetained == true
+            ? ownedArtifactPaths.Select(path => SafeCombine(outputRoot, path)).Order(StringComparer.Ordinal).ToArray()
+            : generatedInStaging
+                .Where(path => !string.Equals(
+                    Path.GetRelativePath(outputTransaction.StagingRoot, path)
+                        .Replace('\\', '/'),
+                    OutputManifestRelativePath,
+                    StringComparison.Ordinal))
+                .Select(path => SafeCombine(
+                    outputRoot,
+                    Path.GetRelativePath(outputTransaction.StagingRoot, path)))
+                .Order(StringComparer.Ordinal)
+                .ToArray();
         var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
             BuildPlan = buildPlan,
@@ -2821,6 +2830,8 @@ public sealed partial class SiteGenerator
         private readonly string _ownershipStatePath;
         private readonly string _pendingOwnershipStatePath;
         private readonly OutputLock _outputLock;
+        private readonly bool _preserveExisting;
+        private bool _existingOutputCopied;
         private readonly List<FileSystemMetadata> _copiedDirectoryMetadata = [];
         private readonly List<FileSystemMetadata> _copiedFileMetadata = [];
         private readonly List<SiteDiagnostic> _diagnostics = [];
@@ -2835,7 +2846,8 @@ public sealed partial class SiteGenerator
             string outputIdentity,
             string ownershipStatePath,
             string pendingOwnershipStatePath,
-            OutputLock outputLock)
+            OutputLock outputLock,
+            bool preserveExisting)
         {
             _outputRoot = outputRoot;
             _parentRoot = parentRoot;
@@ -2845,9 +2857,13 @@ public sealed partial class SiteGenerator
             _ownershipStatePath = ownershipStatePath;
             _pendingOwnershipStatePath = pendingOwnershipStatePath;
             _outputLock = outputLock;
+            _preserveExisting = preserveExisting;
         }
 
         public string StagingRoot { get; }
+
+        /// <summary>The published output tree that a bypassing build reads and verifies in place.</summary>
+        internal string PublishedRoot => _outputRoot;
 
         internal string OutputIdentity => _outputIdentity;
 
@@ -2859,9 +2875,10 @@ public sealed partial class SiteGenerator
             if (owned is null) return null;
             try
             {
-                var path = SafeCombine(StagingRoot, OutputManifestRelativePath);
+                var manifestRoot = _existingOutputCopied ? StagingRoot : _outputRoot;
+                var path = SafeCombine(manifestRoot, OutputManifestRelativePath);
                 EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
-                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(StagingRoot, path, asynchronous: true);
+                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(manifestRoot, path, asynchronous: true);
                 using var buffer = new MemoryStream();
                 await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bytes = buffer.ToArray();
@@ -2883,14 +2900,40 @@ public sealed partial class SiteGenerator
             }
         }
 
-        public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
+        /// <summary>
+        /// Copies the published output into staging. Deferred so that a full no-op build can verify
+        /// the published tree in place instead of copying it. Idempotent.
+        /// </summary>
+        internal async Task MaterializeExistingOutputCopyAsync(CancellationToken cancellationToken)
+        {
+            if (_existingOutputCopied) return;
+            _existingOutputCopied = true;
+            if (_preserveExisting && GetAttributes(_outputRoot) is not null)
+            {
+                await CopyDirectoryAsync(_outputRoot, StagingRoot, cancellationToken, includeRootMetadata: true)
+                    .ConfigureAwait(false);
+            }
+        }
 
+        /// <summary>
+        /// True when the published output already contains every owned artifact of the current plan,
+        /// so a build that reuses every cache entry can verify it in place without staging a copy.
+        /// </summary>
+        internal bool CanBypassPublishedOutput(IEnumerable<string> currentOwnedPaths)
+        {
+            if (_previousOwnershipState is null) return false;
+            var current = currentOwnedPaths.Select(ArtifactPathIdentity).ToHashSet(StringComparer.Ordinal);
+            return _previousOwnershipState.Artifacts.All(artifact => current.Contains(ArtifactPathIdentity(artifact.Path)));
+        }
+
+        public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
         public bool RetainedRecoveryState => _diagnostics.Count != 0;
 
         public static async Task<OutputTransaction> CreateAsync(
             string outputRoot,
             bool preserveExisting,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool deferExistingCopy = false)
         {
             outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
             var parentRoot = Path.GetDirectoryName(outputRoot);
@@ -2956,7 +2999,8 @@ public sealed partial class SiteGenerator
                 outputIdentity,
                 ownershipStatePath,
                 pendingOwnershipStatePath,
-                outputLock);
+                outputLock,
+                preserveExisting);
             var initialized = false;
             try
             {
@@ -2983,14 +3027,9 @@ public sealed partial class SiteGenerator
                 await outputLock.RegisterStagingAsync(stagingRoot).ConfigureAwait(false);
                 CreateTransactionDirectory(stagingRoot);
                 EnsureNotNameSurrogateReparsePoint(stagingRoot);
-                if (preserveExisting && outputAttributes is not null)
+                if (!deferExistingCopy)
                 {
-                    await transaction.CopyDirectoryAsync(
-                            outputRoot,
-                            stagingRoot,
-                            cancellationToken,
-                            includeRootMetadata: true)
-                        .ConfigureAwait(false);
+                    await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 initialized = true;
