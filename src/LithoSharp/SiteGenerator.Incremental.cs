@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,8 +8,7 @@ using LithoSharp.Content;
 namespace LithoSharp;
 
 public sealed partial class SiteGenerator
-{
-    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes);
+{    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes);
 
     private Dictionary<string, Func<string?, string>> CreatePlannedTemplateRenders(SiteTemplateContext context, ISiteTemplate template)
     {
@@ -58,10 +58,12 @@ public sealed partial class SiteGenerator
         SiteBuildPlan plan, RenderContext configuration, SiteTemplateContext context,
         IReadOnlyDictionary<string, Func<string?, string>> textRenders,
         IReadOnlyList<IntegratedContentPage> pages, AssetRegistry assets, IReadOnlyList<SiteTemplateFile> redirects,
-        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, bool subset, CancellationToken cancellationToken)
+        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, bool subset, BuildTimingRecorder timing,
+        CancellationToken cancellationToken)
     {
         var cache = new SiteBuildCache(cacheRoot, transaction.OutputIdentity);
         var previous = await cache.LoadAsync(clean ? null : await transaction.ReadPreviousBuildCacheKeyAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        timing.MarkCacheLoad();
         // Layout-independent post parses are reused across builds (keyed by compiler
         // fingerprint plus source hash), so no-op builds parse nothing and layout-only
         // changes re-render without re-parsing. Clean builds still re-execute every
@@ -133,6 +135,7 @@ public sealed partial class SiteGenerator
                 remaining.Remove(result.Cache.NodeId);
             }
         }
+        timing.MarkExecution();
         var digest = await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
         return new BuildExecutionResult(digest, reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray());
 
@@ -164,8 +167,13 @@ public sealed partial class SiteGenerator
                     reason = "Artifact declarations changed.";
                 else
                     foreach (var artifact in old.Artifacts)
-                        if (!await VerifyCachedArtifactAsync(transaction.StagingRoot, artifact, token).ConfigureAwait(false))
-                        { reason = "An artifact is missing or corrupt."; break; }
+                    {
+                        var verifyStart = Stopwatch.GetTimestamp();
+                        var verified = await VerifyCachedArtifactAsync(transaction.StagingRoot, artifact, token).ConfigureAwait(false);
+                        timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
+                        if (!verified) { reason = "An artifact is missing or corrupt."; break; }
+                        timing.CountVerifiedArtifact();
+                    }
                 if (reason is null && needsBody && (old.DerivedBodyHash is null || await cache.ReadBodyAsync(old.DerivedBodyHash, token).ConfigureAwait(false) is null))
                     reason = "The rendered body is missing or corrupt.";
             }

@@ -30,6 +30,9 @@ public sealed record SiteGenerationResult(
         "Production",
         "Unknown");
 
+    /// <summary>この生成の段階タイミングです。計測が無効な場合は <see langword="null"/> です。</summary>
+    public SiteBuildTimings? Timings { get; init; }
+
     /// <summary>従来の位置指定メンバーだけを使って、生成結果が等しいかどうかを判定します。</summary>
     /// <param name="other">比較する生成結果。</param>
     /// <returns>従来の位置指定メンバーがすべて等しい場合は <see langword="true"/>。</returns>

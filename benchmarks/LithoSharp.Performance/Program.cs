@@ -77,7 +77,8 @@ var customization = new SiteCustomization
 };
 var options = new SiteGenerationOptions
 {
-    BuildTimestamp = CorpusGenerator.BuildTimestamp
+    BuildTimestamp = CorpusGenerator.BuildTimestamp,
+    CollectTimings = true
 };
 
 var process = Process.GetCurrentProcess();
@@ -232,7 +233,7 @@ async Task<(WorkloadMeasurement Measurement, SiteGenerationResult Result)> Measu
     {
         workloadResult = await new SiteGenerator().GenerateWithOptionsAsync(
             workloadSite, workloadPosts, siteDirectory, clean, workloadCustomization ?? customization,
-            new SiteGenerationOptions { BuildTimestamp = CorpusGenerator.BuildTimestamp, PreviousBuildPlan = previousPlan },
+            new SiteGenerationOptions { BuildTimestamp = CorpusGenerator.BuildTimestamp, PreviousBuildPlan = previousPlan, CollectTimings = true },
             CancellationToken.None);
         endAllocated = GC.GetTotalAllocatedBytes(true);
         timer.Stop();
@@ -478,6 +479,7 @@ internal sealed class WorkloadMeasurement
     public int GeneratedNodeCount { get; init; }
     public int InvalidatedNodeCount { get; init; }
     public int ArtifactCount { get; init; }
+    public SiteBuildTimings? Timings { get; init; }
 
     public static WorkloadMeasurement From(
         string name, double elapsed, long allocated, long start, long end, long peak,
@@ -491,7 +493,8 @@ internal sealed class WorkloadMeasurement
         PeakWorkingSetBytes = Math.Max(peak, end),
         GeneratedNodeCount = result.BuildReport.CacheMissCount,
         InvalidatedNodeCount = result.BuildReport.Invalidations.Count,
-        ArtifactCount = artifacts
+        ArtifactCount = artifacts,
+        Timings = result.Timings
     };
 }
 

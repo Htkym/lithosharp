@@ -59,4 +59,10 @@ public sealed record SiteGenerationOptions
 
     /// <summary>出力確定前の品質検査です。未指定の場合は検査もネットワーク通信も行いません。</summary>
     public SiteQualityOptions? Quality { get; init; }
+
+    /// <summary>
+    /// 段階タイミングを <see cref="SiteGenerationResult.Timings"/> へ記録するかどうかを取得または設定します。
+    /// 既定は無効で、無効時は結果が <see langword="null"/> になります。
+    /// </summary>
+    public bool CollectTimings { get; init; }
 }

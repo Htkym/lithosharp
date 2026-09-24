@@ -16,6 +16,38 @@ public sealed class DocumentIncrementalTests
     private static readonly DateTimeOffset FixedBuildTimestamp =
         new(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
 
+    [Test]
+    public async Task SourceFileEditWithSameLengthAndTimestamp_IsReread()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var content = Path.Combine(workspace.Root, "same-length-sources");
+        Directory.CreateDirectory(content);
+        var path = Path.Combine(content, "note.md");
+        const string frontMatter = "---\ntitle: \"Note\"\ndate: \"2026-09-05T12:00:00Z\"\nsummary: \"note\"\n---\n\n";
+        await File.WriteAllTextAsync(path, frontMatter + "AAAA\n");
+        var before = await new MarkdownPostReader().ReadAllAsync(content);
+        var timestamp = File.GetLastWriteTimeUtc(path);
+
+        // Same byte length, same last-write timestamp: only the content hash can detect this edit.
+        await File.WriteAllTextAsync(path, frontMatter + "BBBB\n");
+        File.SetLastWriteTimeUtc(path, timestamp);
+        var after = await new MarkdownPostReader().ReadAllAsync(content);
+
+        await Assert.That(after[0].MarkdownBody.Length).IsEqualTo(before[0].MarkdownBody.Length);
+        await Assert.That(File.GetLastWriteTimeUtc(path)).IsEqualTo(timestamp);
+        await Assert.That(after[0].MarkdownBody).Contains("BBBB");
+        await Assert.That(after[0].MarkdownBody).IsNotEqualTo(before[0].MarkdownBody);
+
+        var generator = new SiteGenerator();
+        var output = Path.Combine(workspace.Root, "same-length-output");
+        var clean = await GenerateAsync(generator, [before[0]], output, clean: true, previousPlan: null, Blog());
+        var edited = await GenerateAsync(generator, [after[0]], output, clean: false, previousPlan: clean.BuildPlan, Blog());
+        var html = await File.ReadAllTextAsync(Path.Combine(output, "posts", "note.html"));
+        await Assert.That(html).Contains("BBBB");
+        await Assert.That(html).DoesNotContain("AAAA");
+        await Assert.That(edited.BuildReport.CacheMissCount).IsGreaterThan(0);
+    }
+
     private static SiteSettings TestSite() => new()
     {
         Title = "Incremental Site",

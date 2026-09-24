@@ -56,3 +56,17 @@ static LithoSharp.ToolingCapabilities.Missing(System.Collections.Generic.IEnumer
 static LithoSharp.ToolingCapabilities.NotEvaluatedProject.get -> LithoSharp.ToolingProjectInfo!
 static LithoSharp.ToolingCapabilities.Require(System.Collections.Generic.IEnumerable<string!>! advertised, System.Collections.Generic.IEnumerable<string!>! required) -> void
 static LithoSharp.ToolingCapabilities.TryGet(string! name, out LithoSharp.ToolingCapability? capability) -> bool
+LithoSharp.Build.SiteBuildTimings
+LithoSharp.Build.SiteBuildTimings.CacheLoadMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.CommitMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.ExecutionMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.PlanMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.QualityMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.TotalMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.TransactionMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.VerificationMilliseconds.get -> long
+LithoSharp.Build.SiteBuildTimings.VerifiedArtifactCount.get -> int
+LithoSharp.SiteGenerationOptions.CollectTimings.get -> bool
+LithoSharp.SiteGenerationOptions.CollectTimings.init -> void
+LithoSharp.SiteGenerationResult.Timings.get -> LithoSharp.Build.SiteBuildTimings?
+LithoSharp.SiteGenerationResult.Timings.init -> void

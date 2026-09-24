@@ -232,6 +232,56 @@ public sealed class SiteGeneratorDeterminismTests
         await Assert.That(feed).Contains("\n");
     }
 
+    [Test]
+    public async Task GenerateAsync_TimingCountersAreOptInAndReportVerifiedArtifacts()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var (posts, output) = await PrepareBlogAsync(workspace, "timings");
+        var site = TestSite();
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var generator = new SiteGenerator();
+
+        var withoutTimings = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp }, CancellationToken.None);
+        await Assert.That(withoutTimings.Timings).IsNull();
+
+        var clean = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp, CollectTimings = true }, CancellationToken.None);
+        await Assert.That(clean.Timings).IsNotNull();
+        await Assert.That(clean.Timings!.VerifiedArtifactCount).IsEqualTo(0);
+        await Assert.That(clean.Timings.TotalMilliseconds).IsGreaterThanOrEqualTo(0);
+
+        var noOp = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = clean.BuildPlan,
+            }, CancellationToken.None);
+        await Assert.That(noOp.Timings).IsNotNull();
+        await Assert.That(noOp.BuildReport.CacheHitCount).IsGreaterThan(0);
+        await Assert.That(noOp.Timings!.VerifiedArtifactCount).IsGreaterThan(0);
+        await Assert.That(noOp.Timings.TotalMilliseconds).IsGreaterThanOrEqualTo(noOp.Timings.ExecutionMilliseconds);
+        await Assert.That(noOp.Timings.VerificationMilliseconds)
+            .IsLessThanOrEqualTo(noOp.Timings.ExecutionMilliseconds);
+        foreach (var field in new[]
+        {
+            noOp.Timings.PlanMilliseconds,
+            noOp.Timings.TransactionMilliseconds,
+            noOp.Timings.CacheLoadMilliseconds,
+            noOp.Timings.ExecutionMilliseconds,
+            noOp.Timings.VerificationMilliseconds,
+            noOp.Timings.QualityMilliseconds,
+            noOp.Timings.CommitMilliseconds,
+        })
+        {
+            await Assert.That(field).IsGreaterThanOrEqualTo(0);
+        }
+    }
+
     private static SiteSettings TestSite() => new()
     {
         Title = "Test Site",

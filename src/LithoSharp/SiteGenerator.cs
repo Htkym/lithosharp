@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
@@ -223,6 +224,7 @@ public sealed partial class SiteGenerator
         {
             throw new ArgumentNullException(nameof(options.ContentCollections));
         }
+        var timing = new BuildTimingRecorder(options.CollectTimings);
 
         if (options.Assets is null)
         {
@@ -565,11 +567,13 @@ public sealed partial class SiteGenerator
             ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
             currentOwnedPaths = ownedArtifactPaths.Append(OutputManifestRelativePath).ToArray();
         }
+        timing.MarkPlan();
         var outputTransaction = await OutputTransaction.CreateAsync(
                 outputRoot,
                 preserveExisting: !clean,
                 cancellationToken)
             .ConfigureAwait(false);
+        timing.MarkTransaction();
         var generatedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
@@ -586,7 +590,7 @@ public sealed partial class SiteGenerator
             {
                 execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
                     assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
-                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, cancellationToken).ConfigureAwait(false);
+                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, timing, cancellationToken).ConfigureAwait(false);
                 generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
             }
             else
@@ -727,8 +731,10 @@ public sealed partial class SiteGenerator
                     cancellationToken, outputScope.Length == 0 ? null : InScope)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            timing.MarkQuality();
             await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
             committed = true;
+            timing.MarkCommit();
         }
         finally
         {
@@ -761,6 +767,7 @@ public sealed partial class SiteGenerator
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
                 options.PreviousBuildPlan,
@@ -2751,6 +2758,50 @@ public sealed partial class SiteGenerator
         }
 
         EnsureNotNameSurrogateReparsePoint(expectedPath);
+    }
+
+    /// <summary>Opt-in phase counters; no allocations when disabled.</summary>
+    private sealed class BuildTimingRecorder(bool enabled)
+    {
+        private readonly long start = Stopwatch.GetTimestamp();
+        private long last = Stopwatch.GetTimestamp();
+        private long plan, transaction, cacheLoad, execution, verification, quality, commit;
+        private int verifiedArtifacts;
+
+        private void Advance(ref long field)
+        {
+            if (!enabled) return;
+            var now = Stopwatch.GetTimestamp();
+            field += (long)Stopwatch.GetElapsedTime(last, now).TotalMilliseconds;
+            last = now;
+        }
+
+        internal void MarkPlan() => Advance(ref plan);
+
+        internal void MarkTransaction() => Advance(ref transaction);
+
+        internal void MarkCacheLoad() => Advance(ref cacheLoad);
+
+        internal void MarkExecution() => Advance(ref execution);
+
+        internal void MarkQuality() => Advance(ref quality);
+
+        internal void MarkCommit() => Advance(ref commit);
+
+        internal void AddVerificationMilliseconds(long milliseconds)
+        {
+            if (enabled) verification += milliseconds;
+        }
+
+        internal void CountVerifiedArtifact()
+        {
+            if (enabled) verifiedArtifacts++;
+        }
+
+        internal SiteBuildTimings? ToTimings() => enabled
+            ? new SiteBuildTimings(plan, transaction, cacheLoad, execution, verification, quality, commit,
+                (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds, verifiedArtifacts)
+            : null;
     }
 
     private sealed class OutputTransaction
