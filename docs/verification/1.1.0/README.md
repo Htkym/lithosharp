@@ -16,7 +16,8 @@ per-task memos that reviewers need.
 | V110-01 | VERIFIED | [tasks/V110-01.md](tasks/V110-01.md) | Fixture manifest, 18 scenario definitions, and the evidence runner with its self-test |
 | V110-02 | VERIFIED | [tasks/V110-02.md](tasks/V110-02.md) | Generator Roslyn reference pinned back to 4.14.0; 1.0.0 package baseline validation, consumer and generator-host gates wired into CI |
 | V110-03 | VERIFIED | [tasks/V110-03.md](tasks/V110-03.md) | Capability contract and `lithosharp capabilities`; existing 1.0 envelopes unchanged |
-| V110-04 | TODO | — | |
+| V110-04 | IMPLEMENTED | [tasks/V110-04.md](tasks/V110-04.md) | Scenario runner and harness scenario selection; B0 baseline and dominant-factor analysis. B1r 10,000-page and MDX baselines are BLOCKED by a machine slowdown |
+| V110-05 | TODO | — | |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.

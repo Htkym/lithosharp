@@ -134,6 +134,14 @@ var measurement = new BenchmarkResult
     SchemaVersion = 3,
     Benchmark = "site-generation-workloads",
     Smoke = arguments.Smoke,
+    Scenario = arguments.Scenario,
+    Prepare = new PrepareMeasurement
+    {
+        ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
+        CacheHitCount = result.BuildReport.CacheHitCount,
+        CacheMissCount = result.BuildReport.CacheMissCount,
+        GeneratedFileCount = generatedFileCount
+    },
     Corpus = new CorpusMetadata
     {
         PageCount = pageCount,
@@ -164,6 +172,41 @@ var workloads = new List<WorkloadMeasurement>
         workingSetBefore, workingSetAfter, workingSetMonitor.PeakWorkingSetBytes,
         result, generatedFileCount)
 };
+
+// A selected scenario runs in its own process. The clean build above is the successful
+// baseline build: it is reported as the prepare state and only the scenario is timed.
+var selectedScenario = arguments.Scenario;
+if (selectedScenario is not "all")
+{
+    workloads.Clear();
+    if (selectedScenario is "clean")
+    {
+        workloads.Add(WorkloadMeasurement.From("clean", stopwatch.Elapsed.TotalMilliseconds, allocatedAfter - allocatedBefore,
+            workingSetBefore, workingSetAfter, workingSetMonitor.PeakWorkingSetBytes, result, generatedFileCount));
+    }
+    else
+    {
+        var isolatedPosts = posts;
+        var isolatedCustomization = customization;
+        switch (selectedScenario)
+        {
+            case "no-op":
+                break;
+            case "single-page-change":
+                File.AppendAllText(Path.Combine(corpusDirectory, "section-000", "page-00001.md"),
+                    Environment.NewLine + "Changed for the single-page workload.", Encoding.UTF8);
+                isolatedPosts = await new MarkdownPostReader().ReadAllAsync(corpusDirectory);
+                break;
+            case "layout-change":
+                isolatedCustomization = customization with { Theme = new SiteThemeOptions { ThemeColor = "#7c3aed" } };
+                break;
+            default:
+                throw new ArgumentException($"Unknown scenario '{selectedScenario}'.");
+        }
+        var isolatedRun = await MeasureWorkloadAsync(selectedScenario, isolatedPosts, site, clean: false, result.BuildPlan, isolatedCustomization);
+        workloads.Add(isolatedRun.Measurement);
+    }
+}
 
 async Task<(WorkloadMeasurement Measurement, SiteGenerationResult Result)> MeasureWorkloadAsync(
     string name,
@@ -211,6 +254,8 @@ async Task<(WorkloadMeasurement Measurement, SiteGenerationResult Result)> Measu
         workloadResult);
 }
 
+if (selectedScenario is "all")
+{
 var noOpRun = await MeasureWorkloadAsync("no-op", posts, site, clean: false, result.BuildPlan);
 workloads.Add(noOpRun.Measurement);
 var changedPost = Path.Combine(corpusDirectory, "section-000", "page-00001.md");
@@ -233,7 +278,6 @@ var layoutRun = await MeasureWorkloadAsync(
     singlePageRun.Result.BuildPlan,
     layoutCustomization);
 workloads.Add(layoutRun.Measurement);
-measurement.Workloads = workloads;
 
 if (noOpRun.Result.BuildReport.Invalidations.Count != 0)
 {
@@ -250,6 +294,8 @@ if (layoutRun.Result.BuildReport.Invalidations.Count != expectedLayoutRenderingN
         $"The layout workload invalidated {layoutRun.Result.BuildReport.Invalidations.Count} nodes; " +
         $"expected the {expectedLayoutRenderingNodes} rendering nodes that consume theme.themeColor.");
 }
+}
+measurement.Workloads = workloads;
 
 if (arguments.Smoke
     && (measurement.Measurement.GenerationPeakWorkingSetBytes < measurement.Measurement.GenerationStartWorkingSetBytes
@@ -275,6 +321,7 @@ internal sealed class BenchmarkArguments
     public string? OutputPath { get; private init; }
     public bool Smoke { get; private init; }
     public string Mode { get; private init; } = "site";
+    public string Scenario { get; private init; } = "all";
     public int Warmup { get; private init; } = 1;
     public int Iterations { get; private init; } = 5;
     public string? EngineOutputPath { get; private init; }
@@ -285,6 +332,7 @@ internal sealed class BenchmarkArguments
         string? outputPath = null;
         var smoke = false;
         var mode = "site";
+        var scenario = "all";
         var warmup = 1;
         var iterations = 5;
         string? engineOutput = null;
@@ -297,6 +345,11 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--output" when index + 1 < args.Length:
                     outputPath = args[++index];
+                    break;
+                case "--scenario" when index + 1 < args.Length:
+                    scenario = args[++index].ToLowerInvariant();
+                    if (scenario is not ("all" or "clean" or "no-op" or "single-page-change" or "layout-change"))
+                        throw new ArgumentException("The scenario must be all, clean, no-op, single-page-change, or layout-change.", nameof(args));
                     break;
                 case "--smoke":
                     smoke = true;
@@ -317,7 +370,7 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--help":
                 case "-h":
-                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--mode site|engine|all] [--warmup N] [--iterations N] [--engine-output path]");
+                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--mode site|engine|all] [--scenario all|clean|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path]");
                     Environment.Exit(0);
                     break;
                 default:
@@ -328,7 +381,7 @@ internal sealed class BenchmarkArguments
         if (warmup < 0 || iterations < 1)
             throw new ArgumentException("Warmup must be >= 0 and iterations must be >= 1.", nameof(args));
 
-        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput };
+        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Scenario = scenario, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput };
     }
 }
 
@@ -378,12 +431,22 @@ internal sealed class BenchmarkResult
     public int SchemaVersion { get; init; }
     public string Benchmark { get; init; } = string.Empty;
     public bool Smoke { get; init; }
+    public string Scenario { get; init; } = "all";
+    public PrepareMeasurement? Prepare { get; init; }
     public CorpusMetadata Corpus { get; init; } = new();
     public Measurement Measurement { get; init; } = new();
     public EnvironmentMetadata Environment { get; init; } = new();
     public IReadOnlyList<WorkloadMeasurement> Workloads { get; set; } = [];
     public ProvenanceMetadata? Provenance { get; init; }
     public MeasurementScope? Scope { get; init; } = MeasurementScope.SiteDefault;
+}
+
+internal sealed class PrepareMeasurement
+{
+    public double ElapsedMilliseconds { get; init; }
+    public int CacheHitCount { get; init; }
+    public int CacheMissCount { get; init; }
+    public int GeneratedFileCount { get; init; }
 }
 
 internal sealed class CorpusMetadata

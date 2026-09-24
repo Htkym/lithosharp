@@ -6,10 +6,24 @@ using LithoSharp.Configuration;
 using LithoSharp.Documentation;
 using LithoSharp.Mdx;
 
-if (args.Length != 3 || !int.TryParse(args[0], out var size) || size is not (100 or 1000 or 10000))
-    throw new ArgumentException("Usage: LithoSharp.MdxPerformance <100|1000|10000> <restored-worker-directory> <new-result-directory>");
+if (args.Length < 3 || !int.TryParse(args[0], out var size) || size is not (100 or 1000 or 10000))
+    throw new ArgumentException("Usage: LithoSharp.MdxPerformance <100|1000|10000> <restored-worker-directory> <new-result-directory> [--scenario cold|warm-cache|no-op|one-page|shared-component|shared-css|shared-image|layout|route|lockfile]");
 var worker = Path.GetFullPath(args[1]);
 var root = Path.GetFullPath(args[2]);
+var scenario = "all";
+for (var index = 3; index < args.Length; index++)
+{
+    switch (args[index])
+    {
+        case "--scenario" when index + 1 < args.Length:
+            scenario = args[++index].ToLowerInvariant();
+            if (scenario is not ("all" or "cold" or "warm-cache" or "no-op" or "one-page" or "shared-component" or "shared-css" or "shared-image" or "layout" or "route" or "lockfile"))
+                throw new ArgumentException("The scenario must be all, cold, warm-cache, no-op, one-page, shared-component, shared-css, shared-image, layout, route, or lockfile.", nameof(args));
+            break;
+        default:
+            throw new ArgumentException($"Unknown argument '{args[index]}'.");
+    }
+}
 if (Directory.Exists(root)) throw new ArgumentException("Use a new result directory to measure a cold build.");
 var source = Path.Combine(root, "content");
 Directory.CreateDirectory(source);
@@ -62,30 +76,72 @@ async Task Measure(string name, bool clean = false)
         generatedFiles = result.GeneratedFiles.Count, outputBytes = result.GeneratedFiles.Sum(file => new FileInfo(file).Length) };
     measurements.Add(work);
     Console.WriteLine(JsonSerializer.Serialize(work));
-    await File.WriteAllTextAsync(Path.Combine(root, "measurements.json"), JsonSerializer.Serialize(new { schema = 1, size,
+    await File.WriteAllTextAsync(Path.Combine(root, "measurements.json"), JsonSerializer.Serialize(new { schema = 1, size, scenario,
         corpus = "80% static, 10% page hydration, 10% load islands; shared CSS, SVG and Counter; eight fixed paragraphs; separate 100-document sidebars",
         runtime = Environment.Version.ToString(), os = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
         nodeMemory = "Heap-used snapshot after each worker response, not a peak", measurements }, new JsonSerializerOptions { WriteIndented = true }));
 }
 try
 {
-    await Measure("cold", true);
-    await Measure("warm-cache", true);
-    await Measure("no-op");
-    await File.AppendAllTextAsync(Path.Combine(source, "section-000", "page-00002.mdx"), "\nOne-page change.\n");
-    await Measure("one-page");
-    await File.WriteAllTextAsync(component, (await File.ReadAllTextAsync(component)).Replace("Count ", "Total ", StringComparison.Ordinal));
-    await Measure("shared-component");
-    await File.AppendAllTextAsync(Path.Combine(source, "shared.css"), "\n.corpus{border:1px solid blue}");
-    await Measure("shared-css");
-    await File.WriteAllTextAsync(Path.Combine(source, "icon.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><circle cx=\"4\" cy=\"4\" r=\"3\" fill=\"blue\"/></svg>");
-    await Measure("shared-image");
-    customization = customization with { Theme = new SiteThemeOptions { ThemeColor = "#7c3aed" } };
-    await Measure("layout");
-    await extension.DisposeAsync();
-    extension = Create("manual");
-    await Measure("route");
-    await File.AppendAllTextAsync(Path.Combine(root, "package-lock.json"), "\n");
-    await Measure("lockfile");
+    if (scenario is "all")
+    {
+        await Measure("cold", true);
+        await Measure("warm-cache", true);
+        await Measure("no-op");
+        await File.AppendAllTextAsync(Path.Combine(source, "section-000", "page-00002.mdx"), "\nOne-page change.\n");
+        await Measure("one-page");
+        await File.WriteAllTextAsync(component, (await File.ReadAllTextAsync(component)).Replace("Count ", "Total ", StringComparison.Ordinal));
+        await Measure("shared-component");
+        await File.AppendAllTextAsync(Path.Combine(source, "shared.css"), "\n.corpus{border:1px solid blue}");
+        await Measure("shared-css");
+        await File.WriteAllTextAsync(Path.Combine(source, "icon.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><circle cx=\"4\" cy=\"4\" r=\"3\" fill=\"blue\"/></svg>");
+        await Measure("shared-image");
+        customization = customization with { Theme = new SiteThemeOptions { ThemeColor = "#7c3aed" } };
+        await Measure("layout");
+        await extension.DisposeAsync();
+        extension = Create("manual");
+        await Measure("route");
+        await File.AppendAllTextAsync(Path.Combine(root, "package-lock.json"), "\n");
+        await Measure("lockfile");
+    }
+    else
+    {
+        // A selected scenario runs in its own process: the cold build above is the successful
+        // baseline, and only the scenario is timed. The prepare entry stays in measurements.json.
+        if (scenario is not "cold") await Measure("prepare", true);
+        switch (scenario)
+        {
+            case "cold":
+                break;
+            case "warm-cache":
+            case "no-op":
+                break;
+            case "one-page":
+                await File.AppendAllTextAsync(Path.Combine(source, "section-000", "page-00002.mdx"), "\nOne-page change.\n");
+                break;
+            case "shared-component":
+                await File.WriteAllTextAsync(component, (await File.ReadAllTextAsync(component)).Replace("Count ", "Total ", StringComparison.Ordinal));
+                break;
+            case "shared-css":
+                await File.AppendAllTextAsync(Path.Combine(source, "shared.css"), "\n.corpus{border:1px solid blue}");
+                break;
+            case "shared-image":
+                await File.WriteAllTextAsync(Path.Combine(source, "icon.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><circle cx=\"4\" cy=\"4\" r=\"3\" fill=\"blue\"/></svg>");
+                break;
+            case "layout":
+                customization = customization with { Theme = new SiteThemeOptions { ThemeColor = "#7c3aed" } };
+                break;
+            case "route":
+                await extension.DisposeAsync();
+                extension = Create("manual");
+                break;
+            case "lockfile":
+                await File.AppendAllTextAsync(Path.Combine(root, "package-lock.json"), "\n");
+                break;
+            default:
+                throw new ArgumentException($"Unknown scenario '{scenario}'.");
+        }
+        await Measure(scenario, scenario is "cold" or "warm-cache");
+    }
 }
 finally { await extension.DisposeAsync(); }
