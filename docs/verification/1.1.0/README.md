@@ -18,7 +18,8 @@ per-task memos that reviewers need.
 | V110-03 | VERIFIED | [tasks/V110-03.md](tasks/V110-03.md) | Capability contract and `lithosharp capabilities`; existing 1.0 envelopes unchanged |
 | V110-04 | IMPLEMENTED | [tasks/V110-04.md](tasks/V110-04.md) | Scenario runner and harness scenario selection; B0 baseline and dominant-factor analysis. B1r 10,000-page and MDX baselines are BLOCKED by a machine slowdown |
 | V110-05 | VERIFIED | [tasks/V110-05.md](tasks/V110-05.md) | Opt-in `SiteBuildTimings` counters; measured proof that input/plan/fingerprint is 8-11% and output staging is ~87-89% (handed to V110-06) |
-| V110-06 | TODO | — | |
+| V110-06 | IMPLEMENTED | [tasks/V110-06.md](tasks/V110-06.md) | Staging copy confirmed as the dominant cost (7.2-15.8s/1,000 pages); a parallel-copy experiment was inconclusive (±66% environment variance) and reverted. Overlay design documented; improvement not landed |
+| V110-07 | TODO | — | |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.
