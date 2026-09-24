@@ -1,1 +1,5 @@
 #nullable enable
+LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.init -> void
+LithoSharp.Mdx.MdxBuildMetrics.RebundledPages.get -> int
+LithoSharp.Mdx.MdxBuildMetrics.RebundledPages.init -> void

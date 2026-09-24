@@ -68,8 +68,12 @@ async Task Measure(string name, bool clean = false)
         new() { Extensions = [extension], BuildTimestamp = DateTimeOffset.Parse("2026-01-01T00:00:00Z"), PreviousBuildPlan = previous }, default);
     timer.Stop();
     allocated = GC.GetTotalAllocatedBytes(true) - allocated;
-    if (name == "one-page" && (extension.MdxMetrics.CompiledModules != 1 || extension.MdxMetrics.RenderedPages != 1 || result.BuildReport.CacheMissCount > 5))
-        throw new InvalidOperationException("An isolated body edit unexpectedly invalidated unrelated corpus pages.");
+    if (name == "one-page" && (extension.MdxMetrics.CompiledModules != 1 || extension.MdxMetrics.RenderedPages != 1
+        || extension.MdxMetrics.RebundledPages != 0 || result.BuildReport.CacheMissCount > 5))
+        throw new InvalidOperationException("An isolated static body edit unexpectedly invalidated unrelated corpus pages or interactive entries.");
+    if (name is "shared-component" or "shared-css" && extension.MdxMetrics.RebundledPages == 0)
+        throw new InvalidOperationException(
+            "A shared " + (name == "shared-css" ? "stylesheet" : "component") + " change did not rebundle its dependent entries.");
     previous = result.BuildPlan;
     var work = new { name, elapsedMilliseconds = timer.Elapsed.TotalMilliseconds, dotnetAllocatedBytes = allocated,
         mdx = extension.MdxMetrics, cacheHits = result.BuildReport.CacheHitCount, cacheMisses = result.BuildReport.CacheMissCount,

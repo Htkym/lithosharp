@@ -24,6 +24,9 @@ const textOf = node => node.type === 'text' || node.type === 'inlineCode' ? node
 // ponytail: at most 20,000 session entries; use an LRU byte budget if larger declared corpora require it.
 const moduleCache = new Map();
 const renderCache = new Map();
+// Page id -> last browser output signature (entry closure plus stylesheets). The next request in
+// this process compares against it to report how many interactive entries really changed.
+const browserSignatures = new Map();
 function remember(cache, key, value, limit) { if (cache.size >= limit) cache.delete(cache.keys().next().value); cache.set(key, value); }
 // These lists mirror DocusaurusProfile in src/LithoSharp/Documentation; the .NET profile tests parse them.
 const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'DocCardList', 'MDXComponents', 'BrowserOnly', 'IdealImage', 'ThemedImage', 'Heading'];
@@ -455,7 +458,7 @@ export async function compileSite(request) {
     builder.onLoad({filter: /.*/, namespace: 'virtual'}, args => ({contents: sources.get(args.path), loader: 'js', resolveDir: projectRoot}));
   }});
   const entries = Object.fromEntries(pages.map(page => [page.id, `virtual:${page.id}`]));
-  if (!pages.length) return {pages: [], assets: [], inputs: [], compiledModules: 0, renderedPages: 0, bundledPages: 0};
+  if (!pages.length) return {pages: [], assets: [], inputs: [], compiledModules: 0, renderedPages: 0, bundledPages: 0, rebundledPages: []};
   const serverStarted = performance.now();
   const server = await build({...common, entryPoints: entries, outdir: serverDir, platform: 'node', splitting: true, publicPath: '', plugins: [virtualPlugin(virtualServer), plugin('node')]});
   const serverBundleMilliseconds = performance.now() - serverStarted;
@@ -563,6 +566,30 @@ export async function compileSite(request) {
     if (page.hydration !== 'page') page.css.push(...styleEntries);
     page.css = [...new Set(page.css)];
   }
+  // Report the interactive entries whose output really changed. Entry and chunk names embed a
+  // content hash, so an unchanged closure keeps the same signature even though esbuild re-emitted it.
+  const assetImports = new Map(assets.map(asset => [asset.path, asset.imports]));
+  const closure = root => {
+    const seen = new Set();
+    const stack = [root];
+    while (stack.length) {
+      const current = stack.pop();
+      if (current === null || current === undefined || seen.has(current)) continue;
+      seen.add(current);
+      for (const next of assetImports.get(current) ?? []) stack.push(next);
+    }
+    return [...seen].sort().join('|');
+  };
+  const rebundledPages = [];
+  const nextSignatures = new Map();
+  for (const page of results) {
+    if (page.entry === null) continue;
+    const signature = closure(page.entry) + '\n' + page.css.map(closure).sort().join('|');
+    nextSignatures.set(page.id, signature);
+    if (browserSignatures.get(page.id) !== signature) rebundledPages.push(page.id);
+  }
+  browserSignatures.clear();
+  for (const [id, signature] of nextSignatures) browserSignatures.set(id, signature);
   for (const input of new Set([...Object.keys(server.metafile.inputs), ...Object.keys(browser.metafile.inputs)])) {
     if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:') || input.startsWith('live-runtime:') || input.startsWith('hooks:')) continue;
     if (input.startsWith('raw:')) await readInput(input.slice(4));
@@ -586,6 +613,6 @@ export async function compileSite(request) {
   const noticeBytes = Buffer.from([...notices].sort(([left], [right]) => left.localeCompare(right, 'en')).map(([, text]) => text).join('\n---\n\n'));
   assets.push({path: 'third-party-notices.txt', bytes: noticeBytes.toString('base64'), hash: hash(noticeBytes), imports: [], inputs: []});
   return {pages: results, assets, inputs: [...inputs].map(([file, hash]) => ({file, hash})),
-    compiledModules, renderedPages, bundledPages: results.filter(page => page.entry !== null).length,
+    compiledModules, renderedPages, bundledPages: results.filter(page => page.entry !== null).length, rebundledPages,
     timings: {serverBundleMilliseconds, renderMilliseconds, browserBundleMilliseconds, totalMilliseconds: performance.now() - started}, memory: process.memoryUsage()};
 }

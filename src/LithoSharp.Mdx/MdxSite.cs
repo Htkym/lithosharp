@@ -211,8 +211,14 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 await File.WriteAllBytesAsync(temporary, JsonSerializer.SerializeToUtf8Bytes(new { hash = Hash(JsonSerializer.SerializeToUtf8Bytes(result)), result }), cancellationToken).ConfigureAwait(false);
                 File.Move(temporary, cachePath, overwrite: true);
             }
+            IReadOnlyList<string> rebundledPageIds = hit
+                || !result.TryGetProperty("rebundledPages", out var rebundled)
+                || rebundled.ValueKind != JsonValueKind.Array
+                ? []
+                : rebundled.EnumerateArray().Select(value => value.GetString()!).ToArray();
             Metrics = new() { WorkerStarts = worker.Starts - starts, CacheHit = hit, CompiledModules = hit ? 0 : result.GetProperty("compiledModules").GetInt32(),
                 RenderedPages = hit ? 0 : result.GetProperty("renderedPages").GetInt32(), BundledPages = hit ? 0 : result.GetProperty("bundledPages").GetInt32(),
+                RebundledPages = rebundledPageIds.Count, RebundledPageIds = rebundledPageIds,
                 WorkerMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("totalMilliseconds").GetDouble(),
                 ServerBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("serverBundleMilliseconds").GetDouble(),
                 RenderMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("renderMilliseconds").GetDouble(),

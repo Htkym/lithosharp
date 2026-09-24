@@ -243,7 +243,8 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
                     counters = [ordered]@{
                         compiledModules = Get-Property $metrics 'compiledModules'
                         renderedPages   = Get-Property $metrics 'renderedPages'
-                        bundledEntries  = Get-Property $metrics 'bundledEntries'
+                        bundledPages    = Get-Property $metrics 'bundledPages'
+                        rebundledPages  = Get-Property $metrics 'rebundledPages'
                         workerStarts    = Get-Property $metrics 'workerStarts'
                     }
                 })

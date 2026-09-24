@@ -139,6 +139,130 @@ public sealed class MdxIntegrationTests
             diagnostic.Id == "LSMIG004")).IsTrue();
     }
 
+    [Test]
+    public async Task MdxRebundlesOnlyEntriesWhoseDependenciesChanged()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var root = workspace.Root;
+        var source = Path.Combine(root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "shared.css"), ".shared{color:#123456}");
+        await File.WriteAllTextAsync(Path.Combine(source, "counter.mdx"),
+            "---\ntitle: Counter\n---\nimport './shared.css';\nimport Counter from './Counter.jsx'\n\n# Counter\n\n<Island component={Counter} strategy=\"load\" />\n");
+        await File.WriteAllTextAsync(Path.Combine(source, "toggle.mdx"),
+            "---\ntitle: Toggle\n---\nimport './shared.css';\nimport Toggle from './Toggle.jsx'\n\n# Toggle\n\n<Island component={Toggle} strategy=\"load\" />\n");
+        await File.WriteAllTextAsync(Path.Combine(source, "plain.mdx"),
+            "---\ntitle: Plain\n---\nimport './shared.css';\n\n# Plain\n\nStatic body.\n");
+        await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"), "export default function Counter(){return <button>Count</button>}");
+        await File.WriteAllTextAsync(Path.Combine(source, "Toggle.jsx"), "export default function Toggle(){return <button>Toggle</button>}");
+        var repository = FindRepository();
+        await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
+            { Cacheable = true, Hydration = "selective" });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
+            { TransformationFingerprint = "test-v1" });
+        var output = Path.Combine(root, "out");
+        var generator = new SiteGenerator();
+        var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
+        var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
+
+        await generator.GenerateWithOptionsAsync(settings, [], output, true, null, options, default);
+        await Assert.That(mdx.Metrics.BundledPages).IsEqualTo(2);
+        await Assert.That(mdx.Metrics.RebundledPages).IsEqualTo(2);
+
+        // A static body edit recompiles one module and rebundles no interactive entry.
+        await File.AppendAllTextAsync(Path.Combine(source, "plain.mdx"), "\nEdited body.\n");
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.CompiledModules).IsEqualTo(1);
+        await Assert.That(mdx.Metrics.RebundledPages).IsEqualTo(0);
+
+        // Only the entry importing the changed component is rebundled.
+        await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
+            "export default function Counter(){return <button>Changed</button>}");
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
+        var counterEntry = mdx.Metrics.RebundledPageIds[0];
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"))).Contains("Changed");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).Contains("Toggle");
+
+        // Editing a different component rebundles a different entry.
+        await File.WriteAllTextAsync(Path.Combine(source, "Toggle.jsx"),
+            "export default function Toggle(){return <button>Changed toggle</button>}");
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
+        await Assert.That(mdx.Metrics.RebundledPageIds[0]).IsNotEqualTo(counterEntry);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).Contains("Changed toggle");
+
+        // A shared stylesheet edit updates every interactive entry that references it.
+        await File.AppendAllTextAsync(Path.Combine(source, "shared.css"), "\n.corpus{border:1px solid blue}");
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task MdxRestartsTheWorkerWhenDeclaredInputsChange()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var root = workspace.Root;
+        var source = Path.Combine(root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
+        var declared = Path.Combine(root, "declared.txt");
+        await File.WriteAllTextAsync(declared, "one");
+        var repository = FindRepository();
+        await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
+            { Cacheable = true, DeclaredInputFiles = [declared] });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
+            { TransformationFingerprint = "test-v1" });
+        var output = Path.Combine(root, "out");
+        var generator = new SiteGenerator();
+        var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
+        var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
+
+        await generator.GenerateWithOptionsAsync(settings, [], output, true, null, options, default);
+        await Assert.That(mdx.Metrics.WorkerStarts).IsEqualTo(1);
+
+        // A changed declared input changes the tool fingerprint and the warm worker is replaced.
+        await File.WriteAllTextAsync(declared, "two");
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.WorkerStarts).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "page/index.html"))).Contains("Page");
+    }
+
+    [Test]
+    public async Task TwoWorkspacesDoNotShareWorkerState()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var repository = FindRepository();
+        var worker = Path.Combine(repository, "src/LithoSharp.Mdx/worker");
+        var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
+
+        async Task<string> BuildAsync(string name, string title)
+        {
+            var project = Path.Combine(workspace.Root, name);
+            var source = Path.Combine(project, "content");
+            Directory.CreateDirectory(source);
+            await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), $"---\ntitle: {title}\n---\n# {title}\n");
+            await using var mdx = new MdxSite(new(project, worker) { Cacheable = true });
+            mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+                entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
+                { TransformationFingerprint = "test-v1" });
+            var output = Path.Combine(project, "out");
+            var generation = await new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, true, null,
+                new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+            await Assert.That(generation.BuildReport.Diagnostics.Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)).IsEmpty();
+            return await File.ReadAllTextAsync(Path.Combine(output, "page/index.html"));
+        }
+
+        var alpha = await BuildAsync("alpha", "Alpha workspace");
+        var beta = await BuildAsync("beta", "Beta workspace");
+        await Assert.That(alpha).Contains("Alpha workspace");
+        await Assert.That(alpha).DoesNotContain("Beta workspace");
+        await Assert.That(beta).Contains("Beta workspace");
+        await Assert.That(beta).DoesNotContain("Alpha workspace");
+    }
+
     private sealed class WarningLoader : IContentCollectionLoader<FrontMatter, MdxDocument>
     {
         public ValueTask<ContentLoadResult<FrontMatter, MdxDocument>> LoadAsync(CancellationToken cancellationToken = default) =>
