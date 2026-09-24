@@ -806,6 +806,54 @@ public sealed class SiteGeneratorAtomicOutputTests
     }
 
     [Test]
+    public async Task GenerateAsync_RollsBackOverlayBackupLeftByInterruptedCommit()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(
+            output,
+            clean: true,
+            new SingleFileTemplate("index.html", "initial"));
+        var lockIdentity = CreateLockIdentity(output);
+        var backup = Path.Combine(
+            workspace.Root,
+            $".lithosharp-backup-{lockIdentity}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(backup);
+        // Recreate an overlay commit that replaced one published artifact, created another, and
+        // crashed before promotion: the published files hold the new bytes while the backup
+        // journals the old ones.
+        var publishedPath = Path.Combine(output, "index.html");
+        var createdPath = Path.Combine(output, "created.html");
+        await File.WriteAllTextAsync(publishedPath, "half-published");
+        await File.WriteAllTextAsync(createdPath, "half-created");
+        await File.WriteAllTextAsync(Path.Combine(backup, "index.html"), "recovered");
+        await File.WriteAllTextAsync(
+            Path.Combine(backup, ".lithosharp-overlay-journal.json"),
+            "{\"Version\":1,\"Created\":[\"created.html\"]}");
+        var lockPath = Path.Combine(
+            workspace.Root,
+            $".lithosharp-lock-{lockIdentity}.lock");
+        await File.WriteAllTextAsync(
+            lockPath,
+            $"B|{Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(output)))}"
+            + $"|{Convert.ToBase64String(Encoding.UTF8.GetBytes(backup))}\n");
+
+        // The next build fails after the recovery, so the recovered bytes stay observable.
+        await File.WriteAllTextAsync(Path.Combine(output, "assets"), "existing file");
+        await Assert.That(async () => await GenerateAsync(
+                output,
+                clean: false,
+                new SingleFileTemplate("assets/site.css", "new")))
+            .Throws<IOException>();
+
+        await Assert.That(await File.ReadAllTextAsync(publishedPath)).IsEqualTo("recovered");
+        await Assert.That(File.Exists(createdPath)).IsFalse();
+        await Assert.That(Directory.Exists(backup)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(lockPath)).DoesNotContain("B|");
+        await AssertNoTransactionDirectoriesAsync(workspace.Root);
+    }
+
+    [Test]
     [SupportedOSPlatform("windows")]
     public async Task GenerateAsync_CleanFalsePreservesWindowsSecurityDescriptors()
     {

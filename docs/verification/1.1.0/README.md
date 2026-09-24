@@ -18,7 +18,7 @@ per-task memos that reviewers need.
 | V110-03 | VERIFIED | [tasks/V110-03.md](tasks/V110-03.md) | Capability contract and `lithosharp capabilities`; existing 1.0 envelopes unchanged |
 | V110-04 | IMPLEMENTED | [tasks/V110-04.md](tasks/V110-04.md) | Scenario runner and harness scenario selection; B0 baseline and dominant-factor analysis. B1r 10,000-page and MDX baselines are BLOCKED by a machine slowdown |
 | V110-05 | VERIFIED | [tasks/V110-05.md](tasks/V110-05.md) | Opt-in `SiteBuildTimings` counters; measured proof that input/plan/fingerprint is 8-11% and output staging is ~87-89% (handed to V110-06) |
-| V110-06 | IMPLEMENTED | [tasks/V110-06.md](tasks/V110-06.md) | No-op bypass implemented: unchanged artifacts are verified in the published tree instead of copied to staging (no-op 4,320ms → 2,081ms/1,000 pages). The changed-file overlay remains |
+| V110-06 | VERIFIED | [tasks/V110-06.md](tasks/V110-06.md) | No-op bypass plus a same-shape overlay commit: rebuilt artifacts are published file by file with a journaled backup, so unchanged artifacts are neither copied nor rewritten (1-page edit 4,016ms → 1,723ms and 301.7MB → 126.9MB per 1,000 pages) |
 | V110-07 | TODO | — | |
 | V110-07 | TODO | — | |
 

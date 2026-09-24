@@ -444,6 +444,65 @@ public sealed class DocumentIncrementalTests
         await Assert.That(second.BuildReport.Nodes.Any(node => !node.CacheHit)).IsTrue();
     }
 
+    [Test]
+    public async Task OverlayRebuild_KeepsUnchangedArtifactsInPlace()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        var first = await GenerateAsync(
+            generator, [Post("alpha", "Alpha"), Post("beta", "Beta")], output, clean: true, previousPlan: null);
+        var untouchedPath = Path.Combine(output, "posts", "beta.html");
+        var untouchedBytes = Convert.ToBase64String(await File.ReadAllBytesAsync(untouchedPath));
+        var untouchedTimestamp = File.GetLastWriteTimeUtc(untouchedPath);
+        var before = await SnapshotAsync(output);
+
+        var second = await GenerateAsync(
+            generator,
+            [Post("alpha", "Alpha", "# Alpha\n\nEdited body."), Post("beta", "Beta")],
+            output,
+            clean: false,
+            previousPlan: first.BuildPlan);
+
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "alpha.html")))
+            .Contains("Edited body.");
+        await Assert.That(second.BuildReport.CacheMissCount).IsGreaterThan(0);
+        // The overlay keeps every verified artifact in the published tree: same bytes, same
+        // last-write time, and no file set change.
+        await Assert.That(Convert.ToBase64String(await File.ReadAllBytesAsync(untouchedPath)))
+            .IsEqualTo(untouchedBytes);
+        await Assert.That(File.GetLastWriteTimeUtc(untouchedPath)).IsEqualTo(untouchedTimestamp);
+        var after = await SnapshotAsync(output);
+        await Assert.That(after.Select(entry => entry.Path).Order(StringComparer.Ordinal))
+            .IsEquivalentTo(before.Select(entry => entry.Path).Order(StringComparer.Ordinal));
+        await Assert.That(second.GeneratedFiles.Select(path =>
+                Path.GetRelativePath(output, path).Replace('\\', '/')).Order(StringComparer.Ordinal))
+            .Contains("posts/beta.html");
+    }
+
+    [Test]
+    public async Task OverlayRebuild_RestoresADeletedPublishedArtifact()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        var first = await GenerateAsync(
+            generator, [Post("alpha", "Alpha"), Post("beta", "Beta")], output, clean: true, previousPlan: null);
+        var deletedPath = Path.Combine(output, "posts", "beta.html");
+        File.Delete(deletedPath);
+
+        var second = await GenerateAsync(
+            generator,
+            [Post("alpha", "Alpha", "# Alpha\n\nEdited body."), Post("beta", "Beta")],
+            output,
+            clean: false,
+            previousPlan: first.BuildPlan);
+
+        await Assert.That(File.Exists(deletedPath)).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(deletedPath)).Contains("Beta");
+        await Assert.That(MissedNodeIds(second)).Contains("page:markdown:posts/beta.html");
+    }
+
     private static async Task<IReadOnlyList<(string Path, string Bytes)>> SnapshotAsync(string root) =>
         (await Task.WhenAll(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)

@@ -8,7 +8,12 @@ using LithoSharp.Content;
 namespace LithoSharp;
 
 public sealed partial class SiteGenerator
-{    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes, bool PublishedOutputRetained = false);
+{    private sealed record BuildExecutionResult(
+        string CacheKey,
+        IReadOnlyList<SiteBuildReportNode> Nodes,
+        bool PublishedOutputRetained,
+        bool OverlayCommit,
+        IReadOnlyList<string> StagedArtifacts);
 
     private Dictionary<string, Func<string?, string>> CreatePlannedTemplateRenders(SiteTemplateContext context, ISiteTemplate template)
     {
@@ -77,7 +82,11 @@ public sealed partial class SiteGenerator
                     pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
             && transaction.CanBypassPublishedOutput(
                 plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
-        if (!bypass)
+        // A same-shape rebuild stages only the artifacts it regenerates and publishes them as an
+        // overlay, so unchanged artifacts are neither copied nor rewritten in the published tree.
+        var overlay = !bypass && !clean && !subset && transaction.TryEnableOverlayCommit(
+            plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
+        if (!bypass && !overlay)
         {
             await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
             timing.MarkTransaction();
@@ -155,7 +164,20 @@ public sealed partial class SiteGenerator
         }
         timing.MarkExecution();
         var cacheKey = bypass ? string.Empty : await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
-        return new BuildExecutionResult(cacheKey, reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray(), bypass);
+        IReadOnlyList<string> stagedArtifacts = overlay
+            ? reports.Values
+                .Where(static report => !report.CacheHit)
+                .SelectMany(static report => report.OwnedArtifacts)
+                .Select(path => SafeCombine(transaction.StagingRoot, path))
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : [];
+        return new BuildExecutionResult(
+            cacheKey,
+            reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray(),
+            bypass,
+            overlay,
+            stagedArtifacts);
 
         string? ComputeNodeKey(BuildNode node, Func<string, string?> dependencyKey)
         {
@@ -192,7 +214,7 @@ public sealed partial class SiteGenerator
                 else
                     foreach (var artifact in old.Artifacts)
                     {
-                        var verifyRoot = bypass ? transaction.PublishedRoot : transaction.StagingRoot;
+                        var verifyRoot = bypass || overlay ? transaction.PublishedRoot : transaction.StagingRoot;
                         var verifyStart = Stopwatch.GetTimestamp();
                         var verified = await VerifyCachedArtifactAsync(verifyRoot, artifact, token).ConfigureAwait(false);
                         timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
