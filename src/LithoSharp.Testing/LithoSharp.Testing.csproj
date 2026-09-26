@@ -17,7 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
     <PackageReference Include="AngleSharp" Version="1.7.3" />
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
