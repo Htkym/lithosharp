@@ -120,6 +120,94 @@ export function unwrapMdxCodeBlocks(source) {
   return output.join('\n');
 }
 
+// Analysis-only MDX inspection: shared preprocessing (mdx-code-block unwrap),
+// the same MDX parser, and the permitted syntax transforms (directives, math,
+// slugs, code metadata) as the build. It never loads user plugins or component
+// modules, never resolves or executes imports, never bundles, and never runs
+// SSR. CodeBlock `source` includes are left in place (no file reads at all),
+// so analysis performs no file, process, or network work beyond parsing.
+function analysisCollect(info) {
+  return function () {
+    return tree => {
+      const imports = [];
+      const imported = new Map();
+      visit(tree, 'mdxjsEsm', node => {
+        for (const statement of node.data?.estree?.body ?? []) {
+          if (statement.type === 'ImportDeclaration') {
+            imports.push({source: statement.source?.value ?? '',
+              names: (statement.specifiers ?? []).map(specifier => specifier.local?.name).filter(Boolean),
+              line: node.position?.start.line ?? 1});
+            for (const specifier of statement.specifiers ?? []) imported.set(specifier.local?.name,
+              {module: statement.source?.value ?? '', exportName: specifier.type === 'ImportDefaultSpecifier' ? 'default' : specifier.imported?.name});
+          } else if (statement.type === 'ExportNamedDeclaration' || statement.type === 'ExportDefaultDeclaration') {
+            const names = [...(statement.specifiers ?? []).map(item => item.exported?.name),
+              ...(statement.declaration?.declarations ?? []).map(item => item.id?.name), statement.declaration?.id?.name];
+            if (names.some(name => ['frontMatter', 'toc', 'contentTitle'].includes(name)))
+              throw new Error('frontMatter, toc and contentTitle are reserved MDX metadata exports.');
+          }
+        }
+      });
+      info.imports = imports;
+      visit(tree, node => {
+        if (node.type === 'heading') info.headings.push({depth: node.depth, text: textOf(node), line: node.position?.start.line ?? 1});
+        if (node.type === 'link' || node.type === 'image') info.links.push({url: node.url, line: node.position?.start.line ?? 1, image: node.type === 'image'});
+        if (node.type === 'paragraph' || node.type === 'heading') info.text.push(textOf(node));
+        if (node.type === 'containerDirective') {
+          if (['note', 'tip', 'info', 'warning', 'danger', 'caution'].includes(node.name)) node.data = {...node.data, hName: 'aside', hProperties: {className: ['mdx-admonition', `mdx-${node.name}`], role: 'note', 'aria-label': node.name}};
+          else node.data = {...node.data, hName: 'div', hProperties: {className: [node.name]}};
+        }
+        if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') {
+          if (node.name === 'Island') {
+            const component = node.attributes.find(attribute => attribute.name === 'component');
+            const name = component?.value?.data?.estree?.body?.[0]?.expression?.name ?? component?.value?.value;
+            const binding = imported.get(name);
+            if (!binding?.exportName) throw new Error('Island component must reference a statically imported default or named component.');
+            info.islands.push({module: binding.module, exportName: binding.exportName});
+          }
+        }
+      });
+    };
+  };
+}
+
+function codeBlocks(info) { return function () {
+  return tree => visit(tree, 'element', node => {
+    if (/^h[1-6]$/.test(node.tagName)) {
+      const heading = info.headings.find(item => item.line === node.position?.start.line);
+      if (heading) heading.id = node.properties.id;
+    }
+    if (node.tagName !== 'pre' || node.children[0]?.tagName !== 'code') return;
+    const code = node.children[0];
+    Object.assign(node.properties, code.properties);
+    const language = code.properties.className?.find(name => name.startsWith('language-'))?.slice(9);
+    const content = code.children.map(child => child.value ?? '').join('');
+    const html = highlight(content, language);
+    // The component receives compiler-produced, escaped Prism markup, not arbitrary source HTML.
+    if (html) node.properties['data-highlighted-html'] = html;
+  }); };
+}
+
+export async function analyzeMdx(request) {
+  const info = {headings: [], links: [], text: [], islands: [], imports: []};
+  const source = unwrapMdxCodeBlocks(request.text ?? '');
+  try {
+    await compile({value: source, path: request.sourcePath ?? 'document.mdx'}, {
+      providerImportSource: '@mdx-js/react',
+      remarkPlugins: [remarkGfm, remarkDirective, remarkMath, analysisCollect(info)],
+      rehypePlugins: [rehypeSlug, rehypeKatex, codeBlocks(info)],
+      development: false
+    });
+  } catch (error) {
+    // Fatal syntax: no partial symbols (never resurface older results as latest).
+    return {headings: [], links: [], text: '', islands: [], imports: [],
+      diagnostics: [{message: error.reason ?? error.message ?? String(error),
+        line: error.line ?? error.place?.start?.line ?? 1,
+        column: Math.max(0, (error.column ?? error.place?.start?.column ?? 1) - 1)}]};
+  }
+  return {headings: info.headings, links: info.links, text: info.text.join('\n'), islands: info.islands,
+    imports: info.imports, diagnostics: []};
+}
+
 export async function compileSite(request) {
   const started = performance.now();
   const projectRoot = await realpath(request.projectRoot);
@@ -286,23 +374,6 @@ export async function compileSite(request) {
         await Promise.all(jobs);
       };
     };
-  }
-
-  function codeBlocks(info) { return function () {
-    return tree => visit(tree, 'element', node => {
-      if (/^h[1-6]$/.test(node.tagName)) {
-        const heading = info.headings.find(item => item.line === node.position?.start.line);
-        if (heading) heading.id = node.properties.id;
-      }
-      if (node.tagName !== 'pre' || node.children[0]?.tagName !== 'code') return;
-      const code = node.children[0];
-      Object.assign(node.properties, code.properties);
-      const language = code.properties.className?.find(name => name.startsWith('language-'))?.slice(9);
-      const content = code.children.map(child => child.value ?? '').join('');
-      const html = highlight(content, language);
-      // The component receives compiler-produced, escaped Prism markup, not arbitrary source HTML.
-      if (html) node.properties['data-highlighted-html'] = html;
-    }); };
   }
 
   function plugin(platform) {

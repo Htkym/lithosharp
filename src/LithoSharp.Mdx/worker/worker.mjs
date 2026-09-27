@@ -1,6 +1,6 @@
 import {createInterface} from 'node:readline';
 import {format} from 'node:util';
-import {compileSite} from './compiler.mjs';
+import {compileSite, analyzeMdx} from './compiler.mjs';
 import {readFile} from 'node:fs/promises';
 
 const send = value => process.stdout.write(JSON.stringify(value) + '\n');
@@ -12,8 +12,8 @@ for await (const line of createInterface({input: process.stdin, crlfDelay: Infin
   try {
     if (Buffer.byteLength(line) > 128 * 1024 * 1024) throw new Error('Worker request exceeds its size limit.');
     message = JSON.parse(line);
-    if (message.protocol !== 1 || message.type !== 'compile' || typeof message.requestId !== 'string') throw new Error('Unsupported worker protocol.');
-    const result = await compileSite(message);
+    if (message.protocol !== 1 || (message.type !== 'compile' && message.type !== 'analyze') || typeof message.requestId !== 'string') throw new Error('Unsupported worker protocol.');
+    const result = message.type === 'compile' ? await compileSite(message) : await analyzeMdx(message);
     send({protocol: 1, requestId: message.requestId, success: true, result});
   } catch (error) {
     const failures = error.errors ?? [error];

@@ -3,3 +3,30 @@ LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.get -> System.Collections.Generi
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.init -> void
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPages.get -> int
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPages.init -> void
+LithoSharp.Mdx.MdxImportInfo
+LithoSharp.Mdx.MdxImportInfo.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Mdx.MdxImportInfo.Names.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Mdx.MdxImportInfo.Specifier.get -> string!
+LithoSharp.Mdx.MdxAnalysisOptions
+LithoSharp.Mdx.MdxAnalysisOptions.MdxAnalysisOptions(long DocumentVersion = 0, long ProjectGeneration = 0) -> void
+LithoSharp.Mdx.MdxAnalysisOptions.DocumentVersion.get -> long
+LithoSharp.Mdx.MdxAnalysisOptions.DocumentVersion.init -> void
+LithoSharp.Mdx.MdxAnalysisOptions.ProjectGeneration.get -> long
+LithoSharp.Mdx.MdxAnalysisOptions.ProjectGeneration.init -> void
+LithoSharp.Mdx.MdxAnalysisResult
+LithoSharp.Mdx.MdxAnalysisResult.SourcePath.get -> string!
+LithoSharp.Mdx.MdxAnalysisResult.DocumentVersion.get -> long
+LithoSharp.Mdx.MdxAnalysisResult.ProjectGeneration.get -> long
+LithoSharp.Mdx.MdxAnalysisResult.Stage.get -> string!
+LithoSharp.Mdx.MdxAnalysisResult.Title.get -> string?
+LithoSharp.Mdx.MdxAnalysisResult.PlainText.get -> string!
+LithoSharp.Mdx.MdxAnalysisResult.Headings.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentHeadingInfo!>!
+LithoSharp.Mdx.MdxAnalysisResult.Links.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentLinkInfo!>!
+LithoSharp.Mdx.MdxAnalysisResult.Assets.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentAssetInfo!>!
+LithoSharp.Mdx.MdxAnalysisResult.Components.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentComponentInfo!>!
+LithoSharp.Mdx.MdxAnalysisResult.Imports.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Mdx.MdxImportInfo!>!
+LithoSharp.Mdx.MdxAnalysisResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Mdx.MdxInspectionSession
+LithoSharp.Mdx.MdxInspectionSession.MdxInspectionSession(LithoSharp.Mdx.MdxOptions! options) -> void
+LithoSharp.Mdx.MdxInspectionSession.AnalyzeAsync(string! sourcePath, string! text, LithoSharp.Mdx.MdxAnalysisOptions? analysisOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Mdx.MdxAnalysisResult!>!
+LithoSharp.Mdx.MdxInspectionSession.DisposeAsync() -> System.Threading.Tasks.ValueTask

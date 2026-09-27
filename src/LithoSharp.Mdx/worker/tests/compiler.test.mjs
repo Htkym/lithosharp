@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, rm, cp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {compileSite, extractRegion, unwrapMdxCodeBlocks} from '../compiler.mjs';
+import {compileSite, analyzeMdx, extractRegion, unwrapMdxCodeBlocks} from '../compiler.mjs';
 
 test('official MDX produces server HTML and shared browser assets without unused exports', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-mdx-check-'));
@@ -311,4 +311,37 @@ test('selective rendering emits no static-page entry and shares explicit island 
     for (const page of result.pages.filter(page => page.hydration !== 'page'))
       assert.deepEqual(repeated.pages.find(candidate => candidate.id === page.id).css, page.css);
   } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('analysis-only inspection structures MDX without executing imports', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-analyze-check-'));
+  try {
+    const sentinel = path.join(root, 'evil-ran.txt');
+    await writeFile(path.join(root, 'evil.mjs'),
+      `import {writeFileSync} from 'node:fs';\nwriteFileSync(${JSON.stringify(sentinel)}, 'executed');\nexport default () => null;\n`);
+    // No network in analysis: any fetch attempt fails loudly.
+    const guard = globalThis.fetch;
+    globalThis.fetch = () => { throw new Error('network must not run during analysis'); };
+    try {
+      const result = await analyzeMdx({sourcePath: 'page.mdx',
+        text: '# Guide\n\nimport Evil from "./evil.mjs";\nimport {useState} from "react";\n\n<Evil />\n\nSee [docs](./other.mdx).\n'});
+      assert.equal(result.diagnostics.length, 0);
+      assert.equal(result.headings[0].text, 'Guide');
+      assert.equal(result.headings[0].id, 'guide');
+      assert.deepEqual(result.imports.map(entry => entry.source), ['./evil.mjs', 'react']);
+      assert.ok(result.links.some(link => link.url === './other.mdx'));
+    } finally { globalThis.fetch = guard; }
+    const {access} = await import('node:fs/promises');
+    await assert.rejects(access(sentinel));
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('analysis-only inspection returns fatal diagnostics without worker state', async () => {
+  const broken = await analyzeMdx({sourcePath: 'broken.mdx', text: '# Hi\n\n<Unclosed>\n'});
+  assert.equal(broken.diagnostics.length, 1);
+  assert.equal(broken.headings.length, 0);
+  assert.equal(broken.imports.length, 0);
+  const next = await analyzeMdx({sourcePath: 'next.mdx', text: '# Next\n'});
+  assert.equal(next.diagnostics.length, 0);
+  assert.equal(next.headings[0].text, 'Next');
 });
