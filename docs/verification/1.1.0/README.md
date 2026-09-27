@@ -25,6 +25,7 @@ per-task memos that reviewers need.
 | V110-10 | IMPLEMENTED | [tasks/V110-10.md](tasks/V110-10.md) | Project-aware inspection (`ProjectInspectionSnapshot`, route candidates, builtin binder validation, draft/unlisted/explicit statuses); `markdown-compat --project` shares the same analysis. Generation matching and cancellation go to V110-12 |
 | V110-11 | IMPLEMENTED | [tasks/V110-11.md](tasks/V110-11.md) | MDX analysis-only worker request plus an editing-owned `MdxInspectionSession` (no plugin/module load, bundle, SSR, or network); fatal diagnostics keep the worker alive. LSP wiring goes to V110-14 |
 | V110-12 | IMPLEMENTED | [tasks/V110-12.md](tasks/V110-12.md) | Workspace generation management (`InspectVersionedAsync`, bounded per-document queue, analysis outside the lifetime lock, stale/cancelled/disposed safeguards). LSP wiring goes to V110-14 |
+| V110-13 | IMPLEMENTED | [tasks/V110-13.md](tasks/V110-13.md) | Structured serve shutdown (`serve --control-stdin`), generation IDs, served/generated base-path separation, route snapshot; `eng/Test-ServeControl.ps1` wired into CI. Extension controller goes to V110-16 |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.

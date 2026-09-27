@@ -206,7 +206,7 @@ internal static class Cli
           lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
-          lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [-c configuration]
+          lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
@@ -233,7 +233,7 @@ internal sealed class CommandOptions
                 "-o" => "output", "-c" => "configuration", "-f" => "format",
                 "--output" => "output", "--configuration" => "configuration", "--format" => "format",
                 "--port" => "port", "--host" => "host", "--clean" => "clean", "--open" => "open",
-                "--cache-dir" => "cache-dir",
+                "--cache-dir" => "cache-dir", "--control-stdin" => "control-stdin",
                 _ => null,
             };
             if (key is null)
@@ -242,7 +242,7 @@ internal sealed class CommandOptions
                 if (project is not null) throw new CliUsageException("Specify only one site project.");
                 project = argument;
             }
-            else if (key is "clean" or "open") values[key] = null;
+            else if (key is "clean" or "open" or "control-stdin") values[key] = null;
             else if (++index >= args.Count) throw new CliUsageException($"Option '{argument}' requires a value.");
             else values[key] = args[index];
         }

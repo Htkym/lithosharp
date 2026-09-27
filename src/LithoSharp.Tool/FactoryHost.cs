@@ -105,7 +105,7 @@ internal static class FactoryHost
                             var result = await generator.GenerateWithOptionsAsync(definition.Site, definition.Posts,
                                 outputDirectory, command == "check" || options.ContainsKey("--clean"), definition.Customization,
                                 generationOptions, cancellationToken).ConfigureAwait(false);
-                            response = FromResult(result, generationOptions, format);
+                            response = FromResult(result, generationOptions, format, SiteBasePathOf(definition));
                         }
                         catch (Exception exception) when (watch && exception is not OperationCanceledException)
                         {
@@ -180,13 +180,14 @@ internal static class FactoryHost
     }
 
     private static HostResponse FromResult(
-        SiteGenerationResult result, SiteGenerationOptions options, SiteDiagnosticFormat format)
+        SiteGenerationResult result, SiteGenerationOptions options, SiteDiagnosticFormat format, string? siteBasePath)
     {
         var routes = result.Routes.ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
         return new HostResponse
         {
             Success = true,
             OutputDirectory = result.OutputDirectory,
+            SiteBasePath = siteBasePath,
             Extensions = options.Extensions.Select(extension => extension.GetInspection()).Where(value => value.HasValue).Select(value => value!.Value).ToArray(),
             DiagnosticsText = result.QualityReport.Format(format),
             Diagnostics = ToHostDiagnostics(result.QualityReport.Diagnostics),
@@ -232,6 +233,12 @@ internal static class FactoryHost
     private static string Required(IReadOnlyDictionary<string, string> options, string name) =>
         options.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value : throw new ArgumentException($"Host option '{name}' is required.");
+
+    private static string? SiteBasePathOf(SiteDefinition definition)
+    {
+        try { return new Uri(definition.Site.BaseUrl, UriKind.Absolute).AbsolutePath; }
+        catch (Exception exception) when (exception is UriFormatException or ArgumentException) { return null; }
+    }
 
     private static HostDiagnostic[] ToHostDiagnostics(IEnumerable<SiteDiagnostic> diagnostics) =>
         diagnostics.Select(diagnostic => new HostDiagnostic(
@@ -307,6 +314,10 @@ internal sealed record HostResponse
     public string[] GeneratedFiles { get; init; } = [];
     public string[] RemovedFiles { get; init; } = [];
     public string[] IgnoredPaths { get; init; } = [];
+    /// <summary>Serve generation that produced this result. Set by the dev server; zero when unset.</summary>
+    public long Generation { get; init; }
+    /// <summary>Base path of the generated site (BaseUrl path). Null when unreported.</summary>
+    public string? SiteBasePath { get; init; }
     public HostBuildReport? BuildReport { get; init; }
     public HostBuildNode[] BuildPlan { get; init; } = [];
     public JsonElement[] Extensions { get; init; } = [];

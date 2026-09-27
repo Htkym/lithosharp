@@ -103,6 +103,7 @@ jobs:
         shell: pwsh
         run: |
           ./eng/Test-Tool.ps1
+          ./eng/Test-ServeControl.ps1
           ./eng/Test-MdxWatch.ps1
           ./eng/Test-DocumentationVerification.ps1
 
