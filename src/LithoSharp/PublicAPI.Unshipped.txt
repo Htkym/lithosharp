@@ -114,6 +114,9 @@ static LithoSharp.Inspection.ProjectInspectionSnapshot.Create(string! projectId,
 static LithoSharp.Inspection.ProjectInspectionSnapshot.ParseJson(string! json) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
 LithoSharp.Inspection.DocumentInspectionOptions.Project.get -> LithoSharp.Inspection.ProjectInspectionSnapshot?
 LithoSharp.Inspection.DocumentInspectionOptions.Project.init -> void
+LithoSharp.Inspection.DocumentWorkspace.InspectVersionedAsync(string! sourcePath, string! text, long documentVersion, long projectGeneration, LithoSharp.Inspection.DocumentInspectionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.DocumentInfo!>!
+LithoSharp.Inspection.DocumentWorkspace.TryGet(string! projectId, string! documentId, out LithoSharp.Inspection.DocumentInfo? documentInfo) -> bool
+LithoSharp.Inspection.DocumentWorkspace.Remove(string! projectId, string! documentId) -> bool
 LithoSharp.Inspection.DocumentInfo.RouteCandidates.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectRouteCandidate!>!
 LithoSharp.Inspection.DocumentInfo.ProjectStatus.get -> LithoSharp.Inspection.DocumentProjectStatus
 LithoSharp.Inspection.DocumentInfo.SchemaName.get -> string?
