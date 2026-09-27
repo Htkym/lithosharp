@@ -148,7 +148,9 @@ public sealed class DocumentWorkspaceGenerationTests
         await using var workspace = new DocumentWorkspace();
         var slow = workspace.InspectVersionedAsync("docs/gone.md", BigText(20000), documentVersion: 1, projectGeneration: 1);
         await Task.Delay(TimeSpan.FromMilliseconds(50));
-        await Assert.That(workspace.Remove("docs/gone.md")).IsFalse();
+        // Whether the slow analysis already committed or is still in flight,
+        // removal wins and its late completion must not resurrect the document.
+        workspace.Remove("docs/gone.md");
         try
         {
             await slow;
