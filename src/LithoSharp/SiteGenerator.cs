@@ -237,7 +237,7 @@ public sealed partial class SiteGenerator
             throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
         var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
         var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
-            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, ".lithosharp"));
+            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, DefaultBuildCacheDirectoryName));
         if (ContainsDirectory(outputRoot, buildCacheRoot) || ContainsDirectory(buildCacheRoot, outputRoot)
             || options.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
             throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
@@ -4430,7 +4430,7 @@ public sealed partial class SiteGenerator
                 .ToLowerInvariant();
         }
 
-        private static string CreateOwnershipScope(
+        internal static string CreateOwnershipScope(
             string parentRoot,
             string outputName)
         {
@@ -4529,7 +4529,7 @@ public sealed partial class SiteGenerator
             return string.Equals(left, right, StringComparison.Ordinal);
         }
 
-        private static string CreateOutputIdentity(string canonicalOutputRoot) =>
+        internal static string CreateOutputIdentity(string canonicalOutputRoot) =>
             Convert.ToHexStringLower(
                 SHA256.HashData(Encoding.UTF8.GetBytes(canonicalOutputRoot)));
 

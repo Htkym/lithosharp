@@ -70,3 +70,10 @@ LithoSharp.SiteGenerationOptions.CollectTimings.get -> bool
 LithoSharp.SiteGenerationOptions.CollectTimings.init -> void
 LithoSharp.SiteGenerationResult.Timings.get -> LithoSharp.Build.SiteBuildTimings?
 LithoSharp.SiteGenerationResult.Timings.init -> void
+LithoSharp.Build.SiteBuildCacheUsage
+LithoSharp.Build.SiteBuildCacheUsage.CacheDirectory.get -> string!
+LithoSharp.Build.SiteBuildCacheUsage.FileCount.get -> int
+LithoSharp.Build.SiteBuildCacheUsage.SiteBuildCacheUsage(string! cacheDirectory, int fileCount, long totalBytes) -> void
+LithoSharp.Build.SiteBuildCacheUsage.TotalBytes.get -> long
+static LithoSharp.SiteGenerator.ClearCache(string! outputRoot, LithoSharp.SiteGenerationOptions? options = null) -> LithoSharp.Build.SiteBuildCacheUsage!
+static LithoSharp.SiteGenerator.MeasureCache(string! outputRoot, LithoSharp.SiteGenerationOptions? options = null) -> LithoSharp.Build.SiteBuildCacheUsage!

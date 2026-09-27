@@ -263,6 +263,42 @@ public sealed class MdxIntegrationTests
         await Assert.That(beta).DoesNotContain("Alpha workspace");
     }
 
+    [Test]
+    public async Task MdxRemovesStaleScratchLeftByAKilledHost()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var root = workspace.Root;
+        var source = Path.Combine(root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
+        var cacheRoot = Path.Combine(root, ".lithosharp", "mdx");
+        Directory.CreateDirectory(cacheRoot);
+        var stale = Path.Combine(cacheRoot, "work-" + Guid.NewGuid().ToString("N"));
+        var live = Path.Combine(cacheRoot, "work-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stale);
+        Directory.CreateDirectory(live);
+        await File.WriteAllTextAsync(Path.Combine(stale, "leftover.txt"), "leftover");
+        Directory.SetLastWriteTimeUtc(stale, DateTime.UtcNow.AddDays(-2));
+        var staleTemporary = Path.Combine(cacheRoot, "stale.json.tmp");
+        await File.WriteAllTextAsync(staleTemporary, "partial");
+        File.SetLastWriteTimeUtc(staleTemporary, DateTime.UtcNow.AddDays(-2));
+
+        var repository = FindRepository();
+        await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
+            { Cacheable = true });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
+            { TransformationFingerprint = "test-v1" });
+        var output = Path.Combine(root, "out");
+        await new SiteGenerator().GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.com/project/" }, [], output, clean: true, null,
+            new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+
+        await Assert.That(Directory.Exists(stale)).IsFalse();
+        await Assert.That(File.Exists(staleTemporary)).IsFalse();
+        await Assert.That(Directory.Exists(live)).IsTrue();
+    }
+
     private sealed class WarningLoader : IContentCollectionLoader<FrontMatter, MdxDocument>
     {
         public ValueTask<ContentLoadResult<FrontMatter, MdxDocument>> LoadAsync(CancellationToken cancellationToken = default) =>

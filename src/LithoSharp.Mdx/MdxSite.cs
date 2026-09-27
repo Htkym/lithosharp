@@ -148,6 +148,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 tools, resolutionCandidates, options.Environment, options.DeclaredInputFiles, options.Plugins, options.ComponentsModule, options.Hydration, options.StaticComponents, options.CrossReferences }, MdxJson.Options));
             var cacheRoot = Path.Combine(context.CacheDirectory, "mdx");
             EnsureSafeDirectory(cacheRoot);
+            CleanupStaleScratch(cacheRoot);
             var cachePath = Path.Combine(cacheRoot, signature + ".json");
             JsonElement result = default;
             if (options.Cacheable && File.Exists(cachePath))
@@ -160,7 +161,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     if (envelope.GetProperty("hash").GetString() == Hash(JsonSerializer.SerializeToUtf8Bytes(candidate))
                         && await InputsMatchAsync(candidate, cancellationToken).ConfigureAwait(false)) result = candidate.Clone();
                 }
-                catch (Exception error) when (error is IOException or JsonException or KeyNotFoundException or ArgumentException) { }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or ArgumentException) { }
             }
             var hit = result.ValueKind != JsonValueKind.Undefined;
             if (!hit)
@@ -323,6 +324,36 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         if (Directory.EnumerateFileSystemEntries(directory, "*", SearchOption.AllDirectories).Any(file => (File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0))
             throw new IOException("MDX scratch contains a symbolic path and was preserved.");
         Directory.Delete(directory, recursive: true);
+    }
+    /// <summary>
+    /// A killed host leaves worker scratch directories and partial cache writes behind. Remove
+    /// only leftovers old enough that no live build can still own them.
+    /// </summary>
+    private static void CleanupStaleScratch(string cacheRoot)
+    {
+        var cutoff = DateTime.UtcNow - TimeSpan.FromDays(1);
+        try
+        {
+            foreach (var directory in Directory.EnumerateDirectories(cacheRoot, "work-*"))
+            {
+                if (Directory.GetLastWriteTimeUtc(directory) < cutoff)
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            }
+
+            foreach (var file in Directory.EnumerateFiles(cacheRoot, "*.tmp"))
+            {
+                if (File.GetLastWriteTimeUtc(file) < cutoff)
+                {
+                    File.Delete(file);
+                }
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            // Reclaiming leftovers must never fail a build.
+        }
     }
 
     /// <inheritdoc />
