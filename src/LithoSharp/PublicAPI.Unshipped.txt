@@ -83,3 +83,37 @@ const LithoSharp.Inspection.CompatibilityAdvisoryOption.On = "on" -> string!
 static LithoSharp.Inspection.CompatibilityAdvisoryOption.TryParse(string? value, out bool enabled) -> bool
 LithoSharp.Inspection.DocumentInspectionOptions.EnableCompatibilityAdvisory.get -> bool
 LithoSharp.Inspection.DocumentInspectionOptions.EnableCompatibilityAdvisory.init -> void
+LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentProjectStatus.NoContext = 0 -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentProjectStatus.Resolved = 1 -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentProjectStatus.Ambiguous = 2 -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentProjectStatus.Unresolved = 3 -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentProjectStatus.Draft = 4 -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.ProjectRouteCandidate
+LithoSharp.Inspection.ProjectRouteCandidate.ProjectRouteCandidate(string! sourcePath, string! publicPath, string! projectId, string! collection, string! version, string! locale, LithoSharp.Documentation.DocumentPublicationState publication) -> void
+LithoSharp.Inspection.ProjectRouteCandidate.SourcePath.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.PublicPath.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.ProjectId.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.Collection.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.Version.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.Locale.get -> string!
+LithoSharp.Inspection.ProjectRouteCandidate.Publication.get -> LithoSharp.Documentation.DocumentPublicationState
+LithoSharp.Inspection.ProjectInspectionSnapshot
+LithoSharp.Inspection.ProjectInspectionSnapshot.ProjectId.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.ProjectGeneration.get -> long
+LithoSharp.Inspection.ProjectInspectionSnapshot.CoreVersion.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Collection.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Language.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.SchemaName.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Version.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Locale.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Routes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectRouteCandidate!>!
+LithoSharp.Inspection.ProjectInspectionSnapshot.AcquiredAt.get -> System.DateTimeOffset
+LithoSharp.Inspection.ProjectInspectionSnapshot.ToJson() -> string!
+static LithoSharp.Inspection.ProjectInspectionSnapshot.Create(string! projectId, long projectGeneration, string! collection, string! language, string! schemaName, string! version, string! locale, System.Collections.Generic.IEnumerable<LithoSharp.Inspection.ProjectRouteCandidate!>? routes = null, System.DateTimeOffset? acquiredAt = null, string? coreVersion = null) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+static LithoSharp.Inspection.ProjectInspectionSnapshot.ParseJson(string! json) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.DocumentInspectionOptions.Project.get -> LithoSharp.Inspection.ProjectInspectionSnapshot?
+LithoSharp.Inspection.DocumentInspectionOptions.Project.init -> void
+LithoSharp.Inspection.DocumentInfo.RouteCandidates.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectRouteCandidate!>!
+LithoSharp.Inspection.DocumentInfo.ProjectStatus.get -> LithoSharp.Inspection.DocumentProjectStatus
+LithoSharp.Inspection.DocumentInfo.SchemaName.get -> string?

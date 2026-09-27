@@ -111,6 +111,12 @@ public sealed class DocumentInspectionOptions
     /// （LIT001 脚注、LIT002 ブラウザー資産のみ）は変わりません。文書本文の解釈や描画には影響しません。
     /// </summary>
     public bool EnableCompatibilityAdvisory { get; init; }
+
+    /// <summary>
+    /// 明示操作で取得したproject contextを取得または設定します。ない場合は <see langword="null"/> で、
+    /// 構文解析のみを行います。context不足を成功として隠さず、未保存解析で公開出力も元ファイルも更新しません。
+    /// </summary>
+    public ProjectInspectionSnapshot? Project { get; init; }
 }
 
 /// <summary><c>--advisory</c> optionの契約を表します。</summary>
@@ -161,7 +167,10 @@ public sealed class DocumentInfo
         IReadOnlyDictionary<string, object?> frontMatter,
         string? version,
         string? locale,
-        IReadOnlyList<SiteDiagnostic> diagnostics)
+        IReadOnlyList<SiteDiagnostic> diagnostics,
+        IReadOnlyList<ProjectRouteCandidate>? routeCandidates = null,
+        DocumentProjectStatus projectStatus = DocumentProjectStatus.NoContext,
+        string? schemaName = null)
     {
         DocumentId = documentId;
         SourcePath = sourcePath;
@@ -175,6 +184,9 @@ public sealed class DocumentInfo
         Version = version;
         Locale = locale;
         Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
+        RouteCandidates = Array.AsReadOnly((routeCandidates ?? []).ToArray());
+        ProjectStatus = projectStatus;
+        SchemaName = schemaName;
     }
 
     /// <summary>文書識別子を取得します。</summary>
@@ -212,4 +224,13 @@ public sealed class DocumentInfo
 
     /// <summary>解析で得た診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics { get; }
+
+    /// <summary>project context内のsource→route候補を取得します。contextなしでは空です。</summary>
+    public IReadOnlyList<ProjectRouteCandidate> RouteCandidates { get; }
+
+    /// <summary>project context付き検査のroute解決状態を取得します。</summary>
+    public DocumentProjectStatus ProjectStatus { get; }
+
+    /// <summary>front matter検証に使ったschema名を取得します。contextなしでは <see langword="null"/> です。</summary>
+    public string? SchemaName { get; }
 }

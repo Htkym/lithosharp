@@ -22,6 +22,7 @@ per-task memos that reviewers need.
 | V110-07 | VERIFIED | [tasks/V110-07.md](tasks/V110-07.md) | Entry-level rebundle counter (`RebundledPages`): a static body edit rebundles 0 interactive entries while shared component/CSS edits rebundle every dependent; gated in the MDX harness, and the runner's `bundledEntries` counter typo is fixed |
 | V110-08 | IMPLEMENTED | [tasks/V110-08.md](tasks/V110-08.md) | Cache inventory; explicit per-output reporting/reclamation (`SiteGenerator.MeasureCache`/`ClearCache`, `lithosharp cache info\|clean`) and MDX crash-leftover cleanup. Byte-budget LRU and soak timers remain |
 | V110-09 | IMPLEMENTED | [tasks/V110-09.md](tasks/V110-09.md) | Markdown compat ledger (`eng/verification/1.1.0/markdown-compat.json`); opt-in LIT003/004/005 advisories sharing the fence/code/escape scan; `lithosharp markdown-compat --advisory on\|off` wired to the same inspection |
+| V110-10 | IMPLEMENTED | [tasks/V110-10.md](tasks/V110-10.md) | Project-aware inspection (`ProjectInspectionSnapshot`, route candidates, builtin binder validation, draft/unlisted/explicit statuses); `markdown-compat --project` shares the same analysis. Generation matching and cancellation go to V110-12 |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.

@@ -198,7 +198,7 @@ internal static class Cli
         Commands:
           lithosharp capabilities [-f json] (tool, core, contract and capability report; never evaluates a project)
           lithosharp cache <info|clean> -o directory [--cache-dir directory] (explicit per-output cache usage or reclamation)
-          lithosharp markdown-compat <markdown-file> [--advisory on|off] [--format text|json] (explicit Markdown compatibility check; same analysis as document inspection)
+          lithosharp markdown-compat <markdown-file> [--advisory on|off] [--format text|json] [--project snapshot.json] (explicit Markdown compatibility check; same analysis as document inspection)
           lithosharp new <docs|blog|empty|mdx> [name] [-o directory]
           lithosharp snapshot <source> <destination> <version>
           lithosharp extract-translations <source>
