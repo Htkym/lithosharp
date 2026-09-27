@@ -104,6 +104,46 @@ public sealed class DocumentInspectionOptions
 
     /// <summary>文書localeを取得または設定します。不明な場合は <see langword="null"/> です。</summary>
     public string? Locale { get; init; }
+
+    /// <summary>
+    /// 未対応構文の互換性advisory（LIT003 定義リスト、LIT004 汎用属性、LIT005 grid table）を
+    /// 付けるかどうかを取得または設定します。既定は <see langword="false"/> で、既存の既定動作
+    /// （LIT001 脚注、LIT002 ブラウザー資産のみ）は変わりません。文書本文の解釈や描画には影響しません。
+    /// </summary>
+    public bool EnableCompatibilityAdvisory { get; init; }
+}
+
+/// <summary><c>--advisory</c> optionの契約を表します。</summary>
+/// <remarks>CLIの明示検査と検査optionはこの解析に接続し、未知値はusage errorにします。</remarks>
+public static class CompatibilityAdvisoryOption
+{
+    /// <summary>advisoryを有効にする値を取得します。</summary>
+    public const string On = "on";
+
+    /// <summary>advisoryを無効にする値を取得します。</summary>
+    public const string Off = "off";
+
+    /// <summary>option値を解釈します。</summary>
+    /// <param name="value">利用者が指定した値。</param>
+    /// <param name="enabled">advisoryを有効にするかどうか。</param>
+    /// <returns>既知の値の場合に <see langword="true"/> を返します。</returns>
+    public static bool TryParse(string? value, out bool enabled)
+    {
+        if (string.Equals(value, On, StringComparison.Ordinal))
+        {
+            enabled = true;
+            return true;
+        }
+
+        if (string.Equals(value, Off, StringComparison.Ordinal))
+        {
+            enabled = false;
+            return true;
+        }
+
+        enabled = false;
+        return false;
+    }
 }
 
 /// <summary>一度の解析から得た文書情報の不変snapshotを表します。</summary>

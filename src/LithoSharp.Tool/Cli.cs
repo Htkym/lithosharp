@@ -22,6 +22,7 @@ internal static class Cli
         if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
         if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
         if (args[0] == "cache") return CacheCommand.Run(args[1..]);
+        if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
             return await ContentCommands.RunAsync(args, cancellationToken);
         if (args[0] == "migrate" && args.Length > 1 && args[1] == "docusaurus")
@@ -197,6 +198,7 @@ internal static class Cli
         Commands:
           lithosharp capabilities [-f json] (tool, core, contract and capability report; never evaluates a project)
           lithosharp cache <info|clean> -o directory [--cache-dir directory] (explicit per-output cache usage or reclamation)
+          lithosharp markdown-compat <markdown-file> [--advisory on|off] [--format text|json] (explicit Markdown compatibility check; same analysis as document inspection)
           lithosharp new <docs|blog|empty|mdx> [name] [-o directory]
           lithosharp snapshot <source> <destination> <version>
           lithosharp extract-translations <source>

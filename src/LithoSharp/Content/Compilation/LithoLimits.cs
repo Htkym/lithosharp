@@ -65,6 +65,15 @@ internal static class LithoLimits
     /// <summary>Diagnostic when footnote syntax stays literal (U01-footnotes).</summary>
     public const string UnsupportedFootnoteDiagnosticId = "LIT001";
 
+    /// <summary>Diagnostic when definition-list syntax stays literal (U02-definition-lists).</summary>
+    public const string UnsupportedDefinitionListDiagnosticId = "LIT003";
+
+    /// <summary>Diagnostic when generic-attribute syntax stays literal (U13-generic-attributes).</summary>
+    public const string UnsupportedGenericAttributeDiagnosticId = "LIT004";
+
+    /// <summary>Diagnostic when grid-table syntax stays literal (U12-grid-tables).</summary>
+    public const string UnsupportedGridTableDiagnosticId = "LIT005";
+
     /// <summary>Diagnostic when math or diagram output needs unbundled browser assets.</summary>
     public const string BrowserAssetDiagnosticId = "LIT002";
 
@@ -308,6 +317,586 @@ internal static class LithoLimits
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Finds opt-in compatibility advisories for definition lists (U02),
+    /// generic attributes (U13), and grid tables (U12). Each category reports at
+    /// most one informational at the first high-confidence occurrence, or nothing
+    /// when absent. Code fences, inline code spans, and backslash-escaped markers
+    /// are excluded. Returns diagnostics in document order.
+    /// </summary>
+    internal static IReadOnlyList<Diagnostics.SiteDiagnostic> FindCompatibilityAdvisories(
+        string body, string? filePath, int bodyStartLine = 1,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        var found = new List<(int Offset, Diagnostics.SiteDiagnostic Diagnostic)>(3);
+        if (FindDefinitionListAdvisory(body, filePath, bodyStartLine, out var definitionOffset, cancellationToken) is { } definition)
+        {
+            found.Add((definitionOffset, definition));
+        }
+
+        if (FindGenericAttributeAdvisory(body, filePath, bodyStartLine, out var attributeOffset, cancellationToken) is { } attribute)
+        {
+            found.Add((attributeOffset, attribute));
+        }
+
+        if (FindGridTableAdvisory(body, filePath, bodyStartLine, out var gridOffset, cancellationToken) is { } grid)
+        {
+            found.Add((gridOffset, grid));
+        }
+
+        found.Sort(static (left, right) => left.Offset.CompareTo(right.Offset));
+        return found.Select(static item => item.Diagnostic).ToArray();
+    }
+
+    /// <summary>
+    /// Finds a high-confidence definition-list shape: a non-blank term line
+    /// followed (after at most one blank line) by a <c>:</c> definition marker
+    /// (<c>:</c> plus space/tab plus content, not <c>:::</c>). The Litho frontend
+    /// keeps both lines as paragraphs.
+    /// </summary>
+    internal static Diagnostics.SiteDiagnostic? FindDefinitionListAdvisory(
+        string body, string? filePath, int bodyStartLine = 1,
+        CancellationToken cancellationToken = default) =>
+        FindDefinitionListAdvisory(body, filePath, bodyStartLine, out _, cancellationToken);
+
+    internal static Diagnostics.SiteDiagnostic? FindDefinitionListAdvisory(
+        string body, string? filePath, int bodyStartLine, out int offset,
+        CancellationToken cancellationToken = default)
+    {
+        offset = -1;
+        ArgumentNullException.ThrowIfNull(body);
+        var lines = SplitBodyLines(body);
+        var inFence = false;
+        var fenceChar = '\0';
+        var fenceRun = 0;
+        var fenceState = new bool[lines.Count];
+        for (var index = 0; index < lines.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var text = lines[index].Text;
+            if (TryFenceMarker(text, out var marker, out var run))
+            {
+                if (!inFence)
+                {
+                    inFence = true;
+                    fenceChar = marker;
+                    fenceRun = run;
+                }
+                else if (marker == fenceChar && run >= fenceRun)
+                {
+                    inFence = false;
+                }
+
+                fenceState[index] = true;
+                continue;
+            }
+
+            fenceState[index] = inFence;
+        }
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (fenceState[index])
+            {
+                continue;
+            }
+
+            var (markerOffset, markerColumn) = DefinitionMarkerOffset(lines[index].Text);
+            if (markerOffset < 0)
+            {
+                continue;
+            }
+
+            if (!HasTermLine(lines, fenceState, index))
+            {
+                continue;
+            }
+
+            var visible = BlankCodeSpans(lines[index].Text);
+            if (!IsDefinitionMarker(visible, markerColumn))
+            {
+                continue;
+            }
+
+            offset = lines[index].Offset + markerOffset;
+            var (line, column) = new SourceText(body).GetLineAndColumn(offset);
+            Diagnostics.SiteSourceLocation? location = null;
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                location = new Diagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column);
+            }
+
+            return new Diagnostics.SiteDiagnostic(
+                UnsupportedDefinitionListDiagnosticId,
+                Diagnostics.SiteDiagnosticSeverity.Info,
+                "Definition list syntax stays literal paragraphs in the Litho compiler (U02-definition-lists). Use a bullet list or a GFM pipe table instead.",
+                location);
+        }
+
+        return null;
+    }
+
+    private static (int Offset, int Column) DefinitionMarkerOffset(string text)
+    {
+        var index = 0;
+        var columns = 0;
+        while (index < text.Length && (text[index] is ' ' or '\t'))
+        {
+            columns = text[index] == '\t' ? columns + (4 - (columns % 4)) : columns + 1;
+            index++;
+        }
+
+        if (columns >= 4 || index >= text.Length || text[index] != ':')
+        {
+            return (-1, -1);
+        }
+
+        if (index + 1 < text.Length && text[index + 1] == ':')
+        {
+            return (-1, -1);
+        }
+
+        if (index + 1 >= text.Length || (text[index + 1] is not (' ' or '\t')))
+        {
+            return (-1, -1);
+        }
+
+        var cursor = index + 2;
+        while (cursor < text.Length && (text[cursor] is ' ' or '\t'))
+        {
+            cursor++;
+        }
+
+        return cursor < text.Length ? (index, index) : (-1, -1);
+    }
+
+    private static bool IsDefinitionMarker(string visible, int column)
+    {
+        if (column < 0 || column >= visible.Length || visible[column] != ':')
+        {
+            return false;
+        }
+
+        if (column + 1 < visible.Length && visible[column + 1] == ':')
+        {
+            return false;
+        }
+
+        return column + 1 < visible.Length && (visible[column + 1] is ' ' or '\t');
+    }
+
+    private static bool HasTermLine(
+        List<(string Text, int Offset)> lines, bool[] fenceState, int markerIndex)
+    {
+        var cursor = markerIndex - 1;
+        if (cursor >= 0 && lines[cursor].Text.Trim().Length == 0 && !fenceState[cursor])
+        {
+            cursor--;
+        }
+
+        if (cursor < 0 || fenceState[cursor])
+        {
+            return false;
+        }
+
+        var term = lines[cursor].Text;
+        if (term.Trim().Length == 0)
+        {
+            return false;
+        }
+
+        var trimmed = term.TrimStart(' ', '\t');
+        if (trimmed.Length == 0 || trimmed[0] == ':')
+        {
+            return false;
+        }
+
+        var indentColumns = 0;
+        for (var i = 0; i < term.Length && (term[i] is ' ' or '\t'); i++)
+        {
+            indentColumns = term[i] == '\t' ? indentColumns + (4 - (indentColumns % 4)) : indentColumns + 1;
+        }
+
+        return indentColumns < 4;
+    }
+
+    /// <summary>
+    /// Finds a high-confidence generic attribute (<c>{#id .class}</c>). The Litho
+    /// frontend keeps it as literal text (for example, heading anchors stay
+    /// visible). Escaped, fenced, and inline-code occurrences are excluded.
+    /// </summary>
+    internal static Diagnostics.SiteDiagnostic? FindGenericAttributeAdvisory(
+        string body, string? filePath, int bodyStartLine = 1,
+        CancellationToken cancellationToken = default) =>
+        FindGenericAttributeAdvisory(body, filePath, bodyStartLine, out _, cancellationToken);
+
+    internal static Diagnostics.SiteDiagnostic? FindGenericAttributeAdvisory(
+        string body, string? filePath, int bodyStartLine, out int offset,
+        CancellationToken cancellationToken = default)
+    {
+        offset = -1;
+        ArgumentNullException.ThrowIfNull(body);
+        var lines = SplitBodyLines(body);
+        var inFence = false;
+        var fenceChar = '\0';
+        var fenceRun = 0;
+        for (var index = 0; index < lines.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (text, lineOffset) = lines[index];
+            if (TryFenceMarker(text, out var marker, out var run))
+            {
+                if (!inFence)
+                {
+                    inFence = true;
+                    fenceChar = marker;
+                    fenceRun = run;
+                }
+                else if (marker == fenceChar && run >= fenceRun)
+                {
+                    inFence = false;
+                }
+
+                continue;
+            }
+
+            if (inFence)
+            {
+                continue;
+            }
+
+            var visible = BlankCodeSpans(text);
+            for (var cursor = 0; cursor < visible.Length; cursor++)
+            {
+                if (visible[cursor] != '{')
+                {
+                    continue;
+                }
+
+                if (IsEscaped(text, cursor))
+                {
+                    continue;
+                }
+
+                if (!GenericAttributeAt(visible, cursor, out var length))
+                {
+                    continue;
+                }
+
+                offset = lineOffset + cursor;
+                var (line, column) = new SourceText(body).GetLineAndColumn(offset);
+                Diagnostics.SiteSourceLocation? location = null;
+                if (!string.IsNullOrWhiteSpace(filePath))
+                {
+                    location = new Diagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column);
+                }
+
+                return new Diagnostics.SiteDiagnostic(
+                    UnsupportedGenericAttributeDiagnosticId,
+                    Diagnostics.SiteDiagnosticSeverity.Info,
+                    "Generic attribute syntax stays literal text in the Litho compiler (U13-generic-attributes). Remove the attribute or use a supported heading and link form instead.",
+                    location);
+            }
+        }
+
+        return null;
+    }
+
+    private static bool GenericAttributeAt(string visible, int open, out int length)
+    {
+        length = 0;
+        if (open + 2 >= visible.Length || (visible[open + 1] is not ('#' or '.')))
+        {
+            return false;
+        }
+
+        var close = visible.IndexOf('}', open + 2);
+        if (close < 0 || close - open > 200)
+        {
+            return false;
+        }
+
+        var inner = visible[(open + 1)..close];
+        if (inner.Contains('{') || inner.Contains('\n') || inner.Contains('\r'))
+        {
+            return false;
+        }
+
+        var trimmed = inner.Trim(' ', '\t');
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var ch in trimmed)
+        {
+            if (!(char.IsAsciiLetterOrDigit(ch) || ch is '#' or '.' or '-' or '_' or ' ' or '\t' or '=' or '"' or '\'' or ':'))
+            {
+                return false;
+            }
+        }
+
+        if (!trimmed.Any(char.IsAsciiLetterOrDigit))
+        {
+            return false;
+        }
+
+        var hasIdOrClass = false;
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            if ((trimmed[i] == '#' || trimmed[i] == '.')
+                && i + 1 < trimmed.Length
+                && char.IsAsciiLetterOrDigit(trimmed[i + 1]))
+            {
+                hasIdOrClass = true;
+                break;
+            }
+        }
+
+        if (!hasIdOrClass)
+        {
+            return false;
+        }
+
+        length = close - open + 1;
+        return true;
+    }
+
+    /// <summary>
+    /// Finds a high-confidence grid table: a <c>+---+</c> border line plus a
+    /// nearby border or <c>|</c> row. The Litho frontend keeps grid syntax as
+    /// paragraphs; GFM pipe tables are the supported alternative.
+    /// </summary>
+    internal static Diagnostics.SiteDiagnostic? FindGridTableAdvisory(
+        string body, string? filePath, int bodyStartLine = 1,
+        CancellationToken cancellationToken = default) =>
+        FindGridTableAdvisory(body, filePath, bodyStartLine, out _, cancellationToken);
+
+    internal static Diagnostics.SiteDiagnostic? FindGridTableAdvisory(
+        string body, string? filePath, int bodyStartLine, out int offset,
+        CancellationToken cancellationToken = default)
+    {
+        offset = -1;
+        ArgumentNullException.ThrowIfNull(body);
+        var lines = SplitBodyLines(body);
+        var inFence = false;
+        var fenceChar = '\0';
+        var fenceRun = 0;
+        var fenceState = new bool[lines.Count];
+        for (var index = 0; index < lines.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var text = lines[index].Text;
+            if (TryFenceMarker(text, out var marker, out var run))
+            {
+                if (!inFence)
+                {
+                    inFence = true;
+                    fenceChar = marker;
+                    fenceRun = run;
+                }
+                else if (marker == fenceChar && run >= fenceRun)
+                {
+                    inFence = false;
+                }
+
+                fenceState[index] = true;
+                continue;
+            }
+
+            fenceState[index] = inFence;
+        }
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (fenceState[index])
+            {
+                continue;
+            }
+
+            var text = lines[index].Text;
+            if (!IsGridBorder(BlankCodeSpans(text)))
+            {
+                continue;
+            }
+
+            if (IsEscaped(text, GridBorderStart(text)))
+            {
+                continue;
+            }
+
+            if (!HasGridContext(lines, fenceState, index, cancellationToken))
+            {
+                continue;
+            }
+
+            offset = lines[index].Offset + GridBorderStart(text);
+            var (line, column) = new SourceText(body).GetLineAndColumn(offset);
+            Diagnostics.SiteSourceLocation? location = null;
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                location = new Diagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column);
+            }
+
+            return new Diagnostics.SiteDiagnostic(
+                UnsupportedGridTableDiagnosticId,
+                Diagnostics.SiteDiagnosticSeverity.Info,
+                "Grid table syntax stays literal paragraphs in the Litho compiler (U12-grid-tables). Use a GFM pipe table instead.",
+                location);
+        }
+
+        return null;
+    }
+
+    private static int GridBorderStart(string text)
+    {
+        var index = 0;
+        while (index < text.Length && (text[index] is ' ' or '\t'))
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    private static bool IsGridBorder(string visible)
+    {
+        var start = 0;
+        while (start < visible.Length && (visible[start] is ' ' or '\t'))
+        {
+            start++;
+        }
+
+        var columns = 0;
+        for (var i = 0; i < start; i++)
+        {
+            columns = visible[i] == '\t' ? columns + (4 - (columns % 4)) : columns + 1;
+        }
+
+        if (columns >= 4 || start >= visible.Length || visible[start] != '+')
+        {
+            return false;
+        }
+
+        var trimmed = visible.TrimEnd(' ', '\t');
+        if (trimmed.Length == 0 || trimmed[^1] != '+')
+        {
+            return false;
+        }
+
+        var plusCount = 0;
+        var dashOrEqual = false;
+        for (var i = start; i < trimmed.Length; i++)
+        {
+            var ch = trimmed[i];
+            if (ch == '+')
+            {
+                plusCount++;
+            }
+            else if (ch is '-' or '=')
+            {
+                dashOrEqual = true;
+            }
+            else if (ch is ' ' or '\t' or ':' or '|')
+            {
+                continue;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return plusCount >= 2 && dashOrEqual && trimmed.Length - start >= 3;
+    }
+
+    private static bool HasGridContext(
+        List<(string Text, int Offset)> lines, bool[] fenceState, int borderIndex,
+        CancellationToken cancellationToken)
+    {
+        for (var delta = -4; delta <= 4; delta++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (delta == 0)
+            {
+                continue;
+            }
+
+            var neighbor = borderIndex + delta;
+            if (neighbor < 0 || neighbor >= lines.Count || fenceState[neighbor])
+            {
+                continue;
+            }
+
+            var visible = BlankCodeSpans(lines[neighbor].Text);
+            if (IsGridBorder(visible))
+            {
+                return true;
+            }
+
+            var trimmed = visible.TrimStart(' ', '\t');
+            if (trimmed.StartsWith('|') && trimmed.TrimEnd(' ', '\t').EndsWith('|'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsEscaped(string text, int index)
+    {
+        var backslashes = 0;
+        for (var cursor = index - 1; cursor >= 0 && text[cursor] == '\\'; cursor--)
+        {
+            backslashes++;
+        }
+
+        return (backslashes % 2) == 1;
+    }
+
+    private static string BlankCodeSpans(string text)
+    {
+        var result = text.ToCharArray();
+        var index = 0;
+        while (index < text.Length)
+        {
+            if (text[index] != '`')
+            {
+                index++;
+                continue;
+            }
+
+            var run = 0;
+            while (index + run < text.Length && text[index + run] == '`')
+            {
+                run++;
+            }
+
+            var closing = text.IndexOf(
+                new string('`', run), index + run, StringComparison.Ordinal);
+            if (closing < 0)
+            {
+                break;
+            }
+
+            for (var cursor = index; cursor < closing + run; cursor++)
+            {
+                if (result[cursor] != '\n' && result[cursor] != '\r')
+                {
+                    result[cursor] = ' ';
+                }
+            }
+
+            index = closing + run;
+        }
+
+        return new string(result);
     }
 
     private static List<(string Text, int Offset)> SplitBodyLines(string body)

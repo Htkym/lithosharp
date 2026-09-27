@@ -11,13 +11,16 @@ were implemented in C07 and are never reused.
 - U01-footnotes: `[^a]` references and definitions stay literal.
   Footnote syntax additionally emits a LIT001 warning diagnostic instead of failing silently.
 - U02-definition-lists: `Term` followed by `: definition` stays paragraphs.
+  Opt-in advisory LIT003 reports the first high-confidence occurrence; default output is unchanged.
 - U07-abbreviations: `*[HTML]: ...` definitions stay paragraphs.
 - U08-citations: `""cite""` stays literal text.
 - U09-figures: `^^^` blocks stay paragraphs.
 - U10-footers: `^^` footers stay paragraphs.
 - U11-media-links: bare media URLs render as plain autolinks, not embeds.
 - U12-grid-tables: `+-+` grids stay paragraphs.
+  Opt-in advisory LIT005 reports the first high-confidence grid; default output is unchanged.
 - U13-generic-attributes: `{#id .class}` stays literal text.
+  Opt-in advisory LIT004 reports the first high-confidence attribute; default output is unchanged.
 - U14-list-extras: `a.`/`i.` ordered markers stay paragraphs.
 - U15-subscript-superscript: single `~` and `^` stay literal text.
 - U16-inserted-marked-text: `++ins++` and `==mark==` stay literal text.

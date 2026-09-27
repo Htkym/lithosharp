@@ -18,6 +18,12 @@ Roman list markers, subscript/superscript, inserted/marked text, emoji and smart
 punctuation are not implemented. Unsupported syntax remains literal text;
 footnotes additionally produce `LIT001`. Replace those constructs with supported
 Markdown before upgrading. The compiler is not a complete CommonMark/GFM implementation.
+An opt-in compatibility advisory reports high-confidence definition lists (`LIT003`),
+generic attributes (`LIT004`), and grid tables (`LIT005`) without changing default
+output: `DocumentInspectionOptions.EnableCompatibilityAdvisory` and
+`lithosharp markdown-compat --advisory on` share the same scan. The correspondence
+ledger is `eng/verification/1.1.0/markdown-compat.json`; official spec examples are
+not vendored and stay `not-run`.
 
 ## Build cost and platform coverage
 

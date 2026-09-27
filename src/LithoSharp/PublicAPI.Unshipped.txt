@@ -77,3 +77,9 @@ LithoSharp.Build.SiteBuildCacheUsage.SiteBuildCacheUsage(string! cacheDirectory,
 LithoSharp.Build.SiteBuildCacheUsage.TotalBytes.get -> long
 static LithoSharp.SiteGenerator.ClearCache(string! outputRoot, LithoSharp.SiteGenerationOptions? options = null) -> LithoSharp.Build.SiteBuildCacheUsage!
 static LithoSharp.SiteGenerator.MeasureCache(string! outputRoot, LithoSharp.SiteGenerationOptions? options = null) -> LithoSharp.Build.SiteBuildCacheUsage!
+LithoSharp.Inspection.CompatibilityAdvisoryOption
+const LithoSharp.Inspection.CompatibilityAdvisoryOption.Off = "off" -> string!
+const LithoSharp.Inspection.CompatibilityAdvisoryOption.On = "on" -> string!
+static LithoSharp.Inspection.CompatibilityAdvisoryOption.TryParse(string? value, out bool enabled) -> bool
+LithoSharp.Inspection.DocumentInspectionOptions.EnableCompatibilityAdvisory.get -> bool
+LithoSharp.Inspection.DocumentInspectionOptions.EnableCompatibilityAdvisory.init -> void

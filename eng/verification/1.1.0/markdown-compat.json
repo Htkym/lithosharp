@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "V110-09",
+  "spec": {
+    "litho": "commonmark-0.31.2+gfm-0.29",
+    "implementationVersion": "2"
+  },
+  "sources": [
+    {
+      "name": "CommonMark spec",
+      "version": "0.31.2",
+      "url": "https://github.com/commonmark/commonmark-spec",
+      "license": "CC-BY-SA 4.0",
+      "vendored": false,
+      "vendoredExamples": 0,
+      "upstreamTotal": "unknown (spec.txt is not vendored; see tests/LithoSharp.Tests/Fixtures/LithoParser/Unsupported.md)",
+      "status": "not-run"
+    },
+    {
+      "name": "GFM spec",
+      "version": "0.29-gfm",
+      "url": "https://github.com/github/cmark-gfm",
+      "license": "CC-BY-SA 4.0",
+      "vendored": false,
+      "vendoredExamples": 0,
+      "upstreamTotal": "unknown (spec.txt is not vendored)",
+      "status": "not-run"
+    },
+    {
+      "name": "Markdig reference",
+      "version": "1.3.2",
+      "source": "tests/LithoSharp.MarkdigComparison/LithoSharp.MarkdigComparison.csproj",
+      "pipeline": "UseAdvancedExtensions + DisableHtml + UsePreciseSourceLocation",
+      "status": "executed (shadow comparison only, never product rendering)"
+    },
+    {
+      "name": "Litho fixtures",
+      "paths": [
+        "tests/LithoSharp.Tests/Fixtures/LithoParser/Unsupported.md",
+        "tests/LithoSharp.Tests/Fixtures/LithoExtensions",
+        "tests/LithoSharp.Tests/Fixtures/MarkdigBaseline",
+        "tests/LithoSharp.Tests/Fixtures/Compatibility/content"
+      ],
+      "status": "executed"
+    }
+  ],
+  "classifications": [
+    {
+      "name": "supported-pass",
+      "description": "Implemented subset renders as specified; pinned by LithoSupportedSuiteTests and the Markdig shadow comparison.",
+      "verification": ["LithoSupportedSuiteTests", "LithoParserComparisonTests.CuratedDocuments_Agree"],
+      "note": "Supported-only pass rate is never reported as full CommonMark/GFM compliance."
+    },
+    {
+      "name": "supported-fail",
+      "description": "Mismatch inside the declared supported scope.",
+      "count": 0,
+      "verification": ["LithoParserComparisonTests (agreement asserts fail on mismatch)"],
+      "note": "No known supported-fail at V110-09. A new mismatch must add a minimal repro before fixing."
+    },
+    {
+      "name": "intentional-divergence",
+      "description": "Deliberate difference from the reference (HTML safety, heading-anchor literal, math/diagram shapes).",
+      "verification": ["LithoExtensionTests", "LithoParserComparisonTests baseline exclusions"],
+      "examples": ["heading-anchor stays literal {#x}", "math/div shapes", "alert vs aside"]
+    },
+    {
+      "name": "unsupported",
+      "description": "Stays literal text; 13 IDs in LithoLimits.UnsupportedIds map to Fixtures/LithoParser/Unsupported.md.",
+      "count": 13,
+      "verification": ["LithoParserLimitsTests.UnsupportedIds_MatchDocumentedList", "LithoParserLimitsTests.UnsupportedConstructs_StayLiteral"],
+      "advisory": {
+        "default": ["LIT001 footnotes (warning)"],
+        "optIn": ["LIT003 definition lists (info)", "LIT004 generic attributes (info)", "LIT005 grid tables (info)"]
+      }
+    },
+    {
+      "name": "not-run",
+      "description": "Official spec.txt examples are not vendored and are not executed.",
+      "verification": [],
+      "note": "Visible here instead of being silently omitted from the denominator."
+    }
+  ],
+  "totals": {
+    "totalDenominator": "supported-pass + supported-fail + intentional-divergence + unsupported + not-run (official examples)",
+    "executedDenominator": "supported-pass + supported-fail + intentional-divergence + unsupported (all Litho fixtures and comparison cases)",
+    "fullComplianceClaim": false,
+    "note": "Supported-only pass rate must not be called full compliance. Unsupported and not-run stay in the total denominator."
+  },
+  "cases": [
+    { "id": "supported/heading", "classification": "supported-pass", "markdown": "# H1", "expectedHtml": "<h1 id=\"h1\">H1</h1>\n" },
+    { "id": "supported/pipe-table", "classification": "supported-pass", "markdown": "| A | B |\n| --- | :---: |\n| 1 | 2 |\n", "expectedContains": "<table>" },
+    { "id": "supported/task-list", "classification": "supported-pass", "markdown": "- [x] Done\n- [ ] Todo\n", "expectedContains": "task-list-item" },
+    { "id": "supported/autolink", "classification": "supported-pass", "markdown": "<https://example.org/a>", "expectedContains": "https://example.org/a" },
+    { "id": "supported/fence", "classification": "supported-pass", "markdown": "```csharp\nvar x = 1;\n```\n", "expectedContains": "language-csharp" },
+    { "id": "supported/strikethrough", "classification": "supported-pass", "markdown": "~~del~~", "expectedContains": "<del>del</del>" },
+    { "id": "divergence/heading-anchor", "classification": "intentional-divergence", "markdown": "## A {#x}\n", "expectedHtml": "<h2 id=\"a-x\">A {#x}</h2>\n" },
+    { "id": "unsupported/footnote", "classification": "unsupported", "markdown": "See [^a] here.\n", "expectedContains": "[^a]", "diagnostic": "LIT001" },
+    { "id": "unsupported/definition-list", "classification": "unsupported", "markdown": "Term\n\n: definition\n", "expectedContains": ": definition", "advisory": "LIT003" },
+    { "id": "unsupported/generic-attribute", "classification": "unsupported", "markdown": "## A {#x}\n", "expectedContains": "{#x}", "advisory": "LIT004" },
+    { "id": "unsupported/grid-table", "classification": "unsupported", "markdown": "+---+---+\n| a | b |\n+---+---+\n", "expectedContains": "+---+", "advisory": "LIT005" }
+  ]
+}

@@ -78,6 +78,18 @@ public static class DocumentInspection
         }, cancellationToken);
         var semantics = analyzed.Semantics!;
         diagnostics.AddRange(semantics.Diagnostics);
+        if (options?.EnableCompatibilityAdvisory == true)
+        {
+            var bodyStartLine = locator.GetLineAndColumn(bodyStartOffset).Line;
+            foreach (var advisory in LithoLimits.FindCompatibilityAdvisories(
+                body, sourcePath, bodyStartLine, cancellationToken))
+            {
+                if (!diagnostics.Any(existing => existing.Id == advisory.Id))
+                {
+                    diagnostics.Add(advisory);
+                }
+            }
+        }
 
         return new DocumentInfo(
             options?.DocumentId ?? sourcePath,

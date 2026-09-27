@@ -21,6 +21,7 @@ per-task memos that reviewers need.
 | V110-06 | VERIFIED | [tasks/V110-06.md](tasks/V110-06.md) | No-op bypass plus a same-shape overlay commit: rebuilt artifacts are published file by file with a journaled backup, so unchanged artifacts are neither copied nor rewritten (1-page edit 4,016ms → 1,723ms and 301.7MB → 126.9MB per 1,000 pages) |
 | V110-07 | VERIFIED | [tasks/V110-07.md](tasks/V110-07.md) | Entry-level rebundle counter (`RebundledPages`): a static body edit rebundles 0 interactive entries while shared component/CSS edits rebundle every dependent; gated in the MDX harness, and the runner's `bundledEntries` counter typo is fixed |
 | V110-08 | IMPLEMENTED | [tasks/V110-08.md](tasks/V110-08.md) | Cache inventory; explicit per-output reporting/reclamation (`SiteGenerator.MeasureCache`/`ClearCache`, `lithosharp cache info\|clean`) and MDX crash-leftover cleanup. Byte-budget LRU and soak timers remain |
+| V110-09 | IMPLEMENTED | [tasks/V110-09.md](tasks/V110-09.md) | Markdown compat ledger (`eng/verification/1.1.0/markdown-compat.json`); opt-in LIT003/004/005 advisories sharing the fence/code/escape scan; `lithosharp markdown-compat --advisory on\|off` wired to the same inspection |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.
