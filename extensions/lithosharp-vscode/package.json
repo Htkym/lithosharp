@@ -1,0 +1,61 @@
+{
+  "name": "lithosharp",
+  "displayName": "LithoSharp",
+  "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.139.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Project detection works without trust. Build, serve, language server, and installs stay disabled until the workspace is trusted."
+    }
+  },
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onLanguage:mdx",
+    "onCommand:lithosharp.selectProject"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "lithosharp.selectProject",
+        "title": "LithoSharp: Select Project"
+      }
+    ],
+    "configuration": {
+      "title": "LithoSharp",
+      "properties": {
+        "lithosharp.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit LithoSharp CLI executable. Empty resolves automatically. Ignored in untrusted workspaces.",
+          "restrictedConfigurations": [
+            "lithosharp.cliPath"
+          ]
+        },
+        "lithosharp.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Selected project file. Empty prompts when several candidates exist."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "typecheck": "tsc --noEmit -p ./",
+    "test:unit": "npm run compile && node --test \"out/tests/unit/**/*.test.js\"",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "1.138.0",
+    "typescript": "^5.9.0"
+  }
+}
