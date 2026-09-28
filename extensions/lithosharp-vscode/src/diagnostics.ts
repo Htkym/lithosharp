@@ -15,6 +15,29 @@ export interface DiagnosticSink {
 }
 
 /**
+ * VS Code boundary shape. Keeps the diagnostic identity (code/source) that
+ * the smoke test asserts on; range/message map one-to-one. Severity is
+ * converted from LSP numbering (1=Error..4=Hint) to VS Code numbering
+ * (0=Error..3=Hint); out-of-range values fall back to Information.
+ */
+export function toVsDiagnostic(item: LspDiagnosticData): {
+  range: LspDiagnosticData['range'];
+  message: string;
+  severity: number;
+  code: string;
+  source: string;
+} {
+  const vscodeSeverity = Math.min(3, Math.max(0, item.severity - 1));
+  return {
+    range: item.range,
+    message: item.message,
+    severity: vscodeSeverity,
+    code: item.code,
+    source: item.source,
+  };
+}
+
+/**
  * Version-guarded diagnostics. Late responses for older buffer versions are
  * dropped so stale results are never reshown. Unsaved analysis and build
  * diagnostics stay in this Editor-side collection only.

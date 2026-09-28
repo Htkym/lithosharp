@@ -9,6 +9,7 @@ import { ServeController } from './serveController.js';
 import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
 import { LspClient } from './lspClient.js';
+import { toVsDiagnostic } from './diagnostics.js';
 import { PreviewManager } from './previewManager.js';
 import type { InspectedRoute } from './preview.js';
 
@@ -347,14 +348,22 @@ export function activate(context: vscode.ExtensionContext): void {
         set: (uri, diagnostics) =>
           diagnosticsCollection.set(
             vscode.Uri.parse(uri),
-            diagnostics.map(
-              (item) =>
-                new vscode.Diagnostic(
-                  new vscode.Range(item.range.start.line, item.range.start.character, item.range.end.line, item.range.end.character),
-                  item.message,
-                  item.severity as vscode.DiagnosticSeverity,
+            diagnostics.map((item) => {
+              const adapted = toVsDiagnostic(item);
+              const diagnostic = new vscode.Diagnostic(
+                new vscode.Range(
+                  adapted.range.start.line,
+                  adapted.range.start.character,
+                  adapted.range.end.line,
+                  adapted.range.end.character,
                 ),
-            ),
+                adapted.message,
+                adapted.severity as vscode.DiagnosticSeverity,
+              );
+              diagnostic.code = adapted.code;
+              diagnostic.source = adapted.source;
+              return diagnostic;
+            }),
           ),
         delete: (uri) => diagnosticsCollection.delete(vscode.Uri.parse(uri)),
         clear: () => diagnosticsCollection.clear(),
@@ -404,9 +413,9 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!vscode.workspace.isTrusted) {
         return;
       }
-      void ensureLsp().then((client) =>
-        client?.didOpen({ uri: document.uri.toString(), languageId: document.languageId, version: document.version, text: document.getText() }),
-      );
+      void ensureLsp().then((client) => {
+        client?.didOpen({ uri: document.uri.toString(), languageId: document.languageId, version: document.version, text: document.getText() });
+      });
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       if (!vscode.workspace.isTrusted) {

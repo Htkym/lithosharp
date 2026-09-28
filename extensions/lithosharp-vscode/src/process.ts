@@ -4,9 +4,17 @@ import type { SpawnedProcess } from './serveController.js';
 /**
  * Production process spawner. The child owns its process group so timeout
  * recovery can reclaim the whole tree without touching anything else.
+ * Windows script launchers (.cmd/.bat) run through cmd.exe; PowerShell
+ * scripts need their own cmd wrapper.
  */
 export function spawnProcess(command: string[], cwd: string): SpawnedProcess {
-  const child = childProcess.spawn(command[0]!, command.slice(1), {
+  let executable = command[0]!;
+  let args = command.slice(1);
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(executable)) {
+    args = ['/d', '/c', executable, ...args];
+    executable = 'cmd.exe';
+  }
+  const child = childProcess.spawn(executable, args, {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,

@@ -320,6 +320,8 @@ FakesAssemblies/
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 node_modules/
+# Downloaded VS Code test hosts (recreated by `npm run test:integration`)
+extensions/lithosharp-vscode/.vscode-test/
 
 # Visual Studio 6 build log
 *.plg

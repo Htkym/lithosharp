@@ -28,7 +28,7 @@
     "onCommand:lithosharp.refreshPreview",
     "onCommand:lithosharp.openInBrowser"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
       {
@@ -70,14 +70,14 @@
     ],
     "configuration": {
       "title": "LithoSharp",
+      "restrictedConfigurations": [
+        "lithosharp.cliPath"
+      ],
       "properties": {
         "lithosharp.cliPath": {
           "type": "string",
           "default": "",
-          "description": "Explicit LithoSharp CLI executable. Empty resolves automatically. Ignored in untrusted workspaces.",
-          "restrictedConfigurations": [
-            "lithosharp.cliPath"
-          ]
+          "description": "Explicit LithoSharp CLI executable. Empty resolves automatically. Ignored in untrusted workspaces."
         },
         "lithosharp.projectPath": {
           "type": "string",
@@ -103,11 +103,16 @@
     "compile": "tsc -p ./",
     "typecheck": "tsc --noEmit -p ./",
     "test:unit": "npm run compile && node --test \"out/tests/unit/**/*.test.js\"",
+    "test:integration": "npm run compile && node tests/integration/run.mjs",
+    "measure:editor": "npm run compile && node eng/measure-editor.mjs",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^22.0.0",
     "@types/vscode": "1.138.0",
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^12.0.2",
     "typescript": "^5.9.0"
   }
 }
