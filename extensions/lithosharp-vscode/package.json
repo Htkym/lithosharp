@@ -18,7 +18,11 @@
   "activationEvents": [
     "onLanguage:markdown",
     "onLanguage:mdx",
-    "onCommand:lithosharp.selectProject"
+    "onCommand:lithosharp.selectProject",
+    "onCommand:lithosharp.build",
+    "onCommand:lithosharp.startServer",
+    "onCommand:lithosharp.stopServer",
+    "onCommand:lithosharp.inspectSite"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -26,6 +30,22 @@
       {
         "command": "lithosharp.selectProject",
         "title": "LithoSharp: Select Project"
+      },
+      {
+        "command": "lithosharp.build",
+        "title": "LithoSharp: Build"
+      },
+      {
+        "command": "lithosharp.startServer",
+        "title": "LithoSharp: Start Server"
+      },
+      {
+        "command": "lithosharp.stopServer",
+        "title": "LithoSharp: Stop Server"
+      },
+      {
+        "command": "lithosharp.inspectSite",
+        "title": "LithoSharp: Inspect Site"
       }
     ],
     "configuration": {

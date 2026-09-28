@@ -109,10 +109,24 @@ test('activate wires disposables and deactivate cleans up', async () => {
   const { activate, deactivate } = loadExtension(fake);
   const subscriptions: { dispose(): void }[] = [];
   activate({ subscriptions } as never);
-  assert.ok(subscriptions.length >= 4);
+  assert.ok(subscriptions.length >= 8);
+  for (const id of ['lithosharp.selectProject', 'lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite']) {
+    assert.ok(fake.commands.has(id), `missing command ${id}`);
+  }
   deactivate();
   for (const subscription of subscriptions) {
     subscription.dispose();
+  }
+});
+
+test('untrusted build and serve commands never execute', async () => {
+  const fake = createFakeVscode();
+  fake.isTrusted = false;
+  const { activate } = loadExtension(fake);
+  const subscriptions: { dispose(): void }[] = [];
+  activate({ subscriptions } as never);
+  for (const id of ['lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite']) {
+    await assert.rejects(fake.commands.get(id)!(), UntrustedWorkspaceError);
   }
 });
 

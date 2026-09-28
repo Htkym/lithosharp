@@ -41,11 +41,13 @@ public sealed class LanguageServerTests
             textDocument = new { uri, languageId = language, version, text },
         });
 
-    private static async Task<JsonElement> WaitDiagnosticsAsync(LspTestClient client, string uri, long? version = null) =>
+    private static async Task<JsonElement> WaitDiagnosticsAsync(
+        LspTestClient client, string uri, long? version = null, TimeSpan? timeout = null) =>
         await client.WaitForAsync(message =>
             message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
             && message.GetProperty("params").GetProperty("uri").GetString() == uri
-            && (version is null || (message.GetProperty("params").TryGetProperty("version", out var v) && v.GetInt64() == version)));
+            && (version is null || (message.GetProperty("params").TryGetProperty("version", out var v) && v.GetInt64() == version)),
+            timeout);
 
     [Test]
     public async Task Initialize_AdvertisesOnlyImplementedCapabilities()
@@ -311,7 +313,8 @@ public sealed class LanguageServerTests
         await InitializeAsync(client, new { workerDirectory = WorkerDirectory() });
         const string uri = "file:///proj/page.mdx";
         Open(client, uri, "mdx", 1, "---\ntitle: Guide\n---\n# Guide\n\nimport Counter from \"./Counter.jsx\";\n\n<Counter />\n");
-        var published = await WaitDiagnosticsAsync(client, uri, 1);
+        // MDX analysis starts a Node worker; allow headroom under parallel load.
+        var published = await WaitDiagnosticsAsync(client, uri, 1, TimeSpan.FromSeconds(60));
         await Assert.That(published.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
 
         var symbolId = client.NextId();
@@ -322,7 +325,7 @@ public sealed class LanguageServerTests
 
         const string broken = "file:///proj/broken.mdx";
         Open(client, broken, "mdx", 1, "# Hi\n\n<Unclosed>\n");
-        var fatal = await WaitDiagnosticsAsync(client, broken, 1);
+        var fatal = await WaitDiagnosticsAsync(client, broken, 1, TimeSpan.FromSeconds(60));
         var diagnostic = fatal.GetProperty("params").GetProperty("diagnostics").EnumerateArray().Single();
         await Assert.That(diagnostic.GetProperty("code").GetString()).IsEqualTo("LSMDX001");
 

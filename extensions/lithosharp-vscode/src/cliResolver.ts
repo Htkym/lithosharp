@@ -5,7 +5,7 @@ import { requireTrusted } from './trust.js';
 /** How a CLI executable is invoked. */
 export interface CliCommand {
   command: string[];
-  cwd?: string;
+  cwd: string | undefined;
 }
 
 /** CLI resolution outcome. Resolving never executes anything. */
@@ -48,7 +48,7 @@ export async function resolveCli(options: ResolveOptions): Promise<CliResolution
     if (!(await isFile(explicitPath))) {
       return { kind: 'missing', reason: `Configured lithosharp.cliPath does not exist: ${explicitPath}` };
     }
-    return { kind: 'explicit', command: { command: [explicitPath] }, version: null };
+    return { kind: 'explicit', command: { command: [explicitPath], cwd: undefined }, version: null };
   }
   if (options.projectDir) {
     const manifest = path.join(options.projectDir, '.config', 'dotnet-tools.json');
@@ -66,7 +66,7 @@ export async function resolveCli(options: ResolveOptions): Promise<CliResolution
   }
   const global = await findOnPath('lithosharp', options.envPath);
   if (global) {
-    return { kind: 'global', command: { command: [global] }, version: null };
+    return { kind: 'global', command: { command: [global], cwd: undefined }, version: null };
   }
   if (!(await findOnPath('dotnet', options.envPath))) {
     return {

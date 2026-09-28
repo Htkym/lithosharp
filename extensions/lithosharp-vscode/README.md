@@ -37,3 +37,13 @@ workspace is trusted. No telemetry is collected in 0.1.0.
 Build, serve, diagnostics, symbols, and preview arrive in later tasks
 (V110-16 onwards). This shell owns no processes: stopping it disposes only
 the channel, status item, and listeners.
+
+## Commands (V110-16)
+
+- `LithoSharp: Build`, `LithoSharp: Start Server`, `LithoSharp: Stop Server`,
+  `LithoSharp: Inspect Site` run the real CLI with machine output and show the
+  result. Build validates only; it is never a publish approval.
+- Each project has its own serve state machine
+  (Stopped/Starting/Running/Rebuilding/Failed/Stopping) driven by real
+  process events. Normal stops use structured stdin shutdown; process-tree
+  recovery is the last resort after a timeout and never touches other processes.

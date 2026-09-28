@@ -32,3 +32,12 @@ workspace由来の実行path（`lithosharp.cliPath` はrestricted設定）は
 
 build、serve、診断、symbols、previewは後のタスク（V110-16以降）です。
 このshellはprocessを持たないため、停止時はchannel・status・listenerの破棄だけです。
+
+## Command（V110-16）
+
+- `LithoSharp: Build`、`LithoSharp: Start Server`、`LithoSharp: Stop Server`、
+  `LithoSharp: Inspect Site` は実CLIを機械出力で実行して結果を表示します。
+  Buildは検証のみで、公開承認ではありません。
+- projectごとにserve状態機械（Stopped/Starting/Running/Rebuilding/Failed/Stopping）を持ち、
+  実process eventで遷移します。通常停止は構造化stdin shutdownで、process tree回収は
+  timeout後の最終手段です。他のprocessには触りません。
