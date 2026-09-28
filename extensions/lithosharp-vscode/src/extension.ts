@@ -8,6 +8,7 @@ import { quickPickItems, statusText, type ProjectState } from './state.js';
 import { ServeController } from './serveController.js';
 import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
+import { LspClient } from './lspClient.js';
 
 const execFile = promisify(execFileCallback);
 
@@ -75,6 +76,8 @@ export function activate(context: vscode.ExtensionContext): void {
   status.command = 'lithosharp.selectProject';
   const state: { current: ProjectState } = { current: { kind: 'none', candidates: 0 } };
   const servers = new Map<string, ServeController>();
+  let lsp: LspClient | undefined;
+  const diagnosticsCollection = vscode.languages.createDiagnosticCollection('lithosharp');
 
   const refresh = async (): Promise<void> => {
     const folders = vscode.workspace.workspaceFolders ?? [];
@@ -218,9 +221,64 @@ export function activate(context: vscode.ExtensionContext): void {
     return created;
   };
 
+  const selector: vscode.DocumentSelector = [{ language: 'markdown' }, { language: 'mdx' }];
+
+  const ensureLsp = async (): Promise<LspClient | undefined> => {
+    if (lsp) {
+      return lsp;
+    }
+    if (!vscode.workspace.isTrusted) {
+      return undefined;
+    }
+    // Bundled server delivery arrives with packaging (V110-23). Until then an
+    // explicit path is required; nothing is guessed or auto-installed.
+    const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '').trim();
+    if (explicitServer === '') {
+      output.appendLine('Language server: set lithosharp.languageServerPath to enable live diagnostics.');
+      return undefined;
+    }
+    const client = new LspClient(
+      {
+        serverCommand: [explicitServer],
+        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
+        spawn: (command, cwd) => spawnProcess(command, cwd),
+        debounceMs: vscode.workspace.getConfiguration('lithosharp').get<number>('diagnosticDebounceMs', 150),
+        isTrusted: () => vscode.workspace.isTrusted,
+        onLog: (line) => output.appendLine(line),
+        onState: (name) => output.appendLine(`Language server: ${name}.`),
+      },
+      {
+        set: (uri, diagnostics) =>
+          diagnosticsCollection.set(
+            vscode.Uri.parse(uri),
+            diagnostics.map(
+              (item) =>
+                new vscode.Diagnostic(
+                  new vscode.Range(item.range.start.line, item.range.start.character, item.range.end.line, item.range.end.character),
+                  item.message,
+                  item.severity as vscode.DiagnosticSeverity,
+                ),
+            ),
+          ),
+        delete: (uri) => diagnosticsCollection.delete(vscode.Uri.parse(uri)),
+        clear: () => diagnosticsCollection.clear(),
+      },
+    );
+    lsp = client;
+    try {
+      await client.start();
+    } catch (error) {
+      lsp = undefined;
+      output.appendLine(`Language server failed to start: ${String(error)}`);
+      return undefined;
+    }
+    return client;
+  };
+
   context.subscriptions.push(
     output,
     status,
+    diagnosticsCollection,
     vscode.commands.registerCommand('lithosharp.selectProject', async () => {
       const picked = await selectProjectHandler({
         isTrusted: vscode.workspace.isTrusted,
@@ -245,6 +303,90 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       void refresh();
+    }),
+    vscode.workspace.onDidOpenTextDocument((document) => {
+      if (!vscode.workspace.isTrusted) {
+        return;
+      }
+      void ensureLsp().then((client) =>
+        client?.didOpen({ uri: document.uri.toString(), languageId: document.languageId, version: document.version, text: document.getText() }),
+      );
+    }),
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (!vscode.workspace.isTrusted) {
+        return;
+      }
+      void ensureLsp().then((client) => {
+        client?.didChange(event.document.uri.toString(), event.document.version, event.document.getText());
+      });
+    }),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (!vscode.workspace.isTrusted) {
+        return;
+      }
+      void ensureLsp().then((client) => {
+        client?.didSave(document.uri.toString());
+      });
+    }),
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      lsp?.didClose(document.uri.toString());
+    }),
+    vscode.workspace.onDidDeleteFiles((event) => {
+      for (const uri of event.files) {
+        lsp?.forget(uri.toString());
+      }
+    }),
+    vscode.workspace.onDidRenameFiles((event) => {
+      for (const file of event.files) {
+        lsp?.forget(file.oldUri.toString());
+      }
+    }),
+    vscode.languages.registerDocumentSymbolProvider(selector, {
+      provideDocumentSymbols: async (document, token) => {
+        if (!vscode.workspace.isTrusted) {
+          return [];
+        }
+        const client = await ensureLsp();
+        if (!client) {
+          return [];
+        }
+        const symbols = await (async () => {
+          let cancel: (() => void) | undefined;
+          const pending = client.requestSymbols(document.uri.toString(), (fn) => {
+            cancel = fn;
+          });
+          const off = token.onCancellationRequested(() => cancel?.());
+          try {
+            return await pending;
+          } finally {
+            off.dispose();
+          }
+        })();
+        const toVs = (items: typeof symbols): vscode.DocumentSymbol[] =>
+          items.map((item) => {
+            const symbol = new vscode.DocumentSymbol(
+              item.name,
+              '',
+              vscode.SymbolKind.Namespace,
+              new vscode.Range(item.range.start.line, item.range.start.character, item.range.end.line, item.range.end.character),
+              new vscode.Range(
+                item.selectionRange.start.line,
+                item.selectionRange.start.character,
+                item.selectionRange.end.line,
+                item.selectionRange.end.character,
+              ),
+            );
+            symbol.children = toVs(item.children);
+            return symbol;
+          });
+        return toVs(symbols);
+      },
+    }),
+    vscode.commands.registerCommand('lithosharp.restartServer', async () => {
+      requireTrusted(vscode.workspace.isTrusted, 'restart the language server');
+      lsp?.stop();
+      lsp = undefined;
+      await ensureLsp();
     }),
     vscode.commands.registerCommand('lithosharp.build', () => runOneShot('build')),
     vscode.commands.registerCommand('lithosharp.inspectSite', () => runOneShot('inspect')),

@@ -22,7 +22,8 @@
     "onCommand:lithosharp.build",
     "onCommand:lithosharp.startServer",
     "onCommand:lithosharp.stopServer",
-    "onCommand:lithosharp.inspectSite"
+    "onCommand:lithosharp.inspectSite",
+    "onCommand:lithosharp.restartServer"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -46,6 +47,10 @@
       {
         "command": "lithosharp.inspectSite",
         "title": "LithoSharp: Inspect Site"
+      },
+      {
+        "command": "lithosharp.restartServer",
+        "title": "LithoSharp: Restart Language Server"
       }
     ],
     "configuration": {
@@ -63,6 +68,18 @@
           "type": "string",
           "default": "",
           "description": "Selected project file. Empty prompts when several candidates exist."
+        },
+        "lithosharp.languageServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit language server executable. Empty disables live diagnostics until the server ships bundled."
+        },
+        "lithosharp.diagnosticDebounceMs": {
+          "type": "integer",
+          "default": 150,
+          "minimum": 50,
+          "maximum": 1000,
+          "description": "Debounce for change diagnostics in milliseconds."
         }
       }
     }

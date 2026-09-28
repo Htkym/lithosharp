@@ -109,8 +109,8 @@ test('activate wires disposables and deactivate cleans up', async () => {
   const { activate, deactivate } = loadExtension(fake);
   const subscriptions: { dispose(): void }[] = [];
   activate({ subscriptions } as never);
-  assert.ok(subscriptions.length >= 8);
-  for (const id of ['lithosharp.selectProject', 'lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite']) {
+  assert.ok(subscriptions.length >= 12);
+  for (const id of ['lithosharp.selectProject', 'lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.restartServer']) {
     assert.ok(fake.commands.has(id), `missing command ${id}`);
   }
   deactivate();
@@ -125,7 +125,7 @@ test('untrusted build and serve commands never execute', async () => {
   const { activate } = loadExtension(fake);
   const subscriptions: { dispose(): void }[] = [];
   activate({ subscriptions } as never);
-  for (const id of ['lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite']) {
+  for (const id of ['lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.restartServer']) {
     await assert.rejects(fake.commands.get(id)!(), UntrustedWorkspaceError);
   }
 });
@@ -142,10 +142,10 @@ test('configuration change refreshes the project state', async () => {
   fake.configListeners[0]!({ affectsConfiguration: (section) => section === 'lithosharp' });
   const watch = Date.now();
   while (Date.now() - watch < 5000) {
-    if (fake.statusText.length > 0) {
+    if (fake.statusText.some((text) => text.includes('select project'))) {
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  assert.ok(fake.statusText.length > 0);
+  assert.ok(fake.statusText.some((text) => text.includes('select project')));
 });

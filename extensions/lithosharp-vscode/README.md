@@ -47,3 +47,11 @@ the channel, status item, and listeners.
   (Stopped/Starting/Running/Rebuilding/Failed/Stopping) driven by real
   process events. Normal stops use structured stdin shutdown; process-tree
   recovery is the last resort after a timeout and never touches other processes.
+
+## Editing (V110-17)
+
+- Markdown/MDX documents open a single editing LSP session with debounced
+  change traffic (150 ms, 50-1000 ms configurable). Diagnostics carry the
+  original IDs with version-guarded display; stale results never resurface.
+- Symbols feed the Outline from owned heading ranges. No full-site build, SSR,
+  or user module execution happens on keystrokes.

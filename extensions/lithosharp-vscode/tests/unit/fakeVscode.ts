@@ -52,6 +52,22 @@ export interface FakeVscode {
   };
   StatusBarAlignment: { Left: number };
   ConfigurationTarget: { Global: number };
+  languages: {
+    createDiagnosticCollection(name: string): { set(uri: unknown, diagnostics: unknown[]): void; delete(uri: unknown): void; clear(): void; dispose(): void };
+    registerDocumentSymbolProvider(selector: unknown, provider: unknown): FakeDisposable;
+  };
+  Uri: { parse(value: string): { toString(): string } };
+  Range: new (startLine: number, startChar: number, endLine: number, endChar: number) => { start: { line: number; character: number }; end: { line: number; character: number } };
+  Diagnostic: new (range: unknown, message: string, severity: number) => { range: unknown; message: string; severity: number };
+  DiagnosticSeverity: { Error: number; Warning: number; Information: number; Hint: number };
+  SymbolKind: { Namespace: number };
+  DocumentSymbol: new (
+    name: string,
+    detail: string,
+    kind: number,
+    range: { start: { line: number; character: number }; end: { line: number; character: number } },
+    selectionRange: { start: { line: number; character: number }; end: { line: number; character: number } },
+  ) => { name: string; children: { name: string }[] };
 }
 
 export function createFakeVscode(): FakeVscode {
@@ -129,6 +145,47 @@ export function createFakeVscode(): FakeVscode {
     },
     StatusBarAlignment: { Left: 1 },
     ConfigurationTarget: { Global: 1 },
+    languages: {
+      createDiagnosticCollection: (_name: string) => ({
+        set: (_uri: unknown, _diagnostics: unknown[]) => {},
+        delete: (_uri: unknown) => {},
+        clear: () => {},
+        dispose: () => {},
+      }),
+      registerDocumentSymbolProvider: (_selector: unknown, _provider: unknown) => trackDisposable(),
+    },
+    Uri: {
+      parse: (value: string) => ({
+        toString: () => value,
+      }),
+    },
+    Range: class {
+      start: { line: number; character: number };
+      end: { line: number; character: number };
+      constructor(startLine: number, startChar: number, endLine: number, endChar: number) {
+        this.start = { line: startLine, character: startChar };
+        this.end = { line: endLine, character: endChar };
+      }
+    },
+    Diagnostic: class {
+      range: unknown;
+      message: string;
+      severity: number;
+      constructor(range: unknown, message: string, severity: number) {
+        this.range = range;
+        this.message = message;
+        this.severity = severity;
+      }
+    },
+    DiagnosticSeverity: { Error: 1, Warning: 2, Information: 3, Hint: 4 },
+    SymbolKind: { Namespace: 3 },
+    DocumentSymbol: class {
+      name: string;
+      children: { name: string }[] = [];
+      constructor(name: string, _detail: string, _kind: number, _range: unknown, _selection: unknown) {
+        this.name = name;
+      }
+    },
   };
   Object.defineProperty(fake.workspaceApi, 'isTrusted', {
     get: () => fake.isTrusted,
@@ -136,6 +193,13 @@ export function createFakeVscode(): FakeVscode {
   Object.defineProperty(fake.workspaceApi, 'workspaceFolders', {
     get: () => (fake.folders.length === 0 ? undefined : fake.folders),
   });
+  const extended = fake.workspaceApi as Record<string, unknown>;
+  extended['onDidOpenTextDocument'] = (_listener: unknown) => trackDisposable();
+  extended['onDidChangeTextDocument'] = (_listener: unknown) => trackDisposable();
+  extended['onDidSaveTextDocument'] = (_listener: unknown) => trackDisposable();
+  extended['onDidCloseTextDocument'] = (_listener: unknown) => trackDisposable();
+  extended['onDidDeleteFiles'] = (_listener: unknown) => trackDisposable();
+  extended['onDidRenameFiles'] = (_listener: unknown) => trackDisposable();
   return fake;
 }
 
@@ -146,10 +210,34 @@ export function installFakeVscode(fake: FakeVscode): void {
     _load(request: string, ...args: unknown[]): unknown;
   };
   const original = Module._load.bind(Module);
+  const extended = fake.workspaceApi as Record<string, unknown>;
   const shim = {
     window: fake.window,
     commands: fake.commandsApi,
-    workspace: fake.workspaceApi,
+    workspace: {
+      get isTrusted(): boolean {
+        return fake.isTrusted;
+      },
+      get workspaceFolders(): { uri: { fsPath: string }; name: string }[] | undefined {
+        return fake.folders.length === 0 ? undefined : fake.folders;
+      },
+      getConfiguration: fake.workspaceApi.getConfiguration,
+      onDidChangeConfiguration: fake.workspaceApi.onDidChangeConfiguration,
+      onDidChangeWorkspaceFolders: fake.workspaceApi.onDidChangeWorkspaceFolders,
+      onDidOpenTextDocument: extended['onDidOpenTextDocument'],
+      onDidChangeTextDocument: extended['onDidChangeTextDocument'],
+      onDidSaveTextDocument: extended['onDidSaveTextDocument'],
+      onDidCloseTextDocument: extended['onDidCloseTextDocument'],
+      onDidDeleteFiles: extended['onDidDeleteFiles'],
+      onDidRenameFiles: extended['onDidRenameFiles'],
+    },
+    languages: fake.languages,
+    Uri: fake.Uri,
+    Range: fake.Range,
+    Diagnostic: fake.Diagnostic,
+    DiagnosticSeverity: fake.DiagnosticSeverity,
+    SymbolKind: fake.SymbolKind,
+    DocumentSymbol: fake.DocumentSymbol,
     StatusBarAlignment: fake.StatusBarAlignment,
     ConfigurationTarget: fake.ConfigurationTarget,
   };

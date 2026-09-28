@@ -41,3 +41,11 @@ build、serve、診断、symbols、previewは後のタスク（V110-16以降）�
 - projectごとにserve状態機械（Stopped/Starting/Running/Rebuilding/Failed/Stopping）を持ち、
   実process eventで遷移します。通常停止は構造化stdin shutdownで、process tree回収は
   timeout後の最終手段です。他のprocessには触りません。
+
+## 編集支援（V110-17）
+
+- Markdown/MDX文書は単一の編集用LSP sessionに繋ぎ、変更はdebounce
+  （150ms、50〜1000ms可変）して送ります。診断は元のID付きで版数管理して表示し、
+  古い結果は再表示しません。
+- symbolsは保有範囲の見出し階層をOutlineへ出します。キー入力で全体buildや
+  SSR、利用者moduleの実行は起きません。

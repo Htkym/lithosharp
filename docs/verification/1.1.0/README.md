@@ -28,6 +28,8 @@ per-task memos that reviewers need.
 | V110-13 | IMPLEMENTED | [tasks/V110-13.md](tasks/V110-13.md) | Structured serve shutdown (`serve --control-stdin`), generation IDs, served/generated base-path separation, route snapshot; `eng/Test-ServeControl.ps1` wired into CI. Extension controller goes to V110-16 |
 | V110-14 | IMPLEMENTED | [tasks/V110-14.md](tasks/V110-14.md) | Minimal LSP stdio server (`src/LithoSharp.LanguageServer`): diagnostics, symbols, project context, cancellation; 17実stdio tests. Extension shell goes to V110-15 |
 | V110-15 | IMPLEMENTED | [tasks/V110-15.md](tasks/V110-15.md) | Extension shell (`extensions/lithosharp-vscode` 0.1.0): static project detection, limited trust, CLI resolution; 22 unit tests. Real Host verification goes to V110-19 |
+| V110-16 | IMPLEMENTED | [tasks/V110-16.md](tasks/V110-16.md) | Build/serve controller (`serveController`, `buildRunner`, structured stdin shutdown, per-project state machines); 43 unit tests. Preview wiring goes to V110-18 |
+| V110-17 | IMPLEMENTED | [tasks/V110-17.md](tasks/V110-17.md) | Editor LSP client (debounced sync, version-guarded diagnostics, outline symbols, single session); 57 unit tests. Real Host verification goes to V110-19 |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.
