@@ -55,3 +55,12 @@ the channel, status item, and listeners.
   original IDs with version-guarded display; stale results never resurface.
 - Symbols feed the Outline from owned heading ranges. No full-site build, SSR,
   or user module execution happens on keystrokes.
+
+## Preview (V110-18)
+
+- `LithoSharp: Open Preview`, `Refresh Preview`, and `Open in Browser` show
+  the actually served output in a thin WebView shell. The shell converts
+  nothing: routes come from inspection, never from guessing.
+- Unknown, draft, or unbuilt documents explain instead of opening. Failures
+  keep the labeled last successful result. A preview-owned server stops with
+  its last panel; user-started servers never stop on panel close.

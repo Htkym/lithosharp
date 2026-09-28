@@ -110,7 +110,7 @@ test('activate wires disposables and deactivate cleans up', async () => {
   const subscriptions: { dispose(): void }[] = [];
   activate({ subscriptions } as never);
   assert.ok(subscriptions.length >= 12);
-  for (const id of ['lithosharp.selectProject', 'lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.restartServer']) {
+  for (const id of ['lithosharp.selectProject', 'lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.restartServer', 'lithosharp.openPreview', 'lithosharp.refreshPreview', 'lithosharp.openInBrowser']) {
     assert.ok(fake.commands.has(id), `missing command ${id}`);
   }
   deactivate();

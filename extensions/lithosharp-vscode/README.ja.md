@@ -49,3 +49,11 @@ build、serve、診断、symbols、previewは後のタスク（V110-16以降）�
   古い結果は再表示しません。
 - symbolsは保有範囲の見出し階層をOutlineへ出します。キー入力で全体buildや
   SSR、利用者moduleの実行は起きません。
+
+## Preview（V110-18）
+
+- `LithoSharp: Open Preview`、`Refresh Preview`、`Open in Browser` は
+  実際にserveしている出力を薄いWebView shellで表示します。shell自体は変換せず、
+  routeは検査結果のみ使い、推測しません。
+- 不明・draft・未buildの文書は説明を出します。失敗時は成功結果を明示付きで残します。
+  preview所有のserverは最後のpanelと共に止まり、利用者起動のserverは止めません。

@@ -23,7 +23,10 @@
     "onCommand:lithosharp.startServer",
     "onCommand:lithosharp.stopServer",
     "onCommand:lithosharp.inspectSite",
-    "onCommand:lithosharp.restartServer"
+    "onCommand:lithosharp.restartServer",
+    "onCommand:lithosharp.openPreview",
+    "onCommand:lithosharp.refreshPreview",
+    "onCommand:lithosharp.openInBrowser"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -51,6 +54,18 @@
       {
         "command": "lithosharp.restartServer",
         "title": "LithoSharp: Restart Language Server"
+      },
+      {
+        "command": "lithosharp.openPreview",
+        "title": "LithoSharp: Open Preview"
+      },
+      {
+        "command": "lithosharp.refreshPreview",
+        "title": "LithoSharp: Refresh Preview"
+      },
+      {
+        "command": "lithosharp.openInBrowser",
+        "title": "LithoSharp: Open in Browser"
       }
     ],
     "configuration": {

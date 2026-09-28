@@ -9,6 +9,8 @@ import { ServeController } from './serveController.js';
 import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
 import { LspClient } from './lspClient.js';
+import { PreviewManager } from './previewManager.js';
+import type { InspectedRoute } from './preview.js';
 
 const execFile = promisify(execFileCallback);
 
@@ -78,6 +80,36 @@ export function activate(context: vscode.ExtensionContext): void {
   const servers = new Map<string, ServeController>();
   let lsp: LspClient | undefined;
   const diagnosticsCollection = vscode.languages.createDiagnosticCollection('lithosharp');
+  const previews = new PreviewManager(
+    {
+      createPanel: (title) => {
+        const panel = vscode.window.createWebviewPanel('lithosharpPreview', title, vscode.ViewColumn.Beside, {
+          enableScripts: true,
+        });
+        return {
+          setHtml: (html) => {
+            panel.webview.html = html;
+          },
+          postMessage: (message) => {
+            void panel.webview.postMessage(message);
+          },
+          onDidDispose: (callback) => {
+            panel.onDidDispose(callback);
+          },
+          reveal: () => panel.reveal(vscode.ViewColumn.Beside),
+        };
+      },
+      openExternal: (url) => Promise.resolve(vscode.env.openExternal(vscode.Uri.parse(url))),
+      showQuickPick: <T,>(items: T[]) =>
+        Promise.resolve(vscode.window.showQuickPick(items as never)) as Promise<T | undefined>,
+      showMessage: (message) => {
+        void vscode.window.showInformationMessage(message);
+      },
+    },
+    (serverKey) => {
+      servers.get(serverKey)?.stop();
+    },
+  );
 
   const refresh = async (): Promise<void> => {
     const folders = vscode.workspace.workspaceFolders ?? [];
@@ -210,6 +242,14 @@ export function activate(context: vscode.ExtensionContext): void {
         } else if (event.event === 'rebuild-failed') {
           output.appendLine(`Rebuild failed: ${event.error ?? 'unknown error'}`);
         }
+        previews.onServerEvent(
+          { key, url: created.url, generation: created.generation, owned: false, stop: () => created.stop() },
+          event.event === 'startup' || event.event === 'shutdown'
+            ? { event: event.event, generation: created.generation, url: created.url ?? undefined }
+            : event.event === 'rebuild-started'
+              ? { event: 'rebuild-started' }
+              : { event: event.event, generation: created.generation },
+        );
         const current = servers.get(key);
         status.text = `LithoSharp: ${current ? current.getState() : 'Stopped'}${current?.url ? ` ${current.url}` : ''}`;
         status.show();
@@ -219,6 +259,62 @@ export function activate(context: vscode.ExtensionContext): void {
     servers.set(key, created);
     context.subscriptions.push({ dispose: () => created.dispose() });
     return created;
+  };
+
+  const previewRoutes = async (selected: ProjectCandidate): Promise<InspectedRoute[]> => {
+    const cli = await cliFor(selected);
+    const runner = new BuildRunner({
+      isTrusted: () => vscode.workspace.isTrusted,
+      cli: (name) => ({ command: [...cli.command, name, selected.projectPath, '--format', 'json'], cwd: cli.cwd }),
+      cwd: selected.workspaceFolder,
+      probe: realRunProbe(),
+      onLog: (line) => output.appendLine(line),
+    });
+    const result = await runner.run('inspect');
+    if (!result.ok) {
+      return [];
+    }
+    const raw = result.raw as { buildPlan?: { artifacts?: { path?: unknown; publicPath?: unknown }[] }[] };
+    const routes: InspectedRoute[] = [];
+    for (const node of raw.buildPlan ?? []) {
+      for (const artifact of node.artifacts ?? []) {
+        if (typeof artifact.path === 'string' && typeof artifact.publicPath === 'string') {
+          routes.push({ path: artifact.path, publicPath: artifact.publicPath });
+        }
+      }
+    }
+    return routes;
+  };
+
+  const openPreviewForActiveEditor = async (): Promise<void> => {
+    requireTrusted(vscode.workspace.isTrusted, 'open the preview');
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || (editor.document.languageId !== 'markdown' && editor.document.languageId !== 'mdx')) {
+      output.appendLine('LithoSharp: open a Markdown or MDX document first.');
+      return;
+    }
+    const selected = await currentSelection();
+    if (!selected) {
+      output.appendLine('LithoSharp: no project selected. Run LithoSharp: Select Project first.');
+      return;
+    }
+    const controller = serverFor(selected, await cliFor(selected));
+    const owned = controller.getState() === 'Stopped';
+    if (owned) {
+      controller.start();
+    }
+    const routes = await previewRoutes(selected);
+    const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+    const relative = folder
+      ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
+      : editor.document.fileName.replace(/\\/g, '/');
+    await previews.open(relative, routes, {
+      key: keyOf(selected),
+      url: controller.url,
+      generation: controller.generation,
+      owned,
+      stop: () => controller.stop(),
+    }, editor.document.isDirty);
   };
 
   const selector: vscode.DocumentSelector = [{ language: 'markdown' }, { language: 'mdx' }];
@@ -415,6 +511,35 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       controller.stop();
+    }),
+    vscode.commands.registerCommand('lithosharp.openPreview', async () => {
+      await openPreviewForActiveEditor();
+    }),
+    vscode.commands.registerCommand('lithosharp.refreshPreview', async () => {
+      requireTrusted(vscode.workspace.isTrusted, 'refresh the preview');
+      const editor = vscode.window.activeTextEditor;
+      const selected = await currentSelection();
+      if (!editor || !selected) {
+        return;
+      }
+      const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+      const relative = folder
+        ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
+        : editor.document.fileName.replace(/\\/g, '/');
+      previews.refreshPanel(relative, keyOf(selected));
+    }),
+    vscode.commands.registerCommand('lithosharp.openInBrowser', async () => {
+      requireTrusted(vscode.workspace.isTrusted, 'open the browser');
+      const editor = vscode.window.activeTextEditor;
+      const selected = await currentSelection();
+      if (!editor || !selected) {
+        return;
+      }
+      const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+      const relative = folder
+        ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
+        : editor.document.fileName.replace(/\\/g, '/');
+      await previews.openExternal(relative, keyOf(selected));
     }),
   );
   void refresh();
