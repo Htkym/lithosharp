@@ -204,7 +204,7 @@ internal static class Cli
           lithosharp extract-translations <source>
           lithosharp restore-mdx <worker-directory> [--allow-scripts]
           lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)
-          lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] (exit 0 done, 1 failure, 3 unconvertible)
+          lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] [--source-version version] [--source-base-path path] [--compare-normalized-pages] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]

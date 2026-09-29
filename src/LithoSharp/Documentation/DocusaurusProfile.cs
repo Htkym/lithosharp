@@ -18,6 +18,17 @@ internal enum DocusaurusSupportLevel
 /// <param name="Note">The verified behavior, limit, or replacement.</param>
 internal sealed record DocusaurusComponentSupport(string Name, DocusaurusSupportLevel Level, string? Import, string Note);
 
+/// <summary>One known manual component replacement and its functional difference.</summary>
+/// <param name="Name">The component or package marker searched in visible source.</param>
+/// <param name="Kind">The primary user-visible change.</param>
+/// <param name="FunctionalEquivalence">Whether the replacement preserves the original capability.</param>
+/// <param name="Note">The explicit manual review or loss.</param>
+internal sealed record DocusaurusManualComponentChange(
+    string Name,
+    MigrationComponentChangeKind Kind,
+    MigrationFunctionalEquivalence FunctionalEquivalence,
+    string Note);
+
 /// <summary>
 /// The single source of truth for Docusaurus compatibility decisions.
 /// The migration report and the worker alias handling must agree with this
@@ -50,6 +61,27 @@ internal static class DocusaurusProfile
     /// <summary>JSX components that render without requesting page hydration. The worker extends this with request.StaticComponents.</summary>
     public static IReadOnlyList<string> BuiltInStaticComponents { get; } =
         ["Admonition", "Details", "Card", "TOCInline", "Translate", "FormattedDate"];
+
+    /// <summary>Manual component substitutions surfaced by the migration report. None is auto-applied.</summary>
+    public static IReadOnlyList<DocusaurusManualComponentChange> ManualComponentChanges { get; } =
+    [
+        new("ThemedImage", MigrationComponentChangeKind.AppearanceChanged, MigrationFunctionalEquivalence.NotEquivalent,
+            "The light image is rendered statically; theme switching is not preserved."),
+        new("react-medium-image-zoom", MigrationComponentChangeKind.InteractionChanged, MigrationFunctionalEquivalence.NotEquivalent,
+            "The zoom interaction is not provided; rendering the image or its children is not functionally equivalent."),
+        new("LiteYouTubeEmbed", MigrationComponentChangeKind.InteractionChanged, MigrationFunctionalEquivalence.NotEquivalent,
+            "Replacing the embed with a YouTube link removes inline playback and is not functionally equivalent."),
+        new("react-tweet", MigrationComponentChangeKind.InteractionChanged, MigrationFunctionalEquivalence.NotEquivalent,
+            "Replacing an embedded tweet with a link removes the embedded interaction and is not functionally equivalent."),
+        new("UpgradeGuide", MigrationComponentChangeKind.Staticized, MigrationFunctionalEquivalence.NotEquivalent,
+            "The version-aware interactive guide must be replaced manually with a static note or page."),
+        new("ColorModeToggle", MigrationComponentChangeKind.Staticized, MigrationFunctionalEquivalence.NotEquivalent,
+            "A static note does not preserve the color-mode toggle."),
+        new("raw-loader", MigrationComponentChangeKind.Staticized, MigrationFunctionalEquivalence.NotEquivalent,
+            "A static source example does not preserve the raw-loader behavior."),
+        new("react-live", MigrationComponentChangeKind.Deleted, MigrationFunctionalEquivalence.NotEquivalent,
+            "The live editor is not converted; deleting it removes the interactive example."),
+    ];
 
     /// <summary>Decides whether a <c>@docusaurus/</c> or <c>@theme/</c> import is supported. Other scopes are out of scope and unsupported here.</summary>
     public static bool IsSupportedImport(string? name) =>

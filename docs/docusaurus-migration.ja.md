@@ -18,11 +18,40 @@ lithosharp migrate docusaurus ./website --output ./converted \
   --expected-routes ./expected.json --base-url https://example.com/docs/
 ```
 
-`--output` がなければ読取り専用の試行になる。`--expected-routes` は公開 path
-の JSON 配列を受けて変換 route を照合する。`--base-url` と `--default-locale`
-で前提を定める。終了コードは正常が `0`、使い方の誤りが `2`、要手動または
-変換不能が `3` である。出力 JSON report は `schemaVersion`、位置と置換付きの
-文書別判定、版と著者の manifest、変換 route と不足と余剰、終了コードを持つ。
+`--output` がなければ読取り専用の試行になる。従来の`--expected-routes` JSON
+文字列配列はraw pathのordinal exact比較を続ける。route分類と出典情報を付ける
+場合はobject oracleを使う。
+
+```json
+{
+  "sourceVersion": "3.10.2",
+  "basePath": "/old-site/",
+  "routes": [
+    { "path": "/old-site/docs/start/", "kind": "document", "locale": "en" },
+    { "path": "/old-site/docs/category/", "kind": "categoryIndex", "locale": "en" },
+    { "path": "/old-site/blog/tags/dotnet/", "kind": "blogTag", "locale": "en" }
+  ]
+}
+```
+
+`kind`は`document`、`categoryIndex`、`blogIndex`、`blogAuthor`、`blogTag`、
+`blogArchive`、`blogPagination`、`other`、`unclassified`から選ぶ。`locale`は
+追加の分母ではなくfacetとして扱う。`document`だけが文書page set比較の対象に
+入り、派生routeは数と理由を示して除外する。文書routeにも`reason`を指定すると、page setから
+明示的に除外できる。oracleがなければreportは
+`NotCompared`となる。不足と余剰が空でも比較合格を意味しない。解析対象source
+treeのhash、oracle hash、宣言または`package.json`から検出したDocusaurus versionも出す。
+
+raw public pathのexact比較は既定のまま維持する。`--compare-normalized-pages`を
+明示すると、文書page setを追加比較する。適用規則はreportに列挙する。sourceと
+targetのbase pathはsegment境界でのみ除去し、末尾slashを正規化する。path segmentは
+strict UTF-8で一度だけdecodeし、Unicode NFCを適用して再encodeする。比較はordinalで
+大文字小文字を区別し、case-foldや再帰decodeはしない。この比較はexit codeを変更しない。
+`--source-version`と`--source-base-path`でoracle情報を指定または上書きできる。
+
+終了コードは解析・変換完了が`0`、処理失敗が`1`、使い方の誤りが`2`、変換不能が`3`である。
+JSON reportは既存fieldを維持したまま、route比較の範囲とcomponent機能差を追加する。
+route一致は宣言されたpage setだけを対象とし、原本サイト全体の互換性を意味しない。
 
 ## 判定
 
@@ -48,11 +77,11 @@ ID には番号を付ける。欠けた front matter の title は導出して�
 ない directory 記事（blog の release folder など）は日付 slug ではなく
 directory 経路になる。
 
-生成は末尾 slash の route を出す。`trailingSlash: false` の原本は flat な
-`.html` のため、比較時は slash 形式を正規化する。page 集合は原本のものを使う。
-生成 category index、blog の authors と archive と pagination と tags、debug
-画面に 1:1 の元文書はなく、移行 route の範囲外である。月別 archive と
-directory index は文書化した上積みとして出す場合がある。
+生成は末尾 slash の route を出す。既定比較はraw public pathを使い、追加のpage set
+比較だけが明示したslash形式とbase pathを正規化する。比較対象のpage集合は原本build
+から取得する。生成category index、blog index/author/archive/pagination/tagなどの派生route
+に1:1の元文書はない。oracleで別分類し、除外数と理由をreportに出す。文書page setの
+一致をサイト全体の互換性とは扱わない。
 
 ## 移行済みサイトの手動手順
 
@@ -63,6 +92,10 @@ directory index は文書化した上積みとして出す場合がある。
 - `raw-loader` の表示デモは静的注記にする。
 - Themed image と inline SVG の live デモは静的注記や画像にする。
 - 外部 bare import は移行先に入れるか書き換える。`@docusaurus/useBaseUrl` は静的 path にする。
+
+手動component変更は、外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
+埋め込みをlinkへ変える場合など、機能を失う置換は非同等と記録する。未検証componentは
+未検証のまま報告し、自動適用候補にはしない。
 
 ## 未対応の入力
 

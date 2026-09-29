@@ -98,7 +98,7 @@ public static class ToolingContracts
     /// <summary>移行reportの契約を取得します。</summary>
     public static ToolingContract MigrationReport { get; } = new(
         "MigrationReport", ToolingContractMaturity.Stable, CurrentSchemaVersion,
-        "Migration verdicts, aggregates and fix candidates from T09. Fingerprint rules stay stable.");
+        "Migration verdicts, route comparison scope, functional-change classifications, aggregates and fix candidates from T09/T20. Fields grow additively; fingerprint rules stay stable.");
 
     /// <summary>全Tooling契約を取得します。</summary>
     public static IReadOnlyList<ToolingContract> All { get; } =

@@ -120,3 +120,87 @@ LithoSharp.Inspection.DocumentWorkspace.Remove(string! projectId, string! docume
 LithoSharp.Inspection.DocumentInfo.RouteCandidates.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectRouteCandidate!>!
 LithoSharp.Inspection.DocumentInfo.ProjectStatus.get -> LithoSharp.Inspection.DocumentProjectStatus
 LithoSharp.Inspection.DocumentInfo.SchemaName.get -> string?
+LithoSharp.Documentation.DocusaurusMigrationOptions.CompareNormalizedPageSet.get -> bool
+LithoSharp.Documentation.DocusaurusMigrationOptions.CompareNormalizedPageSet.init -> void
+LithoSharp.Documentation.DocusaurusMigrationReport.ComponentChanges.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationComponentChangeReport!>!
+LithoSharp.Documentation.DocusaurusMigrationReport.RouteComparison.get -> LithoSharp.Documentation.MigrationRouteComparisonReport!
+static LithoSharp.Documentation.DocusaurusMigrationReport.AnalyzeWithOracle(string! sourceDirectory, LithoSharp.Documentation.MigrationRouteOracle? routeOracle, LithoSharp.Documentation.DocusaurusMigrationOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Documentation.DocusaurusMigrationReport!
+static LithoSharp.Documentation.DocusaurusMigrationReport.ConvertWithOracleAsync(string! sourceDirectory, string! destinationDirectory, LithoSharp.Documentation.MigrationRouteOracle? routeOracle, LithoSharp.Documentation.DocusaurusMigrationOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Documentation.DocusaurusMigrationReport!>!
+LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeKind.AppearanceChanged = 0 -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeKind.InteractionChanged = 1 -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeKind.Staticized = 2 -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeKind.Deleted = 3 -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeKind.Unverified = 4 -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationFunctionalEquivalence
+LithoSharp.Documentation.MigrationFunctionalEquivalence.Equivalent = 0 -> LithoSharp.Documentation.MigrationFunctionalEquivalence
+LithoSharp.Documentation.MigrationFunctionalEquivalence.NotEquivalent = 1 -> LithoSharp.Documentation.MigrationFunctionalEquivalence
+LithoSharp.Documentation.MigrationFunctionalEquivalence.Unverified = 2 -> LithoSharp.Documentation.MigrationFunctionalEquivalence
+LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.Unclassified = 0 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.Document = 1 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.CategoryIndex = 2 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.BlogIndex = 3 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.BlogAuthor = 4 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.BlogTag = 5 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.BlogArchive = 6 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.BlogPagination = 7 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteCategory.Other = 8 -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteComparisonStatus
+LithoSharp.Documentation.MigrationRouteComparisonStatus.NotCompared = 0 -> LithoSharp.Documentation.MigrationRouteComparisonStatus
+LithoSharp.Documentation.MigrationRouteComparisonStatus.Match = 1 -> LithoSharp.Documentation.MigrationRouteComparisonStatus
+LithoSharp.Documentation.MigrationRouteComparisonStatus.Differences = 2 -> LithoSharp.Documentation.MigrationRouteComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonStatus.NotRequested = 0 -> LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonStatus.NotCompared = 1 -> LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonStatus.Match = 2 -> LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonStatus.Differences = 3 -> LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationRouteOracleEntry
+LithoSharp.Documentation.MigrationRouteOracleEntry.MigrationRouteOracleEntry(string! path, LithoSharp.Documentation.MigrationRouteCategory category, string? locale = null, string? exclusionReason = null) -> void
+LithoSharp.Documentation.MigrationRouteOracleEntry.Path.get -> string!
+LithoSharp.Documentation.MigrationRouteOracleEntry.Category.get -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteOracleEntry.Locale.get -> string?
+LithoSharp.Documentation.MigrationRouteOracleEntry.ExclusionReason.get -> string?
+LithoSharp.Documentation.MigrationRouteOracle
+LithoSharp.Documentation.MigrationRouteOracle.MigrationRouteOracle(System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationRouteOracleEntry!>! routes, string? sourceVersion = null, string? basePath = null) -> void
+LithoSharp.Documentation.MigrationRouteOracle.Routes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationRouteOracleEntry!>!
+LithoSharp.Documentation.MigrationRouteOracle.SourceVersion.get -> string?
+LithoSharp.Documentation.MigrationRouteOracle.BasePath.get -> string?
+static LithoSharp.Documentation.MigrationRouteOracle.FromPaths(System.Collections.Generic.IReadOnlyList<string!>! paths) -> LithoSharp.Documentation.MigrationRouteOracle!
+LithoSharp.Documentation.MigrationComponentChangeReport
+LithoSharp.Documentation.MigrationComponentChangeReport.SourcePath.get -> string!
+LithoSharp.Documentation.MigrationComponentChangeReport.Component.get -> string!
+LithoSharp.Documentation.MigrationComponentChangeReport.Kind.get -> LithoSharp.Documentation.MigrationComponentChangeKind
+LithoSharp.Documentation.MigrationComponentChangeReport.FunctionalEquivalence.get -> LithoSharp.Documentation.MigrationFunctionalEquivalence
+LithoSharp.Documentation.MigrationComponentChangeReport.Note.get -> string!
+LithoSharp.Documentation.MigrationComponentChangeReport.CanApplyAutomatically.get -> bool
+LithoSharp.Documentation.MigrationFileReport.ComponentChanges.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationComponentChangeReport!>!
+LithoSharp.Documentation.MigrationRouteExclusionReport
+LithoSharp.Documentation.MigrationRouteExclusionReport.Category.get -> LithoSharp.Documentation.MigrationRouteCategory
+LithoSharp.Documentation.MigrationRouteExclusionReport.Count.get -> int
+LithoSharp.Documentation.MigrationRouteExclusionReport.Reason.get -> string!
+LithoSharp.Documentation.MigrationLocaleCountReport
+LithoSharp.Documentation.MigrationLocaleCountReport.Locale.get -> string!
+LithoSharp.Documentation.MigrationLocaleCountReport.RouteCount.get -> int
+LithoSharp.Documentation.MigrationPageSetComparisonReport
+LithoSharp.Documentation.MigrationPageSetComparisonReport.Status.get -> LithoSharp.Documentation.MigrationPageSetComparisonStatus
+LithoSharp.Documentation.MigrationPageSetComparisonReport.SourcePageCount.get -> int?
+LithoSharp.Documentation.MigrationPageSetComparisonReport.NormalizedSourcePageCount.get -> int?
+LithoSharp.Documentation.MigrationPageSetComparisonReport.TargetPageCount.get -> int?
+LithoSharp.Documentation.MigrationPageSetComparisonReport.NormalizedTargetPageCount.get -> int?
+LithoSharp.Documentation.MigrationPageSetComparisonReport.MissingRoutes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Documentation.MigrationPageSetComparisonReport.ExtraRoutes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Documentation.MigrationPageSetComparisonReport.Rules.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Documentation.MigrationPageSetComparisonReport.Reason.get -> string?
+LithoSharp.Documentation.MigrationRouteComparisonReport
+LithoSharp.Documentation.MigrationRouteComparisonReport.RawStatus.get -> LithoSharp.Documentation.MigrationRouteComparisonStatus
+LithoSharp.Documentation.MigrationRouteComparisonReport.SourceRouteCount.get -> int?
+LithoSharp.Documentation.MigrationRouteComparisonReport.TargetRouteCount.get -> int
+LithoSharp.Documentation.MigrationRouteComparisonReport.ExcludedRouteCount.get -> int?
+LithoSharp.Documentation.MigrationRouteComparisonReport.DuplicateSourceRouteCount.get -> int?
+LithoSharp.Documentation.MigrationRouteComparisonReport.SourceVersion.get -> string?
+LithoSharp.Documentation.MigrationRouteComparisonReport.SourceHash.get -> string!
+LithoSharp.Documentation.MigrationRouteComparisonReport.RouteOracleHash.get -> string?
+LithoSharp.Documentation.MigrationRouteComparisonReport.ExclusionRules.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationRouteExclusionReport!>!
+LithoSharp.Documentation.MigrationRouteComparisonReport.Locales.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationLocaleCountReport!>!
+LithoSharp.Documentation.MigrationRouteComparisonReport.NormalizedPageSet.get -> LithoSharp.Documentation.MigrationPageSetComparisonReport!

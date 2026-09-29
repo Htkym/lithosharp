@@ -40,9 +40,12 @@ internal static class ContentCommands
         }
         if (args[0] == "migrate")
         {
-            if (args.Length < 3 || args[1] != "docusaurus") throw new CliUsageException("Usage: migrate docusaurus <source> [--output <directory>] [--expected-routes <file>] [--base-url <url>] [--default-locale <locale>]");
+            if (args.Length < 3 || args[1] != "docusaurus") throw new CliUsageException("Usage: migrate docusaurus <source> [--output <directory>] [--expected-routes <file>] [--base-url <url>] [--default-locale <locale>] [--source-version <version>] [--source-base-path <path>] [--compare-normalized-pages]");
             string? output = null;
             string? expectedRoutes = null;
+            string? sourceVersion = null;
+            string? sourceBasePath = null;
+            var compareNormalizedPages = false;
             var baseUrl = "https://example.test/";
             var defaultLocale = "en";
             for (var index = 3; index < args.Length; index++)
@@ -59,11 +62,20 @@ internal static class ContentCommands
                     case "--expected-routes": expectedRoutes = Next(); break;
                     case "--base-url": baseUrl = Next(); break;
                     case "--default-locale": defaultLocale = Next(); break;
+                    case "--source-version": sourceVersion = Next(); break;
+                    case "--source-base-path": sourceBasePath = Next(); break;
+                    case "--compare-normalized-pages": compareNormalizedPages = true; break;
                     default: throw new CliUsageException($"Unknown option '{args[index]}'.");
                 }
             }
 
-            return await MigrateAsync(args[2], output, expectedRoutes, new(baseUrl, defaultLocale), cancellationToken);
+            if (expectedRoutes is null && (sourceVersion is not null || sourceBasePath is not null || compareNormalizedPages))
+                throw new CliUsageException("Route comparison options require --expected-routes.");
+            var migrationOptions = new DocusaurusMigrationOptions(baseUrl, defaultLocale)
+            {
+                CompareNormalizedPageSet = compareNormalizedPages,
+            };
+            return await MigrateAsync(args[2], output, expectedRoutes, migrationOptions, cancellationToken, sourceVersion, sourceBasePath);
         }
         if (args.Length < 2 || args.Length > 3) throw new CliUsageException("Specify an input directory.");
         var scanRoot = Path.GetFullPath(args[1]);
@@ -81,28 +93,36 @@ internal static class ContentCommands
     }
 
     private static async Task<int> MigrateAsync(
-        string source, string? output, string? expectedRoutesFile, DocusaurusMigrationOptions options, CancellationToken cancellationToken)
+        string source,
+        string? output,
+        string? expectedRoutesFile,
+        DocusaurusMigrationOptions options,
+        CancellationToken cancellationToken,
+        string? sourceVersionOverride = null,
+        string? sourceBasePathOverride = null)
     {
-        IReadOnlyList<string>? expectedRoutes = null;
+        MigrationRouteOracle? routeOracle = null;
         if (expectedRoutesFile is not null)
         {
             try
             {
                 using var json = JsonDocument.Parse(await File.ReadAllTextAsync(expectedRoutesFile, cancellationToken));
-                if (json.RootElement.ValueKind != JsonValueKind.Array
-                    || json.RootElement.EnumerateArray().Any(element => element.ValueKind != JsonValueKind.String))
-                    throw new CliUsageException("The expected-routes file must be a JSON array of strings.");
-                expectedRoutes = json.RootElement.EnumerateArray().Select(element => element.GetString()!).ToArray();
+                routeOracle = ParseRouteOracle(json.RootElement);
             }
             catch (JsonException exception)
             {
-                throw new CliUsageException("The expected-routes file must be a JSON array of strings: " + exception.Message);
+                throw new CliUsageException("The expected-routes file must contain a route array or route-oracle object: " + exception.Message);
             }
+
+            routeOracle = new MigrationRouteOracle(
+                routeOracle.Routes,
+                sourceVersionOverride ?? routeOracle.SourceVersion,
+                sourceBasePathOverride ?? routeOracle.BasePath);
         }
 
         var report = output is null
-            ? DocusaurusMigrationReport.Analyze(source, expectedRoutes, options, cancellationToken)
-            : await DocusaurusMigrationReport.ConvertAsync(source, Path.GetFullPath(output), expectedRoutes, options, cancellationToken);
+            ? DocusaurusMigrationReport.AnalyzeWithOracle(source, routeOracle, options, cancellationToken)
+            : await DocusaurusMigrationReport.ConvertWithOracleAsync(source, Path.GetFullPath(output), routeOracle, options, cancellationToken);
         var body = new
         {
             schemaVersion = report.SchemaVersion,
@@ -140,6 +160,15 @@ internal static class ContentCommands
                 canApplyAutomatically = action.CanApplyAutomatically,
                 applyCondition = action.ApplyCondition,
             })).ToArray(),
+            componentChanges = report.ComponentChanges.Select(change => new
+            {
+                file = change.SourcePath,
+                change.Component,
+                kind = change.Kind.ToString(),
+                functionalEquivalence = change.FunctionalEquivalence.ToString(),
+                canApplyAutomatically = change.CanApplyAutomatically,
+                change.Note,
+            }).ToArray(),
             manifest = new
             {
                 variants = report.Manifest.Variants.Select(variant => new
@@ -159,11 +188,109 @@ internal static class ContentCommands
                 actual = report.ConvertedRoutes.Select(route => route.Route).ToArray(),
                 missing = report.MissingRoutes,
                 extra = report.ExtraRoutes,
+                comparison = new
+                {
+                    rawStatus = report.RouteComparison.RawStatus.ToString(),
+                    sourceRouteCount = report.RouteComparison.SourceRouteCount,
+                    targetRouteCount = report.RouteComparison.TargetRouteCount,
+                    excludedRouteCount = report.RouteComparison.ExcludedRouteCount,
+                    duplicateSourceRouteCount = report.RouteComparison.DuplicateSourceRouteCount,
+                    report.RouteComparison.SourceVersion,
+                    report.RouteComparison.SourceHash,
+                    report.RouteComparison.RouteOracleHash,
+                    exclusionRules = report.RouteComparison.ExclusionRules.Select(rule => new
+                    {
+                        category = rule.Category.ToString(),
+                        rule.Count,
+                        rule.Reason,
+                    }).ToArray(),
+                    locales = report.RouteComparison.Locales.Select(locale => new { locale.Locale, locale.RouteCount }).ToArray(),
+                    normalizedPageSet = new
+                    {
+                        status = report.RouteComparison.NormalizedPageSet.Status.ToString(),
+                        sourcePageCount = report.RouteComparison.NormalizedPageSet.SourcePageCount,
+                        normalizedSourcePageCount = report.RouteComparison.NormalizedPageSet.NormalizedSourcePageCount,
+                        targetPageCount = report.RouteComparison.NormalizedPageSet.TargetPageCount,
+                        normalizedTargetPageCount = report.RouteComparison.NormalizedPageSet.NormalizedTargetPageCount,
+                        missing = report.RouteComparison.NormalizedPageSet.MissingRoutes,
+                        extra = report.RouteComparison.NormalizedPageSet.ExtraRoutes,
+                        rules = report.RouteComparison.NormalizedPageSet.Rules,
+                        report.RouteComparison.NormalizedPageSet.Reason,
+                    },
+                },
             },
             exitCode = report.ExitCode,
             nextSteps = new[] { "Create a lithosharp-mdx project.", "Copy trusted content, components and assets to the project.", "Configure explicit collections, variants, author profiles and sidebars.", "Restore pinned dependencies explicitly, then run check to validate strict front matter and MDX." },
         };
         Console.WriteLine(JsonSerializer.Serialize(body, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
         return report.ExitCode;
+    }
+
+    private static MigrationRouteOracle ParseRouteOracle(JsonElement root)
+    {
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            if (root.EnumerateArray().Any(element => element.ValueKind != JsonValueKind.String))
+                throw new CliUsageException("A legacy expected-routes file must be a JSON array of strings.");
+            return MigrationRouteOracle.FromPaths(root.EnumerateArray().Select(element => element.GetString()!).ToArray());
+        }
+
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("routes", out var routeArray)
+            || routeArray.ValueKind != JsonValueKind.Array)
+            throw new CliUsageException("An expected-routes oracle must be a JSON array of strings or an object with a routes array.");
+
+        var routes = new List<MigrationRouteOracleEntry>();
+        foreach (var route in routeArray.EnumerateArray())
+        {
+            if (route.ValueKind != JsonValueKind.Object
+                || !route.TryGetProperty("path", out var pathValue)
+                || pathValue.ValueKind != JsonValueKind.String)
+                throw new CliUsageException("Each route-oracle entry must have a string path field.");
+
+            var category = MigrationRouteCategory.Unclassified;
+            if (route.TryGetProperty("kind", out var kindValue))
+            {
+                if (kindValue.ValueKind != JsonValueKind.String || !TryParseRouteCategory(kindValue.GetString()!, out category))
+                    throw new CliUsageException("A route kind must be document, categoryIndex, blogIndex, blogAuthor, blogTag, blogArchive, blogPagination, unclassified, or other.");
+            }
+
+            routes.Add(new MigrationRouteOracleEntry(
+                pathValue.GetString()!,
+                category,
+                OptionalString(route, "locale"),
+                OptionalString(route, "reason")));
+        }
+
+        try
+        {
+            return new MigrationRouteOracle(routes, OptionalString(root, "sourceVersion"), OptionalString(root, "basePath"));
+        }
+        catch (ArgumentException exception)
+        {
+            throw new CliUsageException("The route oracle contains conflicting route metadata: " + exception.Message);
+        }
+    }
+
+    private static string? OptionalString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+        if (value.ValueKind != JsonValueKind.String) throw new CliUsageException($"Route-oracle field '{propertyName}' must be a string or null.");
+        return value.GetString();
+    }
+
+    private static bool TryParseRouteCategory(string value, out MigrationRouteCategory category)
+    {
+        var normalized = new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+        foreach (var candidate in Enum.GetValues<MigrationRouteCategory>())
+        {
+            var name = new string(candidate.ToString().Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+            if (!string.Equals(normalized, name, StringComparison.Ordinal)) continue;
+            category = candidate;
+            return true;
+        }
+
+        category = default;
+        return false;
     }
 }

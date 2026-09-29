@@ -14,6 +14,8 @@ public sealed class MigrationReportTests
 {
     private static readonly DocusaurusMigrationOptions Options = new("https://example.test/mig/", "en");
 
+    private sealed record LegacyCliRoutes(string[] Actual, string[] Missing, string[] Extra);
+
     private static async Task<string> WriteSourceAsync(string root)
     {
         var site = Path.Combine(root, "site");
@@ -162,6 +164,174 @@ public sealed class MigrationReportTests
     }
 
     [Test]
+    public async Task MissingOracleIsNotReportedAsAComparisonPass()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = await WriteSourceAsync(workspace.Root);
+        var package = Path.Combine(site, "package.json");
+        await File.WriteAllTextAsync(package, "{\"devDependencies\":{\"@docusaurus/core\":\"3.9.1\"}}\n");
+
+        var report = DocusaurusMigrationReport.Analyze(site, options: Options);
+
+        await Assert.That(report.RouteComparison.RawStatus).IsEqualTo(MigrationRouteComparisonStatus.NotCompared);
+        await Assert.That(report.RouteComparison.SourceRouteCount).IsNull();
+        await Assert.That(report.RouteComparison.ExcludedRouteCount).IsNull();
+        await Assert.That(report.RouteComparison.NormalizedPageSet.Status).IsEqualTo(MigrationPageSetComparisonStatus.NotRequested);
+        await Assert.That(report.RouteComparison.SourceHash.Length).IsEqualTo(64);
+        await Assert.That(report.RouteComparison.SourceVersion).IsEqualTo("3.9.1");
+        await Assert.That(report.MissingRoutes).IsEmpty();
+        await Assert.That(report.ExtraRoutes).IsEmpty();
+
+        await File.WriteAllTextAsync(package, "{\"devDependencies\":{\"@docusaurus/core\":\"3.10.2\"}}\n");
+        var changedSource = DocusaurusMigrationReport.Analyze(site, options: Options);
+        await Assert.That(changedSource.RouteComparison.SourceVersion).IsEqualTo("3.10.2");
+        await Assert.That(changedSource.RouteComparison.SourceHash).IsNotEqualTo(report.RouteComparison.SourceHash);
+
+        await File.WriteAllTextAsync(package, "[]\n");
+        var malformedMetadata = DocusaurusMigrationReport.Analyze(site, options: Options);
+        await Assert.That(malformedMetadata.RouteComparison.SourceVersion).IsNull();
+    }
+
+    [Test]
+    public async Task NormalizedDocumentPagesStaySeparateFromExactWholeSiteRoutes()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "intro.md"), "---\ntitle: Intro\n---\n\nBody.\n");
+        var oracle = new MigrationRouteOracle(
+        [
+            new("/legacy/docs/intro", MigrationRouteCategory.Document, "en"),
+            new("/legacy/docs/intro", MigrationRouteCategory.Document, "en"),
+            new("/legacy/docs/excluded/", MigrationRouteCategory.Document, "en", "Reserved route outside this comparison run."),
+            new("/legacy/docs/category/", MigrationRouteCategory.CategoryIndex, "en"),
+            new("/legacy/blog/", MigrationRouteCategory.BlogIndex, "en"),
+            new("/legacy/blog/authors/ada/", MigrationRouteCategory.BlogAuthor, "en"),
+            new("/legacy/blog/tags/csharp/", MigrationRouteCategory.BlogTag, "en"),
+            new("/legacy/blog/archive/", MigrationRouteCategory.BlogArchive, "en"),
+            new("/legacy/blog/page/2/", MigrationRouteCategory.BlogPagination, "en"),
+            new("/legacy/search/", MigrationRouteCategory.Other, "en", "Search is a separate tool surface."),
+        ], sourceVersion: "3.10.2", basePath: "/legacy/");
+
+        var report = DocusaurusMigrationReport.AnalyzeWithOracle(
+            site, oracle, Options with { CompareNormalizedPageSet = true });
+
+        await Assert.That(report.RouteComparison.RawStatus).IsEqualTo(MigrationRouteComparisonStatus.Differences);
+        await Assert.That(report.MissingRoutes).Contains("/legacy/docs/intro");
+        await Assert.That(report.ExtraRoutes).Contains("/mig/docs/intro/");
+        await Assert.That(report.RouteComparison.SourceRouteCount).IsEqualTo(9);
+        await Assert.That(report.RouteComparison.TargetRouteCount).IsEqualTo(1);
+        await Assert.That(report.RouteComparison.ExcludedRouteCount).IsEqualTo(8);
+        await Assert.That(report.RouteComparison.DuplicateSourceRouteCount).IsEqualTo(1);
+        await Assert.That(report.RouteComparison.SourceVersion).IsEqualTo("3.10.2");
+        await Assert.That(report.RouteComparison.RouteOracleHash?.Length).IsEqualTo(64);
+        await Assert.That(report.RouteComparison.ExclusionRules.Select(rule => rule.Category).ToArray())
+            .IsEquivalentTo([
+                MigrationRouteCategory.CategoryIndex,
+                MigrationRouteCategory.BlogIndex,
+                MigrationRouteCategory.BlogAuthor,
+                MigrationRouteCategory.BlogTag,
+                MigrationRouteCategory.BlogArchive,
+                MigrationRouteCategory.BlogPagination,
+                MigrationRouteCategory.Other,
+                MigrationRouteCategory.Document,
+            ]);
+        await Assert.That(report.RouteComparison.ExclusionRules.Single(rule => rule.Category == MigrationRouteCategory.Other).Reason)
+            .IsEqualTo("Search is a separate tool surface.");
+        await Assert.That(report.RouteComparison.ExclusionRules.Single(rule => rule.Category == MigrationRouteCategory.Document).Reason)
+            .IsEqualTo("Reserved route outside this comparison run.");
+        await Assert.That(report.RouteComparison.Locales.Single().Locale).IsEqualTo("en");
+        await Assert.That(report.RouteComparison.Locales.Single().RouteCount).IsEqualTo(9);
+
+        var pages = report.RouteComparison.NormalizedPageSet;
+        await Assert.That(pages.Status).IsEqualTo(MigrationPageSetComparisonStatus.Match);
+        await Assert.That(pages.SourcePageCount).IsEqualTo(1);
+        await Assert.That(pages.NormalizedSourcePageCount).IsEqualTo(1);
+        await Assert.That(pages.TargetPageCount).IsEqualTo(1);
+        await Assert.That(pages.NormalizedTargetPageCount).IsEqualTo(1);
+        await Assert.That(pages.MissingRoutes).IsEmpty();
+        await Assert.That(pages.ExtraRoutes).IsEmpty();
+        await Assert.That(pages.Rules.Any(rule => rule.Contains("source base path", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(pages.Rules.Any(rule => rule.Contains("case-sensitive", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task NormalizedComparisonCanonicalizesEncodedUnicodeOnceButKeepsCaseDistinct()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "café.md"), "---\ntitle: Café\n---\n");
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "start.md"), "---\ntitle: Start\n---\n");
+        var oracle = new MigrationRouteOracle(
+        [
+            new("/legacy/docs/cafe\u0301", MigrationRouteCategory.Document, "fr"),
+            new("/legacy/docs/START/", MigrationRouteCategory.Document, "fr"),
+        ], sourceVersion: "3.10.2", basePath: "/legacy/");
+
+        var report = DocusaurusMigrationReport.AnalyzeWithOracle(
+            site, oracle, Options with { CompareNormalizedPageSet = true });
+
+        var pages = report.RouteComparison.NormalizedPageSet;
+        await Assert.That(pages.Status).IsEqualTo(MigrationPageSetComparisonStatus.Differences);
+        await Assert.That(pages.MissingRoutes).IsEquivalentTo(["/docs/START/"]);
+        await Assert.That(pages.ExtraRoutes).IsEquivalentTo(["/docs/start/"]);
+        await Assert.That(pages.MissingRoutes.Any(route => route.Contains("caf", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(pages.Rules.Any(rule => rule.Contains("once", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task ConflictingDuplicateOracleClassificationIsRejected()
+    {
+        await Assert.That(() => new MigrationRouteOracle(
+        [
+            new("/docs/start/", MigrationRouteCategory.Document),
+            new("/docs/start/", MigrationRouteCategory.CategoryIndex),
+        ])).Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ManualComponentChangesAreClassifiedAndNeverAutoApplied()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "components.mdx"),
+            "---\ntitle: Components\n---\n" +
+            "import ThemedImage from '@theme/ThemedImage';\n" +
+            "import Zoom from 'react-medium-image-zoom';\n" +
+            "import Video from './LiteYouTubeEmbed';\n" +
+            "import Guide from './UpgradeGuide';\n" +
+            "import Toggle from './ColorModeToggle';\n" +
+            "import raw from 'raw-loader!./sample';\n" +
+            "import Live from 'react-live';\n" +
+            "import Custom from '@theme/CustomWidget';\n\n" +
+            "<ThemedImage /><Zoom /><Video /><Guide /><Toggle /><Live /><Custom />\n");
+
+        var report = DocusaurusMigrationReport.Analyze(site, options: Options);
+
+        var file = report.Files.Single(item => item.SourcePath == "docs/components.mdx");
+        await Assert.That(file.ComponentChanges.Select(change => change.Kind).Distinct().Order().ToArray())
+            .IsEquivalentTo(Enum.GetValues<MigrationComponentChangeKind>().Order().ToArray());
+        await Assert.That(file.ComponentChanges.Single(change => change.Component == "ThemedImage").Kind)
+            .IsEqualTo(MigrationComponentChangeKind.AppearanceChanged);
+        await Assert.That(file.ComponentChanges.Single(change => change.Component == "LiteYouTubeEmbed").Kind)
+            .IsEqualTo(MigrationComponentChangeKind.InteractionChanged);
+        await Assert.That(file.ComponentChanges.Single(change => change.Component == "UpgradeGuide").Kind)
+            .IsEqualTo(MigrationComponentChangeKind.Staticized);
+        await Assert.That(file.ComponentChanges.Single(change => change.Component == "react-live").Kind)
+            .IsEqualTo(MigrationComponentChangeKind.Deleted);
+        await Assert.That(file.ComponentChanges.All(change => !change.CanApplyAutomatically)).IsTrue();
+        await Assert.That(file.ComponentChanges.Where(change => change.Kind != MigrationComponentChangeKind.Unverified)
+            .All(change => change.FunctionalEquivalence == MigrationFunctionalEquivalence.NotEquivalent)).IsTrue();
+        await Assert.That(file.ComponentChanges.Single(change => change.Component == "@theme/CustomWidget").FunctionalEquivalence)
+            .IsEqualTo(MigrationFunctionalEquivalence.Unverified);
+        await Assert.That(file.SuggestedActions.All(action => !action.CanApplyAutomatically)).IsTrue();
+        await Assert.That(report.ComponentChanges.Count).IsEqualTo(file.ComponentChanges.Count);
+        await Assert.That(file.SourceFingerprint.Length).IsEqualTo(64);
+    }
+
+    [Test]
     public async Task CliAndApiReturnSameVerdicts()
     {
         using var workspace = new TemporaryWorkspace();
@@ -212,6 +382,18 @@ public sealed class MigrationReportTests
             .IsEquivalentTo(api.MissingRoutes.Order(StringComparer.Ordinal).ToArray());
         await Assert.That(root.GetProperty("routes").GetProperty("extra").EnumerateArray().Select(element => element.GetString()!).Order(StringComparer.Ordinal).ToArray())
             .IsEquivalentTo(api.ExtraRoutes.Order(StringComparer.Ordinal).ToArray());
+        var comparison = root.GetProperty("routes").GetProperty("comparison");
+        await Assert.That(comparison.GetProperty("rawStatus").GetString()).IsEqualTo(api.RouteComparison.RawStatus.ToString());
+        await Assert.That(comparison.GetProperty("sourceRouteCount").GetInt32()).IsEqualTo(api.RouteComparison.SourceRouteCount);
+        await Assert.That(comparison.GetProperty("sourceHash").GetString()).IsEqualTo(api.RouteComparison.SourceHash);
+        await Assert.That(comparison.GetProperty("routeOracleHash").GetString()).IsEqualTo(api.RouteComparison.RouteOracleHash);
+
+        // New route comparison fields are additive to the old CLI routes object.
+        var legacyRoutes = JsonSerializer.Deserialize<LegacyCliRoutes>(
+            root.GetProperty("routes").GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await Assert.That(legacyRoutes).IsNotNull();
+        await Assert.That(legacyRoutes!.Missing).IsEquivalentTo(api.MissingRoutes);
+        await Assert.That(legacyRoutes.Extra).IsEquivalentTo(api.ExtraRoutes);
 
         var cliActions = root.GetProperty("suggestedActions").EnumerateArray().ToArray();
         var apiActions = api.Files.SelectMany(file => file.SuggestedActions).ToArray();
@@ -224,6 +406,73 @@ public sealed class MigrationReportTests
             await Assert.That(cliAction.GetProperty("sourceFingerprint").GetString()).IsEqualTo(apiAction.SourceFingerprint);
             await Assert.That(cliAction.GetProperty("canApplyAutomatically").GetBoolean()).IsEqualTo(apiAction.CanApplyAutomatically);
         }
+    }
+
+    [Test]
+    public async Task StructuredOracleCliAndApiUseTheSameNormalizedComparison()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var site = Path.Combine(workspace.Root, "site");
+        Directory.CreateDirectory(Path.Combine(site, "docs"));
+        await File.WriteAllTextAsync(Path.Combine(site, "docs", "intro.md"), "---\ntitle: Intro\n---\n\nBody.\n");
+        var oraclePath = Path.Combine(workspace.Root, "expected.json");
+        const string oracleJson = """
+            {
+              "sourceVersion": "3.10.2",
+              "basePath": "/legacy/",
+              "routes": [
+                { "path": "/legacy/docs/intro", "kind": "document", "locale": "en" },
+                { "path": "/legacy/docs/category/", "kind": "categoryIndex", "locale": "en" }
+              ]
+            }
+            """;
+        await File.WriteAllTextAsync(oraclePath, oracleJson);
+        var oracle = new MigrationRouteOracle(
+        [
+            new("/legacy/docs/intro", MigrationRouteCategory.Document, "en"),
+            new("/legacy/docs/category/", MigrationRouteCategory.CategoryIndex, "en"),
+        ], "3.10.2", "/legacy/");
+        var options = new DocusaurusMigrationOptions("https://example.test/mig/", "en")
+        {
+            CompareNormalizedPageSet = true,
+        };
+        var api = DocusaurusMigrationReport.AnalyzeWithOracle(site, oracle, options);
+        await Assert.That(api.ExitCode).IsEqualTo(0);
+        var tool = FindTool();
+        using var process = Process.Start(new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            ArgumentList =
+            {
+                tool, "migrate", "docusaurus", site,
+                "--expected-routes", oraclePath,
+                "--base-url", "https://example.test/mig/",
+                "--compare-normalized-pages",
+            },
+        })!;
+        var stdout = await process.StandardOutput.ReadToEndAsync();
+        var stderr = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        await Assert.That(stderr).IsEqualTo(string.Empty);
+        await Assert.That(process.ExitCode).IsEqualTo(api.ExitCode);
+        using var cli = JsonDocument.Parse(stdout);
+        var routeComparison = cli.RootElement.GetProperty("routes").GetProperty("comparison");
+        await Assert.That(routeComparison.GetProperty("rawStatus").GetString()).IsEqualTo(api.RouteComparison.RawStatus.ToString());
+        await Assert.That(routeComparison.GetProperty("sourceRouteCount").GetInt32()).IsEqualTo(api.RouteComparison.SourceRouteCount);
+        await Assert.That(routeComparison.GetProperty("excludedRouteCount").GetInt32()).IsEqualTo(api.RouteComparison.ExcludedRouteCount);
+        await Assert.That(routeComparison.GetProperty("sourceVersion").GetString()).IsEqualTo(api.RouteComparison.SourceVersion);
+        await Assert.That(routeComparison.GetProperty("sourceHash").GetString()).IsEqualTo(api.RouteComparison.SourceHash);
+        await Assert.That(routeComparison.GetProperty("routeOracleHash").GetString()).IsEqualTo(api.RouteComparison.RouteOracleHash);
+        await Assert.That(routeComparison.GetProperty("normalizedPageSet").GetProperty("status").GetString())
+            .IsEqualTo(api.RouteComparison.NormalizedPageSet.Status.ToString());
+        await Assert.That(routeComparison.GetProperty("normalizedPageSet").GetProperty("missing").GetArrayLength())
+            .IsEqualTo(api.RouteComparison.NormalizedPageSet.MissingRoutes.Count);
+        await Assert.That(api.RouteComparison.RawStatus).IsEqualTo(MigrationRouteComparisonStatus.Differences);
+        await Assert.That(api.RouteComparison.NormalizedPageSet.Status).IsEqualTo(MigrationPageSetComparisonStatus.Match);
     }
 
     private static byte[] Replay(byte[] source, IReadOnlyList<MigrationSuggestedAction> actions)
