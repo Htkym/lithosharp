@@ -34,9 +34,11 @@ workspace is trusted. No telemetry is collected in 0.1.0.
 
 ## Scope
 
-Build, serve, diagnostics, symbols, and preview arrive in later tasks
-(V110-16 onwards). This shell owns no processes: stopping it disposes only
-the channel, status item, and listeners.
+Build, serve, diagnostics, symbols, and preview are implemented (V110-16/17/18)
+and verified on a real Extension Host (V110-19). This shell owns no processes:
+stopping it disposes only the channel, status item, and listeners. Distribution
+is local-VSIX only in 0.1.0; Marketplace, multi-OS and packaged-VSIX
+verification stay scheduled work.
 
 ## Commands (V110-16)
 

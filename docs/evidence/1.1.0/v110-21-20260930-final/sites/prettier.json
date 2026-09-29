@@ -1,0 +1,637 @@
+{
+  "schemaVersion": "1.0",
+  "siteId": "prettier",
+  "state": "verified-scoped",
+  "source": {
+    "repository": "https://github.com/prettier/prettier.git",
+    "tag": "3.6.2",
+    "commit": "7a8b05f41574633fd3af5298f3eeaf33567ad3d3",
+    "treeSha": "c39231fe1c51820115863afdb655238c19ab32ea",
+    "targetPath": "website",
+    "targetTreeSha": "db5e68561709ed3823391070e028abded1713113",
+    "version": "3.6.2",
+    "license": "MIT",
+    "licenseFile": "LICENSE",
+    "licenseFileSha256": "b0f2417199889f1c0d28ec4e0244eacf1a15de5819d61f641dd7d8f45153ac9c",
+    "packageManager": "yarn@4.9.2",
+    "lockFiles": [
+      {
+        "path": "yarn.lock",
+        "sha256": "cce9e16b739b85608d1300f4a86d6d6742b408a15898bcce5ad19db2a2b22474"
+      },
+      {
+        "path": "website/yarn.lock",
+        "sha256": "94947a623497695bd6e7de85c06ab8d9e3c9f965bfd38e281d96c122b9bd4c64"
+      }
+    ]
+  },
+  "stages": [
+    {
+      "id": "prepare-build-checkout",
+      "description": "Create a separate source tree for original build artifacts.",
+      "status": "passed",
+      "command": "git clone --local --no-hardlinks <pinned-source> 7a8b05f41574633fd3af5298f3eeaf33567ad3d3",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": null,
+      "elapsedMs": null,
+      "inputSha256": "c39231fe1c51820115863afdb655238c19ab32ea",
+      "outputSha256": "c39231fe1c51820115863afdb655238c19ab32ea",
+      "stdoutFile": null,
+      "stderrFile": null,
+      "stdoutSha256": null,
+      "stderrSha256": null
+    },
+    {
+      "id": "populate-source-volume",
+      "description": "Copy the pinned build checkout into an isolated Linux volume (bind mounts cannot carry Linux exec bits).",
+      "status": "passed",
+      "command": "docker run --volume <site-volume>:/source sh -c 'cp -a /seed/. /source/'",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 168167,
+      "inputSha256": "c39231fe1c51820115863afdb655238c19ab32ea",
+      "outputSha256": "91077672373c215b7d06966a22889ae5117c62b6875ae629833f6c99273b28b2",
+      "stdoutFile": "populate-volume.stdout.txt",
+      "stderrFile": "populate-volume.stderr.txt",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "dependency-restore-2",
+      "description": "Restore the exact source lockfiles in an isolated container; no host profile or credentials are mounted.",
+      "status": "passed",
+      "command": "corepack yarn install --immutable",
+      "network": "bridge",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 26445,
+      "inputSha256": "a9614410081d920694e7c0296b430ab1e2ea590df5dcbccddce17a4f4fad420f",
+      "outputSha256": "",
+      "stdoutFile": "dependency-restore-2.stdout.txt",
+      "stderrFile": "dependency-restore-2.stderr.txt",
+      "stdoutSha256": "6025669abf465292670d680e96d961cad6e5046a843e2ed471bf1f75245fb0a1",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "dependency-restore-3",
+      "description": "Restore the exact source lockfiles in an isolated container; no host profile or credentials are mounted.",
+      "status": "passed",
+      "command": "corepack yarn install --immutable",
+      "network": "bridge",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 34646,
+      "inputSha256": "a9614410081d920694e7c0296b430ab1e2ea590df5dcbccddce17a4f4fad420f",
+      "outputSha256": "",
+      "stdoutFile": "dependency-restore-3.stdout.txt",
+      "stderrFile": "dependency-restore-3.stderr.txt",
+      "stdoutSha256": "df96c60fb840d6cb7976f507e5f8da4a1575a084b03aaf66789846252f648ce7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "original-build-en-4",
+      "description": "Build the original site for locale 'en' with only public dependency fetches; no credentials are present.",
+      "status": "passed",
+      "command": "corepack yarn build:website",
+      "network": "bridge",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 31579,
+      "inputSha256": "4ec46093869abc9cf8ae53eed29d62fcca29cd3fd4d3a7b8ea68d974fe8b4f95",
+      "outputSha256": "8fd2cda3d62545b6ab8798bb568f2db324b5f758c2384086026b4d19e0ac9b67",
+      "stdoutFile": "original-build-en-4.stdout.txt",
+      "stderrFile": "original-build-en-4.stderr.txt",
+      "stdoutSha256": "1547c26999e99b257d15c0cc0c15bb14e15b0e86b54c1a4dce8c6cdf1eda81e5",
+      "stderrSha256": "19569b9a0e2d5dfc3d798437ed77ee0604a1980ab3181d8415a96f1a25cb19bf"
+    },
+    {
+      "id": "collect-routes-en",
+      "description": "Collect route paths and static source metadata from original locale build 'en'.",
+      "status": "passed",
+      "command": "node /run/Collect-MigrationRoutes.mjs /run/routes/en/collector-config.json",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 510,
+      "inputSha256": "2f05ff72883d56a66d6744f07eb21809fc1e4875bb9067b33c1c63fa60edcb5a",
+      "outputSha256": "ace54338957368bd0653b319ca2fc216fe307022cfee7dfa6582a2e8d7f6ac4e",
+      "stdoutFile": "collect-routes-en.stdout.txt",
+      "stderrFile": "collect-routes-en.stderr.txt",
+      "stdoutSha256": "3a356c1fe459abcb19fa2bc3b306155caab13f36dcd187cd5e161e587c7332eb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "merge-route-oracles",
+      "description": "Merge locale route snapshots and reject conflicting route metadata.",
+      "status": "passed",
+      "command": "node /run/Merge-MigrationRouteOracles.mjs /run/routes/merge-config.json",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 415,
+      "inputSha256": "792ef9c77cd568cfe86203a77af1df270711a7da32e0e100ecfd71ad25f8976b",
+      "outputSha256": "ace54338957368bd0653b319ca2fc216fe307022cfee7dfa6582a2e8d7f6ac4e",
+      "stdoutFile": "merge-route-oracles.stdout.txt",
+      "stderrFile": "merge-route-oracles.stderr.txt",
+      "stdoutSha256": "d0da97fe00beca8eee43fd688de3984989a8e399d1e5a18e3b069f6cbee741fc",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "stage-migration-source",
+      "description": "Copy only fixed input mappings into the migration analyzer root.",
+      "status": "passed",
+      "command": "copy manifest inputMappings",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": null,
+      "elapsedMs": null,
+      "inputSha256": "c39231fe1c51820115863afdb655238c19ab32ea",
+      "outputSha256": "624f277dc949bd1084f6a9650c516ddcd10889f001ae4288c0123ca03122a6d2",
+      "stdoutFile": null,
+      "stderrFile": null,
+      "stdoutSha256": null,
+      "stderrSha256": null
+    },
+    {
+      "id": "migration-convert",
+      "description": "Analyze and convert the fixed mapped source with the V110-20 route oracle.",
+      "status": "passed",
+      "command": "lithosharp migrate docusaurus <migration-source> --output <converted> --expected-routes <oracle> --compare-normalized-pages",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 617,
+      "inputSha256": "a4a9cbbec75a7d7a5247da90746e6c2420b47d8e9964d1df8eaad7ba28e57dcc",
+      "outputSha256": "cf3a5c7b6fbb53b6774ed5b8e77d2181b56bf1a2bf618ab7c9691a32379ac473",
+      "stdoutFile": "migration-convert.stdout.txt",
+      "stderrFile": "migration-convert.stderr.txt",
+      "stdoutSha256": "bd018b4f3bde29d4ffe8598ea2940de84065e66adfdc75c48fd45973e6ed13cc",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "manual-patches",
+      "description": "Record every non-automatic action, source fingerprint, span and functional difference; no patch is silently accepted.",
+      "status": "passed",
+      "command": "write unapplied manual-action report",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": null,
+      "elapsedMs": null,
+      "inputSha256": "bd018b4f3bde29d4ffe8598ea2940de84065e66adfdc75c48fd45973e6ed13cc",
+      "outputSha256": "fd22e88f57a3bb5091da66a24a871bd659e55be08e7fed900fcd63fb8bbf4a7f",
+      "stdoutFile": null,
+      "stderrFile": null,
+      "stdoutSha256": null,
+      "stderrSha256": null
+    },
+    {
+      "id": "candidate-worker-restore",
+      "description": "Restore first-party worker packages from npm lockfile with lifecycle scripts disabled and no credentials.",
+      "status": "passed",
+      "command": "npm ci --no-audit --no-fund --ignore-scripts",
+      "network": "bridge",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 77145,
+      "inputSha256": "5b2012992ac0879dba865e9847288d98f706d43bf025b866b50586bcbd340bc8",
+      "outputSha256": "f6368eabc30a1cb42dd90b45d1e9812d8b92331dc6441e3ebf8bd3c6f7084c58",
+      "stdoutFile": "candidate-worker-restore.stdout.txt",
+      "stderrFile": "candidate-worker-restore.stderr.txt",
+      "stdoutSha256": "4fefae009995fa251a2adf5dbec9c005603b50b2c6239caaa1a0b0a008d11f94",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "candidate-build",
+      "description": "Build the bounded clean-page candidate offline; MDX and user modules remain inside Docker.",
+      "status": "passed",
+      "command": "dotnet /run/tool/MigrationReplay.dll /run/candidate-build.json",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 194036,
+      "inputSha256": "d1961f28ef9d16e422fcea26f2c5cb6624174883835d477f35da29b8b4bb6244",
+      "outputSha256": "a2f53fb0fd641ede17640daee697fc450ede976af4e17934c3811c5d584f4f7e",
+      "stdoutFile": "candidate-build.stdout.txt",
+      "stderrFile": "candidate-build.stderr.txt",
+      "stdoutSha256": "145892c43210b65c1fcf9406dacd95d353ff22e7f8fd48379edb6cf06f054150",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "candidate-serve-check",
+      "description": "Serve candidate pages over loopback and test navigation/assets/search offline.",
+      "status": "passed",
+      "command": "dotnet /run/tool/MigrationReplay.dll /run/candidate-serve.json",
+      "network": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedMs": 711,
+      "inputSha256": "a2f53fb0fd641ede17640daee697fc450ede976af4e17934c3811c5d584f4f7e",
+      "outputSha256": "3f9e168d007fde8febc7b7b4f6026b9655d5c6c7141d2ac0f8091fef07e73248",
+      "stdoutFile": "candidate-serve-check.stdout.txt",
+      "stderrFile": "candidate-serve-check.stderr.txt",
+      "stdoutSha256": "882c450344f2ef580a162ed2568ab00cab0568cb2f58c260ff8f6af604dce3c5",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "migration": {
+    "exitCode": 0,
+    "rawStatus": "Differences",
+    "missing": [
+      "/",
+      "/404",
+      "/blog/",
+      "/blog/2017/04/13/1.0.0/",
+      "/blog/2017/04/20/1.2.0/",
+      "/blog/2017/05/03/1.3.0/",
+      "/blog/2017/06/03/1.4.0/",
+      "/blog/2017/06/28/1.5.0/",
+      "/blog/2017/08/29/1.6.0/",
+      "/blog/2017/09/15/1.7.0/",
+      "/blog/2017/11/07/1.8.0/",
+      "/blog/2017/12/05/1.9.0/",
+      "/blog/2018/01/10/1.10.0/",
+      "/blog/2018/02/26/1.11.0/",
+      "/blog/2018/04/09/plugin-php-0.1/",
+      "/blog/2018/04/11/1.12.0/",
+      "/blog/2018/05/27/1.13.0/",
+      "/blog/2018/07/29/1.14.0/",
+      "/blog/2018/11/07/1.15.0/",
+      "/blog/2019/01/20/1.16.0/",
+      "/blog/2019/04/12/1.17.0/",
+      "/blog/2019/06/06/1.18.0/",
+      "/blog/2019/11/09/1.19.0/",
+      "/blog/2020/03/21/2.0.0/",
+      "/blog/2020/08/24/2.1.0/",
+      "/blog/2020/11/20/2.2.0/",
+      "/blog/2020/12/11/plugin-ruby-1.0/",
+      "/blog/2021/05/09/2.3.0/",
+      "/blog/2021/09/09/2.4.0/",
+      "/blog/2021/11/25/2.5.0/",
+      "/blog/2022/01/06/prettier-begins-paying-maintainers/",
+      "/blog/2022/03/16/2.6.0/",
+      "/blog/2022/06/14/2.7.0/",
+      "/blog/2022/11/23/2.8.0/",
+      "/blog/2023/07/05/3.0.0/",
+      "/blog/2023/11/13/3.1.0/",
+      "/blog/2023/11/13/curious-ternaries/",
+      "/blog/2023/11/27/20k-bounty-was-claimed/",
+      "/blog/2023/11/30/cli-deep-dive/",
+      "/blog/2024/01/12/3.2.0/",
+      "/blog/2024/06/01/3.3.0/",
+      "/blog/2024/11/26/3.4.0/",
+      "/blog/2025/02/09/3.5.0/",
+      "/blog/2025/06/23/3.6.0/",
+      "/blog/archive/",
+      "/blog/authors/",
+      "/blog/page/2/",
+      "/blog/page/3/",
+      "/blog/page/4/",
+      "/blog/page/5/",
+      "/docs/",
+      "/docs/api/",
+      "/docs/browser/",
+      "/docs/ci/",
+      "/docs/cli/",
+      "/docs/comparison/",
+      "/docs/configuration/",
+      "/docs/editors/",
+      "/docs/for-enterprise/",
+      "/docs/ignore/",
+      "/docs/install/",
+      "/docs/integrating-with-linters/",
+      "/docs/next/",
+      "/docs/next/api/",
+      "/docs/next/browser/",
+      "/docs/next/ci/",
+      "/docs/next/cli/",
+      "/docs/next/comparison/",
+      "/docs/next/configuration/",
+      "/docs/next/editors/",
+      "/docs/next/for-enterprise/",
+      "/docs/next/ignore/",
+      "/docs/next/install/",
+      "/docs/next/integrating-with-linters/",
+      "/docs/next/option-philosophy/",
+      "/docs/next/options/",
+      "/docs/next/plugins/",
+      "/docs/next/precommit/",
+      "/docs/next/rationale/",
+      "/docs/next/related-projects/",
+      "/docs/next/sharing-configurations/",
+      "/docs/next/technical-details/",
+      "/docs/next/vim/",
+      "/docs/next/watching-files/",
+      "/docs/next/webstorm/",
+      "/docs/next/why-prettier/",
+      "/docs/option-philosophy/",
+      "/docs/options/",
+      "/docs/plugins/",
+      "/docs/precommit/",
+      "/docs/rationale/",
+      "/docs/related-projects/",
+      "/docs/sharing-configurations/",
+      "/docs/technical-details/",
+      "/docs/vim/",
+      "/docs/watching-files/",
+      "/docs/webstorm/",
+      "/docs/why-prettier/",
+      "/googlefe164a33bda4034b",
+      "/help/",
+      "/playground-redirect",
+      "/playground/",
+      "/search/",
+      "/users/"
+    ],
+    "extra": [
+      "/mig/blog/2017/04/13/1.0.0/",
+      "/mig/blog/2017/04/20/1.2.0/",
+      "/mig/blog/2017/12/05/1.9.0/",
+      "/mig/blog/2018/01/10/1.10.0/",
+      "/mig/blog/2018/04/09/plugin-php-0.1/",
+      "/mig/blog/2018/04/11/1.12.0/",
+      "/mig/blog/2018/05/27/1.13.0/",
+      "/mig/blog/2018/07/29/1.14.0/",
+      "/mig/blog/2019/01/20/1.16.0/",
+      "/mig/blog/2019/04/12/1.17.0/",
+      "/mig/docs/",
+      "/mig/docs/next/"
+    ],
+    "sourceRouteCount": 104,
+    "targetRouteCount": 12
+  },
+  "candidatePageSet": {
+    "status": "Match",
+    "sourcePageCount": 12,
+    "normalizedSourcePageCount": 12,
+    "targetPageCount": 12,
+    "normalizedTargetPageCount": 12,
+    "missing": [],
+    "extra": [],
+    "exclusions": [
+      {
+        "category": "document",
+        "count": 77,
+        "reason": "Outside this site's bounded candidate page scope; original document route retained in the source denominator."
+      },
+      {
+        "category": "blogIndex",
+        "count": 1,
+        "reason": "Generated blog index; it is not a one-to-one article page."
+      },
+      {
+        "category": "blogAuthor",
+        "count": 1,
+        "reason": "Generated author index."
+      },
+      {
+        "category": "blogArchive",
+        "count": 1,
+        "reason": "Generated archive index."
+      },
+      {
+        "category": "blogPagination",
+        "count": 4,
+        "reason": "Generated blog pagination route."
+      },
+      {
+        "category": "other",
+        "count": 8,
+        "reason": "Generated page has no mapped document/blog source."
+      }
+    ],
+    "normalizationRules": [
+      "Strip the target --base-url path when it is an exact segment prefix.",
+      "Treat a page route with or without its trailing slash as the same directory page.",
+      "Canonicalize each path segment once through SiteRoute (strict UTF-8 percent decoding, NFC, then canonical percent encoding).",
+      "Compare with ordinal, case-sensitive semantics; do not case-fold or recursively decode percent escapes."
+    ]
+  },
+  "selectedPages": [
+    {
+      "path": "/blog/2017/04/13/1.0.0/",
+      "sourcePath": "blog/2017-04-13-1.0.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/docs/next/",
+      "sourcePath": "docs/index.md",
+      "locale": "en",
+      "version": "current",
+      "format": "md"
+    },
+    {
+      "path": "/docs/",
+      "sourcePath": "versioned_docs/version-stable/index.md",
+      "locale": "en",
+      "version": "stable",
+      "format": "md"
+    },
+    {
+      "path": "/blog/2017/04/20/1.2.0/",
+      "sourcePath": "blog/2017-04-20-1.2.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2017/12/05/1.9.0/",
+      "sourcePath": "blog/2017-12-05-1.9.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2018/01/10/1.10.0/",
+      "sourcePath": "blog/2018-01-10-1.10.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2018/04/09/plugin-php-0.1/",
+      "sourcePath": "blog/2018-04-09-plugin-php-0.1.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2018/04/11/1.12.0/",
+      "sourcePath": "blog/2018-04-11-1.12.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2018/05/27/1.13.0/",
+      "sourcePath": "blog/2018-05-27-1.13.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2018/07/29/1.14.0/",
+      "sourcePath": "blog/2018-07-29-1.14.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2019/01/20/1.16.0/",
+      "sourcePath": "blog/2019-01-20-1.16.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    },
+    {
+      "path": "/blog/2019/04/12/1.17.0/",
+      "sourcePath": "blog/2019-04-12-1.17.0.md",
+      "locale": "en",
+      "version": null,
+      "format": "md"
+    }
+  ],
+  "selectedPageLimit": 12,
+  "candidateBuild": {
+    "diagnosticCount": 0,
+    "warningCount": 0,
+    "generatedRouteCount": 227,
+    "selectedRouteCount": 12,
+    "actualOutputHash": "10ce5932878998da9d4e885626215ec8bbf1fa6b0f8d989d137689048b3b12b4",
+    "compiledMdxModules": 12,
+    "renderedMdxPages": 12
+  },
+  "operations": {
+    "status": "passed",
+    "pages": [
+      {
+        "route": "/mig/blog/2017/04/13/1.0.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2017/04/20/1.2.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2017/12/05/1.9.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2018/01/10/1.10.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2018/04/09/plugin-php-0.1/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2018/04/11/1.12.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2018/05/27/1.13.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2018/07/29/1.14.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2019/01/20/1.16.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/blog/2019/04/12/1.17.0/",
+        "kind": "blog",
+        "statusCode": 200,
+        "hasArticleBody": true,
+        "hasTitleHeading": true,
+        "hasPublishDate": true
+      },
+      {
+        "route": "/mig/docs/",
+        "kind": "doc",
+        "statusCode": 200,
+        "hasNavigation": true
+      },
+      {
+        "route": "/mig/docs/next/",
+        "kind": "doc",
+        "statusCode": 200,
+        "hasNavigation": true
+      }
+    ],
+    "navigation": {
+      "checkedLinks": 2,
+      "status": "passed"
+    },
+    "asset": {
+      "status": "passed",
+      "route": "/mig/_mdx/pages/mdx-0a22c94f767501162fd906e8-HTBQIFGU.css",
+      "statusCode": 200
+    },
+    "search": {
+      "status": "passed",
+      "route": "/mig/search-index.json",
+      "statusCode": 200,
+      "mappedSelectedPages": 12
+    }
+  },
+  "manualActions": {
+    "appliedCount": 0,
+    "unappliedCount": 26,
+    "diagnosticIdTally": {
+      "LSMIG001": 2,
+      "LSMIG004": 24
+    },
+    "componentChangeTally": {
+      "InteractionChanged/NotEquivalent": 1
+    },
+    "fullReportSha256": "67efe16a5ba89a0031b54990fca6b18320bb407eaefe6f0f93369cdabbea1e4d",
+    "note": "Full manual-action text stays local; rerun the corpus to reproduce it byte-for-byte."
+  },
+  "knownLimits": [
+    "The candidate build is bounded to the selected clean document/blog pages; excluded source routes remain visible in the route denominator.",
+    "Manual component differences are recorded but not applied automatically.",
+    "Browser interaction/hydration is not exercised by the static HTTP smoke."
+  ]
+}

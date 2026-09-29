@@ -100,6 +100,29 @@ MDX・Interactiveのprofileで測った。下表はprofile別のbuild時間の�
 fixtureの削減は、全MDXページがzero-JSになること、全islandが速くなること、任意のnpm依存が動くことを
 示しません。実行とplatformの境界は[既知の制約](known-limitations.ja.md)を参照してください。
 
+## 1.1.0候補：Editor latency（測定済み）
+
+V110-19 harnessで2026-09-28に測定した（実Release言語server×実`LspClient`、
+Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外する。50 KiB代表文書に
+100編集ずつ、50 ms debounce込みend-to-endの値である。
+
+| 文書 | burst p50/p95/max | spaced p50/p95/max |
+| --- | ---: | ---: |
+| Markdown | 94/96/97 ms | 94/96/116 ms |
+| MDX | 94/97/101 ms | 94/96/125 ms |
+
+解析単独は約46 ms（end-to-endからdebounceを除いた相当）である。§5 gateは
+解析Markdown p95≤250 ms・MDX p95≤750 ms、体感Markdown p95≤500 ms・
+MDX p95≤1500 msであり、このmachineでは4つとも適合する。他machineは未測定である。
+
+二root 1,000編集＋途中server kill→有界再起動のsoakは両rootの最新版数へ収束し、
+所有process残留はなかった。このsoakは高速編集であり、30分wall-clock soakではない。
+
+## 1.1.0候補：未測定
+
+上記の1.0.0表が最新の全matrix数値のままである。1.1候補のMarkdown/MDX/API/CLI/watch
+生成比較、30分soak、複数OS実行はV110-25/26まで*未測定*とする。改善の推定では埋めない。
+
 ## 再現
 
 Release buildと明示的なworker restoreを先に行います。SDK、lockfile、時刻、corpusを揃え、

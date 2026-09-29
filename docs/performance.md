@@ -113,6 +113,34 @@ Linux/macOS throughput. Fixture savings do not imply that every MDX page is
 zero-JS, that all islands become faster, or that arbitrary npm dependencies work.
 See [Known limitations](known-limitations.md) for execution and platform boundaries.
 
+## 1.1.0 candidate: editor latency (measured)
+
+Measured 2026-09-28 with the V110-19 harness (real Release language server
+through a real `LspClient`, Windows x64, 8 CPUs, Node.js 24.13.0). Warm runs
+are excluded. Samples are end-to-end including a 50 ms debounce, 100 edits per
+shape on a representative 50 KiB document:
+
+| Document | Burst p50/p95/max | Spaced p50/p95/max |
+| --- | ---: | ---: |
+| Markdown | 94/96/97 ms | 94/96/116 ms |
+| MDX | 94/97/101 ms | 94/96/125 ms |
+
+Analysis alone is roughly 46 ms (end-to-end minus the debounce). The §5 gates
+apply: analysis Markdown p95 ≤ 250 ms and MDX p95 ≤ 750 ms, and debounce
+included Markdown p95 ≤ 500 ms and MDX p95 ≤ 1,500 ms. All four pass on this
+machine; other machines are unmeasured.
+
+A 1,000-edit soak across two roots with one bounded mid-run server restart
+converged to the latest versions on both roots with no owned-process residue.
+That soak is rapid edits, not a 30-minute wall-clock soak.
+
+## 1.1.0 candidate: unmeasured
+
+The 1.0.0 tables above stay the latest full-matrix numbers. Markdown/MDX/API/
+CLI/watch generation comparisons for the 1.1 candidate, the 30-minute soak and
+multi-OS runs are *unmeasured* until V110-25/26. This document keeps them
+unmeasured rather than estimating improvement.
+
 ## Reproduce
 
 Build Release and restore the worker explicitly before measuring. Use the same

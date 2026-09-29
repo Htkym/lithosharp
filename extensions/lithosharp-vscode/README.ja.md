@@ -30,8 +30,10 @@ workspace由来の実行path（`lithosharp.cliPath` はrestricted設定）は
 
 ## 範囲
 
-build、serve、診断、symbols、previewは後のタスク（V110-16以降）です。
-このshellはprocessを持たないため、停止時はchannel・status・listenerの破棄だけです。
+build、serve、診断、symbols、previewは実装済み（V110-16/17/18）であり、
+実Extension Hostで検証した（V110-19）。このshellはprocessを持たないため、
+停止時はchannel・status・listenerの破棄だけです。0.1.0の配布はlocal VSIX
+のみであり、Marketplace、複数OS、package済みVSIX検証は予定作業のままです。
 
 ## Command（V110-16）
 

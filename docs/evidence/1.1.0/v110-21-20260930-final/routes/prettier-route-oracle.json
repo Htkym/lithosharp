@@ -1,0 +1,631 @@
+{
+  "schemaVersion": "1.0",
+  "sourceVersion": "3.6.2",
+  "basePath": "/",
+  "routes": [
+    {
+      "path": "/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/404",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/blog/",
+      "kind": "blogIndex",
+      "locale": null,
+      "reason": "Generated blog index; it is not a one-to-one article page."
+    },
+    {
+      "path": "/blog/2017/04/13/1.0.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/04/20/1.2.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/05/03/1.3.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/06/03/1.4.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/06/28/1.5.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/08/29/1.6.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/09/15/1.7.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/11/07/1.8.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/12/05/1.9.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/01/10/1.10.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/02/26/1.11.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/04/09/plugin-php-0.1/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/04/11/1.12.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/05/27/1.13.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/07/29/1.14.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/11/07/1.15.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2019/01/20/1.16.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2019/04/12/1.17.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2019/06/06/1.18.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2019/11/09/1.19.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/03/21/2.0.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/08/24/2.1.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/11/20/2.2.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/12/11/plugin-ruby-1.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2021/05/09/2.3.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2021/09/09/2.4.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2021/11/25/2.5.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/01/06/prettier-begins-paying-maintainers/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/03/16/2.6.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/06/14/2.7.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/11/23/2.8.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2023/07/05/3.0.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2023/11/13/3.1.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2023/11/13/curious-ternaries/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2023/11/27/20k-bounty-was-claimed/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2023/11/30/cli-deep-dive/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2024/01/12/3.2.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2024/06/01/3.3.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2024/11/26/3.4.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2025/02/09/3.5.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2025/06/23/3.6.0/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/archive/",
+      "kind": "blogArchive",
+      "locale": null,
+      "reason": "Generated archive index."
+    },
+    {
+      "path": "/blog/authors/",
+      "kind": "blogAuthor",
+      "locale": null,
+      "reason": "Generated author index."
+    },
+    {
+      "path": "/blog/page/2/",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/blog/page/3/",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/blog/page/4/",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/blog/page/5/",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/docs/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/api/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/browser/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/ci/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/cli/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/comparison/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/configuration/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/editors/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/for-enterprise/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/ignore/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/install/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/integrating-with-linters/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/api/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/browser/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/ci/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/cli/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/comparison/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/configuration/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/editors/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/for-enterprise/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/ignore/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/install/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/integrating-with-linters/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/option-philosophy/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/options/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/plugins/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/precommit/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/rationale/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/related-projects/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/sharing-configurations/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/technical-details/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/vim/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/watching-files/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/webstorm/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/why-prettier/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/option-philosophy/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/options/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/plugins/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/precommit/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/rationale/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/related-projects/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/sharing-configurations/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/technical-details/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/vim/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/watching-files/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/webstorm/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/why-prettier/",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/googlefe164a33bda4034b",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/help/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/playground-redirect",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/playground/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/search/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/users/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    }
+  ]
+}

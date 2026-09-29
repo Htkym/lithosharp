@@ -1,0 +1,853 @@
+{
+  "schemaVersion": "1.0",
+  "sourceVersion": "30.2.0",
+  "basePath": "/",
+  "routes": [
+    {
+      "path": "/",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/404.html",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/blog",
+      "kind": "blogIndex",
+      "locale": null,
+      "reason": "Generated blog index; it is not a one-to-one article page."
+    },
+    {
+      "path": "/blog/2016/03/11/javascript-unit-testing-performance",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/04/12/jest-11",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/06/22/jest-13",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/07/27/jest-14",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/09/01/jest-15",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/10/03/jest-16",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2016/12/15/2016-in-jest",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/01/30/a-great-developer-experience",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/02/21/jest-19-immersive-watch-mode-test-platform-improvements",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/05/06/jest-20-delightful-testing-multi-project-runner",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2017/12/18/jest-22",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/05/29/jest-23-blazing-fast-delightful-testing",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2018/06/27/supporting-jest-open-source",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2019/01/25/jest-24-refreshing-polished-typescript-friendly",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/01/21/jest-25",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2020/05/05/jest-26",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2021/03/09/jest-website-upgrade",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2021/05/25/jest-27",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/04/25/jest-28",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/05/11/jest-joins-openjs",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2022/08/25/jest-29",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/2025/06/04/jest-30",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/blog/archive",
+      "kind": "blogArchive",
+      "locale": null,
+      "reason": "Generated archive index."
+    },
+    {
+      "path": "/blog/authors",
+      "kind": "blogAuthor",
+      "locale": null,
+      "reason": "Generated author index."
+    },
+    {
+      "path": "/blog/page/2",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/blog/page/3",
+      "kind": "blogPagination",
+      "locale": null,
+      "reason": "Generated blog pagination route."
+    },
+    {
+      "path": "/docs/29.7/api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/architecture",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/asynchronous",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/bypassing-module-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/cli",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/code-transformation",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/configuration",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/dynamodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/ecmascript-modules",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/environment-variables",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/es6-class-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/expect",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/getting-started",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/jest-community",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/jest-object",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/jest-platform",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/manual-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/migration-guide",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/mock-function-api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/mock-functions",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/mongodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/more-resources",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/puppeteer",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/setup-teardown",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/snapshot-testing",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/testing-frameworks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/timer-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/troubleshooting",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/tutorial-async",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/tutorial-jquery",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/tutorial-react",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/tutorial-react-native",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/upgrading-to-jest29",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/using-matchers",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/watch-plugins",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/29.7/webpack",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/architecture",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/asynchronous",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/bypassing-module-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/cli",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/code-transformation",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/configuration",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/dynamodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/ecmascript-modules",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/environment-variables",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/es6-class-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/expect",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/getting-started",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/jest-community",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/jest-object",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/jest-platform",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/manual-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/migration-guide",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/mock-function-api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/mock-functions",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/mongodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/more-resources",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/architecture",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/asynchronous",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/bypassing-module-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/cli",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/code-transformation",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/configuration",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/dynamodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/ecmascript-modules",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/environment-variables",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/es6-class-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/expect",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/getting-started",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/jest-community",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/jest-object",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/jest-platform",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/manual-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/migration-guide",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/mock-function-api",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/mock-functions",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/mongodb",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/more-resources",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/puppeteer",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/setup-teardown",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/snapshot-testing",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/testing-frameworks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/timer-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/troubleshooting",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/tutorial-async",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/tutorial-jquery",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/tutorial-react-native",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/upgrading-to-jest29",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/upgrading-to-jest30",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/using-matchers",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/watch-plugins",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/next/webpack",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/puppeteer",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/setup-teardown",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/snapshot-testing",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/testing-frameworks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/timer-mocks",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/troubleshooting",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/tutorial-async",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/tutorial-jquery",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/tutorial-react",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/tutorial-react-native",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/upgrading-to-jest29",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/upgrading-to-jest30",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/using-matchers",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/watch-plugins",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/docs/webpack",
+      "kind": "document",
+      "locale": "en",
+      "reason": null
+    },
+    {
+      "path": "/help",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/search",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    },
+    {
+      "path": "/versions",
+      "kind": "other",
+      "locale": null,
+      "reason": "Generated page has no mapped document/blog source."
+    }
+  ]
+}

@@ -53,6 +53,8 @@ only at segment boundaries, trailing slashes are normalized, path segments
 are decoded once with strict UTF-8 and re-encoded after NFC normalization, and
 comparison remains ordinal and case-sensitive. It does not case-fold or
 recursively decode percent escapes. This comparison does not change exit codes.
+A legacy string-array oracle leaves routes unclassified, so the normalized
+page set stays `NotCompared`; use an object oracle with `document` kinds.
 `--source-version` and `--source-base-path` can supply/override oracle metadata.
 
 Exit codes are `0` for completed analysis/conversion, `1` for processing
@@ -109,6 +111,19 @@ The report labels manual component changes as appearance changes, interaction
 changes, staticization, deletion, or unverified. It records known losses (for
 example, a YouTube link does not preserve embedded playback) as non-equivalent;
 unverified components remain unverified and never become automatic actions.
+
+## Third-party reproduction corpus
+
+Three pinned upstream sites reproduce the full flow from a fixed manifest
+(`eng/verification/1.1.0/migration-sites.json`): Prettier 3.6.2, Jest 30.2.0
+and Docusaurus 3.10.2, all MIT, built in digest-pinned containers without host
+profiles or credentials. Each site keeps its original route oracle, classified
+exclusions with reasons, a bounded clean-page candidate build, and a loopback
+serve check of representative pages, navigation, assets and the search index.
+Manual patches are recorded, never silently applied. A route match covers only
+the declared page set. Sanitized summaries, hashes, rerun commands and the
+version manifest are published under `docs/evidence/1.1.0/`; full traces stay
+local. See the [V110-21 memo](verification/1.1.0/tasks/V110-21.md).
 
 ## Unsupported inputs
 

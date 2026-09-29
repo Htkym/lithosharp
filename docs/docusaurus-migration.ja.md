@@ -47,6 +47,8 @@ raw public pathのexact比較は既定のまま維持する。`--compare-normali
 targetのbase pathはsegment境界でのみ除去し、末尾slashを正規化する。path segmentは
 strict UTF-8で一度だけdecodeし、Unicode NFCを適用して再encodeする。比較はordinalで
 大文字小文字を区別し、case-foldや再帰decodeはしない。この比較はexit codeを変更しない。
+従来の文字列配列oracleはrouteが未分類のままなので、正規化page setは`NotCompared`のままである。
+文書比較には`document`種別を持つobject oracleを使う。
 `--source-version`と`--source-base-path`でoracle情報を指定または上書きできる。
 
 終了コードは解析・変換完了が`0`、処理失敗が`1`、使い方の誤りが`2`、変換不能が`3`である。
@@ -96,6 +98,17 @@ directory 経路になる。
 手動component変更は、外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
 埋め込みをlinkへ変える場合など、機能を失う置換は非同等と記録する。未検証componentは
 未検証のまま報告し、自動適用候補にはしない。
+
+## 第三者再現corpus
+
+固定manifest（`eng/verification/1.1.0/migration-sites.json`）から3つのpin済み
+上流site（Prettier 3.6.2、Jest 30.2.0、Docusaurus 3.10.2、いずれもMIT）を再現する。
+digest固定container内でhost profileや資格情報なしにbuildし、原本route oracle、
+分類除外と理由、有界clean-page候補build、代表page・navigation・asset・search indexの
+loopback serve確認まで行う。手動patchは記録のみで、黙って適用しない。route一致は
+宣言page setだけの対象である。sanitize済みsummary、hash、再実行command、version
+manifestは`docs/evidence/1.1.0/`に公開し、全文traceはlocalに残す。
+[V110-21メモ](verification/1.1.0/tasks/V110-21.md)参照。
 
 ## 未対応の入力
 

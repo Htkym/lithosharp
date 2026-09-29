@@ -1,0 +1,49 @@
+# LithoSharp 1.1 の機能と更新手順
+
+[English](release-1.1.md)
+
+候補状態：Core 1.1と拡張0.1.0は検証候補である。NuGet packageは配布gate
+（V110-23）まで1.0.0のままである。拡張はMarketplaceにない。*未測定*の数値は
+最終のV110-25測定後に差し替える。ここで先行して高速化を主張しない。
+
+## 機能表
+
+| 領域 | Core 1.1 | VS Code拡張 0.1.0 |
+| --- | --- | --- |
+| Markdown | Litho compiler、LIT001/002診断、opt-inのLIT003/004/005助言、project対応の検査snapshot | 元ID付きLIT診断、版数管理表示 |
+| MDX | plugin/bundle/SSR実行なしの解析専用検査、lock固定worker（MDX 3.1.1、React 19.2.4、esbuild 0.25.12） | debounce付きLSP session、Outline symbols、キー入力でbuildしない |
+| build/serve | generation追跡、出力別cache報告/回収、構造化`serve`停止 | project別build/serve状態機械、実出力preview shell |
+| 移行 | route oracle・正規化page set比較・component機能差report付きDocusaurus解析/変換、固定3サイト再現corpus | —（CLI駆動） |
+| Tooling契約 | `lithosharp capabilities`、加算的な1.x JSON envelope、schema `"1.0"` | stdio上の言語server `lithosharp`/`1.0.0` |
+
+1.1に**含まない**もの：
+
+- previewは保存済み文書のみ。未保存bufferのpreviewはない。
+- MDX workerはTypeScriptを変換するだけで、型検査はしない。
+- 配布は未実施。拡張はlocal VSIXから入れる。
+- browser検証はChromiumのみ。Firefox/Safariは主張しない。
+- CLI/site hostのtrimmingとNative AOTは非対応のままである。
+- AVIFは信頼済みの`avifenc`を明示設定しない限り未検証である。
+- 30分soakと複数OS実行はV110-25/26の予定で、現行soak証拠はWindows高速編集である。
+
+## 1.0から1.1への更新
+
+1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。最終versionは配布（V110-23）で確定する。
+2. siteを再buildし、content警告・link・custom CSSを見直す。
+3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](known-limitations.ja.md#markdown-の互換性)参照）。
+4. `markdown-compat --advisory on`と`--project`はEditor検査と同一解析であり、既定出力を変えない。
+
+## APIとschemaの方針
+
+公開signatureは維持し、新規APIは1.x内で加算する。追加は
+`src/LithoSharp/PublicAPI.Unshipped.txt`に記録する。構造化CLI/serve出力は
+schema `"1.0"`を維持し、未知JSON fieldは無視する。それ以外は2.0待ちである。
+[互換性契約](compatibility-contract.ja.md)と
+[CLI互換性](cli.ja.md#構造化出力と-1x-の互換性)参照。
+
+## 必要条件とversion組合せ
+
+- .NET 10 SDK（10.0.300で検証）。source generatorは`netstandard2.0`でRoslyn 4.14.0相手であり、利用側も対応SDKが必要である。preview版は使わない。
+- `serve`はSDK付属のASP.NET Core shared frameworkも使う。
+- Markdown-onlyのsiteにNode.jsは要らない。MDXはNode.js 24.13.0と明示のworker restoreが必要である。任意のNode versionやnpm packageは認定しない。
+- 1つのrepositoryではCore/Tool/Generatorを同一versionで揃える。拡張0.1.0は1.x言語serverとstdioで話し、`serverInfo`にCore versionを出す。CLIとserverでCore assemblyが食い違う組合せは非対応である。拡張はVS Code `^1.139.0`が必要である。

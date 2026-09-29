@@ -2,8 +2,11 @@
 
 [日本語](known-limitations.ja.md)
 
-These limits apply to 1.0.0. See [performance](performance.md) for
+These limits apply to 1.0.0 and the 1.1.0 candidate unless a section says
+otherwise. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
+The 1.1 scope (Core candidate plus extension 0.1.0) is summarized in
+[1.1 features](release-1.1.md).
 
 ## Markdown compatibility
 
@@ -104,10 +107,20 @@ After-build observer failures occur after commit and cannot roll back publicatio
 ## Deployment and migration scope
 
 Published routes use trailing slashes with directory indexes; originals built
-with `trailingSlash: false` use flat files, so route comparisons normalize the
+with `trailingSlash: false` use flat files, so the default route comparison
+uses raw public paths while the optional page-set comparison normalizes the
 slash style. No `404.html` is emitted; unknown paths fall back to the host's
 default 404 response. Docusaurus category indexes and blog authors, archive,
 pagination and tag indexes have no 1:1 source documents and stay outside the
 migration route scope; monthly archives and directory indexes may appear as a
 documented superset. Markdown link targets pass through the build unchanged;
 `check` reports unsupported schemes while MDX anchors fail the build.
+
+## 1.1 extension and soak scope
+
+Editor diagnostics run in stages: Markdown first, MDX through the restored
+worker. Preview shows saved documents only; unsaved buffers have no preview.
+The worker transpiles TypeScript without type-checking. The 0.1.0 extension is
+not distributed on the Marketplace; 30-minute soak evidence, multi-OS runs and
+packaged-VSIX verification are scheduled for V110-25/26. The current soak
+evidence is 1,000 rapid edits on Windows with one bounded server restart.

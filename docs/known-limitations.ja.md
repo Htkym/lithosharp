@@ -2,7 +2,8 @@
 
 [English](known-limitations.md)
 
-1.0.0の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.0.0と1.1.0候補の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.1の範囲（Core候補と拡張0.1.0）は[1.1の機能](release-1.1.ja.md)にまとめています。
 
 ## Markdown の互換性
 
@@ -76,9 +77,18 @@ portableな保証に含みません。after-build observerはcommit後に実行�
 ## 配置と移行の範囲
 
 公開 route は末尾 slash の directory index 形式です。`trailingSlash: false` の原本は
-flat ファイルのため、route 比較では slash 形式を正規化します。`404.html` は出さず、
+flat ファイルのため、既定のroute比較はraw public pathを使い、追加のpage set
+比較だけが slash 形式を正規化します。`404.html` は出さず、
 欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
 authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
 月別 archive と directory index は文書化した上積みとして出す場合があります。
 Markdown の link 先は build を通し、`check` が非対応 scheme を指摘します。MDX の
 anchor は build で落とします。
+
+## 1.1の拡張とsoakの範囲
+
+Editor診断は段階実施である。Markdownが先で、MDXはrestore済みworker経由である。
+previewは保存済み文書のみで、未保存bufferのpreviewはない。workerはTypeScriptを
+変換するだけで型検査はしない。0.1.0拡張の配布はなく、30分soak、複数OS実行、
+package済みVSIX検証はV110-25/26の予定である。現行soak証拠はWindows高速1,000編集
+（有界server再起動1回）である。

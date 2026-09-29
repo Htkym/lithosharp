@@ -1,0 +1,5 @@
+# Reproduce this bundle (Windows, Docker Desktop running, user approval for third-party builds required).
+# Workspace must be outside the repository; it holds sources, build trees and full traces.
+pwsh -NoProfile -File eng/Run-MigrationCorpus.ps1 -Action run-all -WorkspaceRoot <workspace> -RunId 20260930-final -AllowThirdPartyBuild
+pwsh -NoProfile -File eng/New-EvidenceBundle.ps1 -RunId 20260930-final -WorkspaceRoot <workspace>
+# Manifest and container digests are pinned in eng/verification/1.1.0/migration-sites.json.
