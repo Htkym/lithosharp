@@ -55,10 +55,16 @@ if ($metadata.license.type -ne 'expression' -or $metadata.license.'#text' -ne 'M
     $metadata.repository.type -ne 'git' -or $metadata.repository.url -ne 'https://github.com/Htkym/lithosharp') {
     throw 'Package license, icon, README or repository metadata is incorrect.'
 }
-if (@($metadata.dependencies.group.dependency.id) -contains 'Markdig') {
+# Analyzer-only packages ship no dependency group; strict mode would throw on
+# the missing property, so the sweeps below run only when present.
+$nuspecDependencies = @()
+if ($null -ne $metadata.PSObject.Properties['dependencies']) {
+    $nuspecDependencies = @($metadata.dependencies.group.dependency)
+}
+if ($nuspecDependencies.Count -gt 0 -and $nuspecDependencies.id -contains 'Markdig') {
     throw 'Package metadata must not reference Markdig.'
 }
-foreach ($dependency in @($metadata.dependencies.group.dependency)) {
+foreach ($dependency in $nuspecDependencies) {
     if ($dependency.id -like 'LithoSharp*' -and $dependency.version -notin @($metadata.version, "[$($metadata.version), )")) {
         throw "Package dependency version is not aligned: $($dependency.id) $($dependency.version)."
     }

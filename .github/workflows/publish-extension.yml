@@ -1,0 +1,86 @@
+name: publish-extension
+
+# The VS Code extension ships separately from the Core NuGet packages.
+# Tagging extension/lithosharp-vscode/<version> only packs and validates;
+# publishing to the Marketplace is a manual dispatch behind an environment
+# approval and never runs from a tag push. The publisher account does not
+# exist yet (V110-23 BLOCKED): the publish job fails closed without it.
+
+on:
+  push:
+    tags:
+      - 'extension/lithosharp-vscode/*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish a packed VSIX to the Marketplace (requires the marketplace environment approval and VSCE_PAT).'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check tag and version alignment
+        shell: pwsh
+        run: |
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+          cache: npm
+          cache-dependency-path: extensions/lithosharp-vscode/package-lock.json
+
+      - name: Pack and validate VSIX contents
+        shell: pwsh
+        run: |
+          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run extension unit tests
+        working-directory: extensions/lithosharp-vscode
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run test:unit
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: lithosharp-vscode-${{ github.ref_name }}
+          path: artifacts/vsix/*.vsix
+          if-no-files-found: error
+
+  publish:
+    needs: pack
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: marketplace
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Refuse without a publisher account
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace('${{ vars.VSCE_PUBLISHER }}')) {
+            throw 'No Marketplace publisher is configured (vars.VSCE_PUBLISHER is empty). Publishing stays BLOCKED; no placeholder identity is used.'
+          }
+
+      - name: Publish VSIX
+        uses: actions/download-artifact@v7
+        with:
+          name: lithosharp-vscode-${{ github.ref_name }}
+          path: artifacts/vsix
+      - name: Push to Marketplace
+        run: npx --yes @vscode/vsce publish --packagePath artifacts/vsix/lithosharp-*.vsix --pat ${{ secrets.VSCE_PAT }}

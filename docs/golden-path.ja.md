@@ -54,13 +54,13 @@ cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを�
 
 ```sh
 npm --prefix extensions/lithosharp-vscode ci
-npm --prefix extensions/lithosharp-vscode run compile
-npx --yes @vscode/vsce package --out lithosharp-0.1.0.vsix
-code --install-extension lithosharp-0.1.0.vsix
+npm --prefix extensions/lithosharp-vscode run vsix:pack
+code --install-extension extensions/lithosharp-vscode/lithosharp-0.1.0.vsix
 ```
 
 `npm ci`と`vsce`取得にはnetworkが要る。いずれもここで明示実行し、拡張の
-内部では走らない。最後の2つは`extensions/lithosharp-vscode`で実行する。
+内部では走らない。`vsix:pack`はcompile、MDX worker sourceのlockfile hash付き
+staging、送信なしpackまで行う。
 
 その後`LithoSharp: Select Project`、`LithoSharp: Build`、
 `LithoSharp: Open Preview`を使う。拡張はCLIを解決し（project local tool、

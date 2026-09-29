@@ -56,14 +56,13 @@ The extension is not on the Marketplace in 0.1.0.
 
 ```sh
 npm --prefix extensions/lithosharp-vscode ci
-npm --prefix extensions/lithosharp-vscode run compile
-npx --yes @vscode/vsce package --out lithosharp-0.1.0.vsix
-code --install-extension lithosharp-0.1.0.vsix
+npm --prefix extensions/lithosharp-vscode run vsix:pack
+code --install-extension extensions/lithosharp-vscode/lithosharp-0.1.0.vsix
 ```
 
 `npm ci` and the `vsce` download need network access; both run explicitly
-here, never inside the extension. Run the commands from the repository root
-(the last two inside `extensions/lithosharp-vscode`).
+here, never inside the extension. `vsix:pack` compiles, stages the MDX worker
+source with its lockfile hash, then packages without transmitting anything.
 
 Then `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open
 Preview`. The extension resolves the CLI (project-local tool, then PATH) and

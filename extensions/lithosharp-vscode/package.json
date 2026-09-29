@@ -3,6 +3,10 @@
   "displayName": "LithoSharp",
   "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Htkym/lithosharp"
+  },
   "engines": {
     "vscode": "^1.139.0"
   },
@@ -24,6 +28,7 @@
     "onCommand:lithosharp.stopServer",
     "onCommand:lithosharp.inspectSite",
     "onCommand:lithosharp.restartServer",
+    "onCommand:lithosharp.restoreWorker",
     "onCommand:lithosharp.openPreview",
     "onCommand:lithosharp.refreshPreview",
     "onCommand:lithosharp.openInBrowser"
@@ -54,6 +59,10 @@
       {
         "command": "lithosharp.restartServer",
         "title": "LithoSharp: Restart Language Server"
+      },
+      {
+        "command": "lithosharp.restoreWorker",
+        "title": "LithoSharp: Restore MDX Worker"
       },
       {
         "command": "lithosharp.openPreview",
@@ -89,6 +98,11 @@
           "default": "",
           "description": "Explicit language server executable. Empty disables live diagnostics until the server ships bundled."
         },
+        "lithosharp.workerDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit MDX worker directory. Empty uses extension storage named by the bundled worker hash. Changing this needs LithoSharp: Restart Language Server. Without a restored worker, Markdown diagnostics keep working and MDX stays unexplained."
+        },
         "lithosharp.diagnosticDebounceMs": {
           "type": "integer",
           "default": 150,
@@ -105,6 +119,8 @@
     "test:unit": "npm run compile && node --test \"out/tests/unit/**/*.test.js\"",
     "test:integration": "npm run compile && node tests/integration/run.mjs",
     "measure:editor": "npm run compile && node eng/measure-editor.mjs",
+    "vsix:stage": "node eng/stage-worker.mjs",
+    "vsix:pack": "npm run compile && npm run vsix:stage && npx --yes @vscode/vsce package --no-update-package-json",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {

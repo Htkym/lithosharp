@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { execFile as execFileCallback } from 'node:child_process';
+import * as nodeFs from 'node:fs';
+import * as nodePath from 'node:path';
 import { promisify } from 'node:util';
 import { findProjectCandidates, keyOf, type ProjectCandidate } from './projectDetector.js';
 import { requireTrusted } from './trust.js';
@@ -10,10 +12,86 @@ import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
 import { LspClient } from './lspClient.js';
 import { toVsDiagnostic } from './diagnostics.js';
+import { resolveWorker, restoreWorker, type WorkerDeps, type WorkerFileSystem } from './worker.js';
 import { PreviewManager } from './previewManager.js';
 import type { InspectedRoute } from './preview.js';
 
 const execFile = promisify(execFileCallback);
+
+/** Node file operations for MDX worker management. Only extension storage or an explicit directory is ever written. */
+function workerFileSystem(): WorkerFileSystem {
+  const fsPromises = nodeFs.promises;
+  const skipped = new Set(['node_modules', '.cache', 'tests', '.git']);
+  const copyTree = async (from: string, to: string): Promise<number> => {
+    let copied = 0;
+    await fsPromises.mkdir(to, { recursive: true });
+    for (const entry of await fsPromises.readdir(from, { withFileTypes: true })) {
+      if (entry.name === '' || skipped.has(entry.name)) {
+        continue;
+      }
+      const source = nodePath.join(from, entry.name);
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+      const target = nodePath.join(to, entry.name);
+      if (entry.isDirectory()) {
+        copied += await copyTree(source, target);
+      } else if (entry.isFile()) {
+        await fsPromises.copyFile(source, target);
+        copied += 1;
+      }
+    }
+    return copied;
+  };
+  return {
+    readFile: async (filePath) => {
+      try {
+        return await fsPromises.readFile(filePath);
+      } catch {
+        return null;
+      }
+    },
+    isDirectory: async (dirPath) => {
+      try {
+        return (await fsPromises.stat(dirPath)).isDirectory();
+      } catch {
+        return false;
+      }
+    },
+    isFile: async (filePath) => {
+      try {
+        return (await fsPromises.stat(filePath)).isFile();
+      } catch {
+        return false;
+      }
+    },
+    ensureDir: async (dirPath) => {
+      await fsPromises.mkdir(dirPath, { recursive: true });
+    },
+    copySourceTree: copyTree,
+    runNpmCi: async (cwd) => {
+      // Lifecycle scripts stay off: restored packages never execute on install.
+      try {
+        const { stdout } = await execFile('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd });
+        return { exit: 0, stdout: String(stdout), stderr: '' };
+      } catch (error) {
+        const stderr = error instanceof Error ? error.message : String(error);
+        return { exit: 1, stdout: '', stderr };
+      }
+    },
+  };
+}
+
+/** Exported for tests: worker resolution shares the trust boundary with commands. */
+export function workerDeps(context: vscode.ExtensionContext): WorkerDeps {
+  return {
+    isTrusted: vscode.workspace.isTrusted,
+    workerPathSetting: vscode.workspace.getConfiguration('lithosharp').get<string>('workerDirectory', ''),
+    storageDir: context.globalStorageUri.fsPath,
+    bundledDir: nodePath.join(context.extensionPath, 'resources', 'worker'),
+    fs: workerFileSystem(),
+  };
+}
 
 function realProbe(): ExecProbe {
   const calls: ExecProbe['calls'] = [];
@@ -327,12 +405,26 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!vscode.workspace.isTrusted) {
       return undefined;
     }
-    // Bundled server delivery arrives with packaging (V110-23). Until then an
-    // explicit path is required; nothing is guessed or auto-installed.
+    // Bundled delivery covers the MDX worker source only: the language server
+    // itself still needs an explicit path (framework-dependent publish, one
+    // RID per install), and the worker needs an explicit restore. Nothing is
+    // guessed or auto-installed.
     const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '').trim();
     if (explicitServer === '') {
       output.appendLine('Language server: set lithosharp.languageServerPath to enable live diagnostics.');
       return undefined;
+    }
+    // The worker directory rides along when one is resolvable; without it the
+    // server still diagnoses Markdown and degrades MDX with an explanation.
+    let workerDirectory = '';
+    try {
+      const resolved = await resolveWorker(workerDeps(context));
+      workerDirectory = resolved.directory;
+      if (resolved.source !== 'none' && !resolved.ready) {
+        output.appendLine(`MDX worker is not restored yet: run LithoSharp: Restore MDX Worker (${resolved.directory}). Markdown diagnostics keep working.`);
+      }
+    } catch (error) {
+      output.appendLine(`MDX worker resolution failed: ${String(error)}. Markdown diagnostics keep working.`);
     }
     const client = new LspClient(
       {
@@ -340,6 +432,7 @@ export function activate(context: vscode.ExtensionContext): void {
         cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
         spawn: (command, cwd) => spawnProcess(command, cwd),
         debounceMs: vscode.workspace.getConfiguration('lithosharp').get<number>('diagnosticDebounceMs', 150),
+        initializationOptions: workerDirectory === '' ? {} : { workerDirectory },
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => output.appendLine(line),
         onState: (name) => output.appendLine(`Language server: ${name}.`),
@@ -489,6 +582,19 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('lithosharp.restartServer', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'restart the language server');
+      lsp?.stop();
+      lsp = undefined;
+      await ensureLsp();
+    }),
+    vscode.commands.registerCommand('lithosharp.restoreWorker', async () => {
+      requireTrusted(vscode.workspace.isTrusted, 'restore the MDX worker');
+      try {
+        const restored = await restoreWorker(workerDeps(context), (line) => output.appendLine(line));
+        output.appendLine(`MDX worker ready: ${restored.directory}. Restarting the language server.`);
+      } catch (error) {
+        output.appendLine(`MDX worker restore failed: ${String(error)}. Markdown diagnostics keep working.`);
+        return;
+      }
       lsp?.stop();
       lsp = undefined;
       await ensureLsp();
