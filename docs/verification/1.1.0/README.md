@@ -36,6 +36,7 @@ per-task memos that reviewers need.
 | V110-21 | IMPLEMENTED | [tasks/V110-21.md](tasks/V110-21.md) | Third-party migration corpus (pinned Prettier/Jest/Docusaurus sources, isolated Docker stages, route oracles, bounded candidate build/serve); 3 sites verified-scoped |
 | V110-22 | IMPLEMENTED | [tasks/V110-22.md](tasks/V110-22.md) | Shipping-quality docs (1.1 feature/upgrade/golden-path docs, measured editor latency with unmeasured markers, public evidence bundle + sanitizer, JA/EN sync); no product code changes |
 | V110-23 | IMPLEMENTED | [tasks/V110-23.md](tasks/V110-23.md) | Distribution design + security gate (worker restore, VSIX/package/LSP/pipeline checks, audits, isolated workflows); Marketplace publish BLOCKED, no product regressions |
+| V110-24 | IMPLEMENTED | [tasks/V110-24.md](tasks/V110-24.md) | Core correctness on candidate (862 tests, markdig 71, worker 14, 3-site re-run, soaks, eng/browser suites on Windows x64); 3 fixes (UTC dates, LF feeds, Prism hooks); 3-OS matrix + console-Ctrl+C left to CI |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.

@@ -351,6 +351,63 @@ public sealed class MarkdownContentCollectionLoaderTests
         await Assert.That(result.Diagnostics).IsEmpty();
     }
 
+    [Test]
+    public async Task LoadAsync_DateOnlyStringsBindAsUtcMidnight()
+    {
+        // Offset-less dates must not depend on the build host's local time zone
+        // (V110-24 corpus re-run: UTC hosts and JST hosts diverged by 9 hours).
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "dated.md", """
+            ---
+            title: Dated
+            stamped_at: 2017-12-05
+            moment_at: 2017-12-05
+            ---
+            Body
+            """);
+
+        var result = await Loader<DatedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        var frontMatter = result.Collection!.Entries.Single().FrontMatter;
+        await Assert.That(frontMatter.StampedAt).IsEqualTo(new DateTimeOffset(2017, 12, 5, 0, 0, 0, TimeSpan.Zero));
+        await Assert.That(frontMatter.MomentAt).IsEqualTo(new DateTime(2017, 12, 5, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Test]
+    public async Task LoadAsync_ExplicitOffsetsArePreserved()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "zoned.md", """
+            ---
+            title: Zoned
+            stamped_at: 2017-12-05T00:00:00+09:00
+            moment_at: 2017-12-05T00:00:00+09:00
+            ---
+            Body
+            """);
+
+        var result = await Loader<DatedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        var frontMatter = result.Collection!.Entries.Single().FrontMatter;
+        await Assert.That(frontMatter.StampedAt).IsEqualTo(new DateTimeOffset(2017, 12, 5, 0, 0, 0, TimeSpan.FromHours(9)));
+        await Assert.That(frontMatter.MomentAt.Year).IsEqualTo(2017);
+    }
+
+    internal sealed class DatedFrontMatter
+    {
+        public DatedFrontMatter()
+        {
+        }
+
+        public string Title { get; init; } = string.Empty;
+
+        public DateTimeOffset StampedAt { get; init; }
+
+        public DateTime MomentAt { get; init; }
+    }
+
     internal sealed class TypedFrontMatter
     {
         public TypedFrontMatter()

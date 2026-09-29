@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, rm, cp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {compileSite, analyzeMdx, extractRegion, unwrapMdxCodeBlocks} from '../compiler.mjs';
+import {compileSite, analyzeMdx, extractRegion, unwrapMdxCodeBlocks, highlight} from '../compiler.mjs';
 
 test('official MDX produces server HTML and shared browser assets without unused exports', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-mdx-check-'));
@@ -344,4 +344,17 @@ test('analysis-only inspection returns fatal diagnostics without worker state', 
   const next = await analyzeMdx({sourcePath: 'next.mdx', text: '# Next\n'});
   assert.equal(next.diagnostics.length, 0);
   assert.equal(next.headings[0].text, 'Next');
+});
+
+test('nested fence highlighting is stable across Prism load orders', () => {
+  // Loading yaml after markdown makes Prism re-evaluate markdown and register
+  // its global hooks twice, which used to double language-xxxx classes on
+  // nested fences depending on page compilation order. (Bundled languages
+  // such as js/css never lazy-load, so yaml is the regression trigger.)
+  const sample = 'No semi:\n\n<!-- prettier-ignore -->\n```jsx\n<div>Example</div>\n```';
+  const before = highlight(sample, 'markdown');
+  highlight('key: value', 'yaml');
+  const after = highlight(sample, 'markdown');
+  assert.equal(after, before);
+  assert.ok(!after.includes('language-jsx language-jsx'));
 });

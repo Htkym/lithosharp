@@ -914,7 +914,9 @@ internal static class DocusaurusMigration
             raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
                 $"Blog date is taken from the directory and file name: '{date}'.", 2, $"Set date '{date}'.", null));
         }
-        if ((date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+        // Offset-less dates (e.g. "2017-12-05" from file names) assume UTC so slug
+        // derivation never depends on the host time zone. Explicit offsets stay intact.
+        if ((date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out _))
             && dateMatch.Success && DateOnly.TryParse($"{dateMatch.Groups["year"].Value}-{dateMatch.Groups["month"].Value}-{dateMatch.Groups["day"].Value}",
                 System.Globalization.CultureInfo.InvariantCulture, out _))
         {
@@ -924,7 +926,7 @@ internal static class DocusaurusMigration
                 $"Blog date is taken from the file name: '{date}'.", 2, $"Set date '{date}'.", null));
         }
 
-        if (date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
+        if (date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var parsedDate))
         {
             raise(DocusaurusMigrationVerdict.Unsupported, new(Unconvertible, SiteDiagnosticSeverity.Error,
                 $"Blog entry '{relative}' has no usable date.", 2, null, null));

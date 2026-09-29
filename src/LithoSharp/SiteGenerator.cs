@@ -2120,7 +2120,7 @@ public sealed partial class SiteGenerator
         IReadOnlyList<MarkdownPost> posts,
         IReadOnlyList<IntegratedContentPage> contentPages)
     {
-        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
+        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8, NewLineChars = "\n" };
         using var stringWriter = new Utf8StringWriter();
         using var writer = XmlWriter.Create(stringWriter, settings);
         writer.WriteStartDocument();
@@ -2173,7 +2173,7 @@ public sealed partial class SiteGenerator
         IReadOnlyList<IntegratedContentPage> contentPages,
         bool docs = false)
     {
-        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
+        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8, NewLineChars = "\n" };
         using var stringWriter = new Utf8StringWriter();
         using var writer = XmlWriter.Create(stringWriter, settings);
         writer.WriteStartDocument();

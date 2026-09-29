@@ -15,6 +15,28 @@ import {visit} from 'unist-util-visit';
 import Prism from 'prismjs';
 import loadLanguages from 'prismjs/components/index.js';
 
+// Prism re-evaluates language files (re-registering their global hooks) when a
+// later load modifies an already-loaded grammar. Page compilation runs
+// concurrently, so the load order varies between machines and the same source
+// could highlight differently (e.g. doubled language-xxxx classes on nested
+// fences). Textually identical hook functions are never legitimately
+// registered twice, so ignore exact duplicates to keep highlighting stable.
+const seenPrismHooks = new Map();
+const prismHooksAdd = Prism.hooks.add.bind(Prism.hooks);
+Prism.hooks.add = (name, callback) => {
+  let seen = seenPrismHooks.get(name);
+  if (!seen) {
+    seen = new Set();
+    seenPrismHooks.set(name, seen);
+  }
+  const source = Function.prototype.toString.call(callback);
+  if (seen.has(source)) {
+    return;
+  }
+  seen.add(source);
+  prismHooksAdd(name, callback);
+};
+
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const workerRequire = createRequire(import.meta.url);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -46,7 +68,7 @@ export function extractRegion(source, name) {
   throw new Error(`Code region '${name}' is missing or unterminated.`);
 }
 
-function highlight(code, language) {
+export function highlight(code, language) {
   if (!language || language === 'text' || language === 'plain') return null;
   // Docusaurus mdx-code-block fences are unwrapped before compilation, but samples
   // displayed inside outer fences keep the language for Prism. Map the legacy name
