@@ -33,6 +33,7 @@ per-task memos that reviewers need.
 | V110-18 | IMPLEMENTED | [tasks/V110-18.md](tasks/V110-18.md) | Real-output preview (thin WebView shell, inspected routes, lifetime separation); 71 unit tests. Real WebView verification goes to V110-19/26 |
 | V110-19 | IMPLEMENTED | [tasks/V110-19.md](tasks/V110-19.md) | Extension responsiveness and stability (editor latency/soak harness, real Host smoke 3/3, §5 Editor gates pass); 74 unit tests. VSIX/other-OS/30-minute soak goes to V110-23/25/26 |
 | V110-20 | IMPLEMENTED | [tasks/V110-20.md](tasks/V110-20.md) | Additive migration route comparison (exact + explicit normalized page set, classified exclusions/source hashes) and component functional-change report; Tool build passes, 843 tests pass |
+| V110-21 | IMPLEMENTED | [tasks/V110-21.md](tasks/V110-21.md) | Third-party migration corpus (pinned Prettier/Jest/Docusaurus sources, isolated Docker stages, route oracles, bounded candidate build/serve); 3 sites verified-scoped |
 
 States follow the plan: `TODO → IN_PROGRESS → IMPLEMENTED → VERIFIED`, with
 `BLOCKED`, `VERIFIED_UNCHANGED`, `DEFERRED_APPROVED` as auxiliary states.
