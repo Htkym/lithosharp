@@ -97,3 +97,21 @@ test('unknown methods answer MethodNotFound', async () => {
   child.emit(frame(JSON.stringify({ jsonrpc: '2.0', id: 'x', error: { code: -32601, message: 'nope' } })));
   await assert.rejects(pending, /-32601/);
 });
+
+test('process exit rejects outstanding requests', async () => {
+  const child = fakeChild();
+  const connection = new LspConnection(child, { onNotification: () => {} });
+  const pending = connection.sendRequest('x', 'textDocument/documentSymbol', {});
+  child.exit(1);
+  await assert.rejects(pending, /process exited/);
+  await assert.rejects(connection.sendRequest('y', 'initialize', {}), /not running/);
+});
+
+test('cancelling a request settles its local promise immediately', async () => {
+  const child = fakeChild();
+  const connection = new LspConnection(child, { onNotification: () => {} });
+  const pending = connection.sendRequest('x', 'textDocument/documentSymbol', {});
+  connection.cancelRequest('x');
+  await assert.rejects(pending, /cancelled/);
+  assert.ok(child.written.some((line) => line.includes('$/cancelRequest')));
+});

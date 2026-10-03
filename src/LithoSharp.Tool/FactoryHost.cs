@@ -48,6 +48,10 @@ internal static class FactoryHost
             {
                 Directory.SetCurrentDirectory(projectDirectory);
                 var assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
+                var coreAssemblyName = typeof(SiteGenerator).Assembly.GetName().Name;
+                var projectCoreVersion = assembly.GetReferencedAssemblies()
+                    .FirstOrDefault(reference => string.Equals(reference.Name, coreAssemblyName, StringComparison.Ordinal))
+                    ?.Version?.ToString(3) ?? "unknown";
                 var factories = assembly.GetExportedTypes().Where(type => type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
                     && typeof(ISiteFactory).IsAssignableFrom(type)
                     && type.GetConstructor(Type.EmptyTypes) is not null).ToArray();
@@ -105,7 +109,7 @@ internal static class FactoryHost
                             var result = await generator.GenerateWithOptionsAsync(definition.Site, definition.Posts,
                                 outputDirectory, command == "check" || options.ContainsKey("--clean"), definition.Customization,
                                 generationOptions, cancellationToken).ConfigureAwait(false);
-                            response = FromResult(result, generationOptions, format, SiteBasePathOf(definition));
+                            response = FromResult(result, generationOptions, format, SiteBasePathOf(definition), projectCoreVersion);
                         }
                         catch (Exception exception) when (watch && exception is not OperationCanceledException)
                         {
@@ -180,7 +184,8 @@ internal static class FactoryHost
     }
 
     private static HostResponse FromResult(
-        SiteGenerationResult result, SiteGenerationOptions options, SiteDiagnosticFormat format, string? siteBasePath)
+        SiteGenerationResult result, SiteGenerationOptions options, SiteDiagnosticFormat format,
+        string? siteBasePath, string projectCoreVersion)
     {
         var routes = result.Routes.ToDictionary(route => route.RelativeOutputPath, StringComparer.Ordinal);
         return new HostResponse
@@ -188,6 +193,7 @@ internal static class FactoryHost
             Success = true,
             OutputDirectory = result.OutputDirectory,
             SiteBasePath = siteBasePath,
+            ProjectCoreVersion = projectCoreVersion,
             Extensions = options.Extensions.Select(extension => extension.GetInspection()).Where(value => value.HasValue).Select(value => value!.Value).ToArray(),
             DiagnosticsText = result.QualityReport.Format(format),
             Diagnostics = ToHostDiagnostics(result.QualityReport.Diagnostics),
@@ -318,6 +324,8 @@ internal sealed record HostResponse
     public long Generation { get; init; }
     /// <summary>Base path of the generated site (BaseUrl path). Null when unreported.</summary>
     public string? SiteBasePath { get; init; }
+    /// <summary>Core version referenced by the project factory assembly; unknown is not replaced by the tool version.</summary>
+    public string? ProjectCoreVersion { get; init; }
     public HostBuildReport? BuildReport { get; init; }
     public HostBuildNode[] BuildPlan { get; init; } = [];
     public JsonElement[] Extensions { get; init; } = [];

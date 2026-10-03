@@ -12,7 +12,6 @@ public sealed class DocumentWorkspace : IAsyncDisposable
     private readonly SemaphoreSlim _analysisSlots = new(2, 2);
     private readonly object _lifetimeLock = new();
     private bool _disposed;
-    private bool _slotsDisposed;
 
     /// <summary>workspace識別子を取得します。</summary>
     public string Id { get; } = Guid.NewGuid().ToString("N");
@@ -90,71 +89,87 @@ public sealed class DocumentWorkspace : IAsyncDisposable
             epoch = entry.Epoch;
         }
 
-        await _analysisSlots.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var acquiredSlot = false;
         Task<DocumentInfo>? analysis = null;
         try
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, supersede.Token);
-            lock (_lifetimeLock)
+            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, supersede.Token))
             {
-                if (_disposed || entry.Epoch != epoch || supersede.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(cancellationToken.IsCancellationRequested ? cancellationToken : CancellationToken.None);
-                }
-
-                analysis = Task.Run(() => DocumentInspection.Inspect(sourcePath, text, options, linked.Token), linked.Token);
-                entry.Active = analysis;
-            }
-
-            DocumentInfo info;
-            try
-            {
-                info = await analysis.ConfigureAwait(false);
-            }
-            finally
-            {
+                // Link supersession before waiting for a slot. Otherwise every stale keystroke
+                // remains queued behind the two active parsers until it eventually gets a turn.
+                await _analysisSlots.WaitAsync(linked.Token).ConfigureAwait(false);
+                acquiredSlot = true;
                 lock (_lifetimeLock)
                 {
-                    if (ReferenceEquals(entry.Active, analysis))
+                    if (_disposed || entry.Epoch != epoch || supersede.IsCancellationRequested)
                     {
-                        entry.Active = null;
+                        throw new OperationCanceledException(linked.Token);
+                    }
+
+                    analysis = Task.Run(() => DocumentInspection.Inspect(sourcePath, text, options, linked.Token), linked.Token);
+                    entry.Active = analysis;
+                }
+
+                DocumentInfo info;
+                try
+                {
+                    info = await analysis.ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_lifetimeLock)
+                    {
+                        if (ReferenceEquals(entry.Active, analysis))
+                        {
+                            entry.Active = null;
+                        }
                     }
                 }
-            }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            lock (_lifetimeLock)
-            {
-                if (_disposed)
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (_lifetimeLock)
                 {
-                    throw new ObjectDisposedException(GetType().FullName);
-                }
+                    if (_disposed)
+                    {
+                        throw new ObjectDisposedException(GetType().FullName);
+                    }
 
-                if (entry.Epoch != epoch || supersede.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(cancellationToken);
-                }
+                    if (entry.Epoch != epoch || supersede.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
 
-                if (IsStale(entry, documentVersion, projectGeneration))
-                {
-                    throw new OperationCanceledException(cancellationToken);
-                }
+                    if (IsStale(entry, documentVersion, projectGeneration))
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
 
-                _snapshots[key] = info;
-                entry.Version = documentVersion ?? long.MaxValue;
-                entry.Generation = projectGeneration ?? long.MaxValue;
-                entry.LastText = text;
-                if (ReferenceEquals(entry.Pending, supersede))
-                {
-                    entry.Pending = null;
-                }
+                    _snapshots[key] = info;
+                    entry.Version = documentVersion ?? long.MaxValue;
+                    entry.Generation = projectGeneration ?? long.MaxValue;
+                    entry.LastText = text;
 
-                return info;
+                    return info;
+                }
             }
         }
         finally
         {
-            _analysisSlots.Release();
+            lock (_lifetimeLock)
+            {
+                if (ReferenceEquals(entry.Pending, supersede))
+                {
+                    entry.Pending = null;
+                }
+            }
+
+            if (acquiredSlot)
+            {
+                _analysisSlots.Release();
+            }
+
+            // The linked token source above is disposed before its supersession source.
+            supersede.Dispose();
         }
     }
 
@@ -292,20 +307,12 @@ public sealed class DocumentWorkspace : IAsyncDisposable
             await Task.WhenAny(Task.WhenAll(active), Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
         }
 
+        // The bounded wait above may return while a caller is still unwinding; leave the
+        // managed semaphore usable so that its finally block can safely release the slot.
         lock (_lifetimeLock)
         {
-            foreach (var source in pending)
-            {
-                source.Dispose();
-            }
-
             _snapshots.Clear();
             _entries.Clear();
-            if (!_slotsDisposed)
-            {
-                _slotsDisposed = true;
-                _analysisSlots.Dispose();
-            }
         }
     }
 }

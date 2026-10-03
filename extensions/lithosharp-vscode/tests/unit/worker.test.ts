@@ -17,6 +17,9 @@ function fakeFs(files: Record<string, string>, dirs: string[] = []): WorkerFileS
     isDirectory: async (dirPath) => dirs.map(norm).includes(norm(dirPath)),
     isFile: async (filePath) => norm(filePath) in files,
     ensureDir: async () => {},
+    writeFile: async (filePath, contents) => {
+      files[norm(filePath)] = contents;
+    },
     copySourceTree: async (from, to) => {
       handle.copied.push([from, to]);
       return Object.keys(files).filter((file) => file.startsWith(`${norm(from)}/`)).length;
@@ -43,7 +46,10 @@ const lockfile = '{"lockfileVersion": 3}';
 const lockHash = createHash('sha256').update(lockfile).digest('hex');
 
 test('explicit directory wins and reports readiness', async () => {
-  const fs = fakeFs({ '/custom/package-lock.json': lockfile }, ['/custom/node_modules']);
+  const fs = fakeFs({
+    '/custom/package-lock.json': lockfile,
+    ['/custom/.lithosharp-worker-lock']: lockHash,
+  }, ['/custom/node_modules']);
   const resolved = await resolveWorker(deps({ fs, workerPathSetting: '  /custom ' }));
   assert.equal(resolved.source, 'explicit');
   assert.equal(resolved.directory, '/custom');
@@ -59,7 +65,12 @@ test('explicit directory without node_modules is not ready', async () => {
 });
 
 test('storage directory is hash-named from the bundled lockfile', async () => {
-  const fs = fakeFs({ '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile }, ['/storage/worker-' + lockHash.slice(0, 12) + '/node_modules']);
+  const storage = '/storage/worker-' + lockHash.slice(0, 12);
+  const fs = fakeFs({
+    '/bundled/package.json': '{}',
+    '/bundled/package-lock.json': lockfile,
+    [storage + '/.lithosharp-worker-lock']: lockHash,
+  }, [storage + '/node_modules']);
   const resolved = await resolveWorker(deps({ fs }));
   assert.equal(resolved.source, 'storage');
   assert.equal(resolved.directory.replace(/\\/g, '/'), '/storage/worker-' + lockHash.slice(0, 12));
@@ -106,7 +117,11 @@ test('restore copies, installs and verifies', async () => {
 
 test('restore skips install when already ready', async () => {
   const fs = fakeFs(
-    { '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile },
+    {
+      '/bundled/package.json': '{}',
+      '/bundled/package-lock.json': lockfile,
+      ['/storage/worker-' + lockHash.slice(0, 12) + '/.lithosharp-worker-lock']: lockHash,
+    },
     ['/storage/worker-' + lockHash.slice(0, 12) + '/node_modules'],
   );
   const restored = await restoreWorker(deps({ fs }), () => {});

@@ -31,10 +31,18 @@ export class LspClient {
   private connection: LspConnection | undefined;
   private child: LspProcess | undefined;
   private requestSequence = 1;
-  private readonly buffers = new Map<string, { version: number; languageId: string; pending: { version: number; text: string } | null; timer: NodeJS.Timeout | undefined }>();
+  private readonly buffers = new Map<string, {
+    version: number;
+    languageId: string;
+    text: string;
+    pending: { version: number; text: string } | null;
+    timer: NodeJS.Timeout | undefined;
+  }>();
+  private readonly projectContexts = new Map<string, { projectId: string; folders: string[]; snapshot: unknown | null }>();
   private readonly store: DiagnosticStore;
   private readonly debounceMs: number;
   private started = false;
+  private ready = false;
 
   constructor(
     private readonly options: LspClientOptions,
@@ -52,15 +60,22 @@ export class LspClient {
       return;
     }
     this.started = true;
+    this.ready = false;
     const child = this.options.spawn(this.options.serverCommand, this.options.cwd);
     this.child = child;
     child.onStderr((chunk) => this.options.onLog?.(chunk.toString('utf8').trimEnd()));
     child.onExit(() => {
+      if (this.child !== child) {
+        return;
+      }
       this.started = false;
+      this.ready = false;
+      this.child = undefined;
       this.connection = undefined;
+      this.store.clearAll();
       this.options.onState?.('stopped');
     });
-    this.connection = new LspConnection(
+    const connection = new LspConnection(
       child,
       {
         onNotification: (method, params) => this.onNotification(method, params),
@@ -68,13 +83,26 @@ export class LspClient {
       },
       (line) => this.options.onLog?.(line),
     );
+    this.connection = connection;
     const id = this.nextId();
-    await this.connection.sendRequest<unknown>(id, 'initialize', {
+    await connection.sendRequest<unknown>(id, 'initialize', {
       processId: null,
       capabilities: {},
       initializationOptions: this.options.initializationOptions ?? {},
     });
-    this.connection.sendNotification('initialized', {});
+    if (this.child !== child || this.connection !== connection) {
+      return;
+    }
+    connection.sendNotification('initialized', {});
+    this.ready = true;
+    for (const context of this.projectContexts.values()) {
+      connection.sendNotification('lithosharp/projectContext', context);
+    }
+    for (const [uri, buffer] of this.buffers) {
+      connection.sendNotification('textDocument/didOpen', {
+        textDocument: { uri, languageId: buffer.languageId, version: buffer.version, text: buffer.text },
+      });
+    }
     this.options.onState?.('ready');
   }
 
@@ -84,6 +112,7 @@ export class LspClient {
     } catch {
       // Stopping never throws past the client.
     }
+    this.ready = false;
     for (const buffer of this.buffers.values()) {
       if (buffer.timer) {
         clearTimeout(buffer.timer);
@@ -112,10 +141,26 @@ export class LspClient {
     if (!LspClient.isSupported(document.uri, document.languageId)) {
       return;
     }
-    this.buffers.set(document.uri, { version: document.version, languageId: document.languageId, pending: null, timer: undefined });
-    this.connection?.sendNotification('textDocument/didOpen', {
-      textDocument: { uri: document.uri, languageId: document.languageId, version: document.version, text: document.text },
-    });
+    const existing = this.buffers.get(document.uri);
+    if (existing?.version === document.version && existing.text === document.text) {
+      return;
+    }
+    if (existing?.timer) {
+      clearTimeout(existing.timer);
+    }
+    const buffer = {
+      version: document.version,
+      languageId: document.languageId,
+      text: document.text,
+      pending: null,
+      timer: undefined,
+    };
+    this.buffers.set(document.uri, buffer);
+    if (this.ready) {
+      this.connection?.sendNotification('textDocument/didOpen', {
+        textDocument: { uri: document.uri, languageId: document.languageId, version: document.version, text: document.text },
+      });
+    }
   }
 
   didChange(uri: string, version: number, text: string): void {
@@ -124,6 +169,11 @@ export class LspClient {
       return;
     }
     buffer.version = version;
+    buffer.text = text;
+    if (!this.ready) {
+      buffer.pending = null;
+      return;
+    }
     if (buffer.timer) {
       clearTimeout(buffer.timer);
     }
@@ -144,6 +194,9 @@ export class LspClient {
     }
     const pending = buffer.pending;
     buffer.pending = null;
+    if (!this.ready) {
+      return;
+    }
     // Incremental resync by full text keeps ordering trivially correct here;
     // the server still applies ranges when clients send them.
     this.connection?.sendNotification('textDocument/didChange', {
@@ -154,6 +207,9 @@ export class LspClient {
 
   didSave(uri: string): void {
     if (!this.buffers.has(uri)) {
+      return;
+    }
+    if (!this.ready) {
       return;
     }
     this.flush(uri);
@@ -170,7 +226,9 @@ export class LspClient {
     }
     this.buffers.delete(uri);
     this.store.clear(uri);
-    this.connection?.sendNotification('textDocument/didClose', { textDocument: { uri } });
+    if (this.ready) {
+      this.connection?.sendNotification('textDocument/didClose', { textDocument: { uri } });
+    }
   }
 
   /** Clears diagnostics for a deleted, renamed-away, or project-switched document. */
@@ -185,7 +243,7 @@ export class LspClient {
 
   async requestSymbols(uri: string, onCancel?: (cancel: () => void) => void): Promise<SymbolData[]> {
     const buffer = this.buffers.get(uri);
-    if (!buffer || !this.connection) {
+    if (!buffer || !this.connection || !this.ready) {
       return [];
     }
     const id = this.nextId();
@@ -198,7 +256,11 @@ export class LspClient {
   }
 
   sendProjectContext(projectId: string, folders: string[], snapshot: unknown | null): void {
-    this.connection?.sendNotification('lithosharp/projectContext', { projectId, folders, snapshot });
+    const context = { projectId, folders: [...folders], snapshot };
+    this.projectContexts.set(projectId, context);
+    if (this.ready) {
+      this.connection?.sendNotification('lithosharp/projectContext', context);
+    }
   }
 
   private onNotification(method: string, params: unknown): void {

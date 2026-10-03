@@ -1,5 +1,8 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
+using LithoSharp.Pages;
+using LithoSharp.Routing;
 
 namespace LithoSharp.Tests;
 
@@ -62,6 +65,79 @@ public sealed class SiteGeneratorCacheTests
         await Assert.That(SiteGenerator.ClearCache(output).FileCount).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task UnavailableOptionalCacheDoesNotFailTheBuild()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        var blockedCache = Path.Combine(workspace.Root, "cache-is-a-file");
+        await File.WriteAllTextAsync(blockedCache, "not a directory");
+
+        var result = await new SiteGenerator().GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.test/" },
+            [Post()], output, clean: true,
+            new SiteCustomization { Template = new BlogSiteTemplate() },
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                BuildCacheDirectory = blockedCache,
+            },
+            CancellationToken.None);
+
+        await Assert.That(result.BuildReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= SiteDiagnosticSeverity.Error)).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(output, "posts", "alpha.html"))).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "alpha.html"))).Contains("Alpha");
+    }
+
+    [Test]
+    public async Task ClearCacheWaitsForAnActiveBuildOfTheSameOutput()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        var settings = new SiteSettings { BaseUrl = "https://example.test/" };
+        var firstCollection = CacheCollection("first", (entry, context) => context.RenderDocument(entry.Body));
+        var first = await new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, clean: true,
+            new SiteCustomization { Template = new BlogSiteTemplate() },
+            new SiteGenerationOptions { ContentCollections = [firstCollection], BuildTimestamp = FixedBuildTimestamp },
+            CancellationToken.None);
+
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var changedCollection = CacheCollection("second", (entry, context) =>
+        {
+            entered.Set();
+            release.Wait();
+            return context.RenderDocument(entry.Body);
+        });
+        var building = new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, clean: false,
+            new SiteCustomization { Template = new BlogSiteTemplate() },
+            new SiteGenerationOptions
+            {
+                ContentCollections = [changedCollection],
+                BuildTimestamp = FixedBuildTimestamp,
+                PreviousBuildPlan = first.BuildPlan,
+            },
+            CancellationToken.None);
+        await Assert.That(await Task.Run(() => entered.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
+
+        using var clearStarted = new ManualResetEventSlim();
+        var clearing = Task.Run(() =>
+        {
+            clearStarted.Set();
+            return SiteGenerator.ClearCache(output);
+        });
+        await Assert.That(await Task.Run(() => clearStarted.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
+        await Task.Delay(100);
+        await Assert.That(clearing.IsCompleted).IsFalse();
+        release.Set();
+        await building;
+        var cleared = await clearing;
+
+        await Assert.That(cleared.FileCount).IsGreaterThan(0);
+        await Assert.That(SiteGenerator.MeasureCache(output).FileCount).IsEqualTo(0);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "cache", "index.html"))).Contains("second");
+    }
+
     private static MarkdownPost Post() => new(
         "content/alpha.md",
         "alpha",
@@ -74,4 +150,13 @@ public sealed class SiteGeneratorCacheTests
         },
         "# Alpha\n\nBody for alpha.",
         "posts/alpha.html");
+
+    private static SiteContentCollection<string, string> CacheCollection(
+        string body,
+        ContentPageRenderer<string, string> renderer) =>
+        new(new ContentCollection<string, string>(new("cache-lock"), Path.GetTempPath(),
+            [new(new("entry"), "entry.md", "fingerprint-" + body, "Cache lock", body)],
+            _ => SiteRoute.ForDirectoryIndex("cache"), entry => new PageMetadata(entry.FrontMatter),
+            transformationId: new("cache-lock:1"), isCacheable: true), renderer)
+        { RendererFingerprint = "cache-lock-renderer:1", IsThreadSafe = false };
 }

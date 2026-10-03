@@ -576,6 +576,7 @@ public sealed partial class SiteGenerator
             .ConfigureAwait(false);
         timing.MarkTransaction();
         var generatedInStaging = new List<string>();
+        var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
@@ -589,9 +590,11 @@ public sealed partial class SiteGenerator
                     buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, timing, cancellationToken).ConfigureAwait(false);
                 if (!execution.PublishedOutputRetained)
                 {
-                    generatedInStaging.AddRange(execution.OverlayCommit
-                        ? execution.StagedArtifacts
-                        : ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                    generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                    modifiedInStaging.AddRange(execution.Nodes
+                        .Where(static node => !node.CacheHit)
+                        .SelectMany(static node => node.OwnedArtifacts)
+                        .Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
                 }
             }
             else
@@ -702,6 +705,8 @@ public sealed partial class SiteGenerator
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
+
+                modifiedInStaging.AddRange(generatedInStaging);
             }
 
             staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
@@ -714,15 +719,9 @@ public sealed partial class SiteGenerator
                     .Select(file => file.RelativePath).Concat(assetRegistry.Files
                         .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
                     .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
-                string ValidationRootFor(string path) => execution switch
-                {
-                    { PublishedOutputRetained: true } => outputRoot,
-                    { OverlayCommit: true } => GetAttributes(
-                        SafeCombine(outputTransaction.StagingRoot, path)) is not null
-                        ? outputTransaction.StagingRoot
-                        : outputRoot,
-                    _ => outputTransaction.StagingRoot,
-                };
+                string ValidationRootFor(string path) => execution?.PublishedOutputRetained == true
+                    ? outputRoot
+                    : outputTransaction.StagingRoot;
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
                     (path, token) => ReadStagedTextAsync(ValidationRootFor(path), path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
@@ -742,13 +741,14 @@ public sealed partial class SiteGenerator
                         cancellationToken,
                         execution?.CacheKey)
                     .ConfigureAwait(false);
+                modifiedInStaging.Add(SafeCombine(outputTransaction.StagingRoot, OutputManifestRelativePath));
                 cancellationToken.ThrowIfCancellationRequested();
                 await outputTransaction.PrepareOwnershipStateAsync(
                         generatedInStaging,
                         cancellationToken, outputScope.Length == 0 ? null : InScope)
                     .ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
+                await outputTransaction.CommitAsync(generatedInStaging, modifiedInStaging).ConfigureAwait(false);
                 committed = true;
                 timing.MarkCommit();
             }
@@ -768,7 +768,7 @@ public sealed partial class SiteGenerator
             }
         }
 
-        var generated = execution?.PublishedOutputRetained == true || execution?.OverlayCommit == true
+        var generated = execution?.PublishedOutputRetained == true
             ? ownedArtifactPaths.Select(path => SafeCombine(outputRoot, path)).Order(StringComparer.Ordinal).ToArray()
             : generatedInStaging
                 .Where(path => !string.Equals(
@@ -1137,7 +1137,7 @@ public sealed partial class SiteGenerator
                             asset.Url, asset.Span.Start, asset.Span.Length)).ToArray()),
                     cancellation).GetAwaiter().GetResult();
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
             {
                 // Best-effort write: the analyzed result below is still returned.
             }
@@ -2829,7 +2829,6 @@ public sealed partial class SiteGenerator
         private const string RetainedBackupDiagnosticId = "LST001";
         private const string RetainedStagingRegistrationDiagnosticId = "LST002";
         private const string RetainedOwnershipStateRegistrationDiagnosticId = "LST003";
-        private const string OverlayJournalFileName = ".lithosharp-overlay-journal.json";
         private static readonly TimeSpan LockAcquisitionTimeout = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan LockRetryDelay = TimeSpan.FromMilliseconds(50);
         private const int WindowsFileLockRetryCount = 4;
@@ -2842,17 +2841,14 @@ public sealed partial class SiteGenerator
         private readonly string _pendingOwnershipStatePath;
         private readonly OutputLock _outputLock;
         private readonly bool _preserveExisting;
-        private bool _existingOutputCopied;
-        private bool _overlayCommit;
+        private volatile bool _existingOutputCopied;
+        private readonly object _existingOutputCopyGate = new();
+        private Task? _existingOutputCopyTask;
         private readonly List<FileSystemMetadata> _copiedDirectoryMetadata = [];
         private readonly List<FileSystemMetadata> _copiedFileMetadata = [];
         private readonly List<SiteDiagnostic> _diagnostics = [];
         private OutputOwnershipState? _previousOwnershipState;
         private bool _pendingOwnershipStateRegistered;
-
-        private sealed record OverlayCommitEntry(string RelativePath, string Source, string Target);
-
-        private sealed record OverlayJournal(int Version, IReadOnlyList<string> Created);
 
         private OutputTransaction(
             string outputRoot,
@@ -2920,9 +2916,16 @@ public sealed partial class SiteGenerator
         /// Copies the published output into staging. Deferred so that a full no-op build can verify
         /// the published tree in place instead of copying it. Idempotent.
         /// </summary>
-        internal async Task MaterializeExistingOutputCopyAsync(CancellationToken cancellationToken)
+        internal Task MaterializeExistingOutputCopyAsync(CancellationToken cancellationToken)
         {
-            if (_existingOutputCopied) return;
+            lock (_existingOutputCopyGate)
+            {
+                return _existingOutputCopyTask ??= MaterializeExistingOutputCopyCoreAsync(cancellationToken);
+            }
+        }
+
+        private async Task MaterializeExistingOutputCopyCoreAsync(CancellationToken cancellationToken)
+        {
             _existingOutputCopied = true;
             if (_preserveExisting && GetAttributes(_outputRoot) is not null)
             {
@@ -2942,31 +2945,37 @@ public sealed partial class SiteGenerator
             return _previousOwnershipState.Artifacts.All(artifact => current.Contains(ArtifactPathIdentity(artifact.Path)));
         }
 
-        /// <summary>
-        /// True when the published output contains exactly the artifacts of the current plan, so a
-        /// rebuild can publish only the artifacts it regenerated and keep the rest in place.
-        /// </summary>
-        internal bool TryEnableOverlayCommit(IEnumerable<string> currentOwnedPaths)
-        {
-            if (_previousOwnershipState is null || GetAttributes(_outputRoot) is null)
-            {
-                return false;
-            }
-
-            var current = currentOwnedPaths.Select(ArtifactPathIdentity).ToHashSet(StringComparer.Ordinal);
-            if (current.Count != _previousOwnershipState.Artifacts.Count
-                || !_previousOwnershipState.Artifacts.All(artifact =>
-                    current.Contains(ArtifactPathIdentity(artifact.Path))))
-            {
-                return false;
-            }
-
-            _overlayCommit = true;
-            return true;
-        }
-
         public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
         public bool RetainedRecoveryState => _diagnostics.Count != 0;
+
+        /// <summary>Runs a cache operation under the same per-output lock as generation.</summary>
+        internal static async Task<T> WithOutputLockAsync<T>(string outputRoot, Func<T> operation)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
+            ArgumentNullException.ThrowIfNull(operation);
+            outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
+            var parentRoot = Path.GetDirectoryName(outputRoot);
+            var outputName = Path.GetFileName(outputRoot);
+            if (parentRoot is null || string.IsNullOrEmpty(outputName))
+            {
+                throw new InvalidOperationException("The file system root cannot be used as the output directory.");
+            }
+
+            if (!Directory.Exists(parentRoot))
+            {
+                throw new DirectoryNotFoundException($"The output parent directory '{parentRoot}' does not exist.");
+            }
+
+            CreateSafeAbsoluteDirectory(parentRoot);
+            var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
+            var lockIdentity = CreateLockIdentity(outputRoot);
+            await using var outputLock = await OutputLock.AcquireAsync(
+                Path.Combine(parentRoot, $".lithosharp-lock-{lockIdentity}.lock"),
+                lockIdentity,
+                ownershipScope,
+                CancellationToken.None).ConfigureAwait(false);
+            return operation();
+        }
 
         public static async Task<OutputTransaction> CreateAsync(
             string outputRoot,
@@ -3159,13 +3168,11 @@ public sealed partial class SiteGenerator
                     "Output ownership state has already been prepared.");
             }
 
-            var artifacts = _overlayCommit
-                ? await CreateOverlayArtifactStatesAsync(generatedFiles, cancellationToken).ConfigureAwait(false)
-                : await CreateArtifactStatesAsync(
-                        StagingRoot,
-                        generatedFiles,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+            var artifacts = await CreateArtifactStatesAsync(
+                    StagingRoot,
+                    generatedFiles,
+                    cancellationToken)
+                .ConfigureAwait(false);
             if (inScope is not null && _previousOwnershipState is not null)
             {
                 var current = artifacts.Select(artifact => artifact.Path).ToHashSet(StringComparer.Ordinal);
@@ -3180,41 +3187,6 @@ public sealed partial class SiteGenerator
                     new OutputOwnershipState(_outputIdentity, artifacts),
                     cancellationToken)
                 .ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Builds the ownership state for an overlay commit: staged artifacts get fresh hashes
-        /// while every published artifact the build reused keeps its verified previous hash.
-        /// </summary>
-        private async Task<IReadOnlyList<GeneratedArtifactState>> CreateOverlayArtifactStatesAsync(
-            IReadOnlyCollection<string> generatedFiles,
-            CancellationToken cancellationToken)
-        {
-            var previous = _previousOwnershipState
-                ?? throw new InvalidOperationException(
-                    "An overlay commit requires a previous output ownership state.");
-            var retained = previous.Artifacts.ToDictionary(
-                static artifact => artifact.Path,
-                StringComparer.Ordinal);
-            var staged = new List<GeneratedArtifactState>(generatedFiles.Count);
-            foreach (var generatedFile in generatedFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var relativePath = Path.GetRelativePath(StagingRoot, generatedFile)
-                    .Replace('\\', '/');
-                ValidateOwnedArtifactPath(relativePath, "generated output");
-                staged.Add(new GeneratedArtifactState(
-                    relativePath,
-                    await ComputeFileSha256Async(generatedFile, cancellationToken)
-                        .ConfigureAwait(false)));
-                retained.Remove(relativePath);
-            }
-
-            var artifacts = retained.Values.Concat(staged)
-                .OrderBy(static artifact => artifact.Path, StringComparer.Ordinal)
-                .ToArray();
-            EnsureNoArtifactPathAliases(artifacts, "generated output");
-            return artifacts;
         }
 
         public IReadOnlyList<string> MergeRetainedPaths(IReadOnlyList<string> current, Func<string, bool> inScope) => current
@@ -3239,7 +3211,9 @@ public sealed partial class SiteGenerator
             }
         }
 
-        public async Task CommitAsync(IReadOnlyCollection<string> generatedFiles)
+        public async Task CommitAsync(
+            IReadOnlyCollection<string> generatedFiles,
+            IReadOnlyCollection<string>? modifiedFiles = null)
         {
             if (!_pendingOwnershipStateRegistered
                 || GetAttributes(_pendingOwnershipStatePath) is null)
@@ -3249,13 +3223,8 @@ public sealed partial class SiteGenerator
             }
 
             EnsureTreeContainsNoNameSurrogateReparsePoints(StagingRoot);
-            ApplyCopiedMetadata(generatedFiles);
+            ApplyCopiedMetadata(modifiedFiles ?? generatedFiles);
             EnsureNotNameSurrogateReparsePoint(StagingRoot);
-            if (_overlayCommit)
-            {
-                await CommitOverlayAsync(generatedFiles).ConfigureAwait(false);
-                return;
-            }
 
             var outputAttributes = GetAttributes(_outputRoot);
             if (outputAttributes is null)
@@ -3320,189 +3289,6 @@ public sealed partial class SiteGenerator
 
             await TryUnregisterPromotedStagingAsync().ConfigureAwait(false);
             await TryCleanupCommittedBackupAsync(_backupRoot).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Publishes only the staged artifacts by replacing their published files one by one.
-        /// Replaced files are journaled into the backup so a failure or crash restores them.
-        /// </summary>
-        private async Task CommitOverlayAsync(IReadOnlyCollection<string> generatedFiles)
-        {
-            EnsureTreeContainsNoNameSurrogateReparsePoints(_outputRoot);
-            if (GetAttributes(_outputRoot) is null)
-            {
-                throw new IOException(
-                    "The published output disappeared before the overlay could be committed. "
-                    + "Rebuild with clean=true.");
-            }
-
-            EnsureOwnedSiblingPath(_parentRoot, _backupRoot, "backup", _outputLock.Identity);
-            await _outputLock.RegisterBackupAsync(_backupRoot).ConfigureAwait(false);
-            if (GetAttributes(_backupRoot) is null)
-            {
-                CreateTransactionDirectory(_backupRoot);
-            }
-
-            var entries = new List<OverlayCommitEntry>(generatedFiles.Count);
-            var created = new List<string>();
-            foreach (var generatedFile in generatedFiles.Order(StringComparer.Ordinal))
-            {
-                var relativePath = Path.GetRelativePath(StagingRoot, generatedFile)
-                    .Replace('\\', '/');
-                ValidateOwnedArtifactPath(relativePath, "generated output");
-                var target = SafeCombine(_outputRoot, relativePath);
-                var attributes = GetAttributes(target);
-                if (attributes is null)
-                {
-                    created.Add(relativePath);
-                }
-                else if ((attributes.Value & FileAttributes.Directory) != 0)
-                {
-                    throw new IOException($"Output artifact path '{target}' is a directory.");
-                }
-                else
-                {
-                    EnsureNotNameSurrogateReparsePoint(target, attributes.Value);
-                }
-
-                entries.Add(new OverlayCommitEntry(
-                    relativePath,
-                    SafeCombine(StagingRoot, relativePath),
-                    target));
-            }
-
-            await WriteOverlayJournalAsync(created).ConfigureAwait(false);
-            var placed = new List<OverlayCommitEntry>(entries.Count);
-            try
-            {
-                foreach (var entry in entries)
-                {
-                    if (GetAttributes(entry.Target) is not null)
-                    {
-                        var backupPath = SafeCombine(_backupRoot, entry.RelativePath);
-                        CreateSafeDirectory(_backupRoot, Path.GetDirectoryName(backupPath)!);
-                        await MoveFileWithRetriesAsync(entry.Target, backupPath, overwrite: false)
-                            .ConfigureAwait(false);
-                    }
-
-                    CreateSafeDirectory(_outputRoot, Path.GetDirectoryName(entry.Target)!);
-                    await MoveFileWithRetriesAsync(entry.Source, entry.Target, overwrite: false)
-                        .ConfigureAwait(false);
-                    placed.Add(entry);
-                }
-            }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException)
-            {
-                await RollbackOverlayCommitAsync(placed, exception).ConfigureAwait(false);
-            }
-
-            try
-            {
-                await PromoteOwnershipStateAsync().ConfigureAwait(false);
-            }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                await RollbackOverlayCommitAsync(placed, exception).ConfigureAwait(false);
-            }
-
-            // The commit point is passed: drop the journal so recovery cleans up instead of
-            // restoring the previous files.
-            TryDeleteOverlayJournal();
-            await TryDeletePromotedStagingAsync().ConfigureAwait(false);
-            await TryCleanupCommittedBackupAsync(_backupRoot).ConfigureAwait(false);
-        }
-
-        private async Task RollbackOverlayCommitAsync(
-            IReadOnlyList<OverlayCommitEntry> placed,
-            Exception commitException)
-        {
-            try
-            {
-                for (var index = placed.Count - 1; index >= 0; index--)
-                {
-                    var entry = placed[index];
-                    if (GetAttributes(entry.Target) is not null)
-                    {
-                        File.Delete(entry.Target);
-                    }
-
-                    var backupPath = SafeCombine(_backupRoot, entry.RelativePath);
-                    if (GetAttributes(backupPath) is not null)
-                    {
-                        await MoveFileWithRetriesAsync(backupPath, entry.Target, overwrite: false)
-                            .ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (Exception rollbackException) when (
-                rollbackException is IOException or UnauthorizedAccessException)
-            {
-                throw new IOException(
-                    "Atomic overlay output commit failed and the previous output could not be "
-                    + $"restored. The previous files remain at '{_backupRoot}'.",
-                    new AggregateException(commitException, rollbackException));
-            }
-
-            throw new IOException(
-                "Atomic overlay output commit failed; the previous output was restored.",
-                commitException);
-        }
-
-        private async Task WriteOverlayJournalAsync(IReadOnlyList<string> createdPaths)
-        {
-            var path = Path.Combine(_backupRoot, OverlayJournalFileName);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(
-                new OverlayJournal(1, createdPaths.Order(StringComparer.Ordinal).ToArray()));
-            var temporary = $"{path}.tmp";
-            await File.WriteAllBytesAsync(temporary, bytes, CancellationToken.None)
-                .ConfigureAwait(false);
-            File.Move(temporary, path, overwrite: true);
-        }
-
-        private void TryDeleteOverlayJournal()
-        {
-            try
-            {
-                var path = Path.Combine(_backupRoot, OverlayJournalFileName);
-                var attributes = GetAttributes(path);
-                if (attributes is not null)
-                {
-                    File.SetAttributes(
-                        path,
-                        attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
-                    File.Delete(path);
-                }
-            }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException)
-            {
-                RecordCleanupDiagnostic(
-                    RetainedBackupDiagnosticId,
-                    "Committed output retained an overlay journal for a later recovery cleanup.");
-                System.Diagnostics.Trace.TraceWarning(
-                    "LithoSharp committed overlay output but retained journal '{0}': {1}",
-                    Path.Combine(_backupRoot, OverlayJournalFileName),
-                    exception.Message);
-            }
-        }
-
-        private async Task TryDeletePromotedStagingAsync()
-        {
-            try
-            {
-                await DeleteOwnedDirectoryAsync(StagingRoot, "staging").ConfigureAwait(false);
-                await _outputLock.UnregisterStagingAsync(StagingRoot).ConfigureAwait(false);
-            }
-            catch (IOException exception)
-            {
-                RecordRetainedStaging(StagingRoot, exception);
-            }
-            catch (UnauthorizedAccessException exception)
-            {
-                RecordRetainedStaging(StagingRoot, exception);
-            }
         }
 
         public async Task CleanupAsync()
@@ -4042,16 +3828,16 @@ public sealed partial class SiteGenerator
             }
         }
 
-        private void ApplyCopiedMetadata(IReadOnlyCollection<string> generatedFiles)
+        private void ApplyCopiedMetadata(IReadOnlyCollection<string> modifiedFiles)
         {
-            var generatedPaths = generatedFiles.ToHashSet(
+            var modifiedPaths = modifiedFiles.ToHashSet(
                 OperatingSystem.IsWindows()
                     ? StringComparer.OrdinalIgnoreCase
                     : StringComparer.Ordinal);
             foreach (var metadata in _copiedFileMetadata)
             {
                 metadata.Apply(
-                    preserveTimestamps: !generatedPaths.Contains(metadata.DestinationPath));
+                    preserveTimestamps: !modifiedPaths.Contains(metadata.DestinationPath));
             }
 
             for (var index = _copiedDirectoryMetadata.Count - 1; index >= 0; index--)
@@ -4070,7 +3856,6 @@ public sealed partial class SiteGenerator
 
         private async Task RecoverRegisteredTransactionsAsync()
         {
-            await RecoverOverlayBackupsAsync().ConfigureAwait(false);
             await RecoverRegisteredOwnershipStatesAsync().ConfigureAwait(false);
             var registeredBackups = _outputLock.RegisteredBackups.ToArray();
             string? restoredBackup = null;
@@ -4214,123 +3999,6 @@ public sealed partial class SiteGenerator
                         exception.Message);
                 }
             }
-        }
-
-        /// <summary>
-        /// Restores overlay backups left by an interrupted commit. A retained journal means the
-        /// overlay never reached its commit point, so the previous published files win.
-        /// </summary>
-        private async Task RecoverOverlayBackupsAsync()
-        {
-            foreach (var backup in _outputLock.RegisteredBackups.ToArray())
-            {
-                var journalPath = Path.Combine(backup, OverlayJournalFileName);
-                if (GetAttributes(journalPath) is null)
-                {
-                    continue;
-                }
-
-                EnsureOwnedSiblingPath(_parentRoot, backup, "backup", _outputLock.Identity);
-                EnsureTreeContainsNoNameSurrogateReparsePoints(backup);
-                var stagingRoot = Path.Combine(
-                    _parentRoot,
-                    $".lithosharp-staging-{_outputLock.Identity}-{GetBackupSuffix(backup)}");
-                EnsureOwnedSiblingPath(_parentRoot, stagingRoot, "staging", _outputLock.Identity);
-                var created = await ReadOverlayJournalCreatedPathsAsync(journalPath)
-                    .ConfigureAwait(false);
-                await RestoreOverlayBackupAsync(backup, stagingRoot, created).ConfigureAwait(false);
-                await TryCleanupCommittedBackupAsync(backup).ConfigureAwait(false);
-            }
-        }
-
-        private async Task RestoreOverlayBackupAsync(
-            string backupRoot,
-            string stagingRoot,
-            IReadOnlyCollection<string> createdPaths)
-        {
-            foreach (var file in Directory.EnumerateFiles(backupRoot, "*", SearchOption.AllDirectories)
-                         .Order(StringComparer.Ordinal))
-            {
-                var relativePath = Path.GetRelativePath(backupRoot, file).Replace('\\', '/');
-                if (string.Equals(relativePath, OverlayJournalFileName, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                ValidateOwnedArtifactPath(relativePath, "backup");
-                var target = SafeCombine(_outputRoot, relativePath);
-                var attributes = GetAttributes(target);
-                if (attributes is not null)
-                {
-                    EnsureNotNameSurrogateReparsePoint(target, attributes.Value);
-                    File.SetAttributes(
-                        target,
-                        attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
-                }
-
-                CreateSafeDirectory(_outputRoot, Path.GetDirectoryName(target)!);
-                await MoveFileWithRetriesAsync(file, target, overwrite: true).ConfigureAwait(false);
-            }
-
-            foreach (var relativePath in createdPaths)
-            {
-                var target = SafeCombine(_outputRoot, relativePath);
-                if (GetAttributes(target) is null
-                    || GetAttributes(SafeCombine(stagingRoot, relativePath)) is not null)
-                {
-                    continue;
-                }
-
-                var attributes = GetAttributes(target);
-                if (attributes is not null)
-                {
-                    File.SetAttributes(
-                        target,
-                        attributes.Value & ~(FileAttributes.ReadOnly | FileAttributes.System));
-                }
-
-                File.Delete(target);
-            }
-        }
-
-        private static async Task<IReadOnlyList<string>> ReadOverlayJournalCreatedPathsAsync(
-            string journalPath)
-        {
-            try
-            {
-                var bytes = await File.ReadAllBytesAsync(journalPath, CancellationToken.None)
-                    .ConfigureAwait(false);
-                var journal = JsonSerializer.Deserialize<OverlayJournal>(bytes);
-                if (journal is not { Version: 1, Created: not null })
-                {
-                    return [];
-                }
-
-                var created = new List<string>(journal.Created.Count);
-                foreach (var path in journal.Created)
-                {
-                    if (string.Equals(
-                            path,
-                            SiteRoute.NormalizeRelativeOutputPath(path),
-                            StringComparison.Ordinal))
-                    {
-                        created.Add(path);
-                    }
-                }
-
-                return created;
-            }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException or JsonException)
-            {
-                return [];
-            }
-        }
-
-        private static string GetBackupSuffix(string backupRoot)
-        {
-            var fileName = Path.GetFileName(backupRoot);
-            return fileName[(fileName.LastIndexOf('-') + 1)..];
         }
 
         private void RecordRetainedStaging(string staging, Exception exception)

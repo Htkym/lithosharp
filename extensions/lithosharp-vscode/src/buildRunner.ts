@@ -2,7 +2,7 @@ import { requireTrusted } from './trust.js';
 
 /** One-shot CLI invocation probe. Tests substitute a fake. */
 export interface RunProbe {
-  run(command: string[], cwd: string, input?: string): Promise<{ exit: number; stdout: string; stderr: string }>;
+  run(command: string[], cwd: string, input?: string, signal?: AbortSignal): Promise<{ exit: number; stdout: string; stderr: string }>;
 }
 
 /** Structured build result. Machine output is parsed, never pattern-matched. */
@@ -23,6 +23,8 @@ export type BuildResult =
  */
 export class BuildRunner {
   private queue: Promise<unknown> = Promise.resolve();
+  private active: AbortController | undefined;
+  private disposed = false;
 
   constructor(
     private readonly options: {
@@ -38,19 +40,42 @@ export class BuildRunner {
   /** Runs `build`, `check`, or `inspect` with machine output and returns the envelope. */
   async run(command: 'build' | 'check' | 'inspect'): Promise<BuildResult> {
     requireTrusted(this.options.isTrusted(), `run lithosharp ${command}`);
+    if (this.disposed) {
+      return { ok: false, exitCode: 130, error: 'Build runner is disposed.', diagnosticsText: null };
+    }
     const pending = this.queue.then(() => this.execute(command));
     // A rejection must not poison later queued builds; each caller sees its own.
     this.queue = pending.catch(() => undefined);
     return pending;
   }
 
+  /** Cancels the owned CLI process and prevents queued requests from starting. */
+  dispose(): void {
+    this.disposed = true;
+    this.active?.abort();
+  }
+
   private async execute(command: 'build' | 'check' | 'inspect'): Promise<BuildResult> {
+    if (this.disposed) {
+      return { ok: false, exitCode: 130, error: 'Build runner was disposed before this command started.', diagnosticsText: null };
+    }
+    // The request may have waited behind another project build while trust changed.
+    requireTrusted(this.options.isTrusted(), `run lithosharp ${command}`);
     const cli = this.options.cli(command);
+    const abort = new AbortController();
+    this.active = abort;
     let result: { exit: number; stdout: string; stderr: string };
     try {
-      result = await this.options.probe.run(cli.command, cli.cwd ?? this.options.cwd);
+      result = await this.options.probe.run(cli.command, cli.cwd ?? this.options.cwd, undefined, abort.signal);
     } catch (error) {
       return { ok: false, exitCode: 1, error: `CLI execution failed: ${String(error)}`, diagnosticsText: null };
+    } finally {
+      if (this.active === abort) {
+        this.active = undefined;
+      }
+    }
+    if (abort.signal.aborted || this.disposed) {
+      return { ok: false, exitCode: 130, error: 'CLI invocation was cancelled.', diagnosticsText: null };
     }
     const cap = this.options.maxOutputChars ?? 65536;
     const stdout = result.stdout.slice(-cap);

@@ -445,7 +445,7 @@ public sealed class DocumentIncrementalTests
     }
 
     [Test]
-    public async Task OverlayRebuild_KeepsUnchangedArtifactsInPlace()
+    public async Task Rebuild_PreservesUnchangedArtifactBytesAndTimestamps()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
@@ -467,8 +467,7 @@ public sealed class DocumentIncrementalTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "alpha.html")))
             .Contains("Edited body.");
         await Assert.That(second.BuildReport.CacheMissCount).IsGreaterThan(0);
-        // The overlay keeps every verified artifact in the published tree: same bytes, same
-        // last-write time, and no file set change.
+        // The staged transaction preserves untouched artifact bytes, timestamps, and file set.
         await Assert.That(Convert.ToBase64String(await File.ReadAllBytesAsync(untouchedPath)))
             .IsEqualTo(untouchedBytes);
         await Assert.That(File.GetLastWriteTimeUtc(untouchedPath)).IsEqualTo(untouchedTimestamp);
@@ -481,7 +480,7 @@ public sealed class DocumentIncrementalTests
     }
 
     [Test]
-    public async Task OverlayRebuild_RestoresADeletedPublishedArtifact()
+    public async Task Rebuild_RestoresADeletedPublishedArtifact()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
@@ -501,6 +500,27 @@ public sealed class DocumentIncrementalTests
         await Assert.That(File.Exists(deletedPath)).IsTrue();
         await Assert.That(await File.ReadAllTextAsync(deletedPath)).Contains("Beta");
         await Assert.That(MissedNodeIds(second)).Contains("page:markdown:posts/beta.html");
+    }
+
+    [Test]
+    public async Task BypassFallback_MaterializesOnceWhenSeveralPublishedArtifactsAreMissing()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        var posts = new[] { Post("alpha", "Alpha"), Post("beta", "Beta"), Post("gamma", "Gamma") };
+        var first = await GenerateAsync(generator, posts, output, clean: true, previousPlan: null);
+        var alpha = Path.Combine(output, "posts", "alpha.html");
+        var beta = Path.Combine(output, "posts", "beta.html");
+        File.Delete(alpha);
+        File.Delete(beta);
+
+        var rebuilt = await GenerateAsync(generator, posts, output, clean: false, previousPlan: first.BuildPlan);
+
+        await Assert.That(await File.ReadAllTextAsync(alpha)).Contains("Alpha");
+        await Assert.That(await File.ReadAllTextAsync(beta)).Contains("Beta");
+        await Assert.That(MissedNodeIds(rebuilt)).Contains("page:markdown:posts/alpha.html");
+        await Assert.That(MissedNodeIds(rebuilt)).Contains("page:markdown:posts/beta.html");
     }
 
     private static async Task<IReadOnlyList<(string Path, string Bytes)>> SnapshotAsync(string root) =>

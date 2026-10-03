@@ -1,5 +1,6 @@
 /** One inspected route: artifact path plus public path. */
 export interface InspectedRoute {
+  sourcePath: string;
   path: string;
   publicPath: string;
 }
@@ -40,15 +41,12 @@ export function resolvePreviewUrl(
   if (!servedOrigin) {
     return { kind: 'unavailable', reason: 'no-server' };
   }
-  const normalized = sourcePath.replace(/\\/g, '/');
-  const matches = routes.filter((route) => {
-    const artifact = route.path;
-    const stem = artifact.replace(/\/index\.html$/, '').replace(/\.html$/, '');
-    const base = stem.split('/').pop() ?? '';
-    const sourceBase = normalized.split('/').pop() ?? '';
-    const sourceStem = sourceBase.replace(/\.mdx?$/, '');
-    return base !== '' && (base === sourceStem || artifact === normalized);
-  });
+  const normalizeSourcePath = (value: string): string => {
+    const normalized = value.replace(/\\/g, '/');
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+  };
+  const normalized = normalizeSourcePath(sourcePath);
+  const matches = routes.filter((route) => normalizeSourcePath(route.sourcePath) === normalized);
   if (matches.length === 0) {
     return { kind: 'unavailable', reason: 'unknown-route' };
   }
@@ -72,6 +70,7 @@ export type PreviewStatus =
 export class PreviewTracker {
   private status: PreviewStatus = { kind: 'current', generation: 0 };
   private lastUrl: string | null = null;
+  private lastSuccessfulGeneration = 0;
 
   /** Current display URL: rebuilt on success, retained on failure. */
   currentUrl(newUrl: string | null): string | null {
@@ -89,13 +88,14 @@ export class PreviewTracker {
   }
 
   onRebuildSucceeded(generation: number): PreviewStatus {
+    this.lastSuccessfulGeneration = generation;
     this.status = { kind: 'current', generation };
     return this.status;
   }
 
-  onRebuildFailed(generation: number): PreviewStatus {
+  onRebuildFailed(_generation: number): PreviewStatus {
     if (this.lastUrl) {
-      this.status = { kind: 'failed', generation, lastUrl: this.lastUrl };
+      this.status = { kind: 'failed', generation: this.lastSuccessfulGeneration, lastUrl: this.lastUrl };
     }
     return this.status;
   }
@@ -104,7 +104,7 @@ export class PreviewTracker {
     if (dirty) {
       this.status = { kind: 'unsaved' };
     } else if (this.status.kind === 'unsaved') {
-      this.status = { kind: 'current', generation: 0 };
+      this.status = { kind: 'current', generation: this.lastSuccessfulGeneration };
     }
     return this.status;
   }

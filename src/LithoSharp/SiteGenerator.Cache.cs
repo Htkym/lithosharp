@@ -8,30 +8,30 @@ public sealed partial class SiteGenerator
 
     /// <summary>
     /// Reports how many files and bytes the incremental cache holds for one output. The cache is
-    /// never cleaned automatically; use <see cref="ClearCacheAsync"/> to reclaim one output's
-    /// partition while no build is running for it.
+    /// never cleaned automatically; use <see cref="ClearCache"/> to reclaim one output's
+    /// partition. Cache operations share the output lock with builds.
     /// </summary>
     public static SiteBuildCacheUsage MeasureCache(string outputRoot, SiteGenerationOptions? options = null)
-    {
-        var partition = ResolveCachePartition(outputRoot, options);
-        return MeasureCachePartition(partition);
-    }
+        => OutputTransaction.WithOutputLockAsync(outputRoot,
+                () => MeasureCachePartition(ResolveCachePartition(outputRoot, options)))
+            .GetAwaiter().GetResult();
 
     /// <summary>
     /// Removes the incremental cache partition owned by one output and reports the reclaimed usage.
     /// The published output and other outputs' cache partitions are never touched.
     /// </summary>
     public static SiteBuildCacheUsage ClearCache(string outputRoot, SiteGenerationOptions? options = null)
-    {
-        var partition = ResolveCachePartition(outputRoot, options);
-        var usage = MeasureCachePartition(partition);
-        if (Directory.Exists(partition))
+        => OutputTransaction.WithOutputLockAsync(outputRoot, () =>
         {
-            Directory.Delete(partition, recursive: true);
-        }
+            var partition = ResolveCachePartition(outputRoot, options);
+            var usage = MeasureCachePartition(partition);
+            if (Directory.Exists(partition))
+            {
+                Directory.Delete(partition, recursive: true);
+            }
 
-        return usage;
-    }
+            return usage;
+        }).GetAwaiter().GetResult();
 
     private static string ResolveCachePartition(string outputRoot, SiteGenerationOptions? options)
     {
@@ -64,12 +64,27 @@ public sealed partial class SiteGenerator
             return new SiteBuildCacheUsage(partition, 0, 0);
         }
 
+        EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(partition)!, partition);
         var files = 0;
         long bytes = 0;
-        foreach (var file in Directory.EnumerateFiles(partition, "*", SearchOption.AllDirectories))
+        var pending = new Stack<string>();
+        pending.Push(partition);
+        while (pending.TryPop(out var directory))
         {
-            files++;
-            bytes += new FileInfo(file).Length;
+            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                var attributes = File.GetAttributes(entry);
+                EnsureNotNameSurrogateReparsePoint(entry, attributes);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(entry);
+                }
+                else
+                {
+                    files++;
+                    bytes += new FileInfo(entry).Length;
+                }
+            }
         }
 
         return new SiteBuildCacheUsage(partition, files, bytes);

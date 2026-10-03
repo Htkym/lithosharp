@@ -1,6 +1,7 @@
 using System.Reflection;
 using LithoSharp.Configuration;
 using LithoSharp.Diagnostics;
+using LithoSharp.Documentation;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Routing;
@@ -150,6 +151,14 @@ public abstract class SiteContentCollection
         }
     }
 
+    internal static string FrontMatterSchemaName(Type frontMatterType)
+    {
+        ArgumentNullException.ThrowIfNull(frontMatterType);
+        if (frontMatterType == typeof(DocumentFrontMatter)) return "document";
+        if (frontMatterType == typeof(PostFrontMatter)) return "post";
+        return frontMatterType.Name;
+    }
+
     internal abstract IReadOnlyList<IntegratedContentPage> CreatePages(
         string baseUrl,
         DateTimeOffset buildTimestamp,
@@ -275,6 +284,8 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                         ? null
                         : this.RendererFingerprint + "|" + rendererImplementationIdentity,
                     IsThreadSafe = this.IsThreadSafe,
+                    FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
+                    IsUnlisted = entry.FrontMatter is DocumentFrontMatter { Unlisted: true },
                 };
                 pages.Add(page);
                 routeTable.Register(route, ownerId, entry.SourceLocation);
@@ -341,6 +352,10 @@ internal sealed class IntegratedContentPage(
     public bool IsCacheable { get; } = isCacheable;
 
     public string? RendererFingerprint { get; init; }
+
+    public string FrontMatterSchema { get; init; } = "custom";
+
+    public bool IsUnlisted { get; init; }
 
     public bool IsThreadSafe { get; init; }
 

@@ -71,6 +71,19 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    public async Task TransformFailureWithoutSourceLocationDoesNotInventOne()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await using var session = new MdxInspectionSession(WorkspaceOptions(workspace));
+        var result = await session.AnalyzeAsync("reserved.mdx", "export const frontMatter = {}\n");
+
+        var diagnostic = result.Diagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("LSMDX001");
+        await Assert.That(diagnostic.Location?.Line).IsNull();
+        await Assert.That(diagnostic.Location?.Column).IsNull();
+    }
+
+    [Test]
     public async Task BuildAndAnalysis_AgreeOnSyntaxFailure()
     {
         using var workspace = new TemporaryWorkspace();
@@ -104,7 +117,9 @@ public sealed class MdxInspectionTests
             var diagnostic = analyzed.Diagnostics.Single(item => item.Id == "LSMDX001");
             await Assert.That(diagnostic.Severity).IsEqualTo(buildDiagnostic.Severity);
             await Assert.That(diagnostic.Message).IsEqualTo(buildDiagnostic.Message);
+            await Assert.That(diagnostic.Location?.Line).IsEqualTo(6);
             await Assert.That(diagnostic.Location?.Line).IsEqualTo(buildDiagnostic.Location?.Line);
+            await Assert.That(diagnostic.Location?.Column).IsEqualTo(buildDiagnostic.Location?.Column);
         }
     }
 

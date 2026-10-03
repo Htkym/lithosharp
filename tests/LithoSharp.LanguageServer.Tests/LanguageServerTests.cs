@@ -273,6 +273,94 @@ public sealed class LanguageServerTests
     }
 
     [Test]
+    public async Task InvalidProjectContextUpdateDoesNotEraseTheLastValidSnapshot()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/intro.md";
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs",
+            folders = new[] { "file:///proj" },
+            snapshot = new
+            {
+                schemaVersion = "1.0",
+                projectId = "docs",
+                projectGeneration = (long)1,
+                coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version?.ToString(3),
+                collection = "docs",
+                language = "markdown",
+                schema = "document",
+                version = "v1",
+                locale = "en",
+                acquiredAt = "2026-09-27T00:00:00Z",
+                routes = Array.Empty<object>(),
+            },
+        });
+        Open(client, uri, "markdown", 1, "---\ntitle: Hi\nunknown_field_xyz: 1\n---\n# Hi\n");
+        var initial = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(initial.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
+            .Any(item => item.GetProperty("code").GetString() == "LSC101")).IsTrue();
+
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs",
+            folders = new[] { "file:///proj" },
+            snapshot = new { schemaVersion = "999.0", projectId = "docs" },
+        });
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = (long)2 },
+            contentChanges = new[] { new { text = "---\ntitle: Hi\nunknown_field_xyz: 1\n---\n# Changed\n" } },
+        });
+
+        var updated = await WaitDiagnosticsAsync(client, uri, 2);
+        await Assert.That(updated.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
+            .Any(item => item.GetProperty("code").GetString() == "LSC101")).IsTrue();
+    }
+
+    [Test]
+    public async Task NestedProjectFolderUsesTheMostSpecificContext()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        var coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version?.ToString(3);
+        object Snapshot(string projectId, string schema) => new
+        {
+            schemaVersion = "1.0",
+            projectId,
+            projectGeneration = (long)1,
+            coreVersion,
+            collection = "docs",
+            language = "markdown",
+            schema,
+            version = "v1",
+            locale = "en",
+            acquiredAt = "2026-09-27T00:00:00Z",
+            routes = Array.Empty<object>(),
+        };
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "parent",
+            folders = new[] { "file:///proj" },
+            snapshot = Snapshot("parent", "document"),
+        });
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "nested",
+            folders = new[] { "file:///proj/docs" },
+            snapshot = Snapshot("nested", "custom"),
+        });
+
+        const string uri = "file:///proj/docs/intro.md";
+        Open(client, uri, "markdown", 1, "---\ntitle: Hi\nunknown_field_xyz: 1\n---\n# Hi\n");
+        var published = await WaitDiagnosticsAsync(client, uri, 1);
+        var codes = published.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
+            .Select(item => item.GetProperty("code").GetString()).ToArray();
+        await Assert.That(codes.Contains("LSC101")).IsFalse();
+    }
+
+    [Test]
     public async Task RegressedVersionsAndInvalidRanges_DoNotCrash()
     {
         await using var client = LspTestClient.Start();

@@ -806,7 +806,7 @@ public sealed class SiteGeneratorAtomicOutputTests
     }
 
     [Test]
-    public async Task GenerateAsync_RollsBackOverlayBackupLeftByInterruptedCommit()
+    public async Task GenerateAsync_RestoresRegisteredBackupAfterInterruptedDirectorySwap()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
@@ -818,18 +818,8 @@ public sealed class SiteGeneratorAtomicOutputTests
         var backup = Path.Combine(
             workspace.Root,
             $".lithosharp-backup-{lockIdentity}-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(backup);
-        // Recreate an overlay commit that replaced one published artifact, created another, and
-        // crashed before promotion: the published files hold the new bytes while the backup
-        // journals the old ones.
-        var publishedPath = Path.Combine(output, "index.html");
-        var createdPath = Path.Combine(output, "created.html");
-        await File.WriteAllTextAsync(publishedPath, "half-published");
-        await File.WriteAllTextAsync(createdPath, "half-created");
-        await File.WriteAllTextAsync(Path.Combine(backup, "index.html"), "recovered");
-        await File.WriteAllTextAsync(
-            Path.Combine(backup, ".lithosharp-overlay-journal.json"),
-            "{\"Version\":1,\"Created\":[\"created.html\"]}");
+        await File.WriteAllTextAsync(Path.Combine(output, "assets"), "existing file");
+        Directory.Move(output, backup);
         var lockPath = Path.Combine(
             workspace.Root,
             $".lithosharp-lock-{lockIdentity}.lock");
@@ -838,16 +828,15 @@ public sealed class SiteGeneratorAtomicOutputTests
             $"B|{Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(output)))}"
             + $"|{Convert.ToBase64String(Encoding.UTF8.GetBytes(backup))}\n");
 
-        // The next build fails after the recovery, so the recovered bytes stay observable.
-        await File.WriteAllTextAsync(Path.Combine(output, "assets"), "existing file");
+        // The next build fails while staging, after recovery has restored the entire prior tree.
         await Assert.That(async () => await GenerateAsync(
                 output,
                 clean: false,
                 new SingleFileTemplate("assets/site.css", "new")))
             .Throws<IOException>();
 
-        await Assert.That(await File.ReadAllTextAsync(publishedPath)).IsEqualTo("recovered");
-        await Assert.That(File.Exists(createdPath)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "assets"))).IsEqualTo("existing file");
         await Assert.That(Directory.Exists(backup)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(lockPath)).DoesNotContain("B|");
         await AssertNoTransactionDirectoriesAsync(workspace.Root);

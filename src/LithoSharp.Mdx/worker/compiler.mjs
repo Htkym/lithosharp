@@ -221,10 +221,20 @@ export async function analyzeMdx(request) {
     });
   } catch (error) {
     // Fatal syntax: no partial symbols (never resurface older results as latest).
+    const start = error.place?.start;
+    const message = error.reason ?? error.message ?? String(error);
+    // MDX 3.1.1 encodes a source range in the stable syntax-error suffix even
+    // when its VFileMessage fields are absent. Prefer that source position over
+    // an esbuild/generated-code location supplied by a wrapper.
+    const encodedPosition = /\((\d+):(\d+)-\d+:\d+\)\s*$/.exec(message);
+    const line = encodedPosition ? Number(encodedPosition[1])
+      : Number.isInteger(error.line) ? error.line : Number.isInteger(start?.line) ? start.line : null;
+    const sourceColumn = encodedPosition ? Number(encodedPosition[2])
+      : Number.isInteger(error.column) ? error.column : Number.isInteger(start?.column) ? start.column : null;
     return {headings: [], links: [], text: '', islands: [], imports: [],
-      diagnostics: [{message: error.reason ?? error.message ?? String(error),
-        line: error.line ?? error.place?.start?.line ?? 1,
-        column: Math.max(0, (error.column ?? error.place?.start?.column ?? 1) - 1)}]};
+      diagnostics: [{message,
+        line,
+        column: sourceColumn === null ? null : Math.max(0, sourceColumn - 1)}]};
   }
   return {headings: info.headings, links: info.links, text: info.text.join('\n'), islands: info.islands,
     imports: info.imports, diagnostics: []};

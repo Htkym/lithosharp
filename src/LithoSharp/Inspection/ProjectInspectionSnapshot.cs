@@ -23,6 +23,7 @@ public sealed class ProjectRouteCandidate
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(locale);
+        if (!Enum.IsDefined(publication)) throw new ArgumentOutOfRangeException(nameof(publication));
         SourcePath = sourcePath;
         PublicPath = publicPath;
         ProjectId = projectId;
@@ -96,7 +97,10 @@ public sealed class ProjectInspectionSnapshot
         SchemaName = schemaName;
         Version = version;
         Locale = locale;
-        Routes = Array.AsReadOnly(routes.ToArray());
+        var routeSnapshot = routes.ToArray();
+        if (routeSnapshot.Any(route => !string.Equals(route.ProjectId, projectId, StringComparison.Ordinal)))
+            throw new ArgumentException("Every route candidate must belong to the snapshot project.", nameof(routes));
+        Routes = Array.AsReadOnly(routeSnapshot);
         AcquiredAt = acquiredAt;
     }
 
@@ -149,6 +153,9 @@ public sealed class ProjectInspectionSnapshot
         ArgumentException.ThrowIfNullOrWhiteSpace(schemaName);
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(locale);
+        var routeSnapshot = routes?.ToArray() ?? [];
+        if (routeSnapshot.Any(static route => route is null))
+            throw new ArgumentException("Project route candidates must not contain null.", nameof(routes));
         return new ProjectInspectionSnapshot(
             projectId,
             projectGeneration,
@@ -158,7 +165,7 @@ public sealed class ProjectInspectionSnapshot
             schemaName,
             version,
             locale,
-            routes?.ToArray() ?? [],
+            routeSnapshot,
             acquiredAt ?? DateTimeOffset.UtcNow);
     }
 
@@ -233,26 +240,32 @@ public sealed class ProjectInspectionSnapshot
             }
 
             var routes = new List<ProjectRouteCandidate>();
-            if (root.TryGetProperty("routes", out var routesValue) && routesValue.ValueKind == JsonValueKind.Array)
+            if (!root.TryGetProperty("routes", out var routesValue) || routesValue.ValueKind != JsonValueKind.Array)
             {
-                foreach (var item in routesValue.EnumerateArray())
-                {
-                    string Field(string name) =>
-                        item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-                            ? value.GetString() ?? ""
-                            : throw new ArgumentException($"The project snapshot route omits '{name}'.", nameof(json));
-                    var publication = DocumentPublicationState.Published;
-                    if (item.TryGetProperty("publication", out var publicationValue)
-                        && publicationValue.ValueKind == JsonValueKind.String
-                        && !Enum.TryParse(publicationValue.GetString(), out publication))
-                    {
-                        throw new ArgumentException("The project snapshot route has an unknown 'publication'.", nameof(json));
-                    }
+                throw new ArgumentException("The project snapshot omits the 'routes' array.", nameof(json));
+            }
 
-                    routes.Add(new ProjectRouteCandidate(
-                        Field("sourcePath"), Field("publicPath"), Field("projectId"),
-                        Field("collection"), Field("version"), Field("locale"), publication));
+            foreach (var item in routesValue.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                    throw new ArgumentException("Each project snapshot route must be an object.", nameof(json));
+
+                string Field(string name) =>
+                    item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                        ? value.GetString() ?? ""
+                        : throw new ArgumentException($"The project snapshot route omits '{name}'.", nameof(json));
+                var publication = DocumentPublicationState.Published;
+                if (item.TryGetProperty("publication", out var publicationValue)
+                    && (publicationValue.ValueKind != JsonValueKind.String
+                        || !Enum.TryParse(publicationValue.GetString(), ignoreCase: false, out publication)
+                        || !Enum.IsDefined(publication)))
+                {
+                    throw new ArgumentException("The project snapshot route has an unknown 'publication'.", nameof(json));
                 }
+
+                routes.Add(new ProjectRouteCandidate(
+                    Field("sourcePath"), Field("publicPath"), Field("projectId"),
+                    Field("collection"), Field("version"), Field("locale"), publication));
             }
 
             var generation = root.TryGetProperty("projectGeneration", out var generationValue)

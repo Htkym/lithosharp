@@ -5,13 +5,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnProcess } from '../../src/process.js';
 
-test('windows script launchers run through cmd', async () => {
+test('windows no-argument script launchers run through cmd without shell arguments', async () => {
   if (process.platform !== 'win32') {
     return;
   }
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-proc-'));
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp proc-'));
   const script = path.join(dir, 'hello.cmd');
   await fs.promises.writeFile(script, '@echo off\r\necho hello-proc\r\n');
+  assert.throws(() => spawnProcess([script, 'untrusted argument'], dir), /cannot safely receive arguments/);
   const child = spawnProcess([script], dir);
   const output = await new Promise<string>((resolve, reject) => {
     let text = '';

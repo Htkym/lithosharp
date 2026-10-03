@@ -28,6 +28,7 @@ public sealed class LspServer
     private readonly DocumentWorkspace workspace = new();
     private readonly ConcurrentDictionary<string, Task> background = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> requests = new();
+    private readonly Dictionary<string, CancellationTokenSource> documentAnalyses = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DocumentBuffer> buffers = new();
     private readonly List<ProjectContextEntry> contexts = new();
     private readonly object stateGate = new();
@@ -244,7 +245,7 @@ public sealed class LspServer
             buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = languageId, Version = version, Text = text };
         }
 
-        Track($"diagnose:{uri}:{version}", (token) => AnalyzeAndPublishAsync(uri, version, token));
+        TrackDocumentAnalysis(uri, version);
     }
 
     private void DidChange(JsonElement @params)
@@ -289,7 +290,7 @@ public sealed class LspServer
             buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = buffer.LanguageId, Version = version, Text = current };
         }
 
-        Track($"diagnose:{uri}:{version}", (token) => AnalyzeAndPublishAsync(uri, version, token));
+        TrackDocumentAnalysis(uri, version);
     }
 
     private void DidSave(JsonElement @params)
@@ -312,7 +313,7 @@ public sealed class LspServer
             version = buffer.Version;
         }
 
-        Track($"diagnose:{uri}:{version}", (token) => AnalyzeAndPublishAsync(uri, version, token));
+        TrackDocumentAnalysis(uri, version);
     }
 
     private void DidClose(JsonElement @params)
@@ -331,6 +332,8 @@ public sealed class LspServer
             projectIds = contexts.Select(entry => entry.ProjectId).Distinct().ToArray();
         }
 
+        CancelDocumentAnalysis(uri);
+
         Publish(uri, -1, []);
         workspace.Remove(UriPath(uri));
         foreach (var projectId in projectIds)
@@ -347,9 +350,21 @@ public sealed class LspServer
             return;
         }
 
+        long version;
+        lock (stateGate)
+        {
+            if (!buffers.TryGetValue(uri, out var buffer))
+            {
+                Reply(rawId, EmptySymbols());
+                return;
+            }
+
+            version = buffer.Version;
+        }
+
         var source = new CancellationTokenSource();
         requests[rawId] = source;
-        var task = Task.Run(() => SymbolsFor(uri, source.Token), source.Token);
+        var task = Task.Run(() => SymbolsFor(uri, version, source.Token), source.Token);
         background[rawId] = task;
         task.ContinueWith(completed =>
         {
@@ -384,7 +399,8 @@ public sealed class LspServer
             };
             if (id is not null && requests.TryGetValue(id, out var source))
             {
-                source.Cancel();
+                try { source.Cancel(); }
+                catch (ObjectDisposedException) { }
             }
         }
     }
@@ -400,53 +416,83 @@ public sealed class LspServer
         }
 
         var projectId = projectIdValue.GetString()!;
-        List<(string Uri, long Version)> pending = [];
-        lock (stateGate)
+        if (string.IsNullOrWhiteSpace(projectId))
         {
-            contexts.RemoveAll(entry => entry.ProjectId == projectId);
-            if (@params.TryGetProperty("snapshot", out var snapshotValue)
-                && snapshotValue.ValueKind == JsonValueKind.Object)
+            StdioTransport.Log("Ignoring an empty lithosharp/projectContext projectId.");
+            return;
+        }
+
+        ProjectInspectionSnapshot? snapshot = null;
+        if (@params.TryGetProperty("snapshot", out var snapshotValue)
+            && snapshotValue.ValueKind != JsonValueKind.Null)
+        {
+            if (snapshotValue.ValueKind != JsonValueKind.Object)
             {
-                ProjectInspectionSnapshot snapshot;
-                try
-                {
-                    snapshot = ProjectInspectionSnapshot.ParseJson(snapshotValue.GetRawText());
-                }
-                catch (ArgumentException exception)
-                {
-                    StdioTransport.Log($"Ignoring an unreadable project snapshot for '{projectId}': {exception.Message}");
-                    return;
-                }
+                StdioTransport.Log($"Ignoring a non-object project snapshot for '{projectId}'.");
+                return;
+            }
 
-                if (!CoreCompatible(snapshot.CoreVersion))
-                {
-                    StdioTransport.Log($"Ignoring project context '{projectId}' with an incompatible core version.");
-                    return;
-                }
+            try
+            {
+                snapshot = ProjectInspectionSnapshot.ParseJson(snapshotValue.GetRawText());
+            }
+            catch (ArgumentException exception)
+            {
+                StdioTransport.Log($"Ignoring an unreadable project snapshot for '{projectId}': {exception.Message}");
+                return;
+            }
 
-                var folders = new List<string>();
-                if (@params.TryGetProperty("folders", out var foldersValue) && foldersValue.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var folder in foldersValue.EnumerateArray())
-                    {
-                        if (folder.ValueKind == JsonValueKind.String && folder.GetString() is { } uri)
-                        {
-                            folders.Add(uri);
-                        }
-                    }
-                }
+            if (!string.Equals(snapshot.ProjectId, projectId, StringComparison.Ordinal))
+            {
+                StdioTransport.Log($"Ignoring project context '{projectId}' whose snapshot has a different projectId.");
+                return;
+            }
 
-                contexts.Add(new ProjectContextEntry(projectId, folders, snapshot));
-                // Re-analyze open buffers of this project so the new generation applies.
-                pending = buffers.Values
-                    .Where(buffer => Matches(buffer.Uri, projectId, contexts))
-                    .Select(buffer => (buffer.Uri, buffer.Version)).ToList();
+            if (!CoreCompatible(snapshot.CoreVersion))
+            {
+                StdioTransport.Log($"Ignoring project context '{projectId}' with an incompatible core version.");
+                return;
             }
         }
 
-        foreach (var (uri, version) in pending)
+        var folders = new List<string>();
+        if (@params.TryGetProperty("folders", out var foldersValue) && foldersValue.ValueKind == JsonValueKind.Array)
         {
-            Track($"diagnose:{uri}:{version}", (token) => AnalyzeAndPublishAsync(uri, version, token));
+            foreach (var folder in foldersValue.EnumerateArray())
+            {
+                if (folder.ValueKind == JsonValueKind.String && folder.GetString() is { } uri)
+                {
+                    folders.Add(uri);
+                }
+            }
+        }
+
+        List<(string Uri, long Version)> affected;
+        lock (stateGate)
+        {
+            var previouslyMatched = buffers.Values
+                .Where(buffer => Matches(buffer.Uri, projectId, contexts))
+                .Select(buffer => (buffer.Uri, buffer.Version))
+                .ToArray();
+            contexts.RemoveAll(entry => entry.ProjectId == projectId);
+            if (snapshot is not null)
+            {
+                contexts.Add(new ProjectContextEntry(projectId, folders, snapshot));
+            }
+
+            var newlyMatched = buffers.Values
+                .Where(buffer => Matches(buffer.Uri, projectId, contexts))
+                .Select(buffer => (buffer.Uri, buffer.Version));
+            affected = previouslyMatched.Concat(newlyMatched).Distinct().ToList();
+        }
+
+        foreach (var (uri, _) in affected)
+        {
+            workspace.Remove(projectId, UriPath(uri));
+        }
+        foreach (var (uri, version) in affected)
+        {
+            TrackDocumentAnalysis(uri, version);
         }
     }
 
@@ -494,6 +540,8 @@ public sealed class LspServer
     {
         lock (stateGate)
         {
+            ProjectContextEntry? best = null;
+            var bestFolderLength = -1;
             foreach (var entry in contexts)
             {
                 foreach (var folder in entry.Folders)
@@ -501,12 +549,16 @@ public sealed class LspServer
                     if (uri.Equals(folder, StringComparison.Ordinal)
                         || uri.StartsWith(folder.TrimEnd('/') + "/", StringComparison.Ordinal))
                     {
-                        return entry;
+                        if (folder.Length >= bestFolderLength)
+                        {
+                            best = entry;
+                            bestFolderLength = folder.Length;
+                        }
                     }
                 }
             }
 
-            return null;
+            return best;
         }
     }
 
@@ -518,21 +570,59 @@ public sealed class LspServer
         }
     }
 
-    private void Track(string key, Func<CancellationToken, Task> work)
+    private void TrackDocumentAnalysis(string uri, long version)
     {
+        CancellationTokenSource source;
+        lock (stateGate)
+        {
+            if (documentAnalyses.TryGetValue(uri, out var previous))
+            {
+                previous.Cancel();
+            }
+            source = new CancellationTokenSource();
+            documentAnalyses[uri] = source;
+        }
+
+        var taskId = "analysis:" + Guid.NewGuid().ToString("N");
         var task = Task.Run(async () =>
         {
             try
             {
-                await work(CancellationToken.None).ConfigureAwait(false);
+                await AnalyzeAndPublishAsync(uri, version, source.Token).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
             {
                 StdioTransport.Log($"Discarding a failed analysis: {exception.Message}");
             }
-        });
-        background[key] = task;
-        task.ContinueWith(_ => background.TryRemove(key, out var removed), TaskScheduler.Default);
+        }, source.Token);
+        background[taskId] = task;
+        _ = task.ContinueWith(_ =>
+        {
+            background.TryRemove(taskId, out var removed);
+            lock (stateGate)
+            {
+                if (documentAnalyses.TryGetValue(uri, out var current) && ReferenceEquals(current, source))
+                {
+                    documentAnalyses.Remove(uri);
+                }
+            }
+
+            source.Dispose();
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private void CancelDocumentAnalysis(string uri)
+    {
+        lock (stateGate)
+        {
+            if (documentAnalyses.TryGetValue(uri, out var source))
+            {
+                source.Cancel();
+            }
+        }
     }
 
     private static bool IsMarkdown(string languageId, string uri) =>
@@ -572,7 +662,7 @@ public sealed class LspServer
         {
             info = entry is null
                 ? await workspace.InspectAsync(path, buffer.Text, null, cancellationToken).ConfigureAwait(false)
-                : await workspace.InspectVersionedAsync(path, buffer.Text, version, 0,
+                : await workspace.InspectVersionedAsync(path, buffer.Text, version, entry.Snapshot.ProjectGeneration,
                     new DocumentInspectionOptions { Project = entry.Snapshot }, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -588,8 +678,16 @@ public sealed class LspServer
             }
         }
 
-        Publish(uri, version, info.Diagnostics
+        var documentDiagnostics = info.Diagnostics
             .Where(diagnostic => diagnostic.Location is null || string.Equals(diagnostic.Location.FilePath, path, StringComparison.Ordinal))
+            .ToArray();
+        foreach (var diagnostic in documentDiagnostics.Where(item => item.Location?.Line is null))
+        {
+            StdioTransport.Log($"Diagnostic {diagnostic.Id} for '{uri}' has no reliable source position and was not published to Problems.");
+        }
+
+        Publish(uri, version, documentDiagnostics
+            .Where(diagnostic => diagnostic.Location?.Line is not null)
             .Select(ToLspDiagnostic).ToArray());
     }
 
@@ -611,7 +709,7 @@ public sealed class LspServer
         try
         {
             result = await session.AnalyzeAsync(UriPath(buffer.Uri), buffer.Text,
-                new MdxAnalysisOptions(version, 0), cancellationToken).ConfigureAwait(false);
+                new MdxAnalysisOptions(version, ContextFor(buffer.Uri)?.Snapshot.ProjectGeneration ?? 0), cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -646,24 +744,41 @@ public sealed class LspServer
             }
         }
 
-        Publish(buffer.Uri, version, result.Diagnostics.Select(ToLspDiagnostic).ToArray());
+        foreach (var diagnostic in result.Diagnostics.Where(item => item.Location?.Line is null))
+        {
+            StdioTransport.Log($"MDX diagnostic {diagnostic.Id} for '{buffer.Uri}' has no reliable source position and was not published to Problems.");
+        }
+
+        Publish(buffer.Uri, version, result.Diagnostics
+            .Where(diagnostic => diagnostic.Location?.Line is not null)
+            .Select(ToLspDiagnostic).ToArray());
     }
 
-    private JsonElement SymbolsFor(string uri, CancellationToken cancellationToken)
+    private JsonElement SymbolsFor(string uri, long requestedVersion, CancellationToken cancellationToken)
     {
         DocumentBuffer buffer;
         lock (stateGate)
         {
-            if (!buffers.TryGetValue(uri, out buffer!))
+            if (!buffers.TryGetValue(uri, out buffer!) || buffer.Version != requestedVersion)
             {
-                return EmptySymbols();
+                throw new OperationCanceledException(cancellationToken);
             }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         if (IsMdx(buffer.LanguageId, buffer.Uri))
         {
-            return MdxSymbols(buffer, cancellationToken);
+            var symbols = MdxSymbols(buffer, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (stateGate)
+            {
+                if (!buffers.TryGetValue(uri, out var latest) || latest.Version != requestedVersion)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            return symbols;
         }
 
         if (!IsMarkdown(buffer.LanguageId, buffer.Uri))
@@ -687,6 +802,14 @@ public sealed class LspServer
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        lock (stateGate)
+        {
+            if (!buffers.TryGetValue(uri, out var latest) || latest.Version != requestedVersion)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
+
         return BuildSymbols(headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
     }
 
@@ -710,7 +833,7 @@ public sealed class LspServer
             // Off-loop blocking is safe here: this runs on a pool thread and the
             // request stays cancellable through the token.
             result = session.AnalyzeAsync(UriPath(buffer.Uri), buffer.Text,
-                new MdxAnalysisOptions(buffer.Version, 0), cancellationToken).GetAwaiter().GetResult();
+                new MdxAnalysisOptions(buffer.Version, ContextFor(buffer.Uri)?.Snapshot.ProjectGeneration ?? 0), cancellationToken).GetAwaiter().GetResult();
         }
         catch (Exception exception) when (exception is OperationCanceledException or SiteBuildExtensionException)
         {
@@ -788,9 +911,13 @@ public sealed class LspServer
 
     private static object ToLspDiagnostic(SiteDiagnostic diagnostic)
     {
-        var start = diagnostic.Location is { } location && location.Line.HasValue
-            ? new { line = location.Line.Value - 1, character = (location.Column ?? 1) - 1 }
-            : new { line = 0, character = 0 };
+        var location = diagnostic.Location;
+        if (location?.Line is null)
+        {
+            throw new InvalidOperationException("A document diagnostic without a reliable line cannot be mapped to an LSP range.");
+        }
+
+        var start = new { line = location.Line.Value - 1, character = (location.Column ?? 1) - 1 };
         var end = diagnostic.Location is { } endLocation && endLocation.EndLine.HasValue
             ? new { line = endLocation.EndLine.Value - 1, character = (endLocation.EndColumn ?? endLocation.Column ?? 1) - 1 }
             : start;
@@ -864,9 +991,15 @@ public sealed class LspServer
         lock (stateGate)
         {
             pending = background.Values.ToList();
-            foreach (var source in requests.Values)
+            foreach (var source in documentAnalyses.Values)
             {
                 source.Cancel();
+            }
+
+            foreach (var source in requests.Values)
+            {
+                try { source.Cancel(); }
+                catch (ObjectDisposedException) { }
             }
         }
 

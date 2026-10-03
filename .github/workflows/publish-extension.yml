@@ -32,8 +32,9 @@ jobs:
       - name: Check tag and version alignment
         shell: pwsh
         run: |
-          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $null }
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $tag
+          if (!$?) { exit 1 }
 
       - name: Setup Node
         uses: actions/setup-node@v7
@@ -70,17 +71,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Refuse without a publisher account
+      - name: Check tag and publisher configuration
         shell: pwsh
+        env:
+          VSCE_PUBLISHER: ${{ vars.VSCE_PUBLISHER }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
-          if ([string]::IsNullOrWhiteSpace('${{ vars.VSCE_PUBLISHER }}')) {
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:GITHUB_REF_NAME
+          if (!$?) { exit 1 }
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PUBLISHER)) {
             throw 'No Marketplace publisher is configured (vars.VSCE_PUBLISHER is empty). Publishing stays BLOCKED; no placeholder identity is used.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) {
+            throw 'No Marketplace token is configured (secrets.VSCE_PAT is empty). Publishing stays BLOCKED.'
           }
 
       - name: Publish VSIX
-        uses: actions/download-artifact@v7
-        with:
-          name: lithosharp-vscode-${{ github.ref_name }}
-          path: artifacts/vsix
-      - name: Push to Marketplace
-        run: npx --yes @vscode/vsce publish --packagePath artifacts/vsix/lithosharp-*.vsix --pat ${{ secrets.VSCE_PAT }}
+        shell: pwsh
+        working-directory: extensions/lithosharp-vscode
+        env:
+          VSCE_PUBLISHER: ${{ vars.VSCE_PUBLISHER }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if ($env:VSCE_PUBLISHER -notmatch '^[A-Za-z0-9][A-Za-z0-9-]*$') { throw 'VSCE_PUBLISHER contains unsupported characters.' }
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm pkg set "publisher=$env:VSCE_PUBLISHER"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run vsix:pack
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx --yes @vscode/vsce publish --packagePath "lithosharp-$(Get-Content package.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty version).vsix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

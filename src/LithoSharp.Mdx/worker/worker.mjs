@@ -19,8 +19,15 @@ for await (const line of createInterface({input: process.stdin, crlfDelay: Infin
     const failures = error.errors ?? [error];
     send({protocol: 1, requestId: message?.requestId ?? '', success: false,
       requiredSources: [...new Set(failures.map(failure => failure.detail?.requiredSource ?? failure.requiredSource).filter(Boolean))],
-      diagnostics: failures.map(failure => ({id: 'LSMDX001', message: failure.text ?? failure.message ?? String(failure),
-        file: failure.location?.file ?? failure.file ?? '', line: failure.location?.line ?? failure.line ?? 1,
-        column: (failure.location?.column ?? ((failure.column ?? 1) - 1)) + 1}))});
+      diagnostics: failures.map(failure => {
+        const message = failure.text ?? failure.message ?? String(failure);
+        const sourcePosition = /\((\d+):(\d+)-\d+:\d+\)\s*$/.exec(message);
+        return {id: 'LSMDX001', message,
+          file: failure.location?.file ?? failure.file ?? '',
+          line: sourcePosition ? Number(sourcePosition[1]) : failure.location?.line ?? failure.line ?? null,
+          column: sourcePosition ? Number(sourcePosition[2]) : Number.isInteger(failure.location?.column)
+            ? failure.location.column + 1
+            : (Number.isInteger(failure.column) ? failure.column : null)};
+      })});
   }
 }

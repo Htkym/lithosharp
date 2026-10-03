@@ -31,7 +31,7 @@ export interface PreviewHost {
  * panel close. Port changes re-point panels instead of lingering on old origins.
  */
 export class PreviewManager {
-  private readonly panels = new Map<string, { panel: PreviewPanel; tracker: PreviewTracker; serverKey: string; owned: boolean; url: string }>();
+  private readonly panels = new Map<string, { panel: PreviewPanel; tracker: PreviewTracker; serverKey: string; sourcePath: string; owned: boolean; url: string }>();
 
   constructor(
     private readonly host: PreviewHost,
@@ -44,7 +44,7 @@ export class PreviewManager {
     routes: InspectedRoute[],
     server: PreviewServer | null,
     dirty: boolean,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const target = resolvePreviewUrl(sourcePath, routes, server?.url ?? null);
     if (target.kind === 'unavailable') {
       this.host.showMessage(
@@ -52,7 +52,7 @@ export class PreviewManager {
           ? 'LithoSharp: start the server first (LithoSharp: Start Server).'
           : 'LithoSharp: no published route for this document (unknown, draft, or unbuilt). The preview never guesses a URL.',
       );
-      return;
+      return false;
     }
     let url: string;
     if (target.kind === 'choice') {
@@ -60,7 +60,7 @@ export class PreviewManager {
         target.candidates.map((candidate) => ({ label: candidate.publicPath, description: 'published route' })),
       );
       if (!picked || !server?.url) {
-        return;
+        return false;
       }
       url = joinUrl(server.url, picked.label);
     } else {
@@ -70,10 +70,11 @@ export class PreviewManager {
     const existing = this.panels.get(key);
     if (existing) {
       existing.panel.reveal();
-      return;
+      return true;
     }
     const tracker = new PreviewTracker();
     tracker.currentUrl(url);
+    tracker.onRebuildSucceeded(server!.generation);
     if (dirty) {
       tracker.onUnsaved(true);
     }
@@ -81,7 +82,8 @@ export class PreviewManager {
     const origin = new URL(url).origin;
     panel.setHtml(wrapperHtml({ pageUrl: url, origin, nonce: randomBytes(16).toString('base64'), status: tracker.label() }));
     panel.onDidDispose(() => this.closed(key));
-    this.panels.set(key, { panel, tracker, serverKey: server!.key, owned: server!.owned, url });
+    this.panels.set(key, { panel, tracker, serverKey: server!.key, sourcePath, owned: server!.owned, url });
+    return true;
   }
 
   /** Follows server generations: reload on success, retain labeled output on failure. */
@@ -103,11 +105,35 @@ export class PreviewManager {
         this.refresh(entry);
       } else if (event.event === 'startup' && event.url && event.url !== entry.url) {
         // Port or server change: re-point instead of lingering on a stale origin.
-        entry.url = event.url;
-        entry.tracker.currentUrl(event.url);
+        const previous = new URL(entry.url);
+        const next = new URL(event.url);
+        next.pathname = previous.pathname;
+        next.search = previous.search;
+        next.hash = previous.hash;
+        entry.url = next.toString();
+        entry.tracker.currentUrl(entry.url);
         entry.tracker.onRebuildSucceeded(event.generation ?? 0);
-        entry.panel.postMessage({ lithosharp: 'reload', url: event.url });
+        entry.panel.postMessage({ lithosharp: 'reload', url: entry.url });
         this.refresh(entry);
+      }
+    }
+  }
+
+  /** Updates the saved/unsaved label without changing the served build. */
+  onDocumentDirty(sourcePath: string, dirty: boolean): void {
+    for (const entry of this.panels.values()) {
+      if (entry.sourcePath === sourcePath) {
+        entry.tracker.onUnsaved(dirty);
+        this.refresh(entry);
+      }
+    }
+  }
+
+  /** A user-started server must outlive panels opened before that choice. */
+  markServerUserOwned(serverKey: string): void {
+    for (const entry of this.panels.values()) {
+      if (entry.serverKey === serverKey) {
+        entry.owned = false;
       }
     }
   }

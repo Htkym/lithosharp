@@ -87,6 +87,36 @@ test('concurrent builds serialize per runner', async () => {
   assert.deepEqual(order, ['start:build', 'end:build', 'start:check', 'end:check']);
 });
 
+test('dispose cancels the active CLI and prevents queued commands from starting', async () => {
+  let runs = 0;
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const runner = new BuildRunner({
+    isTrusted: () => true,
+    cli: (command) => ({ command: ['cli', command] }),
+    cwd: '/proj',
+    probe: {
+      run: async (_command, _cwd, _input, signal) => {
+        runs++;
+        markStarted();
+        return await new Promise((resolve) => {
+          signal?.addEventListener('abort', () => resolve({ exit: 130, stdout: '', stderr: '' }), { once: true });
+        });
+      },
+    },
+  });
+  const active = runner.run('build');
+  const queued = runner.run('check');
+  await started;
+  runner.dispose();
+  const results = await Promise.all([active, queued]);
+
+  assert.equal(runs, 1);
+  assert.deepEqual(results.map((result) => result.exitCode), [130, 130]);
+});
+
 test('untrusted builds never execute', async () => {
   let calls = 0;
   const runner = new BuildRunner({

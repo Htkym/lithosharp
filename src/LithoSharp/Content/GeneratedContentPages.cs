@@ -338,6 +338,7 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
                     ? null
                     : this.RendererFingerprint + "|" + rendererImplementationIdentity,
                 IsThreadSafe = this.IsThreadSafe,
+                FrontMatterSchema = SiteContentCollection.FrontMatterSchemaName(typeof(TFrontMatter)),
             });
             routeTable.Register(
                 route,

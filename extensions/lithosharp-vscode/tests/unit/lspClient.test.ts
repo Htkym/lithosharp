@@ -157,6 +157,21 @@ test('one server serves many documents', async () => {
   assert.equal(sink.sets.length, 2);
 });
 
+test('documents opened during activation are replayed after initialize', async () => {
+  const double = scripted();
+  const sink = { sets: [] as { uri: string; count: number }[] };
+  const client = clientFor(double, sink);
+  client.didOpen({ uri: 'file:///a.md', languageId: 'markdown', version: 1, text: 'before startup' });
+  await client.start();
+
+  const watch = Date.now();
+  while (sink.sets.length < 1 && Date.now() - watch < 5000) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(sink.sets.length, 1);
+  assert.ok(double.child.written.some((line) => line.includes('textDocument/didOpen')));
+});
+
 test('100 rapid edits coalesce onto the final version', async () => {
   const double = scripted();
   const sink = { sets: [] as { uri: string; count: number }[] };

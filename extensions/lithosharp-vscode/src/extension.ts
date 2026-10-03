@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { execFile as execFileCallback } from 'node:child_process';
+import { execFile as execFileCallback, spawn as spawnChildProcess } from 'node:child_process';
 import * as nodeFs from 'node:fs';
 import * as nodePath from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { promisify } from 'node:util';
 import { findProjectCandidates, keyOf, type ProjectCandidate } from './projectDetector.js';
 import { requireTrusted } from './trust.js';
@@ -68,11 +69,18 @@ function workerFileSystem(): WorkerFileSystem {
     ensureDir: async (dirPath) => {
       await fsPromises.mkdir(dirPath, { recursive: true });
     },
+    writeFile: async (filePath, contents) => {
+      await fsPromises.writeFile(filePath, contents, 'utf8');
+    },
     copySourceTree: copyTree,
     runNpmCi: async (cwd) => {
       // Lifecycle scripts stay off: restored packages never execute on install.
       try {
-        const { stdout } = await execFile('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd });
+        const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
+        const args = process.platform === 'win32'
+          ? ['/d', '/c', 'npm.cmd ci --ignore-scripts --no-audit --no-fund']
+          : ['ci', '--ignore-scripts', '--no-audit', '--no-fund'];
+        const { stdout } = await execFile(command, args, { cwd, maxBuffer: 16 * 1024 * 1024 });
         return { exit: 0, stdout: String(stdout), stderr: '' };
       } catch (error) {
         const stderr = error instanceof Error ? error.message : String(error);
@@ -157,7 +165,14 @@ export function activate(context: vscode.ExtensionContext): void {
   status.command = 'lithosharp.selectProject';
   const state: { current: ProjectState } = { current: { kind: 'none', candidates: 0 } };
   const servers = new Map<string, ServeController>();
+  const buildRunners = new Map<string, BuildRunner>();
+  const buildCliCommands = new Map<string, CliCommand>();
+  const userStartedServers = new Set<string>();
+  const projectContexts = new Map<string, { folders: string[]; snapshot: unknown }>();
+  const projectGenerations = new Map<string, number>();
   let lsp: LspClient | undefined;
+  let lspStarting: Promise<LspClient | undefined> | undefined;
+  let missingLspPathLogged = false;
   const diagnosticsCollection = vscode.languages.createDiagnosticCollection('lithosharp');
   const previews = new PreviewManager(
     {
@@ -262,15 +277,224 @@ export function activate(context: vscode.ExtensionContext): void {
     return resolved.command;
   };
 
-  const realRunProbe = (): import('./buildRunner.js').RunProbe => ({
-    run: async (command, cwd) => {
-      const { execFile } = await import('node:child_process');
-      return await new Promise((resolve) => {
-        execFile(command[0]!, command.slice(1), { cwd, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
-          resolve({ exit: error ? 1 : 0, stdout: String(stdout), stderr: String(stderr) });
-        });
+  const buildRunnerFor = (selected: ProjectCandidate, cli: CliCommand): BuildRunner => {
+    const key = keyOf(selected);
+    buildCliCommands.set(key, cli);
+    let runner = buildRunners.get(key);
+    if (!runner) {
+      runner = new BuildRunner({
+        isTrusted: () => vscode.workspace.isTrusted,
+        cli: (name) => {
+          const current = buildCliCommands.get(key) ?? cli;
+          return {
+            command: [...current.command, name, selected.projectPath, '--format', 'json'],
+            cwd: current.cwd,
+          };
+        },
+        cwd: selected.workspaceFolder,
+        probe: realRunProbe(),
+        onLog: (line) => output.appendLine(line),
       });
-    },
+      buildRunners.set(key, runner);
+      context.subscriptions.push({ dispose: () => runner!.dispose() });
+    }
+    return runner;
+  };
+
+  const createProjectContext = (
+    selected: ProjectCandidate,
+    raw: unknown,
+    generation: number,
+  ): { folders: string[]; snapshot: unknown } | undefined => {
+    if (typeof raw !== 'object' || raw === null) return undefined;
+    const response = raw as Record<string, unknown>;
+    const coreVersion = response['projectCoreVersion'];
+    const buildPlan = response['buildPlan'];
+    if (typeof coreVersion !== 'string' || !/^\d+\.\d+\.\d+/.test(coreVersion) || !Array.isArray(buildPlan)) {
+      return undefined;
+    }
+
+    const projectId = keyOf(selected);
+    const projectRoot = nodePath.dirname(selected.projectPath);
+    const routes: Record<string, unknown>[] = [];
+    const seen = new Set<string>();
+    const schemas = new Set<string>();
+    const textInput = (inputs: Record<string, unknown>[], key: string): string | undefined => {
+      const value = inputs.find((input) => input['key'] === key)?.['value'];
+      return typeof value === 'string' ? value : undefined;
+    };
+    const field = (value: Record<string, unknown>, pascal: string, camel: string): unknown =>
+      value[pascal] ?? value[camel];
+
+    for (const item of buildPlan) {
+      if (typeof item !== 'object' || item === null) continue;
+      const node = item as Record<string, unknown>;
+      const inputs = Array.isArray(node['inputs'])
+        ? node['inputs'].filter((input): input is Record<string, unknown> => typeof input === 'object' && input !== null)
+        : [];
+      const contentSource = textInput(inputs, 'content.sourcePath');
+      const legacySource = textInput(inputs, 'page.source');
+      const source = contentSource ?? legacySource;
+      if (!source || !Array.isArray(node['artifacts'])) continue;
+      const schema = contentSource
+        ? textInput(inputs, 'content.schema') ?? 'custom'
+        : 'post';
+      schemas.add(schema);
+      const contentRoot = contentSource ? textInput(inputs, 'content.inputRoot') : undefined;
+      const sourcePath = nodePath.resolve(projectRoot, contentRoot ?? '.', source).replace(/\\/g, '/');
+      const metadataText = textInput(inputs, 'content.metadata');
+      let metadata: Record<string, unknown> = {};
+      if (metadataText) {
+        try {
+          const parsed: unknown = JSON.parse(metadataText);
+          if (typeof parsed === 'object' && parsed !== null) metadata = parsed as Record<string, unknown>;
+        } catch {
+          // Route lookup remains useful when optional metadata is unavailable.
+        }
+      }
+      const document = field(metadata, 'Document', 'document');
+      const documentKey = typeof document === 'object' && document !== null
+        ? document as Record<string, unknown>
+        : {};
+      const collectionInput = inputs.find((input) => input['kind'] === 'Collection');
+      const collectionValue = field(documentKey, 'Collection', 'collection')
+        ?? collectionInput?.['key']
+        ?? (legacySource ? 'posts' : 'site');
+      const versionValue = field(documentKey, 'Version', 'version') ?? 'current';
+      const localeValue = field(documentKey, 'Locale', 'locale')
+        ?? field(metadata, 'Language', 'language')
+        ?? 'default';
+      const collection = typeof collectionValue === 'string' ? collectionValue : 'site';
+      const version = typeof versionValue === 'string' ? versionValue : 'current';
+      const locale = typeof localeValue === 'string' ? localeValue : 'default';
+      const publication = contentSource && textInput(inputs, 'content.publication') === 'unlisted'
+        ? 'Unlisted'
+        : 'Published';
+
+      for (const artifact of node['artifacts']) {
+        if (typeof artifact !== 'object' || artifact === null) continue;
+        const output = artifact as Record<string, unknown>;
+        if (typeof output['publicPath'] !== 'string' || typeof output['path'] !== 'string') continue;
+        const unique = `${sourcePath}\0${output['publicPath']}`;
+        if (seen.has(unique)) continue;
+        seen.add(unique);
+        routes.push({
+          sourcePath,
+          publicPath: output['publicPath'],
+          projectId,
+          collection,
+          version,
+          locale,
+          publication,
+        });
+      }
+    }
+
+    return {
+      folders: [vscode.Uri.file(selected.workspaceFolder).toString()],
+      snapshot: {
+        schemaVersion: '1.0',
+        projectId,
+        projectGeneration: generation,
+        coreVersion,
+        collection: 'site',
+        language: 'markdown',
+        // Mixed schemas deliberately degrade to syntax/route context only.
+        schema: schemas.size === 1 ? [...schemas][0]! : 'custom',
+        version: 'current',
+        locale: 'default',
+        acquiredAt: new Date().toISOString(),
+        routes,
+      },
+    };
+  };
+
+  const updateProjectContext = (selected: ProjectCandidate, raw: unknown): void => {
+    const key = keyOf(selected);
+    const generation = (projectGenerations.get(key) ?? 0) + 1;
+    const context = createProjectContext(selected, raw, generation);
+    if (!context) {
+      output.appendLine('Project context was not acquired; editor diagnostics remain syntax-only.');
+      return;
+    }
+    projectGenerations.set(key, generation);
+    projectContexts.set(key, context);
+    lsp?.sendProjectContext(key, context.folders, context.snapshot);
+  };
+
+  const realRunProbe = (): import('./buildRunner.js').RunProbe => ({
+    run: (command, cwd, _input, signal) => new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        resolve({ exit: 130, stdout: '', stderr: 'CLI invocation was cancelled.' });
+        return;
+      }
+      const child = spawnChildProcess(command[0]!, command.slice(1), {
+        cwd,
+        detached: process.platform !== 'win32',
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const stdoutDecoder = new StringDecoder('utf8');
+      const stderrDecoder = new StringDecoder('utf8');
+      const maxBytes = 16 * 1024 * 1024;
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      let stdout = '';
+      let stderr = '';
+      let overflow = false;
+      let killTreeTask: Promise<void> | undefined;
+      const onAbort = (): void => {
+        if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
+        if (process.platform === 'win32') {
+          killTreeTask = new Promise<void>((done) => {
+            const killer = spawnChildProcess('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+              stdio: 'ignore',
+              windowsHide: true,
+            });
+            killer.once('error', () => {
+              child.kill();
+              done();
+            });
+            killer.once('close', () => done());
+          });
+        } else {
+          try {
+            process.kill(-child.pid, 'SIGKILL');
+          } catch {
+            child.kill('SIGKILL');
+          }
+        }
+      };
+      child.stdout?.on('data', (chunk: Buffer) => {
+        stdoutBytes += chunk.length;
+        if (stdoutBytes <= maxBytes) stdout += stdoutDecoder.write(chunk);
+        else overflow = true;
+      });
+      child.stderr?.on('data', (chunk: Buffer) => {
+        stderrBytes += chunk.length;
+        if (stderrBytes <= maxBytes) stderr += stderrDecoder.write(chunk);
+        else overflow = true;
+      });
+      child.once('error', (error) => {
+        if (signal) signal.removeEventListener('abort', onAbort);
+        reject(error);
+      });
+      child.once('close', (code) => {
+        void (async () => {
+          if (signal) signal.removeEventListener('abort', onAbort);
+          if (killTreeTask) await killTreeTask;
+          stdout += stdoutDecoder.end();
+          stderr += stderrDecoder.end();
+          resolve(overflow
+            ? { exit: 1, stdout: '', stderr: 'CLI output exceeded the 16 MiB capture limit.' }
+            : { exit: code ?? 1, stdout, stderr });
+        })();
+      });
+      if (signal) {
+        signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) onAbort();
+      }
+    }),
   });
 
   const runOneShot = async (command: 'build' | 'check' | 'inspect'): Promise<void> => {
@@ -281,16 +505,13 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const cli = await cliFor(selected);
-    const runner = new BuildRunner({
-      isTrusted: () => vscode.workspace.isTrusted,
-      cli: (name) => ({ command: [...cli.command, name, selected.projectPath, '--format', 'json'], cwd: cli.cwd }),
-      cwd: selected.workspaceFolder,
-      probe: realRunProbe(),
-      onLog: (line) => output.appendLine(line),
-    });
+    const runner = buildRunnerFor(selected, cli);
     const result = await runner.run(command);
     if (result.ok) {
       output.appendLine(`LithoSharp ${command} succeeded (exit ${result.exitCode}). Validation only; not a publish approval.`);
+      if (command === 'build' || command === 'inspect') {
+        updateProjectContext(selected, result.raw);
+      }
       if (result.diagnosticsText) {
         output.appendLine(result.diagnosticsText);
       }
@@ -322,15 +543,19 @@ export function activate(context: vscode.ExtensionContext): void {
           output.appendLine(`Rebuild failed: ${event.error ?? 'unknown error'}`);
         }
         previews.onServerEvent(
-          { key, url: created.url, generation: created.generation, owned: false, stop: () => created.stop() },
-          event.event === 'startup' || event.event === 'shutdown'
-            ? { event: event.event, generation: created.generation, url: created.url ?? undefined }
-            : event.event === 'rebuild-started'
-              ? { event: 'rebuild-started' }
-              : { event: event.event, generation: created.generation },
+          { key, url: created.url, generation: created.generation, owned: !userStartedServers.has(key), stop: () => created.stop() },
+          {
+            event: event.event,
+            generation: 'generation' in event ? event.generation : created.generation,
+            url: event.event === 'startup' ? event.url : undefined,
+          },
         );
         const current = servers.get(key);
         status.text = `LithoSharp: ${current ? current.getState() : 'Stopped'}${current?.url ? ` ${current.url}` : ''}`;
+        status.show();
+      },
+      onState: (next) => {
+        status.text = `LithoSharp: ${next}${created.url ? ` ${created.url}` : ''}`;
         status.show();
       },
       onLog: (line) => output.appendLine(line),
@@ -342,23 +567,36 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const previewRoutes = async (selected: ProjectCandidate): Promise<InspectedRoute[]> => {
     const cli = await cliFor(selected);
-    const runner = new BuildRunner({
-      isTrusted: () => vscode.workspace.isTrusted,
-      cli: (name) => ({ command: [...cli.command, name, selected.projectPath, '--format', 'json'], cwd: cli.cwd }),
-      cwd: selected.workspaceFolder,
-      probe: realRunProbe(),
-      onLog: (line) => output.appendLine(line),
-    });
+    const runner = buildRunnerFor(selected, cli);
     const result = await runner.run('inspect');
     if (!result.ok) {
       return [];
     }
-    const raw = result.raw as { buildPlan?: { artifacts?: { path?: unknown; publicPath?: unknown }[] }[] };
+    updateProjectContext(selected, result.raw);
+    const raw = result.raw as {
+      buildPlan?: {
+        inputs?: { key?: unknown; value?: unknown }[];
+        artifacts?: { path?: unknown; publicPath?: unknown }[];
+      }[];
+    };
     const routes: InspectedRoute[] = [];
     for (const node of raw.buildPlan ?? []) {
+      const inputs = node.inputs ?? [];
+      const contentRoot = inputs.find((input) => input.key === 'content.inputRoot')?.value;
+      const contentSource = inputs.find((input) => input.key === 'content.sourcePath')?.value;
+      const legacySource = inputs.find((input) => input.key === 'page.source')?.value;
+      const source = typeof contentSource === 'string' ? contentSource : legacySource;
+      if (typeof source !== 'string') {
+        continue;
+      }
+      const sourcePath = nodePath.resolve(
+        nodePath.dirname(selected.projectPath),
+        typeof contentSource === 'string' && typeof contentRoot === 'string' ? contentRoot : '.',
+        source,
+      );
       for (const artifact of node.artifacts ?? []) {
         if (typeof artifact.path === 'string' && typeof artifact.publicPath === 'string') {
-          routes.push({ path: artifact.path, publicPath: artifact.publicPath });
+          routes.push({ sourcePath, path: artifact.path, publicPath: artifact.publicPath });
         }
       }
     }
@@ -377,31 +615,33 @@ export function activate(context: vscode.ExtensionContext): void {
       output.appendLine('LithoSharp: no project selected. Run LithoSharp: Select Project first.');
       return;
     }
+    const key = keyOf(selected);
     const controller = serverFor(selected, await cliFor(selected));
-    const owned = controller.getState() === 'Stopped';
-    if (owned) {
+    const owned = !controller.isServing() && !userStartedServers.has(key);
+    if (!controller.isServing()) {
       controller.start();
     }
-    const routes = await previewRoutes(selected);
-    const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-    const relative = folder
-      ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
-      : editor.document.fileName.replace(/\\/g, '/');
-    await previews.open(relative, routes, {
-      key: keyOf(selected),
-      url: controller.url,
-      generation: controller.generation,
-      owned,
-      stop: () => controller.stop(),
-    }, editor.document.isDirty);
+    try {
+      const routesTask = previewRoutes(selected);
+      const [routes] = await Promise.all([routesTask, controller.waitUntilRunning()]);
+      const opened = await previews.open(editor.document.uri.fsPath, routes, {
+        key,
+        url: controller.url,
+        generation: controller.generation,
+        owned,
+        stop: () => controller.stop(),
+      }, editor.document.isDirty);
+      if (owned && !opened) {
+        controller.stop();
+      }
+    } catch (error) {
+      output.appendLine(`LithoSharp preview could not start: ${String(error)}`);
+    }
   };
 
   const selector: vscode.DocumentSelector = [{ language: 'markdown' }, { language: 'mdx' }];
 
-  const ensureLsp = async (): Promise<LspClient | undefined> => {
-    if (lsp) {
-      return lsp;
-    }
+  const startLsp = async (): Promise<LspClient | undefined> => {
     if (!vscode.workspace.isTrusted) {
       return undefined;
     }
@@ -411,9 +651,13 @@ export function activate(context: vscode.ExtensionContext): void {
     // guessed or auto-installed.
     const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '').trim();
     if (explicitServer === '') {
-      output.appendLine('Language server: set lithosharp.languageServerPath to enable live diagnostics.');
+      if (!missingLspPathLogged) {
+        output.appendLine('Language server: set lithosharp.languageServerPath to enable live diagnostics.');
+        missingLspPathLogged = true;
+      }
       return undefined;
     }
+    missingLspPathLogged = false;
     // The worker directory rides along when one is resolvable; without it the
     // server still diagnoses Markdown and degrades MDX with an explanation.
     let workerDirectory = '';
@@ -465,12 +709,46 @@ export function activate(context: vscode.ExtensionContext): void {
     lsp = client;
     try {
       await client.start();
+      for (const [projectId, projectContext] of projectContexts) {
+        client.sendProjectContext(projectId, projectContext.folders, projectContext.snapshot);
+      }
+      if (projectContexts.size === 0) {
+        output.appendLine('Project context not acquired; live diagnostics are syntax-only until an explicit Build or Inspect succeeds.');
+      }
     } catch (error) {
       lsp = undefined;
       output.appendLine(`Language server failed to start: ${String(error)}`);
       return undefined;
     }
     return client;
+  };
+
+  const ensureLsp = async (): Promise<LspClient | undefined> => {
+    if (lspStarting) return lspStarting;
+    if (lsp) return lsp;
+    if (!vscode.workspace.isTrusted) return undefined;
+    lspStarting = startLsp();
+    try {
+      return await lspStarting;
+    } finally {
+      lspStarting = undefined;
+    }
+  };
+
+  const openExistingDocuments = (): void => {
+    if (!vscode.workspace.isTrusted) return;
+    for (const document of vscode.workspace.textDocuments ?? []) {
+      if (document.languageId === 'markdown' || document.languageId === 'mdx') {
+        void ensureLsp().then((client) => {
+          client?.didOpen({
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            version: document.version,
+            text: document.getText(),
+          });
+        });
+      }
+    }
   };
 
   context.subscriptions.push(
@@ -502,6 +780,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       void refresh();
     }),
+    vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      void refresh();
+      openExistingDocuments();
+    }),
     vscode.workspace.onDidOpenTextDocument((document) => {
       if (!vscode.workspace.isTrusted) {
         return;
@@ -514,6 +796,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!vscode.workspace.isTrusted) {
         return;
       }
+      previews.onDocumentDirty(event.document.uri.fsPath, event.document.isDirty);
       void ensureLsp().then((client) => {
         client?.didChange(event.document.uri.toString(), event.document.version, event.document.getText());
       });
@@ -522,6 +805,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!vscode.workspace.isTrusted) {
         return;
       }
+      previews.onDocumentDirty(document.uri.fsPath, false);
       void ensureLsp().then((client) => {
         client?.didSave(document.uri.toString());
       });
@@ -548,18 +832,26 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!client) {
           return [];
         }
-        const symbols = await (async () => {
-          let cancel: (() => void) | undefined;
-          const pending = client.requestSymbols(document.uri.toString(), (fn) => {
-            cancel = fn;
-          });
-          const off = token.onCancellationRequested(() => cancel?.());
-          try {
-            return await pending;
-          } finally {
-            off.dispose();
+        let symbols: import('./symbols.js').SymbolData[];
+        try {
+          symbols = await (async () => {
+            let cancel: (() => void) | undefined;
+            const pending = client.requestSymbols(document.uri.toString(), (fn) => {
+              cancel = fn;
+            });
+            const off = token.onCancellationRequested(() => cancel?.());
+            try {
+              return await pending;
+            } finally {
+              off.dispose();
+            }
+          })();
+        } catch (error) {
+          if (!token.isCancellationRequested) {
+            output.appendLine(`Language server symbols failed: ${String(error)}`);
           }
-        })();
+          return [];
+        }
         const toVs = (items: typeof symbols): vscode.DocumentSymbol[] =>
           items.map((item) => {
             const symbol = new vscode.DocumentSymbol(
@@ -608,6 +900,9 @@ export function activate(context: vscode.ExtensionContext): void {
         output.appendLine('LithoSharp: no project selected. Run LithoSharp: Select Project first.');
         return;
       }
+      const key = keyOf(selected);
+      userStartedServers.add(key);
+      previews.markServerUserOwned(key);
       const controller = serverFor(selected, await cliFor(selected));
       controller.start();
       status.text = `LithoSharp: ${controller.getState()}`;
@@ -625,6 +920,7 @@ export function activate(context: vscode.ExtensionContext): void {
         output.appendLine('LithoSharp: server is not running for this project.');
         return;
       }
+      userStartedServers.delete(keyOf(selected));
       controller.stop();
     }),
     vscode.commands.registerCommand('lithosharp.openPreview', async () => {
@@ -638,10 +934,8 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-      const relative = folder
-        ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
-        : editor.document.fileName.replace(/\\/g, '/');
-      previews.refreshPanel(relative, keyOf(selected));
+      if (!folder) return;
+      previews.refreshPanel(editor.document.uri.fsPath, keyOf(selected));
     }),
     vscode.commands.registerCommand('lithosharp.openInBrowser', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'open the browser');
@@ -651,13 +945,12 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-      const relative = folder
-        ? vscode.workspace.asRelativePath(editor.document.uri).replace(/\\/g, '/')
-        : editor.document.fileName.replace(/\\/g, '/');
-      await previews.openExternal(relative, keyOf(selected));
+      if (!folder) return;
+      await previews.openExternal(editor.document.uri.fsPath, keyOf(selected));
     }),
   );
   void refresh();
+  openExistingDocuments();
 }
 
 export function deactivate(): void {

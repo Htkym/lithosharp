@@ -28,6 +28,7 @@ param(
     [Parameter(Mandatory)] [ValidateSet('markdown', 'mdx')] [string] $Harness,
     [Parameter(Mandatory)] [string] $RunId,
     [string] $Label = 'unlabeled',
+    [string] $TaskId = 'V110-04',
     [string] $Sizes = '1000',
     [string] $Scenarios,
     [ValidateRange(1, 20)] [int] $Runs = 5,
@@ -301,8 +302,23 @@ $all = [Collections.Generic.List[object]]::new()
 foreach ($item in $existing) { $all.Add($item) }
 foreach ($item in $records) { $all.Add($item) }
 
+# The B0/B1 harnesses predate --scenario. Keep those failed invocations in the
+# raw ledger, but do not count their argument errors as workload attempts.
+$excluded = @($all | Where-Object {
+    $label = [string](Get-Property $_ 'label')
+    $status = [string](Get-Property $_ 'status')
+    $command = @(Get-Property $_ 'command' @())
+    $label -in @('B0', 'B1') -and $status -ne 'completed' -and $command -contains '--scenario'
+})
+$included = @($all | Where-Object {
+    $label = [string](Get-Property $_ 'label')
+    $status = [string](Get-Property $_ 'status')
+    $command = @(Get-Property $_ 'command' @())
+    !($label -in @('B0', 'B1') -and $status -ne 'completed' -and $command -contains '--scenario')
+})
+
 $cells = [Collections.Generic.List[object]]::new()
-foreach ($group in ($all | Group-Object { "$(Get-Property $_ 'harness')|$(Get-Property $_ 'size')|$(Get-Property $_ 'scenario')" })) {
+foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(Get-Property $_ 'size')|$(Get-Property $_ 'scenario')" })) {
     $items = @($group.Group)
     $completed = @($items | Where-Object { (Get-Property $_ 'status') -eq 'completed' })
     $values = [Collections.Generic.List[double]]::new()
@@ -332,7 +348,7 @@ foreach ($group in ($all | Group-Object { "$(Get-Property $_ 'harness')|$(Get-Pr
 $summary = [ordered]@{
     schemaVersion = '1.0'
     planVersion   = '1.1.0'
-    taskId        = 'V110-04'
+    taskId        = $TaskId
     runId         = $RunId
     label         = $Label
     harnessRoot   = $HarnessRoot
@@ -345,6 +361,18 @@ $summary = [ordered]@{
     stateRoot     = $StateRoot
     ledger        = $ledgerPath
     capturedAt    = (Get-Date).ToUniversalTime().ToString('o')
+    recordCount   = $all.Count
+    comparedRecordCount = $included.Count
+    excludedRecords = @($excluded | ForEach-Object { [ordered]@{
+        harness = Get-Property $_ 'harness'
+        label = Get-Property $_ 'label'
+        size = Get-Property $_ 'size'
+        scenario = Get-Property $_ 'scenario'
+        requestedScenario = Get-Property $_ 'requestedScenario'
+        run = Get-Property $_ 'run'
+        status = Get-Property $_ 'status'
+        reason = 'The baseline harness does not support --scenario; the failed invocation remains in the raw ledger.'
+    } })
     environment   = [ordered]@{
         os           = [Runtime.InteropServices.RuntimeInformation]::OSDescription
         architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -357,6 +385,9 @@ $summary = [ordered]@{
 
 [IO.File]::WriteAllText($summaryPath, ($summary | ConvertTo-Json -Depth 12))
 Write-Host ("wrote {0} ({1} cells, {2} records)" -f $summaryPath, $cells.Count, $all.Count)
+if ($excluded.Count -gt 0) {
+    Write-Host ("Excluded {0} unsupported B0/B1 --scenario invocations from statistics; raw records remain in the ledger." -f $excluded.Count)
+}
 if (@($cells | Where-Object { $_.status -ne 'measured' }).Count -gt 0) {
     Write-Host 'Some cells are partial or blocked; see the summary.'
 }

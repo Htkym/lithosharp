@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('All', 'CoreTag', 'ExtensionTag')]
-    [string] $Check = 'All'
+    [string] $Check = 'All',
+    [string] $Tag
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,6 +66,8 @@ function Test-ExtensionTag {
     if ($extension -notmatch 'workflow_dispatch') { Fail 'publish-extension.yml lost its manual dispatch.' }
     if ($extension -notmatch 'environment:\s*marketplace') { Fail 'publish-extension.yml lost its marketplace environment approval.' }
     if ($extension -notmatch 'VSCE_PUBLISHER') { Fail 'publish-extension.yml lost its publisher-account gate.' }
+    if ($extension -notmatch 'npm pkg set "publisher=') { Fail 'publish-extension.yml does not package the VSIX with its configured publisher.' }
+    if ($extension -notmatch 'VSCE_PAT') { Fail 'publish-extension.yml lost its Marketplace credential gate.' }
     if ($extension -match 'vsce publish' -and $extension -notmatch "inputs\.publish == 'true'") {
         Fail 'publish-extension.yml can publish without the explicit publish input.'
     }
@@ -74,6 +77,7 @@ function Test-ExtensionTag {
     if ($package.PSObject.Properties['publisher']) { Fail 'extension package.json must not claim a publisher before the account exists.' }
     $tag = "extension/lithosharp-vscode/$version"
     if ($tag -like 'v*') { Fail "extension tag '$tag' collides with the Core v* series." }
+    if ($Tag -and $Tag -cne $tag) { Fail "extension tag '$Tag' does not match package version $version (expected '$tag')." }
     foreach ($script in @('eng/Test-VsixContents.ps1')) {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw
         if ($text -match 'vsce publish|nuget push') { Fail "$script mixes packaging with publishing." }

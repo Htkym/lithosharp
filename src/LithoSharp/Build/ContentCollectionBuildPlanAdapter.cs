@@ -135,6 +135,8 @@ internal static class ContentCollectionBuildPlanAdapter
         yield return BuildInput.FromValue("content.page", page.PageId.Value);
         yield return BuildInput.FromValue("content.inputRoot", page.InputRoot);
         yield return BuildInput.FromValue("content.sourcePath", page.SourcePath);
+        yield return BuildInput.FromValue("content.schema", page.FrontMatterSchema);
+        yield return BuildInput.FromValue("content.publication", page.IsUnlisted ? "unlisted" : "published");
         yield return BuildInput.FromValue("content.sourceFingerprint", page.SourceFingerprint);
         yield return BuildInput.FromValue(
             "content.transformation",

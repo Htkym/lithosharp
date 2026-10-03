@@ -36,6 +36,7 @@ export interface ServeControllerOptions {
   /** Bounded stderr retention for diagnostics display. */
   maxStderrChars?: number;
   onEvent?: (event: ServeEvent) => void;
+  onState?: (state: ServeState) => void;
   onLog?: (line: string) => void;
 }
 
@@ -53,6 +54,7 @@ export class ServeController {
   private shutdownTimer: NodeJS.Timeout | undefined;
   private startupTimer: NodeJS.Timeout | undefined;
   private stopped = false;
+  private readonly startWaiters = new Set<{ resolve(): void; reject(error: Error): void }>();
 
   url: string | null = null;
   actualPort = 0;
@@ -69,11 +71,36 @@ export class ServeController {
     return this.stderrKept;
   }
 
+  isServing(): boolean {
+    return this.child !== undefined && this.url !== null && this.state !== 'Stopping' && this.state !== 'Stopped';
+  }
+
+  /** Waits for the real startup event; the startup timeout settles this promise. */
+  waitUntilRunning(): Promise<void> {
+    if (this.isServing()) {
+      return Promise.resolve();
+    }
+    if (this.state === 'Failed' || this.state === 'Stopped' || this.state === 'Stopping' || this.stopped) {
+      return Promise.reject(new Error(this.lastError ?? 'Serve is not starting.'));
+    }
+    return new Promise<void>((resolve, reject) => {
+      const waiter = { resolve, reject };
+      this.startWaiters.add(waiter);
+      if (this.isServing()) {
+        this.startWaiters.delete(waiter);
+        resolve();
+      } else if (this.state === 'Failed' || this.state === 'Stopped' || this.state === 'Stopping' || this.stopped) {
+        this.startWaiters.delete(waiter);
+        reject(new Error(this.lastError ?? 'Serve stopped before startup.'));
+      }
+    });
+  }
+
   start(): ServeState {
     if (this.stopped) {
       return this.state;
     }
-    if (this.state === 'Starting' || this.state === 'Running' || this.state === 'Rebuilding') {
+    if (this.child || this.state === 'Starting' || this.state === 'Running' || this.state === 'Rebuilding') {
       return this.state;
     }
     if (this.state === 'Stopping') {
@@ -83,7 +110,18 @@ export class ServeController {
     this.pending = '';
     this.decoder.end();
     this.state = 'Starting';
-    const child = this.options.spawn(this.options.cliCommand, this.options.cwd);
+    this.options.onState?.(this.state);
+    let child: SpawnedProcess;
+    try {
+      child = this.options.spawn(this.options.cliCommand, this.options.cwd);
+    } catch (error) {
+      this.lastError = `Serve process could not start: ${String(error)}`;
+      this.options.onLog?.(this.lastError);
+      this.state = 'Failed';
+      this.rejectStartWaiters(new Error(this.lastError));
+      this.options.onState?.(this.state);
+      return this.state;
+    }
     this.child = child;
     child.onStdout((chunk) => this.ingestStdout(chunk));
     child.onStderr((chunk) => this.ingestStderr(chunk));
@@ -102,6 +140,14 @@ export class ServeController {
       return this.state;
     }
     this.state = 'Stopping';
+    this.clearStartupTimer();
+    this.rejectStartWaiters(new Error('Serve stopped before startup.'));
+    this.options.onState?.(this.state);
+    if (!this.child) {
+      this.state = 'Stopped';
+      this.options.onState?.(this.state);
+      return this.state;
+    }
     // Structured stdin shutdown first, even mid-startup: the CLI honors it
     // before serving. Tree recovery is the last resort after a timeout.
     this.requestStop(requestId);
@@ -113,8 +159,10 @@ export class ServeController {
     this.stopped = true;
     if (this.state !== 'Stopped' && this.state !== 'Stopping') {
       this.state = 'Stopping';
+      this.rejectStartWaiters(new Error('Serve controller was disposed before startup.'));
       this.requestStop('dispose');
     }
+    this.options.onState?.(this.state);
     // Keep the recovery timer armed (unref'd): a stuck server is still
     // reclaimed after unload without holding the host open.
     this.armShutdownTimer();
@@ -179,7 +227,6 @@ export class ServeController {
       return;
     }
     const event = parsed as unknown as ServeEvent;
-    this.options.onEvent?.(event);
     switch (event.event) {
       case 'startup':
         this.clearStartupTimer();
@@ -187,17 +234,20 @@ export class ServeController {
         this.actualPort = event.actualPort;
         this.generation = event.generation;
         this.lastError = null;
-        this.state = 'Running';
+        if (this.state !== 'Stopping' && !this.stopped) {
+          this.state = 'Running';
+          this.resolveStartWaiters();
+        }
         break;
       case 'rebuild-started':
-        if (this.state === 'Running') {
+        if (this.child && this.state !== 'Stopping' && !this.stopped) {
           this.state = 'Rebuilding';
         }
         break;
       case 'rebuild-succeeded':
         this.generation = event.generation;
         this.lastError = null;
-        if (this.state === 'Rebuilding') {
+        if (this.child && this.state !== 'Stopping' && !this.stopped) {
           this.state = 'Running';
         }
         break;
@@ -217,6 +267,8 @@ export class ServeController {
       default:
         break;
     }
+    this.options.onEvent?.(event);
+    this.options.onState?.(this.state);
   }
 
   private ingestStderr(chunk: Buffer): void {
@@ -233,6 +285,8 @@ export class ServeController {
     this.options.onLog?.(this.lastError);
     this.recoverTree();
     this.state = 'Failed';
+    this.rejectStartWaiters(new Error(this.lastError));
+    this.options.onState?.(this.state);
   }
 
   private onExit(code: number | null): void {
@@ -240,17 +294,38 @@ export class ServeController {
     this.child = undefined;
     if (this.stopped) {
       this.state = 'Stopped';
+      this.options.onState?.(this.state);
       return;
     }
     if (this.state === 'Stopping') {
       this.state = 'Stopped';
+      this.rejectStartWaiters(new Error('Serve stopped before startup.'));
+      this.options.onState?.(this.state);
       return;
     }
     // An unexpected exit is a failure, including a clean code without events.
     if (this.state !== 'Stopped') {
-      this.lastError = `Serve process exited unexpectedly (code ${code ?? 'unknown'}).`;
+      if (this.state !== 'Failed') {
+        this.lastError = `Serve process exited unexpectedly (code ${code ?? 'unknown'}).`;
+      }
       this.state = 'Failed';
+      this.rejectStartWaiters(new Error(this.lastError ?? 'Serve process exited before startup.'));
+      this.options.onState?.(this.state);
     }
+  }
+
+  private resolveStartWaiters(): void {
+    for (const waiter of this.startWaiters) {
+      waiter.resolve();
+    }
+    this.startWaiters.clear();
+  }
+
+  private rejectStartWaiters(error: Error): void {
+    for (const waiter of this.startWaiters) {
+      waiter.reject(error);
+    }
+    this.startWaiters.clear();
   }
 
   private recoverTree(): void {

@@ -181,10 +181,8 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();
                         if (missing.Length == 0 || sources.Count + missing.Length > 10000)
-                            throw new SiteBuildExtensionException(response.GetProperty("diagnostics").EnumerateArray().Select(diagnostic =>
-                                new SiteDiagnostic(diagnostic.GetProperty("id").GetString()!, SiteDiagnosticSeverity.Error,
-                                    diagnostic.GetProperty("message").GetString()!, string.IsNullOrEmpty(diagnostic.GetProperty("file").GetString()) ? null : new SiteSourceLocation(diagnostic.GetProperty("file").GetString()!,
-                                        diagnostic.GetProperty("line").GetInt32(), diagnostic.GetProperty("column").GetInt32()))));
+                            throw new SiteBuildExtensionException(response.GetProperty("diagnostics").EnumerateArray()
+                                .Select(ReadWorkerDiagnostic));
                         foreach (var file in missing)
                         {
                             var relative = RelativeSource(file);
@@ -209,8 +207,27 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             if (!hit && options.Cacheable)
             {
                 var temporary = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                await File.WriteAllBytesAsync(temporary, JsonSerializer.SerializeToUtf8Bytes(new { hash = Hash(JsonSerializer.SerializeToUtf8Bytes(result)), result }), cancellationToken).ConfigureAwait(false);
-                File.Move(temporary, cachePath, overwrite: true);
+                try
+                {
+                    await File.WriteAllBytesAsync(temporary,
+                        JsonSerializer.SerializeToUtf8Bytes(new { hash = Hash(JsonSerializer.SerializeToUtf8Bytes(result)), result }),
+                        cancellationToken).ConfigureAwait(false);
+                    File.Move(temporary, cachePath, overwrite: true);
+                }
+                catch (Exception exception) when (!cancellationToken.IsCancellationRequested
+                    && exception is IOException or UnauthorizedAccessException or ArgumentException
+                        or NotSupportedException or System.ComponentModel.Win32Exception)
+                {
+                    // The bridge cache only saves work on later builds; it must not fail this one.
+                }
+                finally
+                {
+                    try
+                    {
+                        if (File.Exists(temporary)) File.Delete(temporary);
+                    }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+                }
             }
             IReadOnlyList<string> rebundledPageIds = hit
                 || !result.TryGetProperty("rebundledPages", out var rebundled)
@@ -251,6 +268,27 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         if (ids.Count != assets.Length || assets.Any(asset => asset.ReferencedAssetIds.Any(id => !ids.Contains(id))))
             throw MdxWorker.Failure("LSMDX003", "Worker returned duplicate assets or unresolved chunk references.");
         return assets;
+    }
+
+    private static SiteDiagnostic ReadWorkerDiagnostic(JsonElement diagnostic)
+    {
+        var file = diagnostic.TryGetProperty("file", out var fileValue) && fileValue.ValueKind == JsonValueKind.String
+            ? fileValue.GetString()
+            : null;
+        var line = diagnostic.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number
+            && lineValue.TryGetInt32(out var lineNumber) && lineNumber > 0 ? lineNumber : (int?)null;
+        var column = diagnostic.TryGetProperty("column", out var columnValue) && columnValue.ValueKind == JsonValueKind.Number
+            && columnValue.TryGetInt32(out var columnNumber) && columnNumber > 0 ? columnNumber : (int?)null;
+        SiteSourceLocation? location = string.IsNullOrEmpty(file)
+            ? null
+            : line is null ? new SiteSourceLocation(file) : new SiteSourceLocation(file, line, column);
+        return new SiteDiagnostic(
+            diagnostic.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
+                ? id.GetString()! : "LSMDX001",
+            SiteDiagnosticSeverity.Error,
+            diagnostic.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
+                ? message.GetString()! : "MDX worker reported an unspecified error.",
+            location);
     }
 
     private async Task<bool> InputsMatchAsync(JsonElement result, CancellationToken cancellationToken)
@@ -336,17 +374,36 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         {
             foreach (var directory in Directory.EnumerateDirectories(cacheRoot, "work-*"))
             {
-                if (Directory.GetLastWriteTimeUtc(directory) < cutoff)
+                try
                 {
+                    if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0
+                        || Directory.GetLastWriteTimeUtc(directory) >= cutoff
+                        || ContainsReparsePoint(directory))
+                    {
+                        continue;
+                    }
+
                     Directory.Delete(directory, recursive: true);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                {
+                    // Reclaiming leftovers must never fail a build.
                 }
             }
 
             foreach (var file in Directory.EnumerateFiles(cacheRoot, "*.tmp"))
             {
-                if (File.GetLastWriteTimeUtc(file) < cutoff)
+                try
                 {
-                    File.Delete(file);
+                    if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) == 0
+                        && File.GetLastWriteTimeUtc(file) < cutoff)
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                {
+                    // Reclaiming leftovers must never fail a build.
                 }
             }
         }
@@ -354,6 +411,30 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         {
             // Reclaiming leftovers must never fail a build.
         }
+    }
+
+    private static bool ContainsReparsePoint(string root)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.TryPop(out var directory))
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                var attributes = File.GetAttributes(entry);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return true;
+                }
+
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pending.Push(entry);
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <inheritdoc />

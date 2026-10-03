@@ -169,6 +169,18 @@ test('stop during Starting shuts down without serving', () => {
   assert.equal(controller.getState(), 'Stopped');
 });
 
+test('late startup event cannot undo a requested stop', () => {
+  const fake = fakeSpawn();
+  const controller = controllerFor(fake);
+  controller.start();
+  controller.stop('early');
+  fake.children[0]!.emitStdout(startup());
+  assert.equal(controller.getState(), 'Stopping');
+  assert.equal(fake.children[0]!.stdinLines.length, 1);
+  fake.children[0]!.exit(0);
+  assert.equal(controller.getState(), 'Stopped');
+});
+
 test('process crash becomes Failed', () => {
   const fake = fakeSpawn();
   const controller = controllerFor(fake);
@@ -225,6 +237,23 @@ test('rebuild generations track success and failure', () => {
   );
   assert.equal(controller.getState(), 'Failed');
   assert.equal(controller.lastError, 'broken');
+  // A failed rebuild keeps the server process alive; later successful rebuilds recover it.
+  assert.equal(controller.start(), 'Failed');
+  assert.equal(fake.children.length, 1);
+  fake.children[0]!.emitStdout(JSON.stringify({ schemaVersion: '1.0', event: 'rebuild-started' }) + '\n');
+  assert.equal(controller.getState(), 'Rebuilding');
+  fake.children[0]!.emitStdout(JSON.stringify({ schemaVersion: '1.0', event: 'rebuild-succeeded', generation: 4 }) + '\n');
+  assert.equal(controller.getState(), 'Running');
+});
+
+test('waitUntilRunning follows the startup event', async () => {
+  const fake = fakeSpawn();
+  const controller = controllerFor(fake);
+  controller.start();
+  const waiting = controller.waitUntilRunning();
+  fake.children[0]!.emitStdout(startup());
+  await waiting;
+  assert.equal(controller.isServing(), true);
 });
 
 test('dispose stops without throwing', () => {

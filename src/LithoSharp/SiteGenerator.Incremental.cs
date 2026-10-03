@@ -8,12 +8,11 @@ using LithoSharp.Content;
 namespace LithoSharp;
 
 public sealed partial class SiteGenerator
-{    private sealed record BuildExecutionResult(
+{
+    private sealed record BuildExecutionResult(
         string CacheKey,
         IReadOnlyList<SiteBuildReportNode> Nodes,
-        bool PublishedOutputRetained,
-        bool OverlayCommit,
-        IReadOnlyList<string> StagedArtifacts);
+        bool PublishedOutputRetained);
 
     private Dictionary<string, Func<string?, string>> CreatePlannedTemplateRenders(SiteTemplateContext context, ISiteTemplate template)
     {
@@ -82,11 +81,9 @@ public sealed partial class SiteGenerator
                     pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
             && transaction.CanBypassPublishedOutput(
                 plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
-        // A same-shape rebuild stages only the artifacts it regenerates and publishes them as an
-        // overlay, so unchanged artifacts are neither copied nor rewritten in the published tree.
-        var overlay = !bypass && !clean && !subset && transaction.TryEnableOverlayCommit(
-            plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
-        if (!bypass && !overlay)
+        // Never update a published tree in place: readers must not observe a mixture of build
+        // generations. A verified full no-op is the only path that skips staging.
+        if (!bypass)
         {
             await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
             timing.MarkTransaction();
@@ -163,21 +160,22 @@ public sealed partial class SiteGenerator
             }
         }
         timing.MarkExecution();
-        var cacheKey = bypass ? string.Empty : await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
-        IReadOnlyList<string> stagedArtifacts = overlay
-            ? reports.Values
-                .Where(static report => !report.CacheHit)
-                .SelectMany(static report => report.OwnedArtifacts)
-                .Select(path => SafeCombine(transaction.StagingRoot, path))
-                .Order(StringComparer.Ordinal)
-                .ToArray()
-            : [];
+        var cacheKey = string.Empty;
+        if (!bypass)
+        {
+            try
+            {
+                cacheKey = await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
+            {
+                // The output is still buildable; an unavailable cache only costs the next build time.
+            }
+        }
         return new BuildExecutionResult(
             cacheKey,
             reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray(),
-            bypass,
-            overlay,
-            stagedArtifacts);
+            bypass);
 
         string? ComputeNodeKey(BuildNode node, Func<string, string?> dependencyKey)
         {
@@ -214,7 +212,7 @@ public sealed partial class SiteGenerator
                 else
                     foreach (var artifact in old.Artifacts)
                     {
-                        var verifyRoot = bypass || overlay ? transaction.PublishedRoot : transaction.StagingRoot;
+                        var verifyRoot = bypass ? transaction.PublishedRoot : transaction.StagingRoot;
                         var verifyStart = Stopwatch.GetTimestamp();
                         var verified = await VerifyCachedArtifactAsync(verifyRoot, artifact, token).ConfigureAwait(false);
                         timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
@@ -255,8 +253,24 @@ public sealed partial class SiteGenerator
                 artifacts.Add(new CachedBuildArtifact(artifact.Id.Value, artifact.RelativeOutputPath, bytes.LongLength,
                     Convert.ToHexStringLower(SHA256.HashData(bytes))));
             }
-            var bodyHash = needsBody ? await cache.StoreBodyAsync(page!.DerivedContent ?? string.Empty, token).ConfigureAwait(false) : null;
-            SetBodyProvider(page, bodyHash);
+            var derivedBody = needsBody ? page!.DerivedContent ?? string.Empty : null;
+            string? bodyHash = null;
+            if (derivedBody is not null)
+            {
+                try
+                {
+                    bodyHash = await cache.StoreBodyAsync(derivedBody, token).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
+                {
+                    // Keep the rendered body in memory for this build if persistence fails.
+                }
+            }
+
+            if (bodyHash is not null)
+                SetBodyProvider(page, bodyHash);
+            else if (derivedBody is not null)
+                page!.SetDerivedContentProvider(() => derivedBody);
             page?.ClearRenderedContent();
             return (new CachedBuildNode(node.Id.Value, key, artifacts, bodyHash) { Inputs = inputs, Dependencies = dependencies },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
@@ -269,6 +283,10 @@ public sealed partial class SiteGenerator
                     ?? throw new InvalidOperationException("A verified rendered body became unavailable during generation."));
         }
     }
+
+    private static bool IsOptionalCacheWriteFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException
+            or NotSupportedException or System.ComponentModel.Win32Exception;
 
     private static async Task<bool> VerifyCachedArtifactAsync(string root, CachedBuildArtifact artifact, CancellationToken cancellationToken)
     {

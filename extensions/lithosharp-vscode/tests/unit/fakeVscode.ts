@@ -23,6 +23,7 @@ export interface FakeVscode {
   pickedIndex: number;
   configListeners: ((event: { affectsConfiguration(section: string): boolean }) => void)[];
   folderListeners: (() => void)[];
+  trustListeners: (() => void)[];
   statusText: string[];
   shown: number;
   lines: string[];
@@ -43,12 +44,14 @@ export interface FakeVscode {
   workspaceApi: {
     isTrusted: boolean;
     workspaceFolders: { uri: { fsPath: string }; name: string }[] | undefined;
+    textDocuments: { uri: { fsPath: string; toString(): string }; languageId: string; version: number; getText(): string }[];
     getConfiguration(section: string): {
       get<T>(key: string, def: T): T;
       update(key: string, value: string, target: unknown): Promise<void>;
     };
     onDidChangeConfiguration(listener: (event: { affectsConfiguration(section: string): boolean }) => void): FakeDisposable;
     onDidChangeWorkspaceFolders(listener: () => void): FakeDisposable;
+    onDidGrantWorkspaceTrust(listener: () => void): FakeDisposable;
   };
   StatusBarAlignment: { Left: number };
   ConfigurationTarget: { Global: number };
@@ -80,6 +83,7 @@ export function createFakeVscode(): FakeVscode {
     pickedIndex: 0,
     configListeners: [],
     folderListeners: [],
+    trustListeners: [],
     statusText: [],
     shown: 0,
     lines: [],
@@ -127,6 +131,7 @@ export function createFakeVscode(): FakeVscode {
     workspaceApi: {
       isTrusted: true,
       workspaceFolders: [],
+      textDocuments: [],
       getConfiguration: (_section: string) => ({
         get: <T,>(key: string, def: T): T => (fake.settings[key] !== undefined ? (fake.settings[key] as T) : def),
         update: async (key: string, value: string, _target: unknown): Promise<void> => {
@@ -140,6 +145,10 @@ export function createFakeVscode(): FakeVscode {
       },
       onDidChangeWorkspaceFolders: (listener) => {
         fake.folderListeners.push(listener);
+        return trackDisposable();
+      },
+      onDidGrantWorkspaceTrust: (listener) => {
+        fake.trustListeners.push(listener);
         return trackDisposable();
       },
     },
@@ -221,9 +230,11 @@ export function installFakeVscode(fake: FakeVscode): void {
       get workspaceFolders(): { uri: { fsPath: string }; name: string }[] | undefined {
         return fake.folders.length === 0 ? undefined : fake.folders;
       },
+      textDocuments: fake.workspaceApi.textDocuments,
       getConfiguration: fake.workspaceApi.getConfiguration,
       onDidChangeConfiguration: fake.workspaceApi.onDidChangeConfiguration,
       onDidChangeWorkspaceFolders: fake.workspaceApi.onDidChangeWorkspaceFolders,
+      onDidGrantWorkspaceTrust: fake.workspaceApi.onDidGrantWorkspaceTrust,
       onDidOpenTextDocument: extended['onDidOpenTextDocument'],
       onDidChangeTextDocument: extended['onDidChangeTextDocument'],
       onDidSaveTextDocument: extended['onDidSaveTextDocument'],

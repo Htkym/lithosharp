@@ -10,14 +10,23 @@ import type { SpawnedProcess } from './serveController.js';
 export function spawnProcess(command: string[], cwd: string): SpawnedProcess {
   let executable = command[0]!;
   let args = command.slice(1);
+  let windowsVerbatimArguments = false;
   if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(executable)) {
-    args = ['/d', '/c', executable, ...args];
+    // cmd.exe interprets metacharacters in the joined command string even when
+    // Node received an argument array. These script launchers are used only for
+    // no-argument server shims; CLI commands must resolve to a native .exe.
+    if (args.length !== 0 || /[&|<>^%!()"]/.test(executable)) {
+      throw new Error('Windows .cmd/.bat launchers cannot safely receive arguments; configure a native executable instead.');
+    }
+    args = ['/d', '/s', '/c', `call "${executable}"`];
     executable = 'cmd.exe';
+    windowsVerbatimArguments = true;
   }
   const child = childProcess.spawn(executable, args, {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
+    windowsVerbatimArguments,
     detached: process.platform !== 'win32',
   });
   return {
@@ -40,7 +49,7 @@ export function spawnProcess(command: string[], cwd: string): SpawnedProcess {
       child.on('exit', (code) => fn(code));
     },
     killTree: () => {
-      if (child.pid === undefined) {
+      if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
         return;
       }
       if (process.platform === 'win32') {

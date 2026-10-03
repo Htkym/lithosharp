@@ -25,8 +25,10 @@ export interface LspProcess {
 export class LspConnection {
   private readonly decoder = new StringDecoder('utf8');
   private pending = '';
-  private readonly waiting = new Map<string | number, (result: unknown) => void>();
-  private readonly errorWaiting = new Map<string | number, (code: number, message: string) => void>();
+  private readonly waiting = new Map<string | number, {
+    resolve(result: unknown): void;
+    reject(error: Error): void;
+  }>();
   private exited = false;
 
   constructor(
@@ -37,6 +39,10 @@ export class LspConnection {
     child.onStdout((chunk) => this.ingest(chunk));
     child.onExit(() => {
       this.exited = true;
+      for (const [id, request] of this.waiting) {
+        request.reject(new Error(`LSP process exited before replying to request ${String(id)}.`));
+      }
+      this.waiting.clear();
     });
   }
 
@@ -52,22 +58,38 @@ export class LspConnection {
 
   sendRequest<T>(id: string | number, method: string, params: unknown): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.waiting.set(id, resolve as (result: unknown) => void);
-      this.errorWaiting.set(id, (code, message) => reject(new Error(`LSP ${code}: ${message}`)));
+      if (this.exited) {
+        reject(new Error('LSP process is not running.'));
+        return;
+      }
+
+      this.waiting.set(id, {
+        resolve: resolve as (result: unknown) => void,
+        reject,
+      });
       try {
         const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
         const bytes = Buffer.byteLength(body, 'utf8');
         this.child.stdinWrite(`Content-Length: ${bytes}\r\n\r\n${body}`);
       } catch (error) {
         this.waiting.delete(id);
-        this.errorWaiting.delete(id);
         reject(error);
       }
     });
   }
 
   cancelRequest(id: string | number): void {
-    this.sendNotification('$/cancelRequest', { id });
+    try {
+      if (!this.exited) {
+        this.sendNotification('$/cancelRequest', { id });
+      }
+    } catch {
+      // The local request still has to settle if the transport is already closing.
+    } finally {
+      const request = this.waiting.get(id);
+      this.waiting.delete(id);
+      request?.reject(new Error('LSP request cancelled.'));
+    }
   }
 
   private ingest(chunk: Buffer): void {
@@ -111,14 +133,17 @@ export class LspConnection {
     }
     if (message['id'] !== undefined && typeof message['method'] !== 'string') {
       const id = message['id'] as string | number;
+      const request = this.waiting.get(id);
       if (typeof message['error'] === 'object' && message['error'] !== null) {
         const error = message['error'] as { code?: number; message?: string };
-        this.errorWaiting.get(id)?.(typeof error.code === 'number' ? error.code : -32603, String(error.message ?? 'error'));
+        const code = typeof error.code === 'number' ? error.code : -32603;
+        const text = String(error.message ?? 'error');
+        this.handlers.onRequestError?.(id, code, text);
+        request?.reject(new Error(`LSP ${code}: ${text}`));
       } else {
-        this.waiting.get(id)?.(message['result']);
+        request?.resolve(message['result']);
       }
       this.waiting.delete(id);
-      this.errorWaiting.delete(id);
       return;
     }
     this.onLog('Ignoring an LSP message without method or id.');

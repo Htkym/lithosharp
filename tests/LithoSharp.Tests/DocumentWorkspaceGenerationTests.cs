@@ -253,6 +253,27 @@ public sealed class DocumentWorkspaceGenerationTests
     }
 
     [Test]
+    public async Task SupersededRequestWaitingForAnalysisSlotCancelsImmediately()
+    {
+        await using var workspace = new DocumentWorkspace();
+        var firstActive = workspace.InspectVersionedAsync("docs/active-a.md", BigText(100000), 1, 1);
+        var secondActive = workspace.InspectVersionedAsync("docs/active-b.md", BigText(100000), 1, 1);
+        var stale = workspace.InspectVersionedAsync("docs/queued.md", EditText(1), 1, 1);
+        var latest = workspace.InspectVersionedAsync("docs/queued.md", SampleA, 2, 1);
+
+        var staleCompletion = await Task.WhenAny(stale, Task.Delay(TimeSpan.FromSeconds(2)));
+        await Assert.That(ReferenceEquals(staleCompletion, stale)).IsTrue();
+        await Assert.That(async () => await stale).Throws<OperationCanceledException>();
+
+        workspace.Remove("docs/active-a.md");
+        workspace.Remove("docs/active-b.md");
+        try { await firstActive; } catch (OperationCanceledException) { }
+        try { await secondActive; } catch (OperationCanceledException) { }
+        var result = await latest;
+        await Assert.That(result.Title).IsEqualTo("Alpha");
+    }
+
+    [Test]
     public async Task DuplicateSaveAndWatchNotificationAnalyzesOnce()
     {
         await using var workspace = new DocumentWorkspace();

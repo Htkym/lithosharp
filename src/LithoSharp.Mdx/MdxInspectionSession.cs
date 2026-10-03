@@ -111,6 +111,7 @@ public sealed class MdxInspectionSession : IAsyncDisposable
 {
     private readonly MdxOptions options;
     private readonly MdxWorker worker;
+    private readonly SemaphoreSlim lifetime = new(1, 1);
     private bool disposed;
 
     /// <summary>編集用の検査sessionを作成します。Nodeは初回解析まで起動しません。</summary>
@@ -140,8 +141,24 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(text);
-        ObjectDisposedException.ThrowIf(disposed, this);
+        await lifetime.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return await AnalyzeCoreAsync(sourcePath, text, analysisOptions, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lifetime.Release();
+        }
+    }
 
+    private async Task<MdxAnalysisResult> AnalyzeCoreAsync(
+        string sourcePath,
+        string text,
+        MdxAnalysisOptions? analysisOptions,
+        CancellationToken cancellationToken)
+    {
         var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
         MdxDocument document = split.Status switch
         {
@@ -165,8 +182,7 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         {
             throw new SiteBuildExtensionException(response.GetProperty("diagnostics").EnumerateArray().Select(diagnostic =>
                 new SiteDiagnostic(diagnostic.GetProperty("id").GetString()!, SiteDiagnosticSeverity.Error,
-                    diagnostic.GetProperty("message").GetString()!, string.IsNullOrEmpty(diagnostic.GetProperty("file").GetString()) ? null : new SiteSourceLocation(diagnostic.GetProperty("file").GetString()!,
-                        diagnostic.GetProperty("line").GetInt32(), diagnostic.GetProperty("column").GetInt32()))));
+                    diagnostic.GetProperty("message").GetString()!, ReadWorkerLocation(diagnostic))));
         }
 
         var result = response.GetProperty("result");
@@ -223,15 +239,31 @@ public sealed class MdxInspectionSession : IAsyncDisposable
             if (item.ValueKind != JsonValueKind.Object) continue;
             var message = item.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String
                 ? messageValue.GetString() ?? string.Empty : string.Empty;
-            var line = item.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number && lineValue.TryGetInt32(out var lineNumber)
-                ? lineNumber : 1;
-            var column = item.TryGetProperty("column", out var columnValue) && columnValue.ValueKind == JsonValueKind.Number && columnValue.TryGetInt32(out var columnNumber)
-                ? columnNumber + 1 : 1;
+            var line = item.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number
+                && lineValue.TryGetInt32(out var lineNumber) && lineNumber > 0 ? lineNumber : (int?)null;
+            var column = item.TryGetProperty("column", out var columnValue) && columnValue.ValueKind == JsonValueKind.Number
+                && columnValue.TryGetInt32(out var columnNumber) && columnNumber >= 0 ? columnNumber + 1 : (int?)null;
+            var location = line is null
+                ? new SiteSourceLocation(sourcePath)
+                : new SiteSourceLocation(sourcePath, line, column);
             list.Add(new SiteDiagnostic("LSMDX001", SiteDiagnosticSeverity.Error, message,
-                new SiteSourceLocation(sourcePath, line, column)));
+                location));
         }
 
         return list;
+    }
+
+    private static SiteSourceLocation? ReadWorkerLocation(JsonElement diagnostic)
+    {
+        var file = diagnostic.TryGetProperty("file", out var fileValue) && fileValue.ValueKind == JsonValueKind.String
+            ? fileValue.GetString()
+            : null;
+        if (string.IsNullOrEmpty(file)) return null;
+        var line = diagnostic.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number
+            && lineValue.TryGetInt32(out var lineNumber) && lineNumber > 0 ? lineNumber : (int?)null;
+        var column = diagnostic.TryGetProperty("column", out var columnValue) && columnValue.ValueKind == JsonValueKind.Number
+            && columnValue.TryGetInt32(out var columnNumber) && columnNumber > 0 ? columnNumber : (int?)null;
+        return line is null ? new SiteSourceLocation(file) : new SiteSourceLocation(file, line, column);
     }
 
     private static SiteSourceLocation Locate(SourceText locator, string sourcePath, SourceSpan span)
@@ -249,7 +281,18 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     /// <summary>所有する編集用workerを破棄します。</summary>
     public async ValueTask DisposeAsync()
     {
-        disposed = true;
-        await worker.DisposeAsync().ConfigureAwait(false);
+        await lifetime.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                await worker.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            lifetime.Release();
+        }
     }
 }

@@ -261,6 +261,26 @@ public sealed class ProjectAwareInspectionTests
     }
 
     [Test]
+    public async Task Snapshot_RejectsUndefinedPublicationValues()
+    {
+        var json = DocsSnapshot().ToJson().Replace(
+            "\"publication\": \"Published\"",
+            "\"publication\": \"999\"",
+            StringComparison.Ordinal);
+
+        await Assert.That(() => ProjectInspectionSnapshot.ParseJson(json)).Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task Snapshot_RejectsRoutesFromAnotherProject()
+    {
+        await Assert.That(() => ProjectInspectionSnapshot.Create(
+            "docs", 1, "docs", ToolingCapabilities.LanguageMarkdown, "document", "v1", "en",
+            [new ProjectRouteCandidate("intro.md", "/other/intro/", "other", "docs", "v1", "en", DocumentPublicationState.Published)]))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
     [Arguments(null)]
     [Arguments("")]
     [Arguments(" ")]
