@@ -14,15 +14,58 @@ $matchingPackages = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nu
     Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' })
 if ($matchingPackages.Count -ne 1) { throw "Expected exactly one $PackageId package in $PackageDirectory." }
 $package = $matchingPackages[0]
-$symbols = Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.snupkg' | Select-Object -First 1
-
-if ($null -eq $package -or ($PackageId -eq 'LithoSharp' -and $null -eq $symbols)) {
-    throw "Expected one .nupkg and one .snupkg in $PackageDirectory."
+$symbols = $null
+if ($PackageId -eq 'LithoSharp') {
+    $symbolName = [IO.Path]::GetFileNameWithoutExtension($package.Name) + '.snupkg'
+    $matchingSymbols = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.snupkg' -File |
+        Where-Object { $_.Name -match '^LithoSharp\.\d' })
+    if ($matchingSymbols.Count -ne 1 -or $matchingSymbols[0].Name -cne $symbolName) {
+        throw "Expected exactly the matching Core symbols package: $symbolName."
+    }
+    $symbols = $matchingSymbols[0]
 }
 
 function Get-ZipEntries([string] $path) {
     $archive = [System.IO.Compression.ZipFile]::OpenRead($path)
     try {
+        $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $files = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $directories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($entry in $archive.Entries) {
+            $name = $entry.FullName
+            $canonical = if ($name.EndsWith('/')) { $name.Substring(0, $name.Length - 1) } else { $name }
+            $segments = $canonical.Split('/')
+            if ([string]::IsNullOrWhiteSpace($canonical) -or $name -match '[:\\\p{Cc}<>"|?*]' -or
+                $name.StartsWith('/') -or @($segments | Where-Object {
+                    $_ -in @('', '.', '..') -or $_ -match '[. ]$' -or
+                    $_ -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)'
+                }).Count -gt 0) {
+                throw "Unsafe archive path '$name' in $path."
+            }
+            $canonical = $canonical.Normalize([Text.NormalizationForm]::FormC)
+            if (!$names.Add($canonical)) {
+                throw "Duplicate archive path '$name' in $path."
+            }
+            $segments = $canonical.Split('/')
+            for ($index = 1; $index -lt $segments.Length; $index++) {
+                $parent = $segments[0..($index - 1)] -join '/'
+                if ($files.Contains($parent)) { throw "Conflicting archive path '$name' in $path." }
+                $null = $directories.Add($parent)
+            }
+            if ($name.EndsWith('/')) {
+                if ($files.Contains($canonical)) { throw "Conflicting archive path '$name' in $path." }
+                $null = $directories.Add($canonical)
+            }
+            else {
+                if ($directories.Contains($canonical)) { throw "Conflicting archive path '$name' in $path." }
+                $null = $files.Add($canonical)
+            }
+            if ($name -match '(^|/)(\.local|\.git|\.tmp|\.artifacts|\.agents|\.codex|\.aws|\.vs|\.vscode-test|benchmarks|tests?|TestResults|node_modules|obj|\.cache|cache)(/|$)' -or
+                $name -match '(^|/)(\.(env|npmrc|netrc)(\.[^/]*)?|id_(rsa|ed25519)(\.pub)?|credentials(?:\.[^/]*)?|secrets?(?:\.[^/]*)?)(/|$)' -or
+                $name -match '\.(pem|pfx|p12|key|log|binlog|trx)$') {
+                throw "Package contains private, restored, development-only or credential entry '$name' in $path."
+            }
+        }
         return @($archive.Entries | ForEach-Object FullName)
     }
     finally {
@@ -30,12 +73,24 @@ function Get-ZipEntries([string] $path) {
     }
 }
 
+function Read-Nuspec([string] $Path, [string] $Id) {
+    $archive = [IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entries = @($archive.Entries | Where-Object { $_.FullName -like '*.nuspec' })
+        if ($entries.Count -ne 1 -or $entries[0].FullName -cne "$Id.nuspec") {
+            throw "Expected exactly one root nuspec named $Id.nuspec in $Path."
+        }
+        $reader = [IO.StreamReader]::new($entries[0].Open())
+        try { return [xml]$reader.ReadToEnd() }
+        finally { $reader.Dispose() }
+    }
+    finally { $archive.Dispose() }
+}
+
 $packageEntries = Get-ZipEntries $package.FullName
+$symbolsEntries = if ($symbols) { Get-ZipEntries $symbols.FullName } else { @() }
 foreach ($required in @('README.md', 'icon.png')) {
     if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
-}
-if ($packageEntries | Where-Object { $_ -match '(^|/)(\.local|\.git|\.tmp|benchmarks|tests|TestResults|node_modules|obj)(/|$)' }) {
-    throw 'Package contains private, restored or development-only files.'
 }
 # Bundled third-party assemblies retain exact upstream redistribution notices.
 if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool')) {
@@ -59,18 +114,22 @@ if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool')) {
         }
     } finally { $noticeArchive.Dispose() }
 }
-$archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
-try {
-    $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -like '*.nuspec' } | Select-Object -First 1
-    if ($null -eq $nuspecEntry) { throw 'Package is missing its nuspec metadata.' }
-    $reader = [System.IO.StreamReader]::new($nuspecEntry.Open())
-    try { [xml] $nuspec = $reader.ReadToEnd() }
-    finally { $reader.Dispose() }
-}
-finally { $archive.Dispose() }
+$nuspec = Read-Nuspec $package.FullName $PackageId
 $metadata = $nuspec.package.metadata
 if ($metadata.id -cne $PackageId -or ($ExpectedVersion -and $metadata.version -cne $ExpectedVersion)) {
     throw "Unexpected package identity: $($metadata.id) $($metadata.version)."
+}
+if ($package.Name -cne "$PackageId.$($metadata.version).nupkg") {
+    throw 'Package filename does not match its nuspec identity.'
+}
+if ($symbols) {
+    $symbolsMetadata = (Read-Nuspec $symbols.FullName $PackageId).package.metadata
+    if ($symbolsMetadata.id -cne $metadata.id -or $symbolsMetadata.version -cne $metadata.version -or
+        $symbolsMetadata.repository.type -cne $metadata.repository.type -or
+        $symbolsMetadata.repository.url -cne $metadata.repository.url -or
+        $symbolsMetadata.repository.commit -cne $metadata.repository.commit) {
+        throw 'Core symbols nuspec identity or repository provenance differs from its package.'
+    }
 }
 if ($metadata.license.type -ne 'expression' -or $metadata.license.'#text' -ne 'MIT' -or
     $metadata.icon -ne 'icon.png' -or $metadata.readme -ne 'README.md' -or
@@ -130,7 +189,6 @@ if ($PackageId -eq 'LithoSharp.Generators') {
     Write-Host "Validated package contents: $($package.Name)"
     return
 }
-$symbolsEntries = Get-ZipEntries $symbols.FullName
 
 foreach ($required in @(
     'lib/net10.0/LithoSharp.dll',

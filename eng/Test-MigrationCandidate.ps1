@@ -4,7 +4,9 @@ param(
     [ValidateSet('prettier', 'jest', 'docusaurus')]
     [string] $SiteId,
     [string] $WorkspaceRoot,
-    [string] $RunId = '20260930-v110-24',
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')]
+    [string] $RunId = ('v110-24-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmss') + '-' + [Guid]::NewGuid().ToString('N')),
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')]
     [string] $PriorRunId = '20260930-final',
     [string] $ToolPath,
     [int] $TimeoutSeconds = 3600
@@ -18,15 +20,24 @@ if (!$WorkspaceRoot) {
     throw '-WorkspaceRoot must point at the V110-21 workspace outside the repository.'
 }
 $WorkspaceRoot = [IO.Path]::GetFullPath($WorkspaceRoot)
+$evidence = Join-Path $repo ".local/verification/1.1.0/migration-$RunId/corpus/$SiteId"
+for ($directory = $evidence; $directory -ne $repo; $directory = [IO.Path]::GetDirectoryName($directory)) {
+    if ((Test-Path -LiteralPath $directory) -and
+        ([IO.File]::GetAttributes($directory) -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Migration evidence path contains a reparse point: $directory."
+    }
+}
+if ((Test-Path -LiteralPath $evidence) -and
+    (!(Test-Path -LiteralPath $evidence -PathType Container) -or
+     @(Get-ChildItem -LiteralPath $evidence -Force).Count -gt 0)) {
+    throw "Migration evidence directory is already populated: $evidence. Choose a new RunId."
+}
 $prior = Join-Path $WorkspaceRoot "runs/$PriorRunId/$SiteId"
 foreach ($required in @('routes/route-oracle.json', 'routes/route-source-map.json', 'migration-source', 'reports/candidate-build.json', 'reports/serve-check.json', 'candidate-build.json', 'candidate-serve.json')) {
     if (!(Test-Path -LiteralPath (Join-Path $prior $required))) {
         throw "Prior run is missing '$required'; rerun the full corpus instead of carrying over gaps."
     }
 }
-
-$evidence = Join-Path $repo ".local/verification/1.1.0/v110-24-20260930/corpus/$SiteId"
-$null = New-Item -ItemType Directory -Force -Path $evidence
 
 function Get-Hash([string] $Path) {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -58,6 +69,19 @@ if (!(Test-Path -LiteralPath (Join-Path $worker 'node_modules') -PathType Contai
     Fail 'worker node_modules are not restored; restore the pinned worker first.'
 }
 
+# Preconditions are read-only. Claim this run once; a concurrent invocation
+# cannot overwrite its receipt or reuse evidence from a failed attempt.
+$null = New-Item -ItemType Directory -Force -Path $evidence
+$claim = [IO.FileStream]::new((Join-Path $evidence 'run-info.json'),
+    [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+try {
+    $receipt = [Text.Encoding]::UTF8.GetBytes((@{
+        runId = $RunId; priorRunId = $PriorRunId; siteId = $SiteId; oracleSha256 = $oracleHash
+    } | ConvertTo-Json))
+    $claim.Write($receipt)
+}
+finally { $claim.Dispose() }
+
 function Invoke-Step([string] $Id, [string] $Exe, [string[]] $Arguments, [string] $Cwd) {
     $info = [Diagnostics.ProcessStartInfo]::new($Exe)
     $info.WorkingDirectory = $Cwd
@@ -86,7 +110,6 @@ function Invoke-Step([string] $Id, [string] $Exe, [string[]] $Arguments, [string
 # 1. Migration conversion reruns against the current candidate code.
 $migrationSource = Join-Path $prior 'migration-source'
 $converted = Join-Path $evidence 'converted'
-if (Test-Path -LiteralPath $converted) { Remove-Item -LiteralPath $converted -Recurse -Force }
 $priorOracle = Join-Path $prior 'routes/route-oracle.json'
 $migration = Invoke-Step 'migration-convert' 'dotnet' @(
     $ToolPath, 'migrate', 'docusaurus', $migrationSource,
@@ -119,9 +142,6 @@ $buildConfig = [ordered]@{
     workerDirectory = $worker
     buildTimestamp = '2026-09-29T00:00:00+00:00'
     candidatePageLimit = 12
-}
-foreach ($key in @('candidateSourceDirectory', 'candidateOutputDirectory')) {
-    if (Test-Path -LiteralPath $buildConfig[$key]) { Remove-Item -LiteralPath $buildConfig[$key] -Recurse -Force }
 }
 [IO.File]::WriteAllText((Join-Path $evidence 'candidate-build.json'), (($buildConfig | ConvertTo-Json -Depth 8)))
 $build = Invoke-Step 'candidate-build' 'dotnet' @($replay, (Join-Path $evidence 'candidate-build.json')) $repo
@@ -156,41 +176,104 @@ if ($serveJson.operations.status -cne 'passed') { Fail 'serve operations did not
 #       collapsed on both sides; any other markup change fails.
 #   (c) CRLF is normalized to LF; every remaining byte must match, which also
 #       verifies the V110-24 LF feed fix on Windows.
-function Get-NormalizedText([string] $Text) {
+function Get-NormalizedText([string] $Text, [switch] $NormalizePrism) {
     $text = $Text.Replace("`r`n", "`n")
-    # (a) bundle file names, references and worker module keys.
-    $text = $text -replace '/_mdx/(chunks|pages|assets)/[A-Za-z0-9._-]+-[A-Z0-9]{8}\.(js|css)', '/_mdx/$1/NORMALIZED.$2'
+    # (a) Host-layout-derived worker module keys. Bundle references are resolved
+    # to their actual content identities by Get-NormalizedTreeHash below.
     $text = $text -replace '"(\.\./)*([^"]*?)(src/LithoSharp\.Mdx/worker|tool/worker)/node_modules/', '"WORKER-NODE-MODULES/'
-    # (b) Prism duplicate-class correction.
-    $text = [regex]::Replace($text, '(language-[\w-]+)( \1)+', '$1')
+    # (b) Only actual HTML code/pre class attributes are Prism markup. Keep
+    # ordinary text, JavaScript strings, comments and raw-text elements intact.
+    # Consume other complete tags too: their quoted attributes are not markup.
+    if ($NormalizePrism) {
+        $text = [regex]::Replace($text, '(?is)<!--[\s\S]*?(?:-->|$)|<plaintext(?=[\s/>])(?:[^"''<>]|"[^"]*"|''[^'']*'')*>[\s\S]*$|<(?<raw>script|style|textarea|title|xmp|iframe|noembed|noframes|noscript)(?=[\s/>])(?:[^"''<>]|"[^"]*"|''[^'']*'')*>[\s\S]*?(?:</\k<raw>\s*>|$)|<(?<tag>[A-Za-z][A-Za-z0-9:_-]*)(?=[\s/>])(?:[^"''<>]|"[^"]*"|''[^'']*'')*>|<(?:[^"''<>]|"[^"]*"|''[^'']*'')*>',
+            [Text.RegularExpressions.MatchEvaluator]{ param($tag)
+                if ($tag.Groups['tag'].Value -notin @('pre', 'code')) { return $tag.Value }
+                return [regex]::Replace($tag.Value, '(?<name>[^\s=<>/]+)\s*=\s*(?:"(?<double>[^"]*)"|''(?<single>[^'']*)'')',
+                    [Text.RegularExpressions.MatchEvaluator]{ param($attribute)
+                        if ($attribute.Groups['name'].Value -ine 'class') { return $attribute.Value }
+                        $value = if ($attribute.Groups['double'].Success) { $attribute.Groups['double'] } else { $attribute.Groups['single'] }
+                        $classes = [regex]::Replace($value.Value, '(?<!\S)(language-[\w-]+)(?:\s+\1)+(?=\s|$)', '$1')
+                        $offset = $value.Index - $attribute.Index
+                        return $attribute.Value.Substring(0, $offset) + $classes + $attribute.Value.Substring($offset + $value.Length)
+                    })
+            })
+    }
     return $text
 }
 
 function Get-NormalizedTreeHash([string] $Root) {
     $lines = [Collections.Generic.List[string]]::new()
     $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force | Sort-Object FullName)
+    $bundleFiles = [Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
+    $bundleHashes = [Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
+    $visiting = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($file in $files) {
+        $relative = [IO.Path]::GetRelativePath($Root, $file.FullName).Replace('\', '/')
+        if ($relative -match '^_mdx/(chunks|pages|assets)/') { $bundleFiles.Add($relative, $file.FullName) }
+    }
+
+    function Get-ContentHash([byte[]] $Bytes) {
+        return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+    }
+
+    function Convert-BundleReferences([string] $Text, [string] $SourceRelative) {
+        $normalized = [regex]::Replace($Text, '/_mdx/(chunks|pages|assets)/[A-Za-z0-9._/-]+\.(?:m?js|css|map|json|woff2?|ttf|eot|png|svg|jpe?g|webp|gif|ico)(?=$|[^A-Za-z0-9._/-])',
+            [Text.RegularExpressions.MatchEvaluator]{ param($match)
+                $relative = $match.Value.TrimStart('/')
+                $hash = Get-BundleContentHash $relative
+                return '/_mdx/' + $match.Groups[1].Value + '/CONTENT-' + $hash + [IO.Path]::GetExtension($relative)
+            })
+        return [regex]::Replace($normalized, '(?:\.{1,2}/)+[A-Za-z0-9._/-]+\.(?:m?js|css|map|json|woff2?|ttf|eot|png|svg|jpe?g|webp|gif|ico)(?=$|[^A-Za-z0-9._/-])',
+            [Text.RegularExpressions.MatchEvaluator]{ param($match)
+                $target = [IO.Path]::GetFullPath((Join-Path (Join-Path $Root ([IO.Path]::GetDirectoryName($SourceRelative))) $match.Value))
+                $relative = [IO.Path]::GetRelativePath($Root, $target).Replace('\', '/')
+                if ($relative -notmatch '^_mdx/(chunks|pages|assets)/') { return $match.Value }
+                return '/_mdx/' + ($relative -split '/')[1] + '/CONTENT-' + (Get-BundleContentHash $relative) + [IO.Path]::GetExtension($relative)
+            })
+    }
+
+    function Get-BundleContentHash([string] $Relative) {
+        if ($bundleHashes.ContainsKey($Relative)) { return $bundleHashes[$Relative] }
+        if (!$bundleFiles.ContainsKey($Relative)) { throw "Missing referenced MDX bundle: $Relative" }
+        # ponytail: fail closed on cyclic verification graphs; a graph canonicalizer
+        # is needed only if a future corpus requires equivalent cyclic bundles.
+        if (!$visiting.Add($Relative)) { throw "Unsupported cyclic MDX bundle graph: $Relative" }
+        try {
+            $bytes = [IO.File]::ReadAllBytes($bundleFiles[$Relative])
+            if ($Relative -match '\.(m?js|css|map|json|svg)$') {
+                $text = Convert-BundleReferences (Get-NormalizedText ([Text.Encoding]::UTF8.GetString($bytes))) $Relative
+                $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+            }
+            $hash = Get-ContentHash $bytes
+            $bundleHashes.Add($Relative, $hash)
+            return $hash
+        }
+        finally { $null = $visiting.Remove($Relative) }
+    }
+
     foreach ($file in $files) {
         $relative = [IO.Path]::GetRelativePath($Root, $file.FullName).Replace('\', '/')
         $bytes = [IO.File]::ReadAllBytes($file.FullName)
         $isText = $relative -match '\.(html|xml|json|css|js|mjs|txt|webmanifest|map)$'
         if ($isText) {
-            $text = Get-NormalizedText ([Text.Encoding]::UTF8.GetString($bytes))
+            $text = Convert-BundleReferences (Get-NormalizedText ([Text.Encoding]::UTF8.GetString($bytes)) -NormalizePrism:($relative -match '\.html$')) $relative
             if ($relative -eq '.lithosharp-output-manifest.json') {
                 # The manifest lists content-hashed file names plus an internal
                 # cache key: compare the normalized file set, record the key.
                 $manifest = $text | ConvertFrom-Json -AsHashtable
                 $normalizedFiles = @($manifest.files | ForEach-Object {
-                    $_ -replace '-[A-Z0-9]{8}(?=\.(js|css|woff2?|ttf|eot)$)', '-HASH'
+                    if ($_ -match '^_mdx/(chunks|pages|assets)/') {
+                        '_mdx/' + ($_ -split '/')[1] + '/CONTENT-' + (Get-BundleContentHash $_) + [IO.Path]::GetExtension($_)
+                    }
+                    else { $_ -replace '-[A-Z0-9]{8}(?=\.(js|css|woff2?|ttf|eot)$)', '-HASH' }
                 } | Sort-Object)
                 $lines.Add("$relative version=$($manifest.version) files=" + ($normalizedFiles -join ','))
                 continue
             }
-            if ($relative -match '^_mdx/(chunks|pages)/') {
-                # Bundle file names embed content hashes that vary with host
-                # layout (see (a)): compare content identity as a multiset.
-                $contentHash = ([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($text)) | ForEach-Object { $_.ToString('x2') }) -join ''
-                $bundleDir = $relative -replace '^(_mdx/(chunks|pages))/.*$', '$1'
-                $lines.Add("$bundleDir/CONTENT $contentHash")
+            if ($bundleFiles.ContainsKey($relative)) {
+                $contentHash = Get-BundleContentHash $relative
+                $bundleDir = '_mdx/' + ($relative -split '/')[1]
+                $lines.Add("$bundleDir/CONTENT-$contentHash$([IO.Path]::GetExtension($relative))")
                 continue
             }
             $normalizedName = $relative -replace '-[A-Z0-9]{8}(?=\.(js|css)$)', '-HASH'
@@ -198,8 +281,15 @@ function Get-NormalizedTreeHash([string] $Root) {
             $lines.Add("$normalizedName $contentHash")
             continue
         }
-        $contentHash = ([Security.Cryptography.SHA256]::HashData($bytes) | ForEach-Object { $_.ToString('x2') }) -join ''
-        $lines.Add("$relative $contentHash")
+        if ($bundleFiles.ContainsKey($relative)) {
+            $contentHash = Get-BundleContentHash $relative
+            $bundleDir = '_mdx/' + ($relative -split '/')[1]
+            $lines.Add("$bundleDir/CONTENT-$contentHash$([IO.Path]::GetExtension($relative))")
+        }
+        else {
+            $contentHash = Get-ContentHash $bytes
+            $lines.Add("$relative $contentHash")
+        }
     }
     $sorted = @($lines | Sort-Object)
     $manifestText = $sorted -join "`n"
@@ -223,7 +313,7 @@ if ($newTree.hash -cne $priorTree.hash) {
 }
 
 $summary = [ordered]@{
-    schemaVersion = '1.0'; siteId = $SiteId; state = 'verified-scoped'
+    schemaVersion = '1.0'; runId = $RunId; priorRunId = $PriorRunId; siteId = $SiteId; state = 'verified-scoped'
     oracleSha256 = $oracleHash
     migrationExitCode = $migrationJson.exitCode
     candidatePageSet = $candidate.candidatePageSet.status

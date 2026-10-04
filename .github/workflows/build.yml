@@ -180,6 +180,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
 
+      - name: Check package security gate controls
+        shell: pwsh
+        run: |
+          ./eng/Test-PackageSecurityGate.ps1 -PackageDirectory artifacts/packages -ExpectedVersion 1.1.0 -Output (Join-Path $env:RUNNER_TEMP 'package-security-gate')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check migration normalization controls
+        shell: pwsh
+        run: |
+          ./eng/Test-MigrationNormalizationGate.ps1 -Output (Join-Path $env:RUNNER_TEMP 'migration-normalization-gate')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Check consumer compatibility
         shell: pwsh
         run: |

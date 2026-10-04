@@ -33,6 +33,17 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
 }
 $fixture = Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $fixture
+# Keep caller's validated shipping feed immutable. FixtureExtension belongs
+# only to this unique test feed and never to release package artifacts.
+$sourcePackages = $packages
+$packages = Join-Path $fixture 'feed'
+$null = New-Item -ItemType Directory -Path $packages
+foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')) {
+    $candidateFile = Join-Path $sourcePackages "$id.$CandidateVersion.nupkg"
+    if (Test-Path -LiteralPath $candidateFile -PathType Leaf) {
+        Copy-Item -LiteralPath $candidateFile -Destination $packages
+    }
+}
 $oldPackages = $env:NUGET_PACKAGES
 $oldHome = $env:DOTNET_CLI_HOME
 $oldTimestamp = $env:SOURCE_DATE_EPOCH
@@ -141,6 +152,9 @@ public sealed class ExternalContent : ISiteBuildExtension {
         if ($snapshot -cne $direct) { throw "$kind CLI and direct output differ." }
         & $tool check $project -c Release --format json
         if ($LASTEXITCODE -ne 0) { throw "Quality check of $kind failed." }
+        $serveEvidence = Join-Path $fixture ("serve-" + $kind)
+        & node (Join-Path $repo 'eng/Test-PackageTemplateServe.mjs') $tool $project $CandidateVersion $serveEvidence
+        if ($LASTEXITCODE -ne 0) { throw "Package-only serve of $kind failed." }
     }
     Write-Host "Packaged tool and all four templates passed. Fixture: $fixture"
 }
