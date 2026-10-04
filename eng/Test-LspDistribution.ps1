@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $Output,
+    [string] $PublishDirectory,
     [switch] $SkipPublish
 )
 
@@ -13,13 +14,16 @@ $Output = [IO.Path]::GetFullPath($Output)
 
 function Fail([string] $Message) { throw "LSP distribution check failed: $Message" }
 
-$publishDir = Join-Path $Output 'server'
+$publishDir = if ($PublishDirectory) { [IO.Path]::GetFullPath($PublishDirectory) } else { Join-Path $Output 'server' }
+if ($PublishDirectory -and !$SkipPublish) { Fail '-PublishDirectory requires -SkipPublish; existing staged files are read-only inputs.' }
+if ($PublishDirectory -and !(Test-Path -LiteralPath $publishDir -PathType Container)) { Fail 'supplied PublishDirectory does not exist.' }
+$null = New-Item -ItemType Directory -Force -Path $Output
 if (!(Test-Path -LiteralPath $publishDir) -or !$SkipPublish) {
     if (Test-Path -LiteralPath $publishDir) { Remove-Item -LiteralPath $publishDir -Recurse -Force }
     $info = [Diagnostics.ProcessStartInfo]::new('dotnet')
     $info.WorkingDirectory = $repo
     $info.UseShellExecute = $false
-    foreach ($argument in @('publish', 'src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj', '-c', 'Release', '-o', $publishDir)) {
+    foreach ($argument in @('publish', 'src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj', '-c', 'Release', '--self-contained', 'false', '-p:UseAppHost=false', '-o', $publishDir)) {
         $info.ArgumentList.Add($argument)
     }
     $publish = [Diagnostics.Process]::Start($info)
@@ -173,16 +177,19 @@ function Stop-Lsp($Session) {
     }
 }
 
-function Invoke-Smoke([string] $Name, [hashtable] $Environment, [string] $WorkerDirectory, [scriptblock] $Probe) {
+function Invoke-Smoke([string] $Name, [hashtable] $Environment, [string] $WorkerDirectory, [scriptblock] $Probe, [string] $NodeExecutable) {
     $session = New-LspSession $dll $Environment $WorkerDirectory
     try {
         $id = "init-$($session.sequence)"
         $session.sequence++
+        $initializationOptions = @{}
+        if ($WorkerDirectory) { $initializationOptions.workerDirectory = $WorkerDirectory }
+        if ($NodeExecutable) { $initializationOptions.nodeExecutable = $NodeExecutable }
         Send-Lsp $session @{
             jsonrpc = '2.0'; id = $id; method = 'initialize'
             params = @{
                 processId = $null; capabilities = @{}
-                initializationOptions = if ($WorkerDirectory) { @{ workerDirectory = $WorkerDirectory } } else { @{} }
+                initializationOptions = $initializationOptions
             }
         }
         $response = Read-LspMessage $session 60000
@@ -194,9 +201,15 @@ function Invoke-Smoke([string] $Name, [hashtable] $Environment, [string] $Worker
         }
         Send-Lsp $session @{ jsonrpc = '2.0'; method = 'initialized'; params = @{} }
         & $Probe $session
-        Write-Host "$Name`: passed."
     }
-    finally { Stop-Lsp $session }
+    finally {
+        Stop-Lsp $session
+        [IO.File]::WriteAllText((Join-Path $Output "$Name.stderr.log"), $session.stderrTail)
+    }
+    if ($Name -like 'mdx-without-*' -and $session.stderrTail -notmatch 'MDX analysis unavailable') {
+        Fail "$Name`: no degradation explanation was written to stderr."
+    }
+    Write-Host "$Name`: passed."
 }
 
 $markdownDoc = "---`ntitle: Smoke`n---`nSee [^missing] here.`n"
@@ -214,9 +227,9 @@ Invoke-Smoke 'markdown-with-node' @{} (Join-Path $publishDir 'worker') {
 }
 
 # 2. Node absent: the server stays alive and explains instead of crashing.
-$nodeDir = Split-Path -Parent (Get-Command node -ErrorAction Stop).Source
-$pathWithoutNode = ($env:PATH -split ';' | Where-Object { $_ -and $_ -ne $nodeDir }) -join ';'
-Invoke-Smoke 'mdx-without-node' @{ PATH = $pathWithoutNode } (Join-Path $publishDir 'worker') {
+$missingNode = Join-Path $Output ('absent-node-' + [Guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $missingNode) { Fail 'missing-node fixture unexpectedly exists.' }
+Invoke-Smoke 'mdx-without-node' @{} (Join-Path $publishDir 'worker') {
     param($session)
     Send-Lsp $session @{ jsonrpc = '2.0'; method = 'textDocument/didOpen'; params = @{
         textDocument = @{ uri = 'file:///smoke/widget.mdx'; languageId = 'mdx'; version = 1; text = $mdxDoc } } }
@@ -231,7 +244,7 @@ Invoke-Smoke 'mdx-without-node' @{ PATH = $pathWithoutNode } (Join-Path $publish
     if (@($later.diagnostics | Where-Object { $_.code -ceq 'LIT001' }).Count -ne 1) {
         Fail 'server did not stay usable after node-less MDX analysis.'
     }
-}
+} -NodeExecutable $missingNode
 
 # 3. Worker dependencies missing: same graceful degradation, Markdown unaffected.
 $emptyWorker = Join-Path $Output 'empty-worker'

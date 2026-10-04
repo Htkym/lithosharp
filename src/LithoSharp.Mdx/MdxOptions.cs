@@ -62,7 +62,7 @@ public sealed record MdxBuildMetrics
     public int RenderedPages { get; init; }
     /// <summary>The number of browser entries bundled.</summary>
     public int BundledPages { get; init; }
-    /// <summary>The number of interactive entries whose bundle or stylesheet closure changed since the previous worker request.</summary>
+    /// <summary>The number of interactive entries processed by browser bundling in this worker request; zero when a validated browser cache avoids bundling.</summary>
     public int RebundledPages { get; init; }
     /// <summary>The page ids counted by <see cref="RebundledPages"/>; empty on a cache hit.</summary>
     public IReadOnlyList<string> RebundledPageIds { get; init; } = [];

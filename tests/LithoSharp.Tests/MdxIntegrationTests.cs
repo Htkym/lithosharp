@@ -140,7 +140,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
-    public async Task MdxRebundlesOnlyEntriesWhoseDependenciesChanged()
+    public async Task MdxReportsActualBrowserWorkAndSkipsUnchangedGraphs()
     {
         using var workspace = new TemporaryWorkspace();
         var root = workspace.Root;
@@ -176,21 +176,24 @@ public sealed class MdxIntegrationTests
         await Assert.That(mdx.Metrics.CompiledModules).IsEqualTo(1);
         await Assert.That(mdx.Metrics.RebundledPages).IsEqualTo(0);
 
-        // Only the entry importing the changed component is rebundled.
+        // Shared esbuild chunks require the current conservative graph build. Count both
+        // processed entries while proving the unrelated page output remains unchanged.
+        var previousToggle = await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"));
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
             "export default function Counter(){return <button>Changed</button>}");
         await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
-        var counterEntry = mdx.Metrics.RebundledPageIds[0];
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(2);
+        var processedEntries = mdx.Metrics.RebundledPageIds.ToArray();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"))).Contains("Changed");
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).Contains("Toggle");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).IsEqualTo(previousToggle);
 
-        // Editing a different component rebundles a different entry.
+        // Changing the other component also processes both entries in the shared build.
+        var previousCounter = await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"));
         await File.WriteAllTextAsync(Path.Combine(source, "Toggle.jsx"),
             "export default function Toggle(){return <button>Changed toggle</button>}");
         await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
-        await Assert.That(mdx.Metrics.RebundledPageIds[0]).IsNotEqualTo(counterEntry);
+        await Assert.That(mdx.Metrics.RebundledPageIds).IsEquivalentTo(processedEntries);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"))).IsEqualTo(previousCounter);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).Contains("Changed toggle");
 
         // A shared stylesheet edit updates every interactive entry that references it.

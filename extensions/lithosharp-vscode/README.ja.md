@@ -27,12 +27,20 @@ workspace由来の実行path（`lithosharp.cliPath` はrestricted設定）は
   （project localのdotnet tool、次にglobal PATH）。解決自体は実行しません。
   versionは明示選択時に1回だけ問い合わせます。
 - `lithosharp.projectPath`：選択したprojectファイル。
+- `lithosharp.languageServerPath`：明示のLSP実行ファイルまたはDLL。
+  空の場合は、同梱したサーバーをPATH上の`dotnet`で起動します。
+  編集時の診断には.NET 10ランタイムが必要です。拡張機能はランタイムを
+  インストールしません。不足による起動エラーはOutputに表示します。
+- `lithosharp.workerDirectory`：明示のMDXワーカーディレクトリ。
+  空の場合は拡張機能の専用ストレージを使います。
+  `LithoSharp: Restore MDX Worker`で依存関係を復元します。
+  復元前でもMarkdownの診断は動作します。
 
 ## 範囲
 
 build、serve、診断、symbols、previewは実装済み（V110-16/17/18）であり、
-実Extension Hostで検証した（V110-19）。このshellはprocessを持たないため、
-停止時はchannel・status・listenerの破棄だけです。0.1.0の配布はlocal VSIX
+実Extension Hostで検証しています（V110-19）。停止時には編集用セッションと
+所有するサーバー、channel・status・listenerを破棄します。0.1.0の配布はlocal VSIX
 のみであり、Marketplace、複数OS、package済みVSIX検証は予定作業のままです。
 
 ## Command（V110-16）

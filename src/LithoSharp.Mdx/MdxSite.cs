@@ -176,7 +176,9 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         var response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
                             projectRoot = options.ProjectDirectory, workRoot = scratch, allowWorkWithinProject = true,
                             assetBaseUrl = AssetUrl(context, ""), basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
-                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable, pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
+                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable,
+                            resolutionFingerprint = Hash(JsonSerializer.SerializeToUtf8Bytes(resolutionCandidates, MdxJson.Options)),
+                            pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
                             sources, linkMap, crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value), plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
                         if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();

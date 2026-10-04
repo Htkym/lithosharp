@@ -74,6 +74,23 @@ jobs:
       - name: Build
         run: dotnet build LithoSharp.slnx --no-restore --configuration Release
 
+      - name: Check bundled language server and editor units
+        shell: pwsh
+        run: |
+          Push-Location extensions/lithosharp-vscode
+          try {
+            npm ci --ignore-scripts --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test:unit
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run vsix:stage
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+          ./eng/Test-LspDistribution.ps1 -SkipPublish -PublishDirectory extensions/lithosharp-vscode/resources/language-server -Output artifacts/lsp-distribution
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Pack
         run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
 

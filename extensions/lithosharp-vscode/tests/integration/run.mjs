@@ -12,8 +12,5 @@ await runTests({
   version: '1.139.1',
   extensionDevelopmentPath: root,
   extensionTestsPath: path.join(root, 'out', 'tests', 'integration', 'index.js'),
-  extensionTestsEnv: {
-    LITHOSHARP_LS_DLL: process.env['LITHOSHARP_LS_DLL'] ?? '',
-  },
   launchArgs: [workspace, '--disable-gpu', '--disable-workspace-trust', ...verbose],
 });

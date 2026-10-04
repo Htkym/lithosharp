@@ -2654,8 +2654,10 @@ public sealed partial class SiteGenerator
     private static string SafeCombine(string root, string relativePath)
     {
         var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
-        var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(normalizedRoot, PathComparison))
+        var normalizedRoot = root.AsSpan().TrimEnd([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        if (!fullPath.AsSpan().StartsWith(normalizedRoot, PathComparison)
+            || fullPath.Length <= normalizedRoot.Length
+            || fullPath[normalizedRoot.Length] != Path.DirectorySeparatorChar)
         {
             throw new InvalidOperationException($"Output path '{relativePath}' escapes output directory.");
         }
@@ -3598,7 +3600,7 @@ public sealed partial class SiteGenerator
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
-                            bufferSize: 81920,
+                            bufferSize: 1,
                             FileOptions.Asynchronous | FileOptions.SequentialScan);
                         EnsureOpenedFilePath(source, entry);
                         await using var target = new FileStream(
@@ -3606,7 +3608,7 @@ public sealed partial class SiteGenerator
                             FileMode.CreateNew,
                             FileAccess.Write,
                             FileShare.None,
-                            bufferSize: 81920,
+                            bufferSize: 1,
                             FileOptions.Asynchronous);
                         EnsureOpenedFilePath(target, destination);
                         await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);

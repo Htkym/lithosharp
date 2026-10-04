@@ -31,12 +31,19 @@ workspace is trusted. No telemetry is collected in 0.1.0.
   automatically (project-local dotnet tool, then global PATH). Resolution
   never executes; the version is queried once on explicit selection.
 - `lithosharp.projectPath`: selected project file.
+- `lithosharp.languageServerPath`: explicit language server executable or DLL.
+  Empty starts the bundled framework-dependent server using `dotnet` on PATH.
+  Install the .NET 10 runtime before using live diagnostics; the extension
+  does not install it. Missing runtime errors appear in the output channel.
+- `lithosharp.workerDirectory`: explicit MDX worker directory. Empty uses
+  extension storage; run `LithoSharp: Restore MDX Worker` to restore its
+  dependencies. Markdown diagnostics work before that restore.
 
 ## Scope
 
 Build, serve, diagnostics, symbols, and preview are implemented (V110-16/17/18)
-and verified on a real Extension Host (V110-19). This shell owns no processes:
-stopping it disposes only the channel, status item, and listeners. Distribution
+and verified on a real Extension Host (V110-19). Shutdown disposes editing
+sessions and owned servers along with the channel, status item, and listeners. Distribution
 is local-VSIX only in 0.1.0; Marketplace, multi-OS and packaged-VSIX
 verification stay scheduled work.
 

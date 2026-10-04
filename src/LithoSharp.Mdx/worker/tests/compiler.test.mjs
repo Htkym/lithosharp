@@ -313,6 +313,84 @@ test('selective rendering emits no static-page entry and shares explicit island 
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
+test('browser reuse avoids actual bundling only when entries, resolution and dependencies are unchanged', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-browser-cache-'));
+  try {
+    const projectRoot = path.join(root, 'input');
+    await mkdir(projectRoot);
+    const component = path.join(projectRoot, 'Counter.jsx');
+    const css = path.join(projectRoot, 'counter.css');
+    await writeFile(component, `import {useState} from 'react';import './counter.css';export default function Counter(){const [n,set]=useState(3);return <button onClick={()=>set(n+1)}>Count {n}</button>}`);
+    await writeFile(css, 'button{color:navy}');
+    await writeFile(path.join(projectRoot, 'plugin.mjs'), `export default function plugin({label}){return tree=>{tree.children.unshift({type:'paragraph',children:[{type:'text',value:label}]})}}`);
+    const sources = {'static.mdx': '# Static\n\nOriginal body.',
+      'one.mdx': `import Counter from './Counter.jsx'\n\n# One\n\n<Counter />`,
+      'two.mdx': `import Counter from './Counter.jsx'\n\n# Two\n\n<Counter />`};
+    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
+    const request = {projectRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, hydration: 'selective', cacheable: true,
+      resolutionFingerprint: 'fixture-file-set-v1', plugins: [{stage: 'remark', module: './plugin.mjs', options: {label: 'first-plugin-value'}}],
+      pages: Object.keys(sources).map((source, index) => ({id: 'cache-' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}}))};
+    const run = async overrides => {
+      const workRoot = await mkdtemp(path.join(root, 'work-'));
+      try { return await compileSite({...request, ...overrides, workRoot}); }
+      finally { await rm(workRoot, {recursive: true, force: true}); }
+    };
+    const initial = await run();
+    assert.deepEqual(initial.rebundledPages, ['cache-1', 'cache-2']);
+    assert.equal(initial.bundledPages, 2);
+    sources['static.mdx'] = '# Static\n\nUpdated body.';
+    await writeFile(path.join(projectRoot, 'static.mdx'), sources['static.mdx']);
+    const reused = await run();
+    assert.match(reused.pages[0].html, /Updated body/);
+    assert.deepEqual(reused.rebundledPages, []);
+    assert.equal(reused.bundledPages, 0);
+    assert.equal(reused.timings.browserBundleMilliseconds, 0);
+    assert.deepEqual(reused.assets, initial.assets);
+    assert.deepEqual(reused.pages.map(page => [page.entry, page.css]), initial.pages.map(page => [page.entry, page.css]));
+
+    // A dependency edit invalidates the result even when its browser bytes do not change.
+    await writeFile(component, `// Bundling must run again.\nimport {useState} from 'react';import './counter.css';export default function Counter(){const [n,set]=useState(3);return <button onClick={()=>set(n+1)}>Count {n}</button>}`);
+    const commentEdit = await run();
+    assert.deepEqual(commentEdit.rebundledPages, ['cache-1', 'cache-2']);
+    assert.deepEqual(commentEdit.assets, initial.assets);
+    await writeFile(css, 'button{color:crimson}');
+    const cssEdit = await run();
+    assert.deepEqual(cssEdit.rebundledPages, ['cache-1', 'cache-2']);
+    assert.notDeepEqual(cssEdit.pages[1].css, reused.pages[1].css);
+
+    const pluginEdit = await run({plugins: [{stage: 'remark', module: './plugin.mjs', options: {label: 'second-plugin-value'}}]});
+    assert.deepEqual(pluginEdit.rebundledPages, ['cache-1', 'cache-2']);
+    assert.match(pluginEdit.pages[1].html, /second-plugin-value/);
+    assert.ok(pluginEdit.assets.some(asset => asset.path.endsWith('.js') && Buffer.from(asset.bytes, 'base64').toString().includes('second-plugin-value')));
+
+    // Resolution candidates include additions and package/configuration edits.
+    const resolutionEdit = await run({resolutionFingerprint: 'fixture-file-set-v2'});
+    assert.deepEqual(resolutionEdit.rebundledPages, ['cache-1', 'cache-2']);
+    const publicPathEdit = await run({resolutionFingerprint: 'fixture-file-set-v2', assetBaseUrl: '/other/_mdx'});
+    assert.deepEqual(publicPathEdit.rebundledPages, ['cache-1', 'cache-2']);
+    assert.ok(publicPathEdit.assets.some(asset => asset.path.endsWith('.js') && Buffer.from(asset.bytes, 'base64').toString().includes('/other/_mdx/')));
+    const withoutResolution = await run({resolutionFingerprint: undefined});
+    assert.deepEqual(withoutResolution.rebundledPages, ['cache-1', 'cache-2']);
+    const noncacheable = await run({cacheable: false});
+    assert.deepEqual(noncacheable.rebundledPages, ['cache-1', 'cache-2']);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('an input changed during SSR cannot be certified with its later fingerprint', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-browser-race-'));
+  try {
+    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
+    await mkdir(projectRoot); await mkdir(workRoot);
+    const css = path.join(projectRoot, 'style.css');
+    await writeFile(css, 'button{color:navy}');
+    await writeFile(path.join(projectRoot, 'Mutator.jsx'), `import './style.css';export default function Mutator(){if(typeof window==='undefined')process.getBuiltinModule('fs').writeFileSync(${JSON.stringify(css)},'button{color:red}');return <button>Mutated</button>}`);
+    const source = `import Mutator from './Mutator.jsx'\n\n# Race\n\n<Mutator />`;
+    await writeFile(path.join(projectRoot, 'race.mdx'), source);
+    await assert.rejects(compileSite({projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources: {'race.mdx': source},
+      pages: [{id: 'race', source: 'race.mdx', url: '/race/', title: 'Race', locale: 'en', props: {}}]}), /input changed during compilation/);
+  } finally { await rm(root, {recursive: true, force: true}); }
+});
+
 test('analysis-only inspection structures MDX without executing imports', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-analyze-check-'));
   try {

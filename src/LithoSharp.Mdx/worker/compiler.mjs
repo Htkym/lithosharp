@@ -46,9 +46,9 @@ const textOf = node => node.type === 'text' || node.type === 'inlineCode' ? node
 // ponytail: at most 20,000 session entries; use an LRU byte budget if larger declared corpora require it.
 const moduleCache = new Map();
 const renderCache = new Map();
-// Page id -> last browser output signature (entry closure plus stylesheets). The next request in
-// this process compares against it to report how many interactive entries really changed.
-const browserSignatures = new Map();
+// Retain only the most recent browser build: 64 MiB payload budget, at most 20,000 dependencies.
+// Reuse requires a caller-supplied resolution fingerprint as well as unchanged inputs.
+let browserCache;
 function remember(cache, key, value, limit) { if (cache.size >= limit) cache.delete(cache.keys().next().value); cache.set(key, value); }
 // These lists mirror DocusaurusProfile in src/LithoSharp/Documentation; the .NET profile tests parse them.
 const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'DocCardList', 'MDXComponents', 'BrowserOnly', 'IdealImage', 'ThemedImage', 'Heading'];
@@ -277,7 +277,10 @@ export async function compileSite(request) {
       const comparable = value => process.platform === 'win32' ? value.toLowerCase() : value;
       if (comparable(path.resolve(file)) !== comparable(resolved)) throw new Error(`Symbolic imports are not supported: ${relative(projectRoot, file)}`);
       const bytes = await readFile(resolved);
-      inputs.set(resolved, hash(bytes));
+      const fingerprint = hash(bytes);
+      if (inputs.has(resolved) && inputs.get(resolved) !== fingerprint)
+        throw new Error(`An MDX input changed during compilation: ${relative(projectRoot, file)}.`);
+      inputs.set(resolved, fingerprint);
       return bytes;
     });
     reads[slot] = result.catch(() => {});
@@ -640,10 +643,50 @@ export async function compileSite(request) {
     .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
   if (results.some(page => page.hydration !== 'page'))
     for (const [name, file] of styleRoots) browserEntries['style-' + hash(name).slice(0, 12)] = file;
-  const browserStarted = performance.now();
-  const browser = Object.keys(browserEntries).length ? await build({...common, entryPoints: browserEntries, outdir: browserDir, platform: 'browser', splitting: true,
-    sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]}) : {outputFiles: [], metafile: {inputs: {}, outputs: {}}};
-  const browserBundleMilliseconds = performance.now() - browserStarted;
+  const serverFingerprints = new Map(inputs);
+  const staticSources = new Set(pages.filter(page => !virtualBrowser.has(`virtual:${page.id}`))
+    .map(page => path.resolve(projectRoot, page.source)));
+  const browserInputFiles = browser => Object.keys(browser.metafile.inputs)
+    .filter(file => !/^(?:virtual|theme|empty|live-runtime|hooks):/.test(file))
+    .map(file => file.startsWith('raw:') ? file.slice(4) : path.resolve(projectRoot, file));
+  const browserKey = dependencies => hash(JSON.stringify([projectRoot, common, request.resolutionFingerprint, request.plugins, request.staticComponents,
+    browserEntries, [...virtualBrowser].sort(([left], [right]) => left.localeCompare(right, 'en')),
+    [...serverFingerprints].filter(([file]) => !staticSources.has(file) || dependencies.has(file))
+      .sort(([left], [right]) => left.localeCompare(right, 'en'))]));
+  const canCacheBrowser = request.cacheable && typeof request.resolutionFingerprint === 'string';
+  let browser, browserBundleMilliseconds = 0, browserCacheHit = false;
+  const previousBrowser = browserCache;
+  if (canCacheBrowser && previousBrowser && previousBrowser.key === browserKey(previousBrowser.dependencies)) {
+    try {
+      browserCacheHit = (await Promise.all([...previousBrowser.dependencies].map(async ([file, fingerprint]) =>
+        hash(await readInput(file)) === fingerprint))).every(Boolean);
+    } catch { /* Missing or unsafe cached inputs must be resolved afresh by esbuild. */ }
+    if (browserCacheHit) {
+      // esbuild output imports are relative to projectRoot; relocate only metadata paths.
+      // Output bytes use relative chunk paths and the unchanged publicPath.
+      const relocate = file => path.join(browserDir, relative(previousBrowser.directory, path.resolve(projectRoot, file)));
+      browser = {outputFiles: previousBrowser.browser.outputFiles.map(file => ({contents: file.contents, path: relocate(file.path)})),
+        metafile: {inputs: previousBrowser.browser.metafile.inputs, outputs: Object.fromEntries(
+          Object.entries(previousBrowser.browser.metafile.outputs).map(([file, info]) => [relative(projectRoot, relocate(file)), {...info,
+            ...(info.cssBundle ? {cssBundle: relative(projectRoot, relocate(info.cssBundle))} : {}),
+            imports: info.imports.map(item => item.external ? item : {...item, path: relative(projectRoot, relocate(item.path))})}]))}};
+    }
+  }
+  if (!browserCacheHit) {
+    const browserStarted = performance.now();
+    browser = Object.keys(browserEntries).length ? await build({...common, entryPoints: browserEntries, outdir: browserDir, platform: 'browser', splitting: true,
+      sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]}) : {outputFiles: [], metafile: {inputs: {}, outputs: {}}};
+    browserBundleMilliseconds = performance.now() - browserStarted;
+    const dependencies = new Map();
+    for (const file of browserInputFiles(browser)) dependencies.set(await realpath(file), hash(await readInput(file)));
+    // Include retained UTF-16 paths, metadata and dependency hashes in the payload budget.
+    // This bounds retained data, not V8 object overhead or the process heap snapshot.
+    const cacheBytes = browser.outputFiles.reduce((sum, file) => sum + file.contents.byteLength + file.path.length * 2, 0)
+      + JSON.stringify(browser.metafile).length * 2 + (browserDir.length + 64) * 2
+      + [...dependencies].reduce((sum, [file, fingerprint]) => sum + (file.length + fingerprint.length) * 2, 0);
+    browserCache = canCacheBrowser && dependencies.size <= 20000 && cacheBytes <= 64 * 1024 * 1024
+      ? {key: browserKey(dependencies), browser, directory: browserDir, dependencies} : undefined;
+  }
   const browserOutputs = new Map(Object.entries(browser.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
   const pageEntries = new Map([...browserOutputs].filter(([, info]) => info.entryPoint).map(entry => [entry[1].entryPoint.replace(/^virtual:virtual:/, 'virtual:'), entry]));
   const styleOrder = new Map(styleRoots.map(([, file], index) => [file, index]));
@@ -669,30 +712,9 @@ export async function compileSite(request) {
     if (page.hydration !== 'page') page.css.push(...styleEntries);
     page.css = [...new Set(page.css)];
   }
-  // Report the interactive entries whose output really changed. Entry and chunk names embed a
-  // content hash, so an unchanged closure keeps the same signature even though esbuild re-emitted it.
-  const assetImports = new Map(assets.map(asset => [asset.path, asset.imports]));
-  const closure = root => {
-    const seen = new Set();
-    const stack = [root];
-    while (stack.length) {
-      const current = stack.pop();
-      if (current === null || current === undefined || seen.has(current)) continue;
-      seen.add(current);
-      for (const next of assetImports.get(current) ?? []) stack.push(next);
-    }
-    return [...seen].sort().join('|');
-  };
-  const rebundledPages = [];
-  const nextSignatures = new Map();
-  for (const page of results) {
-    if (page.entry === null) continue;
-    const signature = closure(page.entry) + '\n' + page.css.map(closure).sort().join('|');
-    nextSignatures.set(page.id, signature);
-    if (browserSignatures.get(page.id) !== signature) rebundledPages.push(page.id);
-  }
-  browserSignatures.clear();
-  for (const [id, signature] of nextSignatures) browserSignatures.set(id, signature);
+  // Count actual esbuild work, including unchanged entries processed in a shared build.
+  // A validated browser cache hit does no browser bundling work.
+  const rebundledPages = browserCacheHit ? [] : results.filter(page => page.entry !== null).map(page => page.id);
   for (const input of new Set([...Object.keys(server.metafile.inputs), ...Object.keys(browser.metafile.inputs)])) {
     if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:') || input.startsWith('live-runtime:') || input.startsWith('hooks:')) continue;
     if (input.startsWith('raw:')) await readInput(input.slice(4));
@@ -716,6 +738,6 @@ export async function compileSite(request) {
   const noticeBytes = Buffer.from([...notices].sort(([left], [right]) => left.localeCompare(right, 'en')).map(([, text]) => text).join('\n---\n\n'));
   assets.push({path: 'third-party-notices.txt', bytes: noticeBytes.toString('base64'), hash: hash(noticeBytes), imports: [], inputs: []});
   return {pages: results, assets, inputs: [...inputs].map(([file, hash]) => ({file, hash})),
-    compiledModules, renderedPages, bundledPages: results.filter(page => page.entry !== null).length, rebundledPages,
+    compiledModules, renderedPages, bundledPages: rebundledPages.length, rebundledPages,
     timings: {serverBundleMilliseconds, renderMilliseconds, browserBundleMilliseconds, totalMilliseconds: performance.now() - started}, memory: process.memoryUsage()};
 }

@@ -32,3 +32,15 @@ test('windows no-argument script launchers run through cmd without shell argumen
   assert.match(output, /hello-proc/);
   child.killTree();
 });
+
+test('missing executable reports stderr and settles each exit listener without crashing', async () => {
+  const child = spawnProcess([path.join(os.tmpdir(), `missing-lithosharp-${process.pid}.exe`)], os.tmpdir());
+  let errors = '';
+  child.onStderr((chunk) => { errors += chunk.toString('utf8'); });
+  const stopped = await Promise.all([1, 2].map(() => new Promise<number | null>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('missing executable did not settle')), 5000);
+    child.onExit((code) => { clearTimeout(timer); resolve(code); });
+  })));
+  assert.deepEqual(stopped, [null, null]);
+  assert.match(errors, /ENOENT/);
+});

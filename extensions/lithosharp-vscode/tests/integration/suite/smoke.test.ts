@@ -52,17 +52,14 @@ describe('lithosharp smoke', () => {
 
   it('edits surface diagnostics and converge on each change', async () => {
     const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-int-'));
-    const server = process.platform === 'win32' ? path.join(dir, 'lsp.cmd') : path.join(dir, 'lsp.sh');
-    const dll = process.env['LITHOSHARP_LS_DLL'] ?? '';
-    assert.ok(dll !== '', 'LITHOSHARP_LS_DLL must point at the Release language server.');
-    await fs.promises.writeFile(
-      server,
-      process.platform === 'win32' ? `@echo off\r\ndotnet "${dll}" %*\r\n` : `#!/bin/sh\nexec dotnet "${dll}" "$@"\n`,
-    );
-    if (process.platform !== 'win32') {
-      await fs.promises.chmod(server, 0o755);
-    }
-    await vscode.workspace.getConfiguration('lithosharp').update('languageServerPath', server, vscode.ConfigurationTarget.Global);
+    // Empty setting verifies the actual bundled default, without a server shim
+    // or an explicit development DLL overriding the packaged path.
+    const ext = vscode.extensions.getExtension('undefined_publisher.lithosharp');
+    assert.ok(ext, 'extension is not installed');
+    assert.ok(fs.existsSync(path.join(ext.extensionPath, 'resources', 'language-server', 'LithoSharp.LanguageServer.dll')),
+      'stage the language server before running Extension Host tests');
+    await vscode.workspace.getConfiguration('lithosharp').update('languageServerPath', '', vscode.ConfigurationTarget.Global);
+    await vscode.commands.executeCommand('lithosharp.restartServer');
 
     const docPath = path.join(dir, 'note.md');
     await fs.promises.writeFile(docPath, '---\ntitle: T\n---\nSee [^a] here.\n');

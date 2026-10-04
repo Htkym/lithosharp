@@ -12,6 +12,7 @@ import { ServeController } from './serveController.js';
 import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
 import { LspClient } from './lspClient.js';
+import { resolveLanguageServerCommand } from './languageServer.js';
 import { toVsDiagnostic } from './diagnostics.js';
 import { resolveWorker, restoreWorker, type WorkerDeps, type WorkerFileSystem } from './worker.js';
 import { PreviewManager } from './previewManager.js';
@@ -172,7 +173,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const projectGenerations = new Map<string, number>();
   let lsp: LspClient | undefined;
   let lspStarting: Promise<LspClient | undefined> | undefined;
-  let missingLspPathLogged = false;
+  let missingLspBundleLogged = false;
   const diagnosticsCollection = vscode.languages.createDiagnosticCollection('lithosharp');
   const previews = new PreviewManager(
     {
@@ -645,19 +646,17 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!vscode.workspace.isTrusted) {
       return undefined;
     }
-    // Bundled delivery covers the MDX worker source only: the language server
-    // itself still needs an explicit path (framework-dependent publish, one
-    // RID per install), and the worker needs an explicit restore. Nothing is
-    // guessed or auto-installed.
-    const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '').trim();
-    if (explicitServer === '') {
-      if (!missingLspPathLogged) {
-        output.appendLine('Language server: set lithosharp.languageServerPath to enable live diagnostics.');
-        missingLspPathLogged = true;
+    const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '');
+    const serverCommand = resolveLanguageServerCommand(true, explicitServer, context.extensionPath ?? '',
+      (file) => { try { return nodeFs.statSync(file).isFile(); } catch { return false; } });
+    if (!serverCommand) {
+      if (!missingLspBundleLogged) {
+        output.appendLine('Language server bundle is missing. Reinstall the extension or set lithosharp.languageServerPath.');
+        missingLspBundleLogged = true;
       }
       return undefined;
     }
-    missingLspPathLogged = false;
+    missingLspBundleLogged = false;
     // The worker directory rides along when one is resolvable; without it the
     // server still diagnoses Markdown and degrades MDX with an explanation.
     let workerDirectory = '';
@@ -672,7 +671,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const client = new LspClient(
       {
-        serverCommand: [explicitServer],
+        serverCommand,
         cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
         spawn: (command, cwd) => spawnProcess(command, cwd),
         debounceMs: vscode.workspace.getConfiguration('lithosharp').get<number>('diagnosticDebounceMs', 150),

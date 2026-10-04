@@ -286,9 +286,17 @@ foreach ($size in $sizeList) {
                     continue
                 }
             }
-            Write-Host ("run: $Harness $size $scenario run $run")
+            # Preserve failed or interrupted attempts, including those with no ledger record.
+            $attempt = 1
+            $baseRunDirectory = $runDirectory
+            while (Test-Path -LiteralPath $runDirectory) {
+                $attempt++
+                $runDirectory = "$baseRunDirectory-attempt-$attempt"
+            }
+            Write-Host ("run: $Harness $size $scenario run $run attempt $attempt")
             foreach ($record in (Invoke-HarnessRun $runDirectory $size $scenario)) {
                 $record.run = $run
+                $record.attempt = $attempt
                 $records.Add($record)
                 [IO.File]::AppendAllText($ledgerPath, (($record | ConvertTo-Json -Depth 10 -Compress) + [Environment]::NewLine))
                 Write-Host ("  {0} {1} exit={2} wall={3}ms measured={4}ms" -f $record.status, $record.scenario, $record.exitCode, $record.wallMs,
@@ -390,4 +398,9 @@ if ($excluded.Count -gt 0) {
 }
 if (@($cells | Where-Object { $_.status -ne 'measured' }).Count -gt 0) {
     Write-Host 'Some cells are partial or blocked; see the summary.'
+}
+
+# Historical failures remain in the summary; only new failures fail this invocation.
+if (@($records | Where-Object { $_.status -ne 'completed' }).Count -gt 0) {
+    throw 'One or more harness attempts failed, timed out, or produced no measurement; raw evidence and summary were retained.'
 }

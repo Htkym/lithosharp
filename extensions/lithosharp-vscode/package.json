@@ -80,7 +80,9 @@
     "configuration": {
       "title": "LithoSharp",
       "restrictedConfigurations": [
-        "lithosharp.cliPath"
+        "lithosharp.cliPath",
+        "lithosharp.languageServerPath",
+        "lithosharp.workerDirectory"
       ],
       "properties": {
         "lithosharp.cliPath": {
@@ -96,7 +98,7 @@
         "lithosharp.languageServerPath": {
           "type": "string",
           "default": "",
-          "description": "Explicit language server executable. Empty disables live diagnostics until the server ships bundled."
+          "description": "Explicit language server executable or DLL. Empty uses the bundled server through dotnet (.NET 10 runtime required). Ignored in untrusted workspaces."
         },
         "lithosharp.workerDirectory": {
           "type": "string",
@@ -119,7 +121,7 @@
     "test:unit": "npm run compile && node --test \"out/tests/unit/**/*.test.js\"",
     "test:integration": "npm run compile && node tests/integration/run.mjs",
     "measure:editor": "npm run compile && node eng/measure-editor.mjs",
-    "vsix:stage": "node eng/stage-worker.mjs",
+    "vsix:stage": "node eng/stage-worker.mjs && node eng/stage-language-server.mjs",
     "vsix:pack": "npm run compile && npm run vsix:stage && npx --yes @vscode/vsce package --no-update-package-json",
     "vscode:prepublish": "npm run compile"
   },

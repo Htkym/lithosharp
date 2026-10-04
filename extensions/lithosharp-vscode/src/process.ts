@@ -44,9 +44,18 @@ export function spawnProcess(command: string[], cwd: string): SpawnedProcess {
     },
     onStderr: (fn) => {
       child.stderr!.on('data', fn);
+      child.on('error', (error) => fn(Buffer.from(error.message)));
+      child.stdin!.on('error', (error) => fn(Buffer.from(error.message)));
     },
     onExit: (fn) => {
-      child.on('exit', (code) => fn(code));
+      let delivered = false;
+      const deliver = (code: number | null): void => {
+        if (delivered) return;
+        delivered = true;
+        fn(code);
+      };
+      child.once('exit', deliver);
+      child.once('error', () => deliver(null));
     },
     killTree: () => {
       if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
