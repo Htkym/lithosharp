@@ -49,7 +49,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                 var ready = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
                 if (ready.GetProperty("protocol").GetInt32() != 1 || ready.GetProperty("type").GetString() != "ready"
                     || ready.GetProperty("node").GetString() != "24.13.0" || ready.GetProperty("mdx").GetString() != "3.1.1"
-                    || ready.GetProperty("react").GetString() != "19.2.4" || ready.GetProperty("esbuild").GetString() != "0.25.12")
+                    || ready.GetProperty("react").GetString() != "19.2.4" || ready.GetProperty("esbuild").GetString() != "0.28.2")
                     throw Failure("LSMDX003", "The worker protocol or toolchain does not match the supported locked versions.");
             }
             var json = JsonSerializer.Serialize(request, MdxJson.Options);

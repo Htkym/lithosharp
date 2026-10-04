@@ -26,10 +26,10 @@ internal sealed class LspTestClient : IAsyncDisposable
     public static LspTestClient Start()
     {
         var root = FindRepository();
-        var server = Path.Combine(root, "src", "LithoSharp.LanguageServer", "bin", "Release", "net10.0", "LithoSharp.LanguageServer.dll");
+        var server = typeof(LithoSharp.LanguageServer.LspServer).Assembly.Location;
         if (!File.Exists(server))
         {
-            throw new InvalidOperationException($"Build the Release language server first: {server}");
+            throw new InvalidOperationException($"The referenced language server assembly is missing: {server}");
         }
 
         var start = new ProcessStartInfo("dotnet")

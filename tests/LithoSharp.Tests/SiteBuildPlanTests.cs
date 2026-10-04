@@ -123,6 +123,50 @@ public sealed class SiteBuildPlanTests
     }
 
     [Test]
+    public async Task GetInvalidatedNodes_EquivalentSortedMultisetsPreserveDuplicateAndOrdinalValues()
+    {
+        var id = new BuildNodeId("page");
+        var previous = SiteBuildPlan.Create(
+        [
+            new BuildNode(id,
+            [
+                BuildInput.FromValue("body", "e\u0301"),
+                BuildInput.FromCollection("posts"),
+                BuildInput.FromValue("body", "\u00e9"),
+                BuildInput.FromValue("body", "\u00e9"),
+            ]),
+        ]);
+        var reordered = SiteBuildPlan.Create(
+        [
+            new BuildNode(id,
+            [
+                BuildInput.FromValue("body", "\u00e9"),
+                BuildInput.FromValue("body", "e\u0301"),
+                BuildInput.FromValue("body", "\u00e9"),
+                BuildInput.FromCollection("posts"),
+            ]),
+        ]);
+        var changed = SiteBuildPlan.Create(
+        [
+            new BuildNode(id,
+            [
+                BuildInput.FromValue("body", "\u00e9"),
+                BuildInput.FromValue("body", "e\u0301"),
+                BuildInput.FromValue("body", "e\u0301"),
+                BuildInput.FromCollection("posts", "new"),
+            ]),
+        ]);
+
+        await Assert.That(reordered.GetInvalidatedNodes(previous)).IsEmpty();
+        await Assert.That(changed.GetInvalidatedNodes(previous).Single().Reasons)
+            .IsEquivalentTo(
+            [
+                "入力 'Value:body' が変更されました。",
+                "入力 'Collection:posts' が変更されました。",
+            ]);
+    }
+
+    [Test]
     public async Task Create_ExposesArtifactOwnerInputsAndDependencies()
     {
         var content = Node("content");

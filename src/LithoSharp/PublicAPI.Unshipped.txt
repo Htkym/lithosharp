@@ -204,3 +204,382 @@ LithoSharp.Documentation.MigrationRouteComparisonReport.RouteOracleHash.get -> s
 LithoSharp.Documentation.MigrationRouteComparisonReport.ExclusionRules.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationRouteExclusionReport!>!
 LithoSharp.Documentation.MigrationRouteComparisonReport.Locales.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.MigrationLocaleCountReport!>!
 LithoSharp.Documentation.MigrationRouteComparisonReport.NormalizedPageSet.get -> LithoSharp.Documentation.MigrationPageSetComparisonReport!
+LithoSharp.BlogHeaderComponentProps.<Clone>$() -> LithoSharp.BlogHeaderComponentProps!
+LithoSharp.BlogHeaderComponentProps.Deconstruct(out string! Brand, out LithoSharp.SiteUrl! HomeUrl, out System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>! Links, out LithoSharp.SiteUrl? SearchUrl, out bool IncludeNavigation) -> void
+LithoSharp.BlogHeaderComponentProps.Equals(LithoSharp.BlogHeaderComponentProps? other) -> bool
+LithoSharp.Build.SiteBuildContribution.<Clone>$() -> LithoSharp.Build.SiteBuildContribution!
+LithoSharp.Build.SiteBuildContribution.Equals(LithoSharp.Build.SiteBuildContribution? other) -> bool
+LithoSharp.Build.SiteBuildContribution.SiteBuildContribution() -> void
+LithoSharp.Configuration.SiteSettings.<Clone>$() -> LithoSharp.Configuration.SiteSettings!
+LithoSharp.Configuration.SiteSettings.Equals(LithoSharp.Configuration.SiteSettings? other) -> bool
+LithoSharp.Configuration.SiteSettings.SiteSettings() -> void
+LithoSharp.Content.MarkdownPost.<Clone>$() -> LithoSharp.Content.MarkdownPost!
+LithoSharp.Content.MarkdownPost.Deconstruct(out string! FilePath, out string! Slug, out LithoSharp.Content.PostFrontMatter! FrontMatter, out string! MarkdownBody, out string! RelativeOutputPath) -> void
+LithoSharp.Content.MarkdownPost.Equals(LithoSharp.Content.MarkdownPost? other) -> bool
+LithoSharp.Content.PostFrontMatter.<Clone>$() -> LithoSharp.Content.PostFrontMatter!
+LithoSharp.Content.PostFrontMatter.Equals(LithoSharp.Content.PostFrontMatter? other) -> bool
+LithoSharp.Content.PostFrontMatter.PostFrontMatter() -> void
+LithoSharp.Content.PostSourceReference.<Clone>$() -> LithoSharp.Content.PostSourceReference!
+LithoSharp.Content.PostSourceReference.Equals(LithoSharp.Content.PostSourceReference? other) -> bool
+LithoSharp.Content.PostSourceReference.PostSourceReference() -> void
+LithoSharp.ContentValidationResult.<Clone>$() -> LithoSharp.ContentValidationResult!
+LithoSharp.ContentValidationResult.Deconstruct(out int PostCount) -> void
+LithoSharp.ContentValidationResult.Equals(LithoSharp.ContentValidationResult? other) -> bool
+LithoSharp.DocsNavigationComponentProps.<Clone>$() -> LithoSharp.DocsNavigationComponentProps!
+LithoSharp.DocsNavigationComponentProps.Deconstruct(out LithoSharp.SiteTemplateNavigationNode! Root, out System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>! AdditionalLinks, out LithoSharp.SiteUrl? CurrentUrl) -> void
+LithoSharp.DocsNavigationComponentProps.Equals(LithoSharp.DocsNavigationComponentProps? other) -> bool
+LithoSharp.Documentation.ApiChange.<Clone>$() -> LithoSharp.Documentation.ApiChange!
+LithoSharp.Documentation.ApiChange.Deconstruct(out string! Id, out string! Kind) -> void
+LithoSharp.Documentation.ApiChange.Equals(LithoSharp.Documentation.ApiChange? other) -> bool
+LithoSharp.Documentation.ApiMember.<Clone>$() -> LithoSharp.Documentation.ApiMember!
+LithoSharp.Documentation.ApiMember.Deconstruct(out string! Id, out string! Title, out string! Summary, out string! BodyHtml, out bool Deprecated) -> void
+LithoSharp.Documentation.ApiMember.Equals(LithoSharp.Documentation.ApiMember? other) -> bool
+LithoSharp.Documentation.ApiReferenceInput.<Clone>$() -> LithoSharp.Documentation.ApiReferenceInput!
+LithoSharp.Documentation.ApiReferenceInput.Deconstruct(out string! Collection, out LithoSharp.Documentation.DocumentVariant! Variant, out string! FilePath) -> void
+LithoSharp.Documentation.ApiReferenceInput.Equals(LithoSharp.Documentation.ApiReferenceInput? other) -> bool
+LithoSharp.Documentation.DocumentKey.<Clone>$() -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentKey.Deconstruct(out string! Collection, out string! Version, out string! Locale, out string! Id) -> void
+LithoSharp.Documentation.DocumentKey.Equals(LithoSharp.Documentation.DocumentKey? other) -> bool
+LithoSharp.Documentation.DocumentNavigationItem.<Clone>$() -> LithoSharp.Documentation.DocumentNavigationItem!
+LithoSharp.Documentation.DocumentNavigationItem.Deconstruct(out string! Label, out LithoSharp.SiteUrl? Url, out LithoSharp.Documentation.DocumentKey? Document, out System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentNavigationItem!>! Children, out bool Collapsed) -> void
+LithoSharp.Documentation.DocumentNavigationItem.Equals(LithoSharp.Documentation.DocumentNavigationItem? other) -> bool
+LithoSharp.Documentation.DocumentPage.<Clone>$() -> LithoSharp.Documentation.DocumentPage!
+LithoSharp.Documentation.DocumentPage.Deconstruct(out LithoSharp.Documentation.DocumentKey! Key, out string! SourcePath, out LithoSharp.Documentation.DocumentFrontMatter! FrontMatter, out LithoSharp.Routing.SiteRoute! Route) -> void
+LithoSharp.Documentation.DocumentPage.Equals(LithoSharp.Documentation.DocumentPage? other) -> bool
+LithoSharp.Documentation.DocumentVariant.<Clone>$() -> LithoSharp.Documentation.DocumentVariant!
+LithoSharp.Documentation.DocumentVariant.Deconstruct(out string! Version, out string! Locale, out string! InputDirectory, out string! RoutePrefix) -> void
+LithoSharp.Documentation.DocumentVariant.Equals(LithoSharp.Documentation.DocumentVariant? other) -> bool
+LithoSharp.Documentation.DocusaurusMigrationOptions.<Clone>$() -> LithoSharp.Documentation.DocusaurusMigrationOptions!
+LithoSharp.Documentation.DocusaurusMigrationOptions.Deconstruct(out string! BaseUrl, out string! DefaultLocale, out string! DocsRoutePrefix, out string! BlogRoutePrefix) -> void
+LithoSharp.Documentation.DocusaurusMigrationOptions.Equals(LithoSharp.Documentation.DocusaurusMigrationOptions? other) -> bool
+LithoSharp.Documentation.SidebarItem.<Clone>$() -> LithoSharp.Documentation.SidebarItem!
+LithoSharp.Documentation.SidebarItem.Deconstruct(out string! Type, out string? Id, out string? Label) -> void
+LithoSharp.Documentation.SidebarItem.Equals(LithoSharp.Documentation.SidebarItem? other) -> bool
+LithoSharp.FooterComponentProps.<Clone>$() -> LithoSharp.FooterComponentProps!
+LithoSharp.FooterComponentProps.Deconstruct(out string! SiteTitle, out bool Docs) -> void
+LithoSharp.FooterComponentProps.Equals(LithoSharp.FooterComponentProps? other) -> bool
+LithoSharp.HeadComponentProps.<Clone>$() -> LithoSharp.HeadComponentProps!
+LithoSharp.HeadComponentProps.Deconstruct(out LithoSharp.SeoComponentProps! Seo, out LithoSharp.SiteUrl! StylesheetUrl, out LithoSharp.IHtmlContent! FaviconLinks, out LithoSharp.IHtmlContent! Analytics, out LithoSharp.SiteUrl? FeedUrl, out LithoSharp.SiteUrl? ScriptUrl, out bool Docs) -> void
+LithoSharp.HeadComponentProps.Equals(LithoSharp.HeadComponentProps? other) -> bool
+LithoSharp.NavigationLink.<Clone>$() -> LithoSharp.NavigationLink!
+LithoSharp.NavigationLink.Deconstruct(out string! Label, out LithoSharp.SiteUrl! Url, out string? CssClass, out bool IsCurrent) -> void
+LithoSharp.NavigationLink.Equals(LithoSharp.NavigationLink? other) -> bool
+LithoSharp.PageLayoutContent.<Clone>$() -> LithoSharp.PageLayoutContent!
+LithoSharp.PageLayoutContent.Deconstruct(out LithoSharp.IHtmlContent! Body) -> void
+LithoSharp.PageLayoutContent.Equals(LithoSharp.PageLayoutContent? other) -> bool
+LithoSharp.PreviousNextComponentProps.<Clone>$() -> LithoSharp.PreviousNextComponentProps!
+LithoSharp.PreviousNextComponentProps.Deconstruct(out LithoSharp.NavigationLink? Previous, out LithoSharp.NavigationLink? Next) -> void
+LithoSharp.PreviousNextComponentProps.Equals(LithoSharp.PreviousNextComponentProps? other) -> bool
+LithoSharp.Quality.ExternalLinkCheckOptions.<Clone>$() -> LithoSharp.Quality.ExternalLinkCheckOptions!
+LithoSharp.Quality.ExternalLinkCheckOptions.Equals(LithoSharp.Quality.ExternalLinkCheckOptions? other) -> bool
+LithoSharp.Quality.SiteQualityOptions.<Clone>$() -> LithoSharp.Quality.SiteQualityOptions!
+LithoSharp.Quality.SiteQualityOptions.Equals(LithoSharp.Quality.SiteQualityOptions? other) -> bool
+LithoSharp.Routing.SiteRedirect.<Clone>$() -> LithoSharp.Routing.SiteRedirect!
+LithoSharp.Routing.SiteRedirect.Equals(LithoSharp.Routing.SiteRedirect? other) -> bool
+LithoSharp.Search.SearchDocument.<Clone>$() -> LithoSharp.Search.SearchDocument!
+LithoSharp.Search.SearchDocument.Deconstruct(out string! Title, out string! Summary, out System.Collections.Generic.IReadOnlyList<string!>! Tags, out string! Url, out string! Date, out string! Body) -> void
+LithoSharp.Search.SearchDocument.Equals(LithoSharp.Search.SearchDocument? other) -> bool
+LithoSharp.Search.SearchHit.<Clone>$() -> LithoSharp.Search.SearchHit!
+LithoSharp.Search.SearchHit.Deconstruct(out LithoSharp.Search.SearchDocument! Document, out string! Url, out string! Excerpt, out int Score) -> void
+LithoSharp.Search.SearchHit.Equals(LithoSharp.Search.SearchHit? other) -> bool
+LithoSharp.Search.SearchIndex.<Clone>$() -> LithoSharp.Search.SearchIndex!
+LithoSharp.Search.SearchIndex.Deconstruct(out string! Site, out string! Generated, out System.Collections.Generic.IReadOnlyList<LithoSharp.Search.SearchDocument!>! Documents) -> void
+LithoSharp.Search.SearchIndex.Equals(LithoSharp.Search.SearchIndex? other) -> bool
+LithoSharp.Search.SearchSection.<Clone>$() -> LithoSharp.Search.SearchSection!
+LithoSharp.Search.SearchSection.Deconstruct(out string! Title, out string! Anchor, out string! Body) -> void
+LithoSharp.Search.SearchSection.Equals(LithoSharp.Search.SearchSection? other) -> bool
+LithoSharp.SeoComponentProps.<Clone>$() -> LithoSharp.SeoComponentProps!
+LithoSharp.SeoComponentProps.Deconstruct(out string! FullTitle, out string! Description, out LithoSharp.SiteUrl! CanonicalUrl, out string! OpenGraphType, out LithoSharp.SiteUrl! SocialImageUrl, out string! SocialImageAlt, out System.DateTimeOffset? PublishedAt) -> void
+LithoSharp.SeoComponentProps.Equals(LithoSharp.SeoComponentProps? other) -> bool
+LithoSharp.SiteBuildReportInvalidation.<Clone>$() -> LithoSharp.SiteBuildReportInvalidation!
+LithoSharp.SiteBuildReportInvalidation.Deconstruct(out string! NodeId, out System.Collections.Generic.IReadOnlyList<string!>! Reasons) -> void
+LithoSharp.SiteBuildReportNode.<Clone>$() -> LithoSharp.SiteBuildReportNode!
+LithoSharp.SiteBuildReportNode.Deconstruct(out string! NodeId, out System.Collections.Generic.IReadOnlyList<string!>! OwnedArtifacts) -> void
+LithoSharp.SiteCustomization.<Clone>$() -> LithoSharp.SiteCustomization!
+LithoSharp.SiteCustomization.Equals(LithoSharp.SiteCustomization? other) -> bool
+LithoSharp.SiteCustomization.SiteCustomization() -> void
+LithoSharp.SiteDefinition.<Clone>$() -> LithoSharp.SiteDefinition!
+LithoSharp.SiteDefinition.Equals(LithoSharp.SiteDefinition? other) -> bool
+LithoSharp.SiteExtraPage.<Clone>$() -> LithoSharp.SiteExtraPage!
+LithoSharp.SiteExtraPage.Equals(LithoSharp.SiteExtraPage? other) -> bool
+LithoSharp.SiteExtraPage.SiteExtraPage() -> void
+LithoSharp.SiteFactoryContext.<Clone>$() -> LithoSharp.SiteFactoryContext!
+LithoSharp.SiteFactoryContext.Equals(LithoSharp.SiteFactoryContext? other) -> bool
+LithoSharp.SiteGenerationOptions.<Clone>$() -> LithoSharp.SiteGenerationOptions!
+LithoSharp.SiteGenerationOptions.Equals(LithoSharp.SiteGenerationOptions? other) -> bool
+LithoSharp.SiteGenerationOptions.SiteGenerationOptions() -> void
+LithoSharp.SiteGenerationResult.<Clone>$() -> LithoSharp.SiteGenerationResult!
+LithoSharp.SiteGenerationResult.Deconstruct(out string! OutputDirectory, out int PostCount, out System.Collections.Generic.IReadOnlyList<string!>! GeneratedFiles) -> void
+LithoSharp.SiteTemplateDocument.<Clone>$() -> LithoSharp.SiteTemplateDocument!
+LithoSharp.SiteTemplateDocument.Equals(LithoSharp.SiteTemplateDocument? other) -> bool
+LithoSharp.SiteTemplateDocument.SiteTemplateDocument() -> void
+LithoSharp.SiteTemplateFile.<Clone>$() -> LithoSharp.SiteTemplateFile!
+LithoSharp.SiteTemplateFile.Equals(LithoSharp.SiteTemplateFile? other) -> bool
+LithoSharp.SiteTemplateFile.SiteTemplateFile() -> void
+LithoSharp.SiteTemplateHeading.<Clone>$() -> LithoSharp.SiteTemplateHeading!
+LithoSharp.SiteTemplateHeading.Deconstruct(out int Level, out string! Id, out string! Text) -> void
+LithoSharp.SiteTemplateHeading.Equals(LithoSharp.SiteTemplateHeading? other) -> bool
+LithoSharp.SiteTemplateNavigationNode.<Clone>$() -> LithoSharp.SiteTemplateNavigationNode!
+LithoSharp.SiteTemplateNavigationNode.Equals(LithoSharp.SiteTemplateNavigationNode? other) -> bool
+LithoSharp.SiteTemplateNavigationNode.SiteTemplateNavigationNode() -> void
+LithoSharp.SiteTemplatePage.<Clone>$() -> LithoSharp.SiteTemplatePage!
+LithoSharp.SiteTemplatePage.Equals(LithoSharp.SiteTemplatePage? other) -> bool
+LithoSharp.SiteTemplatePage.SiteTemplatePage() -> void
+LithoSharp.SiteTemplatePageLink.<Clone>$() -> LithoSharp.SiteTemplatePageLink!
+LithoSharp.SiteTemplatePageLink.Deconstruct(out string! Title, out string! Url) -> void
+LithoSharp.SiteTemplatePageLink.Equals(LithoSharp.SiteTemplatePageLink? other) -> bool
+LithoSharp.SiteTemplateResult.<Clone>$() -> LithoSharp.SiteTemplateResult!
+LithoSharp.SiteTemplateResult.Equals(LithoSharp.SiteTemplateResult? other) -> bool
+LithoSharp.SiteText.<Clone>$() -> LithoSharp.SiteText!
+LithoSharp.SiteText.Equals(LithoSharp.SiteText? other) -> bool
+LithoSharp.SiteText.SiteText() -> void
+LithoSharp.SiteThemeOptions.<Clone>$() -> LithoSharp.SiteThemeOptions!
+LithoSharp.SiteThemeOptions.Equals(LithoSharp.SiteThemeOptions? other) -> bool
+LithoSharp.SiteThemeOptions.SiteThemeOptions() -> void
+LithoSharp.Validation.ContentValidationContext.<Clone>$() -> LithoSharp.Validation.ContentValidationContext!
+LithoSharp.Validation.ContentValidationContext.Deconstruct(out LithoSharp.Configuration.SiteSettings! Site, out string! ContentDirectory) -> void
+LithoSharp.Validation.ContentValidationContext.Equals(LithoSharp.Validation.ContentValidationContext? other) -> bool
+override LithoSharp.BlogHeaderComponentProps.Equals(object? obj) -> bool
+override LithoSharp.BlogHeaderComponentProps.GetHashCode() -> int
+override LithoSharp.BlogHeaderComponentProps.ToString() -> string!
+override LithoSharp.Build.SiteBuildContribution.Equals(object? obj) -> bool
+override LithoSharp.Build.SiteBuildContribution.GetHashCode() -> int
+override LithoSharp.Build.SiteBuildContribution.ToString() -> string!
+override LithoSharp.Configuration.SiteSettings.Equals(object? obj) -> bool
+override LithoSharp.Configuration.SiteSettings.GetHashCode() -> int
+override LithoSharp.Configuration.SiteSettings.ToString() -> string!
+override LithoSharp.Content.MarkdownPost.Equals(object? obj) -> bool
+override LithoSharp.Content.MarkdownPost.GetHashCode() -> int
+override LithoSharp.Content.MarkdownPost.ToString() -> string!
+override LithoSharp.Content.PostFrontMatter.Equals(object? obj) -> bool
+override LithoSharp.Content.PostFrontMatter.GetHashCode() -> int
+override LithoSharp.Content.PostFrontMatter.ToString() -> string!
+override LithoSharp.Content.PostSourceReference.Equals(object? obj) -> bool
+override LithoSharp.Content.PostSourceReference.GetHashCode() -> int
+override LithoSharp.Content.PostSourceReference.ToString() -> string!
+override LithoSharp.ContentValidationResult.Equals(object? obj) -> bool
+override LithoSharp.ContentValidationResult.GetHashCode() -> int
+override LithoSharp.ContentValidationResult.ToString() -> string!
+override LithoSharp.DocsNavigationComponentProps.Equals(object? obj) -> bool
+override LithoSharp.DocsNavigationComponentProps.GetHashCode() -> int
+override LithoSharp.DocsNavigationComponentProps.ToString() -> string!
+override LithoSharp.Documentation.ApiChange.Equals(object? obj) -> bool
+override LithoSharp.Documentation.ApiChange.GetHashCode() -> int
+override LithoSharp.Documentation.ApiChange.ToString() -> string!
+override LithoSharp.Documentation.ApiMember.Equals(object? obj) -> bool
+override LithoSharp.Documentation.ApiMember.GetHashCode() -> int
+override LithoSharp.Documentation.ApiMember.ToString() -> string!
+override LithoSharp.Documentation.ApiReferenceInput.Equals(object? obj) -> bool
+override LithoSharp.Documentation.ApiReferenceInput.GetHashCode() -> int
+override LithoSharp.Documentation.ApiReferenceInput.ToString() -> string!
+override LithoSharp.Documentation.DocumentKey.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocumentKey.GetHashCode() -> int
+override LithoSharp.Documentation.DocumentKey.ToString() -> string!
+override LithoSharp.Documentation.DocumentNavigationItem.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocumentNavigationItem.GetHashCode() -> int
+override LithoSharp.Documentation.DocumentNavigationItem.ToString() -> string!
+override LithoSharp.Documentation.DocumentPage.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocumentPage.GetHashCode() -> int
+override LithoSharp.Documentation.DocumentPage.ToString() -> string!
+override LithoSharp.Documentation.DocumentVariant.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocumentVariant.GetHashCode() -> int
+override LithoSharp.Documentation.DocumentVariant.ToString() -> string!
+override LithoSharp.Documentation.DocusaurusMigrationOptions.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocusaurusMigrationOptions.GetHashCode() -> int
+override LithoSharp.Documentation.DocusaurusMigrationOptions.ToString() -> string!
+override LithoSharp.Documentation.SidebarItem.Equals(object? obj) -> bool
+override LithoSharp.Documentation.SidebarItem.GetHashCode() -> int
+override LithoSharp.Documentation.SidebarItem.ToString() -> string!
+override LithoSharp.FooterComponentProps.Equals(object? obj) -> bool
+override LithoSharp.FooterComponentProps.GetHashCode() -> int
+override LithoSharp.FooterComponentProps.ToString() -> string!
+override LithoSharp.HeadComponentProps.Equals(object? obj) -> bool
+override LithoSharp.HeadComponentProps.GetHashCode() -> int
+override LithoSharp.HeadComponentProps.ToString() -> string!
+override LithoSharp.NavigationLink.Equals(object? obj) -> bool
+override LithoSharp.NavigationLink.GetHashCode() -> int
+override LithoSharp.NavigationLink.ToString() -> string!
+override LithoSharp.PageLayoutContent.Equals(object? obj) -> bool
+override LithoSharp.PageLayoutContent.GetHashCode() -> int
+override LithoSharp.PageLayoutContent.ToString() -> string!
+override LithoSharp.PreviousNextComponentProps.Equals(object? obj) -> bool
+override LithoSharp.PreviousNextComponentProps.GetHashCode() -> int
+override LithoSharp.PreviousNextComponentProps.ToString() -> string!
+override LithoSharp.Quality.ExternalLinkCheckOptions.Equals(object? obj) -> bool
+override LithoSharp.Quality.ExternalLinkCheckOptions.GetHashCode() -> int
+override LithoSharp.Quality.ExternalLinkCheckOptions.ToString() -> string!
+override LithoSharp.Quality.SiteQualityOptions.Equals(object? obj) -> bool
+override LithoSharp.Quality.SiteQualityOptions.GetHashCode() -> int
+override LithoSharp.Quality.SiteQualityOptions.ToString() -> string!
+override LithoSharp.Routing.SiteRedirect.Equals(object? obj) -> bool
+override LithoSharp.Routing.SiteRedirect.GetHashCode() -> int
+override LithoSharp.Routing.SiteRedirect.ToString() -> string!
+override LithoSharp.Search.SearchDocument.Equals(object? obj) -> bool
+override LithoSharp.Search.SearchDocument.GetHashCode() -> int
+override LithoSharp.Search.SearchDocument.ToString() -> string!
+override LithoSharp.Search.SearchHit.Equals(object? obj) -> bool
+override LithoSharp.Search.SearchHit.GetHashCode() -> int
+override LithoSharp.Search.SearchHit.ToString() -> string!
+override LithoSharp.Search.SearchIndex.Equals(object? obj) -> bool
+override LithoSharp.Search.SearchIndex.GetHashCode() -> int
+override LithoSharp.Search.SearchIndex.ToString() -> string!
+override LithoSharp.Search.SearchSection.Equals(object? obj) -> bool
+override LithoSharp.Search.SearchSection.GetHashCode() -> int
+override LithoSharp.Search.SearchSection.ToString() -> string!
+override LithoSharp.SeoComponentProps.Equals(object? obj) -> bool
+override LithoSharp.SeoComponentProps.GetHashCode() -> int
+override LithoSharp.SeoComponentProps.ToString() -> string!
+override LithoSharp.SiteBuildReportInvalidation.Equals(object? obj) -> bool
+override LithoSharp.SiteBuildReportInvalidation.ToString() -> string!
+override LithoSharp.SiteBuildReportNode.Equals(object? obj) -> bool
+override LithoSharp.SiteBuildReportNode.ToString() -> string!
+override LithoSharp.SiteCustomization.Equals(object? obj) -> bool
+override LithoSharp.SiteCustomization.GetHashCode() -> int
+override LithoSharp.SiteCustomization.ToString() -> string!
+override LithoSharp.SiteDefinition.Equals(object? obj) -> bool
+override LithoSharp.SiteDefinition.GetHashCode() -> int
+override LithoSharp.SiteDefinition.ToString() -> string!
+override LithoSharp.SiteExtraPage.Equals(object? obj) -> bool
+override LithoSharp.SiteExtraPage.GetHashCode() -> int
+override LithoSharp.SiteExtraPage.ToString() -> string!
+override LithoSharp.SiteFactoryContext.Equals(object? obj) -> bool
+override LithoSharp.SiteFactoryContext.GetHashCode() -> int
+override LithoSharp.SiteFactoryContext.ToString() -> string!
+override LithoSharp.SiteGenerationOptions.Equals(object? obj) -> bool
+override LithoSharp.SiteGenerationOptions.GetHashCode() -> int
+override LithoSharp.SiteGenerationOptions.ToString() -> string!
+override LithoSharp.SiteGenerationResult.Equals(object? obj) -> bool
+override LithoSharp.SiteGenerationResult.ToString() -> string!
+override LithoSharp.SiteTemplateDocument.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplateDocument.GetHashCode() -> int
+override LithoSharp.SiteTemplateDocument.ToString() -> string!
+override LithoSharp.SiteTemplateFile.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplateFile.GetHashCode() -> int
+override LithoSharp.SiteTemplateFile.ToString() -> string!
+override LithoSharp.SiteTemplateHeading.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplateHeading.GetHashCode() -> int
+override LithoSharp.SiteTemplateHeading.ToString() -> string!
+override LithoSharp.SiteTemplateNavigationNode.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplateNavigationNode.GetHashCode() -> int
+override LithoSharp.SiteTemplateNavigationNode.ToString() -> string!
+override LithoSharp.SiteTemplatePage.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplatePage.GetHashCode() -> int
+override LithoSharp.SiteTemplatePage.ToString() -> string!
+override LithoSharp.SiteTemplatePageLink.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplatePageLink.GetHashCode() -> int
+override LithoSharp.SiteTemplatePageLink.ToString() -> string!
+override LithoSharp.SiteTemplateResult.Equals(object? obj) -> bool
+override LithoSharp.SiteTemplateResult.GetHashCode() -> int
+override LithoSharp.SiteTemplateResult.ToString() -> string!
+override LithoSharp.SiteText.Equals(object? obj) -> bool
+override LithoSharp.SiteText.GetHashCode() -> int
+override LithoSharp.SiteText.ToString() -> string!
+override LithoSharp.SiteThemeOptions.Equals(object? obj) -> bool
+override LithoSharp.SiteThemeOptions.GetHashCode() -> int
+override LithoSharp.SiteThemeOptions.ToString() -> string!
+override LithoSharp.Validation.ContentValidationContext.Equals(object? obj) -> bool
+override LithoSharp.Validation.ContentValidationContext.GetHashCode() -> int
+override LithoSharp.Validation.ContentValidationContext.ToString() -> string!
+static LithoSharp.BlogHeaderComponentProps.operator !=(LithoSharp.BlogHeaderComponentProps? left, LithoSharp.BlogHeaderComponentProps? right) -> bool
+static LithoSharp.BlogHeaderComponentProps.operator ==(LithoSharp.BlogHeaderComponentProps? left, LithoSharp.BlogHeaderComponentProps? right) -> bool
+static LithoSharp.Build.SiteBuildContribution.operator !=(LithoSharp.Build.SiteBuildContribution? left, LithoSharp.Build.SiteBuildContribution? right) -> bool
+static LithoSharp.Build.SiteBuildContribution.operator ==(LithoSharp.Build.SiteBuildContribution? left, LithoSharp.Build.SiteBuildContribution? right) -> bool
+static LithoSharp.Configuration.SiteSettings.operator !=(LithoSharp.Configuration.SiteSettings? left, LithoSharp.Configuration.SiteSettings? right) -> bool
+static LithoSharp.Configuration.SiteSettings.operator ==(LithoSharp.Configuration.SiteSettings? left, LithoSharp.Configuration.SiteSettings? right) -> bool
+static LithoSharp.Content.MarkdownPost.operator !=(LithoSharp.Content.MarkdownPost? left, LithoSharp.Content.MarkdownPost? right) -> bool
+static LithoSharp.Content.MarkdownPost.operator ==(LithoSharp.Content.MarkdownPost? left, LithoSharp.Content.MarkdownPost? right) -> bool
+static LithoSharp.Content.PostFrontMatter.operator !=(LithoSharp.Content.PostFrontMatter? left, LithoSharp.Content.PostFrontMatter? right) -> bool
+static LithoSharp.Content.PostFrontMatter.operator ==(LithoSharp.Content.PostFrontMatter? left, LithoSharp.Content.PostFrontMatter? right) -> bool
+static LithoSharp.Content.PostSourceReference.operator !=(LithoSharp.Content.PostSourceReference? left, LithoSharp.Content.PostSourceReference? right) -> bool
+static LithoSharp.Content.PostSourceReference.operator ==(LithoSharp.Content.PostSourceReference? left, LithoSharp.Content.PostSourceReference? right) -> bool
+static LithoSharp.ContentValidationResult.operator !=(LithoSharp.ContentValidationResult? left, LithoSharp.ContentValidationResult? right) -> bool
+static LithoSharp.ContentValidationResult.operator ==(LithoSharp.ContentValidationResult? left, LithoSharp.ContentValidationResult? right) -> bool
+static LithoSharp.DocsNavigationComponentProps.operator !=(LithoSharp.DocsNavigationComponentProps? left, LithoSharp.DocsNavigationComponentProps? right) -> bool
+static LithoSharp.DocsNavigationComponentProps.operator ==(LithoSharp.DocsNavigationComponentProps? left, LithoSharp.DocsNavigationComponentProps? right) -> bool
+static LithoSharp.Documentation.ApiChange.operator !=(LithoSharp.Documentation.ApiChange? left, LithoSharp.Documentation.ApiChange? right) -> bool
+static LithoSharp.Documentation.ApiChange.operator ==(LithoSharp.Documentation.ApiChange? left, LithoSharp.Documentation.ApiChange? right) -> bool
+static LithoSharp.Documentation.ApiMember.operator !=(LithoSharp.Documentation.ApiMember? left, LithoSharp.Documentation.ApiMember? right) -> bool
+static LithoSharp.Documentation.ApiMember.operator ==(LithoSharp.Documentation.ApiMember? left, LithoSharp.Documentation.ApiMember? right) -> bool
+static LithoSharp.Documentation.ApiReferenceInput.operator !=(LithoSharp.Documentation.ApiReferenceInput? left, LithoSharp.Documentation.ApiReferenceInput? right) -> bool
+static LithoSharp.Documentation.ApiReferenceInput.operator ==(LithoSharp.Documentation.ApiReferenceInput? left, LithoSharp.Documentation.ApiReferenceInput? right) -> bool
+static LithoSharp.Documentation.DocumentKey.operator !=(LithoSharp.Documentation.DocumentKey? left, LithoSharp.Documentation.DocumentKey? right) -> bool
+static LithoSharp.Documentation.DocumentKey.operator ==(LithoSharp.Documentation.DocumentKey? left, LithoSharp.Documentation.DocumentKey? right) -> bool
+static LithoSharp.Documentation.DocumentNavigationItem.operator !=(LithoSharp.Documentation.DocumentNavigationItem? left, LithoSharp.Documentation.DocumentNavigationItem? right) -> bool
+static LithoSharp.Documentation.DocumentNavigationItem.operator ==(LithoSharp.Documentation.DocumentNavigationItem? left, LithoSharp.Documentation.DocumentNavigationItem? right) -> bool
+static LithoSharp.Documentation.DocumentPage.operator !=(LithoSharp.Documentation.DocumentPage? left, LithoSharp.Documentation.DocumentPage? right) -> bool
+static LithoSharp.Documentation.DocumentPage.operator ==(LithoSharp.Documentation.DocumentPage? left, LithoSharp.Documentation.DocumentPage? right) -> bool
+static LithoSharp.Documentation.DocumentVariant.operator !=(LithoSharp.Documentation.DocumentVariant? left, LithoSharp.Documentation.DocumentVariant? right) -> bool
+static LithoSharp.Documentation.DocumentVariant.operator ==(LithoSharp.Documentation.DocumentVariant? left, LithoSharp.Documentation.DocumentVariant? right) -> bool
+static LithoSharp.Documentation.DocusaurusMigrationOptions.operator !=(LithoSharp.Documentation.DocusaurusMigrationOptions? left, LithoSharp.Documentation.DocusaurusMigrationOptions? right) -> bool
+static LithoSharp.Documentation.DocusaurusMigrationOptions.operator ==(LithoSharp.Documentation.DocusaurusMigrationOptions? left, LithoSharp.Documentation.DocusaurusMigrationOptions? right) -> bool
+static LithoSharp.Documentation.SidebarItem.operator !=(LithoSharp.Documentation.SidebarItem? left, LithoSharp.Documentation.SidebarItem? right) -> bool
+static LithoSharp.Documentation.SidebarItem.operator ==(LithoSharp.Documentation.SidebarItem? left, LithoSharp.Documentation.SidebarItem? right) -> bool
+static LithoSharp.FooterComponentProps.operator !=(LithoSharp.FooterComponentProps? left, LithoSharp.FooterComponentProps? right) -> bool
+static LithoSharp.FooterComponentProps.operator ==(LithoSharp.FooterComponentProps? left, LithoSharp.FooterComponentProps? right) -> bool
+static LithoSharp.HeadComponentProps.operator !=(LithoSharp.HeadComponentProps? left, LithoSharp.HeadComponentProps? right) -> bool
+static LithoSharp.HeadComponentProps.operator ==(LithoSharp.HeadComponentProps? left, LithoSharp.HeadComponentProps? right) -> bool
+static LithoSharp.NavigationLink.operator !=(LithoSharp.NavigationLink? left, LithoSharp.NavigationLink? right) -> bool
+static LithoSharp.NavigationLink.operator ==(LithoSharp.NavigationLink? left, LithoSharp.NavigationLink? right) -> bool
+static LithoSharp.PageLayoutContent.operator !=(LithoSharp.PageLayoutContent? left, LithoSharp.PageLayoutContent? right) -> bool
+static LithoSharp.PageLayoutContent.operator ==(LithoSharp.PageLayoutContent? left, LithoSharp.PageLayoutContent? right) -> bool
+static LithoSharp.PreviousNextComponentProps.operator !=(LithoSharp.PreviousNextComponentProps? left, LithoSharp.PreviousNextComponentProps? right) -> bool
+static LithoSharp.PreviousNextComponentProps.operator ==(LithoSharp.PreviousNextComponentProps? left, LithoSharp.PreviousNextComponentProps? right) -> bool
+static LithoSharp.Quality.ExternalLinkCheckOptions.operator !=(LithoSharp.Quality.ExternalLinkCheckOptions? left, LithoSharp.Quality.ExternalLinkCheckOptions? right) -> bool
+static LithoSharp.Quality.ExternalLinkCheckOptions.operator ==(LithoSharp.Quality.ExternalLinkCheckOptions? left, LithoSharp.Quality.ExternalLinkCheckOptions? right) -> bool
+static LithoSharp.Quality.SiteQualityOptions.operator !=(LithoSharp.Quality.SiteQualityOptions? left, LithoSharp.Quality.SiteQualityOptions? right) -> bool
+static LithoSharp.Quality.SiteQualityOptions.operator ==(LithoSharp.Quality.SiteQualityOptions? left, LithoSharp.Quality.SiteQualityOptions? right) -> bool
+static LithoSharp.Routing.SiteRedirect.operator !=(LithoSharp.Routing.SiteRedirect? left, LithoSharp.Routing.SiteRedirect? right) -> bool
+static LithoSharp.Routing.SiteRedirect.operator ==(LithoSharp.Routing.SiteRedirect? left, LithoSharp.Routing.SiteRedirect? right) -> bool
+static LithoSharp.Search.SearchDocument.operator !=(LithoSharp.Search.SearchDocument? left, LithoSharp.Search.SearchDocument? right) -> bool
+static LithoSharp.Search.SearchDocument.operator ==(LithoSharp.Search.SearchDocument? left, LithoSharp.Search.SearchDocument? right) -> bool
+static LithoSharp.Search.SearchHit.operator !=(LithoSharp.Search.SearchHit? left, LithoSharp.Search.SearchHit? right) -> bool
+static LithoSharp.Search.SearchHit.operator ==(LithoSharp.Search.SearchHit? left, LithoSharp.Search.SearchHit? right) -> bool
+static LithoSharp.Search.SearchIndex.operator !=(LithoSharp.Search.SearchIndex? left, LithoSharp.Search.SearchIndex? right) -> bool
+static LithoSharp.Search.SearchIndex.operator ==(LithoSharp.Search.SearchIndex? left, LithoSharp.Search.SearchIndex? right) -> bool
+static LithoSharp.Search.SearchSection.operator !=(LithoSharp.Search.SearchSection? left, LithoSharp.Search.SearchSection? right) -> bool
+static LithoSharp.Search.SearchSection.operator ==(LithoSharp.Search.SearchSection? left, LithoSharp.Search.SearchSection? right) -> bool
+static LithoSharp.SeoComponentProps.operator !=(LithoSharp.SeoComponentProps? left, LithoSharp.SeoComponentProps? right) -> bool
+static LithoSharp.SeoComponentProps.operator ==(LithoSharp.SeoComponentProps? left, LithoSharp.SeoComponentProps? right) -> bool
+static LithoSharp.SiteBuildReportInvalidation.operator !=(LithoSharp.SiteBuildReportInvalidation? left, LithoSharp.SiteBuildReportInvalidation? right) -> bool
+static LithoSharp.SiteBuildReportInvalidation.operator ==(LithoSharp.SiteBuildReportInvalidation? left, LithoSharp.SiteBuildReportInvalidation? right) -> bool
+static LithoSharp.SiteBuildReportNode.operator !=(LithoSharp.SiteBuildReportNode? left, LithoSharp.SiteBuildReportNode? right) -> bool
+static LithoSharp.SiteBuildReportNode.operator ==(LithoSharp.SiteBuildReportNode? left, LithoSharp.SiteBuildReportNode? right) -> bool
+static LithoSharp.SiteCustomization.operator !=(LithoSharp.SiteCustomization? left, LithoSharp.SiteCustomization? right) -> bool
+static LithoSharp.SiteCustomization.operator ==(LithoSharp.SiteCustomization? left, LithoSharp.SiteCustomization? right) -> bool
+static LithoSharp.SiteDefinition.operator !=(LithoSharp.SiteDefinition? left, LithoSharp.SiteDefinition? right) -> bool
+static LithoSharp.SiteDefinition.operator ==(LithoSharp.SiteDefinition? left, LithoSharp.SiteDefinition? right) -> bool
+static LithoSharp.SiteExtraPage.operator !=(LithoSharp.SiteExtraPage? left, LithoSharp.SiteExtraPage? right) -> bool
+static LithoSharp.SiteExtraPage.operator ==(LithoSharp.SiteExtraPage? left, LithoSharp.SiteExtraPage? right) -> bool
+static LithoSharp.SiteFactoryContext.operator !=(LithoSharp.SiteFactoryContext? left, LithoSharp.SiteFactoryContext? right) -> bool
+static LithoSharp.SiteFactoryContext.operator ==(LithoSharp.SiteFactoryContext? left, LithoSharp.SiteFactoryContext? right) -> bool
+static LithoSharp.SiteGenerationOptions.operator !=(LithoSharp.SiteGenerationOptions? left, LithoSharp.SiteGenerationOptions? right) -> bool
+static LithoSharp.SiteGenerationOptions.operator ==(LithoSharp.SiteGenerationOptions? left, LithoSharp.SiteGenerationOptions? right) -> bool
+static LithoSharp.SiteGenerationResult.operator !=(LithoSharp.SiteGenerationResult? left, LithoSharp.SiteGenerationResult? right) -> bool
+static LithoSharp.SiteGenerationResult.operator ==(LithoSharp.SiteGenerationResult? left, LithoSharp.SiteGenerationResult? right) -> bool
+static LithoSharp.SiteTemplateDocument.operator !=(LithoSharp.SiteTemplateDocument? left, LithoSharp.SiteTemplateDocument? right) -> bool
+static LithoSharp.SiteTemplateDocument.operator ==(LithoSharp.SiteTemplateDocument? left, LithoSharp.SiteTemplateDocument? right) -> bool
+static LithoSharp.SiteTemplateFile.operator !=(LithoSharp.SiteTemplateFile? left, LithoSharp.SiteTemplateFile? right) -> bool
+static LithoSharp.SiteTemplateFile.operator ==(LithoSharp.SiteTemplateFile? left, LithoSharp.SiteTemplateFile? right) -> bool
+static LithoSharp.SiteTemplateHeading.operator !=(LithoSharp.SiteTemplateHeading? left, LithoSharp.SiteTemplateHeading? right) -> bool
+static LithoSharp.SiteTemplateHeading.operator ==(LithoSharp.SiteTemplateHeading? left, LithoSharp.SiteTemplateHeading? right) -> bool
+static LithoSharp.SiteTemplateNavigationNode.operator !=(LithoSharp.SiteTemplateNavigationNode? left, LithoSharp.SiteTemplateNavigationNode? right) -> bool
+static LithoSharp.SiteTemplateNavigationNode.operator ==(LithoSharp.SiteTemplateNavigationNode? left, LithoSharp.SiteTemplateNavigationNode? right) -> bool
+static LithoSharp.SiteTemplatePage.operator !=(LithoSharp.SiteTemplatePage? left, LithoSharp.SiteTemplatePage? right) -> bool
+static LithoSharp.SiteTemplatePage.operator ==(LithoSharp.SiteTemplatePage? left, LithoSharp.SiteTemplatePage? right) -> bool
+static LithoSharp.SiteTemplatePageLink.operator !=(LithoSharp.SiteTemplatePageLink? left, LithoSharp.SiteTemplatePageLink? right) -> bool
+static LithoSharp.SiteTemplatePageLink.operator ==(LithoSharp.SiteTemplatePageLink? left, LithoSharp.SiteTemplatePageLink? right) -> bool
+static LithoSharp.SiteTemplateResult.operator !=(LithoSharp.SiteTemplateResult? left, LithoSharp.SiteTemplateResult? right) -> bool
+static LithoSharp.SiteTemplateResult.operator ==(LithoSharp.SiteTemplateResult? left, LithoSharp.SiteTemplateResult? right) -> bool
+static LithoSharp.SiteText.operator !=(LithoSharp.SiteText? left, LithoSharp.SiteText? right) -> bool
+static LithoSharp.SiteText.operator ==(LithoSharp.SiteText? left, LithoSharp.SiteText? right) -> bool
+static LithoSharp.SiteThemeOptions.operator !=(LithoSharp.SiteThemeOptions? left, LithoSharp.SiteThemeOptions? right) -> bool
+static LithoSharp.SiteThemeOptions.operator ==(LithoSharp.SiteThemeOptions? left, LithoSharp.SiteThemeOptions? right) -> bool
+static LithoSharp.Validation.ContentValidationContext.operator !=(LithoSharp.Validation.ContentValidationContext? left, LithoSharp.Validation.ContentValidationContext? right) -> bool
+static LithoSharp.Validation.ContentValidationContext.operator ==(LithoSharp.Validation.ContentValidationContext? left, LithoSharp.Validation.ContentValidationContext? right) -> bool
+virtual LithoSharp.Content.ContentPageGroupSelector<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry) -> System.Collections.Generic.IEnumerable<string!>!
+virtual LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry, LithoSharp.Content.ContentPageRenderingContext! context) -> string!
+virtual LithoSharp.Content.ContentPublicationMapper<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry) -> LithoSharp.Pages.PageMetadata!
+virtual LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry) -> LithoSharp.Routing.SiteRoute!
+virtual LithoSharp.Content.GeneratedContentValueParser<T>.Invoke(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
+virtual LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>.Invoke(LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>! group) -> LithoSharp.Pages.SitePage<TPageContent>!
+virtual LithoSharp.Content.GeneratedPageRenderer<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string!

@@ -876,6 +876,7 @@ export function activate(context: vscode.ExtensionContext): void {
       lsp?.stop();
       lsp = undefined;
       await ensureLsp();
+      openExistingDocuments();
     }),
     vscode.commands.registerCommand('lithosharp.restoreWorker', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'restore the MDX worker');
@@ -889,6 +890,7 @@ export function activate(context: vscode.ExtensionContext): void {
       lsp?.stop();
       lsp = undefined;
       await ensureLsp();
+      openExistingDocuments();
     }),
     vscode.commands.registerCommand('lithosharp.build', () => runOneShot('build')),
     vscode.commands.registerCommand('lithosharp.inspectSite', () => runOneShot('inspect')),

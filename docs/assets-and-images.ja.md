@@ -66,7 +66,8 @@ PNGかJPEGの代替画像が必要です。形式と幅の組は重複できず�
 高さは縦横比から計算します。`ResponsiveImage.Render`は属性をエスケープし、
 代替画像の幅と高さ、形式別の`source`、`srcset`、`sizes`、`alt`、遅延読み込みを出力します。
 `lazy: false`で即時読み込みにできます。読めない画像は生成に失敗します。
-SVGをそのまま公開する場合は通常の`SiteAsset`を使います。
+SkiaSharp 4.153.1ではRAWとDNGを読み込めません。`ImageAsset`やサイトのアイコンに使う前に、
+PNGかJPEGへ変換してください。SVGをそのまま公開する場合は通常の`SiteAsset`を使います。
 
 PNG／JPEG／WebPはSkiaで生成し、外部実行ファイルは不要です。
 キャッシュには変換設定、Skiaのマネージド版とネイティブ版、実行環境の指紋を含めます。

@@ -199,6 +199,13 @@ public sealed class SiteBuildPlan
         BuildNode node,
         ICollection<string> reasons)
     {
+        // BuildNode snapshots inputs in kind/key/value order, including duplicate values.
+        // Equal declarations need no grouping or diagnostic collections.
+        if (InputsEqual(previousNode.Inputs, node.Inputs))
+        {
+            return;
+        }
+
         var previousInputs = previousNode.Inputs
             .GroupBy(InputIdentity, StringComparer.Ordinal)
             .ToDictionary(
@@ -235,6 +242,26 @@ public sealed class SiteBuildPlan
                 reasons.Add($"入力 '{identity}' が変更されました。");
             }
         }
+    }
+
+    private static bool InputsEqual(IReadOnlyList<BuildInput> left, IReadOnlyList<BuildInput> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (left[index].Kind != right[index].Kind
+                || !StringComparer.Ordinal.Equals(left[index].Key, right[index].Key)
+                || !StringComparer.Ordinal.Equals(left[index].Value, right[index].Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string InputIdentity(BuildInput input) => $"{input.Kind}:{input.Key}";

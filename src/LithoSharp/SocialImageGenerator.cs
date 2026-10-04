@@ -145,7 +145,7 @@ internal sealed class SocialImageGenerator(byte[] siteIconBytes)
     {
         using var icon = SKBitmap.Decode(_siteIconBytes)
             ?? throw new InvalidOperationException("Failed to decode the favicon image for social image generation.");
-        canvas.DrawBitmap(icon, new SKRect(IconLeft, IconTop, IconLeft + IconSize, IconTop + IconSize));
+        canvas.DrawBitmap(icon, new SKRect(IconLeft, IconTop, IconLeft + IconSize, IconTop + IconSize), SKSamplingOptions.Default);
     }
 
     private static void DrawText(SKCanvas canvas, string text, float left, float top, SKFont font, SKPaint paint)

@@ -138,6 +138,86 @@ public sealed class SiteGeneratorCacheTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "cache", "index.html"))).Contains("second");
     }
 
+    [Test]
+    [Arguments("valid")]
+    [Arguments("plaintext")]
+    [Arguments("missing")]
+    [Arguments("html")]
+    [Arguments("span")]
+    public async Task ChangedPostSearchReusesVerifiedPlainTextAndRejectsCorruption(string cacheState)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        var cleanOutput = Path.Combine(workspace.Root, "clean");
+        var settings = new SiteSettings { BaseUrl = "https://example.test/" };
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var options = new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp };
+        var alpha = Post();
+        var beta = alpha with
+        {
+            FilePath = "content/beta.md", Slug = "beta", RelativeOutputPath = "posts/beta.html",
+            FrontMatter = alpha.FrontMatter with { Title = "Beta" },
+            MarkdownBody = "## 日本語 &amp; API\n\nUntouched **body** with [link](https://example.org/)."
+        };
+        var initial = await new SiteGenerator().GenerateWithOptionsAsync(settings, [alpha, beta], output,
+            clean: true, customization, options, CancellationToken.None);
+        if (cacheState != "valid")
+        {
+            var parses = Path.Combine(SiteGenerator.MeasureCache(output).CacheDirectory, "parses");
+            var tamperedRecords = 0;
+            foreach (var path in Directory.EnumerateFiles(parses, "*.json"))
+            {
+                var json = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+                if (json["PlainText"]!.GetValue<string>().Contains("Untouched", StringComparison.Ordinal))
+                {
+                    if (cacheState == "missing") File.Delete(path);
+                    else
+                    {
+                        if (cacheState == "plaintext") json["PlainText"] = "forged search text";
+                        else if (cacheState == "html") json["RawHtml"] = "forged HTML";
+                        else
+                        {
+                            // An invalid semantic span must be rejected even with a matching digest.
+                            json["Headings"]![0]!["SpanStart"] = -1;
+                            var parse = System.Text.Json.JsonSerializer.Deserialize<LithoSharp.Build.CachedPostParse>(json.ToJsonString())!;
+                            json["Integrity"] = parse.ComputeIntegrity();
+                        }
+                        await File.WriteAllTextAsync(path, json.ToJsonString());
+                    }
+                    tamperedRecords++;
+                }
+            }
+            await Assert.That(tamperedRecords).IsEqualTo(1);
+        }
+        var changed = alpha with { MarkdownBody = alpha.MarkdownBody + "\n\nChanged body." };
+        var generator = new SiteGenerator();
+        var incremental = await generator.GenerateWithOptionsAsync(settings, [changed, beta], output,
+            clean: false, customization, options with { PreviousBuildPlan = initial.BuildPlan }, CancellationToken.None);
+        await new SiteGenerator().GenerateWithOptionsAsync(settings, [changed, beta], cleanOutput,
+            clean: true, customization, options, CancellationToken.None);
+
+        await Assert.That(generator.MarkdownCompiler.ParseCount).IsEqualTo(cacheState == "valid" ? 1 : 2);
+        await Assert.That(incremental.BuildReport.Nodes.Single(node => node.NodeId == "index:search").CacheHit).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "search-index.json")))
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "search-index.json")));
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "beta.html")))
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "posts", "beta.html")));
+
+        // Metadata forces actual beta rendering without a body edit. A fresh generator
+        // must reuse the repaired parse and produce the same HTML/search as a clean build.
+        var renamedBeta = beta with { FrontMatter = beta.FrontMatter with { Title = "Renamed Beta" } };
+        var nextGenerator = new SiteGenerator();
+        await nextGenerator.GenerateWithOptionsAsync(settings, [changed, renamedBeta], output,
+            clean: false, customization, options with { PreviousBuildPlan = incremental.BuildPlan }, CancellationToken.None);
+        await new SiteGenerator().GenerateWithOptionsAsync(settings, [changed, renamedBeta], cleanOutput,
+            clean: true, customization, options, CancellationToken.None);
+        await Assert.That(nextGenerator.MarkdownCompiler.ParseCount).IsEqualTo(0);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "search-index.json")))
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "search-index.json")));
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "beta.html")))
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "posts", "beta.html")));
+    }
+
     private static MarkdownPost Post() => new(
         "content/alpha.md",
         "alpha",

@@ -244,7 +244,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 RenderMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("renderMilliseconds").GetDouble(),
                 BrowserBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("browserBundleMilliseconds").GetDouble(),
                 NodeHeapUsedBytes = hit ? 0 : result.GetProperty("memory").GetProperty("heapUsed").GetInt64() };
-            inspection = JsonSerializer.SerializeToElement(new { kind = "mdx", protocol = 1, node = "24.13.0", mdx = "3.1.1", react = "19.2.4", esbuild = "0.25.12", metrics = Metrics,
+            inspection = JsonSerializer.SerializeToElement(new { kind = "mdx", protocol = 1, node = "24.13.0", mdx = "3.1.1", react = "19.2.4", esbuild = "0.28.2", metrics = Metrics,
                 pages = results.Values.Select(page => new { id = page.GetProperty("id").GetString(), entry = page.GetProperty("entry"), hydration = page.GetProperty("hydration"),
                     fallback = page.GetProperty("fallback"), islands = page.GetProperty("islands"), publicProps = inputPages[page.GetProperty("id").GetString()!].Props }),
                 assets = assets.Select(asset => new { asset.Id, asset.RelativeOutputPath, asset.ReferencedAssetIds }),

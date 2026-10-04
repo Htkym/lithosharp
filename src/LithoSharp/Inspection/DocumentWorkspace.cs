@@ -21,6 +21,8 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         public long Version = -1;
         public long Generation = -1;
         public long Epoch;
+        public long? ReservedVersion;
+        public long? ReservedGeneration;
         public string? LastText;
         public CancellationTokenSource? Pending;
         public Task? Active;
@@ -76,11 +78,23 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         lock (_lifetimeLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
             entry = _entries.GetOrAdd(key, static _ => new DocumentEntry());
+            if (IsStale(entry, documentVersion, projectGeneration)
+                || IsOlderReservation(entry, documentVersion, projectGeneration))
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
             if (IsSameRevision(entry, documentVersion, projectGeneration, text)
                 && _snapshots.TryGetValue(key, out var current))
             {
                 return current;
+            }
+
+            if (documentVersion is not null)
+            {
+                entry.ReservedVersion = documentVersion;
+                entry.ReservedGeneration = projectGeneration ?? long.MaxValue;
             }
 
             entry.Pending?.Cancel();
@@ -129,6 +143,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 lock (_lifetimeLock)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (_disposed)
                     {
                         throw new ObjectDisposedException(GetType().FullName);
@@ -177,6 +192,18 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         entry.LastText is not null
         && string.Equals(entry.LastText, text, StringComparison.Ordinal)
         && (version is null || (entry.Version == version && entry.Generation == (generation ?? long.MaxValue)));
+
+    private static bool IsOlderReservation(DocumentEntry entry, long? version, long? generation)
+    {
+        if (version is null || entry.ReservedVersion is null || entry.ReservedGeneration is null)
+        {
+            return false;
+        }
+
+        var generationValue = generation ?? long.MaxValue;
+        return generationValue < entry.ReservedGeneration.Value
+            || (generationValue == entry.ReservedGeneration.Value && version.Value < entry.ReservedVersion.Value);
+    }
 
     private static bool IsStale(DocumentEntry entry, long? version, long? generation)
     {
@@ -278,6 +305,8 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                 entry.Pending = null;
                 entry.Version = -1;
                 entry.Generation = -1;
+                entry.ReservedVersion = null;
+                entry.ReservedGeneration = null;
                 entry.LastText = null;
             }
 

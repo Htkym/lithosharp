@@ -49,6 +49,14 @@ foreach ($required in @(
         Fail "published server is missing '$required'."
     }
 }
+foreach ($name in @('YamlDotNet.LICENSE.txt', 'AngleSharp.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.md')) {
+    $published = Join-Path $publishDir "licenses/$name"
+    if (!(Test-Path -LiteralPath $published -PathType Leaf)) { Fail "published server is missing redistribution notice '$name'." }
+    $source = if ($name -eq 'THIRD-PARTY-NOTICES.md') { Join-Path $repo $name } else { Join-Path $repo "licenses/$name" }
+    if ((Get-FileHash -LiteralPath $published).Hash -cne (Get-FileHash -LiteralPath $source).Hash) {
+        Fail "published redistribution notice differs from upstream source '$name'."
+    }
+}
 if (Test-Path -LiteralPath (Join-Path $publishDir 'worker/node_modules')) {
     Fail 'published worker must not bundle restored node_modules.'
 }

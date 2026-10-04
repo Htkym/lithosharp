@@ -138,6 +138,44 @@ public sealed class LanguageServerTests
         _ = third;
     }
 
+    private sealed class SplitHeaderMemoryStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        private bool firstRead = true;
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (firstRead)
+            {
+                firstRead = false;
+                buffer = buffer[..Math.Min(1, buffer.Length)];
+            }
+            return base.ReadAsync(buffer, cancellationToken);
+        }
+    }
+
+    [Test]
+    public async Task Framing_OversizedPrefetchedBodyPreservesFollowingFrame()
+    {
+        var transportType = typeof(LithoSharp.LanguageServer.LspServer).Assembly
+            .GetType("LithoSharp.LanguageServer.StdioTransport", throwOnError: true)!;
+        var following = LspTestClient.Frame("{\"jsonrpc\":\"2.0\",\"id\":\"following\",\"method\":\"initialize\"}");
+        var bytes = Encoding.UTF8.GetBytes("Content-Length: 8193\r\n\r\n" + new string('x', 8193) + following);
+        foreach (var splitHeader in new[] { false, true })
+        {
+            var transport = Activator.CreateInstance(transportType, [8192])!;
+            using var input = splitHeader ? new SplitHeaderMemoryStream(bytes) : new MemoryStream(bytes);
+            // Isolate the existing configurable transport without changing Console
+            // streams or adding a production-only test hook.
+            transportType.GetField("input", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(transport, input);
+            var read = (Task<JsonDocument?>)transportType.GetMethod("ReadMessageAsync")!
+                .Invoke(transport, [CancellationToken.None])!;
+            using var message = await read;
+            await Assert.That(message).IsNotNull();
+            await Assert.That(message!.RootElement.GetProperty("id").GetString()).IsEqualTo("following");
+        }
+    }
+
     [Test]
     public async Task Utf8Multibyte_FramesAndPositions()
     {
@@ -199,6 +237,97 @@ public sealed class LanguageServerTests
         await Assert.That(child.GetProperty("selectionRange").GetProperty("start").GetProperty("line").GetInt32())
             .IsEqualTo(child.GetProperty("range").GetProperty("start").GetProperty("line").GetInt32());
         await Assert.That(roots[1].GetProperty("children").GetArrayLength()).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DocumentSymbols_ImmediateOpenWaitsForCurrentInspection()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/immediate-open.md";
+        var text = "---\ntitle: T\n---\n# Current heading\n\n"
+            + string.Concat(Enumerable.Repeat("A paragraph with enough content to exercise asynchronous inspection.\n\n", 8192));
+        var symbolId = client.NextId();
+        // Both frames are available together, with no diagnostics wait or sleep.
+        client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", method = "textDocument/didOpen",
+            @params = new { textDocument = new { uri, languageId = "markdown", version = 1, text } },
+        })) + LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            @params = new { textDocument = new { uri } },
+        })));
+
+        var response = await client.WaitForAsync(message =>
+            message.TryGetProperty("id", out var id) && id.GetString() == symbolId);
+        var symbols = response.GetProperty("result").EnumerateArray().ToArray();
+        await Assert.That(symbols.Length).IsEqualTo(1);
+        await Assert.That(symbols[0].GetProperty("name").GetString()).IsEqualTo("Current heading");
+        await WaitDiagnosticsAsync(client, uri, 1);
+    }
+
+    [Test]
+    public async Task DocumentSymbols_ImmediateChangeNeverReturnsPreviousHeading()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/immediate-change.md";
+        Open(client, uri, "markdown", 1, "---\ntitle: T\n---\n# Previous heading\n");
+        await WaitDiagnosticsAsync(client, uri, 1);
+
+        var text = "---\ntitle: T\n---\n# Renamed heading\n\n"
+            + string.Concat(Enumerable.Repeat("A paragraph with enough content to exercise asynchronous inspection.\n\n", 8192));
+        var symbolId = client.NextId();
+        client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", method = "textDocument/didChange",
+            @params = new { textDocument = new { uri, version = 2 }, contentChanges = new[] { new { text } } },
+        })) + LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            @params = new { textDocument = new { uri } },
+        })));
+
+        var response = await client.WaitForAsync(message =>
+            message.TryGetProperty("id", out var id) && id.GetString() == symbolId);
+        var symbols = response.GetProperty("result").EnumerateArray().ToArray();
+        await Assert.That(symbols.Length).IsEqualTo(1);
+        await Assert.That(symbols[0].GetProperty("name").GetString()).IsEqualTo("Renamed heading");
+        await WaitDiagnosticsAsync(client, uri, 2);
+    }
+
+    [Test]
+    public async Task DocumentSymbols_CancelledWaitDoesNotCancelSharedDiagnostics()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/cancelled-symbol-wait.md";
+        var text = "---\ntitle: T\n---\n# Current heading\nSee [^missing] here.\n\n"
+            + string.Concat(Enumerable.Repeat("A paragraph with enough content to exercise asynchronous inspection.\n\n", 8192));
+        var symbolId = client.NextId();
+        client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", method = "textDocument/didOpen",
+            @params = new { textDocument = new { uri, languageId = "markdown", version = 1, text } },
+        })) + LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            @params = new { textDocument = new { uri } },
+        })) + LspTestClient.Frame(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", method = "$/cancelRequest", @params = new { id = symbolId },
+        })));
+        await client.WaitForAsync(message => message.TryGetProperty("id", out var id) && id.GetString() == symbolId);
+        var diagnostics = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(diagnostics.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
+            .Any(item => item.GetProperty("code").GetString() == "LIT001")).IsTrue();
+
+        var nextId = client.NextId();
+        client.SendRequest(nextId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        var next = await client.WaitForAsync(message => message.TryGetProperty("id", out var id) && id.GetString() == nextId);
+        await Assert.That(next.GetProperty("result").EnumerateArray().Single().GetProperty("name").GetString())
+            .IsEqualTo("Current heading");
     }
 
     [Test]

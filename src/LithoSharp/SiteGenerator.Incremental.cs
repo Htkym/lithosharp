@@ -81,6 +81,9 @@ public sealed partial class SiteGenerator
                     pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
             && transaction.CanBypassPublishedOutput(
                 plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
+        // The full-plan check above already proved every current key equals its previous key.
+        // Artifact corruption can still require staging, but does not change declared inputs.
+        var reusePreviousNodeKeys = bypass;
         // Never update a published tree in place: readers must not observe a mixture of build
         // generations. A verified full no-op is the only path that skips staging.
         if (!bypass)
@@ -193,14 +196,14 @@ public sealed partial class SiteGenerator
 
         async Task<(CachedBuildNode Cache, SiteBuildReportNode Report)> ExecuteNodeAsync(BuildNode node, CancellationToken token)
         {
-            var inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray();
-            var dependencies = node.Dependencies.Select(id => id.Value).ToArray();
-            var key = ComputeNodeKey(node, id => completed[id].NodeKey)!;
+            var key = reusePreviousNodeKeys
+                ? previous[node.Id.Value].NodeKey
+                : ComputeNodeKey(node, id => completed[id].NodeKey)!;
             pagesByNode.TryGetValue(node.Id.Value, out var page);
             var needsBody = page?.IsIncludedIn(GeneratedPageDerivedSurfaces.Search) == true;
             var reason = clean ? "Clean build." : assets.ExecutedTransformNodes.Contains(node.Id.Value) ? "The asset transform was executed."
                 : node.Inputs.Any(input => input.Key.EndsWith("cachePolicy", StringComparison.Ordinal) && input.Value == "always-rebuild")
-                ? "Renderer has undeclared inputs." : dependencies.Any(id => !reports[id].CacheHit) ? "A dependency was regenerated."
+                ? "Renderer has undeclared inputs." : node.Dependencies.Any(id => !reports[id.Value].CacheHit) ? "A dependency was regenerated."
                 : !previous.TryGetValue(node.Id.Value, out var candidate) ? "No cached node."
                 : candidate.NodeKey != key ? "Inputs or implementation changed." : null;
             previous.TryGetValue(node.Id.Value, out var old);
@@ -272,7 +275,11 @@ public sealed partial class SiteGenerator
             else if (derivedBody is not null)
                 page!.SetDerivedContentProvider(() => derivedBody);
             page?.ClearRenderedContent();
-            return (new CachedBuildNode(node.Id.Value, key, artifacts, bodyHash) { Inputs = inputs, Dependencies = dependencies },
+            return (new CachedBuildNode(node.Id.Value, key, artifacts, bodyHash)
+            {
+                Inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
+                Dependencies = node.Dependencies.Select(id => id.Value).ToArray(),
+            },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
         }
 

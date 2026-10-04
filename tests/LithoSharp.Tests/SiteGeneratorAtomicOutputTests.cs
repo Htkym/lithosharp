@@ -537,9 +537,12 @@ public sealed class SiteGeneratorAtomicOutputTests
             $".lithosharp-lock-{CreateLockIdentity(heldOutput)}.lock");
         var readyPath = Path.Combine(workspace.Root, "child-ready");
         var stopPath = Path.Combine(workspace.Root, "child-stop");
+        // Windows PowerShell uses .NET Framework and needs extended syntax for long fixture paths.
+        var childLockPath = @"\\?\" + lockPath;
         var script = $$"""
+            $ErrorActionPreference = 'Stop'
             $stream = [System.IO.FileStream]::new(
-                '{{lockPath.Replace("'", "''", StringComparison.Ordinal)}}',
+                '{{childLockPath.Replace("'", "''", StringComparison.Ordinal)}}',
                 [System.IO.FileMode]::OpenOrCreate,
                 [System.IO.FileAccess]::ReadWrite,
                 [System.IO.FileShare]::None)

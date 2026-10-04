@@ -1,4 +1,5 @@
 using LithoSharp.Content;
+using YamlDotNet.Core;
 
 namespace LithoSharp.Tests;
 
@@ -38,6 +39,20 @@ public sealed class MarkdownFrontMatterYamlTests
         await Assert.That(roundTripped.SidebarPosition).IsEqualTo(3);
         await Assert.That(roundTripped.SidebarLabel).IsEqualTo("Read this first");
         await Assert.That(roundTripped.Environments).IsEquivalentTo(["Production", "Staging"]);
+    }
+
+    [Test]
+    public async Task Deserialize_RejectsExcessiveRecursionAndRemainsReusable()
+    {
+        var deep = new string('[', 160) + "value" + new string(']', 160);
+        await Assert.That(() => MarkdownFrontMatterYaml.Deserialize<object>(deep))
+            .Throws<YamlException>()
+            .WithMessageContaining("recursion");
+
+        var shallow = new string('[', 16) + "value" + new string(']', 16);
+        await Assert.That(MarkdownFrontMatterYaml.Deserialize<object>(shallow)).IsNotNull();
+        await Assert.That(MarkdownFrontMatterYaml.Deserialize("title: After rejection\ndate: 2026-10-04")!.Title)
+            .IsEqualTo("After rejection");
     }
 
     [Test]

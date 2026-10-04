@@ -274,6 +274,33 @@ public sealed class DocumentWorkspaceGenerationTests
     }
 
     [Test]
+    [Arguments(2L, 1L, 1L, 1L, false)]
+    [Arguments(1L, 2L, 99L, 1L, false)]
+    [Arguments(2L, 1L, 1L, 1L, true)]
+    [Arguments(1L, 2L, 99L, 1L, true)]
+    public async Task OlderReservationCannotCancelNewerPendingInspection(long currentVersion, long currentGeneration, long olderVersion, long olderGeneration, bool primeSnapshot)
+    {
+        await using var workspace = new DocumentWorkspace();
+        if (primeSnapshot)
+        {
+            await workspace.InspectVersionedAsync("docs/reservation.md", SampleA, olderVersion, olderGeneration);
+        }
+
+        var current = workspace.InspectVersionedAsync("docs/reservation.md", BigText(20000), currentVersion, currentGeneration);
+        var older = workspace.InspectVersionedAsync("docs/reservation.md", SampleA, olderVersion, olderGeneration);
+
+        await Assert.That(async () => await older).Throws<OperationCanceledException>();
+        var result = await current;
+        await Assert.That(result.Title).IsEqualTo("Big");
+        await Assert.That(workspace.TryGet("docs/reservation.md", out var latest)).IsTrue();
+        await Assert.That(ReferenceEquals(result, latest)).IsTrue();
+
+        workspace.Remove("docs/reservation.md");
+        var reopened = await workspace.InspectVersionedAsync("docs/reservation.md", SampleA, olderVersion, olderGeneration);
+        await Assert.That(reopened.Title).IsEqualTo("Alpha");
+    }
+
+    [Test]
     public async Task DuplicateSaveAndWatchNotificationAnalyzesOnce()
     {
         await using var workspace = new DocumentWorkspace();

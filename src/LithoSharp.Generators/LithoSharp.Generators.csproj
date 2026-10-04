@@ -23,14 +23,18 @@
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
     <Compile Include="..\LithoSharp\Routing\SiteRoute.cs" Link="Shared\SiteRoute.cs" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
-    <PackageReference Include="YamlDotNet" Version="18.0.0" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <None Include="buildTransitive\LithoSharp.Generators.props" Pack="true" PackagePath="buildTransitive\" />
     <None Include="README.md" Pack="true" PackagePath="README.md" />
     <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
     <None Include="$(TargetDir)$(TargetName).xml" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
-    <None Include="$(NuGetPackageRoot)yamldotnet\18.0.0\lib\netstandard2.0\YamlDotNet.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" Condition="Exists('$(NuGetPackageRoot)yamldotnet\18.0.0\lib\netstandard2.0\YamlDotNet.dll')" />
+    <None Include="$(NuGetPackageRoot)yamldotnet\18.1.0\lib\netstandard2.0\YamlDotNet.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" Condition="Exists('$(NuGetPackageRoot)yamldotnet\18.1.0\lib\netstandard2.0\YamlDotNet.dll')" />
   </ItemGroup>
   <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
+  <ItemGroup>
+    <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
+  </ItemGroup>
 </Project>

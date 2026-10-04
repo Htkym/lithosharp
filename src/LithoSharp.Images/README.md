@@ -23,7 +23,10 @@ The renderer encodes alt text and attributes and emits intrinsic dimensions,
 format sources, srcset, sizes and lazy loading. PNG/JPEG fallback, positive widths,
 quality 0–100 and distinct format/width pairs are required. Invalid images fail
 before output publication. Cached bytes are verified; corrupt entries regenerate.
-Place the cache outside the output directory.
+Place the cache outside the output directory. RAW and DNG sources are unsupported
+by SkiaSharp 4.153.1; convert them to PNG or JPEG before declaring an image.
+On Linux, install the .NET native prerequisites, including `libstdc++.so.6`;
+SkiaSharp 4.153.1 needs it even with `Linux.NoDependencies`.
 
 PNG/JPEG/WebP need no external executable. AVIF requires a trusted avifenc path:
 `new ExternalAvifEncoder(path, dependencyFingerprint: "installed-tool-and-codec-versions")`.

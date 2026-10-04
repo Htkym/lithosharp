@@ -78,7 +78,9 @@ and produces `picture`, format sources, `srcset`, `sizes`, intrinsic width/heigh
 `decoding="async"`, and `loading="lazy"`. Set `lazy: false` for an eager image.
 Each variant has an exact positive width and proportional height; quality is 0–100.
 A PNG/JPEG fallback and distinct format/width pairs are required. Unsupported or
-invalid raster inputs fail the build. SVG pass-through uses ordinary `SiteAsset`.
+invalid raster inputs fail the build. SkiaSharp 4.153.1 cannot decode RAW or DNG
+images; convert those sources to PNG or JPEG before using `ImageAsset` or a site
+icon. SVG pass-through uses ordinary `SiteAsset`.
 Skia encodes PNG/JPEG/WebP without an external executable. Cache fingerprints include
 variant settings, managed/native Skia versions and runtime platform.
 

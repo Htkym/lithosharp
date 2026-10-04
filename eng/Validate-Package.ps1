@@ -37,6 +37,28 @@ foreach ($required in @('README.md', 'icon.png')) {
 if ($packageEntries | Where-Object { $_ -match '(^|/)(\.local|\.git|\.tmp|benchmarks|tests|TestResults|node_modules|obj)(/|$)' }) {
     throw 'Package contains private, restored or development-only files.'
 }
+# Bundled third-party assemblies retain exact upstream redistribution notices.
+if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool')) {
+    $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $prefix = if ($PackageId -eq 'LithoSharp.Tool') { 'tools/net10.0/any/licenses/' } else { 'licenses/' }
+    $notices = if ($PackageId -eq 'LithoSharp.Tool') {
+        @('YamlDotNet.LICENSE.txt', 'AngleSharp.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
+    } else { @('YamlDotNet.LICENSE.txt') }
+    $noticeArchive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+    try {
+        foreach ($name in @($notices) + @('THIRD-PARTY-NOTICES.md')) {
+            $entry = $noticeArchive.GetEntry($prefix + $name)
+            if ($null -eq $entry) { throw "Package is missing redistribution notice: $prefix$name" }
+            $source = if ($name -eq 'THIRD-PARTY-NOTICES.md') { Join-Path $repo $name } else { Join-Path $repo "licenses/$name" }
+            $stream = $entry.Open()
+            try { $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) }
+            finally { $stream.Dispose() }
+            if ($actual -cne (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash) {
+                throw "Package redistribution notice differs from upstream source: $name"
+            }
+        }
+    } finally { $noticeArchive.Dispose() }
+}
 $archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
 try {
     $nuspecEntry = $archive.Entries | Where-Object { $_.FullName -like '*.nuspec' } | Select-Object -First 1

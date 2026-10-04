@@ -34,7 +34,7 @@ public sealed class MdxIntegrationTests
                 "path" => "console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{inputs:[],assets:[{path:'../escape.js',bytes:'',hash:'',imports:[]}],pages:[]}}));",
                 _ => "setInterval(()=>{},1000);"
             };
-            var script = "import {createInterface} from 'node:readline';console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.25.12'}));for await(const line of createInterface({input:process.stdin})){const request=JSON.parse(line);" + action + "}";
+            var script = "import {createInterface} from 'node:readline';console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));for await(const line of createInterface({input:process.stdin})){const request=JSON.parse(line);" + action + "}";
             await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), script);
             await using var mdx = new MdxSite(new(workspace.Root, worker) { Timeout = TimeSpan.FromSeconds(1), MaximumMessageBytes = 8192 });
             mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("fault"), source, _ => SiteRoute.ForDirectoryIndex("hello"), entry => new(entry.FrontMatter.Title)));

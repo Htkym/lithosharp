@@ -30,3 +30,82 @@ LithoSharp.Mdx.MdxInspectionSession
 LithoSharp.Mdx.MdxInspectionSession.MdxInspectionSession(LithoSharp.Mdx.MdxOptions! options) -> void
 LithoSharp.Mdx.MdxInspectionSession.AnalyzeAsync(string! sourcePath, string! text, LithoSharp.Mdx.MdxAnalysisOptions? analysisOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Mdx.MdxAnalysisResult!>!
 LithoSharp.Mdx.MdxInspectionSession.DisposeAsync() -> System.Threading.Tasks.ValueTask
+LithoSharp.Mdx.BlogAuthor.<Clone>$() -> LithoSharp.Mdx.BlogAuthor!
+LithoSharp.Mdx.BlogAuthor.Deconstruct(out string! Name, out string? Bio, out LithoSharp.SiteUrl? Url, out LithoSharp.SiteUrl? Image) -> void
+LithoSharp.Mdx.BlogAuthor.Equals(LithoSharp.Mdx.BlogAuthor? other) -> bool
+LithoSharp.Mdx.DocumentationAlgolia.<Clone>$() -> LithoSharp.Mdx.DocumentationAlgolia!
+LithoSharp.Mdx.DocumentationAlgolia.Deconstruct(out string! ApplicationId, out string! SearchOnlyApiKey, out string! IndexName) -> void
+LithoSharp.Mdx.DocumentationAlgolia.Equals(LithoSharp.Mdx.DocumentationAlgolia? other) -> bool
+LithoSharp.Mdx.DocumentationAnalytics.<Clone>$() -> LithoSharp.Mdx.DocumentationAnalytics!
+LithoSharp.Mdx.DocumentationAnalytics.Deconstruct(out LithoSharp.SiteUrl! Endpoint, out string! Domain) -> void
+LithoSharp.Mdx.DocumentationAnalytics.Equals(LithoSharp.Mdx.DocumentationAnalytics? other) -> bool
+LithoSharp.Mdx.DocumentationBrowserOptions.<Clone>$() -> LithoSharp.Mdx.DocumentationBrowserOptions!
+LithoSharp.Mdx.DocumentationBrowserOptions.DocumentationBrowserOptions() -> void
+LithoSharp.Mdx.DocumentationBrowserOptions.Equals(LithoSharp.Mdx.DocumentationBrowserOptions? other) -> bool
+LithoSharp.Mdx.DocumentationCollection.<Clone>$() -> LithoSharp.Mdx.DocumentationCollection!
+LithoSharp.Mdx.DocumentationCollection.Deconstruct(out string! Id, out System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentVariant!>! Variants) -> void
+LithoSharp.Mdx.DocumentationCollection.Equals(LithoSharp.Mdx.DocumentationCollection? other) -> bool
+LithoSharp.Mdx.MdxAnalysisOptions.<Clone>$() -> LithoSharp.Mdx.MdxAnalysisOptions!
+LithoSharp.Mdx.MdxAnalysisOptions.Deconstruct(out long DocumentVersion, out long ProjectGeneration) -> void
+LithoSharp.Mdx.MdxAnalysisOptions.Equals(LithoSharp.Mdx.MdxAnalysisOptions? other) -> bool
+LithoSharp.Mdx.MdxBlogCollection.<Clone>$() -> LithoSharp.Mdx.MdxBlogCollection!
+LithoSharp.Mdx.MdxBlogCollection.Deconstruct(out string! Id, out string! InputDirectory, out string! RoutePrefix) -> void
+LithoSharp.Mdx.MdxBlogCollection.Equals(LithoSharp.Mdx.MdxBlogCollection? other) -> bool
+LithoSharp.Mdx.MdxBuildMetrics.<Clone>$() -> LithoSharp.Mdx.MdxBuildMetrics!
+LithoSharp.Mdx.MdxBuildMetrics.Equals(LithoSharp.Mdx.MdxBuildMetrics? other) -> bool
+LithoSharp.Mdx.MdxBuildMetrics.MdxBuildMetrics() -> void
+LithoSharp.Mdx.MdxOptions.<Clone>$() -> LithoSharp.Mdx.MdxOptions!
+LithoSharp.Mdx.MdxOptions.Equals(LithoSharp.Mdx.MdxOptions? other) -> bool
+LithoSharp.Mdx.MdxPlugin.<Clone>$() -> LithoSharp.Mdx.MdxPlugin!
+LithoSharp.Mdx.MdxPlugin.Deconstruct(out string! Stage, out string! Module, out System.Text.Json.JsonElement Options) -> void
+LithoSharp.Mdx.MdxPlugin.Equals(LithoSharp.Mdx.MdxPlugin? other) -> bool
+override LithoSharp.Mdx.BlogAuthor.Equals(object? obj) -> bool
+override LithoSharp.Mdx.BlogAuthor.GetHashCode() -> int
+override LithoSharp.Mdx.BlogAuthor.ToString() -> string!
+override LithoSharp.Mdx.DocumentationAlgolia.Equals(object? obj) -> bool
+override LithoSharp.Mdx.DocumentationAlgolia.GetHashCode() -> int
+override LithoSharp.Mdx.DocumentationAlgolia.ToString() -> string!
+override LithoSharp.Mdx.DocumentationAnalytics.Equals(object? obj) -> bool
+override LithoSharp.Mdx.DocumentationAnalytics.GetHashCode() -> int
+override LithoSharp.Mdx.DocumentationAnalytics.ToString() -> string!
+override LithoSharp.Mdx.DocumentationBrowserOptions.Equals(object? obj) -> bool
+override LithoSharp.Mdx.DocumentationBrowserOptions.GetHashCode() -> int
+override LithoSharp.Mdx.DocumentationBrowserOptions.ToString() -> string!
+override LithoSharp.Mdx.DocumentationCollection.Equals(object? obj) -> bool
+override LithoSharp.Mdx.DocumentationCollection.GetHashCode() -> int
+override LithoSharp.Mdx.DocumentationCollection.ToString() -> string!
+override LithoSharp.Mdx.MdxAnalysisOptions.Equals(object? obj) -> bool
+override LithoSharp.Mdx.MdxAnalysisOptions.GetHashCode() -> int
+override LithoSharp.Mdx.MdxAnalysisOptions.ToString() -> string!
+override LithoSharp.Mdx.MdxBlogCollection.Equals(object? obj) -> bool
+override LithoSharp.Mdx.MdxBlogCollection.GetHashCode() -> int
+override LithoSharp.Mdx.MdxBlogCollection.ToString() -> string!
+override LithoSharp.Mdx.MdxBuildMetrics.Equals(object? obj) -> bool
+override LithoSharp.Mdx.MdxBuildMetrics.GetHashCode() -> int
+override LithoSharp.Mdx.MdxBuildMetrics.ToString() -> string!
+override LithoSharp.Mdx.MdxOptions.Equals(object? obj) -> bool
+override LithoSharp.Mdx.MdxOptions.GetHashCode() -> int
+override LithoSharp.Mdx.MdxOptions.ToString() -> string!
+override LithoSharp.Mdx.MdxPlugin.Equals(object? obj) -> bool
+override LithoSharp.Mdx.MdxPlugin.GetHashCode() -> int
+override LithoSharp.Mdx.MdxPlugin.ToString() -> string!
+static LithoSharp.Mdx.BlogAuthor.operator !=(LithoSharp.Mdx.BlogAuthor? left, LithoSharp.Mdx.BlogAuthor? right) -> bool
+static LithoSharp.Mdx.BlogAuthor.operator ==(LithoSharp.Mdx.BlogAuthor? left, LithoSharp.Mdx.BlogAuthor? right) -> bool
+static LithoSharp.Mdx.DocumentationAlgolia.operator !=(LithoSharp.Mdx.DocumentationAlgolia? left, LithoSharp.Mdx.DocumentationAlgolia? right) -> bool
+static LithoSharp.Mdx.DocumentationAlgolia.operator ==(LithoSharp.Mdx.DocumentationAlgolia? left, LithoSharp.Mdx.DocumentationAlgolia? right) -> bool
+static LithoSharp.Mdx.DocumentationAnalytics.operator !=(LithoSharp.Mdx.DocumentationAnalytics? left, LithoSharp.Mdx.DocumentationAnalytics? right) -> bool
+static LithoSharp.Mdx.DocumentationAnalytics.operator ==(LithoSharp.Mdx.DocumentationAnalytics? left, LithoSharp.Mdx.DocumentationAnalytics? right) -> bool
+static LithoSharp.Mdx.DocumentationBrowserOptions.operator !=(LithoSharp.Mdx.DocumentationBrowserOptions? left, LithoSharp.Mdx.DocumentationBrowserOptions? right) -> bool
+static LithoSharp.Mdx.DocumentationBrowserOptions.operator ==(LithoSharp.Mdx.DocumentationBrowserOptions? left, LithoSharp.Mdx.DocumentationBrowserOptions? right) -> bool
+static LithoSharp.Mdx.DocumentationCollection.operator !=(LithoSharp.Mdx.DocumentationCollection? left, LithoSharp.Mdx.DocumentationCollection? right) -> bool
+static LithoSharp.Mdx.DocumentationCollection.operator ==(LithoSharp.Mdx.DocumentationCollection? left, LithoSharp.Mdx.DocumentationCollection? right) -> bool
+static LithoSharp.Mdx.MdxAnalysisOptions.operator !=(LithoSharp.Mdx.MdxAnalysisOptions? left, LithoSharp.Mdx.MdxAnalysisOptions? right) -> bool
+static LithoSharp.Mdx.MdxAnalysisOptions.operator ==(LithoSharp.Mdx.MdxAnalysisOptions? left, LithoSharp.Mdx.MdxAnalysisOptions? right) -> bool
+static LithoSharp.Mdx.MdxBlogCollection.operator !=(LithoSharp.Mdx.MdxBlogCollection? left, LithoSharp.Mdx.MdxBlogCollection? right) -> bool
+static LithoSharp.Mdx.MdxBlogCollection.operator ==(LithoSharp.Mdx.MdxBlogCollection? left, LithoSharp.Mdx.MdxBlogCollection? right) -> bool
+static LithoSharp.Mdx.MdxBuildMetrics.operator !=(LithoSharp.Mdx.MdxBuildMetrics? left, LithoSharp.Mdx.MdxBuildMetrics? right) -> bool
+static LithoSharp.Mdx.MdxBuildMetrics.operator ==(LithoSharp.Mdx.MdxBuildMetrics? left, LithoSharp.Mdx.MdxBuildMetrics? right) -> bool
+static LithoSharp.Mdx.MdxOptions.operator !=(LithoSharp.Mdx.MdxOptions? left, LithoSharp.Mdx.MdxOptions? right) -> bool
+static LithoSharp.Mdx.MdxOptions.operator ==(LithoSharp.Mdx.MdxOptions? left, LithoSharp.Mdx.MdxOptions? right) -> bool
+static LithoSharp.Mdx.MdxPlugin.operator !=(LithoSharp.Mdx.MdxPlugin? left, LithoSharp.Mdx.MdxPlugin? right) -> bool
+static LithoSharp.Mdx.MdxPlugin.operator ==(LithoSharp.Mdx.MdxPlugin? left, LithoSharp.Mdx.MdxPlugin? right) -> bool

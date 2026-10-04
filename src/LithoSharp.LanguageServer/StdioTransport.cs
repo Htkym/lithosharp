@@ -126,16 +126,24 @@ internal sealed class StdioTransport
             {
                 if (linePending[index] == (byte)'\n')
                 {
-                    var bytes = linePending.GetRange(0, index).ToArray();
-                    linePending.RemoveRange(0, index + 1);
-                    if (discardingLongLine)
+                    if (discardingLongLine || index > maxMessageBytes)
                     {
+                        linePending.RemoveRange(0, index + 1);
                         discardingLongLine = false;
                         return "\0garbage\0";
                     }
 
+                    var bytes = linePending.GetRange(0, index).ToArray();
+                    linePending.RemoveRange(0, index + 1);
                     return Encoding.UTF8.GetString(bytes).TrimEnd('\r');
                 }
+            }
+
+            if (linePending.Count > maxMessageBytes)
+            {
+                linePending.Clear();
+                discardingLongLine = true;
+                Log("Discarding an overlong LSP line while resyncing.");
             }
 
             var read = await input.ReadAsync(lineBuffer.AsMemory(), cancellationToken).ConfigureAwait(false);
@@ -152,12 +160,6 @@ internal sealed class StdioTransport
             }
 
             linePending.AddRange(lineBuffer.Take(read));
-            if (linePending.Count > maxMessageBytes)
-            {
-                linePending.Clear();
-                discardingLongLine = true;
-                Log("Discarding an overlong LSP line while resyncing.");
-            }
         }
     }
 
@@ -192,7 +194,9 @@ internal sealed class StdioTransport
     private async Task DrainAsync(int count, CancellationToken cancellationToken)
     {
         Log("Discarding an overlong LSP message.");
-        var remaining = count;
+        var buffered = Math.Min(count, linePending.Count);
+        linePending.RemoveRange(0, buffered);
+        var remaining = count - buffered;
         var buffer = new byte[8192];
         while (remaining > 0)
         {

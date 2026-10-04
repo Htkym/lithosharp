@@ -1076,6 +1076,26 @@ public sealed partial class SiteGenerator
             candidate => CompilePostBodyUncached(configuration, candidate),
             post);
 
+    private string GetPostSearchText(RenderContext configuration, MarkdownPost post)
+    {
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (configuration.CompiledBodies.GetExisting(post) is { } compiled)
+            return compiled.PlainText;
+        // Search needs no layout HTML or TOC. The same verified parse record is used
+        // by page rendering; corrupt or missing records still take the normal compile path.
+        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody))?.PlainText
+            ?? CompilePostBody(configuration, post).PlainText;
+    }
+
+    private static CachedPostParse? ReadCachedPostParse(RenderContext configuration, MarkdownPost post, string sourceHash)
+    {
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent) return null;
+        return persistent.Cache.ReadPostParseAsync(persistent.CompilerFingerprint,
+            sourceHash, post.MarkdownBody.Length,
+            configuration.Cancellation).GetAwaiter().GetResult();
+    }
+
     private CompiledPostBody CompilePostBodyUncached(RenderContext configuration, MarkdownPost post)
     {
         var cancellation = configuration.Cancellation;
@@ -1088,8 +1108,7 @@ public sealed partial class SiteGenerator
             // (precedent: SetBodyProvider). Cache reads degrade to a miss and the
             // post is analyzed instead; cache writes are best-effort and never
             // fail the build.
-            var cached = persistent.Value.Cache.ReadPostParseAsync(
-                persistent.Value.CompilerFingerprint, sourceHash, post.MarkdownBody.Length, cancellation).GetAwaiter().GetResult();
+            var cached = ReadCachedPostParse(configuration, post, sourceHash);
             if (cached is not null)
             {
                 var cachedHeadings = cached.Headings.Select(heading => new DocumentHeading(
@@ -2034,14 +2053,14 @@ public sealed partial class SiteGenerator
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
         {
-            var compiled = CompilePostBody(configuration, post);
+            var plainText = GetPostSearchText(configuration, post);
             documents.Add(new SearchDocument(
                 post.FrontMatter.Title,
                 post.FrontMatter.Summary,
                 post.FrontMatter.Tags,
                 configuration.Routes.PublicPath(configuration.Routes.Post(post)),
                 SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date),
-                NormalizeForIndex(compiled.PlainText)));
+                NormalizeForIndex(plainText)));
         }
 
         foreach (var page in contentPages
@@ -2501,7 +2520,7 @@ public sealed partial class SiteGenerator
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            bufferSize: 81920,
+            bufferSize: 1,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         EnsureOpenedFilePath(stream, path);
         var attributes = File.GetAttributes(stream.SafeFileHandle);
