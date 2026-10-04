@@ -65,6 +65,48 @@ if (!$SkipPack) {
     $pack = [Diagnostics.ProcessStartInfo]::new($packExe)
     $pack.WorkingDirectory = $ExtensionDirectory
     $pack.UseShellExecute = $false
+    if (!$VsceCli) {
+        # npm exec locks its cache while preparing the pinned CLI. Give only
+        # this child a fresh cache, away from every packaged/uploaded tree.
+        function Get-ResolvedDirectoryPath([string] $DirectoryPath, [int] $LinkDepth = 0) {
+            if ($LinkDepth -gt 64) { throw 'Too many directory aliases while locating the isolated npm cache.' }
+            $fullPath = [IO.Path]::GetFullPath($DirectoryPath)
+            $resolved = [IO.Path]::GetPathRoot($fullPath)
+            $relative = [IO.Path]::GetRelativePath($resolved, $fullPath)
+            if ($relative -eq '.') { return $resolved }
+            $parts = $relative.Split([char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar), [StringSplitOptions]::RemoveEmptyEntries)
+            foreach ($part in $parts) {
+                $directory = [IO.DirectoryInfo]::new((Join-Path $resolved $part))
+                if (!$directory.Exists) { throw "npm cache containment directory does not exist: $directory" }
+                if ($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                    $target = $directory.ResolveLinkTarget($true)
+                    if (!$target) { throw "Cannot resolve npm cache containment directory: $directory" }
+                    $resolved = Get-ResolvedDirectoryPath $target.FullName ($LinkDepth + 1)
+                } else { $resolved = $directory.FullName }
+            }
+            return $resolved
+        }
+        $npmTemp = Get-ResolvedDirectoryPath ([IO.Path]::GetTempPath())
+        $npmCache = Join-Path $npmTemp ('lithosharp-vsce-npm-' + [guid]::NewGuid().ToString('N'))
+        # Conservatively reject differently cased aliases even on Unix volumes.
+        $comparison = [StringComparison]::OrdinalIgnoreCase
+        foreach ($tree in @($repo, $ExtensionDirectory, $Output)) {
+            $tree = [IO.Path]::TrimEndingDirectorySeparator((Get-ResolvedDirectoryPath $tree))
+            $treePrefix = if ([IO.Path]::EndsInDirectorySeparator($tree)) { $tree } else { $tree + [IO.Path]::DirectorySeparatorChar }
+            if ($npmCache.Equals($tree, $comparison) -or $npmCache.StartsWith($treePrefix, $comparison)) {
+                throw 'The temporary npm cache must be outside the repository, extension and VSIX output directories.'
+            }
+        }
+        $null = New-Item -ItemType Directory -Path $npmCache
+        # Unix environments can contain several differently cased keys.
+        foreach ($cacheVariable in @($pack.Environment.Keys)) {
+            if ($cacheVariable.Equals('npm_config_cache', [StringComparison]::OrdinalIgnoreCase)) {
+                $null = $pack.Environment.Remove($cacheVariable)
+            }
+        }
+        $pack.Environment['npm_config_cache'] = $npmCache
+        Write-Host "Retained isolated VSCE npm cache: $npmCache"
+    }
     foreach ($argument in ($packArguments + @('package', '--no-dependencies', '--no-update-package-json', '--out', $vsix))) { $pack.ArgumentList.Add($argument) }
     $packing = [Diagnostics.Process]::Start($pack)
     $null = $packing.WaitForExit(600000)
