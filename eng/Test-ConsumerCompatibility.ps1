@@ -12,8 +12,9 @@ separately:
   replace only the LithoSharp.dll in its output directory with the candidate
   assembly taken from the candidate .nupkg, then run the same binary again.
   Both runs must print identical output.
-- source: copy the same consumer, restore and build it against the candidate
-  package directory, and require success.
+- source: copy the same consumer, explicitly select the candidate version, restore
+  and build with a separate cache, verify the candidate assembly, and require
+  the same output.
 
 The package directories and NuGet cache are passed in, so the check works with
 the published packages, an isolated feed or a local build.
@@ -27,7 +28,8 @@ the published packages, an isolated feed or a local build.
 param(
     [Parameter(Mandatory)] [string] $BaselinePackageDirectory,
     [Parameter(Mandatory)] [string] $CandidatePackageDirectory,
-    [string] $LithoSharpVersion = '1.0.0'
+    [Alias('LithoSharpVersion')] [ValidateNotNullOrEmpty()] [string] $BaselineVersion = '1.0.0',
+    [ValidateNotNullOrEmpty()] [string] $CandidateVersion = '1.1.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,8 +42,8 @@ $candidate = [IO.Path]::GetFullPath($CandidatePackageDirectory)
 foreach ($directory in $baseline, $candidate) {
     if (!(Test-Path -LiteralPath $directory -PathType Container)) { throw "Package directory not found: $directory" }
 }
-$baselinePackage = Join-Path $baseline "LithoSharp.$LithoSharpVersion.nupkg"
-$candidatePackage = Join-Path $candidate "LithoSharp.$LithoSharpVersion.nupkg"
+$baselinePackage = Join-Path $baseline "LithoSharp.$BaselineVersion.nupkg"
+$candidatePackage = Join-Path $candidate "LithoSharp.$CandidateVersion.nupkg"
 foreach ($package in $baselinePackage, $candidatePackage) {
     if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "Package not found: $package" }
 }
@@ -68,21 +70,34 @@ function Invoke-DotNet([string[]] $Arguments, [string] $WorkingDirectory) {
     finally { Pop-Location }
 }
 
+function Assert-ResolvedVersion([string] $Directory, [string] $Expected) {
+    $assets = Get-Content -LiteralPath (Join-Path $Directory 'obj/project.assets.json') -Raw | ConvertFrom-Json -AsHashtable
+    $keys = @($assets.libraries.Keys | Where-Object { $_ -match '^LithoSharp/' })
+    if ($keys.Count -ne 1 -or $keys[0] -ne "LithoSharp/$Expected" -or $assets.libraries[$keys[0]].type -ne 'package') {
+        throw "Expected LithoSharp/$Expected, but resolved $($keys -join ', ') in $Directory."
+    }
+    Write-Host "Resolved consumer package: $($keys[0])"
+}
+
 $previousPackages = $env:NUGET_PACKAGES
 $previousHome = $env:DOTNET_CLI_HOME
 try {
     $source = Join-Path $repo 'tests/fixtures/consumer-compat'
     $binaryDirectory = Join-Path $temporary 'binary'
     $sourceDirectory = Join-Path $temporary 'source'
-    Copy-Item -LiteralPath $source -Destination $binaryDirectory -Recurse
-    Copy-Item -LiteralPath $source -Destination $sourceDirectory -Recurse
-    $env:NUGET_PACKAGES = Join-Path $temporary 'cache'
+    foreach ($directory in $binaryDirectory, $sourceDirectory) {
+        $null = New-Item -ItemType Directory -Path $directory
+        # Copy source files only; existing fixture bin/obj must not influence restore or build.
+        Get-ChildItem -LiteralPath $source -File | Copy-Item -Destination $directory
+    }
+    $env:NUGET_PACKAGES = Join-Path $temporary 'baseline-cache'
     $env:DOTNET_CLI_HOME = Join-Path $temporary 'cli-home'
     Write-NuGetConfig $binaryDirectory $baseline
     Write-NuGetConfig $sourceDirectory $candidate
 
-    $build = Invoke-DotNet @('build', '-c', 'Release', '--nologo') $binaryDirectory
+    $build = Invoke-DotNet @('build', '-c', 'Release', '--nologo', "-p:LithoSharpVersion=$BaselineVersion") $binaryDirectory
     if ($build.exit -ne 0) { throw "The consumer did not build against the baseline package.`n$($build.output)" }
+    Assert-ResolvedVersion $binaryDirectory $BaselineVersion
 
     $consumerDll = Join-Path $binaryDirectory 'bin/Release/net10.0/ConsumerCompat.dll'
     $firstRun = Invoke-DotNet @($consumerDll) $binaryDirectory
@@ -110,11 +125,25 @@ try {
 
     Write-Host ("consumer output: {0}" -f (($firstRun.output -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join ' | '))
 
-    $recompile = Invoke-DotNet @('build', '-c', 'Release', '--nologo') $sourceDirectory
+    # A separate cache also supports deliberate same-version artifact comparisons.
+    $env:NUGET_PACKAGES = Join-Path $temporary 'candidate-cache'
+    $recompile = Invoke-DotNet @('build', '-c', 'Release', '--nologo', "-p:LithoSharpVersion=$CandidateVersion") $sourceDirectory
     $sourceCompatible = $recompile.exit -eq 0
     if (!$sourceCompatible) { $failures.Add('the consumer did not recompile against the candidate package') }
     Write-Host ("source compatibility: exit={0}" -f $recompile.exit)
     if (!$sourceCompatible) { Write-Host $recompile.output }
+    else {
+        Assert-ResolvedVersion $sourceDirectory $CandidateVersion
+        $sourceAssembly = Join-Path $sourceDirectory 'bin/Release/net10.0/LithoSharp.dll'
+        if ((Get-FileHash -LiteralPath $sourceAssembly -Algorithm SHA256).Hash -ne $candidateHash) {
+            throw 'The recompiled consumer did not use the assembly from the candidate package.'
+        }
+        $sourceRun = Invoke-DotNet @((Join-Path $sourceDirectory 'bin/Release/net10.0/ConsumerCompat.dll')) $sourceDirectory
+        if ($sourceRun.exit -ne 0 -or $sourceRun.output -ne $firstRun.output) {
+            $failures.Add('the recompiled candidate consumer did not produce the baseline output')
+            Write-Host $sourceRun.output
+        }
+    }
 }
 finally {
     $env:NUGET_PACKAGES = $previousPackages

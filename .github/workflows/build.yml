@@ -150,7 +150,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Tool
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
-          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages
+          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages -CandidateVersion 1.1.0
 
       - name: Pack and validate images
         shell: pwsh
@@ -175,7 +175,7 @@ jobs:
           $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
           $null = New-Item -ItemType Directory -Force -Path $baseline
           Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/lithosharp/1.0.0/lithosharp.1.0.0.nupkg' -OutFile (Join-Path $baseline 'LithoSharp.1.0.0.nupkg')
-          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages
+          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion 1.0.0 -CandidateVersion 1.1.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run sample

@@ -43,13 +43,26 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const relative = (root, file) => path.relative(root, file).split(path.sep).join('/');
 const inside = (root, file) => { const value = path.relative(root, file); return value === '' || (!path.isAbsolute(value) && value !== '..' && !value.startsWith(`..${path.sep}`)); };
 const textOf = node => node.type === 'text' || node.type === 'inlineCode' ? node.value : (node.children ?? []).map(textOf).join('');
-// ponytail: at most 20,000 session entries; use an LRU byte budget if larger declared corpora require it.
+// Bound each module/render cache by entry count and 16 MiB estimated retained payload.
 const moduleCache = new Map();
 const renderCache = new Map();
 // Retain only the most recent browser build: 64 MiB payload budget, at most 20,000 dependencies.
 // Reuse requires a caller-supplied resolution fingerprint as well as unchanged inputs.
 let browserCache;
-function remember(cache, key, value, limit) { if (cache.size >= limit) cache.delete(cache.keys().next().value); cache.set(key, value); }
+const cacheAccounting = new WeakMap();
+function remember(cache, key, value, limit) {
+  let accounting = cacheAccounting.get(cache);
+  if (!accounting) { accounting = {bytes: 0, sizes: new Map()}; cacheAccounting.set(cache, accounting); }
+  const bytes = (key.length + JSON.stringify(value).length) * 2 + 128;
+  const budget = 16 * 1024 * 1024;
+  if (bytes > budget) return;
+  if (cache.has(key)) { accounting.bytes -= accounting.sizes.get(key); accounting.sizes.delete(key); cache.delete(key); }
+  while (cache.size && (cache.size >= limit || accounting.bytes + bytes > budget)) {
+    const oldest = cache.keys().next().value;
+    accounting.bytes -= accounting.sizes.get(oldest); accounting.sizes.delete(oldest); cache.delete(oldest);
+  }
+  cache.set(key, value); accounting.sizes.set(key, bytes); accounting.bytes += bytes;
+}
 // These lists mirror DocusaurusProfile in src/LithoSharp/Documentation; the .NET profile tests parse them.
 const supportedThemeComponents = ['Tabs', 'TabItem', 'Admonition', 'Details', 'CodeBlock', 'TOCInline', 'Card', 'DocCardList', 'MDXComponents', 'BrowserOnly', 'IdealImage', 'ThemedImage', 'Heading'];
 const staticMdxComponents = ['Admonition', 'Details', 'Card', 'TOCInline', 'Translate', 'FormattedDate'];
@@ -256,19 +269,42 @@ export async function compileSite(request) {
   if (await realpath(createRequire(serverFile).resolve('react')) !== reactFile) throw new Error('Multiple React copies: react-dom resolves another React.');
   const {renderToPipeableStream} = await import(pathToFileURL(serverFile));
   const inputs = new Map();
+  const requiredInputs = new Set();
   const metadata = new Map();
   const compiled = new Map();
   let compiledModules = 0, renderedPages = 0;
   const moduleDependencies = new Map();
   const allowedRoots = [projectRoot, directory];
   const pages = request.pages;
+  const pageIds = new Set();
+  for (const page of pages) {
+    if (typeof page.id !== 'string' || !page.id || /[\\/]/.test(page.id) || ['.', '..'].includes(page.id)) throw new Error('Invalid page id.');
+    if (pageIds.has(page.id)) throw new Error('Duplicate page id.');
+    pageIds.add(page.id);
+  }
+  const cardDirectories = new Map();
+  for (const page of pages) {
+    const folder = path.dirname(path.resolve(projectRoot, page.source));
+    if (!cardDirectories.has(folder)) cardDirectories.set(folder, []);
+    cardDirectories.get(folder).push([page.source, page.id, page.title, page.url, page.description]);
+  }
+  const cardKeys = new Map([...cardDirectories].map(([folder, cards]) => [folder, hash(JSON.stringify(cards))]));
+  const sourceLoader = file => {
+    const extension = path.extname(file).slice(1);
+    if (['js', 'mjs', 'cjs'].includes(extension)) return 'js';
+    if (['ts', 'mts', 'cts'].includes(extension)) return 'ts';
+    if (['jsx', 'tsx', 'json'].includes(extension)) return extension;
+    return null;
+  };
   const cacheLimit = Math.min(20000, Math.max(2048, pages.length * 2));
   const bySource = new Map(pages.map(page => [path.resolve(projectRoot, page.source), page]));
 
   // esbuild can request every source at once; bound open files across all input readers.
   const reads = Array.from({length: 32}, () => Promise.resolve());
   let nextRead = 0;
-  function readInput(file) {
+  // Cache probes still check request-wide byte consistency, but only dependencies
+  // of the current compilation are retained in its input/notice manifest.
+  function readInput(file, required = true) {
     const slot = nextRead++ % reads.length;
     const result = reads[slot].then(async () => {
       const resolved = await realpath(file);
@@ -281,6 +317,7 @@ export async function compileSite(request) {
       if (inputs.has(resolved) && inputs.get(resolved) !== fingerprint)
         throw new Error(`An MDX input changed during compilation: ${relative(projectRoot, file)}.`);
       inputs.set(resolved, fingerprint);
+      if (required) requiredInputs.add(resolved);
       return bytes;
     });
     reads[slot] = result.catch(() => {});
@@ -312,7 +349,11 @@ export async function compileSite(request) {
     await readInput(file);
     const extensionBundle = await build({entryPoints: [file], bundle: true, platform: 'node', format: 'esm', write: false,
       banner: {js: "import {createRequire as __createRequire} from 'node:module';const require=__createRequire(import.meta.url);"},
-      plugins: [{name: 'extension-inputs', setup(builder) { builder.onLoad({filter: /\.(?:[cm]?js|ts|json)$/}, async args => ({contents: await readInput(args.path), loader: path.extname(args.path) === '.json' ? 'json' : path.extname(args.path) === '.ts' ? 'ts' : 'js'})); }}]});
+      plugins: [{name: 'extension-inputs', setup(builder) { builder.onLoad({filter: /.*/, namespace: 'file'}, async args => {
+        const loader = sourceLoader(args.path);
+        if (!loader) throw new Error('Unsupported compiler plugin dependency: ' + relative(projectRoot, args.path));
+        return {contents: await readInput(args.path), loader, resolveDir: path.dirname(args.path)};
+      }); }}]});
     const extensionPath = path.join(workRoot, 'extension-' + hash(extensionBundle.outputFiles[0].contents) + '.mjs');
     await writeFile(extensionPath, extensionBundle.outputFiles[0].contents);
     const module = await import(pathToFileURL(extensionPath));
@@ -411,18 +452,37 @@ export async function compileSite(request) {
     };
   }
 
-  function plugin(platform) {
+  function plugin(platform, browserExports = new Map(), browserDefaults = new Set(), runtimeInputs = new Map()) {
+    const resolvedBrowser = file => browserExports.has(file) ? {path: browserExports.get(file), external: true} : {path: file};
     return {name: 'lithosharp-mdx', setup(builder) {
-      builder.onResolve({filter: /^@lithosharp\/live-code$/}, () => ({path: path.join(directory, 'runtime', 'live-code.mjs')}));
+      if (browserExports.size) builder.onResolve({filter: /.*/}, args => [...browserExports.values()].includes(args.path) ? {path: args.path, external: true} : undefined);
+      if (browserExports.size) builder.onResolve({filter: /^(?:\.|\/|[A-Za-z]:[\\/])/}, args => {
+        const file = path.resolve(args.resolveDir, args.path);
+        return browserExports.has(file) ? resolvedBrowser(file) : undefined;
+      });
+      if (browserExports.size) builder.onLoad({filter: /.*/, namespace: 'file'}, async args => {
+        const file = await realpath(args.path);
+        if (browserExports.has(file)) {
+          await readInput(args.path);
+          const url = JSON.stringify(browserExports.get(file));
+          return {contents: `export * from ${url};${browserDefaults.has(file) ? `export {default} from ${url};` : ''}`, loader: 'js'};
+        }
+        // Unsupported private runtime entry points would create a second React/provider instance.
+        if (/(?:^|[\\/])node_modules[\\/](?:react|react-dom|@mdx-js[\\/]react)[\\/]/.test(file))
+          throw new Error('Direct private React or MDX runtime imports are not supported.');
+        if (runtimeInputs.has(file) && sourceLoader(file))
+          throw Object.assign(new Error('User code shares a runtime implementation module.'), {unifiedBrowserGraph: true});
+      });
+      builder.onResolve({filter: /^@lithosharp\/live-code$/}, () => resolvedBrowser(path.join(directory, 'runtime', 'live-code.mjs')));
       builder.onResolve({filter: /^lithosharp:live-runtime$/}, () => ({path: 'runtime', namespace: 'live-runtime'}));
       builder.onLoad({filter: /.*/, namespace: 'live-runtime'}, async () => {
         liveRuntime ??= build({stdin: {contents: `import React from ${JSON.stringify(reactFile)};import {createRoot} from ${JSON.stringify(resolvePackage('react-dom/client'))};globalThis.React=React;globalThis.render=value=>createRoot(document.getElementById('root')).render(value);`, resolveDir: projectRoot},
-          bundle: true, write: false, platform: 'browser', format: 'iife', minify: true, define: {'process.env.NODE_ENV': '"production"'}, metafile: true});
+          bundle: true, write: false, platform: 'browser', format: 'iife', minify: true, define: {'process.env.NODE_ENV': '"production"'}, metafile: true, plugins: [plugin('browser')]});
         const result = await liveRuntime;
         for (const file of Object.keys(result.metafile.inputs).filter(file => file !== '<stdin>')) await readInput(path.resolve(file));
         return {contents: `export default ${JSON.stringify(result.outputFiles[0].text)}`, loader: 'js'};
       });
-      builder.onResolve({filter: /^@lithosharp\/runtime$/}, () => ({path: path.join(directory, 'runtime', 'components.mjs')}));
+      builder.onResolve({filter: /^@lithosharp\/runtime$/}, () => resolvedBrowser(path.join(directory, 'runtime', 'components.mjs')));
       builder.onResolve({filter: /^@docusaurus\/BrowserOnly$/}, () => ({path: 'BrowserOnly', namespace: 'theme'}));
       builder.onResolve({filter: /^@docusaurus\/Link$/}, () => ({path: 'Link', namespace: 'theme'}));
       builder.onResolve({filter: /^@docusaurus\/Translate$/}, () => ({path: 'Translate', namespace: 'theme'}));
@@ -478,9 +538,9 @@ export async function compileSite(request) {
           } catch (error) { if (error.code !== 'MODULE_NOT_FOUND') throw error; }
         }
         const resolved = args.path === 'react' ? reactFile : resolvePackage(args.path);
-        return {path: platform === 'node' ? pathToFileURL(resolved).href : resolved, external: platform === 'node'};
+        return platform === 'node' ? {path: pathToFileURL(resolved).href, external: true} : resolvedBrowser(resolved);
       });
-      builder.onResolve({filter: /^@mdx-js\/react$/}, () => ({path: workerRequire.resolve('@mdx-js/react')}));
+      builder.onResolve({filter: /^@mdx-js\/react$/}, () => resolvedBrowser(workerRequire.resolve('@mdx-js/react')));
       builder.onResolve({filter: /^server-only$/}, () => platform === 'browser'
         ? {errors: [{text: 'A server-only module reached the browser graph.'}]} : {path: 'server-only', namespace: 'empty'});
       builder.onLoad({filter: /.*/, namespace: 'empty'}, () => ({contents: '', loader: 'js'}));
@@ -491,7 +551,7 @@ export async function compileSite(request) {
         const source = request.sources[relative(projectRoot, file)];
         if (source === undefined) throw Object.assign(new Error(`MDX import needs C# validation: ${relative(projectRoot, file)}`), {requiredSource: file});
         if (!compiled.has(file)) {
-          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents]));
+          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents, cardKeys.get(path.dirname(file))]));
           const cached = request.cacheable && moduleCache.get(key);
           if (cached && (await Promise.all(cached.dependencies.map(async ([file, fingerprint]) => hash(await readInput(file)) === fingerprint))).every(Boolean)) {
             compiled.set(file, cached.code); metadata.set(file, cached.info);
@@ -518,18 +578,17 @@ export async function compileSite(request) {
         }
         return {contents: compiled.get(file), loader: 'js', resolveDir: path.dirname(file)};
       });
-      builder.onLoad({filter: /\.(?:[cm]?js|jsx|tsx?|json|css|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|docx|pdf)$/}, async args => {
+      builder.onLoad({filter: /.*/, namespace: 'file'}, async args => {
         const bytes = await readInput(args.path);
         const extension = path.extname(args.path).slice(1);
-        const loader = ['js', 'mjs', 'cjs'].includes(extension) ? 'js'
-          : ['jsx', 'ts', 'tsx', 'json'].includes(extension) ? extension
-          : extension === 'css' ? args.path.endsWith('.module.css') ? 'local-css' : 'css' : 'file';
+        const loader = sourceLoader(args.path) ?? (extension === 'css' ? args.path.endsWith('.module.css') ? 'local-css' : 'css' : common.loader['.' + extension]);
+        if (!loader) throw new Error('Unsupported MDX dependency: ' + relative(projectRoot, args.path));
         return {contents: bytes, loader, resolveDir: path.dirname(args.path)};
       });
     }};
   }
 
-  const serverDir = path.join(workRoot, 'server');
+  const serverDir = path.join(workRoot, 'server-' + hash(request.assetBaseUrl).slice(0, 16));
   const browserDir = path.join(workRoot, 'browser');
   await mkdir(serverDir, {recursive: true});
   await mkdir(browserDir, {recursive: true});
@@ -580,7 +639,7 @@ export async function compileSite(request) {
     }
     file.contents = Buffer.from(source);
   }
-  for (const file of server.outputFiles) { await mkdir(path.dirname(file.path), {recursive: true}); await writeFile(file.path, file.contents); }
+  for (const file of server.outputFiles) { if (!inside(serverDir, file.path)) throw new Error('Server output escapes scratch.'); await mkdir(path.dirname(file.path), {recursive: true}); await writeFile(file.path, file.contents); }
   const serverContents = new Map(server.outputFiles.map(file => [file.path, file.contents]));
   const results = [];
   const renderStarted = performance.now();
@@ -594,13 +653,15 @@ export async function compileSite(request) {
       if (visitedOutputs.has(file)) return; visitedOutputs.add(file);
       const output = serverOutputs.get(file); if (!output) return;
       for (const input of Object.keys(output.inputs)) referencedInputs.add(input);
-      for (const item of output.imports.filter(item => !item.external && item.kind !== 'dynamic-import')) visitOutput(path.resolve(projectRoot, item.path));
+      for (const item of output.imports.filter(item => !item.external)) visitOutput(path.resolve(projectRoot, item.path));
     }
     visitOutput(serverPath);
     const fallback = [...referencedInputs].map(file => metadata.get(path.resolve(projectRoot, file))?.fallback).find(Boolean)
       ?? info.fallback ?? (request.componentsModule ? 'A component override module requires page hydration.' : null);
     const selective = request.hydration === 'selective' && !fallback;
-    const renderKey = hash(Buffer.concat([serverContents.get(serverPath), Buffer.from(String(selective))]));
+    const renderHasher = createHash('sha256').update(JSON.stringify([selective, request.assetBaseUrl]));
+    for (const file of [...visitedOutputs].sort()) renderHasher.update(relative(serverDir, file)).update(serverContents.get(file));
+    const renderKey = renderHasher.digest('hex');
     let renderedPage = request.cacheable ? renderCache.get(renderKey) : undefined;
     if (renderedPage === undefined) {
       const module = await import(pathToFileURL(serverPath).href);
@@ -638,70 +699,246 @@ export async function compileSite(request) {
   for (const page of results) Object.assign(publicLinks, page.usedLinks);
   virtualBrowser.set('virtual:site-links', `export const linkMap=${JSON.stringify(publicLinks)};export const crossReferences=${JSON.stringify(request.crossReferences ?? {})};`);
   const browserEntries = Object.fromEntries(pages.filter(page => virtualBrowser.has(`virtual:${page.id}`)).map(page => [page.id, `virtual:${page.id}`]));
-  const styleRoots = [...inputs.keys()].filter(file => file.endsWith('.css'))
-    .map(file => [inside(projectRoot, file) ? relative(projectRoot, file) : '@worker/' + relative(directory, file), file])
-    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
-  if (results.some(page => page.hydration !== 'page'))
-    for (const [name, file] of styleRoots) browserEntries['style-' + hash(name).slice(0, 12)] = file;
-  const serverFingerprints = new Map(inputs);
-  const staticSources = new Set(pages.filter(page => !virtualBrowser.has(`virtual:${page.id}`))
-    .map(page => path.resolve(projectRoot, page.source)));
-  const browserInputFiles = browser => Object.keys(browser.metafile.inputs)
-    .filter(file => !/^(?:virtual|theme|empty|live-runtime|hooks):/.test(file))
-    .map(file => file.startsWith('raw:') ? file.slice(4) : path.resolve(projectRoot, file));
-  const browserKey = dependencies => hash(JSON.stringify([projectRoot, common, request.resolutionFingerprint, request.plugins, request.staticComponents,
-    browserEntries, [...virtualBrowser].sort(([left], [right]) => left.localeCompare(right, 'en')),
-    [...serverFingerprints].filter(([file]) => !staticSources.has(file) || dependencies.has(file))
-      .sort(([left], [right]) => left.localeCompare(right, 'en'))]));
+  const styleHashes = [...inputs].filter(([file]) => file.endsWith('.css')).sort(([left], [right]) => left.localeCompare(right, 'en'));
   const canCacheBrowser = request.cacheable && typeof request.resolutionFingerprint === 'string';
-  let browser, browserBundleMilliseconds = 0, browserCacheHit = false;
-  const previousBrowser = browserCache;
-  if (canCacheBrowser && previousBrowser && previousBrowser.key === browserKey(previousBrowser.dependencies)) {
+  const previousBrowser = canCacheBrowser ? browserCache : undefined;
+  const emptyBrowser = () => ({outputFiles: [], metafile: {inputs: {}, outputs: {}}});
+  const inputFile = name => /^(?:virtual|theme|empty|live-runtime|hooks):/.test(name) ? null
+    : name.startsWith('raw:') ? name.slice(4) : path.resolve(projectRoot, name);
+  const fingerprints = async names => {
+    const values = new Map();
+    for (const name of names) {
+      const file = inputFile(name);
+      if (file !== null) values.set(await realpath(file), hash(await readInput(file)));
+    }
+    return values;
+  };
+  const relocateBrowser = record => {
+    const relocate = file => path.join(browserDir, relative(record.directory, path.resolve(projectRoot, file)));
+    return {outputFiles: record.browser.outputFiles.map(file => ({contents: file.contents, path: relocate(file.path)})),
+      metafile: {inputs: record.browser.metafile.inputs, outputs: Object.fromEntries(
+        Object.entries(record.browser.metafile.outputs).map(([file, info]) => [relative(projectRoot, relocate(file)), {...info,
+          ...(info.cssBundle ? {cssBundle: relative(projectRoot, relocate(info.cssBundle))} : {}),
+          imports: info.imports.map(item => item.external ? item : {...item, path: relative(projectRoot, relocate(item.path))})}]))}};
+  };
+  const mergeBrowsers = (...parts) => {
+    const files = new Map(), metadata = {inputs: {}, outputs: {}};
+    for (const part of parts) {
+      Object.assign(metadata.inputs, part.metafile.inputs);
+      Object.assign(metadata.outputs, part.metafile.outputs);
+      for (const file of part.outputFiles) {
+        if (files.has(file.path) && !Buffer.from(files.get(file.path).contents).equals(Buffer.from(file.contents)))
+          throw new Error('Browser output paths collide with different bytes.');
+        files.set(file.path, file);
+      }
+    }
+    return {outputFiles: [...files.values()], metafile: metadata};
+  };
+  let browserBundleMilliseconds = 0;
+  const measureBrowser = async settings => {
+    const started = performance.now();
+    try { return await build(settings); }
+    finally { browserBundleMilliseconds += performance.now() - started; }
+  };
+
+  // Give every page graph the same React, MDX provider, PageContext and cleanup modules.
+  // Infer no exports from generated chunks: these facades export source-module APIs.
+  const sharedSources = new Map(), sharedFiles = new Map(), sharedDefaults = new Set(), sharedEntries = {};
+  for (const [name, specifier] of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react/compiler-runtime'].entries()) {
+    const file = await realpath(specifier === 'react' ? reactFile : resolvePackage(specifier));
+    const keys = Object.keys(projectRequire(file)).filter(key => /^[A-Za-z_$][\w$]*$/.test(key) && key !== 'default' && key !== '__esModule');
+    const entry = `virtual:shared:${name}`;
+    sharedFiles.set(file, entry); sharedDefaults.add(file); sharedEntries['react-' + name] = entry;
+    sharedSources.set(entry, `import value from ${JSON.stringify(file)};export default value;export const {${keys.join(',')}}=value;`);
+  }
+  for (const [name, file, hasDefault] of [
+    ['mdx', workerRequire.resolve('@mdx-js/react'), false],
+    ...['components', 'context', 'browser', 'island-browser', 'islands', ...(inputs.has(path.join(directory, 'runtime', 'live-code.mjs')) ? ['live-code'] : [])].map(name =>
+      [name, path.join(directory, 'runtime', name + '.mjs'), ['components', 'live-code'].includes(name)])]) {
+    const entry = 'virtual:shared:' + name;
+    sharedFiles.set(file, entry); if (hasDefault) sharedDefaults.add(file); sharedEntries[name] = entry;
+    sharedSources.set(entry, `export * from ${JSON.stringify(file)};${hasDefault ? `export {default} from ${JSON.stringify(file)};` : ''}`);
+  }
+  sharedSources.set('virtual:site-links', virtualBrowser.get('virtual:site-links'));
+  sharedEntries.links = 'virtual:site-links';
+  const runtimeKey = hash(JSON.stringify([2, projectRoot, common, request.resolutionFingerprint, [...sharedSources]]));
+  let runtime, runtimeDependencies, runtimeHit = false;
+  const hasBrowserPages = Object.values(browserEntries).some(entry => entry.startsWith('virtual:'));
+  if (hasBrowserPages && previousBrowser?.runtime.key === runtimeKey && previousBrowser.runtime.browser.outputFiles.some(file => file.path.endsWith('.js'))) {
     try {
-      browserCacheHit = (await Promise.all([...previousBrowser.dependencies].map(async ([file, fingerprint]) =>
-        hash(await readInput(file)) === fingerprint))).every(Boolean);
-    } catch { /* Missing or unsafe cached inputs must be resolved afresh by esbuild. */ }
-    if (browserCacheHit) {
-      // esbuild output imports are relative to projectRoot; relocate only metadata paths.
-      // Output bytes use relative chunk paths and the unchanged publicPath.
-      const relocate = file => path.join(browserDir, relative(previousBrowser.directory, path.resolve(projectRoot, file)));
-      browser = {outputFiles: previousBrowser.browser.outputFiles.map(file => ({contents: file.contents, path: relocate(file.path)})),
-        metafile: {inputs: previousBrowser.browser.metafile.inputs, outputs: Object.fromEntries(
-          Object.entries(previousBrowser.browser.metafile.outputs).map(([file, info]) => [relative(projectRoot, relocate(file)), {...info,
-            ...(info.cssBundle ? {cssBundle: relative(projectRoot, relocate(info.cssBundle))} : {}),
-            imports: info.imports.map(item => item.external ? item : {...item, path: relative(projectRoot, relocate(item.path))})}]))}};
+      runtimeHit = (await Promise.all([...previousBrowser.runtime.dependencies].map(async ([file, fingerprint]) =>
+        hash(await readInput(file, false)) === fingerprint))).every(Boolean);
+    } catch { /* Resolve missing or unsafe inputs afresh. */ }
+  }
+  if (runtimeHit) {
+    runtime = relocateBrowser(previousBrowser.runtime);
+    runtimeDependencies = previousBrowser.runtime.dependencies;
+    for (const file of runtimeDependencies.keys()) requiredInputs.add(file);
+  } else if (hasBrowserPages) {
+    runtime = await measureBrowser({...common, entryPoints: sharedEntries, entryNames: 'runtime/[name]-[hash]',
+      outdir: browserDir, platform: 'browser', splitting: true, sourcemap: false,
+      plugins: [virtualPlugin(sharedSources), plugin('browser')]});
+    runtimeDependencies = await fingerprints(Object.keys(runtime.metafile.inputs));
+  } else { runtime = emptyBrowser(); runtimeDependencies = new Map(); }
+  const sharedUrls = new Map(Object.entries(runtime.metafile.outputs).filter(([, info]) => info.entryPoint)
+    .filter(([file]) => file.endsWith('.js'))
+    .map(([file, info]) => [info.entryPoint.replace(/^virtual:virtual:/, 'virtual:'), publicPath + '/' + relative(browserDir, path.resolve(projectRoot, file))]));
+  const browserExports = new Map([...sharedFiles].map(([file, entry]) => [file, sharedUrls.get(entry)]).filter(([, url]) => url));
+  const pageConfigKey = hash(JSON.stringify([2, projectRoot, common, request.resolutionFingerprint, request.plugins,
+    request.staticComponents, styleHashes, [...sharedUrls]]));
+  const records = new Map();
+  const changed = new Set();
+  const processed = new Set();
+  const cachedPages = previousBrowser?.pageConfigKey === pageConfigKey ? previousBrowser : undefined;
+  let unifiedBrowser = Boolean(cachedPages?.unifiedBrowser);
+  const currentHashes = new Map(runtimeDependencies);
+  if (cachedPages) for (const [file] of cachedPages.dependencies) {
+    try { currentHashes.set(file, hash(await readInput(file, false))); }
+    catch { currentHashes.set(file, null); }
+  }
+  const signature = (name, dependencies) => hash(JSON.stringify([browserEntries[name], virtualBrowser.get(browserEntries[name]),
+    [...dependencies].filter(file => /\.(?:mdx|md)$/.test(file)).sort().map(file => [file, hash(compiled.get(file) ?? '')])]));
+  for (const name of Object.keys(browserEntries)) {
+    const record = cachedPages?.records.get(name);
+    if (!record || record.signature !== signature(name, record.dependencies)
+      || [...record.dependencies].some(file => currentHashes.get(file) !== cachedPages.dependencies.get(file))) changed.add(name);
+    else records.set(name, record);
+  }
+  // Plain styles have no JS module identity, but their global page closures must update.
+  if ([...changed].some(name => browserEntries[name].endsWith('.css')))
+    for (const [name, entry] of Object.entries(browserEntries)) if (entry.startsWith('virtual:')) changed.add(name);
+  // CSS module names are allocated across the complete graph. Keep that naming scope together.
+  if (changed.size && [...inputs.keys(), ...(cachedPages?.dependencies.keys() ?? [])].some(file => file.endsWith('.module.css')))
+    for (const name of Object.keys(browserEntries)) changed.add(name);
+  const stateful = file => !browserExports.has(file) && (file.endsWith('.module.css') || !/\.(?:css|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|docx|pdf)$/.test(file));
+  const owners = new Map();
+  if (cachedPages) for (const [name, record] of cachedPages.records) {
+    if (!(name in browserEntries)) continue;
+    for (const file of record.dependencies) if (stateful(file)) {
+      if (!owners.has(file)) owners.set(file, new Set());
+      owners.get(file).add(name);
     }
   }
-  if (!browserCacheHit) {
-    const browserStarted = performance.now();
-    browser = Object.keys(browserEntries).length ? await build({...common, entryPoints: browserEntries, outdir: browserDir, platform: 'browser', splitting: true,
-      sourcemap: false, plugins: [virtualPlugin(virtualBrowser), plugin('browser')]}) : {outputFiles: [], metafile: {inputs: {}, outputs: {}}};
-    browserBundleMilliseconds = performance.now() - browserStarted;
-    const dependencies = new Map();
-    for (const file of browserInputFiles(browser)) dependencies.set(await realpath(file), hash(await readInput(file)));
-    // Include retained UTF-16 paths, metadata and dependency hashes in the payload budget.
-    // This bounds retained data, not V8 object overhead or the process heap snapshot.
-    const cacheBytes = browser.outputFiles.reduce((sum, file) => sum + file.contents.byteLength + file.path.length * 2, 0)
-      + JSON.stringify(browser.metafile).length * 2 + (browserDir.length + 64) * 2
-      + [...dependencies].reduce((sum, [file, fingerprint]) => sum + (file.length + fingerprint.length) * 2, 0);
-    browserCache = canCacheBrowser && dependencies.size <= 20000 && cacheBytes <= 64 * 1024 * 1024
-      ? {key: browserKey(dependencies), browser, directory: browserDir, dependencies} : undefined;
+  const expand = () => {
+    const queue = [...changed];
+    for (const name of queue) for (const file of cachedPages?.records.get(name)?.dependencies ?? []) {
+      if (!stateful(file)) continue;
+      for (const owner of owners.get(file) ?? []) if (!changed.has(owner)) { changed.add(owner); queue.push(owner); }
+    }
+  };
+  expand();
+  if (unifiedBrowser && changed.size) for (const name of Object.keys(browserEntries)) changed.add(name);
+  const describe = async built => {
+    const entryOutputs = new Map(Object.entries(built.metafile.outputs).filter(([file, info]) => info.entryPoint && !file.endsWith('.css') || info.entryPoint && !info.cssBundle)
+      .map(([file, info]) => [info.entryPoint.replace(/^virtual:virtual:/, 'virtual:'), [relative(browserDir, path.resolve(projectRoot, file)), info]]));
+    const described = new Map();
+    for (const name of changed) {
+      const value = browserEntries[name];
+      const root = Object.keys(built.metafile.inputs).find(input => input.startsWith('virtual:') ? input.replace(/^virtual:virtual:/, 'virtual:') === value : path.resolve(projectRoot, input) === value);
+      const inputNames = new Set(), queue = [root];
+      while (queue.length) {
+        const input = queue.pop();
+        if (!input || inputNames.has(input)) continue;
+        inputNames.add(input);
+        for (const item of built.metafile.inputs[input]?.imports ?? []) if (!item.external) queue.push(item.path);
+      }
+      const dependencies = new Set((await fingerprints(inputNames)).keys());
+      for (const file of dependencies) currentHashes.set(file, inputs.get(file));
+      const emitted = entryOutputs.get(value) ?? entryOutputs.get(relative(projectRoot, value));
+      if (!emitted) throw new Error(`No browser entry was emitted for '${name}'.`);
+      described.set(name, {signature: signature(name, dependencies), dependencies, inputNames,
+        root: emitted[0], css: emitted[1].cssBundle ? relative(browserDir, path.resolve(projectRoot, emitted[1].cssBundle)) : null});
+    }
+    return described;
+  };
+  let main = cachedPages ? relocateBrowser({browser: cachedPages.main, directory: cachedPages.directory}) : emptyBrowser();
+  let attempts = 0;
+  if (changed.size) while (true) {
+    for (const name of changed) if (browserEntries[name].startsWith('virtual:')) processed.add(name);
+    let built;
+    try { built = await measureBrowser({...common, entryPoints: Object.fromEntries(Object.entries(browserEntries).filter(([name]) => changed.has(name))),
+      outdir: browserDir, platform: 'browser', splitting: true, sourcemap: false,
+      plugins: [...(unifiedBrowser ? [] : [{name: 'shared-links', setup(builder) { builder.onResolve({filter: /^virtual:site-links$/}, () => ({path: sharedUrls.get('virtual:site-links'), external: true})); }}]),
+        virtualPlugin(virtualBrowser), plugin('browser', unifiedBrowser ? new Map() : browserExports, sharedDefaults, runtimeDependencies)]});
+    } catch (error) {
+      if (unifiedBrowser || !error.errors?.some(item => item.detail?.unifiedBrowserGraph)) throw error;
+      // Preserve supported modules shared with runtime internals in one esbuild scope.
+      unifiedBrowser = true; records.clear(); main = emptyBrowser();
+      for (const name of Object.keys(browserEntries)) changed.add(name);
+      continue;
+    }
+    const described = await describe(built);
+    const count = changed.size;
+    for (const record of described.values()) for (const file of record.dependencies) if (stateful(file))
+      for (const owner of owners.get(file) ?? []) if (!changed.has(owner)) changed.add(owner);
+    expand();
+    if (changed.size !== count) {
+      // At most two exploratory builds; further crossovers safely rebuild the whole graph.
+      if (++attempts >= 2) for (const name of Object.keys(browserEntries)) changed.add(name);
+      continue;
+    }
+    for (const [name, record] of described) records.set(name, record);
+    main = mergeBrowsers(main, built);
+    break;
   }
+  // Keep only closures reachable from current entries. Removed imports/pages leave no stale assets.
+  const outputs = new Map(Object.entries(main.metafile.outputs).map(([file, info]) => [relative(browserDir, path.resolve(projectRoot, file)), info]));
+  const retained = new Set(), queue = [...records.values()].flatMap(record => [record.root, record.css].filter(Boolean));
+  while (queue.length) {
+    const name = queue.pop();
+    if (retained.has(name)) continue;
+    retained.add(name);
+    const info = outputs.get(name);
+    if (!info) throw new Error('A browser output closure is incomplete.');
+    if (info.cssBundle) queue.push(relative(browserDir, path.resolve(projectRoot, info.cssBundle)));
+    for (const item of info.imports) if (!item.external) queue.push(relative(browserDir, path.resolve(projectRoot, item.path)));
+  }
+  const retainedInputs = new Set([...records.values()].flatMap(record => [...record.inputNames]));
+  main = {outputFiles: main.outputFiles.filter(file => retained.has(relative(browserDir, file.path))), metafile: {
+    inputs: Object.fromEntries(Object.entries(main.metafile.inputs).filter(([name]) => retainedInputs.has(name))),
+    outputs: Object.fromEntries(Object.entries(main.metafile.outputs).filter(([file]) => retained.has(relative(browserDir, path.resolve(projectRoot, file)))))}};
+  const runtimeOutputs = new Map(Object.entries(runtime.metafile.outputs).map(([file, info]) => [relative(browserDir, path.resolve(projectRoot, file)), info]));
+  const runtimeRetained = new Set();
+  const runtimeQueue = (unifiedBrowser ? [] : Object.values(main.metafile.outputs)).flatMap(info => info.imports.filter(item => item.external && item.path.startsWith(publicPath + '/')).map(item => item.path.slice(publicPath.length + 1)));
+  while (runtimeQueue.length) {
+    const name = runtimeQueue.pop(); if (runtimeRetained.has(name)) continue;
+    const info = runtimeOutputs.get(name); if (!info) throw new Error('A shared runtime output closure is incomplete.');
+    runtimeRetained.add(name);
+    if (info.cssBundle) runtimeQueue.push(relative(browserDir, path.resolve(projectRoot, info.cssBundle)));
+    for (const item of info.imports) if (!item.external) runtimeQueue.push(relative(browserDir, path.resolve(projectRoot, item.path)));
+  }
+  const publishedRuntime = {outputFiles: runtime.outputFiles.filter(file => runtimeRetained.has(relative(browserDir, file.path))), metafile: {inputs: runtime.metafile.inputs,
+    outputs: Object.fromEntries(Object.entries(runtime.metafile.outputs).filter(([file]) => runtimeRetained.has(relative(browserDir, path.resolve(projectRoot, file)))))}};
+  const browser = mergeBrowsers(publishedRuntime, main);
+  const dependencies = new Map([...records.values()].flatMap(record => [...record.dependencies].map(file => [file, currentHashes.get(file)])));
+  for (const file of dependencies.keys()) requiredInputs.add(file);
+  const references = [...records.values()].reduce((sum, record) => sum + record.dependencies.size + record.inputNames.size, 0);
+  const cacheBytes = [...runtime.outputFiles, ...main.outputFiles].reduce((sum, file) => sum + file.contents.byteLength + file.path.length * 2, 0)
+    + (JSON.stringify(runtime.metafile).length + JSON.stringify(main.metafile).length + runtimeKey.length + pageConfigKey.length + browserDir.length * 2) * 2 + [...dependencies, ...runtimeDependencies].reduce((sum, [file, fingerprint]) => sum + (file.length + fingerprint.length) * 2, 0)
+    + [...records].reduce((sum, [name, record]) => sum + (name.length + record.signature.length + record.root.length + (record.css?.length ?? 0)
+      + [...record.dependencies, ...record.inputNames].reduce((length, value) => length + value.length, 0)) * 2, 0);
+  // Bound data payload/reference counts, not V8 object overhead or the process heap.
+  browserCache = canCacheBrowser && dependencies.size + runtimeDependencies.size <= 20000 && references <= 40000 && cacheBytes <= 64 * 1024 * 1024
+    ? {runtime: {key: runtimeKey, browser: runtime, directory: browserDir, dependencies: runtimeDependencies},
+      main, directory: browserDir, pageConfigKey, records, dependencies, unifiedBrowser} : undefined;
   const browserOutputs = new Map(Object.entries(browser.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
-  const pageEntries = new Map([...browserOutputs].filter(([, info]) => info.entryPoint).map(entry => [entry[1].entryPoint.replace(/^virtual:virtual:/, 'virtual:'), entry]));
-  const styleOrder = new Map(styleRoots.map(([, file], index) => [file, index]));
-  const styleEntries = [...browserOutputs].filter(([file, info]) => file.endsWith('.css') && info.entryPoint && styleOrder.has(path.resolve(projectRoot, info.entryPoint)))
-    .sort(([, left], [, right]) => styleOrder.get(path.resolve(projectRoot, left.entryPoint)) - styleOrder.get(path.resolve(projectRoot, right.entryPoint)))
-    .map(([file]) => relative(browserDir, file));
+  const pageEntries = new Map([...browserOutputs].filter(([file, info]) => info.entryPoint && relative(browserDir, file).startsWith('pages/')).map(entry => [entry[1].entryPoint.replace(/^virtual:virtual:/, 'virtual:'), entry]));
   const assets = browser.outputFiles.map(file => {
     const info = browserOutputs.get(file.path);
     return {path: relative(browserDir, file.path), bytes: Buffer.from(file.contents).toString('base64'), hash: hash(file.contents),
-      imports: (info?.imports ?? []).filter(item => !item.external).map(item => relative(browserDir, path.resolve(projectRoot, item.path))),
+      imports: [...(info?.imports ?? []), ...(info?.cssBundle ? [{path: info.cssBundle, external: false}] : [])].filter(item => !item.external || item.path.startsWith(publicPath + '/')).map(item => item.external ? item.path.slice(publicPath.length + 1) : relative(browserDir, path.resolve(projectRoot, item.path))),
       inputs: Object.keys(info?.inputs ?? {}).filter(file => !file.startsWith('virtual:')).map(file => relative(projectRoot, path.resolve(projectRoot, file)))};
   });
-  for (const file of server.outputFiles.filter(file => !/\.(?:js|css)$/.test(file.path))) {
+  const neededServerCss = new Set(results.filter(page => page.hydration !== 'page').map(page => serverOutputs.get(serverEntries.get(`virtual:${page.id}`))?.cssBundle).filter(Boolean).map(file => path.resolve(projectRoot, file)));
+  for (const file of server.outputFiles.filter(file => !/\.(?:js|css)$/.test(file.path) || neededServerCss.has(file.path))) {
     const name = relative(serverDir, file.path);
-    if (!assets.some(asset => asset.path === name)) assets.push({path: name, bytes: Buffer.from(file.contents).toString('base64'), hash: hash(file.contents), imports: [], inputs: []});
+    const existing = assets.find(asset => asset.path === name);
+    if (existing && !Buffer.from(existing.bytes, 'base64').equals(Buffer.from(file.contents))) throw new Error('Server and browser asset paths collide with different bytes.');
+    if (!existing) {
+      const info = serverOutputs.get(file.path);
+      assets.push({path: name, bytes: Buffer.from(file.contents).toString('base64'), hash: hash(file.contents),
+        imports: (info?.imports ?? []).filter(item => !item.external).map(item => relative(serverDir, path.resolve(projectRoot, item.path))), inputs: []});
+    }
   }
   for (const page of results) {
     const entry = pageEntries.get(`virtual:${page.id}`);
@@ -709,17 +946,22 @@ export async function compileSite(request) {
       page.entry = relative(browserDir, entry[0]);
       if (entry[1].cssBundle) page.css.push(relative(browserDir, path.resolve(projectRoot, entry[1].cssBundle)));
     }
-    if (page.hydration !== 'page') page.css.push(...styleEntries);
+    if (page.hydration !== 'page') {
+      const css = serverOutputs.get(serverEntries.get(`virtual:${page.id}`))?.cssBundle;
+      if (css) page.css.push(relative(serverDir, path.resolve(projectRoot, css)));
+    }
+    if (page.hydration === 'page') page.css.push(...publishedRuntime.outputFiles.filter(file => file.path.endsWith('.css')).map(file => relative(browserDir, file.path)));
     page.css = [...new Set(page.css)];
   }
   // Count actual esbuild work, including unchanged entries processed in a shared build.
   // A validated browser cache hit does no browser bundling work.
-  const rebundledPages = browserCacheHit ? [] : results.filter(page => page.entry !== null).map(page => page.id);
+  const rebundledPages = results.filter(page => processed.has(page.id)).map(page => page.id);
   for (const input of new Set([...Object.keys(server.metafile.inputs), ...Object.keys(browser.metafile.inputs)])) {
     if (input.startsWith('virtual:') || input.startsWith('theme:') || input.startsWith('empty:') || input.startsWith('live-runtime:') || input.startsWith('hooks:')) continue;
     if (input.startsWith('raw:')) await readInput(input.slice(4));
     else await readInput(await resolveInputFile(path.resolve(projectRoot, input)));
   }
+  for (const file of inputs.keys()) if (!requiredInputs.has(file)) inputs.delete(file);
   const packageRoots = new Set();
   for (const file of inputs.keys()) {
     const marker = path.sep + 'node_modules' + path.sep;

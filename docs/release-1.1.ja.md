@@ -2,8 +2,8 @@
 
 [English](release-1.1.md)
 
-候補状態：Core 1.1と拡張0.1.0は検証候補である。NuGet packageは配布gate
-（V110-23）まで1.0.0のままである。拡張はMarketplaceにない。*未測定*の数値は
+候補状態：Core 1.1と拡張0.1.0は検証候補である。NuGet packageの版数を1.1.0へ更新した。
+最終の配布検証は未完で、拡張はMarketplaceにない。*未測定*の数値は
 最終のV110-25測定後に差し替える。ここで先行して高速化を主張しない。
 
 ## 機能表
@@ -14,9 +14,9 @@
 | MDX | plugin/bundle/SSR実行なしの解析専用検査、lock固定worker（MDX 3.1.1、React 19.2.4、esbuild 0.25.12） | debounce付きLSP session、Outline symbols、キー入力でbuildしない |
 | build/serve | generation追跡、出力別cache報告/回収、構造化`serve`停止 | project別build/serve状態機械、実出力preview shell |
 | 移行 | route oracle・正規化page set比較・component機能差report付きDocusaurus解析/変換、固定3サイト再現corpus | —（CLI駆動） |
-| Tooling契約 | `lithosharp capabilities`、加算的な1.x JSON envelope、schema `"1.0"` | stdio上の言語server `lithosharp`/`1.0.0` |
+| Tooling契約 | `lithosharp capabilities`、加算的な1.x JSON envelope、schema `"1.0"` | stdio上の言語server `lithosharp`。Core assemblyの版数を返す |
 
-1.1に**含まない**もの：
+1.1には、次の制限がある。
 
 - previewは保存済み文書のみ。未保存bufferのpreviewはない。
 - MDX workerはTypeScriptを変換するだけで、型検査はしない。
@@ -24,11 +24,11 @@
 - browser検証はChromiumのみ。Firefox/Safariは主張しない。
 - CLI/site hostのtrimmingとNative AOTは非対応のままである。
 - AVIFは信頼済みの`avifenc`を明示設定しない限り未検証である。
-- 30分soakと複数OS実行はV110-25/26の予定で、現行soak証拠はWindows高速編集である。
+- 先の検証候補はWindows、Linux、macOSのCIに成功した。現候補の最終の複数OS検証と30分soakは未完で、現行soakの証拠はWindowsでの高速編集である。
 
 ## 1.0から1.1への更新
 
-1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。最終versionは配布（V110-23）で確定する。
+1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。公開後は同じ1.1.0版を使う。local RCの最終検証は未完である。
 2. siteを再buildし、content警告・link・custom CSSを見直す。
 3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](known-limitations.ja.md#markdown-の互換性)参照）。
 4. `markdown-compat --advisory on`と`--project`はEditor検査と同一解析であり、既定出力を変えない。

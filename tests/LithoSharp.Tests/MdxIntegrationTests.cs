@@ -176,23 +176,24 @@ public sealed class MdxIntegrationTests
         await Assert.That(mdx.Metrics.CompiledModules).IsEqualTo(1);
         await Assert.That(mdx.Metrics.RebundledPages).IsEqualTo(0);
 
-        // Shared esbuild chunks require the current conservative graph build. Count both
-        // processed entries while proving the unrelated page output remains unchanged.
+        // An independent component edit processes only its page entry while
+        // the other page retains byte-identical HTML and asset URLs.
         var previousToggle = await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"));
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
             "export default function Counter(){return <button>Changed</button>}");
         await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(2);
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
         var processedEntries = mdx.Metrics.RebundledPageIds.ToArray();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"))).Contains("Changed");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).IsEqualTo(previousToggle);
 
-        // Changing the other component also processes both entries in the shared build.
+        // Changing the other independent component selects a different page entry.
         var previousCounter = await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"));
         await File.WriteAllTextAsync(Path.Combine(source, "Toggle.jsx"),
             "export default function Toggle(){return <button>Changed toggle</button>}");
         await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.RebundledPageIds).IsEquivalentTo(processedEntries);
+        await Assert.That(mdx.Metrics.RebundledPageIds.Count).IsEqualTo(1);
+        await Assert.That(mdx.Metrics.RebundledPageIds.SequenceEqual(processedEntries)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "counter/index.html"))).IsEqualTo(previousCounter);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "toggle/index.html"))).Contains("Changed toggle");
 

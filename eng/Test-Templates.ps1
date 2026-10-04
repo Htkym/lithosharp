@@ -1,22 +1,51 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)] [string] $PackageDirectory)
+param(
+    [Parameter(Mandatory)] [string] $PackageDirectory,
+    [ValidateNotNullOrEmpty()] [string] $CandidateVersion = '1.1.0'
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $packages = [IO.Path]::GetFullPath($PackageDirectory)
+foreach ($id in @('LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')) {
+    $package = Join-Path $packages "$id.$CandidateVersion.nupkg"
+    if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "Candidate package not found: $package" }
+}
+
+function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Required) {
+    $assetsPath = Join-Path $ProjectDirectory 'obj/project.assets.json'
+    if (!(Test-Path -LiteralPath $assetsPath -PathType Leaf)) { throw "Resolved package assets not found: $assetsPath" }
+    $assets = Get-Content -LiteralPath $assetsPath -Raw | ConvertFrom-Json -AsHashtable
+    $resolved = @{}
+    foreach ($name in $assets.libraries.Keys) {
+        $parts = $name.Split('/')
+        if ($parts[0] -notmatch '^LithoSharp(?:\.|$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
+        if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -ne $CandidateVersion) {
+            throw "Expected candidate $CandidateVersion, but resolved $name in $ProjectDirectory."
+        }
+        $resolved[$parts[0]] = $parts[1]
+    }
+    foreach ($id in $Required) {
+        if (!$resolved.ContainsKey($id)) { throw "Required candidate package $id was not resolved in $ProjectDirectory." }
+    }
+    Write-Host ("Resolved candidate packages: {0}" -f (($resolved.Keys | Sort-Object | ForEach-Object { "$_/$($resolved[$_])" }) -join ', '))
+}
 $fixture = Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $fixture
 $oldPackages = $env:NUGET_PACKAGES
 $oldHome = $env:DOTNET_CLI_HOME
 $oldTimestamp = $env:SOURCE_DATE_EPOCH
 $oldCertificate = $env:DOTNET_GENERATE_ASPNET_CERTIFICATE
+$oldLithoSharpVersion = $env:LithoSharpVersion
 try {
     # Keep both the template hive and package cache separate from the user's installations.
     $env:NUGET_PACKAGES = Join-Path $fixture 'packages'
     $env:DOTNET_CLI_HOME = Join-Path $fixture 'cli-home'
     $env:SOURCE_DATE_EPOCH = '1767225600'
     $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
+    # MSBuild imports this scoped property in both direct builds and CLI child builds.
+    $env:LithoSharpVersion = $CandidateVersion
     $hive = Join-Path $fixture 'template-hive'
     $toolDirectory = Join-Path $fixture 'tool'
     $config = Join-Path $fixture 'NuGet.Config'
@@ -27,19 +56,33 @@ try {
   <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
-    dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path $toolDirectory --configfile $config
+    dotnet tool install LithoSharp.Tool --version $CandidateVersion --tool-path $toolDirectory --configfile $config
     if ($LASTEXITCODE -ne 0) { throw 'Tool package installation failed.' }
-    dotnet new install (Join-Path $packages 'LithoSharp.ProjectTemplates.1.0.0.nupkg') --debug:custom-hive $hive
+    dotnet new install (Join-Path $packages "LithoSharp.ProjectTemplates.$CandidateVersion.nupkg") --debug:custom-hive $hive
     if ($LASTEXITCODE -ne 0) { throw 'Template package installation failed.' }
     $tool = Join-Path $toolDirectory $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     foreach ($kind in @('docs', 'blog', 'empty', 'mdx')) {
         $project = Join-Path $fixture $kind
         & $tool new $kind "Test$kind" -o $project --debug:custom-hive $hive
         if ($LASTEXITCODE -ne 0) { throw "New $kind failed." }
+        $siteProject = Join-Path $project "Test$kind.csproj"
+        $siteXml = [xml][IO.File]::ReadAllText($siteProject)
+        $versionProperty = $siteXml.SelectSingleNode('/Project/PropertyGroup/LithoSharpVersion')
+        if ($null -eq $versionProperty -or $versionProperty.InnerText -ne '1.1.0' -or $versionProperty.Condition -ne "'`$(LithoSharpVersion)' == ''") {
+            throw "$kind template does not declare the overridable stable version 1.1.0."
+        }
+        $required = @('LithoSharp')
+        if ($kind -eq 'mdx') { $required += 'LithoSharp.Mdx' }
+        foreach ($reference in $siteXml.SelectNodes('/Project/ItemGroup/PackageReference')) {
+            if ($reference.Include -match '^LithoSharp(?:\.|$)' -and $reference.Version -cne '$(LithoSharpVersion)') {
+                throw "$kind template does not use its LithoSharpVersion property for $($reference.Include)."
+            }
+        }
         if ($kind -eq 'mdx') {
             $extension = Join-Path $fixture 'extension'
             $null = New-Item -ItemType Directory -Path $extension
-            [IO.File]::WriteAllText((Join-Path $extension 'Extension.csproj'), '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><PackageId>LithoSharp.FixtureExtension</PackageId><Version>1.0.0</Version></PropertyGroup><ItemGroup><PackageReference Include="LithoSharp" Version="1.0.0" /></ItemGroup></Project>')
+            $extensionXml = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><PackageId>LithoSharp.FixtureExtension</PackageId><Version>1.0.0</Version></PropertyGroup><ItemGroup><PackageReference Include="LithoSharp" Version="' + [Security.SecurityElement]::Escape($CandidateVersion) + '" /></ItemGroup></Project>'
+            [IO.File]::WriteAllText((Join-Path $extension 'Extension.csproj'), $extensionXml)
             [IO.File]::WriteAllText((Join-Path $extension 'ExternalContent.cs'), @'
 using LithoSharp;
 using LithoSharp.Build;
@@ -50,7 +93,6 @@ public sealed class ExternalContent : ISiteBuildExtension {
 '@)
             dotnet pack $extension -c Release -o $packages
             if ($LASTEXITCODE -ne 0) { throw 'External C# extension packaging failed.' }
-            $siteProject = Join-Path $project 'Testmdx.csproj'
             [IO.File]::WriteAllText($siteProject, ([IO.File]::ReadAllText($siteProject)).Replace('</Project>', '<ItemGroup><PackageReference Include="LithoSharp.FixtureExtension" Version="1.0.0" /></ItemGroup></Project>'))
             $factory = Join-Path $project 'MdxSiteFactory.cs'
             [IO.File]::WriteAllText($factory, ([IO.File]::ReadAllText($factory)).Replace('Extensions = [docs]', 'Extensions = [docs, new ExternalContent()]'))
@@ -72,6 +114,7 @@ public sealed class ExternalContent : ISiteBuildExtension {
         }
         & $tool build $project -c Release
         if ($LASTEXITCODE -ne 0) { throw "Build $kind failed." }
+        Assert-CandidatePackages $project $required
         $output = Join-Path $project 'dist'
         if (!(Test-Path -LiteralPath (Join-Path $output 'index.html'))) { throw "$kind produced no home page." }
         if ($kind -eq 'mdx') {
@@ -106,4 +149,5 @@ finally {
     $env:DOTNET_CLI_HOME = $oldHome
     $env:SOURCE_DATE_EPOCH = $oldTimestamp
     $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = $oldCertificate
+    $env:LithoSharpVersion = $oldLithoSharpVersion
 }

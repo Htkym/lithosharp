@@ -3,8 +3,8 @@
 [日本語](release-1.1.ja.md)
 
 Candidate status: Core 1.1 and extension 0.1.0 are verification candidates.
-NuGet packages still carry 1.0.0 until the distribution gate (V110-23); the
-extension is not on the Marketplace. Numbers marked *unmeasured* below are
+NuGet package metadata now targets 1.1.0; final distribution checks are pending.
+The extension is not on the Marketplace. Numbers marked *unmeasured* below are
 replaced after the final V110-25 measurements; nothing here claims them early.
 
 ## Feature table
@@ -15,7 +15,7 @@ replaced after the final V110-25 measurements; nothing here claims them early.
 | MDX | Analysis-only inspection without plugin/bundle/SSR execution; locked worker (MDX 3.1.1, React 19.2.4, esbuild 0.25.12) | Debounced LSP session, Outline symbols, no build on keystrokes |
 | Build/serve | Generation tracking, per-output cache report/reclaim, structured `serve` shutdown | Per-project build/serve state machines, real-output preview shell |
 | Migration | Docusaurus analysis/conversion with route oracle, normalized page-set comparison, component functional-change report; pinned 3-site reproduction corpus | — (CLI-driven) |
-| Tooling contracts | `lithosharp capabilities`, additive 1.x JSON envelopes, schema `"1.0"` | Language server `lithosharp`/`1.0.0` over stdio |
+| Tooling contracts | `lithosharp capabilities`, additive 1.x JSON envelopes, schema `"1.0"` | Language server `lithosharp` over stdio, reporting the Core assembly version |
 
 Explicitly **not** in 1.1:
 
@@ -25,11 +25,11 @@ Explicitly **not** in 1.1:
 - Browser verification is Chromium-only; Firefox/Safari runs are not claimed.
 - Trimming and Native AOT remain unsupported for the CLI/site host.
 - AVIF encoding needs an explicitly configured trusted `avifenc` and is otherwise unverified.
-- 30-minute soak and multi-OS runs are scheduled for V110-25/26; current soak evidence is rapid edits on Windows.
+- The earlier verification candidate passed Windows, Linux and macOS CI. The current candidate still requires final multi-OS validation and the 30-minute soaks; current soak evidence is rapid edits on Windows.
 
 ## Upgrade from 1.0 to 1.1
 
-1. Update all seven Core packages and the tool together; do not mix 1.0 and 1.1 assemblies. Final package versions land with distribution (V110-23).
+1. Update all seven Core packages and the tool together; do not mix 1.0 and 1.1 assemblies. Use matching 1.1.0 packages after their release; local release-candidate verification is still pending.
 2. Rebuild the site and review content warnings, links and custom CSS.
 3. The Markdown compiler is unchanged since 1.0: footnotes, definition lists and the other listed Markdig extensions stay unsupported (see [Known limitations](known-limitations.md#markdown-compatibility)).
 4. `markdown-compat --advisory on` and `--project` share the editor inspection; advisories never change default output.
