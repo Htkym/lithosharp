@@ -50,9 +50,26 @@ const renderCache = new Map();
 // Reuse requires a caller-supplied resolution fingerprint as well as unchanged inputs.
 let browserCache;
 const cacheAccounting = new WeakMap();
+// Read-only payload accounting for local diagnostics. These estimates exclude
+// V8 object overhead, the ESM loader and every cache outside this module.
+export function getRetainedCacheMetrics() {
+  const bounded = cache => ({entries: cache.size,
+    estimatedPayloadBytes: cacheAccounting.get(cache)?.bytes ?? 0,
+    payloadBudgetBytes: 16 * 1024 * 1024, entryCeiling: 20000,
+    lastAdmissionLimit: cacheAccounting.get(cache)?.limit ?? null});
+  return {schemaVersion: 1, accounting: 'retained-payload-estimate',
+    module: bounded(moduleCache), render: bounded(renderCache),
+    browser: {retained: browserCache !== undefined,
+      records: browserCache?.records.size ?? 0,
+      dependencyEntries: (browserCache?.dependencies.size ?? 0) + (browserCache?.runtime.dependencies.size ?? 0),
+      referenceEntries: browserCache?.referenceEntries ?? 0,
+      estimatedPayloadBytes: browserCache?.estimatedPayloadBytes ?? 0,
+      payloadBudgetBytes: 64 * 1024 * 1024, dependencyCeiling: 20000, referenceCeiling: 40000}};
+}
 function remember(cache, key, value, limit) {
   let accounting = cacheAccounting.get(cache);
   if (!accounting) { accounting = {bytes: 0, sizes: new Map()}; cacheAccounting.set(cache, accounting); }
+  accounting.limit = limit;
   const bytes = (key.length + JSON.stringify(value).length) * 2 + 128;
   const budget = 16 * 1024 * 1024;
   if (bytes > budget) return;
@@ -920,7 +937,8 @@ export async function compileSite(request) {
   // Bound data payload/reference counts, not V8 object overhead or the process heap.
   browserCache = canCacheBrowser && dependencies.size + runtimeDependencies.size <= 20000 && references <= 40000 && cacheBytes <= 64 * 1024 * 1024
     ? {runtime: {key: runtimeKey, browser: runtime, directory: browserDir, dependencies: runtimeDependencies},
-      main, directory: browserDir, pageConfigKey, records, dependencies, unifiedBrowser} : undefined;
+      main, directory: browserDir, pageConfigKey, records, dependencies, unifiedBrowser,
+      estimatedPayloadBytes: cacheBytes, referenceEntries: references} : undefined;
   const browserOutputs = new Map(Object.entries(browser.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
   const pageEntries = new Map([...browserOutputs].filter(([file, info]) => info.entryPoint && relative(browserDir, file).startsWith('pages/')).map(entry => [entry[1].entryPoint.replace(/^virtual:virtual:/, 'virtual:'), entry]));
   const assets = browser.outputFiles.map(file => {
