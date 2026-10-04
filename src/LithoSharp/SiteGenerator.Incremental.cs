@@ -221,12 +221,6 @@ public sealed partial class SiteGenerator
                         timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
                         if (!verified)
                         {
-                            if (bypass)
-                            {
-                                // The published tree is not reusable after all; fall back to staging.
-                                await transaction.MaterializeExistingOutputCopyAsync(token).ConfigureAwait(false);
-                                bypass = false;
-                            }
                             reason = "An artifact is missing or corrupt.";
                             break;
                         }
@@ -240,6 +234,11 @@ public sealed partial class SiteGenerator
                 SetBodyProvider(page, old.DerivedBodyHash);
                 return (old, new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheHit = true });
             }
+
+            // Every cache miss, including a missing rendered body, must finish the shared
+            // staging copy before rendering or writing any replacement artifacts.
+            await transaction.MaterializeExistingOutputCopyAsync(token).ConfigureAwait(false);
+            bypass = false;
 
             var artifacts = new List<CachedBuildArtifact>();
             foreach (var artifact in node.Artifacts)
