@@ -146,3 +146,6 @@ $report = @{ schemaVersion = '1.0'; candidateVersion = $ExpectedVersion; archive
     sourceArchiveHashes = $before; passed = $results.Count; failed = 0; results = @($results) }
 [IO.File]::WriteAllText((Join-Path $Output 'package-security.json'), ($report | ConvertTo-Json -Depth 7))
 Write-Host "Package security gate passed: $($ids.Count) actual package validators (8 archives), $($results.Count - $ids.Count) negative cases; source hashes unchanged. Evidence: $Output"
+
+# Expected negative child exits must not become the successful gate exit code.
+exit 0

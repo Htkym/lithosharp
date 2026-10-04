@@ -40,7 +40,12 @@ jobs:
       - name: Pack and validate one shipping VSIX
         shell: pwsh
         run: |
-          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation
+          # Restore the exact packager without npm exec's temporary-install lock.
+          npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Create isolated seven-package RC feed
         shell: pwsh
