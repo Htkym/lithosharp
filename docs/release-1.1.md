@@ -42,6 +42,9 @@ to `MarkdownFrontMatterYaml.Deserialize<T>`; flatten deeply nested inputs rather
 than disabling the limit. Typed content loaders use their own strict parser,
 and the static-content generator keeps its existing nesting limit of 64.
 
+KaTeX is updated from 0.16.22 to 0.16.47. Its bundled CSS uses
+`font-display: block`, so typeset math may briefly remain hidden while its fonts load.
+
 ## API and schema policy
 
 Public signatures are preserved; new APIs are additive within 1.x and recorded
