@@ -75,14 +75,14 @@ function Test-ExtensionTag {
     $version = [string]$package.version
     if ($version -notmatch '^\d+\.\d+\.\d+$') { Fail "extension version '$version' is not a plain release version." }
     if ($package.PSObject.Properties['publisher']) { Fail 'extension package.json must not claim a publisher before the account exists.' }
-    $tag = "extension/lithosharp-vscode/$version"
-    if ($tag -like 'v*') { Fail "extension tag '$tag' collides with the Core v* series." }
-    if ($Tag -and $Tag -cne $tag) { Fail "extension tag '$Tag' does not match package version $version (expected '$tag')." }
+    $expectedTag = "extension/lithosharp-vscode/$version"
+    if ($expectedTag -like 'v*') { Fail "extension tag '$expectedTag' collides with the Core v* series." }
+    if ($Tag -and $Tag -cne $expectedTag) { Fail "extension tag '$Tag' does not match package version $version (expected '$expectedTag')." }
     foreach ($script in @('eng/Test-VsixContents.ps1')) {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw
         if ($text -match 'vsce publish|nuget push') { Fail "$script mixes packaging with publishing." }
     }
-    Write-Host "Extension tag series: $tag packs and validates only; publish needs dispatch plus approval."
+    Write-Host "Extension tag series: $expectedTag packs and validates only; publish needs dispatch plus approval."
 }
 
 if ($Check -in @('All', 'CoreTag')) { Test-CoreTag }

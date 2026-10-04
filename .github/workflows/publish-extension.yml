@@ -61,7 +61,11 @@ jobs:
       - name: Pack and validate VSIX contents and bundled server
         shell: pwsh
         run: |
-          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix
+          npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload VSIX artifact
@@ -118,9 +122,17 @@ jobs:
           if ($env:VSCE_PUBLISHER -notmatch '^[A-Za-z0-9][A-Za-z0-9-]*$') { throw 'VSCE_PUBLISHER contains unsupported characters.' }
           npm ci --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix ../../eng/vsix-packager --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "if(require('../../eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm pkg set "publisher=$env:VSCE_PUBLISHER"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run vsix:pack
+          npm run compile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npx --yes @vscode/vsce publish --packagePath "lithosharp-$(Get-Content package.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty version).vsix"
+          npm run vsix:stage
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce package --no-update-package-json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath "lithosharp-$(Get-Content package.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty version).vsix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
