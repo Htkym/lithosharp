@@ -141,7 +141,7 @@ public sealed class DocumentWorkspaceTests
 
     private static (long ManagedBytes, long WorkingSetBytes, int HandleCount, int ThreadCount) SampleProcess()
     {
-        var process = Process.GetCurrentProcess();
+        using var process = Process.GetCurrentProcess();
         process.Refresh();
         int handles;
         try
@@ -156,6 +156,9 @@ public sealed class DocumentWorkspaceTests
     }
 
     [Test]
+    // These are process-wide measurements, so unrelated tests must not allocate
+    // into the sampled heap or working set while the edit sequence runs.
+    [NotInParallel]
     public async Task ThousandSequentialEditsConvergeToLatestWithoutUnboundedGrowth()
     {
         await using var workspace = new DocumentWorkspace();
@@ -199,20 +202,6 @@ public sealed class DocumentWorkspaceTests
         // Same DocumentId overwrites: no unbounded snapshot accumulation.
         await Assert.That(workspace.TryGet("docs/unknown.md", out _)).IsFalse();
 
-        // Post-warmup resource stability: allow noise but fail on continuous leak.
-        var managed = series.Select(item => (long)((dynamic)item).ManagedBytes).ToArray();
-        var working = series.Select(item => (long)((dynamic)item).WorkingSetBytes).ToArray();
-        var firstManaged = managed[0];
-        var lastManaged = managed[^1];
-        var firstWorking = working[0];
-        var lastWorking = working[^1];
-        await Assert.That(lastManaged - firstManaged).IsLessThanOrEqualTo(50_000_000);
-        await Assert.That(lastWorking - firstWorking).IsLessThanOrEqualTo(150_000_000);
-        foreach (var item in series)
-        {
-            await Assert.That((int)((dynamic)item).HandleCount).IsGreaterThanOrEqualTo(-1);
-        }
-
         var output = Environment.GetEnvironmentVariable("LITHOSHARP_T06_OUTPUT");
         if (!string.IsNullOrWhiteSpace(output))
         {
@@ -228,6 +217,11 @@ public sealed class DocumentWorkspaceTests
                 TotalEdits = total,
                 WarmupEdits = warmup,
                 Stride = stride,
+                ResourceScope = "process-wide",
+                TestScheduling = "exclusive-within-assembly",
+                ForceFullCollection = false,
+                ManagedGrowthLimitBytes = 50_000_000,
+                WorkingSetGrowthLimitBytes = 150_000_000,
                 FinalTitle = latest.Title,
                 StaleTitle = stale.Title,
                 Environment = new
@@ -240,6 +234,20 @@ public sealed class DocumentWorkspaceTests
                 Series = series,
             };
             await File.WriteAllTextAsync(output, JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
+        }
+
+        // Post-warmup resource stability: allow noise but fail on continuous leak.
+        var managed = series.Select(item => (long)((dynamic)item).ManagedBytes).ToArray();
+        var working = series.Select(item => (long)((dynamic)item).WorkingSetBytes).ToArray();
+        var firstManaged = managed[0];
+        var lastManaged = managed[^1];
+        var firstWorking = working[0];
+        var lastWorking = working[^1];
+        await Assert.That(lastManaged - firstManaged).IsLessThanOrEqualTo(50_000_000);
+        await Assert.That(lastWorking - firstWorking).IsLessThanOrEqualTo(150_000_000);
+        foreach (var item in series)
+        {
+            await Assert.That((int)((dynamic)item).HandleCount).IsGreaterThanOrEqualTo(-1);
         }
     }
 

@@ -2769,16 +2769,10 @@ public sealed partial class SiteGenerator
 
     private static void EnsureOpenedFilePath(FileStream stream, string expectedPath)
     {
-        if (!string.Equals(
-                Path.GetFullPath(stream.Name),
-                Path.GetFullPath(expectedPath),
-                PathComparison))
-        {
-            throw new InvalidOperationException(
-                $"Opened file path '{stream.Name}' does not match expected path '{expectedPath}'.");
-        }
-
-        EnsureNotNameSurrogateReparsePoint(expectedPath);
+        var fullPath = Path.GetFullPath(expectedPath);
+        EnsureNotNameSurrogateReparsePoint(fullPath);
+        BuildInputFingerprint.VerifyOpenedContainedFile(
+            Path.GetDirectoryName(fullPath)!, fullPath, stream.SafeFileHandle);
     }
 
     /// <summary>Opt-in phase counters; no allocations when disabled.</summary>

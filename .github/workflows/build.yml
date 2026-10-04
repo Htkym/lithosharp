@@ -106,7 +106,17 @@ jobs:
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
 
       - name: Test
+        env:
+          LITHOSHARP_T06_OUTPUT: ${{ github.workspace }}/artifacts/test-diagnostics/workspace-resource-series.json
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
+
+      - name: Preserve workspace resource diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: workspace-resources-${{ matrix.os }}
+          path: artifacts/test-diagnostics/workspace-resource-series.json
+          if-no-files-found: ignore
 
       - name: Check 1.x compatibility gates
         shell: pwsh

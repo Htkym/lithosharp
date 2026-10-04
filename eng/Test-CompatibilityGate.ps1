@@ -7,12 +7,12 @@ Positive-only checks cannot show that a gate works. This harness verifies both
 directions:
 
 1. The real generator passes eng/Test-GeneratorHostCompatibility.ps1.
-2. The TooNewGenerator fixture (references Microsoft.CodeAnalysis 5.9.0) fails it.
+2. The TooNewGenerator fixture (references a future Roslyn assembly identity) fails it.
 3. The api-compat baseline fixture packs successfully with validation.
 4. The api-compat candidate fixture removes an API and must fail pack-time
    package validation against its own 1.0.0 baseline.
 
-Fixtures are copied to .tmp and use an isolated package cache; nothing under
+Fixtures are copied to .tmp; API compatibility uses an isolated package cache. Nothing under
 tests/fixtures is built in place and no product code is modified.
 
 .EXAMPLE
@@ -55,12 +55,24 @@ if (!$SkipGenerator) {
     Add-Result 'generator-host/real-generator' ($positive.exit -eq 0) "exit=$($positive.exit)"
     if ($positive.exit -ne 0) { Write-Host $positive.output }
 
-    $tooNewProject = Join-Path $repo 'tests/fixtures/generator-host/TooNewGenerator/TooNewGenerator.csproj'
-    dotnet build $tooNewProject -c Release --nologo | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'The TooNewGenerator fixture did not build.' }
-    $tooNew = Join-Path $repo 'tests/fixtures/generator-host/TooNewGenerator/bin/Release/netstandard2.0/TooNewGenerator.dll'
+    $generatorFixtureSource = Join-Path $repo 'tests/fixtures/generator-host'
+    $generatorFixture = Join-Path $temporary 'generator-host'
+    foreach ($source in Get-ChildItem -LiteralPath $generatorFixtureSource -Recurse -File) {
+        $relative = [IO.Path]::GetRelativePath($generatorFixtureSource, $source.FullName)
+        if ($relative -match '(^|[\\/])(bin|obj)([\\/]|$)') { continue }
+        $destination = Join-Path $generatorFixture $relative
+        $null = New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($destination))
+        Copy-Item -LiteralPath $source.FullName -Destination $destination
+    }
+    $tooNewProject = Join-Path $generatorFixture 'TooNewGenerator/TooNewGenerator.csproj'
+    $fixtureBuildOutput = & dotnet build $tooNewProject -c Release --nologo -p:RestoreLockedMode=true 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host $fixtureBuildOutput
+        throw 'The TooNewGenerator fixture did not build.'
+    }
+    $tooNew = Join-Path $generatorFixture 'TooNewGenerator/bin/Release/net10.0/TooNewGenerator.dll'
     $negative = Invoke-Captured $hostCheck @('-GeneratorPath', $tooNew, '-Quiet')
-    $detected = $negative.exit -ne 0 -and $negative.output -match 'generator host compatibility: FAILED'
+    $detected = $negative.exit -eq 1 -and $negative.output -match 'generator host compatibility: FAILED' -and $negative.output -match 'Microsoft\.CodeAnalysis 65534\.0\.0\.0 > compiler'
     Add-Result 'generator-host/too-new-reference' $detected "exit=$($negative.exit); detected=$($negative.output.Contains('generator host compatibility: FAILED'))"
     if (!$detected) { Write-Host $negative.output }
 }
@@ -88,7 +100,7 @@ if (!$SkipApiCompat) {
 
         $candidateOutput = & dotnet pack (Join-Path $fixture 'candidate/Fixture.ApiCompat.csproj') -c Release -o $output --nologo 2>&1 | Out-String
         $candidateFailed = $LASTEXITCODE -ne 0
-        $reportedRemoval = $candidateOutput -match 'CP\d{4}'
+        $reportedRemoval = $candidateOutput -match 'CP0002:[^\r\n]*Fixture\.ApiCompat\.Surface\.Removed\(\)'
         Add-Result 'api-compat/removed-api-detected' ($candidateFailed -and $reportedRemoval) "exit=$LASTEXITCODE; removedMemberReported=$reportedRemoval"
         if (!($candidateFailed -and $reportedRemoval)) { Write-Host $candidateOutput }
     }
