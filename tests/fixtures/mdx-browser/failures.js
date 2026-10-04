@@ -21,7 +21,12 @@ async page => {
     await tab.locator('[data-ls-chunk-retry]').waitFor();
     if (!await tab.getByRole('button', {name: 'Count 10', exact: true}).isVisible()) throw new Error('Chunk failure removed the static fallback.');
     await tab.unroute('**/_mdx/chunks/Counter-*.js');
-    await tab.locator('[data-ls-chunk-retry]').click();
+    await Promise.all([
+      tab.waitForNavigation({waitUntil: 'load'}),
+      tab.locator('[data-ls-chunk-retry]').click()
+    ]);
+    // The SSR button is clickable before the reloaded island's async imports finish.
+    await tab.waitForFunction(() => globalThis[Symbol.for('lithosharp.islands')]?.get(document.querySelector('[data-island=load]'))?.root);
     await tab.getByRole('button', {name: 'Count 10', exact: true}).click();
     if (await tab.getByRole('button', {name: 'Count 11', exact: true}).count() !== 1) throw new Error('Normal reload did not recover a failed chunk.');
   } finally { await failure.close(); }

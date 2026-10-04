@@ -43,17 +43,26 @@ jobs:
           cache: npm
           cache-dependency-path: extensions/lithosharp-vscode/package-lock.json
 
-      - name: Pack and validate VSIX contents
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore language server dependencies
+        run: dotnet restore src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj --locked-mode
+
+      - name: Restore and test extension
+        working-directory: extensions/lithosharp-vscode
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm run test:unit
+
+      - name: Pack and validate VSIX contents and bundled server
         shell: pwsh
         run: |
           ./eng/Test-VsixContents.ps1 -Output artifacts/vsix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Run extension unit tests
-        working-directory: extensions/lithosharp-vscode
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund
-          npm run test:unit
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v7
@@ -85,6 +94,19 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) {
             throw 'No Marketplace token is configured (secrets.VSCE_PAT is empty). Publishing stays BLOCKED.'
           }
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore language server dependencies
+        run: dotnet restore src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj --locked-mode
 
       - name: Publish VSIX
         shell: pwsh

@@ -91,6 +91,12 @@ jobs:
           ./eng/Test-LspDistribution.ps1 -SkipPublish -PublishDirectory extensions/lithosharp-vscode/resources/language-server -Output artifacts/lsp-distribution
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Validate actual VSIX and extracted language server
+        shell: pwsh
+        run: |
+          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Pack
         run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
 
