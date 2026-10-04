@@ -246,3 +246,18 @@ test('stale publishes never resurface', async () => {
   }
   assert.deepEqual(versions, [1]);
 });
+
+
+test('symbol cancellation after stop settles the request on its originating connection', async () => {
+  const double = scripted();
+  const client = clientFor(double, { sets: [] });
+  await client.start();
+  client.didOpen({ uri: 'file:///a.md', languageId: 'markdown', version: 1, text: '# H\n' });
+  let cancel!: () => void;
+  const pending = client.requestSymbols('file:///a.md', (fn) => { cancel = fn; });
+  client.stop(); // The scripted process has not exited or replied yet.
+  const writtenAtStop = double.child.written.length;
+  cancel();
+  await assert.rejects(pending, /stopped|cancel/i);
+  assert.equal(double.child.written.length, writtenAtStop, 'Stopped connections must not send cancellation traffic.');
+});

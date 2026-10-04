@@ -36,14 +36,19 @@ export class LspConnection {
     private readonly handlers: LspHandlers,
     private readonly onLog: (line: string) => void = () => {},
   ) {
-    child.onStdout((chunk) => this.ingest(chunk));
-    child.onExit(() => {
-      this.exited = true;
-      for (const [id, request] of this.waiting) {
-        request.reject(new Error(`LSP process exited before replying to request ${String(id)}.`));
-      }
-      this.waiting.clear();
-    });
+    child.onStdout((chunk) => { if (!this.exited) this.ingest(chunk); });
+    child.onExit(() => this.dispose('LSP process exited'));
+  }
+
+  /** Locally settle requests without depending on a child process exit event. */
+  dispose(reason = 'LSP connection stopped'): void {
+    if (this.exited) return;
+    this.exited = true;
+    this.pending = '';
+    for (const [id, request] of this.waiting) {
+      request.reject(new Error(`${reason} before replying to request ${String(id)}.`));
+    }
+    this.waiting.clear();
   }
 
   get alive(): boolean {
@@ -51,6 +56,7 @@ export class LspConnection {
   }
 
   sendNotification(method: string, params: unknown): void {
+    if (this.exited) return;
     const body = JSON.stringify({ jsonrpc: '2.0', method, params });
     const bytes = Buffer.byteLength(body, 'utf8');
     this.child.stdinWrite(`Content-Length: ${bytes}\r\n\r\n${body}`);
@@ -94,7 +100,7 @@ export class LspConnection {
 
   private ingest(chunk: Buffer): void {
     this.pending += this.decoder.write(chunk);
-    for (;;) {
+    for (; !this.exited;) {
       const headerEnd = this.pending.indexOf('\r\n\r\n');
       if (headerEnd < 0) {
         return;

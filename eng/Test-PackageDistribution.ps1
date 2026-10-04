@@ -118,7 +118,7 @@ $nugetConfig = Join-Path $work 'NuGet.Config'
 
 $toolPath = Join-Path $work 'tools'
 $hive = Join-Path $work 'template-hive'
-$install = Invoke-Dotnet @('tool', 'install', 'LithoSharp.Tool', '--version', $version, '--tool-path', $toolPath, '--add-source', $feed, '--configfile', $nugetConfig) $repo $isolatedEnv
+$install = Invoke-Dotnet @('tool', 'install', 'LithoSharp.Tool', '--version', $version, '--tool-path', $toolPath, '--configfile', $nugetConfig) $repo $isolatedEnv
 if ($install.exitCode -ne 0) { Fail "tool install from feed failed:`n$($install.stdout)`n$($install.stderr)" }
 
 $templates = Invoke-Dotnet @('new', 'install', (Join-Path $feed "LithoSharp.ProjectTemplates.$version.nupkg"), '--debug:custom-hive', $hive) $repo $isolatedEnv

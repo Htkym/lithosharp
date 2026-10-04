@@ -115,3 +115,26 @@ test('cancelling a request settles its local promise immediately', async () => {
   await assert.rejects(pending, /cancelled/);
   assert.ok(child.written.some((line) => line.includes('$/cancelRequest')));
 });
+
+
+test('disposal settles every pending request and ignores late process traffic', async () => {
+  const child = fakeChild();
+  const notifications: string[] = [];
+  const connection = new LspConnection(child, { onNotification: (method) => notifications.push(method) });
+  const first = connection.sendRequest('first', 'initialize', {});
+  const second = connection.sendRequest('second', 'textDocument/documentSymbol', {});
+  connection.dispose();
+  connection.dispose();
+  await assert.rejects(first, /connection stopped/);
+  await assert.rejects(second, /connection stopped/);
+  const writes = child.written.length;
+  child.emit(frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: {} })));
+  child.emit(frame(JSON.stringify({ jsonrpc: '2.0', id: 'second', result: [] })));
+  child.exit(0);
+  connection.sendNotification('initialized', {});
+  connection.cancelRequest('second');
+  await assert.rejects(connection.sendRequest('third', 'initialize', {}), /not running/);
+  assert.deepEqual(notifications, []);
+  assert.equal(child.written.length, writes);
+  assert.equal(connection.alive, false);
+});

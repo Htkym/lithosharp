@@ -70,6 +70,8 @@ export async function resolveWorker(deps: WorkerDeps): Promise<ResolvedWorker> {
   return { directory, lockHash: bundledLock, ready, source: 'storage' };
 }
 
+const restores = new Map<string, Promise<ResolvedWorker>>();
+
 /**
  * Restores the bundled worker source into the resolved directory and runs
  * `npm ci` there. Only extension storage or an explicit directory is ever
@@ -88,26 +90,41 @@ export async function restoreWorker(
   if (resolved.lockHash === null) {
     throw new Error('The MDX worker has no package-lock.json; a locked restore cannot be performed.');
   }
-  if (resolved.ready) {
-    onLog(`MDX worker is already restored: ${resolved.directory}`);
-    return resolved;
+  const lockHash = resolved.lockHash;
+  const absolute = path.resolve(resolved.directory);
+  const key = process.platform === 'win32' ? absolute.toLowerCase() : absolute;
+  const active = restores.get(key);
+  if (active) return active;
+  const pending = (async (): Promise<ResolvedWorker> => {
+    // Another restore may have completed while initial discovery was pending.
+    const current = { ...resolved, ready: await isRestored(deps.fs, resolved.directory, lockHash) };
+    if (current.ready) {
+      onLog(`MDX worker is already restored: ${current.directory}`);
+      return current;
+    }
+    if (current.source === 'storage') {
+      const copied = await deps.fs.copySourceTree(deps.bundledDir, current.directory);
+      onLog(`Copied ${copied} worker files to ${current.directory}.`);
+    }
+    await deps.fs.writeFile(path.join(current.directory, '.lithosharp-worker-lock'), '');
+    const result = await deps.fs.runNpmCi(current.directory);
+    if (result.exit !== 0) {
+      throw new Error(`npm ci failed in ${current.directory} (exit ${result.exit}).`);
+    }
+    const ready = await deps.fs.isDirectory(path.join(current.directory, 'node_modules'));
+    if (!ready) {
+      throw new Error(`npm ci reported success but node_modules is missing in ${current.directory}.`);
+    }
+    await deps.fs.writeFile(path.join(current.directory, '.lithosharp-worker-lock'), lockHash);
+    onLog(`MDX worker restored: ${current.directory}`);
+    return { ...current, ready: true };
+  })();
+  restores.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (restores.get(key) === pending) restores.delete(key);
   }
-  if (resolved.source === 'storage') {
-    const copied = await deps.fs.copySourceTree(deps.bundledDir, resolved.directory);
-    onLog(`Copied ${copied} worker files to ${resolved.directory}.`);
-  }
-  await deps.fs.writeFile(path.join(resolved.directory, '.lithosharp-worker-lock'), '');
-  const result = await deps.fs.runNpmCi(resolved.directory);
-  if (result.exit !== 0) {
-    throw new Error(`npm ci failed in ${resolved.directory} (exit ${result.exit}).`);
-  }
-  const ready = await deps.fs.isDirectory(path.join(resolved.directory, 'node_modules'));
-  if (!ready) {
-    throw new Error(`npm ci reported success but node_modules is missing in ${resolved.directory}.`);
-  }
-  await deps.fs.writeFile(path.join(resolved.directory, '.lithosharp-worker-lock'), resolved.lockHash);
-  onLog(`MDX worker restored: ${resolved.directory}`);
-  return { ...resolved, ready: true };
 }
 
 async function isRestored(fs: WorkerFileSystem, directory: string, lockHash: string | null): Promise<boolean> {

@@ -171,6 +171,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const userStartedServers = new Set<string>();
   const projectContexts = new Map<string, { folders: string[]; snapshot: unknown }>();
   const projectGenerations = new Map<string, number>();
+  let disposed = false;
+  let lspGeneration = 0;
   let lsp: LspClient | undefined;
   let lspStarting: Promise<LspClient | undefined> | undefined;
   let missingLspBundleLogged = false;
@@ -643,7 +645,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const selector: vscode.DocumentSelector = [{ language: 'markdown' }, { language: 'mdx' }];
 
   const startLsp = async (): Promise<LspClient | undefined> => {
-    if (!vscode.workspace.isTrusted) {
+    const generation = lspGeneration;
+    if (disposed || !vscode.workspace.isTrusted) {
       return undefined;
     }
     const explicitServer = vscode.workspace.getConfiguration('lithosharp').get<string>('languageServerPath', '');
@@ -662,13 +665,15 @@ export function activate(context: vscode.ExtensionContext): void {
     let workerDirectory = '';
     try {
       const resolved = await resolveWorker(workerDeps(context));
+      if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) return undefined;
       workerDirectory = resolved.directory;
       if (resolved.source !== 'none' && !resolved.ready) {
         output.appendLine(`MDX worker is not restored yet: run LithoSharp: Restore MDX Worker (${resolved.directory}). Markdown diagnostics keep working.`);
       }
     } catch (error) {
-      output.appendLine(`MDX worker resolution failed: ${String(error)}. Markdown diagnostics keep working.`);
+      if (!disposed && generation === lspGeneration) output.appendLine(`MDX worker resolution failed: ${String(error)}. Markdown diagnostics keep working.`);
     }
+    if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) return undefined;
     const client = new LspClient(
       {
         serverCommand,
@@ -677,8 +682,8 @@ export function activate(context: vscode.ExtensionContext): void {
         debounceMs: vscode.workspace.getConfiguration('lithosharp').get<number>('diagnosticDebounceMs', 150),
         initializationOptions: workerDirectory === '' ? {} : { workerDirectory },
         isTrusted: () => vscode.workspace.isTrusted,
-        onLog: (line) => output.appendLine(line),
-        onState: (name) => output.appendLine(`Language server: ${name}.`),
+        onLog: (line) => { if (!disposed) output.appendLine(line); },
+        onState: (name) => { if (!disposed) output.appendLine(`Language server: ${name}.`); },
       },
       {
         set: (uri, diagnostics) =>
@@ -708,6 +713,11 @@ export function activate(context: vscode.ExtensionContext): void {
     lsp = client;
     try {
       await client.start();
+      if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) {
+        client.stop();
+        if (lsp === client) lsp = undefined;
+        return undefined;
+      }
       for (const [projectId, projectContext] of projectContexts) {
         client.sendProjectContext(projectId, projectContext.folders, projectContext.snapshot);
       }
@@ -715,14 +725,16 @@ export function activate(context: vscode.ExtensionContext): void {
         output.appendLine('Project context not acquired; live diagnostics are syntax-only until an explicit Build or Inspect succeeds.');
       }
     } catch (error) {
-      lsp = undefined;
-      output.appendLine(`Language server failed to start: ${String(error)}`);
+      client.stop();
+      if (lsp === client) lsp = undefined;
+      if (!disposed && generation === lspGeneration) output.appendLine(`Language server failed to start: ${String(error)}`);
       return undefined;
     }
     return client;
   };
 
   const ensureLsp = async (): Promise<LspClient | undefined> => {
+    if (disposed) return undefined;
     if (lspStarting) return lspStarting;
     if (lsp) return lsp;
     if (!vscode.workspace.isTrusted) return undefined;
@@ -735,10 +747,11 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const openExistingDocuments = (): void => {
-    if (!vscode.workspace.isTrusted) return;
+    if (disposed || !vscode.workspace.isTrusted) return;
     for (const document of vscode.workspace.textDocuments ?? []) {
       if (document.languageId === 'markdown' || document.languageId === 'mdx') {
         void ensureLsp().then((client) => {
+          if (disposed || document.isClosed || !vscode.workspace.isTrusted) return;
           client?.didOpen({
             uri: document.uri.toString(),
             languageId: document.languageId,
@@ -750,7 +763,21 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  const restartLsp = async (): Promise<void> => {
+    lspGeneration++;
+    // Discovery/initialization may still own the client that must be replaced.
+    if (lspStarting) {
+      lsp?.stop();
+      await lspStarting;
+    }
+    lsp?.stop();
+    lsp = undefined;
+    await ensureLsp();
+    openExistingDocuments();
+  };
+
   context.subscriptions.push(
+    { dispose: () => { disposed = true; lsp?.stop(); lsp = undefined; } },
     output,
     status,
     diagnosticsCollection,
@@ -788,6 +815,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       void ensureLsp().then((client) => {
+        if (disposed || document.isClosed || !vscode.workspace.isTrusted) return;
         client?.didOpen({ uri: document.uri.toString(), languageId: document.languageId, version: document.version, text: document.getText() });
       });
     }),
@@ -797,6 +825,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       previews.onDocumentDirty(event.document.uri.fsPath, event.document.isDirty);
       void ensureLsp().then((client) => {
+        if (disposed || event.document.isClosed || !vscode.workspace.isTrusted) return;
         client?.didChange(event.document.uri.toString(), event.document.version, event.document.getText());
       });
     }),
@@ -806,6 +835,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       previews.onDocumentDirty(document.uri.fsPath, false);
       void ensureLsp().then((client) => {
+        if (disposed || document.isClosed || !vscode.workspace.isTrusted) return;
         client?.didSave(document.uri.toString());
       });
     }),
@@ -824,29 +854,40 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.languages.registerDocumentSymbolProvider(selector, {
       provideDocumentSymbols: async (document, token) => {
-        if (!vscode.workspace.isTrusted) {
+        if (disposed || document.isClosed || !vscode.workspace.isTrusted || token.isCancellationRequested) {
           return [];
         }
-        const client = await ensureLsp();
-        if (!client) {
+        let cancelledWait: vscode.Disposable | undefined;
+        const cancelled = new Promise<undefined>((resolve) => {
+          cancelledWait = token.onCancellationRequested(() => resolve(undefined));
+        });
+        let client: LspClient | undefined;
+        try {
+          if (token.isCancellationRequested) return [];
+          client = await Promise.race([ensureLsp(), cancelled]);
+        } finally {
+          cancelledWait?.dispose();
+        }
+        if (!client || disposed || document.isClosed || token.isCancellationRequested || !vscode.workspace.isTrusted) {
           return [];
         }
         let symbols: import('./symbols.js').SymbolData[];
         try {
           symbols = await (async () => {
             let cancel: (() => void) | undefined;
-            const pending = client.requestSymbols(document.uri.toString(), (fn) => {
-              cancel = fn;
-            });
             const off = token.onCancellationRequested(() => cancel?.());
             try {
-              return await pending;
+              if (token.isCancellationRequested) return [];
+              return await client.requestSymbols(document.uri.toString(), (fn) => {
+                cancel = fn;
+                if (token.isCancellationRequested) fn();
+              });
             } finally {
               off.dispose();
             }
           })();
         } catch (error) {
-          if (!token.isCancellationRequested) {
+          if (!disposed && !token.isCancellationRequested) {
             output.appendLine(`Language server symbols failed: ${String(error)}`);
           }
           return [];
@@ -868,15 +909,12 @@ export function activate(context: vscode.ExtensionContext): void {
             symbol.children = toVs(item.children);
             return symbol;
           });
-        return toVs(symbols);
+        return token.isCancellationRequested || disposed ? [] : toVs(symbols);
       },
     }),
     vscode.commands.registerCommand('lithosharp.restartServer', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'restart the language server');
-      lsp?.stop();
-      lsp = undefined;
-      await ensureLsp();
-      openExistingDocuments();
+      await restartLsp();
     }),
     vscode.commands.registerCommand('lithosharp.restoreWorker', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'restore the MDX worker');
@@ -887,10 +925,7 @@ export function activate(context: vscode.ExtensionContext): void {
         output.appendLine(`MDX worker restore failed: ${String(error)}. Markdown diagnostics keep working.`);
         return;
       }
-      lsp?.stop();
-      lsp = undefined;
-      await ensureLsp();
-      openExistingDocuments();
+      await restartLsp();
     }),
     vscode.commands.registerCommand('lithosharp.build', () => runOneShot('build')),
     vscode.commands.registerCommand('lithosharp.inspectSite', () => runOneShot('inspect')),

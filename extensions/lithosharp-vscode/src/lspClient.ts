@@ -107,11 +107,13 @@ export class LspClient {
   }
 
   stop(): void {
+    const connection = this.connection;
     try {
       this.child?.closeStdin();
     } catch {
       // Stopping never throws past the client.
     }
+    connection?.dispose();
     this.ready = false;
     for (const buffer of this.buffers.values()) {
       if (buffer.timer) {
@@ -246,11 +248,12 @@ export class LspClient {
     if (!buffer || !this.connection || !this.ready) {
       return [];
     }
+    const connection = this.connection;
     const id = this.nextId();
-    const promise = this.connection.sendRequest<unknown>(id, 'textDocument/documentSymbol', {
+    const promise = connection.sendRequest<unknown>(id, 'textDocument/documentSymbol', {
       textDocument: { uri },
     });
-    onCancel?.(() => this.connection?.cancelRequest(id));
+    onCancel?.(() => connection.cancelRequest(id));
     const result = await promise;
     return mapSymbols(result);
   }

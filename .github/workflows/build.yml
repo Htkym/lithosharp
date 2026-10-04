@@ -11,6 +11,11 @@ permissions:
   contents: read
 
 jobs:
+  installed-extension:
+    name: Installed extension with one VSIX across three OSes
+    needs: build
+    uses: ./.github/workflows/installed-extension.yml
+
   build:
     # Keep the required status names while pinning the runner images below.
     name: build (${{ matrix.check-name }})

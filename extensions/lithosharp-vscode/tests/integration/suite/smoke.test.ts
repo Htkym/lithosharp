@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createConnection } from 'node:net';
+import { createHash } from 'node:crypto';
 import * as vscode from 'vscode';
 
 const expectedProject = path.join(process.env['LITHOSHARP_TEST_WORKSPACE'] ?? vscode.workspace.workspaceFolders![0]!.uri.fsPath, 'site.csproj');
@@ -189,6 +190,37 @@ describe('lithosharp smoke', () => {
       await vscode.commands.executeCommand('lithosharp.build');
       assert.ok(fs.existsSync(expectedHtml), 'Real Build did not generate the fixture page.');
       assert.ok((await fs.promises.readFile(expectedHtml, 'utf8')).includes(marker));
+      // Resolve/consume only the immutable candidate package set, and observe
+      // the assembly actually loaded by the real CLI's factory host.
+      const version = process.env['LITHOSHARP_TEST_PACKAGE_VERSION']!;
+      assert.match(version, /^\d+\.\d+\.\d+-rc\.[0-9A-Za-z.-]+$/);
+      const assets = JSON.parse(await fs.promises.readFile(path.join(workspace, 'obj', 'project.assets.json'), 'utf8'));
+      const resolved = Object.keys(assets.libraries).filter((key) => key.startsWith('LithoSharp/'));
+      assert.deepEqual(resolved, ['LithoSharp/' + version]);
+      const library = assets.libraries[resolved[0]!];
+      assert.equal(library.type, 'package');
+      assert.ok(!Object.values(assets.libraries).some((item) => (item as { type: string }).type === 'project'),
+        'Package-only fixture must not resolve source projects.');
+      assert.ok(!(await fs.promises.readFile(path.join(workspace, 'site.csproj'), 'utf8')).includes('ProjectReference'));
+      const packageFolders = Object.keys(assets.packageFolders);
+      assert.equal(packageFolders.length, 1, 'Fixture must use its isolated candidate package cache.');
+      assert.equal(path.relative(fs.realpathSync(process.env['NUGET_PACKAGES']!), fs.realpathSync(packageFolders[0]!)), '');
+      const fileHash = async (file: string): Promise<string> => createHash('sha256').update(await fs.promises.readFile(file)).digest('hex');
+      const siteCore = path.join(workspace, 'bin', 'Debug', 'net10.0', 'LithoSharp.dll');
+      assert.equal(await fileHash(siteCore), process.env['LITHOSHARP_TEST_CORE_DLL_HASH']);
+      const cachedCore = path.join(packageFolders[0]!, library.path, 'lib', 'net10.0', 'LithoSharp.dll');
+      assert.equal(await fileHash(cachedCore), process.env['LITHOSHARP_TEST_CORE_DLL_HASH']);
+      const loaded = JSON.parse(await fs.promises.readFile(path.join(workspace, 'loaded-core.json'), 'utf8'));
+      // FactoryLoadContext deliberately shares the CLI's Core contract. That
+      // exact DLL must be from the same candidate Tool nupkg, never source bin.
+      assert.equal(path.relative(fs.realpathSync(process.env['LITHOSHARP_TEST_TOOL_CORE_DLL_PATH']!), fs.realpathSync(loaded.path)), '');
+      assert.equal(loaded.sha256, process.env['LITHOSHARP_TEST_TOOL_CORE_DLL_HASH']);
+      assert.equal(await fileHash(loaded.path), loaded.sha256);
+      assert.equal(path.relative(fs.realpathSync(path.join(workspace, 'bin', 'Debug', 'net10.0', 'site.dll')),
+        fs.realpathSync(loaded.factoryPath)), '');
+      await fs.promises.writeFile(path.join(process.env['LITHOSHARP_TEST_USER_DATA']!, '..', 'site-provenance.json'),
+        JSON.stringify({ version, resolved, libraryType: library.type, packageFolders,
+          siteCoreHash: await fileHash(siteCore), cachedCoreHash: await fileHash(cachedCore), loaded }, null, 2));
       await waitFor(async () => (await ownedOutput()).includes('LithoSharp build succeeded (exit 0)'),
         'Build command did not report real CLI success.');
 

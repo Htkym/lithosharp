@@ -145,3 +145,70 @@ test('lock hash is null without a lockfile', async () => {
   const fs = fakeFs({ '/bundled/package.json': '{}' });
   assert.equal(await workerLockHash(fs, '/bundled'), null);
 });
+
+
+test('concurrent worker restores share one install through the success marker', async () => {
+  const restoring = fakeFs({ '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile });
+  let entered!: () => void;
+  const installationEntered = new Promise<void>((resolve) => { entered = resolve; });
+  let release!: () => void;
+  const installation = new Promise<void>((resolve) => { release = resolve; });
+  let installed = false;
+  restoring.isDirectory = async (dir) => dir.endsWith('node_modules') && installed;
+  restoring.runNpmCi = async (cwd) => {
+    restoring.installs.push(cwd);
+    entered();
+    await installation;
+    installed = true;
+    return { exit: 0, stdout: '', stderr: '' };
+  };
+  const first = restoreWorker(deps({ fs: restoring }), () => {});
+  await installationEntered;
+  const second = restoreWorker(deps({ fs: restoring }), () => {});
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  release();
+  const result = await Promise.all([first, second]);
+  assert.ok(result.every((item) => item.ready));
+  assert.equal(restoring.installs.length, 1, 'Concurrent npm ci can replace node_modules after readiness.');
+  assert.equal(restoring.copied.length, 1);
+});
+
+
+test('failed shared worker restore permits a later retry', async () => {
+  const restoring = fakeFs({ '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile });
+  restoring.failInstall = true;
+  const results = await Promise.allSettled([
+    restoreWorker(deps({ fs: restoring }), () => {}),
+    restoreWorker(deps({ fs: restoring }), () => {}),
+  ]);
+  assert.ok(results.every((item) => item.status === 'rejected'));
+  assert.equal(restoring.installs.length, 1);
+  restoring.failInstall = false;
+  restoring.isDirectory = async (dir) => dir.endsWith('node_modules');
+  assert.equal((await restoreWorker(deps({ fs: restoring }), () => {})).ready, true);
+  assert.equal(restoring.installs.length, 2, 'Failure must release the per-directory restore guard.');
+});
+
+test('a blocked worker restore does not block a different directory or bypass trust', async () => {
+  const restoring = fakeFs({ '/first/package-lock.json': lockfile, '/second/package-lock.json': lockfile });
+  let release!: () => void;
+  const installation = new Promise<void>((resolve) => { release = resolve; });
+  restoring.runNpmCi = async (cwd) => {
+    restoring.installs.push(cwd);
+    await installation;
+    return { exit: 0, stdout: '', stderr: '' };
+  };
+  restoring.isDirectory = async () => false;
+  const first = restoreWorker(deps({ fs: restoring, workerPathSetting: '/first' }), () => {});
+  const second = restoreWorker(deps({ fs: restoring, workerPathSetting: '/second' }), () => {});
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  try {
+    assert.deepEqual(restoring.installs.map((dir) => dir.replace(/\\/g, '/')).sort(), ['/first', '/second']);
+    await assert.rejects(restoreWorker(deps({ fs: restoring, workerPathSetting: '/first', isTrusted: false }), () => {}),
+      UntrustedWorkspaceError);
+  } finally {
+    restoring.isDirectory = async (dir) => dir.endsWith('node_modules');
+    release();
+    await Promise.all([first, second]);
+  }
+});
