@@ -210,7 +210,7 @@ describe('lithosharp smoke', () => {
       assert.equal(await fileHash(siteCore), process.env['LITHOSHARP_TEST_CORE_DLL_HASH']);
       const cachedCore = path.join(packageFolders[0]!, library.path, 'lib', 'net10.0', 'LithoSharp.dll');
       assert.equal(await fileHash(cachedCore), process.env['LITHOSHARP_TEST_CORE_DLL_HASH']);
-      const loaded = JSON.parse(await fs.promises.readFile(path.join(workspace, 'loaded-core.json'), 'utf8'));
+      const loaded = JSON.parse(await fs.promises.readFile(process.env['LITHOSHARP_TEST_LOADED_CORE_RECEIPT']!, 'utf8'));
       // FactoryLoadContext deliberately shares the CLI's Core contract. That
       // exact DLL must be from the same candidate Tool nupkg, never source bin.
       assert.equal(path.relative(fs.realpathSync(process.env['LITHOSHARP_TEST_TOOL_CORE_DLL_PATH']!), fs.realpathSync(loaded.path)), '');
@@ -218,7 +218,7 @@ describe('lithosharp smoke', () => {
       assert.equal(await fileHash(loaded.path), loaded.sha256);
       assert.equal(path.relative(fs.realpathSync(path.join(workspace, 'bin', 'Debug', 'net10.0', 'site.dll')),
         fs.realpathSync(loaded.factoryPath)), '');
-      await fs.promises.writeFile(path.join(process.env['LITHOSHARP_TEST_USER_DATA']!, '..', 'site-provenance.json'),
+      await fs.promises.writeFile(path.join(process.env['LITHOSHARP_TEST_EVIDENCE_DIR']!, 'site-provenance.json'),
         JSON.stringify({ version, resolved, libraryType: library.type, packageFolders,
           siteCoreHash: await fileHash(siteCore), cachedCoreHash: await fileHash(cachedCore), loaded }, null, 2));
       await waitFor(async () => (await ownedOutput()).includes('LithoSharp build succeeded (exit 0)'),

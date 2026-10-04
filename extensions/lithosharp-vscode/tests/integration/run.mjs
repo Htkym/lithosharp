@@ -40,8 +40,50 @@ const evidenceRoot = process.env.LITHOSHARP_EVIDENCE_DIR ?? os.tmpdir();
 await fs.mkdir(evidenceRoot, { recursive: true });
 const owned = await fs.mkdtemp(path.join(evidenceRoot, 'lithosharp-host-'));
 console.log('Integration evidence: ' + owned);
+// Unix IPC paths have a byte limit independent of the requested evidence directory.
+async function createShortProfile() {
+  const limit = process.platform === 'darwin' ? 103 : 107;
+  const longestSocket = 'vscode-ipc-00000000-0000-0000-0000-000000000000.sock';
+  const rejected = [];
+  for (const candidate of [...new Set([os.tmpdir(), '/tmp'])]) {
+    let createdProfileRoot;
+    try {
+      assert.ok(path.isAbsolute(candidate), 'Temporary profile base must be absolute.');
+      const base = await fs.realpath(candidate);
+      assert.notEqual(base, path.parse(base).root, 'Temporary profile base must not be a filesystem root.');
+      assert.ok((await fs.stat(base)).isDirectory(), 'Temporary profile base must be a directory.');
+      const budgetPath = path.join(base, 'ls-XXXXXX', 'ipc', longestSocket);
+      assert.ok(Buffer.byteLength(budgetPath, 'utf8') < limit, 'Temporary profile base exceeds the Unix socket byte budget.');
+      const profileRoot = await fs.mkdtemp(path.join(base, 'ls-'));
+      createdProfileRoot = profileRoot;
+      assert.equal(await fs.realpath(profileRoot), profileRoot, 'Owned temporary profile escaped its canonical base.');
+      await fs.chmod(profileRoot, 0o700);
+      const userData = path.join(profileRoot, 'user-data');
+      const ipc = path.join(profileRoot, 'ipc');
+      await fs.mkdir(ipc, { mode: 0o700 });
+      assert.ok(Buffer.byteLength(path.join(userData, '1.13-xxxxxx.sock'), 'utf8') < limit);
+      assert.ok(Buffer.byteLength(path.join(ipc, longestSocket), 'utf8') < limit);
+      return { root: profileRoot, userData, ipc, socketByteLimit: limit };
+    } catch (error) {
+      if (createdProfileRoot) {
+        throw new Error('Failed to initialize the fresh owned Code profile (retained): ' + createdProfileRoot, { cause: error });
+      }
+      rejected.push(candidate + ': ' + error.message);
+    }
+  }
+  throw new Error('No safe short isolated Code profile base: ' + rejected.join('; '));
+}
+const shortProfile = process.platform === 'win32' ? undefined : await createShortProfile();
+const codeProfileEnv = shortProfile ? { TMPDIR: shortProfile.ipc, XDG_RUNTIME_DIR: shortProfile.ipc } : {};
 const extensions = path.join(owned, 'extensions');
-const userData = path.join(owned, 'user-data');
+const userData = shortProfile?.userData ?? path.join(owned, 'user-data');
+await fs.writeFile(path.join(owned, 'profile-identity.json'), JSON.stringify({
+  evidence: owned, userData, extensions, temporaryProfile: shortProfile, codeProfileEnv,
+  retention: 'Fresh profiles retained; regular profile files copied to requested evidence; no session or directory cleanup.',
+}, null, 2));
+console.log('Isolated Code user data: ' + userData);
+let primaryFailed = false;
+try {
 const resultPath = path.join(owned, 'test-result.json');
 await fs.mkdir(extensions);
 await fs.mkdir(path.join(userData, 'User'), { recursive: true });
@@ -61,7 +103,7 @@ if (process.platform === 'win32') {
   codeCommand = host;
   codePrefix = [cliJs];
 }
-const codeOptions = { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', VSCODE_DEV: '' }, windowsHide: true,
+const codeOptions = { env: { ...process.env, ...codeProfileEnv, ELECTRON_RUN_AS_NODE: '1', VSCODE_DEV: '' }, windowsHide: true,
   timeout: 120000, maxBuffer: 4 * 1024 * 1024 };
 const code = async (arguments_) => exec(codeCommand, [...codePrefix, ...arguments_], codeOptions);
 const help = (await code(['--help'])).stdout;
@@ -82,7 +124,7 @@ let packageVersion = '';
 let coreAssemblyHash = '';
 let packageProvenance;
 const helperHashes = {};
-const isolatedEnv = { DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1', DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false' };
+const isolatedEnv = { LITHOSHARP_TEST_LOADED_CORE_RECEIPT: path.join(owned, 'loaded-core.json'), DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1', DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false' };
 if (installed) {
   const archivePath = path.resolve(options.get('--installed-vsix'));
   archiveHash = options.get('--sha256').toLowerCase();
@@ -145,6 +187,11 @@ if (installed) {
   testsPath = path.join(developmentPath, 'tests', 'index.js');
   workspace = path.join(owned, 'workspace');
   await fs.mkdir(path.join(workspace, 'content'), { recursive: true });
+  for (const outside of [owned, isolatedEnv.LITHOSHARP_TEST_LOADED_CORE_RECEIPT]) {
+    const relative = path.relative(workspace, outside);
+    assert.ok(relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative),
+      'Fixture evidence must remain outside the watched workspace.');
+  }
   const feed = await fs.realpath(path.resolve(options.get('--rc-feed')));
   const report = JSON.parse(await fs.readFile(options.get('--package-report'), 'utf8'));
   packageVersion = report.version;
@@ -220,7 +267,7 @@ if (installed) {
     'public sealed class FixtureFactory : ISiteFactory {',
     'public async Task<SiteDefinition> CreateAsync(SiteFactoryContext context, CancellationToken cancellationToken = default) {',
     'var loadedCore = typeof(SiteSettings).Assembly.Location;',
-    'await File.WriteAllTextAsync(Path.Combine(context.ProjectDirectory, "loaded-core.json"), System.Text.Json.JsonSerializer.Serialize(new { path=loadedCore, sha256=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(loadedCore, cancellationToken))).ToLowerInvariant(), factoryPath=typeof(FixtureFactory).Assembly.Location }), cancellationToken);',
+    'await File.WriteAllTextAsync(Environment.GetEnvironmentVariable("LITHOSHARP_TEST_LOADED_CORE_RECEIPT") ?? throw new InvalidOperationException("Missing isolated loaded-Core receipt path"), System.Text.Json.JsonSerializer.Serialize(new { path=loadedCore, sha256=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(loadedCore, cancellationToken))).ToLowerInvariant(), factoryPath=typeof(FixtureFactory).Assembly.Location }), cancellationToken);',
     'var posts = await new MarkdownPostReader().ReadAllAsync(Path.Combine(context.ProjectDirectory, "content"));',
     'return new SiteDefinition(new SiteSettings { Title="Installed VSIX fixture", BaseUrl="https://example.com/", Language="en", TimeZone="UTC" }, posts) { OutputDirectory="dist" };',
     '} }',
@@ -236,12 +283,12 @@ if (installed) {
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({
   platform: process.platform, arch: process.arch, hostVersion: hostVersion[0], hostCommit: hostVersion[1], hostArchitecture: hostVersion[2],
   archiveHash, expectedExtension, developmentPath, testsPath, dependencyTarget, helperHashes,
-  restartCheckRequired: true, payloadHashes, packageProvenance,
+  restartCheckRequired: true, payloadHashes, packageProvenance, userData, temporaryProfile: shortProfile,
 }, null, 2));
 await runTests({
   vscodeExecutablePath: host, extensionDevelopmentPath: [developmentPath], extensionTestsPath: testsPath,
   extensionTestsEnv: {
-    ...isolatedEnv, LITHOSHARP_TEST_RESULT: resultPath, LITHOSHARP_VERIFY_LSP_RESTART: '1',
+    ...isolatedEnv, ...codeProfileEnv, LITHOSHARP_TEST_EVIDENCE_DIR: owned, LITHOSHARP_TEST_RESULT: resultPath, LITHOSHARP_VERIFY_LSP_RESTART: '1',
     LITHOSHARP_TEST_DEVELOPMENT_PATH: developmentPath, LITHOSHARP_INSTALLED_EXTENSION: expectedExtension,
     LITHOSHARP_INSTALLED_EXTENSIONS_DIR: extensions, LITHOSHARP_TEST_USER_DATA: userData,
     LITHOSHARP_TEST_WORKSPACE: path.resolve(workspace), LITHOSHARP_TEST_PACKAGE_VERSION: packageVersion,
@@ -258,3 +305,25 @@ assert.equal(result.failures, 0);
 assert.equal(result.passes, result.tests, 'Pending/skipped cases do not satisfy installed-package validation.');
 console.log(JSON.stringify({ mode: installed ? 'installed-vsix-package-only' : 'source', platform: process.platform,
   hostVersion: hostVersion[0], hostCommit: hostVersion[1], archiveHash, packageVersion, restartVerified: true, ...result }));
+
+} catch (error) {
+  primaryFailed = true;
+  throw error;
+} finally {
+  if (shortProfile) {
+    // Keep durable evidence at the requested location; exclude transient sockets and links.
+    try {
+      await fs.cp(userData, path.join(owned, 'user-data'), { recursive: true,
+        filter: async (file) => {
+          try { const entry = await fs.lstat(file); return entry.isDirectory() || entry.isFile(); }
+          catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+        } });
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        if (!primaryFailed) throw error;
+        console.error('Failed to preserve the owned Code profile after the original failure:',
+          String(error.code ?? '').slice(0,32), String(error.message ?? error).slice(0,2048));
+      }
+    }
+  }
+}
