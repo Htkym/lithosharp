@@ -253,13 +253,13 @@ public sealed partial class SiteGenerator
         foreach (var asset in options.Assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
-            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath.Replace('/', Path.DirectorySeparatorChar)))))
+            if (ContainsInputDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath.Replace('/', Path.DirectorySeparatorChar)))))
                 throw new ArgumentException("Asset input files must be outside the output directory.", nameof(options));
         }
         if (options.Quality?.ExternalLinks is { } external)
         {
             var cachePath = Path.GetFullPath(external.CacheFilePath);
-            if (ContainsDirectory(outputRoot, cachePath))
+            if (ContainsInputDirectory(outputRoot, cachePath))
                 throw new ArgumentException("The external link cache must be outside the site output directory.", nameof(options.Quality));
         }
 
@@ -267,17 +267,17 @@ public sealed partial class SiteGenerator
         if (options.AssetCacheDirectory is { } assetCacheDirectory)
         {
             var cachePath = Path.GetFullPath(assetCacheDirectory);
-            if (ContainsDirectory(outputRoot, cachePath))
+            if (ContainsInputDirectory(outputRoot, cachePath))
                 throw new ArgumentException("The asset cache must be outside the output directory.", nameof(options));
         }
         if (options.PublicDirectory is { } publicDirectory)
         {
             var publicRoot = Path.GetFullPath(publicDirectory);
-            if (ContainsDirectory(publicRoot, outputRoot) || ContainsDirectory(outputRoot, publicRoot))
+            if (ContainsInputDirectory(publicRoot, outputRoot) || ContainsInputDirectory(outputRoot, publicRoot))
                 throw new ArgumentException("The public input directory and output directory must not overlap.", nameof(options));
-            if (options.AssetCacheDirectory is { } cache && ContainsDirectory(publicRoot, Path.GetFullPath(cache)))
+            if (options.AssetCacheDirectory is { } cache && ContainsInputDirectory(publicRoot, Path.GetFullPath(cache)))
                 throw new ArgumentException("The asset cache must be outside the public input directory.", nameof(options));
-            if (options.Quality?.ExternalLinks is { } links && ContainsDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
+            if (options.Quality?.ExternalLinks is { } links && ContainsInputDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
                 throw new ArgumentException("The external link cache must be outside the public input directory.", nameof(options));
         }
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
@@ -2283,6 +2283,14 @@ public sealed partial class SiteGenerator
 
     private static byte[] GetTextContentBytes(string contents) =>
         Encoding.UTF8.GetBytes(contents.ReplaceLineEndings("\n"));
+
+    // Input admission compares existing physical directory spellings as well as lexical paths.
+    // This catches case/Unicode aliases on insensitive volumes without conflating distinct inputs.
+    private static bool ContainsInputDirectory(string root, string path)
+    {
+        if (ContainsDirectory(root, path)) return true;
+        return ContainsDirectory(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
+    }
 
     private static bool ContainsDirectory(string root, string path)
     {

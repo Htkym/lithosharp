@@ -1275,4 +1275,143 @@ public sealed class SiteGeneratorCacheTests
             _ => SiteRoute.ForDirectoryIndex("cache"), entry => new PageMetadata(entry.FrontMatter),
             transformationId: new("cache-lock:1"), isCacheable: true), renderer)
         { RendererFingerprint = "cache-lock-renderer:1", IsThreadSafe = false };
+
+    [Test]
+    [Arguments("case", false)]
+    [Arguments("case", true)]
+    [Arguments("unicode", false)]
+    [Arguments("unicode", true)]
+    public Task Lsr24PhysicalAssetInputAliasIsRejectedBeforePublication(string aliasKind, bool aliasOutput)
+        => RunLsr24PhysicalInputFixture(
+            aliasKind == "case" ? "CaseBoundary" : "café",
+            aliasKind == "case" ? "caseboundary" : "café",
+            aliasKind, aliasOutput, requireDisjoint: false);
+
+    [Test]
+    public Task Lsr24OrdinaryDisjointAssetInputStillPublishesCorrectBytes()
+        => RunLsr24PhysicalInputFixture("ordinary-output", "ordinary-input",
+            "ordinary-disjoint", aliasOutput: false, requireDisjoint: true);
+
+    private static async Task RunLsr24PhysicalInputFixture(string physicalLeaf, string alternativeLeaf,
+        string fixture, bool aliasOutput, bool requireDisjoint)
+    {
+        using var workspace = new TemporaryWorkspace();
+        using var cacheWorkspace = new TemporaryWorkspace();
+        var parent = InvokeLsr24ExistingDirectoryIdentity(workspace.Root);
+        var physical = Path.Combine(parent, physicalLeaf);
+        var alternative = Path.Combine(parent, alternativeLeaf);
+        Directory.CreateDirectory(physical);
+        // Detect physical aliasing before creating any second directory. No OS-wide case assumption.
+        var actualAlias = Directory.Exists(alternative);
+        if (requireDisjoint) await Assert.That(actualAlias).IsFalse();
+        if (!actualAlias) Directory.CreateDirectory(alternative);
+        var output = aliasOutput ? alternative : physical;
+        var input = aliasOutput ? physical : alternative;
+        var source = Path.Combine(input, "source.bin");
+        var published = Path.Combine(output, "published.html");
+        var sourceBytes = new byte[] { 0, 17, 255, 13, 10, 83, 24 };
+        await File.WriteAllBytesAsync(source, sourceBytes);
+        await File.WriteAllTextAsync(published, "prior published LSR24 canary");
+        var sourceStamp = File.GetLastWriteTimeUtc(source);
+        var publishedStamp = File.GetLastWriteTimeUtc(published);
+        var publishedBytes = await File.ReadAllBytesAsync(published);
+        var before = ObserveLsrCanaries(source, published);
+        var beforeTree = SnapshotCacheCanaryTree(parent);
+        var beforeDirectories = Lsr24DirectoryInventory(parent);
+        var cacheBeforeTree = SnapshotCacheCanaryTree(cacheWorkspace.Root);
+        var cacheBeforeDirectories = Lsr24DirectoryInventory(cacheWorkspace.Root);
+        var extension = new CacheAdmissionExtensionProbe();
+        Exception? failure = null;
+        var completed = false;
+        SiteGenerationResult? generationResult = null;
+        try
+        {
+            generationResult = await new SiteGenerator().GenerateWithOptionsAsync(
+                new SiteSettings { BaseUrl = "https://example.test/" }, [Post()], output, clean: true,
+                new SiteCustomization { Template = new BlogSiteTemplate() },
+                new SiteGenerationOptions
+                {
+                    BuildTimestamp = FixedBuildTimestamp,
+                    BuildCacheDirectory = Path.Combine(cacheWorkspace.Root, "safe-cache"),
+                    Assets = [new SiteAsset("lsr24-canary", input, "source.bin", "assets/source.bin")],
+                    Extensions = [extension],
+                }, CancellationToken.None);
+            completed = true;
+        }
+        catch (Exception exception) { failure = exception; }
+        finally
+        {
+            WriteLsr24PhysicalAliasObservation(fixture, actualAlias, aliasOutput, completed, failure,
+                extension.Calls, before, ObserveLsrCanaries(source, published));
+        }
+        if (actualAlias)
+        {
+            await Assert.That(failure is ArgumentException).IsTrue();
+            await Assert.That(failure?.Message ?? "").Contains("Asset input files must be outside the output directory.");
+            await Assert.That(completed).IsFalse();
+            await Assert.That(extension.Calls).IsEqualTo(0);
+            await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(source))).IsEqualTo(Convert.ToHexString(sourceBytes));
+            await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(published))).IsEqualTo(Convert.ToHexString(publishedBytes));
+            await Assert.That(File.GetLastWriteTimeUtc(source)).IsEqualTo(sourceStamp);
+            await Assert.That(File.GetLastWriteTimeUtc(published)).IsEqualTo(publishedStamp);
+            await Assert.That(ObserveLsrCanaries(source, published)).IsEqualTo(before);
+            await Assert.That(SnapshotCacheCanaryTree(parent)).IsEqualTo(beforeTree);
+            await Assert.That(Lsr24DirectoryInventory(parent)).IsEqualTo(beforeDirectories);
+            await Assert.That(SnapshotCacheCanaryTree(cacheWorkspace.Root)).IsEqualTo(cacheBeforeTree);
+            await Assert.That(Lsr24DirectoryInventory(cacheWorkspace.Root)).IsEqualTo(cacheBeforeDirectories);
+        }
+        else
+        {
+            if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            await Assert.That(completed).IsTrue();
+            await Assert.That(extension.Calls).IsEqualTo(1);
+            await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(source))).IsEqualTo(Convert.ToHexString(sourceBytes));
+            await Assert.That(File.GetLastWriteTimeUtc(source)).IsEqualTo(sourceStamp);
+            await Assert.That(generationResult is not null).IsTrue();
+            var assetArtifact = generationResult!.BuildPlan.Artifacts.Single(
+                artifact => artifact.Id.Value == "asset:lsr24-canary");
+            await Assert.That(Path.IsPathRooted(assetArtifact.RelativeOutputPath)).IsFalse();
+            var registeredPath = Path.GetFullPath(Path.Combine(output, assetArtifact.RelativeOutputPath));
+            var outputPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(output)) + Path.DirectorySeparatorChar;
+            await Assert.That(registeredPath.StartsWith(outputPrefix, OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)).IsTrue();
+            await Assert.That(generationResult.GeneratedFiles.Contains(registeredPath, StringComparer.Ordinal)).IsTrue();
+            await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(registeredPath))).IsEqualTo(Convert.ToHexString(sourceBytes));
+            await Assert.That(File.Exists(Path.Combine(output, "posts", "alpha.html"))).IsTrue();
+        }
+    }
+
+    private static string InvokeLsr24ExistingDirectoryIdentity(string directory)
+    {
+        var transaction = typeof(SiteGenerator).GetNestedType("OutputTransaction", System.Reflection.BindingFlags.NonPublic)!;
+        var resolver = transaction.GetMethod("ResolveExistingDirectoryPath",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        return (string)resolver.Invoke(null, [directory])!;
+    }
+
+    private static string Lsr24DirectoryInventory(string directory)
+        => string.Join("\n", Directory.EnumerateDirectories(directory, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(directory, path)).Order(StringComparer.Ordinal));
+
+    private static void WriteLsr24PhysicalAliasObservation(string fixture, bool actualAlias, bool orientation,
+        bool completed, Exception? failure, int calls, string before, string after)
+    {
+        WriteLsrCanaryObservation("LSR24", fixture, orientation, completed, failure, calls, before, after);
+        try
+        {
+            Console.WriteLine("LSR24_ALIAS " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                fixture, actualAlias, orientation, windows = OperatingSystem.IsWindows(),
+                macOS = OperatingSystem.IsMacOS(), linux = OperatingSystem.IsLinux(),
+                detectionBeforeSecondDirectoryCreation = true,
+                outcome = actualAlias ? "overlap-rejection-required" : "distinct-input-success-required",
+            }));
+        }
+        catch (Exception observationFailure)
+        {
+            if (failure is not null)
+                throw new AggregateException("Generation and physical-alias observation both failed.", failure, observationFailure);
+            throw;
+        }
+    }
 }
