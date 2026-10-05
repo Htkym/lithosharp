@@ -174,3 +174,4 @@ jobs:
             artifacts/installed-host/**/package-provenance.json
             artifacts/installed-host/**/site-provenance.json
             artifacts/installed-host/**/mdx-restore-evidence.json
+            artifacts/installed-host/**/mdx-failure-evidence.json
