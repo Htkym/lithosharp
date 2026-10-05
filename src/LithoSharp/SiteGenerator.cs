@@ -235,6 +235,7 @@ public sealed partial class SiteGenerator
         var redirectDeclarations = options.Redirects.ToArray();
         if (redirectDeclarations.Any(redirect => redirect is null))
             throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
+        ValidateCacheNamespaceAdmission(outputDirectory, options);
         var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
         var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
             ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, DefaultBuildCacheDirectoryName));
@@ -242,6 +243,13 @@ public sealed partial class SiteGenerator
         if (ContainsCacheDirectory(outputRoot, buildCacheRoot) || ContainsCacheDirectory(buildCacheRoot, outputRoot)
             || options.PublicDirectory is { } publicInput && ContainsCacheDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
             throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
+        if (options.PublicDirectory is not null)
+        {
+            var prospectiveScope = OutputTransaction.CreateProspectiveOwnershipScope(
+                Path.GetDirectoryName(outputRoot)!, Path.GetFileName(outputRoot));
+            ValidateCachePartitionPublicInput(
+                Path.Combine(buildCacheRoot, OutputTransaction.CreateOutputIdentity(prospectiveScope)), options);
+        }
         foreach (var asset in options.Assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
@@ -2283,13 +2291,55 @@ public sealed partial class SiteGenerator
             || path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, PathComparison);
     }
 
+    private static FileStream OpenVerifiedContainedOutputRead(
+        string outputRoot,
+        string path,
+        bool asynchronous = false)
+    {
+        if (!OperatingSystem.IsWindows()
+            || !outputRoot.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            return BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, path, asynchronous);
+        }
+
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
+        var fullPath = Path.GetFullPath(path);
+        EnsureContainedPathHasNoNameSurrogateReparsePoints(fullRoot, fullPath);
+
+        var stream = new FileStream(
+            fullPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: asynchronous ? 1 : 81920,
+            FileOptions.SequentialScan
+                | (asynchronous ? FileOptions.Asynchronous : FileOptions.None));
+        var verified = false;
+        try
+        {
+            BuildInputFingerprint.VerifyOpenedContainedFile(
+                NormalizeWindowsCacheNamespacePath(fullRoot),
+                NormalizeWindowsCacheNamespacePath(fullPath),
+                stream.SafeFileHandle);
+            verified = true;
+            return stream;
+        }
+        finally
+        {
+            if (!verified)
+            {
+                stream.Dispose();
+            }
+        }
+    }
+
     private static async Task WriteBinaryAssetAsync(string outputRoot, string relativePath, byte[] contents, List<string> generated, CancellationToken cancellationToken)
     {
         var fullPath = SafeCombine(outputRoot, relativePath);
         CreateSafeDirectory(outputRoot, Path.GetDirectoryName(fullPath)!);
         if (File.Exists(fullPath))
         {
-            await using var existing = BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, fullPath, asynchronous: true);
+            await using var existing = OpenVerifiedContainedOutputRead(outputRoot, fullPath, asynchronous: true);
             if (existing.Length == contents.Length
                 && (await SHA256.HashDataAsync(existing, cancellationToken).ConfigureAwait(false))
                     .AsSpan().SequenceEqual(SHA256.HashData(contents)))
@@ -2681,6 +2731,15 @@ public sealed partial class SiteGenerator
 
     private static string SafeCombine(string root, string relativePath)
     {
+        relativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+        if (OperatingSystem.IsWindows()
+            && root.StartsWith(@"\\?\", StringComparison.Ordinal)
+            && (Path.IsPathRooted(relativePath)
+                || relativePath.Split(Path.DirectorySeparatorChar).Any(static segment => segment is "." or "..")))
+        {
+            throw new InvalidOperationException($"Output path '{relativePath}' escapes output directory.");
+        }
+
         var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
         var normalizedRoot = root.AsSpan().TrimEnd([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
         if (!fullPath.AsSpan().StartsWith(normalizedRoot, PathComparison)
@@ -2700,6 +2759,15 @@ public sealed partial class SiteGenerator
     {
         EnsureNotNameSurrogateReparsePoint(root);
         var relativePath = Path.GetRelativePath(root, directory);
+        if (OperatingSystem.IsWindows()
+            && root.StartsWith(@"\\?\", StringComparison.Ordinal)
+            && relativePath == ".")
+        {
+            Directory.CreateDirectory(root);
+            EnsureNotNameSurrogateReparsePoint(root);
+            return;
+        }
+
         var current = root;
         foreach (var segment in relativePath.Split(
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
@@ -2799,8 +2867,11 @@ public sealed partial class SiteGenerator
     {
         var fullPath = Path.GetFullPath(expectedPath);
         EnsureNotNameSurrogateReparsePoint(fullPath);
+        var comparisonPath = OperatingSystem.IsWindows()
+            ? NormalizeWindowsCacheNamespacePath(fullPath)
+            : fullPath;
         BuildInputFingerprint.VerifyOpenedContainedFile(
-            Path.GetDirectoryName(fullPath)!, fullPath, stream.SafeFileHandle);
+            Path.GetDirectoryName(comparisonPath)!, comparisonPath, stream.SafeFileHandle);
     }
 
     /// <summary>Opt-in phase counters; no allocations when disabled.</summary>
@@ -2917,7 +2988,7 @@ public sealed partial class SiteGenerator
                 var manifestRoot = _existingOutputCopied ? StagingRoot : _outputRoot;
                 var path = SafeCombine(manifestRoot, OutputManifestRelativePath);
                 EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
-                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(manifestRoot, path, asynchronous: true);
+                await using var file = OpenVerifiedContainedOutputRead(manifestRoot, path, asynchronous: true);
                 using var buffer = new MemoryStream();
                 await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bytes = buffer.ToArray();
@@ -4125,12 +4196,25 @@ public sealed partial class SiteGenerator
 
         private static string CreateLockIdentity(string outputRoot)
         {
+            if (OperatingSystem.IsWindows()) outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
             var normalizedPath = outputRoot
                 .Normalize(NormalizationForm.FormC)
                 .ToUpperInvariant();
             return Convert.ToHexString(
                     SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath)))
                 .ToLowerInvariant();
+        }
+
+        // Admission must precede public input reads and extension code. A future
+        // parent is resolved read-only through its closest existing ancestor.
+        internal static string CreateProspectiveOwnershipScope(string parentRoot, string outputName)
+        {
+            if (Directory.Exists(parentRoot)) return CreateOwnershipScope(parentRoot, outputName);
+            var canonicalParent = CanonicalizeCacheBoundaryPath(parentRoot);
+            var prospectiveName = OperatingSystem.IsMacOS()
+                ? outputName.Normalize(NormalizationForm.FormD)
+                : outputName;
+            return NormalizeOutputOwnershipIdentity(Path.Combine(canonicalParent, prospectiveName));
         }
 
         internal static string CreateOwnershipScope(
@@ -4144,7 +4228,7 @@ public sealed partial class SiteGenerator
                 string.Equals(Path.GetFileName(entry), outputName, StringComparison.Ordinal));
             if (exact is not null)
             {
-                return Path.TrimEndingDirectorySeparator(Path.GetFullPath(exact));
+                return NormalizeOutputOwnershipIdentity(Path.TrimEndingDirectorySeparator(Path.GetFullPath(exact)));
             }
 
             if (Directory.Exists(requestedOutput))
@@ -4161,15 +4245,20 @@ public sealed partial class SiteGenerator
                         $"Output path '{requestedOutput}' has an ambiguous physical identity.");
                 }
 
-                return Path.TrimEndingDirectorySeparator(
-                    Path.GetFullPath(aliases[0]));
+                return NormalizeOutputOwnershipIdentity(Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(aliases[0])));
             }
 
             var prospectiveName = OperatingSystem.IsMacOS()
                 ? outputName.Normalize(NormalizationForm.FormD)
                 : outputName;
-            return Path.Combine(canonicalParent, prospectiveName);
+            return NormalizeOutputOwnershipIdentity(Path.Combine(canonicalParent, prospectiveName));
         }
+
+        // Identity-only normalization: all parent enumeration and output I/O
+        // above continue to use their original namespace spelling.
+        private static string NormalizeOutputOwnershipIdentity(string identity)
+            => OperatingSystem.IsWindows() ? NormalizeWindowsCacheNamespacePath(identity) : identity;
 
         private static string ResolveExistingDirectoryPath(string path)
         {

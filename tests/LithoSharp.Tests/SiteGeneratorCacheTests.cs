@@ -560,6 +560,420 @@ public sealed class SiteGeneratorCacheTests
         else throw new InvalidOperationException("Unknown cache operation fixture.");
     }
 
+    [Test]
+    [Arguments("measure", "same-output", false)]
+    [Arguments("clear", "same-output", false)]
+    [Arguments("generate", "same-output", false)]
+    [Arguments("measure", "same-output", true)]
+    [Arguments("clear", "same-output", true)]
+    [Arguments("generate", "same-output", true)]
+    [Arguments("measure", "nested-cache", false)]
+    [Arguments("clear", "nested-cache", false)]
+    [Arguments("generate", "nested-cache", false)]
+    [Arguments("measure", "nested-cache", true)]
+    [Arguments("clear", "nested-cache", true)]
+    [Arguments("generate", "nested-cache", true)]
+    [Arguments("measure", "public-partition", false)]
+    [Arguments("clear", "public-partition", false)]
+    [Arguments("generate", "public-partition", false)]
+    [Arguments("measure", "public-partition", true)]
+    [Arguments("clear", "public-partition", true)]
+    [Arguments("generate", "public-partition", true)]
+    [Arguments("measure", "public-child", false)]
+    [Arguments("clear", "public-child", false)]
+    [Arguments("generate", "public-child", false)]
+    [Arguments("measure", "public-child", true)]
+    [Arguments("clear", "public-child", true)]
+    [Arguments("generate", "public-child", true)]
+    public async Task CacheAdmissionRejectsMixedWindowsNamespaceOverlap(string operation, string overlap, bool extendedInput)
+    {
+        // Extended Windows namespaces have no meaning on Unix. Unix execution is
+        // not counted as namespace validation; actual Windows evidence is required.
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        Directory.CreateDirectory(output);
+        var published = Path.Combine(output, "published.html");
+        await File.WriteAllTextAsync(published, "published namespace canary");
+        var safeCache = Path.Combine(workspace.Root, "safe-cache");
+        var partitionName = Path.GetFileName(SiteGenerator.MeasureCache(output,
+            new SiteGenerationOptions { BuildCacheDirectory = safeCache }).CacheDirectory);
+        var cache = overlap switch
+        {
+            "same-output" => output,
+            "nested-cache" => Path.Combine(output, "nested-cache"),
+            "public-partition" or "public-child" => safeCache,
+            _ => throw new InvalidOperationException("Unknown namespace fixture."),
+        };
+        var partition = Path.Combine(cache, partitionName);
+        var publicRoot = overlap == "public-child" ? Path.Combine(partition, "public-child") : partition;
+        Directory.CreateDirectory(publicRoot);
+        var canary = Path.Combine(publicRoot, "canary.txt");
+        await File.WriteAllTextAsync(canary, "never delete namespace-alias input");
+        var before = SnapshotCacheCanaryTree(workspace.Root);
+        var stamp = File.GetLastWriteTimeUtc(canary);
+        var publishedStamp = File.GetLastWriteTimeUtc(published);
+        var outputArgument = extendedInput && overlap is "same-output" or "nested-cache"
+            ? ExtendedCacheFixturePath(output) : output;
+        var cacheArgument = extendedInput ? cache : ExtendedCacheFixturePath(cache);
+        var publicArgument = overlap is "public-partition" or "public-child"
+            ? (extendedInput ? ExtendedCacheFixturePath(publicRoot) : publicRoot) : null;
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = cacheArgument, PublicDirectory = publicArgument,
+        };
+        var beforeHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(canary)));
+        try
+        {
+            await Assert.That(async () => await InvokeCacheAdmissionFixture(operation, outputArgument, options))
+                .Throws<ArgumentException>();
+        }
+        finally
+        {
+            bool? afterExists = null;
+            string? afterHash = null;
+            long? afterWriteTicks = null;
+            string? observationError = null;
+            try
+            {
+                afterExists = File.Exists(canary);
+                if (afterExists == true)
+                {
+                    afterHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(canary)));
+                    afterWriteTicks = File.GetLastWriteTimeUtc(canary).Ticks;
+                }
+            }
+            catch (IOException exception) { observationError = exception.GetType().Name; }
+            catch (UnauthorizedAccessException exception) { observationError = exception.GetType().Name; }
+            Console.WriteLine("LSCACHE_NAMESPACE_CANARY " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                operation, overlap, extendedInput, beforeExists = true, beforeSha256 = beforeHash,
+                beforeWriteTicks = stamp.Ticks, afterExists, afterSha256 = afterHash, afterWriteTicks, observationError,
+            }));
+        }
+        await Assert.That(SnapshotCacheCanaryTree(workspace.Root)).IsEqualTo(before);
+        await Assert.That(await File.ReadAllTextAsync(canary)).IsEqualTo("never delete namespace-alias input");
+        await Assert.That(File.GetLastWriteTimeUtc(canary)).IsEqualTo(stamp);
+        await Assert.That(File.GetLastWriteTimeUtc(published)).IsEqualTo(publishedStamp);
+    }
+
+    [Test]
+    [Arguments("measure", "output", "global-root")]
+    [Arguments("measure", "output", "dos-device")]
+    [Arguments("measure", "output", "nt-object")]
+    [Arguments("measure", "cache", "global-root")]
+    [Arguments("measure", "cache", "dos-device")]
+    [Arguments("measure", "cache", "nt-object")]
+    [Arguments("measure", "public", "global-root")]
+    [Arguments("measure", "public", "dos-device")]
+    [Arguments("measure", "public", "nt-object")]
+    [Arguments("clear", "output", "global-root")]
+    [Arguments("clear", "output", "dos-device")]
+    [Arguments("clear", "output", "nt-object")]
+    [Arguments("clear", "cache", "global-root")]
+    [Arguments("clear", "cache", "dos-device")]
+    [Arguments("clear", "cache", "nt-object")]
+    [Arguments("clear", "public", "global-root")]
+    [Arguments("clear", "public", "dos-device")]
+    [Arguments("clear", "public", "nt-object")]
+    [Arguments("generate", "output", "global-root")]
+    [Arguments("generate", "output", "dos-device")]
+    [Arguments("generate", "output", "nt-object")]
+    [Arguments("generate", "cache", "global-root")]
+    [Arguments("generate", "cache", "dos-device")]
+    [Arguments("generate", "cache", "nt-object")]
+    [Arguments("generate", "public", "global-root")]
+    [Arguments("generate", "public", "dos-device")]
+    [Arguments("generate", "public", "nt-object")]
+    [Arguments("measure", "output", "slash-dos")]
+    [Arguments("measure", "output", "slash-extended")]
+    [Arguments("measure", "cache", "slash-dos")]
+    [Arguments("measure", "cache", "slash-extended")]
+    [Arguments("measure", "public", "slash-dos")]
+    [Arguments("measure", "public", "slash-extended")]
+    [Arguments("clear", "output", "slash-dos")]
+    [Arguments("clear", "output", "slash-extended")]
+    [Arguments("clear", "cache", "slash-dos")]
+    [Arguments("clear", "cache", "slash-extended")]
+    [Arguments("clear", "public", "slash-dos")]
+    [Arguments("clear", "public", "slash-extended")]
+    [Arguments("generate", "output", "slash-dos")]
+    [Arguments("generate", "output", "slash-extended")]
+    [Arguments("generate", "cache", "slash-dos")]
+    [Arguments("generate", "cache", "slash-extended")]
+    [Arguments("generate", "public", "slash-dos")]
+    [Arguments("generate", "public", "slash-extended")]
+    public async Task CacheAdmissionRejectsUnsupportedWindowsNamespaceBeforeSideEffects(string operation, string slot, string kind)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        Directory.CreateDirectory(output);
+        var canary = Path.Combine(output, "canary.txt");
+        await File.WriteAllTextAsync(canary, "unsupported namespace must not mutate");
+        var before = SnapshotCacheCanaryTree(workspace.Root);
+        var stamp = File.GetLastWriteTimeUtc(canary);
+        // Even a broken/old guard can target only this dedicated fixture. No
+        // real device volume or fixed user directory is used by the API controls.
+        var ownedTarget = slot == "output" ? output : Path.Combine(workspace.Root, slot);
+        var unsupported = kind switch
+        {
+            "global-root" => @"\\?\GLOBALROOT\" + ownedTarget,
+            "dos-device" => @"\\.\" + ownedTarget,
+            "nt-object" => @"\??\" + ownedTarget,
+            "slash-dos" => "//./" + ownedTarget.Replace('\\', '/'),
+            "slash-extended" => "//?/" + ownedTarget.Replace('\\', '/'),
+            _ => throw new InvalidOperationException("Unknown namespace fixture."),
+        };
+        var options = new SiteGenerationOptions
+        {
+            BuildCacheDirectory = slot == "cache" ? unsupported : Path.Combine(workspace.Root, "safe-cache"),
+            PublicDirectory = slot == "public" ? unsupported : null,
+        };
+        await Assert.That(async () => await InvokeCacheAdmissionFixture(operation,
+            slot == "output" ? unsupported : output, options)).Throws<ArgumentException>();
+        await Assert.That(SnapshotCacheCanaryTree(workspace.Root)).IsEqualTo(before);
+        await Assert.That(File.GetLastWriteTimeUtc(canary)).IsEqualTo(stamp);
+    }
+
+    [Test]
+    [Arguments("measure")]
+    [Arguments("clear")]
+    [Arguments("generate")]
+    public async Task DisjointExtendedWindowsCacheRemainsUsable(string operation)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        Directory.CreateDirectory(output);
+        var cache = Path.Combine(workspace.Root, "safe-cache");
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = ExtendedCacheFixturePath(cache),
+        };
+        if (operation == "generate")
+        {
+            await InvokeCacheAdmissionFixture(operation, output, options);
+            await Assert.That(File.Exists(Path.Combine(output, "posts", "alpha.html"))).IsTrue();
+        }
+        else
+        {
+            var partition = SiteGenerator.MeasureCache(output, options).CacheDirectory;
+            Directory.CreateDirectory(partition);
+            await File.WriteAllTextAsync(Path.Combine(partition, "record.txt"), "record");
+            var usage = operation == "clear" ? SiteGenerator.ClearCache(output, options) : SiteGenerator.MeasureCache(output, options);
+            await Assert.That(usage.FileCount).IsEqualTo(1);
+            await Assert.That(usage.TotalBytes).IsEqualTo(6);
+        }
+    }
+
+    [Test]
+    [Arguments(@"\\?\D:\fixture\out", @"D:\fixture\out")]
+    [Arguments(@"\\?\UNC\server\share\fixture\out", @"\\server\share\fixture\out")]
+    [Arguments(@"\\?\unc\server\share\fixture\out", @"\\server\share\fixture\out")]
+    [Arguments(@"D:\fixture\out", @"D:\fixture\out")]
+    public async Task WindowsCacheNamespaceComparisonIdentityIsPure(string input, string expected)
+    {
+        // Pure identity classification only: no UNC share is opened or created.
+        var method = typeof(SiteGenerator).GetMethod("NormalizeWindowsCacheNamespacePath",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        await Assert.That((string)method.Invoke(null, [input])!).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments(@"\\?\D:\fixture\..\out")]
+    [Arguments(@"\\?\D:\fixture\.\out")]
+    [Arguments(@"\\?\D:\fixture\out.")]
+    [Arguments(@"\\?\D:\fixture\out ")]
+    [Arguments(@"\\?\UNC\server")]
+    [Arguments(@"\\?\Volume{00000000-0000-0000-0000-000000000000}\out")]
+    [Arguments(@"\\?\D:\fixture\CON\out")]
+    [Arguments(@"\\?\D:\fixture\nul.txt\out")]
+    [Arguments(@"\\?\D:\fixture\COM1\out")]
+    [Arguments(@"\\?\D:\fixture\LPT²\out")]
+    [Arguments("//./D:/fixture/out")]
+    [Arguments("//?/D:/fixture/out")]
+    [Arguments(@"\\?/D:\fixture\out")]
+    [Arguments(@"/\?\D:\fixture\out")]
+    [Arguments("/??/D:/fixture/out")]
+    public async Task WindowsCacheNamespaceRejectsAmbiguousOrdinaryEquivalence(string input)
+    {
+        var method = typeof(SiteGenerator).GetMethod("NormalizeWindowsCacheNamespacePath",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        ArgumentException? failure = null;
+        try { method.Invoke(null, [input]); }
+        catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is ArgumentException rejected)
+        { failure = rejected; }
+        await Assert.That(failure).IsNotNull();
+    }
+
+    private static string ExtendedCacheFixturePath(string path)
+        => path.StartsWith(@"\\", StringComparison.Ordinal) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    public async Task ProspectiveCacheOwnershipMatchesActualWithoutCreatingParents(bool parentExists, bool unicode)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var parent = Path.Combine(workspace.Root, unicode ? "caf\u00e9-parent" : "new-parent", "nested-parent");
+        var leaf = unicode ? "caf\u00e9-out" : "out";
+        if (parentExists) Directory.CreateDirectory(parent);
+        var prospective = InvokeCacheOwnershipIdentity("CreateProspectiveOwnershipScope", parent, leaf);
+        await Assert.That(Directory.Exists(parent)).IsEqualTo(parentExists);
+        Directory.CreateDirectory(parent);
+        var actual = InvokeCacheOwnershipIdentity("CreateOwnershipScope", parent, leaf);
+        await Assert.That(prospective).IsEqualTo(actual);
+        await Assert.That(Directory.Exists(Path.Combine(parent, leaf))).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task GenerationRejectsProspectivePublicPartitionBeforeExtensionOrParentCreation(bool nested)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var parent = Path.Combine(workspace.Root, "not-created", "nested-parent");
+        var output = Path.Combine(parent, "out");
+        var scope = InvokeCacheOwnershipIdentity("CreateProspectiveOwnershipScope", parent, "out");
+        var identity = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(scope)));
+        var cache = Path.Combine(workspace.Root, "safe-cache");
+        var partition = Path.Combine(cache, identity);
+        var publicRoot = nested ? Path.Combine(partition, "public-child") : partition;
+        Directory.CreateDirectory(publicRoot);
+        var canary = Path.Combine(publicRoot, "canary.txt");
+        await File.WriteAllTextAsync(canary, "prospective public input must survive");
+        var before = SnapshotCacheCanaryTree(workspace.Root);
+        var stamp = File.GetLastWriteTimeUtc(canary);
+        var extension = new CacheAdmissionExtensionProbe();
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = cache,
+            PublicDirectory = publicRoot, Extensions = [extension],
+        };
+        await Assert.That(async () => await InvokeCacheAdmissionFixture("generate", output, options))
+            .Throws<ArgumentException>();
+        await Assert.That(extension.Calls).IsEqualTo(0);
+        await Assert.That(Directory.Exists(parent)).IsFalse();
+        await Assert.That(SnapshotCacheCanaryTree(workspace.Root)).IsEqualTo(before);
+        await Assert.That(await File.ReadAllTextAsync(canary)).IsEqualTo("prospective public input must survive");
+        await Assert.That(File.GetLastWriteTimeUtc(canary)).IsEqualTo(stamp);
+    }
+
+    private sealed class CacheAdmissionExtensionProbe : LithoSharp.Build.ISiteBuildExtension
+    {
+        public int Calls { get; private set; }
+        public Task<LithoSharp.Build.SiteBuildContribution> PrepareAsync(LithoSharp.Build.SiteBuildContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new LithoSharp.Build.SiteBuildContribution());
+        }
+    }
+
+    private static string InvokeCacheOwnershipIdentity(string method, string parent, string leaf)
+    {
+        var transaction = typeof(SiteGenerator).GetNestedType("OutputTransaction", System.Reflection.BindingFlags.NonPublic)!;
+        var implementation = transaction.GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        return (string)implementation.Invoke(null, [parent, leaf])!;
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task OrdinaryAndExtendedOutputSpellingsShareOwnershipAndCachePartition(bool outputExists)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var parent = Path.Combine(workspace.Root, "parent");
+        Directory.CreateDirectory(parent);
+        var output = Path.Combine(parent, "out");
+        if (outputExists) Directory.CreateDirectory(output);
+        var extended = ExtendedCacheFixturePath(output);
+        var scope = InvokeCacheOwnershipIdentity("CreateOwnershipScope", parent, "out");
+        var aliasScope = InvokeCacheOwnershipIdentity("CreateOwnershipScope", ExtendedCacheFixturePath(parent), "out");
+        await Assert.That(aliasScope).IsEqualTo(scope);
+        var options = new SiteGenerationOptions { BuildCacheDirectory = Path.Combine(workspace.Root, "safe-cache") };
+        var ordinaryUsage = SiteGenerator.MeasureCache(output, options);
+        var aliasUsage = SiteGenerator.MeasureCache(extended, options);
+        await Assert.That(aliasUsage.CacheDirectory).IsEqualTo(ordinaryUsage.CacheDirectory);
+    }
+
+    [Test]
+    [Arguments(@"D:\fixture\out", "7bd3462bcf81ea9f2b3bccca3d6edc13ae2bafe28af50ea2c21b4e3db9d8a941")]
+    [Arguments(@"d:\FIXTURE\out", "7bd3462bcf81ea9f2b3bccca3d6edc13ae2bafe28af50ea2c21b4e3db9d8a941")]
+    [Arguments(@"\\server\share\fixture\out", "0bf52c18b03172bb4e79b70aca76f21cff252598f37b31ad153e7514f0a857e8")]
+    [Arguments(@"\\SERVER\SHARE\fixture\out", "0bf52c18b03172bb4e79b70aca76f21cff252598f37b31ad153e7514f0a857e8")]
+    public async Task NamespaceLockIdentityPreservesOrdinaryHashAndAliases(string ordinary, string expected)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var transaction = typeof(SiteGenerator).GetNestedType("OutputTransaction", System.Reflection.BindingFlags.NonPublic)!;
+        var method = transaction.GetMethod("CreateLockIdentity", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var before = (string)method.Invoke(null, [ordinary])!;
+        var alias = (string)method.Invoke(null, [ExtendedCacheFixturePath(ordinary)])!;
+        await Assert.That(before).IsEqualTo(expected);
+        await Assert.That(alias).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ClearCacheWaitsForActiveBuildThroughOppositeWindowsNamespace(bool extendedBuild)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        var buildOutput = extendedBuild ? ExtendedCacheFixturePath(output) : output;
+        var clearOutput = extendedBuild ? output : ExtendedCacheFixturePath(output);
+        var cache = Path.Combine(workspace.Root, "safe-cache");
+        var settings = new SiteSettings { BaseUrl = "https://example.test/" };
+        var firstCollection = CacheCollection("namespace first", (entry, context) => context.RenderDocument(entry.Body));
+        var options = new SiteGenerationOptions
+        {
+            ContentCollections = [firstCollection], BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = cache,
+        };
+        var first = await new SiteGenerator().GenerateWithOptionsAsync(settings, [], buildOutput, clean: true,
+            new SiteCustomization { Template = new BlogSiteTemplate() }, options, CancellationToken.None);
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var clearStarted = new ManualResetEventSlim();
+        var changedCollection = CacheCollection("namespace second", (entry, context) =>
+        {
+            entered.Set(); release.Wait(); return context.RenderDocument(entry.Body);
+        });
+        var building = new SiteGenerator().GenerateWithOptionsAsync(settings, [], buildOutput, clean: false,
+            new SiteCustomization { Template = new BlogSiteTemplate() },
+            options with { ContentCollections = [changedCollection], PreviousBuildPlan = first.BuildPlan }, CancellationToken.None);
+        Task<LithoSharp.Build.SiteBuildCacheUsage>? clearing = null;
+        Exception? failure = null;
+        try
+        {
+            await Assert.That(await Task.Run(() => entered.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
+            clearing = Task.Run(() => { clearStarted.Set(); return SiteGenerator.ClearCache(clearOutput, options); });
+            await Assert.That(await Task.Run(() => clearStarted.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
+            await Task.Delay(100);
+            await Assert.That(clearing.IsCompleted).IsFalse();
+        }
+        catch (Exception exception) { failure = exception; }
+        finally
+        {
+            release.Set();
+            try { await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception cleanup)
+            {
+                if (failure is not null) throw new AggregateException("Assertion and owned fixture cleanup failed.", failure, cleanup);
+                throw;
+            }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        var cleared = await clearing!;
+        await Assert.That(cleared.FileCount).IsGreaterThan(0);
+        await Assert.That(SiteGenerator.MeasureCache(output, options).FileCount).IsEqualTo(0);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "cache", "index.html"))).Contains("namespace second");
+    }
+
     private static MarkdownPost Post() => new(
         "content/alpha.md",
         "alpha",

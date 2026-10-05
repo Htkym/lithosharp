@@ -90,8 +90,64 @@ public sealed partial class SiteGenerator
         return CachePathContains(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
     }
 
+    // Only comparison identity is normalized. Original paths remain the I/O paths.
+    // Extended paths with semantics that differ from ordinary DOS/UNC are rejected.
+    private static string NormalizeWindowsCacheNamespacePath(string path)
+    {
+        var separators = path.Replace('/', '\\');
+        if (!string.Equals(path, separators, StringComparison.Ordinal)
+            && (separators.StartsWith(@"\\?\", StringComparison.Ordinal)
+                || separators.StartsWith(@"\\.\", StringComparison.Ordinal)
+                || separators.StartsWith(@"\??\", StringComparison.Ordinal)))
+            throw new ArgumentException("Slash-mixed Windows namespaces are unsupported at the cache boundary.");
+        if (path.StartsWith(@"\\.\", StringComparison.Ordinal)
+            || path.StartsWith(@"\??\", StringComparison.Ordinal))
+            throw new ArgumentException("Unsupported Windows namespace at the cache boundary.");
+        if (!path.StartsWith(@"\\?\", StringComparison.Ordinal)) return path;
+
+        string ordinary;
+        if (path.Length >= 7 && char.IsAsciiLetter(path[4]) && path[5] == ':' && path[6] == '\\')
+            ordinary = path[4..];
+        else if (path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            ordinary = @"\\" + path[8..];
+            if (ordinary[2..].Split('\\', StringSplitOptions.RemoveEmptyEntries).Length < 2)
+                throw new ArgumentException("An extended UNC cache boundary needs a server and share.");
+        }
+        else throw new ArgumentException("Unsupported Windows namespace at the cache boundary.");
+
+        var segments = ordinary[(ordinary.StartsWith(@"\\", StringComparison.Ordinal) ? 2 : 3)..]
+            .TrimEnd('\\').Split('\\');
+        if (ordinary.Contains('/') || segments.Any(segment => segment.Length == 0
+            || segment is "." or ".." || segment.EndsWith('.') || segment.EndsWith(' ')
+            || segment.IndexOfAny([':', '?', '*', '"', '<', '>', '|']) >= 0
+            || IsWindowsCacheDeviceName(segment)))
+            throw new ArgumentException("Ambiguous extended path semantics at the cache boundary.");
+        return ordinary;
+    }
+
+    private static bool IsWindowsCacheDeviceName(string segment)
+    {
+        var name = segment.Split('.')[0].TrimEnd(' ');
+        if (name.Equals("CON", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("PRN", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("AUX", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("NUL", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("CONIN$", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("CONOUT$", StringComparison.OrdinalIgnoreCase)) return true;
+        return name.Length == 4
+            && (name.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase))
+            && (char.IsAsciiDigit(name[3]) || name[3] is '¹' or '²' or '³');
+    }
+
     private static bool CachePathContains(string root, string path)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            root = NormalizeWindowsCacheNamespacePath(root);
+            path = NormalizeWindowsCacheNamespacePath(path);
+        }
         root = Path.TrimEndingDirectorySeparator(root).Normalize(System.Text.NormalizationForm.FormD);
         path = Path.TrimEndingDirectorySeparator(path).Normalize(System.Text.NormalizationForm.FormD);
         return string.Equals(root, path, StringComparison.OrdinalIgnoreCase)
@@ -138,9 +194,18 @@ public sealed partial class SiteGenerator
         return Path.TrimEndingDirectorySeparator(current);
     }
 
+    private static void ValidateCacheNamespaceAdmission(string outputRoot, SiteGenerationOptions? options)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        _ = NormalizeWindowsCacheNamespacePath(outputRoot);
+        if (options?.BuildCacheDirectory is { } cache) _ = NormalizeWindowsCacheNamespacePath(cache);
+        if (options?.PublicDirectory is { } publicRoot) _ = NormalizeWindowsCacheNamespacePath(publicRoot);
+    }
+
     private static void ValidateCachePathAncestry(string outputRoot, SiteGenerationOptions? options)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
+        ValidateCacheNamespaceAdmission(outputRoot, options);
         var fullOutput = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
         var parentRoot = Path.GetDirectoryName(fullOutput);
         if (parentRoot is null || string.IsNullOrEmpty(Path.GetFileName(fullOutput)))
