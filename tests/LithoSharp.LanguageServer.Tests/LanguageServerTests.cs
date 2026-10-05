@@ -1074,4 +1074,143 @@ public sealed class LanguageServerTests
         await Assert.That(reopened.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
             .Any(item => item.GetProperty("code").GetString() == "LIT001")).IsTrue();
     }
+    [Test]
+    [Arguments("non-object")]
+    [Arguments("unreadable")]
+    [Arguments("incompatible")]
+    [Arguments("different-id")]
+    [Arguments("missing-id")]
+    [Arguments("empty-id")]
+    public async Task RejectedProjectContextEpochAllowsValidEditsWithoutAdoptingInvalidSnapshot(string rejection)
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/rejected-context.md";
+        object Snapshot(string id, string core) => new
+        {
+            schemaVersion = "1.0", projectId = id, projectGeneration = (long)1, coreVersion = core,
+            collection = "docs", language = "markdown", schema = "document", version = "v1", locale = "en",
+            acquiredAt = "2026-10-05T00:00:00Z", routes = Array.Empty<object>(),
+        };
+        var ownCore = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version!.ToString(3);
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs", folders = new[] { "file:///proj" }, snapshot = Snapshot("docs", ownCore),
+            lithosharpContextGeneration = 1,
+        });
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "markdown", version = 1, text = OwnershipText },
+            lithosharpOpenGeneration = 17,
+        });
+        var initial = await WaitContextEpochDiagnosticsAsync(client, uri, 1, 17, 1);
+        await Assert.That(HasCode(initial, "LSC101")).IsTrue();
+        object rejected = rejection switch
+        {
+            "non-object" => new { projectId = "docs", snapshot = (object)"invalid", lithosharpContextGeneration = 2 },
+            "unreadable" => new { projectId = "docs", snapshot = new { schemaVersion = "999.0", projectId = "docs" }, lithosharpContextGeneration = 2 },
+            "incompatible" => new { projectId = "docs", snapshot = Snapshot("docs", "9999.0.0"), lithosharpContextGeneration = 2 },
+            "different-id" => new { projectId = "docs", snapshot = Snapshot("other", ownCore), lithosharpContextGeneration = 2 },
+            "missing-id" => new { snapshot = Snapshot("docs", ownCore), lithosharpContextGeneration = 2 },
+            "empty-id" => new { projectId = "", snapshot = Snapshot("docs", ownCore), lithosharpContextGeneration = 2 },
+            _ => throw new ArgumentOutOfRangeException(nameof(rejection)),
+        };
+        client.SendNotification("lithosharp/projectContext", rejected);
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 2 },
+            contentChanges = new[] { new { text = OwnershipText + "See [^missing].\n" } },
+        });
+        var edited = await WaitContextEpochDiagnosticsAsync(client, uri, 2, 17, 2);
+        await Assert.That(HasCode(edited, "LSC101")).IsTrue(); // Last valid snapshot survives rejection.
+        await Assert.That(HasCode(edited, "LIT001")).IsTrue(); // Genuine current edit remains observable.
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs", snapshot = (object?)null, lithosharpContextGeneration = 3,
+        });
+        var withdrawn = await WaitContextEpochDiagnosticsAsync(client, uri, 2, 17, 3);
+        await Assert.That(HasCode(withdrawn, "LSC101")).IsFalse();
+        client.SendNotification("lithosharp/projectContext", rejected); // Cannot roll epoch three back to two.
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 3 },
+            contentChanges = new[] { new { text = OwnershipText + "See [^missing].\n# Current\n" } },
+        });
+        var latest = await WaitContextEpochDiagnosticsAsync(client, uri, 3, 17, 3);
+        await Assert.That(HasCode(latest, "LSC101")).IsFalse();
+        await Assert.That(HasCode(latest, "LIT001")).IsTrue();
+    }
+
+    [Test]
+    public async Task InvalidContextGenerationCannotAdvanceOrApplyAContext()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/invalid-context-generation.md";
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "markdown", version = 1, text = OwnershipText },
+            lithosharpOpenGeneration = 19,
+        });
+        await WaitContextEpochDiagnosticsAsync(client, uri, 1, 19, 0);
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs", lithosharpContextGeneration = -1,
+            folders = new[] { "file:///proj" },
+            snapshot = new
+            {
+                schemaVersion = "1.0", projectId = "docs", projectGeneration = (long)1,
+                coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version!.ToString(3),
+                collection = "docs", language = "markdown", schema = "document", version = "v1", locale = "en",
+                acquiredAt = "2026-10-05T00:00:00Z", routes = Array.Empty<object>(),
+            },
+        });
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 2 },
+            contentChanges = new[] { new { text = OwnershipText + "See [^missing].\n" } },
+        });
+        var latest = await WaitContextEpochDiagnosticsAsync(client, uri, 2, 19, 0);
+        await Assert.That(HasCode(latest, "LIT001")).IsTrue();
+        await Assert.That(HasCode(latest, "LSC101")).IsFalse();
+    }
+
+    [Test]
+    public async Task RejectedContextEpochCannotRetagAnObsoleteHeldMdxAnalysis()
+    {
+        await WithProtocolInspectionWorkerAsync(async (worker, client) =>
+        {
+            await InitializeAsync(client, new { workerDirectory = worker.Root });
+            const string uri = "file:///proj/rejected-context.mdx";
+            client.SendNotification("lithosharp/projectContext", new
+            {
+                projectId = "docs", snapshot = (object?)null, lithosharpContextGeneration = 1,
+            });
+            Open(client, uri, "mdx", 1, "# Unchanged\n");
+            await worker.WaitForRequestAsync(1);
+            client.SendNotification("lithosharp/projectContext", new
+            {
+                projectId = "docs", snapshot = new { schemaVersion = "999.0", projectId = "docs" },
+                lithosharpContextGeneration = 2,
+            });
+            await worker.WaitForRequestAsync(2);
+            worker.Release(1); worker.Release(2);
+            var current = await WaitProtocolDiagnosticsAsync(client, uri, 1, 2);
+            await Assert.That(current.GetProperty("params").GetProperty("lithosharpContextGeneration").GetInt64()).IsEqualTo(2);
+            await Assert.That(client.Received.Any(message => IsProtocolDiagnostics(message, uri, 1, 1))).IsFalse();
+            await Assert.That(worker.RequestCount).IsEqualTo(2);
+        });
+    }
+
+    private static bool HasCode(JsonElement message, string code) => message.GetProperty("params")
+        .GetProperty("diagnostics").EnumerateArray().Any(item => item.GetProperty("code").GetString() == code);
+
+    private static Task<JsonElement> WaitContextEpochDiagnosticsAsync(LspTestClient client, string uri, long version, long open, long context) =>
+        client.WaitForAsync(message =>
+            message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri
+            && message.GetProperty("params").TryGetProperty("version", out var value) && value.TryGetInt64(out var publishedVersion) && publishedVersion == version
+            && message.GetProperty("params").TryGetProperty("lithosharpOpenGeneration", out var openValue) && openValue.TryGetInt64(out var publishedOpen) && publishedOpen == open
+            && message.GetProperty("params").TryGetProperty("lithosharpContextGeneration", out var contextValue) && contextValue.TryGetInt64(out var publishedContext) && publishedContext == context);
+
 }

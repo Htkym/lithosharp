@@ -572,7 +572,8 @@ public sealed partial class SiteGenerator
                 outputRoot,
                 preserveExisting: !clean,
                 cancellationToken,
-                deferExistingCopy: builtInTemplate && !clean && outputScope.Length == 0)
+                deferExistingCopy: builtInTemplate && !clean && outputScope.Length == 0,
+                cacheOptions: options)
             .ConfigureAwait(false);
         timing.MarkTransaction();
         var generatedInStaging = new List<string>();
@@ -3006,7 +3007,8 @@ public sealed partial class SiteGenerator
             string outputRoot,
             bool preserveExisting,
             CancellationToken cancellationToken,
-            bool deferExistingCopy = false)
+            bool deferExistingCopy = false,
+            SiteGenerationOptions? cacheOptions = null)
         {
             outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
             var parentRoot = Path.GetDirectoryName(outputRoot);
@@ -3020,6 +3022,12 @@ public sealed partial class SiteGenerator
             var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
             var lockIdentity = CreateLockIdentity(outputRoot);
             var outputIdentity = CreateOutputIdentity(ownershipScope);
+            if (cacheOptions?.PublicDirectory is not null)
+            {
+                var cacheRoot = Path.GetFullPath(cacheOptions.BuildCacheDirectory
+                    ?? Path.Combine(parentRoot, DefaultBuildCacheDirectoryName));
+                ValidateCachePartitionPublicInput(Path.Combine(cacheRoot, outputIdentity), cacheOptions);
+            }
             var outputLock = await OutputLock.AcquireAsync(
                     Path.Combine(
                         parentRoot,

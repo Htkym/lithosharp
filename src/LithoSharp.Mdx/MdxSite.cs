@@ -157,6 +157,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             CleanupStaleScratch(cacheRoot);
             var cachePath = Path.Combine(cacheRoot, signature + ".json");
             JsonElement result = default;
+            IReadOnlyList<SiteGeneratedAsset>? cachedAssets = null;
             if (options.Cacheable && File.Exists(cachePath))
             {
                 try
@@ -168,7 +169,12 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         && envelope.TryGetProperty("hash", out var checksum) && checksum.ValueKind == JsonValueKind.String
                         && CachedResultHasShape(candidate)
                         && checksum.GetString() == Hash(JsonSerializer.SerializeToUtf8Bytes(candidate))
-                        && await InputsMatchAsync(candidate, capturedInputs, cancellationToken).ConfigureAwait(false)) result = candidate.Clone();
+                        && TryValidateCachedAssets(candidate, out var candidateAssets)
+                        && await InputsMatchAsync(candidate, capturedInputs, cancellationToken).ConfigureAwait(false))
+                    {
+                        result = candidate.Clone();
+                        cachedAssets = candidateAssets;
+                    }
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or ArgumentException) { }
             }
@@ -224,7 +230,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 }
                 finally { DeleteScratch(scratch); }
             }
-            var assets = ValidateAssets(result);
+            var assets = cachedAssets ?? ValidateAssets(result);
             var assetIds = assets.Select(asset => asset.Id).ToHashSet();
             var inputPages = pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
             var results = result.GetProperty("pages").EnumerateArray().ToDictionary(page => page.GetProperty("id").GetString()!, StringComparer.Ordinal);
@@ -315,6 +321,22 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 || !Has(page, "islands", JsonValueKind.Array) || !Has(page, "hydration", JsonValueKind.String)
                 || !NullableString(page, "fallback")) return false;
         return true;
+    }
+
+    private bool TryValidateCachedAssets(JsonElement result, out IReadOnlyList<SiteGeneratedAsset> assets)
+    {
+        try
+        {
+            assets = ValidateAssets(result);
+            return true;
+        }
+        catch (FormatException) { }
+        catch (ArgumentException) { }
+        catch (SiteBuildExtensionException error) when (error.Diagnostics.All(diagnostic => diagnostic.Id == "LSMDX003")) { }
+        // Only the optional artifact's asset-validation failures are cache misses.
+        // Input containment, live worker and output failures remain outside this guard.
+        assets = [];
+        return false;
     }
 
     private IReadOnlyList<SiteGeneratedAsset> ValidateAssets(JsonElement result)

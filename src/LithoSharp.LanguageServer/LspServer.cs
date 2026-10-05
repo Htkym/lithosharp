@@ -421,11 +421,24 @@ public sealed class LspServer
 
     private void SetProjectContext(JsonElement @params)
     {
-        if (@params.ValueKind != JsonValueKind.Object
-            || !@params.TryGetProperty("projectId", out var projectIdValue)
+        if (@params.ValueKind != JsonValueKind.Object)
+        {
+            StdioTransport.Log("Ignoring a non-object lithosharp/projectContext.");
+            return;
+        }
+
+        // A valid client epoch is the publication boundary even if its snapshot
+        // is rejected. Invalid payloads must not strand the client on a new epoch.
+        if (!TryClientGeneration(@params, "lithosharpContextGeneration", out var contextGeneration))
+        {
+            return;
+        }
+
+        if (!@params.TryGetProperty("projectId", out var projectIdValue)
             || projectIdValue.ValueKind != JsonValueKind.String)
         {
             StdioTransport.Log("Ignoring a lithosharp/projectContext without a projectId.");
+            AdvanceRejectedContextGeneration(contextGeneration);
             return;
         }
 
@@ -433,6 +446,7 @@ public sealed class LspServer
         if (string.IsNullOrWhiteSpace(projectId))
         {
             StdioTransport.Log("Ignoring an empty lithosharp/projectContext projectId.");
+            AdvanceRejectedContextGeneration(contextGeneration);
             return;
         }
 
@@ -443,6 +457,7 @@ public sealed class LspServer
             if (snapshotValue.ValueKind != JsonValueKind.Object)
             {
                 StdioTransport.Log($"Ignoring a non-object project snapshot for '{projectId}'.");
+                AdvanceRejectedContextGeneration(contextGeneration);
                 return;
             }
 
@@ -453,25 +468,23 @@ public sealed class LspServer
             catch (ArgumentException exception)
             {
                 StdioTransport.Log($"Ignoring an unreadable project snapshot for '{projectId}': {exception.Message}");
+                AdvanceRejectedContextGeneration(contextGeneration);
                 return;
             }
 
             if (!string.Equals(snapshot.ProjectId, projectId, StringComparison.Ordinal))
             {
                 StdioTransport.Log($"Ignoring project context '{projectId}' whose snapshot has a different projectId.");
+                AdvanceRejectedContextGeneration(contextGeneration);
                 return;
             }
 
             if (!CoreCompatible(snapshot.CoreVersion))
             {
                 StdioTransport.Log($"Ignoring project context '{projectId}' with an incompatible core version.");
+                AdvanceRejectedContextGeneration(contextGeneration);
                 return;
             }
-        }
-
-        if (!TryClientGeneration(@params, "lithosharpContextGeneration", out var contextGeneration))
-        {
-            return;
         }
 
         var folders = new List<string>();
@@ -521,6 +534,24 @@ public sealed class LspServer
             {
                 TrackDocumentAnalysis(uri, version);
             }
+        }
+    }
+
+    private void AdvanceRejectedContextGeneration(long? generation)
+    {
+        lock (stateGate)
+        {
+            if (generation is not { } next || next <= clientContextGeneration) return;
+            clientContextGeneration = next;
+            // Retain the last valid snapshots. Invalidate owned work before new
+            // publication so an obsolete analysis cannot acquire the new tag.
+            foreach (var buffer in buffers.Values)
+            {
+                var path = UriPath(buffer.Uri);
+                workspace.Remove(path);
+                if (ContextFor(buffer.Uri) is { } owner) workspace.Remove(owner.ProjectId, path);
+            }
+            foreach (var buffer in buffers.Values) TrackDocumentAnalysis(buffer.Uri, buffer.Version);
         }
     }
 

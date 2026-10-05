@@ -54,7 +54,25 @@ public sealed partial class SiteGenerator
         var ownershipScope = OutputTransaction.CreateOwnershipScope(parentRoot, outputName);
         var cacheRoot = Path.GetFullPath(options?.BuildCacheDirectory
             ?? Path.Combine(parentRoot, DefaultBuildCacheDirectoryName));
-        return Path.Combine(cacheRoot, OutputTransaction.CreateOutputIdentity(ownershipScope));
+        if (ContainsDirectory(fullOutput, cacheRoot) || ContainsDirectory(cacheRoot, fullOutput)
+            || options?.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), cacheRoot))
+        {
+            throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
+        }
+
+        var partition = Path.Combine(cacheRoot, OutputTransaction.CreateOutputIdentity(ownershipScope));
+        ValidateCachePartitionPublicInput(partition, options);
+        return partition;
+    }
+
+    private static void ValidateCachePartitionPublicInput(string partition, SiteGenerationOptions? options)
+    {
+        if (options?.PublicDirectory is not { } publicDirectory) return;
+        var publicRoot = Path.GetFullPath(publicDirectory);
+        if (ContainsDirectory(partition, publicRoot) || ContainsDirectory(publicRoot, partition))
+        {
+            throw new ArgumentException("The build cache partition and public input directory must not overlap.", nameof(options));
+        }
     }
 
     private static SiteBuildCacheUsage MeasureCachePartition(string partition)

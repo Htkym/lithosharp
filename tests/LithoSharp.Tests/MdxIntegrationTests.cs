@@ -321,6 +321,8 @@ public sealed class MdxIntegrationTests
     [Arguments("invalid-base64-asset-bytes")]
     [Arguments("inner-asset-hash-mismatch")]
     [Arguments("numeric-asset-import")]
+    [Arguments("unresolved-asset-import")]
+    [Arguments("duplicate-asset-path")]
     [Arguments("truncated")]
     [Arguments("hash-mismatch")]
     public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes(string corruption)
@@ -394,6 +396,8 @@ public sealed class MdxIntegrationTests
     [Test]
     [Arguments("invalid-base64")]
     [Arguments("inner-hash-mismatch")]
+    [Arguments("unresolved-import")]
+    [Arguments("duplicate-asset-path")]
     public async Task InvalidLiveWorkerAssetFailsWithoutPublishingOrBecomingAnOptionalCacheHit(string corruption)
     {
         using var workspace = new TemporaryWorkspace();
@@ -409,10 +413,12 @@ public sealed class MdxIntegrationTests
             import path from 'node:path';
             console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));
             for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
-              const request=JSON.parse(line),page=request.pages[0],badEncoding=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION==='invalid-base64';
+              const request=JSON.parse(line),page=request.pages[0],corruption=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION,badEncoding=corruption==='invalid-base64';
+              const assets=[{path:'asset.txt',bytes:badEncoding?'!':'',hash:corruption==='inner-hash-mismatch'?'0'.repeat(64):createHash('sha256').update('').digest('hex'),imports:corruption==='unresolved-import'?['__missing__.js']:[]}];
+              if(corruption==='duplicate-asset-path') assets.push({...assets[0]});
               console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{
                 inputs:Object.entries(request.capturedInputs).map(([file,hash])=>({file:path.resolve(request.projectRoot,file),hash})),
-                assets:[{path:'asset.txt',bytes:badEncoding?'!':'',hash:badEncoding?createHash('sha256').update('').digest('hex'):'0'.repeat(64),imports:[]}],
+                assets,
                 pages:[{id:page.id,html:'<h1>UntrustedLiveAsset</h1>',text:'Page',entry:null,css:[],headings:[],links:[],islands:[],hydration:'selective',fallback:null}],
                 compiledModules:1,renderedPages:1,bundledPages:0,rebundledPages:[],
                 timings:{totalMilliseconds:1,serverBundleMilliseconds:1,browserBundleMilliseconds:0,renderMilliseconds:0},memory:{heapUsed:1}}}));
@@ -439,9 +445,11 @@ public sealed class MdxIntegrationTests
             await generator.GenerateWithOptionsAsync(settings, [], output, false, null,
                 new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
         }
-        catch (SiteBuildExtensionException error) when (corruption == "inner-hash-mismatch") { failure = error; }
+        catch (SiteBuildExtensionException error) when (corruption is "inner-hash-mismatch" or "unresolved-import" or "duplicate-asset-path") { failure = error; }
         catch (FormatException error) when (corruption == "invalid-base64") { failure = error; }
         await Assert.That(failure).IsNotNull();
+        if (corruption is "unresolved-import" or "duplicate-asset-path")
+            await Assert.That(failure!.Message).Contains("LSMDX003: Worker returned duplicate assets or unresolved chunk references.");
         await Assert.That(HashOutput(output)).IsEquivalentTo(before);
         await Assert.That(mdx.Metrics.Work.RequestAttempts).IsEqualTo(1);
         await Assert.That(mdx.Metrics.CacheHit).IsFalse();
@@ -470,6 +478,8 @@ public sealed class MdxIntegrationTests
             case "invalid-base64-asset-bytes": result["assets"]![0]!["bytes"] = "!"; break;
             case "inner-asset-hash-mismatch": result["assets"]![0]!["hash"] = new string('0', 64); break;
             case "numeric-asset-import": result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123)); break;
+            case "unresolved-asset-import": result["assets"]![0]!["imports"] = new JsonArray("__missing__.js"); break;
+            case "duplicate-asset-path": result["assets"]!.AsArray().Add(result["assets"]![0]!.DeepClone()); break;
             case "hash-mismatch": envelope["hash"] = new string('0', 64); break;
             default: throw new ArgumentOutOfRangeException(nameof(corruption));
         }
