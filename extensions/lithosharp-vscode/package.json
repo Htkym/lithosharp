@@ -82,7 +82,8 @@
       "restrictedConfigurations": [
         "lithosharp.cliPath",
         "lithosharp.languageServerPath",
-        "lithosharp.workerDirectory"
+        "lithosharp.workerDirectory",
+        "lithosharp.nodeExecutable"
       ],
       "properties": {
         "lithosharp.cliPath": {
@@ -104,6 +105,11 @@
           "type": "string",
           "default": "",
           "description": "Explicit MDX worker directory. Empty uses extension storage named by the bundled worker hash. Changing this needs LithoSharp: Restart Language Server. Without a restored worker, Markdown diagnostics keep working and MDX stays unexplained."
+        },
+        "lithosharp.nodeExecutable": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit external Node executable for MDX analysis (Node 24.13.0 required). Empty resolves node from the language server environment. Ignored in untrusted workspaces. Changing this needs LithoSharp: Restart Language Server."
         },
         "lithosharp.diagnosticDebounceMs": {
           "type": "integer",

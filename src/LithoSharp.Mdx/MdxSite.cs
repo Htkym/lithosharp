@@ -304,7 +304,9 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         foreach (var asset in result.GetProperty("assets").EnumerateArray())
             if (!Has(asset, "path", JsonValueKind.String) || !Has(asset, "bytes", JsonValueKind.String)
                 || !Has(asset, "hash", JsonValueKind.String) || !Has(asset, "imports", JsonValueKind.Array)
-                || !Strings(asset.GetProperty("imports"))) return false;
+                || !Strings(asset.GetProperty("imports"))
+                || !asset.GetProperty("bytes").TryGetBytesFromBase64(out var bytes)
+                || Hash(bytes) != asset.GetProperty("hash").GetString()) return false;
         foreach (var page in result.GetProperty("pages").EnumerateArray())
             if (!Has(page, "id", JsonValueKind.String) || !Has(page, "html", JsonValueKind.String)
                 || !NullableString(page, "text") || !NullableString(page, "entry")

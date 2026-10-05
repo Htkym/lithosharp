@@ -35,12 +35,14 @@ public sealed class LspServer
     private MdxInspectionSession? mdxSession;
     private LspServerOptions serverOptions;
     private bool shutdownRequested;
+    private long clientContextGeneration;
 
     private sealed class DocumentBuffer
     {
         public required string Uri;
         public required string LanguageId;
         public required long Version;
+        public long? OpenGeneration;
         public required string Text;
         public DocumentInfo? Inspection;
         public MdxAnalysisResult? MdxInspection;
@@ -246,9 +248,14 @@ public sealed class LspServer
             return;
         }
 
+        if (!TryClientGeneration(@params, "lithosharpOpenGeneration", out var openGeneration))
+        {
+            return;
+        }
+
         lock (stateGate)
         {
-            buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = languageId, Version = version, Text = text };
+            buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = languageId, Version = version, Text = text, OpenGeneration = openGeneration };
         }
 
         TrackDocumentAnalysis(uri, version);
@@ -293,7 +300,7 @@ public sealed class LspServer
                 }
             }
 
-            buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = buffer.LanguageId, Version = version, Text = current };
+            buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = buffer.LanguageId, Version = version, Text = current, OpenGeneration = buffer.OpenGeneration };
         }
 
         TrackDocumentAnalysis(uri, version);
@@ -462,6 +469,11 @@ public sealed class LspServer
             }
         }
 
+        if (!TryClientGeneration(@params, "lithosharpContextGeneration", out var contextGeneration))
+        {
+            return;
+        }
+
         var folders = new List<string>();
         if (@params.TryGetProperty("folders", out var foldersValue) && foldersValue.ValueKind == JsonValueKind.Array)
         {
@@ -477,6 +489,14 @@ public sealed class LspServer
         List<(string Uri, long Version)> affected;
         lock (stateGate)
         {
+            if (contextGeneration is { } receivedGeneration &&
+                (receivedGeneration < clientContextGeneration ||
+                 (receivedGeneration == clientContextGeneration && buffers.Count != 0)))
+            {
+                return;
+            }
+            var generationChanged = contextGeneration is { } nextGeneration && nextGeneration != clientContextGeneration;
+            if (contextGeneration is { } generation) clientContextGeneration = generation;
             var previousOwners = buffers.Values.ToDictionary(buffer => buffer.Uri, buffer => ContextFor(buffer.Uri));
             contexts.RemoveAll(entry => entry.ProjectId == projectId);
             if (snapshot is not null)
@@ -485,7 +505,7 @@ public sealed class LspServer
             }
 
             affected = buffers.Values
-                .Where(buffer => !ReferenceEquals(previousOwners[buffer.Uri], ContextFor(buffer.Uri)))
+                .Where(buffer => generationChanged || !ReferenceEquals(previousOwners[buffer.Uri], ContextFor(buffer.Uri)))
                 .Select(buffer => (buffer.Uri, buffer.Version)).ToList();
             foreach (var (uri, _) in affected)
             {
@@ -665,6 +685,7 @@ public sealed class LspServer
         DocumentBuffer buffer;
         ProjectContextEntry? entry;
         Task<DocumentInfo>? inspection = null;
+        long contextGeneration;
         var path = UriPath(uri);
         lock (stateGate)
         {
@@ -675,6 +696,7 @@ public sealed class LspServer
             }
 
             entry = ContextFor(uri);
+            contextGeneration = clientContextGeneration;
             if (IsMarkdown(buffer.LanguageId, buffer.Uri))
             {
                 // Reservation and buffer/context changes use the same lock, so
@@ -688,7 +710,7 @@ public sealed class LspServer
 
         if (IsMdx(buffer.LanguageId, buffer.Uri))
         {
-            await PublishMdxAsync(buffer, entry, cancellationToken).ConfigureAwait(false);
+            await PublishMdxAsync(buffer, entry, contextGeneration, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -712,25 +734,25 @@ public sealed class LspServer
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!buffers.TryGetValue(uri, out var latest) || !ReferenceEquals(latest, buffer)
-                || !ReferenceEquals(ContextFor(uri), entry))
+                || !ReferenceEquals(ContextFor(uri), entry) || clientContextGeneration != contextGeneration)
             {
                 return;
             }
 
             buffer.Inspection = info;
             buffer.InspectionContext = entry;
-            Publish(uri, version, diagnostics);
+            Publish(uri, version, diagnostics, buffer.OpenGeneration, contextGeneration);
         }
     }
 
-    private async Task PublishMdxAsync(DocumentBuffer buffer, ProjectContextEntry? entry, CancellationToken cancellationToken)
+    private async Task PublishMdxAsync(DocumentBuffer buffer, ProjectContextEntry? entry, long contextGeneration, CancellationToken cancellationToken)
     {
         MdxInspectionSession session;
         lock (stateGate)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!buffers.TryGetValue(buffer.Uri, out var current) || !ReferenceEquals(current, buffer)
-                || !ReferenceEquals(ContextFor(buffer.Uri), entry))
+                || !ReferenceEquals(ContextFor(buffer.Uri), entry) || clientContextGeneration != contextGeneration)
             {
                 return;
             }
@@ -763,7 +785,7 @@ public sealed class LspServer
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!buffers.TryGetValue(buffer.Uri, out var latest) || !ReferenceEquals(latest, buffer)
-                    || !ReferenceEquals(ContextFor(buffer.Uri), entry))
+                    || !ReferenceEquals(ContextFor(buffer.Uri), entry) || clientContextGeneration != contextGeneration)
                 {
                     return;
                 }
@@ -771,7 +793,7 @@ public sealed class LspServer
                 buffer.MdxInspection = null;
                 buffer.MdxInspectionCompleted = true;
                 buffer.InspectionContext = entry;
-                Publish(buffer.Uri, buffer.Version, []);
+                Publish(buffer.Uri, buffer.Version, [], buffer.OpenGeneration, contextGeneration);
             }
             return;
         }
@@ -787,7 +809,7 @@ public sealed class LspServer
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!buffers.TryGetValue(buffer.Uri, out var latest) || !ReferenceEquals(latest, buffer)
-                || !ReferenceEquals(ContextFor(buffer.Uri), entry))
+                || !ReferenceEquals(ContextFor(buffer.Uri), entry) || clientContextGeneration != contextGeneration)
             {
                 return;
             }
@@ -795,7 +817,7 @@ public sealed class LspServer
             buffer.MdxInspection = result;
             buffer.MdxInspectionCompleted = true;
             buffer.InspectionContext = entry;
-            Publish(buffer.Uri, buffer.Version, diagnostics);
+            Publish(buffer.Uri, buffer.Version, diagnostics, buffer.OpenGeneration, contextGeneration);
         }
     }
 
@@ -1032,14 +1054,14 @@ public sealed class LspServer
         };
     }
 
-    private void Publish(string uri, long version, object[] diagnostics)
+    private void Publish(string uri, long version, object[] diagnostics, long? openGeneration = null, long? contextGeneration = null)
     {
         object notification = version >= 0
             ? new
             {
                 jsonrpc = "2.0",
                 method = "textDocument/publishDiagnostics",
-                @params = new { uri, version, diagnostics },
+                @params = new { uri, version, diagnostics, lithosharpOpenGeneration = openGeneration, lithosharpContextGeneration = contextGeneration },
             }
             : new
             {
@@ -1185,6 +1207,16 @@ public sealed class LspServer
         }
 
         return false;
+    }
+
+    private static bool TryClientGeneration(JsonElement element, string name, out long? generation)
+    {
+        generation = null;
+        if (!element.TryGetProperty(name, out var value)) return true;
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var number)
+            || number < 0 || number > 9007199254740991) return false;
+        generation = number;
+        return true;
     }
 
     private static bool TryVersion(JsonElement element, out long version)

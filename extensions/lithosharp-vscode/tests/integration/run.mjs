@@ -123,9 +123,16 @@ let dependencyTarget = '';
 let packageVersion = '';
 let coreAssemblyHash = '';
 let packageProvenance;
+let externalNode;
 const helperHashes = {};
 const isolatedEnv = { LITHOSHARP_TEST_LOADED_CORE_RECEIPT: path.join(owned, 'loaded-core.json'), DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1', DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false' };
 if (installed) {
+  assert.equal(process.version, 'v24.13.0', 'Installed acceptance requires the external Node 24.13.0 runtime.');
+  const nodeExecutable = await fs.realpath(process.execPath);
+  const nodeVersion = (await exec(nodeExecutable, ['--version'], { windowsHide: true, timeout: 10000 })).stdout.trim();
+  assert.equal(nodeVersion, 'v24.13.0', 'Canonical external Node must preserve the exact locked runtime.');
+  externalNode = { file: nodeExecutable, sha256: await fileHash(nodeExecutable), version: nodeVersion };
+  settings['lithosharp.nodeExecutable'] = nodeExecutable;
   const archivePath = path.resolve(options.get('--installed-vsix'));
   archiveHash = options.get('--sha256').toLowerCase();
   assert.match(archiveHash, /^[a-f0-9]{64}$/);
@@ -282,7 +289,7 @@ if (installed) {
 }
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({
   platform: process.platform, arch: process.arch, hostVersion: hostVersion[0], hostCommit: hostVersion[1], hostArchitecture: hostVersion[2],
-  archiveHash, expectedExtension, developmentPath, testsPath, dependencyTarget, helperHashes,
+  archiveHash, expectedExtension, developmentPath, testsPath, dependencyTarget, helperHashes, externalNode,
   restartCheckRequired: true, payloadHashes, packageProvenance, userData, temporaryProfile: shortProfile,
 }, null, 2));
 await runTests({
@@ -299,6 +306,7 @@ await runTests({
   launchArgs: [workspace, '--new-window', ...profile, '--disable-gpu', '--disable-workspace-trust',
     '--disable-extension=vscode.markdown-language-features', ...(process.env.LITHOSHARP_VERBOSE === '1' ? ['--verbose'] : [])],
 });
+if (externalNode) assert.equal(await fileHash(externalNode.file), externalNode.sha256, 'Explicit external Node changed during acceptance.');
 const result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
 assert.ok(result.started && result.finished && result.tests === (installed ? 5 : 3), 'Test runner did not execute the complete acceptance suite.');
 assert.equal(result.failures, 0);

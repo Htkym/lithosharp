@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
@@ -317,6 +318,8 @@ public sealed class MdxIntegrationTests
     [Arguments("numeric-page-id")]
     [Arguments("object-page-css")]
     [Arguments("numeric-asset-bytes")]
+    [Arguments("invalid-base64-asset-bytes")]
+    [Arguments("inner-asset-hash-mismatch")]
     [Arguments("numeric-asset-import")]
     [Arguments("truncated")]
     [Arguments("hash-mismatch")]
@@ -387,6 +390,64 @@ public sealed class MdxIntegrationTests
         await Assert.That(mdx.Metrics.CacheHit).IsTrue();
     }
 
+
+    [Test]
+    [Arguments("invalid-base64")]
+    [Arguments("inner-hash-mismatch")]
+    public async Task InvalidLiveWorkerAssetFailsWithoutPublishingOrBecomingAnOptionalCacheHit(string corruption)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        var worker = Path.Combine(workspace.Root, "worker");
+        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
+        // Scripted successful protocol reply; these cases test bridge validation,
+        // not actual MDX/esbuild operation counts or compiler failure behavior.
+        await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), """
+            import {createInterface} from 'node:readline';
+            import {createHash} from 'node:crypto';
+            import path from 'node:path';
+            console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));
+            for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
+              const request=JSON.parse(line),page=request.pages[0],badEncoding=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION==='invalid-base64';
+              console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{
+                inputs:Object.entries(request.capturedInputs).map(([file,hash])=>({file:path.resolve(request.projectRoot,file),hash})),
+                assets:[{path:'asset.txt',bytes:badEncoding?'!':'',hash:badEncoding?createHash('sha256').update('').digest('hex'):'0'.repeat(64),imports:[]}],
+                pages:[{id:page.id,html:'<h1>UntrustedLiveAsset</h1>',text:'Page',entry:null,css:[],headings:[],links:[],islands:[],hydration:'selective',fallback:null}],
+                compiledModules:1,renderedPages:1,bundledPages:0,rebundledPages:[],
+                timings:{totalMilliseconds:1,serverBundleMilliseconds:1,browserBundleMilliseconds:0,renderMilliseconds:0},memory:{heapUsed:1}}}));
+            }
+            """);
+        var generator = new SiteGenerator();
+        var settings = new SiteSettings();
+        var output = Path.Combine(workspace.Root, "out");
+        await generator.GenerateWithOptionsAsync(settings, [], output, true, null,
+            new() { BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+        var before = HashOutput(output);
+        await using var mdx = new MdxSite(new(workspace.Root, worker)
+        {
+            Cacheable = true,
+            Hydration = "selective",
+            Environment = new Dictionary<string, string> { ["LITHOSHARP_TEST_ASSET_CORRUPTION"] = corruption },
+        });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
+            { TransformationFingerprint = "invalid-live-asset-test" });
+        Exception? failure = null;
+        try
+        {
+            await generator.GenerateWithOptionsAsync(settings, [], output, false, null,
+                new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+        }
+        catch (SiteBuildExtensionException error) when (corruption == "inner-hash-mismatch") { failure = error; }
+        catch (FormatException error) when (corruption == "invalid-base64") { failure = error; }
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        await Assert.That(mdx.Metrics.Work.RequestAttempts).IsEqualTo(1);
+        await Assert.That(mdx.Metrics.CacheHit).IsFalse();
+        await Assert.That(Directory.GetFiles(Path.Combine(workspace.Root, ".lithosharp", "mdx"), "*.json").Length).IsEqualTo(0);
+    }
+
     private static string CorruptCache(string original, string corruption)
     {
         if (corruption == "null-envelope") return "null";
@@ -406,6 +467,8 @@ public sealed class MdxIntegrationTests
             case "numeric-page-id": result["pages"]![0]!["id"] = 123; break;
             case "object-page-css": result["pages"]![0]!["css"] = new JsonObject(); break;
             case "numeric-asset-bytes": result["assets"]![0]!["bytes"] = 123; break;
+            case "invalid-base64-asset-bytes": result["assets"]![0]!["bytes"] = "!"; break;
+            case "inner-asset-hash-mismatch": result["assets"]![0]!["hash"] = new string('0', 64); break;
             case "numeric-asset-import": result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123)); break;
             case "hash-mismatch": envelope["hash"] = new string('0', 64); break;
             default: throw new ArgumentOutOfRangeException(nameof(corruption));

@@ -1036,4 +1036,42 @@ public sealed class LanguageServerTests
         Open(second, "file:///proj/b.md", "markdown", 1, "---\ntitle: U\n---\n# U\n");
         await WaitDiagnosticsAsync(second, "file:///proj/b.md", 1);
     }
+
+    [Test]
+    public async Task Diagnostics_EchoDocumentAndContextGenerationAcrossChangeAndEqualVersionReopen()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/generation-boundary.md";
+        void OpenGeneration(long generation) => client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "markdown", version = 1, text = "---\ntitle: T\n---\nSee [^missing].\n" },
+            lithosharpOpenGeneration = generation,
+        });
+        async Task<JsonElement> GenerationDiagnostics(long version, long open, long context) =>
+            await client.WaitForAsync(message =>
+                message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
+                && message.GetProperty("params").GetProperty("uri").GetString() == uri
+                && message.GetProperty("params").TryGetProperty("version", out var v) && v.GetInt64() == version
+                && message.GetProperty("params").GetProperty("lithosharpOpenGeneration").GetInt64() == open
+                && message.GetProperty("params").GetProperty("lithosharpContextGeneration").GetInt64() == context);
+        OpenGeneration(11);
+        await GenerationDiagnostics(1, 11, 0);
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 2 }, contentChanges = new[] { new { text = "---\ntitle: T\n---\n# Changed\n" } },
+        });
+        await GenerationDiagnostics(2, 11, 0);
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId = "docs", folders = new[] { "file:///proj" }, snapshot = (object?)null,
+            lithosharpContextGeneration = 1,
+        });
+        await GenerationDiagnostics(2, 11, 1); // Even syntax-only ownership needs a fresh verifiable publication.
+        client.SendNotification("textDocument/didClose", new { textDocument = new { uri } });
+        OpenGeneration(12);
+        var reopened = await GenerationDiagnostics(1, 12, 1);
+        await Assert.That(reopened.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
+            .Any(item => item.GetProperty("code").GetString() == "LIT001")).IsTrue();
+    }
 }

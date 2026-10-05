@@ -31,8 +31,11 @@ export class LspClient {
   private connection: LspConnection | undefined;
   private child: LspProcess | undefined;
   private requestSequence = 1;
+  private openGeneration = 0;
+  private contextGeneration = 0;
   private readonly buffers = new Map<string, {
     version: number;
+    generation: number;
     languageId: string;
     text: string;
     pending: { version: number; text: string } | null;
@@ -96,11 +99,12 @@ export class LspClient {
     connection.sendNotification('initialized', {});
     this.ready = true;
     for (const context of this.projectContexts.values()) {
-      connection.sendNotification('lithosharp/projectContext', context);
+      connection.sendNotification('lithosharp/projectContext', { ...context, lithosharpContextGeneration: this.contextGeneration });
     }
     for (const [uri, buffer] of this.buffers) {
       connection.sendNotification('textDocument/didOpen', {
         textDocument: { uri, languageId: buffer.languageId, version: buffer.version, text: buffer.text },
+        lithosharpOpenGeneration: buffer.generation,
       });
     }
     this.options.onState?.('ready');
@@ -160,8 +164,12 @@ export class LspClient {
     if (existing?.timer) {
       clearTimeout(existing.timer);
     }
+    if (!Number.isSafeInteger(this.openGeneration + 1)) {
+      throw new Error('LSP document generation exhausted.');
+    }
     const buffer = {
       version: document.version,
+      generation: ++this.openGeneration,
       languageId: document.languageId,
       text: document.text,
       pending: null,
@@ -171,6 +179,7 @@ export class LspClient {
     if (this.ready) {
       this.connection?.sendNotification('textDocument/didOpen', {
         textDocument: { uri: document.uri, languageId: document.languageId, version: document.version, text: document.text },
+        lithosharpOpenGeneration: buffer.generation,
       });
     }
   }
@@ -246,12 +255,11 @@ export class LspClient {
 
   /** Clears diagnostics for a deleted, renamed-away, or project-switched document. */
   forget(uri: string): void {
-    const buffer = this.buffers.get(uri);
-    if (buffer?.timer) {
-      clearTimeout(buffer.timer);
+    if (this.buffers.has(uri)) {
+      this.didClose(uri);
+    } else {
+      this.store.clear(uri);
     }
-    this.buffers.delete(uri);
-    this.store.clear(uri);
   }
 
   async requestSymbols(uri: string, onCancel?: (cancel: () => void) => void): Promise<SymbolData[]> {
@@ -262,9 +270,10 @@ export class LspClient {
     const connection = this.connection;
     const version = buffer.version;
     const text = buffer.text;
+    const contextGeneration = this.contextGeneration;
     this.flush(uri);
     if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
-        buffer.version !== version || buffer.text !== text) {
+        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration) {
       return [];
     }
     const id = this.nextId();
@@ -274,17 +283,22 @@ export class LspClient {
     onCancel?.(() => connection.cancelRequest(id));
     const result = await promise;
     if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
-        buffer.version !== version || buffer.text !== text) {
+        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration) {
       return [];
     }
     return mapSymbols(result);
   }
 
   sendProjectContext(projectId: string, folders: string[], snapshot: unknown | null): void {
+    if (!Number.isSafeInteger(this.contextGeneration + 1)) {
+      throw new Error('LSP project context generation exhausted.');
+    }
+    this.contextGeneration += 1;
+    this.store.clearAll();
     const context = { projectId, folders: [...folders], snapshot };
     this.projectContexts.set(projectId, context);
     if (this.ready) {
-      this.connection?.sendNotification('lithosharp/projectContext', context);
+      this.connection?.sendNotification('lithosharp/projectContext', { ...context, lithosharpContextGeneration: this.contextGeneration });
     }
   }
 
@@ -292,13 +306,15 @@ export class LspClient {
     if (method !== 'textDocument/publishDiagnostics' || typeof params !== 'object' || params === null) {
       return;
     }
-    const record = params as { uri?: unknown; version?: unknown; diagnostics?: unknown };
+    const record = params as { uri?: unknown; version?: unknown; diagnostics?: unknown; lithosharpOpenGeneration?: unknown; lithosharpContextGeneration?: unknown };
     if (typeof record.uri !== 'string' || !Array.isArray(record.diagnostics)) {
       return;
     }
     const buffer = this.buffers.get(record.uri);
     const version = typeof record.version === 'number' ? record.version : null;
-    if (!buffer || version !== buffer.version) {
+    if (!buffer || version !== buffer.version ||
+        record.lithosharpOpenGeneration !== buffer.generation ||
+        record.lithosharpContextGeneration !== this.contextGeneration) {
       return;
     }
     const diagnostics: LspDiagnosticData[] = [];

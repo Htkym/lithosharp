@@ -141,15 +141,22 @@ function New-TreeManifest([string] $Path, [string[]] $Exclude) {
     }
 }
 
-function Get-ManifestProperty($Manifest, [string] $Name, $Default) {
-    if ($null -eq $Manifest) { return $Default }
-    if ($Manifest -is [Collections.IDictionary]) {
-        if ($Manifest.Contains($Name)) { return $Manifest[$Name] }
-        return $Default
+function Get-ManifestProperty($Manifest, [string] $Name, $Default, [switch] $PreserveCollection) {
+    if ($null -eq $Manifest) { $value = $Default }
+    elseif ($Manifest -is [Collections.IDictionary]) {
+        if ($Manifest.Contains($Name)) { $value = $Manifest[$Name] }
+        else { $value = $Default }
     }
-    $property = $Manifest.PSObject.Properties[$Name]
-    if ($null -eq $property) { return $Default }
-    return $property.Value
+    else {
+        $property = $Manifest.PSObject.Properties[$Name]
+        if ($null -eq $property) { $value = $Default }
+        else { $value = $property.Value }
+    }
+    if ($PreserveCollection) {
+        if ($null -eq $value) { throw 'Manifest file records require a nonempty string path.' }
+        return ,$value
+    }
+    return $value
 }
 
 function ConvertTo-CategoryKeys($Items) {
@@ -178,9 +185,9 @@ function ConvertTo-CategoryCounts($Items) {
     return ,$counts
 }
 
-function New-OrdinalFileMap($Files) {
+function New-OrdinalFileMap([AllowEmptyCollection()] [object[]] $Files) {
     $map = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
-    foreach ($file in @($Files)) {
+    foreach ($file in $Files) {
         $path = Get-ManifestProperty $file 'path' $null
         if ($path -isnot [string] -or [string]::IsNullOrWhiteSpace($path)) { throw 'Manifest file records require a nonempty string path.' }
         if (!$map.TryAdd($path, [string](Get-ManifestProperty $file 'sha256' ''))) { throw 'Manifest contains a duplicate file path.' }
@@ -191,8 +198,8 @@ function New-OrdinalFileMap($Files) {
 function Compare-Manifest($ExpectedManifest, $ActualManifest) {
     $differences = [Collections.Generic.List[object]]::new()
 
-    $expectedFiles = New-OrdinalFileMap (Get-ManifestProperty $ExpectedManifest 'files' @())
-    $actualFiles = New-OrdinalFileMap (Get-ManifestProperty $ActualManifest 'files' @())
+    $expectedFiles = New-OrdinalFileMap (Get-ManifestProperty $ExpectedManifest 'files' @() -PreserveCollection)
+    $actualFiles = New-OrdinalFileMap (Get-ManifestProperty $ActualManifest 'files' @() -PreserveCollection)
     foreach ($path in ($expectedFiles.Keys | Sort-Object)) {
         if (!$actualFiles.ContainsKey($path)) { $differences.Add([ordered]@{ category = 'files'; kind = 'missing'; path = $path }) }
         elseif ($expectedFiles[$path] -cne $actualFiles[$path]) {

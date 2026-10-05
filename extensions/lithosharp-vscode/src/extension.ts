@@ -729,13 +729,17 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!disposed && generation === lspGeneration) output.appendLine(`MDX worker resolution failed: ${String(error)}. Markdown diagnostics keep working.`);
     }
     if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) return undefined;
+    const nodeExecutable = vscode.workspace.getConfiguration('lithosharp').get<string>('nodeExecutable', '').trim();
     const client: LspClient = new LspClient(
       {
         serverCommand,
         cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
         spawn: (command, cwd) => spawnProcess(command, cwd),
         debounceMs: vscode.workspace.getConfiguration('lithosharp').get<number>('diagnosticDebounceMs', 150),
-        initializationOptions: workerDirectory === '' ? {} : { workerDirectory },
+        initializationOptions: {
+          ...(workerDirectory === '' ? {} : { workerDirectory }),
+          ...(nodeExecutable === '' ? {} : { nodeExecutable }),
+        },
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => { if (!disposed) output.appendLine(line); },
         onState: (name) => {

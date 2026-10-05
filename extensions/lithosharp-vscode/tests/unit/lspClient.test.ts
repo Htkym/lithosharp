@@ -89,13 +89,15 @@ function scripted(options: { publish?: (uri: string, version: number) => object[
           );
         });
       } else if (message.method === 'textDocument/didOpen') {
-        const params = message.params as { textDocument: { uri: string; version: number } };
+        const params = message.params as { textDocument: { uri: string; version: number }; lithosharpOpenGeneration: number };
         const uri = params.textDocument.uri;
         const version = params.textDocument.version;
         const diagnostics = options.publish ? options.publish(uri, version) : [];
+        const contextGeneration = generationOf(child, uri).context;
         setImmediate(() => {
           child.reply(
-            frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: { uri, version, diagnostics } })),
+            frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: { uri, version, diagnostics, lithosharpOpenGeneration: params.lithosharpOpenGeneration,
+              lithosharpContextGeneration: contextGeneration } })),
           );
         });
       }
@@ -279,9 +281,18 @@ const diagnostic: LspDiagnosticData = {
   range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
   severity: 1, code: 'LSQ001', source: 'lithosharp', message: 'actual client frame',
 };
-function publish(child: ScriptedChild, uri: string, version?: number): void {
+function generationOf(child: ScriptedChild, uri: string): { open: number; context: number } {
+  const messages = child.written.map((line) => JSON.parse(line.slice(line.indexOf('{'))) as {
+    method?: string; params?: { textDocument?: { uri?: string }; lithosharpOpenGeneration?: number; lithosharpContextGeneration?: number };
+  });
+  const opened = messages.filter((message) => message.method === 'textDocument/didOpen' && message.params?.textDocument?.uri === uri).at(-1);
+  const context = messages.filter((message) => message.method === 'lithosharp/projectContext').at(-1);
+  return { open: opened?.params?.lithosharpOpenGeneration ?? 0, context: context?.params?.lithosharpContextGeneration ?? 0 };
+}
+function publish(child: ScriptedChild, uri: string, version?: number, generation = generationOf(child, uri)): void {
   child.reply(frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics',
-    params: { uri, ...(version === undefined ? {} : { version }), diagnostics: [diagnostic] } })));
+    params: { uri, ...(version === undefined ? {} : { version }), diagnostics: [diagnostic],
+      lithosharpOpenGeneration: generation.open, lithosharpContextGeneration: generation.context } })));
 }
 
 test('stop terminates an EOF-ignoring owned child and settles its pending symbols', async () => {
@@ -460,4 +471,116 @@ test('close and reopen with equal revision/text cannot adopt a previous buffer s
   releaseSymbol(double.child, double.child.requests.at(-1)!.id, 'Current lifetime');
   assert.equal((await reopened)[0]?.name, 'Current lifetime');
   client.stop();
+});
+
+
+test('forget closes a server buffer exactly once and rejects its late diagnostics', async () => {
+  const double = scripted({ symbolsPending: true });
+  const { client, visible } = freshnessClient(double);
+  const uri = 'file:///deleted-or-renamed.mdx';
+  await client.start();
+  try {
+    client.didOpen({ uri, languageId: 'mdx', version: 1, text: '# Before rename' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    publish(double.child, uri, 1);
+    assert.equal(visible.get(uri)?.length, 1, 'The open server buffer receives diagnostics.');
+    const pendingSymbols = client.requestSymbols(uri);
+    const requestId = double.child.requests.at(-1)!.id;
+    client.didChange(uri, 2, '# Queued before deletion');
+    client.forget(uri);
+    client.didClose(uri); // VS Code may subsequently report the same close.
+    client.forget(uri); // Duplicate filesystem notifications remain idempotent.
+    client.flush(uri);
+    releaseSymbol(double.child, requestId, 'Forgotten lifetime');
+    const forgottenSymbols = await pendingSymbols;
+    const messages = double.child.written.map((line) => JSON.parse(line.slice(line.indexOf('{'))) as {
+      method?: string; params?: { textDocument?: { uri?: string } };
+    });
+    const documentMessages = messages.filter((message) => message.params?.textDocument?.uri === uri);
+    assert.equal(documentMessages.filter((message) => message.method === 'textDocument/didOpen').length, 1);
+    assert.equal(documentMessages.filter((message) => message.method === 'textDocument/didClose').length, 1,
+      'Forgetting must release the existing server buffer; later close must not duplicate it.');
+    assert.equal(documentMessages.filter((message) => message.method === 'textDocument/didChange').length, 0,
+      'The queued change must be discarded when the document is forgotten.');
+    publish(double.child, uri, 2);
+    publish(double.child, uri);
+    assert.equal(visible.has(uri), false, 'An absent buffer cannot resurrect Problems.');
+    assert.deepEqual(forgottenSymbols, [], 'Awaited symbols from the forgotten buffer must be discarded.');
+  } finally {
+    client.stop();
+  }
+});
+
+test('forget before startup prevents replay and permits a fresh document lifetime', async () => {
+  const double = scripted();
+  const { client, visible } = freshnessClient(double);
+  const uri = 'file:///forgotten-before-start.md';
+  client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Removed' });
+  client.forget(uri);
+  await client.start();
+  try {
+    assert.ok(!double.child.written.some((line) => line.includes('textDocument/didOpen')),
+      'A document forgotten before readiness must not be replayed to the server.');
+    assert.ok(!double.child.written.some((line) => line.includes('textDocument/didClose')),
+      'A document never opened on this server needs no close notification.');
+    client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Recreated' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    publish(double.child, uri, 1);
+    assert.equal(visible.get(uri)?.length, 1, 'A recreated file may start a new version-one lifetime.');
+    client.didClose(uri);
+  } finally {
+    client.stop();
+  }
+});
+
+
+test('context withdrawal and replacement reject held symbols and publications without a stale interval', async () => {
+  for (const snapshot of [null, { replacement: true }]) {
+    const double = scripted({ symbolsPending: true });
+    const { client, visible } = freshnessClient(double);
+    const uri = 'file:///project-context.md';
+    await client.start();
+    try {
+      client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Same revision' });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const oldGeneration = generationOf(double.child, uri);
+      publish(double.child, uri, 1, oldGeneration);
+      assert.equal(visible.get(uri)?.length, 1);
+      const held = client.requestSymbols(uri);
+      const heldId = double.child.requests.at(-1)!.id;
+      client.sendProjectContext('docs', ['file:///'], snapshot);
+      assert.equal(visible.has(uri), false, 'Context updates clear displayed old Problems immediately.');
+      publish(double.child, uri, 1, oldGeneration);
+      assert.equal(visible.has(uri), false, 'Held old-context diagnostics cannot be adopted, even temporarily.');
+      releaseSymbol(double.child, heldId, 'Old project context');
+      assert.deepEqual(await held, [], 'Held symbols cannot cross project context epochs.');
+      publish(double.child, uri, 1);
+      assert.equal(visible.get(uri)?.length, 1, 'Current-context diagnostics remain available.');
+      const current = client.requestSymbols(uri);
+      releaseSymbol(double.child, double.child.requests.at(-1)!.id, 'Current project context');
+      assert.equal((await current)[0]?.name, 'Current project context');
+    } finally {
+      client.stop();
+    }
+  }
+});
+
+test('equal-version reopen rejects a held diagnostic from the previous document lifetime', async () => {
+  const double = scripted();
+  const { client, visible } = freshnessClient(double);
+  const uri = 'file:///same-version-reopen.md';
+  await client.start();
+  try {
+    client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Same text' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const oldGeneration = generationOf(double.child, uri);
+    client.didClose(uri);
+    client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Same text' });
+    publish(double.child, uri, 1, oldGeneration);
+    assert.equal(visible.has(uri), false, 'Old version one must never populate the new version-one lifetime.');
+    publish(double.child, uri, 1);
+    assert.equal(visible.get(uri)?.length, 1, 'Only the newly opened generation may publish.');
+  } finally {
+    client.stop();
+  }
 });

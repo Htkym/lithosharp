@@ -152,7 +152,7 @@ test('configuration change refreshes the project state', async () => {
 
 
 /** A real LspClient/connection, with only worker discovery and process I/O controlled. */
-async function delayedActivation(options: { initializeError?: boolean; strictOutput?: boolean; holdSymbols?: boolean; holdFirstInitialize?: boolean; holdInitializeCommand?: string; exitOnClose?: boolean; onSymbolResponse?: () => void } = {}) {
+async function delayedActivation(options: { nodeExecutable?: string; initializeError?: boolean; strictOutput?: boolean; holdSymbols?: boolean; holdFirstInitialize?: boolean; holdInitializeCommand?: string; exitOnClose?: boolean; onSymbolResponse?: () => void } = {}) {
   const fake = createFakeVscode();
   const diagnosticSets: { uri: string; diagnostics: unknown[] }[] = [];
   fake.languages.createDiagnosticCollection = () => ({
@@ -169,6 +169,7 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     };
   }
   fake.settings['languageServerPath'] = '/first-language-server';
+  if (options.nodeExecutable !== undefined) fake.settings['nodeExecutable'] = options.nodeExecutable;
   const document = { uri: { fsPath: '/note.md', toString: () => 'file:///note.md' },
     languageId: 'markdown', version: 1, isClosed: false, getText: () => '# Heading\n' };
   fake.workspaceApi.textDocuments.push(document);
@@ -206,7 +207,7 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     if (++discoveries === 1) { entered(); await discovery; }
     return { source: 'none', directory: '', lockHash: null, ready: false };
   };
-  type Message = { id?: number; method?: string; params?: { textDocument?: { uri: string; version: number; text?: string } } };
+  type Message = { id?: number; method?: string; params?: { textDocument?: { uri: string; version: number; text?: string }; lithosharpOpenGeneration?: number; lithosharpContextGeneration?: number } };
   const spawns: { command: string[]; messages: Message[]; closed: boolean; exit(code: number | null): void }[] = [];
   processModule.spawnProcess = (command) => {
     const record = { command: [...command], messages: [] as Message[], closed: false,
@@ -214,15 +215,21 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     spawns.push(record);
     const stdout: ((chunk: Buffer) => void)[] = [];
     const exits: ((code: number | null) => void)[] = [];
+    let contextGeneration = 0;
     return {
       pid: undefined,
       stdinWrite: (frame) => {
         const message = JSON.parse(frame.slice(frame.indexOf('{'))) as Message;
         record.messages.push(message);
+        if (message.method === 'lithosharp/projectContext') {
+          contextGeneration = message.params!.lithosharpContextGeneration!;
+        }
         if (message.method === 'textDocument/didOpen') {
           const doc = message.params!.textDocument!;
           const body = JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: {
-            uri: doc.uri, version: doc.version, diagnostics: [{ code: 'LIT001', message: `controlled-${doc.version}`,
+            uri: doc.uri, version: doc.version,
+            lithosharpOpenGeneration: message.params!.lithosharpOpenGeneration,
+            lithosharpContextGeneration: contextGeneration, diagnostics: [{ code: 'LIT001', message: `controlled-${doc.version}`,
               severity: 1, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } } }],
           } });
           const frame = Buffer.from('Content-Length: ' + Buffer.byteLength(body) + '\r\n\r\n' + body);
@@ -273,6 +280,23 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
       worker.resolveWorker = originalResolve;
       processModule.spawnProcess = originalSpawn;
     } };
+}
+
+
+for (const nodeExecutable of ['', ' /opt/locked Node/node ', ' C:\\locked Node\\node.exe ']) {
+  test(`LSP initialize forwards only an explicit trusted external Node: ${nodeExecutable || 'default'}`, async () => {
+    const host = await delayedActivation({ nodeExecutable });
+    try {
+      host.release();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(host.spawns.length, 1);
+      const initialize = host.spawns[0]!.messages.find((message) => message.method === 'initialize');
+      assert.ok(initialize);
+      const options = (initialize.params as unknown as { initializationOptions: Record<string, unknown> }).initializationOptions;
+      assert.deepEqual(options, nodeExecutable.trim() === '' ? {} : { nodeExecutable: nodeExecutable.trim() });
+      assert.deepEqual(host.spawns[0]!.command, ['/first-language-server']);
+    } finally { host.cleanup(); }
+  });
 }
 
 for (const event of ['edit', 'open', 'save'] as const) {
