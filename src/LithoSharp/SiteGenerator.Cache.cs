@@ -126,6 +126,10 @@ public sealed partial class SiteGenerator
         return ordinary;
     }
 
+    // Namespace identity is used only for comparisons; caller I/O paths stay unchanged.
+    internal static string NormalizePathComparisonIdentity(string path) =>
+        OperatingSystem.IsWindows() ? NormalizeWindowsCacheNamespacePath(path) : path;
+
     private static bool IsWindowsCacheDeviceName(string segment)
     {
         var name = segment.Split('.')[0].TrimEnd(' ');
@@ -200,6 +204,10 @@ public sealed partial class SiteGenerator
         _ = NormalizeWindowsCacheNamespacePath(outputRoot);
         if (options?.BuildCacheDirectory is { } cache) _ = NormalizeWindowsCacheNamespacePath(cache);
         if (options?.PublicDirectory is { } publicRoot) _ = NormalizeWindowsCacheNamespacePath(publicRoot);
+        if (options?.AssetCacheDirectory is { } assetCache) _ = NormalizeWindowsCacheNamespacePath(assetCache);
+        if (options?.Quality?.ExternalLinks is { } links) _ = NormalizeWindowsCacheNamespacePath(links.CacheFilePath);
+        foreach (var asset in options?.Assets ?? [])
+            if (asset is not null) _ = NormalizeWindowsCacheNamespacePath(asset.InputRoot);
     }
 
     private static void ValidateCachePathAncestry(string outputRoot, SiteGenerationOptions? options)

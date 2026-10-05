@@ -974,6 +974,286 @@ public sealed class SiteGeneratorCacheTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "cache", "index.html"))).Contains("namespace second");
     }
 
+
+    [Test]
+    [Arguments("asset", false)]
+    [Arguments("asset", true)]
+    [Arguments("external-cache-output", false)]
+    [Arguments("external-cache-output", true)]
+    [Arguments("asset-cache-output", false)]
+    [Arguments("asset-cache-output", true)]
+    [Arguments("public-same-output", false)]
+    [Arguments("public-same-output", true)]
+    [Arguments("public-child-output", false)]
+    [Arguments("public-child-output", true)]
+    [Arguments("public-parent-output", false)]
+    [Arguments("public-parent-output", true)]
+    [Arguments("asset-cache-public", false)]
+    [Arguments("asset-cache-public", true)]
+    [Arguments("external-cache-public", false)]
+    [Arguments("external-cache-public", true)]
+    public async Task Lsr21OppositeNamespaceInputMustBeRejectedBeforePublication(string inputKind, bool extendedOutput)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        using var cacheWorkspace = new TemporaryWorkspace();
+        var physicalOutput = Path.Combine(workspace.Root, "out");
+        Directory.CreateDirectory(physicalOutput);
+        var sourceCanary = Path.Combine(physicalOutput, "source.bin");
+        var publishedCanary = Path.Combine(physicalOutput, "published.html");
+        var sourceBytes = new byte[] { 0, 1, 2, 255, 13, 10, 42 };
+        await File.WriteAllBytesAsync(sourceCanary, sourceBytes);
+        await File.WriteAllTextAsync(publishedCanary, "prior published input canary");
+        var output = extendedOutput ? ExtendedCacheFixturePath(physicalOutput) : physicalOutput;
+        string InputSpelling(string path) => extendedOutput ? path : ExtendedCacheFixturePath(path);
+        var publicRoot = Path.Combine(workspace.Root, "public");
+        Directory.CreateDirectory(publicRoot);
+        var publicCanary = Path.Combine(publicRoot, "public.txt");
+        await File.WriteAllTextAsync(publicCanary, "public input canary");
+        var extension = new CacheAdmissionExtensionProbe();
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = Path.Combine(cacheWorkspace.Root, "safe-cache"),
+            Extensions = [extension],
+        };
+        options = inputKind switch
+        {
+            "asset" => options with { Assets = [new SiteAsset("canary", InputSpelling(physicalOutput), "source.bin", "assets/source.bin")] },
+            "external-cache-output" => options with { Quality = new LithoSharp.Quality.SiteQualityOptions(checkOrphans: false,
+                externalLinks: new LithoSharp.Quality.ExternalLinkCheckOptions(InputSpelling(Path.Combine(physicalOutput, "links.json")))) },
+            "asset-cache-output" => options with { AssetCacheDirectory = InputSpelling(Path.Combine(physicalOutput, "asset-cache")) },
+            "public-same-output" => options with { PublicDirectory = InputSpelling(physicalOutput) },
+            "public-child-output" => options with { PublicDirectory = InputSpelling(Path.Combine(physicalOutput, "public-child")) },
+            "public-parent-output" => options with { PublicDirectory = InputSpelling(workspace.Root) },
+            "asset-cache-public" => options with { PublicDirectory = extendedOutput ? ExtendedCacheFixturePath(publicRoot) : publicRoot,
+                AssetCacheDirectory = InputSpelling(Path.Combine(publicRoot, "asset-cache")) },
+            "external-cache-public" => options with { PublicDirectory = extendedOutput ? ExtendedCacheFixturePath(publicRoot) : publicRoot,
+                Quality = new LithoSharp.Quality.SiteQualityOptions(checkOrphans: false,
+                    externalLinks: new LithoSharp.Quality.ExternalLinkCheckOptions(InputSpelling(Path.Combine(publicRoot, "links.json")))) },
+            _ => throw new InvalidOperationException("Unknown owned input fixture."),
+        };
+        if (inputKind == "public-child-output") Directory.CreateDirectory(Path.Combine(physicalOutput, "public-child"));
+        var before = ObserveLsrCanaries(sourceCanary, publishedCanary, publicCanary);
+        var beforeTree = SnapshotCacheCanaryTree(workspace.Root);
+        var sourceStamp = File.GetLastWriteTimeUtc(sourceCanary);
+        Exception? generationFailure = null;
+        var generationCompleted = false;
+        try
+        {
+            await new SiteGenerator().GenerateWithOptionsAsync(
+                new SiteSettings { BaseUrl = "https://example.test/" }, [Post()], output, clean: true,
+                new SiteCustomization { Template = new BlogSiteTemplate() }, options, CancellationToken.None);
+            generationCompleted = true;
+        }
+        catch (Exception exception) { generationFailure = exception; }
+        finally
+        {
+            WriteLsrCanaryObservation("LSR21", inputKind, extendedOutput, generationCompleted, generationFailure,
+                extension.Calls, before, ObserveLsrCanaries(sourceCanary, publishedCanary, publicCanary));
+        }
+        await Assert.That(generationFailure is ArgumentException).IsTrue();
+        var expectedGuardMessage = inputKind switch
+        {
+            "asset" => "Asset input files must be outside the output directory.",
+            "external-cache-output" => "The external link cache must be outside the site output directory.",
+            "asset-cache-output" => "The asset cache must be outside the output directory.",
+            "asset-cache-public" => "The asset cache must be outside the public input directory.",
+            "external-cache-public" => "The external link cache must be outside the public input directory.",
+            _ => "The public input directory and output directory must not overlap.",
+        };
+        await Assert.That(generationFailure?.Message ?? "").Contains(expectedGuardMessage);
+        await Assert.That(generationCompleted).IsFalse();
+        await Assert.That(extension.Calls).IsEqualTo(0);
+        await Assert.That(File.Exists(sourceCanary)).IsTrue();
+        await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(sourceCanary)))
+            .IsEqualTo(Convert.ToHexString(sourceBytes));
+        await Assert.That(File.GetLastWriteTimeUtc(sourceCanary)).IsEqualTo(sourceStamp);
+        await Assert.That(SnapshotCacheCanaryTree(workspace.Root)).IsEqualTo(beforeTree);
+        await Assert.That(ObserveLsrCanaries(sourceCanary, publishedCanary, publicCanary)).IsEqualTo(before);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Lsr23QualityReadsExtendedOutputOnUnchangedCacheHit(bool explicitExtendedCache)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var physicalOutput = Path.Combine(workspace.Root, "out");
+        var output = ExtendedCacheFixturePath(physicalOutput);
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp,
+            BuildCacheDirectory = explicitExtendedCache ? ExtendedCacheFixturePath(Path.Combine(workspace.Root, "cache")) : null,
+            Quality = new LithoSharp.Quality.SiteQualityOptions(checkOrphans: false),
+        };
+        var settings = new SiteSettings { BaseUrl = "https://example.test/" };
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var first = await ObserveLsrInitialGenerationAsync(explicitExtendedCache,
+            [Path.Combine(physicalOutput, "posts", "alpha.html"), Path.Combine(physicalOutput, "search-index.json")],
+            () => new SiteGenerator().GenerateWithOptionsAsync(settings, [Post()], output,
+                clean: true, customization, options, CancellationToken.None));
+        var page = Path.Combine(physicalOutput, "posts", "alpha.html");
+        var search = Path.Combine(physicalOutput, "search-index.json");
+        var before = ObserveLsrCanaries(page, search);
+        Exception? failure = null;
+        var completed = false;
+        try
+        {
+            var second = await new SiteGenerator().GenerateWithOptionsAsync(settings, [Post()], output,
+                clean: false, customization, options with { PreviousBuildPlan = first.BuildPlan }, CancellationToken.None);
+            completed = true;
+            await Assert.That(second.BuildReport.CacheHitCount).IsGreaterThan(0);
+            await Assert.That(second.BuildReport.Nodes.Single(node => node.NodeId == "index:search").CacheHit).IsTrue();
+            await Assert.That(second.QualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= SiteDiagnosticSeverity.Error)).IsFalse();
+            await Assert.That(ObserveLsrCanaries(page, search)).IsEqualTo(before);
+        }
+        catch (Exception exception) { failure = exception; throw; }
+        finally { WriteLsrCanaryObservation("LSR23-quality", "unchanged", explicitExtendedCache, completed, failure, 0, before, ObserveLsrCanaries(page, search)); }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Lsr23CollectionSearchReadsCachedBodyThroughExtendedOutput(bool explicitExtendedCache)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var physicalOutput = Path.Combine(workspace.Root, "out");
+        var output = ExtendedCacheFixturePath(physicalOutput);
+        var renders = 0;
+        const string collectionBody = "# Collection\n\nLSR23CachedCollectionBodyMarker";
+        var collection = Lsr23CacheCollection(collectionBody, (entry, context) =>
+        {
+            renders++;
+            return context.RenderDocument(entry.Body);
+        });
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, ContentCollections = [collection],
+            BuildCacheDirectory = explicitExtendedCache ? ExtendedCacheFixturePath(Path.Combine(workspace.Root, "cache")) : null,
+        };
+        var settings = new SiteSettings { BaseUrl = "https://example.test/" };
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var first = await ObserveLsrInitialGenerationAsync(explicitExtendedCache,
+            [Path.Combine(physicalOutput, "posts", "alpha.html"), Path.Combine(physicalOutput, "search-index.json")],
+            () => new SiteGenerator().GenerateWithOptionsAsync(settings, [Post()], output,
+                clean: true, customization, options, CancellationToken.None));
+        await Assert.That(renders).IsEqualTo(1);
+        var page = Path.Combine(physicalOutput, "cache", "index.html");
+        var search = Path.Combine(physicalOutput, "search-index.json");
+        var before = ObserveLsrCanaries(page, search);
+        Exception? failure = null;
+        var completed = false;
+        try
+        {
+            var second = await new SiteGenerator().GenerateWithOptionsAsync(settings, [Post()], output,
+                clean: false, customization, options with { PreviousBuildPlan = first.BuildPlan }, CancellationToken.None);
+            await Assert.That(second.BuildReport.CacheHitCount).IsGreaterThan(0);
+            await Assert.That(second.BuildReport.Nodes.Single(node => node.NodeId == "index:search").CacheHit).IsTrue();
+            await Assert.That(renders).IsEqualTo(1);
+            await Assert.That(ObserveLsrCanaries(page, search)).IsEqualTo(before);
+            var changed = Post() with { MarkdownBody = Post().MarkdownBody + "\n\nLSR23ChangedPostBodyMarker" };
+            var third = await new SiteGenerator().GenerateWithOptionsAsync(settings, [changed], output,
+                clean: false, customization, options with { PreviousBuildPlan = second.BuildPlan }, CancellationToken.None);
+            await Assert.That(third.BuildReport.Nodes.Single(node => node.NodeId == "index:search").CacheHit).IsFalse();
+            await Assert.That(renders).IsEqualTo(1);
+            var searchText = await File.ReadAllTextAsync(search);
+            await Assert.That(searchText).Contains("LSR23CachedCollectionBodyMarker");
+            await Assert.That(searchText).Contains("LSR23ChangedPostBodyMarker");
+            var cleanOutput = Path.Combine(workspace.Root, "clean-reference");
+            var cleanCollection = Lsr23CacheCollection(collectionBody, (entry, context) => context.RenderDocument(entry.Body));
+            await new SiteGenerator().GenerateWithOptionsAsync(settings, [changed], cleanOutput,
+                clean: true, customization, options with { ContentCollections = [cleanCollection], PreviousBuildPlan = null }, CancellationToken.None);
+            await Assert.That(searchText).IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "search-index.json")));
+            await Assert.That(await File.ReadAllTextAsync(page))
+                .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(cleanOutput, "cache", "index.html")));
+            completed = true;
+        }
+        catch (Exception exception) { failure = exception; throw; }
+        finally { WriteLsrCanaryObservation("LSR23-collection", "changed-search", explicitExtendedCache, completed, failure, renders, before, ObserveLsrCanaries(page, search)); }
+    }
+
+
+    private static SiteContentCollection<string, string> Lsr23CacheCollection(
+        string body,
+        ContentPageRenderer<string, string> renderer) =>
+        new(new ContentCollection<string, string>(new("cache-lock"), Path.GetTempPath(),
+            [new(new("entry"), "entry.md", Convert.ToHexStringLower(
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(body))), "Cache lock", body)],
+            _ => SiteRoute.ForDirectoryIndex("cache"), entry => new PageMetadata(entry.FrontMatter),
+            transformationId: new("cache-lock:1"), isCacheable: true), renderer)
+        { RendererFingerprint = "cache-lock-renderer:1", IsThreadSafe = false };
+
+    private static async Task<SiteGenerationResult> ObserveLsrInitialGenerationAsync(bool explicitExtendedCache,
+        string[] files, Func<Task<SiteGenerationResult>> generate)
+    {
+        var before = ObserveLsrCanaries(files);
+        Exception? failure = null;
+        var completed = false;
+        try
+        {
+            var result = await generate();
+            completed = true;
+            return result;
+        }
+        catch (Exception exception) { failure = exception; throw; }
+        finally { WriteLsrCanaryObservation("LSR23-initial", "cold", explicitExtendedCache, completed, failure, 0, before, ObserveLsrCanaries(files)); }
+    }
+
+    private static string ObserveLsrCanaries(params string[] files)
+        => System.Text.Json.JsonSerializer.Serialize(files.Select((file, index) =>
+        {
+            try
+            {
+                var exists = File.Exists(file);
+                return new { index, exists, bytes = exists ? new FileInfo(file).Length : -1,
+                    sha256 = exists ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file))) : null,
+                    lastWriteUtcTicks = exists ? File.GetLastWriteTimeUtc(file).Ticks : (long?)null, error = (string?)null };
+            }
+            catch (Exception exception)
+            {
+                return new { index, exists = false, bytes = -1L, sha256 = (string?)null,
+                    lastWriteUtcTicks = (long?)null, error = exception.GetType().Name };
+            }
+        }).ToArray());
+
+    private static void WriteLsrCanaryObservation(string issue, string fixture, bool orientation,
+        bool generationCompleted, Exception? failure, int calls, string before, string after)
+    {
+        // Observations remain available when the following test assertions fail. No fixture paths or input text are logged.
+        try
+        {
+            Console.WriteLine("LSR_CANARY " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                issue, fixture, orientation, generationCompleted, exception = failure?.GetType().Name,
+                observationError = (string?)null, calls, before = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(before),
+                after = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(after),
+            }));
+        }
+        catch (Exception observationFailure)
+        {
+            Exception? markerFailure = null;
+            try
+            {
+                var message = observationFailure.Message;
+                Console.Error.WriteLine("LSR_CANARY_OBSERVATION_ERROR " + System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    issue, fixture, orientation, observationError = observationFailure.GetType().Name,
+                    secondaryMessage = message.Length > 512 ? message[..512] : message,
+                    primaryException = failure?.GetType().Name,
+                }));
+            }
+            catch (Exception secondaryMarkerFailure) { markerFailure = secondaryMarkerFailure; }
+            if (failure is not null)
+                throw new AggregateException("Generation and canary observation both failed.", markerFailure is null
+                    ? new Exception[] { failure, observationFailure } : new Exception[] { failure, observationFailure, markerFailure });
+            if (markerFailure is not null)
+                throw new AggregateException("Canary observation and its error marker both failed.", observationFailure, markerFailure);
+            throw;
+        }
+    }
+
     private static MarkdownPost Post() => new(
         "content/alpha.md",
         "alpha",

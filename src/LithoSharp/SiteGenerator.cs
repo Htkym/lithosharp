@@ -253,7 +253,7 @@ public sealed partial class SiteGenerator
         foreach (var asset in options.Assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
-            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath))))
+            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath.Replace('/', Path.DirectorySeparatorChar)))))
                 throw new ArgumentException("Asset input files must be outside the output directory.", nameof(options));
         }
         if (options.Quality?.ExternalLinks is { } external)
@@ -2286,7 +2286,8 @@ public sealed partial class SiteGenerator
 
     private static bool ContainsDirectory(string root, string path)
     {
-        root = Path.TrimEndingDirectorySeparator(root);
+        root = Path.TrimEndingDirectorySeparator(NormalizePathComparisonIdentity(root));
+        path = NormalizePathComparisonIdentity(path);
         return string.Equals(root, Path.TrimEndingDirectorySeparator(path), PathComparison)
             || path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, PathComparison);
     }
@@ -2294,44 +2295,8 @@ public sealed partial class SiteGenerator
     private static FileStream OpenVerifiedContainedOutputRead(
         string outputRoot,
         string path,
-        bool asynchronous = false)
-    {
-        if (!OperatingSystem.IsWindows()
-            || !outputRoot.StartsWith(@"\\?\", StringComparison.Ordinal))
-        {
-            return BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, path, asynchronous);
-        }
-
-        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
-        var fullPath = Path.GetFullPath(path);
-        EnsureContainedPathHasNoNameSurrogateReparsePoints(fullRoot, fullPath);
-
-        var stream = new FileStream(
-            fullPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: asynchronous ? 1 : 81920,
-            FileOptions.SequentialScan
-                | (asynchronous ? FileOptions.Asynchronous : FileOptions.None));
-        var verified = false;
-        try
-        {
-            BuildInputFingerprint.VerifyOpenedContainedFile(
-                NormalizeWindowsCacheNamespacePath(fullRoot),
-                NormalizeWindowsCacheNamespacePath(fullPath),
-                stream.SafeFileHandle);
-            verified = true;
-            return stream;
-        }
-        finally
-        {
-            if (!verified)
-            {
-                stream.Dispose();
-            }
-        }
-    }
+        bool asynchronous = false) =>
+        BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, path, asynchronous);
 
     private static async Task WriteBinaryAssetAsync(string outputRoot, string relativePath, byte[] contents, List<string> generated, CancellationToken cancellationToken)
     {
@@ -4352,8 +4317,8 @@ public sealed partial class SiteGenerator
                     $".lithosharp-ownership-{lockIdentity}-{outputIdentity}.json",
                     StringComparison.Ordinal);
             if (!string.Equals(
-                    Path.GetDirectoryName(fullPath),
-                    parentRoot,
+                    NormalizePathComparisonIdentity(Path.GetDirectoryName(fullPath)!),
+                    NormalizePathComparisonIdentity(parentRoot),
                     PathComparison)
                 || !validName)
             {
@@ -4391,8 +4356,8 @@ public sealed partial class SiteGenerator
             var expectedPrefix =
                 $".lithosharp-{kind}-{lockIdentity}-";
             if (!string.Equals(
-                    Path.GetDirectoryName(fullPath),
-                    parentRoot,
+                    NormalizePathComparisonIdentity(Path.GetDirectoryName(fullPath)!),
+                    NormalizePathComparisonIdentity(parentRoot),
                     PathComparison)
                 || !Path.GetFileName(fullPath).StartsWith(
                     expectedPrefix,
@@ -4426,6 +4391,16 @@ public sealed partial class SiteGenerator
         private static async Task MoveDirectoryWithRetriesAsync(            string source,
             string destination)
         {
+            // Directory.Move compares roots before reaching Win32. Equivalent
+            // ordinary and extended roots must use one spelling for this move.
+            if (OperatingSystem.IsWindows()
+                && source.StartsWith(@"\\?\", StringComparison.Ordinal)
+                    != destination.StartsWith(@"\\?\", StringComparison.Ordinal))
+            {
+                source = NormalizeWindowsCacheNamespacePath(source);
+                destination = NormalizeWindowsCacheNamespacePath(destination);
+            }
+
             for (var attempt = 0; ; attempt++)
             {
                 try

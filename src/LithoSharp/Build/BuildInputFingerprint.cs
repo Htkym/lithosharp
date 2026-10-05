@@ -61,7 +61,10 @@ internal static class BuildInputFingerprint
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var fullPath = Path.GetFullPath(expectedPath);
         EnsureRegularFile(handle, fullPath);
-        EnsureContainedFinalPath(fullRoot, fullPath, GetFinalPath(handle));
+        EnsureContainedFinalPath(
+            SiteGenerator.NormalizePathComparisonIdentity(fullRoot),
+            SiteGenerator.NormalizePathComparisonIdentity(fullPath),
+            GetFinalPath(handle));
     }
 
     private static FileStream OpenRead(string path, bool asynchronous = false) =>
