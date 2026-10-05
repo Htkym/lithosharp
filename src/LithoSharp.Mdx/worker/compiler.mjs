@@ -270,8 +270,17 @@ export async function analyzeMdx(request) {
     imports: info.imports, diagnostics: []};
 }
 
-export async function compileSite(request) {
+export async function compileSite(request, workMetrics = {}) {
   const started = performance.now();
+  Object.assign(workMetrics, {schema: 1, complete: false, esbuildInvocations: 0, browserBuildInvocations: 0, browserEntryBuildAttempts: 0, mdxCompileInvocations: 0, renderInvocations: 0, compiledModules: 0, renderedPages: 0, renderMilliseconds: 0, serverBundleMilliseconds: 0, browserBundleMilliseconds: 0, liveRuntimeMilliseconds: 0, pluginBundleMilliseconds: 0, totalMilliseconds: 0});
+  async function invokeBuild(settings, phase) {
+    workMetrics.esbuildInvocations++;
+    if (settings.platform === 'browser') workMetrics.browserBuildInvocations++;
+    const begin = performance.now();
+    try { return await build(settings); }
+    finally { workMetrics[phase] += performance.now() - begin; }
+  }
+  try {
   const projectRoot = await realpath(request.projectRoot);
   const workRoot = await realpath(request.workRoot);
   if (inside(projectRoot, workRoot) && !request.allowWorkWithinProject) throw new Error('Worker scratch directory must be isolated from source.');
@@ -292,6 +301,21 @@ export async function compileSite(request) {
   let compiledModules = 0, renderedPages = 0;
   const moduleDependencies = new Map();
   const allowedRoots = [projectRoot, directory];
+  const comparablePath = value => process.platform === 'win32' ? value.toLowerCase() : value;
+  const capturedInputs = new Map();
+  if (request.capturedInputs !== undefined) {
+    if (request.capturedInputs === null || typeof request.capturedInputs !== 'object' || Array.isArray(request.capturedInputs))
+      throw new Error('Invalid captured MDX inputs.');
+    for (const [source, fingerprint] of Object.entries(request.capturedInputs)) {
+      const file = path.resolve(projectRoot, source);
+      if (!inside(projectRoot, file) || typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint))
+        throw new Error('Invalid captured MDX input identity.');
+      const key = comparablePath(file);
+      if (capturedInputs.has(key) && capturedInputs.get(key) !== fingerprint)
+        throw new Error('Conflicting captured MDX input identities.');
+      capturedInputs.set(key, fingerprint);
+    }
+  }
   const pages = request.pages;
   const pageIds = new Set();
   for (const page of pages) {
@@ -331,6 +355,9 @@ export async function compileSite(request) {
       if (comparable(path.resolve(file)) !== comparable(resolved)) throw new Error(`Symbolic imports are not supported: ${relative(projectRoot, file)}`);
       const bytes = await readFile(resolved);
       const fingerprint = hash(bytes);
+      const captured = capturedInputs.get(comparablePath(resolved));
+      if (captured !== undefined && captured !== fingerprint)
+        throw new Error(`An MDX input changed after its source snapshot was captured: ${relative(projectRoot, file)}.`);
       if (inputs.has(resolved) && inputs.get(resolved) !== fingerprint)
         throw new Error(`An MDX input changed during compilation: ${relative(projectRoot, file)}.`);
       inputs.set(resolved, fingerprint);
@@ -364,13 +391,13 @@ export async function compileSite(request) {
     if (!Object.hasOwn(extensions, extension.stage)) throw new Error('Unsupported compiler plugin stage.');
     const file = extension.module.startsWith('.') ? path.resolve(projectRoot, extension.module) : projectRequire.resolve(extension.module);
     await readInput(file);
-    const extensionBundle = await build({entryPoints: [file], bundle: true, platform: 'node', format: 'esm', write: false,
+    const extensionBundle = await invokeBuild({entryPoints: [file], bundle: true, platform: 'node', format: 'esm', write: false,
       banner: {js: "import {createRequire as __createRequire} from 'node:module';const require=__createRequire(import.meta.url);"},
       plugins: [{name: 'extension-inputs', setup(builder) { builder.onLoad({filter: /.*/, namespace: 'file'}, async args => {
         const loader = sourceLoader(args.path);
         if (!loader) throw new Error('Unsupported compiler plugin dependency: ' + relative(projectRoot, args.path));
         return {contents: await readInput(args.path), loader, resolveDir: path.dirname(args.path)};
-      }); }}]});
+      }); }}]}, 'pluginBundleMilliseconds');
     const extensionPath = path.join(workRoot, 'extension-' + hash(extensionBundle.outputFiles[0].contents) + '.mjs');
     await writeFile(extensionPath, extensionBundle.outputFiles[0].contents);
     const module = await import(pathToFileURL(extensionPath));
@@ -378,6 +405,10 @@ export async function compileSite(request) {
     extensions[extension.stage].push([module.default, extension.options]);
   }
   const extensionFingerprint = [...inputs];
+  // Preprocessing inputs may no longer appear as JavaScript imports. Validate
+  // every captured raw read and retain it in the current input manifest. Keep
+  // these out of the shared compiler-plugin fingerprint.
+  for (const file of capturedInputs.keys()) await readInput(file);
   let liveRuntime;
 
   function authoring(file, info) {
@@ -493,8 +524,8 @@ export async function compileSite(request) {
       builder.onResolve({filter: /^@lithosharp\/live-code$/}, () => resolvedBrowser(path.join(directory, 'runtime', 'live-code.mjs')));
       builder.onResolve({filter: /^lithosharp:live-runtime$/}, () => ({path: 'runtime', namespace: 'live-runtime'}));
       builder.onLoad({filter: /.*/, namespace: 'live-runtime'}, async () => {
-        liveRuntime ??= build({stdin: {contents: `import React from ${JSON.stringify(reactFile)};import {createRoot} from ${JSON.stringify(resolvePackage('react-dom/client'))};globalThis.React=React;globalThis.render=value=>createRoot(document.getElementById('root')).render(value);`, resolveDir: projectRoot},
-          bundle: true, write: false, platform: 'browser', format: 'iife', minify: true, define: {'process.env.NODE_ENV': '"production"'}, metafile: true, plugins: [plugin('browser')]});
+        liveRuntime ??= invokeBuild({stdin: {contents: `import React from ${JSON.stringify(reactFile)};import {createRoot} from ${JSON.stringify(resolvePackage('react-dom/client'))};globalThis.React=React;globalThis.render=value=>createRoot(document.getElementById('root')).render(value);`, resolveDir: projectRoot},
+          bundle: true, write: false, platform: 'browser', format: 'iife', minify: true, define: {'process.env.NODE_ENV': '"production"'}, metafile: true, plugins: [plugin('browser')]}, 'liveRuntimeMilliseconds');
         const result = await liveRuntime;
         for (const file of Object.keys(result.metafile.inputs).filter(file => file !== '<stdin>')) await readInput(path.resolve(file));
         return {contents: `export default ${JSON.stringify(result.outputFiles[0].text)}`, loader: 'js'};
@@ -578,6 +609,7 @@ export async function compileSite(request) {
           metadata.set(file, info);
           let result;
           try {
+            workMetrics.mdxCompileInvocations++;
             result = await compile({value: unwrapMdxCodeBlocks(source), path: file}, {
               providerImportSource: '@mdx-js/react',
               remarkPlugins: [remarkGfm, remarkDirective, remarkMath, ...extensions.remark, authoring(file, info)],
@@ -590,6 +622,7 @@ export async function compileSite(request) {
           }
           compiled.set(file, String(result) + `\nexport const frontMatter=${JSON.stringify(entry?.props.frontMatter ?? {})};\nexport const toc=${JSON.stringify(info.headings)};\nexport const contentTitle=${JSON.stringify(entry?.title ?? info.headings[0]?.text ?? '')};`);
           compiledModules++;
+          workMetrics.compiledModules = compiledModules;
           if (request.cacheable) remember(moduleCache, key, {code: compiled.get(file), info,
             dependencies: [...(moduleDependencies.get(file) ?? [])].map(file => [file, inputs.get(file)])}, cacheLimit);
         }
@@ -640,9 +673,9 @@ export async function compileSite(request) {
     builder.onLoad({filter: /.*/, namespace: 'virtual'}, args => ({contents: sources.get(args.path), loader: 'js', resolveDir: projectRoot}));
   }});
   const entries = Object.fromEntries(pages.map(page => [page.id, `virtual:${page.id}`]));
-  if (!pages.length) return {pages: [], assets: [], inputs: [], compiledModules: 0, renderedPages: 0, bundledPages: 0, rebundledPages: []};
+  if (!pages.length) { workMetrics.complete = true; return {pages: [], assets: [], inputs: [], compiledModules: 0, renderedPages: 0, bundledPages: 0, rebundledPages: [], workMetrics}; }
   const serverStarted = performance.now();
-  const server = await build({...common, entryPoints: entries, outdir: serverDir, platform: 'node', splitting: true, publicPath: '', plugins: [virtualPlugin(virtualServer), plugin('node')]});
+  const server = await invokeBuild({...common, entryPoints: entries, outdir: serverDir, platform: 'node', splitting: true, publicPath: '', plugins: [virtualPlugin(virtualServer), plugin('node')]}, 'serverBundleMilliseconds');
   const serverBundleMilliseconds = performance.now() - serverStarted;
   const serverOutputs = new Map(Object.entries(server.metafile.outputs).map(([file, info]) => [path.resolve(projectRoot, file), info]));
   const serverEntries = new Map([...serverOutputs].filter(([, info]) => info.entryPoint).map(([file, info]) => [info.entryPoint.replace(/^virtual:virtual:/, 'virtual:'), file]));
@@ -660,6 +693,7 @@ export async function compileSite(request) {
   const serverContents = new Map(server.outputFiles.map(file => [file.path, file.contents]));
   const results = [];
   const renderStarted = performance.now();
+  try {
   for (const page of pages) {
     const serverPath = serverEntries.get(`virtual:${page.id}`);
     if (!serverPath) throw new Error(`No server entry was emitted for '${page.id}'.`);
@@ -694,10 +728,12 @@ export async function compileSite(request) {
       stream.on('data', chunk => chunks.push(chunk));
       stream.on('error', fail);
       stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      workMetrics.renderInvocations++;
       rendered = renderToPipeableStream(module.element, {identifierPrefix: page.id + '-', onAllReady() { if (!failed) rendered.pipe(stream); }, onShellError: fail, onError: fail});
       });
       renderedPage = {html, islands: module.islands, usedLinks: module.value.usedLinks};
       renderedPages++;
+      workMetrics.renderedPages = renderedPages;
       if (request.cacheable) remember(renderCache, renderKey, renderedPage, cacheLimit);
     }
     if (selective) {
@@ -710,6 +746,7 @@ export async function compileSite(request) {
     results.push({id: page.id, ...renderedPage, entry: null, css: [], hydration: selective ? renderedPage.islands.length ? 'selective' : 'static' : 'page', fallback: request.hydration === 'selective' ? fallback : null,
       headings: info.headings, links: info.links, text: info.text.join('\n')});
   }
+  } finally { workMetrics.renderMilliseconds += performance.now() - renderStarted; }
   const renderMilliseconds = performance.now() - renderStarted;
   const excludedSources = new Set(pages.filter(page => page.discoverable === false).map(page => page.source));
   const publicLinks = Object.fromEntries(Object.entries(request.linkMap ?? {}).filter(([source]) => !excludedSources.has(source)));
@@ -754,7 +791,7 @@ export async function compileSite(request) {
   let browserBundleMilliseconds = 0;
   const measureBrowser = async settings => {
     const started = performance.now();
-    try { return await build(settings); }
+    try { return await invokeBuild(settings, 'browserBundleMilliseconds'); }
     finally { browserBundleMilliseconds += performance.now() - started; }
   };
 
@@ -871,7 +908,9 @@ export async function compileSite(request) {
   let main = cachedPages ? relocateBrowser({browser: cachedPages.main, directory: cachedPages.directory}) : emptyBrowser();
   let attempts = 0;
   if (changed.size) while (true) {
-    for (const name of changed) if (browserEntries[name].startsWith('virtual:')) processed.add(name);
+    for (const name of changed) if (browserEntries[name].startsWith('virtual:')) {
+      processed.add(name); workMetrics.browserEntryBuildAttempts++;
+    }
     let built;
     try { built = await measureBrowser({...common, entryPoints: Object.fromEntries(Object.entries(browserEntries).filter(([name]) => changed.has(name))),
       outdir: browserDir, platform: 'browser', splitting: true, sourcemap: false,
@@ -997,7 +1036,9 @@ export async function compileSite(request) {
   }
   const noticeBytes = Buffer.from([...notices].sort(([left], [right]) => left.localeCompare(right, 'en')).map(([, text]) => text).join('\n---\n\n'));
   assets.push({path: 'third-party-notices.txt', bytes: noticeBytes.toString('base64'), hash: hash(noticeBytes), imports: [], inputs: []});
-  return {pages: results, assets, inputs: [...inputs].map(([file, hash]) => ({file, hash})),
+  workMetrics.complete = true;
+  return {pages: results, assets, workMetrics, inputs: [...inputs].map(([file, hash]) => ({file, hash})),
     compiledModules, renderedPages, bundledPages: rebundledPages.length, rebundledPages,
     timings: {serverBundleMilliseconds, renderMilliseconds, browserBundleMilliseconds, totalMilliseconds: performance.now() - started}, memory: process.memoryUsage()};
+  } finally { workMetrics.totalMilliseconds = performance.now() - started; }
 }

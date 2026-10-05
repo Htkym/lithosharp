@@ -164,20 +164,38 @@ function ConvertTo-CategoryKeys($Items) {
         }
         $keys.Add(($parts -join '|'))
     }
-    $keys.Sort()
+    $keys.Sort([StringComparer]::Ordinal)
     return $keys
+}
+
+function ConvertTo-CategoryCounts($Items) {
+    $counts = [Collections.Generic.Dictionary[string, int]]::new([StringComparer]::Ordinal)
+    foreach ($key in (ConvertTo-CategoryKeys $Items)) {
+        $count = 0
+        [void]$counts.TryGetValue($key, [ref]$count)
+        $counts[$key] = $count + 1
+    }
+    return ,$counts
+}
+
+function New-OrdinalFileMap($Files) {
+    $map = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
+    foreach ($file in @($Files)) {
+        $path = Get-ManifestProperty $file 'path' $null
+        if ($path -isnot [string] -or [string]::IsNullOrWhiteSpace($path)) { throw 'Manifest file records require a nonempty string path.' }
+        if (!$map.TryAdd($path, [string](Get-ManifestProperty $file 'sha256' ''))) { throw 'Manifest contains a duplicate file path.' }
+    }
+    return ,$map
 }
 
 function Compare-Manifest($ExpectedManifest, $ActualManifest) {
     $differences = [Collections.Generic.List[object]]::new()
 
-    $expectedFiles = @{}
-    foreach ($file in @(Get-ManifestProperty $ExpectedManifest 'files' @())) { $expectedFiles[[string](Get-ManifestProperty $file 'path' '')] = [string](Get-ManifestProperty $file 'sha256' '') }
-    $actualFiles = @{}
-    foreach ($file in @(Get-ManifestProperty $ActualManifest 'files' @())) { $actualFiles[[string](Get-ManifestProperty $file 'path' '')] = [string](Get-ManifestProperty $file 'sha256' '') }
+    $expectedFiles = New-OrdinalFileMap (Get-ManifestProperty $ExpectedManifest 'files' @())
+    $actualFiles = New-OrdinalFileMap (Get-ManifestProperty $ActualManifest 'files' @())
     foreach ($path in ($expectedFiles.Keys | Sort-Object)) {
         if (!$actualFiles.ContainsKey($path)) { $differences.Add([ordered]@{ category = 'files'; kind = 'missing'; path = $path }) }
-        elseif ($expectedFiles[$path] -ne $actualFiles[$path]) {
+        elseif ($expectedFiles[$path] -cne $actualFiles[$path]) {
             $differences.Add([ordered]@{ category = 'files'; kind = 'changed'; path = $path; expected = $expectedFiles[$path]; actual = $actualFiles[$path] })
         }
     }
@@ -186,13 +204,21 @@ function Compare-Manifest($ExpectedManifest, $ActualManifest) {
     }
 
     foreach ($category in 'routes', 'diagnostics', 'dom') {
-        $expectedKeys = ConvertTo-CategoryKeys (Get-ManifestProperty $ExpectedManifest $category @())
-        $actualKeys = ConvertTo-CategoryKeys (Get-ManifestProperty $ActualManifest $category @())
-        foreach ($key in $expectedKeys) {
-            if ($actualKeys -notcontains $key) { $differences.Add([ordered]@{ category = $category; kind = 'missing'; value = $key }) }
+        $expectedCounts = ConvertTo-CategoryCounts (Get-ManifestProperty $ExpectedManifest $category @())
+        $actualCounts = ConvertTo-CategoryCounts (Get-ManifestProperty $ActualManifest $category @())
+        foreach ($key in $expectedCounts.Keys) {
+            $actualCount = 0
+            [void]$actualCounts.TryGetValue($key, [ref]$actualCount)
+            for ($i = $actualCount; $i -lt $expectedCounts[$key]; $i++) {
+                $differences.Add([ordered]@{ category = $category; kind = 'missing'; value = $key })
+            }
         }
-        foreach ($key in $actualKeys) {
-            if ($expectedKeys -notcontains $key) { $differences.Add([ordered]@{ category = $category; kind = 'extra'; value = $key }) }
+        foreach ($key in $actualCounts.Keys) {
+            $expectedCount = 0
+            [void]$expectedCounts.TryGetValue($key, [ref]$expectedCount)
+            for ($i = $expectedCount; $i -lt $actualCounts[$key]; $i++) {
+                $differences.Add([ordered]@{ category = $category; kind = 'extra'; value = $key })
+            }
         }
     }
 

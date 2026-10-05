@@ -10,6 +10,15 @@ public sealed class ContentEntry<TFrontMatter, TBody>
     where TBody : notnull
 {
     private IReadOnlyList<ContentDependency> declaredDependencies = [];
+    private IReadOnlyList<CapturedContentInput> capturedInputs = [];
+
+    // Only built-in file readers can attach raw-byte provenance. Caller-provided
+    // fingerprints and in-memory bodies do not establish a raw-file snapshot.
+    internal IReadOnlyList<CapturedContentInput> CapturedInputs
+    {
+        get => capturedInputs;
+        init => capturedInputs = Array.AsReadOnly(value.ToArray());
+    }
 
     /// <summary>Additional dependencies specific to this entry.</summary>
     public IReadOnlyList<ContentDependency> DeclaredDependencies
@@ -72,3 +81,6 @@ public sealed class ContentEntry<TFrontMatter, TBody>
     /// <summary>エントリの開始位置を取得します。特定できない場合は <see langword="null"/> です。</summary>
     public SiteSourceLocation? SourceLocation { get; }
 }
+
+// Hash of the exact verified bytes consumed before any text transformation.
+internal sealed record CapturedContentInput(string File, string Hash);

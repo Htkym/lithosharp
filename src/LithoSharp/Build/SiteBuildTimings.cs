@@ -5,9 +5,9 @@ namespace LithoSharp.Build;
 /// <see cref="LithoSharp.SiteGenerationOptions.CollectTimings"/> が有効なときだけ記録します。
 /// </summary>
 /// <remarks>
-/// 値は同一process内の経過ミリ秒です。並列実行の区間はwall timeとして加算され、
-/// CPU時間ではありません。段階の合計が <see cref="TotalMilliseconds"/> を超える説明には
-/// 使わず、差はunattributedとして扱います。
+/// 値は同一process内の経過ミリ秒で、CPU時間ではありません。検証時間は各workerの
+/// 経過時間の合計です。並列区間は重複し、実行時間にも含まれるため、段階の合計や
+/// 検証時間が <see cref="TotalMilliseconds"/> を超えることがあります。
 /// </remarks>
 public sealed class SiteBuildTimings
 {
@@ -45,7 +45,7 @@ public sealed class SiteBuildTimings
     /// <summary>ノード実行(cache判定、key計算、描画、書き込み)の時間を取得します。</summary>
     public long ExecutionMilliseconds { get; }
 
-    /// <summary><see cref="ExecutionMilliseconds"/> のうち、再利用成果物の読み取りとhash検証の時間を取得します。</summary>
+    /// <summary>再利用成果物の読み取りとhash検証に使った各workerの経過時間の合計を取得します。並列区間は重複し、<see cref="ExecutionMilliseconds"/> に含まれます。</summary>
     public long VerificationMilliseconds { get; }
 
     /// <summary>品質検査と出力manifest・所有権準備の時間を取得します。</summary>

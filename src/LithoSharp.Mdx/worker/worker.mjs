@@ -9,9 +9,9 @@ for (const method of ['log', 'info', 'warn', 'error', 'debug']) console[method] 
 const version = async name => JSON.parse(await readFile(new URL(`./node_modules/${name}/package.json`, import.meta.url), 'utf8')).version;
 // The serialized protocol compile path owns the esbuild service lifecycle.
 // Direct compileSite callers retain independent ownership of their builds.
-async function compileRequest(message) {
+async function compileRequest(message, workMetrics) {
   let result, failure, failed=false;
-  try { result=await compileSite(message); }
+  try { result=await compileSite(message, workMetrics); }
   catch(error) {failure=error;failed=true;}
   try { await stop(); }
   catch(error) {
@@ -26,16 +26,16 @@ async function compileRequest(message) {
 }
 send({protocol: 1, type: 'ready', node: process.versions.node, mdx: await version('@mdx-js/mdx'), react: await version('react'), esbuild: await version('esbuild')});
 for await (const line of createInterface({input: process.stdin, crlfDelay: Infinity})) {
-  let message;
+  let message, workMetrics;
   try {
     if (Buffer.byteLength(line) > 128 * 1024 * 1024) throw new Error('Worker request exceeds its size limit.');
     message = JSON.parse(line);
     if (message.protocol !== 1 || (message.type !== 'compile' && message.type !== 'analyze') || typeof message.requestId !== 'string') throw new Error('Unsupported worker protocol.');
-    const result = message.type === 'compile' ? await compileRequest(message) : await analyzeMdx(message);
+    const result = message.type === 'compile' ? await compileRequest(message, workMetrics = {}) : await analyzeMdx(message);
     send({protocol: 1, requestId: message.requestId, success: true, result});
   } catch (error) {
     const failures = error.errors ?? [error];
-    send({protocol: 1, requestId: message?.requestId ?? '', success: false,
+    send({protocol: 1, requestId: message?.requestId ?? '', success: false, workMetrics,
       requiredSources: [...new Set(failures.map(failure => failure.detail?.requiredSource ?? failure.requiredSource).filter(Boolean))],
       diagnostics: failures.map(failure => {
         const message = failure.text ?? failure.message ?? String(failure);

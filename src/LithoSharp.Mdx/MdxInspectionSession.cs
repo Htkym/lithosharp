@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LithoSharp.Build;
+using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Inspection;
@@ -112,7 +113,9 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private readonly MdxOptions options;
     private readonly MdxWorker worker;
     private readonly SemaphoreSlim lifetime = new(1, 1);
-    private bool disposed;
+    private readonly CancellationTokenSource ownerCancellation = new();
+    private readonly TaskCompletionSource<bool> disposalCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int disposalStarted;
 
     /// <summary>編集用の検査sessionを作成します。Nodeは初回解析まで起動しません。</summary>
     public MdxInspectionSession(MdxOptions options)
@@ -141,11 +144,14 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(text);
-        await lifetime.WaitAsync(cancellationToken).ConfigureAwait(false);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
+        using var analysisCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ownerCancellation.Token);
+        await lifetime.WaitAsync(analysisCancellation.Token).ConfigureAwait(false);
         try
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            return await AnalyzeCoreAsync(sourcePath, text, analysisOptions, cancellationToken).ConfigureAwait(false);
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
+            analysisCancellation.Token.ThrowIfCancellationRequested();
+            return await AnalyzeCoreAsync(sourcePath, text, analysisOptions, analysisCancellation.Token).ConfigureAwait(false);
         }
         finally
         {
@@ -160,10 +166,33 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
+        var frontMatterDiagnostics = new List<SiteDiagnostic>();
+        if (split.Status == FrontMatterSplitStatus.Ok)
+        {
+            // Parse only the supplied YAML. This shares the strict build parser;
+            // it does not bind a user type or execute project/module/plugin code.
+            var parsed = MarkdownContentCollectionLoader<object>.ParseYaml(
+                split.Yaml, sourcePath, 2, cancellationToken);
+            if (!parsed.IsSuccess) frontMatterDiagnostics.AddRange(parsed.Diagnostics);
+        }
+        else if (split.Status == FrontMatterSplitStatus.EmptyFrontMatter)
+        {
+            frontMatterDiagnostics.Add(new SiteDiagnostic(
+                MarkdownContentDiagnosticIds.EmptyFrontMatter, SiteDiagnosticSeverity.Error,
+                "YAML front matter must not be empty.", new SiteSourceLocation(sourcePath, 2, 1)));
+        }
+        else if (split.Status == FrontMatterSplitStatus.UnterminatedFrontMatter)
+        {
+            frontMatterDiagnostics.Add(new SiteDiagnostic(
+                MarkdownContentDiagnosticIds.UnterminatedFrontMatter, SiteDiagnosticSeverity.Error,
+                "Markdown document has no closing front matter marker.",
+                new SiteSourceLocation(sourcePath, split.FailureLine, 1)));
+        }
+        var locator = new SourceText(text);
         MdxDocument document = split.Status switch
         {
-            FrontMatterSplitStatus.Ok => new MdxDocument(
-                split.Body, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, split.BodyStartOffset),
+            FrontMatterSplitStatus.Ok or FrontMatterSplitStatus.EmptyFrontMatter => new MdxDocument(
+                split.Body, locator.GetLineAndColumn(split.BodyStartOffset).Line, split.BodyStartOffset),
             FrontMatterSplitStatus.MissingFrontMatter or FrontMatterSplitStatus.UnterminatedFrontMatter =>
                 new MdxDocument(text, 1, 0),
             _ => new MdxDocument(split.Body, 1, 0),
@@ -193,7 +222,6 @@ public sealed class MdxInspectionSession : IAsyncDisposable
             result.GetProperty("links"),
             result.GetProperty("islands"),
             result.GetProperty("text").GetString());
-        var locator = new SourceText(text);
         return new MdxAnalysisResult(
             sourcePath,
             analysisOptions?.DocumentVersion ?? 0,
@@ -206,7 +234,7 @@ public sealed class MdxInspectionSession : IAsyncDisposable
             semantics.Assets.Select(asset => new DocumentAssetInfo(asset.Url, Locate(locator, sourcePath, asset.Span))).ToArray(),
             semantics.Components.Select(component => new DocumentComponentInfo(component.Name, Locate(locator, sourcePath, component.Span))).ToArray(),
             ReadImports(result.GetProperty("imports"), sourcePath),
-            ReadDiagnostics(result.GetProperty("diagnostics"), sourcePath));
+            frontMatterDiagnostics.Concat(ReadDiagnostics(result.GetProperty("diagnostics"), sourcePath)).ToArray());
     }
 
     private static IReadOnlyList<MdxImportInfo> ReadImports(JsonElement imports, string sourcePath)
@@ -266,8 +294,10 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         return line is null ? new SiteSourceLocation(file) : new SiteSourceLocation(file, line, column);
     }
 
-    private static SiteSourceLocation Locate(SourceText locator, string sourcePath, SourceSpan span)
+    private static SiteSourceLocation? Locate(SourceText locator, string sourcePath, SourceSpan span)
     {
+        // Empty is the semantic model's unknown location, not a point at1:1.
+        if (span.IsEmpty) return null;
         if (span.End <= locator.Text.Length)
         {
             var (line, column) = locator.GetLineAndColumn(span.Start);
@@ -279,20 +309,39 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     }
 
     /// <summary>所有する編集用workerを破棄します。</summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await lifetime.WaitAsync().ConfigureAwait(false);
+        // Publish disposal before canceling or waiting for the active analysis.
+        // Every disposer awaits the same owned cleanup, including its failure.
+        if (Interlocked.CompareExchange(ref disposalStarted, 1, 0) == 0)
+            _ = DisposeCoreAsync();
+        return new ValueTask(disposalCompletion.Task);
+    }
+
+    private async Task DisposeCoreAsync()
+    {
         try
         {
-            if (!disposed)
+            ownerCancellation.Cancel();
+            await lifetime.WaitAsync().ConfigureAwait(false);
+            try
             {
-                disposed = true;
                 await worker.DisposeAsync().ConfigureAwait(false);
             }
+            finally
+            {
+                lifetime.Release();
+            }
+        }
+        catch (Exception error)
+        {
+            disposalCompletion.TrySetException(error);
+            return;
         }
         finally
         {
-            lifetime.Release();
+            ownerCancellation.Dispose();
         }
+        disposalCompletion.TrySetResult(true);
     }
 }

@@ -87,7 +87,7 @@ export class LspClient {
     const id = this.nextId();
     await connection.sendRequest<unknown>(id, 'initialize', {
       processId: null,
-      capabilities: {},
+      capabilities: { textDocument: { publishDiagnostics: { versionSupport: true } } },
       initializationOptions: this.options.initializationOptions ?? {},
     });
     if (this.child !== child || this.connection !== connection) {
@@ -108,12 +108,22 @@ export class LspClient {
 
   stop(): void {
     const connection = this.connection;
+    const child = this.child;
     try {
-      this.child?.closeStdin();
+      child?.closeStdin();
     } catch {
       // Stopping never throws past the client.
     }
     connection?.dispose();
+    try {
+      // EOF may be ignored. Terminate only this client's still-owned child;
+      // a synchronous exit callback already clears it and needs no kill.
+      if (child && this.child === child) {
+        child.killTree();
+      }
+    } catch {
+      // Local requests/state still settle when process termination fails.
+    }
     this.ready = false;
     for (const buffer of this.buffers.values()) {
       if (buffer.timer) {
@@ -172,6 +182,7 @@ export class LspClient {
     }
     buffer.version = version;
     buffer.text = text;
+    this.store.clear(uri);
     if (!this.ready) {
       buffer.pending = null;
       return;
@@ -249,12 +260,23 @@ export class LspClient {
       return [];
     }
     const connection = this.connection;
+    const version = buffer.version;
+    const text = buffer.text;
+    this.flush(uri);
+    if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
+        buffer.version !== version || buffer.text !== text) {
+      return [];
+    }
     const id = this.nextId();
     const promise = connection.sendRequest<unknown>(id, 'textDocument/documentSymbol', {
       textDocument: { uri },
     });
     onCancel?.(() => connection.cancelRequest(id));
     const result = await promise;
+    if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
+        buffer.version !== version || buffer.text !== text) {
+      return [];
+    }
     return mapSymbols(result);
   }
 
@@ -274,7 +296,11 @@ export class LspClient {
     if (typeof record.uri !== 'string' || !Array.isArray(record.diagnostics)) {
       return;
     }
+    const buffer = this.buffers.get(record.uri);
     const version = typeof record.version === 'number' ? record.version : null;
+    if (!buffer || version !== buffer.version) {
+      return;
+    }
     const diagnostics: LspDiagnosticData[] = [];
     for (const item of record.diagnostics) {
       const mapped = mapDiagnostic(item);

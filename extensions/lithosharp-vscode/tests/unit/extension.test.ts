@@ -154,6 +154,11 @@ test('configuration change refreshes the project state', async () => {
 /** A real LspClient/connection, with only worker discovery and process I/O controlled. */
 async function delayedActivation(options: { initializeError?: boolean; strictOutput?: boolean; holdSymbols?: boolean; holdFirstInitialize?: boolean; holdInitializeCommand?: string; exitOnClose?: boolean; onSymbolResponse?: () => void } = {}) {
   const fake = createFakeVscode();
+  const diagnosticSets: { uri: string; diagnostics: unknown[] }[] = [];
+  fake.languages.createDiagnosticCollection = () => ({
+    set: (uri, diagnostics) => { diagnosticSets.push({ uri: String(uri), diagnostics }); },
+    delete() {}, clear() {}, dispose() {},
+  });
   if (options.strictOutput) {
     const create = fake.window.createOutputChannel;
     fake.window.createOutputChannel = (name) => {
@@ -168,11 +173,17 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     languageId: 'markdown', version: 1, isClosed: false, getText: () => '# Heading\n' };
   fake.workspaceApi.textDocuments.push(document);
   let closeDocument: (value: typeof document) => void = () => {};
+  let changeDocument: (event: { document: typeof document }) => void = () => {};
+  let openDocument: (value: typeof document) => void = () => {};
+  let saveDocument: (value: typeof document) => void = () => {};
   const events = fake.workspaceApi as unknown as Record<string, unknown>;
   events['onDidCloseTextDocument'] = (listener: typeof closeDocument) => {
     closeDocument = listener;
     return { disposed: false, dispose() {} };
   };
+  events['onDidChangeTextDocument'] = (listener: typeof changeDocument) => { changeDocument = listener; return { dispose() {} }; };
+  events['onDidOpenTextDocument'] = (listener: typeof openDocument) => { openDocument = listener; return { dispose() {} }; };
+  events['onDidSaveTextDocument'] = (listener: typeof saveDocument) => { saveDocument = listener; return { dispose() {} }; };
   const heldInitialization: (() => void)[] = [];
   let provider: { provideDocumentSymbols(document: unknown, token: unknown): Promise<unknown[]> } | undefined;
   fake.languages.registerDocumentSymbolProvider = (_selector, value) => {
@@ -195,17 +206,28 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     if (++discoveries === 1) { entered(); await discovery; }
     return { source: 'none', directory: '', lockHash: null, ready: false };
   };
-  const spawns: { command: string[]; messages: { id?: number; method?: string }[]; closed: boolean }[] = [];
+  type Message = { id?: number; method?: string; params?: { textDocument?: { uri: string; version: number; text?: string } } };
+  const spawns: { command: string[]; messages: Message[]; closed: boolean; exit(code: number | null): void }[] = [];
   processModule.spawnProcess = (command) => {
-    const record = { command: [...command], messages: [] as { id?: number; method?: string }[], closed: false };
+    const record = { command: [...command], messages: [] as Message[], closed: false,
+      exit: (code: number | null) => { for (const listener of exits) listener(code); } };
     spawns.push(record);
     const stdout: ((chunk: Buffer) => void)[] = [];
     const exits: ((code: number | null) => void)[] = [];
     return {
       pid: undefined,
       stdinWrite: (frame) => {
-        const message = JSON.parse(frame.slice(frame.indexOf('{'))) as { id?: number; method?: string };
+        const message = JSON.parse(frame.slice(frame.indexOf('{'))) as Message;
         record.messages.push(message);
+        if (message.method === 'textDocument/didOpen') {
+          const doc = message.params!.textDocument!;
+          const body = JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: {
+            uri: doc.uri, version: doc.version, diagnostics: [{ code: 'LIT001', message: `controlled-${doc.version}`,
+              severity: 1, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } } }],
+          } });
+          const frame = Buffer.from('Content-Length: ' + Buffer.byteLength(body) + '\r\n\r\n' + body);
+          for (const listener of stdout) listener(frame);
+        }
         if (message.id !== undefined) {
           const result = message.method === 'initialize' ? { capabilities: {} } : [{
             name: 'Heading', kind: 3, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 9 } },
@@ -238,7 +260,10 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
     release(); worker.resolveWorker = originalResolve; processModule.spawnProcess = originalSpawn;
     throw error;
   }
-  return { fake, document, spawns, release, provider: provider!,
+  return { fake, document, spawns, release, provider: provider!, diagnosticSets,
+    edit: () => { document.version++; changeDocument({ document }); },
+    open: () => { openDocument(document); },
+    save: () => { saveDocument(document); },
     dispose: () => { for (const item of subscriptions) item.dispose(); },
     closeDocument: () => { document.isClosed = true; fake.workspaceApi.textDocuments.length = 0; closeDocument(document); },
     cleanup: () => {
@@ -249,6 +274,41 @@ async function delayedActivation(options: { initializeError?: boolean; strictOut
       processModule.spawnProcess = originalSpawn;
     } };
 }
+
+for (const event of ['edit', 'open', 'save'] as const) {
+  test(`unexpected LSP exit reconnects on ${event} and republishes current document diagnostics`, async () => {
+    const host = await delayedActivation();
+    try {
+      host.release();
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(host.spawns.length, 1);
+      host.spawns[0]!.exit(1);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(host.spawns.length, 1, 'An exit must not trigger an automatic restart loop.');
+      host[event]();
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(host.spawns.length, 2);
+      const opened = host.spawns[1]!.messages.find(message => message.method === 'textDocument/didOpen');
+      assert.equal(opened?.params?.textDocument?.version, host.document.version);
+      assert.equal((host.diagnosticSets.at(-1)?.diagnostics[0] as { message: string })?.message, `controlled-${host.document.version}`);
+      host.spawns[1]!.exit(1);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(host.spawns.length, 2, 'Repeated failures wait for a new user request.');
+    } finally { host.cleanup(); }
+  });
+}
+
+test('an intended shutdown during disposal prevents edit-triggered LSP reconnection', async () => {
+  const host = await delayedActivation();
+  try {
+    host.release();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    host.dispose(); host.edit(); host.open(); host.save();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(host.spawns.length, 1);
+    assert.equal(host.spawns[0]!.closed, true);
+  } finally { host.cleanup(); }
+});
 
 test('restart during worker discovery replaces the pending client using current settings', async () => {
   const host = await delayedActivation();

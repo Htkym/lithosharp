@@ -1651,7 +1651,13 @@ public sealed partial class SiteGenerator
     {
         var compiled = CompilePostBody(configuration, post);
         var postBody = compiled.Html;
-        var currentIndex = Array.IndexOf(orderedPosts.ToArray(), post);
+        var currentIndex = -1;
+        for (var index = 0; index < orderedPosts.Count; index++)
+        {
+            if (!EqualityComparer<MarkdownPost>.Default.Equals(orderedPosts[index], post)) continue;
+            currentIndex = index;
+            break;
+        }
         var body = new StringBuilder();
         body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
         if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
@@ -2066,6 +2072,7 @@ public sealed partial class SiteGenerator
         foreach (var page in contentPages
                      .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)))
         {
+            var derivedContent = page.DerivedContent ?? string.Empty;
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
@@ -2074,10 +2081,10 @@ public sealed partial class SiteGenerator
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
                     : string.Empty,
-                NormalizeForIndex(StripTagsRegex.Replace(page.DerivedContent ?? string.Empty, " ")))
+                NormalizeForIndex(StripTagsRegex.Replace(derivedContent, " ")))
             {
                 Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
-                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(page.DerivedContent ?? string.Empty)
+                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(derivedContent)
             });
         }
 
@@ -2795,11 +2802,11 @@ public sealed partial class SiteGenerator
     }
 
     /// <summary>Opt-in phase counters; no allocations when disabled.</summary>
-    private sealed class BuildTimingRecorder(bool enabled)
+    internal sealed class BuildTimingRecorder(bool enabled)
     {
         private readonly long start = Stopwatch.GetTimestamp();
         private long last = Stopwatch.GetTimestamp();
-        private long plan, transaction, cacheLoad, execution, verification, quality, commit;
+        private long plan, transaction, cacheLoad, execution, verificationTimestampTicks, quality, commit;
         private int verifiedArtifacts;
 
         private void Advance(ref long field)
@@ -2822,19 +2829,22 @@ public sealed partial class SiteGenerator
 
         internal void MarkCommit() => Advance(ref commit);
 
-        internal void AddVerificationMilliseconds(long milliseconds)
+        internal void AddVerificationTimestampTicks(long timestampTicks)
         {
-            if (enabled) verification += milliseconds;
+            if (enabled) Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
         }
 
         internal void CountVerifiedArtifact()
         {
-            if (enabled) verifiedArtifacts++;
+            if (enabled) Interlocked.Increment(ref verifiedArtifacts);
         }
 
+        internal long VerificationTimestampTicks => Interlocked.Read(ref verificationTimestampTicks);
+
         internal SiteBuildTimings? ToTimings() => enabled
-            ? new SiteBuildTimings(plan, transaction, cacheLoad, execution, verification, quality, commit,
-                (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds, verifiedArtifacts)
+            ? new SiteBuildTimings(plan, transaction, cacheLoad, execution,
+                (long)Stopwatch.GetElapsedTime(0, VerificationTimestampTicks).TotalMilliseconds, quality, commit,
+                (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds, Volatile.Read(ref verifiedArtifacts))
             : null;
     }
 

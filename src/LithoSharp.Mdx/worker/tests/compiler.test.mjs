@@ -431,6 +431,11 @@ test('partial browser builds preserve unrelated closures and regroup shared modu
     await writeFile(component('Toggle'), code('Toggle', true));
     const merged = await run();
     assert.deepEqual(merged.rebundledPages, ['group-0', 'group-1']);
+    assert.equal(merged.workMetrics.complete, true);
+    assert.equal(merged.workMetrics.browserBuildInvocations, 2);
+    assert.equal(merged.workMetrics.browserEntryBuildAttempts, 3);
+    assert.equal(merged.workMetrics.esbuildInvocations, 3);
+    assert.equal(merged.bundledPages, 2);
     assert.equal(merged.pages[0].html, firstImport.pages[0].html);
     assert.equal(merged.assets.filter(asset => asset.path.endsWith('.js') && Buffer.from(asset.bytes, 'base64').toString().includes('shared-module-canary')).length, 1);
     checkAssets(merged);
@@ -785,4 +790,34 @@ test('native MDX sample returns canonical complete dynamic JS and CSS asset clos
     validateAssets(await fixture.run());
     const warm = await fixture.run();validateAssets(warm);assert.deepEqual(warm.rebundledPages, []);
   } finally {await fixture.dispose();}
+});
+
+
+test('failed native compilation and rendering report observed work without claiming complete coverage', async () => {
+  for (const [name, source, pattern, renders] of [
+    ['compile', '# Broken\n\n<', /Unexpected|Could not parse|end of file/i, 0],
+    ['render', "# Broken\n\n{(() => { throw new Error('MetricRenderFailure'); })()}", /MetricRenderFailure/, 1]
+  ]) {
+    const fixture = await workerFixture('lithosharp-partial-work-' + name + '-', {'page.mdx': source}, {hydration: 'selective'});
+    try {
+      const workRoot = await mkdtemp(path.join(fixture.root, 'failed-')), observed = {};
+      await assert.rejects(compileSite({...fixture.request, workRoot}, observed), pattern);
+      assert.equal(observed.complete, false);
+      assert.equal(observed.esbuildInvocations, 1);
+      assert.equal(observed.mdxCompileInvocations, 1);
+      assert.equal(observed.compiledModules, renders);
+      assert.equal(observed.renderInvocations, renders);
+      assert.equal(observed.renderedPages, 0);
+      assert.equal(observed.browserBuildInvocations, 0);
+      assert.ok(observed.totalMilliseconds > 0 && Number.isFinite(observed.totalMilliseconds));
+      assert.ok(observed.serverBundleMilliseconds > 0);
+      if (renders) assert.ok(observed.renderMilliseconds > 0);
+      const recoveredSource = '# RecoveredWorkMarker-' + name;
+      await writeFile(path.join(fixture.projectRoot, 'page.mdx'), recoveredSource);
+      const recovered = await fixture.run({sources: {'page.mdx': recoveredSource}});
+      assert.match(recovered.pages[0].html, /RecoveredWorkMarker/);
+      assert.equal(recovered.workMetrics.complete, true);
+      assert.equal(recovered.workMetrics.renderedPages, 1);
+    } finally { await fixture.dispose(); }
+  }
 });

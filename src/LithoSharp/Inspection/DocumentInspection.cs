@@ -80,7 +80,7 @@ public static class DocumentInspection
         }
 
         var locator = new SourceText(text);
-        var analyzed = new LithoMarkdownCompiler().Analyze(body, new DocumentSource(sourcePath, bodyStartOffset)
+        var analyzed = new LithoMarkdownCompiler().AnalyzeForInspection(body, new DocumentSource(sourcePath, bodyStartOffset)
         {
             BodyStartLine = locator.GetLineAndColumn(bodyStartOffset).Line,
         }, cancellationToken);

@@ -27,22 +27,37 @@ internal static class DevServer
         var control = options.Has("control-stdin");
         if (control && !machine)
             throw new CliUsageException("serve --control-stdin requires --format json.");
-        var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
         await using var session = new WatchHostSession(machine);
         using var stopSource = new CancellationTokenSource();
         using var stopping = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopSource.Token);
         using var controlLifetime = new CancellationTokenSource();
-        using var controlToken = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, stopSource.Token, controlLifetime.Token);
         var controller = new ServeController(machine, stopSource);
-        _ = controlToken;
         // Console.In reads block the calling thread synchronously, so stdin
         // runs on a worker thread that the main flow never awaits (process
         // exit reclaims it). Awaiting it here hung startup with an open pipe.
+        var controlLifetimeToken = controlLifetime.Token;
         var controlTask = control
-            ? Task.Run(() => ControlLoop(controller))
+            ? Task.Run(() => ControlLoop(controller, controlLifetimeToken))
             : Task.CompletedTask;
-        var latest = await session.BuildAsync(assembly, project, options, cancellationToken);
+        var shutdownWritten = false;
+        void WriteRunShutdown(long generation, int exitCode)
+        {
+            if (shutdownWritten) return;
+            shutdownWritten = true;
+            WriteShutdown(generation, exitCode);
+        }
+        try
+        {
+        var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
+        // Subscribe before either initial compiler/host reads. Unknown initial
+        // output paths can cause one conservative rebuild; queued source edits
+        // must not disappear while the first build is in progress.
+        var state = new ServerState(new HostResponse { OutputDirectory = Path.GetDirectoryName(project)! });
+        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
+            path => { if (Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1); changes.Writer.TryWrite(true); });
+        var assembly = await ProjectCompiler.BuildAsync(project, configuration, stopping.Token, machine);
+        var latest = await session.BuildAsync(assembly, project, options, stopping.Token);
         if (!latest.Success)
         {
             if (!string.IsNullOrWhiteSpace(latest.Error)) Console.Error.WriteLine(latest.Error);
@@ -60,7 +75,7 @@ internal static class DevServer
             // cannot abort; never wait for it here (process exit reclaims the
             // thread). Only observe it when it already finished (for example EOF).
             if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
-            if (controller.ShutdownRequested) WriteShutdown(controller.Generation, 0);
+            if (controller.ShutdownRequested) WriteRunShutdown(controller.Generation, 0);
             return controller.ShutdownRequested ? 0 : latest.ExitCode;
         }
         if (controller.ShutdownRequested)
@@ -71,7 +86,7 @@ internal static class DevServer
             // cannot abort; never wait for it here (process exit reclaims the
             // thread). Only observe it when it already finished (for example EOF).
             if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
-            if (machine) WriteShutdown(controller.Generation, 0);
+            if (machine) WriteRunShutdown(controller.Generation, 0);
             return 0;
         }
         var outputRoot = Path.GetFullPath(latest.OutputDirectory
@@ -81,13 +96,15 @@ internal static class DevServer
         if (host is "*" or "+") throw new CliUsageException("Use an explicit address for --host.");
         var url = $"http://{host}:{port}";
         var hub = new ReloadHub();
-        var state = new ServerState(latest with { Generation = 1 });
+        state.Latest = latest with { Generation = 1 };
+        state.OutputRoot = outputRoot;
+        state.IgnoredPaths = latest.IgnoredPaths;
         controller.Generation = 1;
         var builder = WebApplication.CreateSlimBuilder();
         // Machine mode keeps stdout as pure JSON Lines, so ASP.NET logs must not pollute it.
         if (machine) builder.Logging.ClearProviders();
         builder.WebHost.UseUrls(url);
-        var app = builder.Build();
+        await using var app = builder.Build();
         app.MapGet("/_lithosharp/reload", context => hub.ConnectAsync(context, stopping.Token));
         app.MapGet("/_lithosharp/diagnostics", async context =>
         {
@@ -97,14 +114,12 @@ internal static class DevServer
         });
         app.MapFallback("/{**path}", context => ServeFileAsync(context, state.OutputRoot));
 
-        var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
-        { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
-        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
-            path => { if (Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1); changes.Writer.TryWrite(true); });
         // Stop order is watch, then worker, then HTTP server, then host: the
         // rebuild loop (worker) runs on the stopping token so a control shutdown
         // aborts an in-flight rebuild instead of waiting for it.
-        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
+        // Pending initial edits are consumed once HTTP startup succeeded.
+        // Failed HTTP startup never starts an unnecessary queued rebuild.
+        var rebuild = Task.CompletedTask;
         var requestedPort = port;
         var started = false;
         string actualUrl = url;
@@ -124,6 +139,7 @@ internal static class DevServer
                 Error = exception.Message,
                 OutputDirectory = (string?)null,
             });
+            watcher.EnableRaisingEvents = false;
             changes.Writer.TryComplete();
             try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
@@ -132,9 +148,10 @@ internal static class DevServer
             // cannot abort; never wait for it here (process exit reclaims the
             // thread). Only observe it when it already finished (for example EOF).
             if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
-            if (controller.ShutdownRequested) WriteShutdown(controller.Generation, 0);
+            if (controller.ShutdownRequested) WriteRunShutdown(controller.Generation, 0);
             return controller.ShutdownRequested ? 0 : 1;
         }
+        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
         actualUrl = app.Services.GetRequiredService<IServer>().Features
             .Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault() ?? url;
         started = true;
@@ -168,6 +185,7 @@ internal static class DevServer
         try { await app.WaitForShutdownAsync(stopping.Token); }
         finally
         {
+            watcher.EnableRaisingEvents = false;
             changes.Writer.TryComplete();
             try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
@@ -176,9 +194,25 @@ internal static class DevServer
             // cannot abort; never wait for it here (process exit reclaims the
             // thread). Only observe it when it already finished (for example EOF).
             if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
-            if (machine && (started || controller.ShutdownRequested)) WriteShutdown(controller.Generation, controller.ShutdownRequested ? 0 : 130);
+            if (machine && (started || controller.ShutdownRequested)) WriteRunShutdown(controller.Generation, controller.ShutdownRequested ? 0 : 130);
         }
         return controller.ShutdownRequested ? 0 : cancellationToken.IsCancellationRequested ? 130 : 0;
+        }
+        catch (OperationCanceledException) when (controller.ShutdownRequested)
+        {
+            // Structured shutdown also owns an initial compile/build. Preserve
+            // ordinary external cancellation and non-cancellation failures.
+            if (machine) WriteRunShutdown(controller.Generation, 0);
+            return 0;
+        }
+        finally
+        {
+            controller.CompleteControl();
+            controlLifetime.Cancel();
+            // A parked Console.In read cannot be canceled. If it later wakes,
+            // the lifetime check prevents touching disposed stop ownership.
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+        }
     }
 
     private static async Task RebuildLoopAsync(
@@ -249,6 +283,7 @@ internal static class DevServer
                     ExitCode = 1,
                     Error = exception.Message,
                     OutputDirectory = state.OutputRoot,
+                    Generation = controller.Generation,
                 });
                 hub.Publish("error");
             }
@@ -269,6 +304,8 @@ internal static class DevServer
     {
         private readonly CancellationTokenSource stopSource;
         private int shutdowns;
+        private readonly object controlGate = new();
+        private bool controlCompleted;
 
         public ServeController(bool machine, CancellationTokenSource stopSource)
         {
@@ -282,8 +319,16 @@ internal static class DevServer
 
         public long Generation;
 
+        public void CompleteControl()
+        {
+            lock (controlGate) controlCompleted = true;
+        }
+
         public void RequestShutdown(string? requestId)
         {
+            lock (controlGate)
+            {
+            if (controlCompleted) return;
             if (Interlocked.Increment(ref shutdowns) == 1)
             {
                 if (requestId is not null)
@@ -309,17 +354,18 @@ internal static class DevServer
                     Success = true,
                 });
             }
+            }
         }
     }
 
-    private static void ControlLoop(ServeController controller)
+    private static void ControlLoop(ServeController controller, CancellationToken lifetime)
     {
         // Synchronous stdin reads block the calling thread, so this loop owns a
         // worker thread the main flow never awaits. Fragments across writes are
         // reassembled into lines by the reader itself. Duplicate shutdowns are
         // acked idempotently; the loop ends on EOF, a broken pipe, or process
         // exit (which abandons a parked read).
-        while (true)
+        while (!lifetime.IsCancellationRequested)
         {
             string? line;
             try
@@ -331,6 +377,7 @@ internal static class DevServer
                 return;
             }
 
+            if (lifetime.IsCancellationRequested) return;
             if (line is null)
             {
                 // Stdin EOF (or the parent controller is gone) is a normal stop request.

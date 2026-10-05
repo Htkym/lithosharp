@@ -277,14 +277,39 @@ internal sealed class LspTestClient : IAsyncDisposable
         {
             if (!process.HasExited)
             {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync().ConfigureAwait(false);
+                // EOF lets the server await cancellation and dispose its owned
+                // MDX worker before the fixture removes the worker directory.
+                CloseStdin();
+                try
+                {
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+                }
+                catch (TimeoutException timeout)
+                {
+                    // Preserve this failure even if the owned kill/exit wait
+                    // itself fails or races the process exit.
+                    try
+                    {
+                        if (!process.HasExited) process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        timeout.Data["OwnedForcedCleanupFailure"] = cleanupFailure;
+                    }
+                    finally
+                    {
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(timeout).Throw();
+                    }
+                }
             }
         }
         catch (InvalidOperationException)
         {
         }
-
-        process.Dispose();
+        finally
+        {
+            process.Dispose();
+        }
     }
 }

@@ -295,6 +295,11 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
 
         var fingerprint = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
 
+        // Preserve each original read, including repeated targets; conflicting
+        // captures must not be collapsed into a later disk fingerprint.
+        var capturedInputs = new[] { new CapturedContentInput(Path.GetFullPath(path), fingerprint[7..]) }
+            .Concat(inclusion.Resolved.Select(resolved => new CapturedContentInput(
+                Path.GetFullPath(resolved.TargetRelativePath, _inputRoot), resolved.RawHash))).ToArray();
         ContentEntry<TFrontMatter, string> entry;
         if (inclusion.Resolved.Count != 0)
         {
@@ -324,6 +329,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 new SiteSourceLocation(relativePath, 1, 1))
             {
                 DeclaredDependencies = ContentDependency.Snapshot(dependencies),
+                CapturedInputs = capturedInputs,
             };
         }
         else
@@ -334,7 +340,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 fingerprint,
                 bindResult.Value!,
                 inclusion.Body,
-                new SiteSourceLocation(relativePath, 1, 1));
+                new SiteSourceLocation(relativePath, 1, 1)) { CapturedInputs = capturedInputs };
         }
 
         var bodyStartLine = new Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;

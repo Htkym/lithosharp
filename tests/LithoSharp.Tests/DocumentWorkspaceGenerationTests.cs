@@ -66,8 +66,22 @@ public sealed class DocumentWorkspaceGenerationTests
     public async Task HundredOutOfOrderRequestsConvergeToLatest()
     {
         await using var workspace = new DocumentWorkspace();
-        var tasks = Enumerable.Range(1, 100).Select(index =>
-            workspace.InspectVersionedAsync("docs/race.md", EditText(index), documentVersion: index, projectGeneration: 1));
+        // Hold the existing parser admission slots so every revision is reserved
+        // before any analysis can complete. This detects a lazy sequential loop.
+        var slots = (SemaphoreSlim)typeof(DocumentWorkspace)
+            .GetField("_analysisSlots", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(workspace)!;
+        await slots.WaitAsync();
+        await slots.WaitAsync();
+        Task<DocumentInfo>[] tasks;
+        try
+        {
+            tasks = Enumerable.Range(1, 100).Select(index =>
+                workspace.InspectVersionedAsync("docs/race.md", EditText(index), documentVersion: index, projectGeneration: 1)).ToArray();
+            await Assert.That(tasks.Length).IsEqualTo(100);
+            await Assert.That(tasks[^1].IsCompleted).IsFalse();
+        }
+        finally { slots.Release(2); }
         var successes = 0;
         foreach (var task in tasks)
         {
@@ -234,8 +248,22 @@ public sealed class DocumentWorkspaceGenerationTests
     public async Task SaturatedQueueKeepsOnlyLatestPerDocument()
     {
         await using var workspace = new DocumentWorkspace();
-        var tasks = Enumerable.Range(1, 50).Select(index =>
-            workspace.InspectVersionedAsync("docs/sat.md", EditText(index), documentVersion: index, projectGeneration: 1));
+        // Hold the existing parser admission slots so every revision is reserved
+        // before any analysis can complete. This detects a lazy sequential loop.
+        var slots = (SemaphoreSlim)typeof(DocumentWorkspace)
+            .GetField("_analysisSlots", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(workspace)!;
+        await slots.WaitAsync();
+        await slots.WaitAsync();
+        Task<DocumentInfo>[] tasks;
+        try
+        {
+            tasks = Enumerable.Range(1, 50).Select(index =>
+                workspace.InspectVersionedAsync("docs/sat.md", EditText(index), documentVersion: index, projectGeneration: 1)).ToArray();
+            await Assert.That(tasks.Length).IsEqualTo(50);
+            await Assert.That(tasks[^1].IsCompleted).IsFalse();
+        }
+        finally { slots.Release(2); }
         foreach (var task in tasks)
         {
             try

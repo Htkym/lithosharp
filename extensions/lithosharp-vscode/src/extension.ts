@@ -23,7 +23,17 @@ const execFile = promisify(execFileCallback);
 /** Node file operations for MDX worker management. Only extension storage or an explicit directory is ever written. */
 function workerFileSystem(): WorkerFileSystem {
   const fsPromises = nodeFs.promises;
-  const skipped = new Set(['node_modules', '.cache', 'tests', '.git']);
+  const skipped = new Set(['node_modules', '.cache', 'tests', '.git', '.lithosharp-worker-lock']);
+  const sourceFiles = async (directory: string, prefix = ''): Promise<string[]> => {
+    const files: string[] = [];
+    for (const entry of await fsPromises.readdir(directory, { withFileTypes: true })) {
+      if (skipped.has(entry.name) || entry.isSymbolicLink()) continue;
+      const relative = prefix + entry.name;
+      if (entry.isDirectory()) files.push(...await sourceFiles(nodePath.join(directory, entry.name), relative + '/'));
+      else if (entry.isFile()) files.push(relative);
+    }
+    return files;
+  };
   const copyTree = async (from: string, to: string): Promise<number> => {
     let copied = 0;
     await fsPromises.mkdir(to, { recursive: true });
@@ -74,6 +84,7 @@ function workerFileSystem(): WorkerFileSystem {
       await fsPromises.writeFile(filePath, contents, 'utf8');
     },
     copySourceTree: copyTree,
+    sourceFiles,
     runNpmCi: async (cwd) => {
       // Lifecycle scripts stay off: restored packages never execute on install.
       try {
@@ -171,6 +182,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const userStartedServers = new Set<string>();
   const projectContexts = new Map<string, { folders: string[]; snapshot: unknown }>();
   const projectGenerations = new Map<string, number>();
+  let projectContextEpoch = 0;
+  const projectAcquisitions = new Map<string, number>();
   let disposed = false;
   let lspGeneration = 0;
   let lsp: LspClient | undefined;
@@ -209,6 +222,11 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const refresh = async (): Promise<void> => {
+    // Settings/workspace changes withdraw acquired ownership immediately. A
+    // build/inspect begun before this refresh cannot restore a stale context.
+    projectContextEpoch++;
+    for (const key of projectContexts.keys()) lsp?.sendProjectContext(key, [], null);
+    projectContexts.clear();
     const folders = vscode.workspace.workspaceFolders ?? [];
     const trusted = vscode.workspace.isTrusted;
     if (!trusted) {
@@ -394,7 +412,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     return {
-      folders: [vscode.Uri.file(selected.workspaceFolder).toString()],
+      folders: [vscode.Uri.file(projectRoot).toString()],
       snapshot: {
         schemaVersion: '1.0',
         projectId,
@@ -412,11 +430,22 @@ export function activate(context: vscode.ExtensionContext): void {
     };
   };
 
-  const updateProjectContext = (selected: ProjectCandidate, raw: unknown): void => {
+  const beginProjectAcquisition = (selected: ProjectCandidate, epoch: number): number | undefined => {
+    if (disposed || epoch !== projectContextEpoch) return undefined;
+    const key = keyOf(selected);
+    const ticket = (projectAcquisitions.get(key) ?? 0) + 1;
+    projectAcquisitions.set(key, ticket);
+    return ticket;
+  };
+
+  const updateProjectContext = (selected: ProjectCandidate, raw: unknown, epoch: number, ticket: number): void => {
+    if (disposed || epoch !== projectContextEpoch || projectAcquisitions.get(keyOf(selected)) !== ticket) return;
     const key = keyOf(selected);
     const generation = (projectGenerations.get(key) ?? 0) + 1;
     const context = createProjectContext(selected, raw, generation);
     if (!context) {
+      projectContexts.delete(key);
+      lsp?.sendProjectContext(key, [], null);
       output.appendLine('Project context was not acquired; editor diagnostics remain syntax-only.');
       return;
     }
@@ -501,24 +530,37 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const runOneShot = async (command: 'build' | 'check' | 'inspect'): Promise<void> => {
+    const contextEpoch = projectContextEpoch;
     requireTrusted(vscode.workspace.isTrusted, `run lithosharp ${command}`);
     const selected = await currentSelection();
     if (!selected) {
       output.appendLine('LithoSharp: no project selected. Run LithoSharp: Select Project first.');
       return;
     }
-    const cli = await cliFor(selected);
-    const runner = buildRunnerFor(selected, cli);
-    const result = await runner.run(command);
+    const ticket = command === 'check' ? undefined : beginProjectAcquisition(selected, contextEpoch);
+    if (command !== 'check' && ticket === undefined) return;
+    let result: import('./buildRunner.js').BuildResult;
+    try {
+      const cli = await cliFor(selected);
+      const runner = buildRunnerFor(selected, cli);
+      result = await runner.run(command);
+    } catch (error) {
+      try {
+        if (ticket !== undefined) updateProjectContext(selected, undefined, contextEpoch, ticket);
+      } finally {
+        throw error;
+      }
+    }
     if (result.ok) {
       output.appendLine(`LithoSharp ${command} succeeded (exit ${result.exitCode}). Validation only; not a publish approval.`);
-      if (command === 'build' || command === 'inspect') {
-        updateProjectContext(selected, result.raw);
+      if (ticket !== undefined) {
+        updateProjectContext(selected, result.raw, contextEpoch, ticket);
       }
       if (result.diagnosticsText) {
         output.appendLine(result.diagnosticsText);
       }
     } else {
+      if (ticket !== undefined) updateProjectContext(selected, undefined, contextEpoch, ticket);
       output.appendLine(`LithoSharp ${command} failed: ${result.error}`);
       if (result.diagnosticsText) {
         output.appendLine(result.diagnosticsText);
@@ -569,13 +611,26 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const previewRoutes = async (selected: ProjectCandidate): Promise<InspectedRoute[]> => {
-    const cli = await cliFor(selected);
-    const runner = buildRunnerFor(selected, cli);
-    const result = await runner.run('inspect');
+    const contextEpoch = projectContextEpoch;
+    const ticket = beginProjectAcquisition(selected, contextEpoch);
+    if (ticket === undefined) return [];
+    let result: import('./buildRunner.js').BuildResult;
+    try {
+      const cli = await cliFor(selected);
+      const runner = buildRunnerFor(selected, cli);
+      result = await runner.run('inspect');
+    } catch (error) {
+      try {
+        updateProjectContext(selected, undefined, contextEpoch, ticket);
+      } finally {
+        throw error;
+      }
+    }
     if (!result.ok) {
+      updateProjectContext(selected, undefined, contextEpoch, ticket);
       return [];
     }
-    updateProjectContext(selected, result.raw);
+    updateProjectContext(selected, result.raw, contextEpoch, ticket);
     const raw = result.raw as {
       buildPlan?: {
         inputs?: { key?: unknown; value?: unknown }[];
@@ -674,7 +729,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!disposed && generation === lspGeneration) output.appendLine(`MDX worker resolution failed: ${String(error)}. Markdown diagnostics keep working.`);
     }
     if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) return undefined;
-    const client = new LspClient(
+    const client: LspClient = new LspClient(
       {
         serverCommand,
         cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
@@ -683,7 +738,11 @@ export function activate(context: vscode.ExtensionContext): void {
         initializationOptions: workerDirectory === '' ? {} : { workerDirectory },
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => { if (!disposed) output.appendLine(line); },
-        onState: (name) => { if (!disposed) output.appendLine(`Language server: ${name}.`); },
+        onState: (name) => {
+          if (!disposed) output.appendLine(`Language server: ${name}.`);
+          // Reconnect on the next editing request, never in an exit-triggered loop.
+          if (name === 'stopped' && lsp === client) lsp = undefined;
+        },
       },
       {
         set: (uri, diagnostics) =>
@@ -713,6 +772,7 @@ export function activate(context: vscode.ExtensionContext): void {
     lsp = client;
     try {
       await client.start();
+      if (lsp !== client) return undefined;
       if (disposed || generation !== lspGeneration || !vscode.workspace.isTrusted) {
         client.stop();
         if (lsp === client) lsp = undefined;
@@ -723,6 +783,13 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       if (projectContexts.size === 0) {
         output.appendLine('Project context not acquired; live diagnostics are syntax-only until an explicit Build or Inspect succeeds.');
+      }
+      // A fresh client needs all current buffers before a change/save can work.
+      for (const document of vscode.workspace.textDocuments ?? []) {
+        if (!document.isClosed && LspClient.isSupported(document.uri.toString(), document.languageId)) {
+          client.didOpen({ uri: document.uri.toString(), languageId: document.languageId,
+            version: document.version, text: document.getText() });
+        }
       }
     } catch (error) {
       client.stop();

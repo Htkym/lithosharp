@@ -31,7 +31,7 @@ public static class MarkdownInclusionDiagnosticIds
 internal static partial class MarkdownCodeInclusion
 {
     /// <summary>A resolved inclusion: target bytes plus the directive span (body-relative).</summary>
-    internal sealed record ResolvedInclusion(byte[] TargetBytes, int SpanStart, int SpanLength, string TargetRelativePath);
+    internal sealed record ResolvedInclusion(byte[] TargetBytes, int SpanStart, int SpanLength, string TargetRelativePath, string RawHash);
 
     /// <summary>Resolution outcome: the resolved body plus error diagnostics.</summary>
     internal sealed record InclusionResult(
@@ -99,7 +99,7 @@ internal static partial class MarkdownCodeInclusion
                     builder.Append('\n');
                 resolved.Add(new ResolvedInclusion(
                     Encoding.UTF8.GetBytes(target.Value.Content), fence.FenceStart, fence.ContentEnd - fence.FenceStart,
-                    target.Value.RelativePath));
+                    target.Value.RelativePath, target.Value.RawHash));
             }
 
             cursor = fence.ContentEnd;
@@ -249,7 +249,7 @@ internal static partial class MarkdownCodeInclusion
         }
     }
 
-    private static async ValueTask<(string Content, string RelativePath)?> ReadTargetAsync(
+    private static async ValueTask<(string Content, string RelativePath, string RawHash)?> ReadTargetAsync(
         InclusionFence fence,
         string postDirectory,
         string inputRoot,
@@ -334,7 +334,7 @@ internal static partial class MarkdownCodeInclusion
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Normalize(NormalizationForm.FormC);
-        return (resolved, relativeTarget);
+        return (resolved, relativeTarget, Convert.ToHexStringLower(SHA256.HashData(bytes)));
     }
 
     /// <summary>

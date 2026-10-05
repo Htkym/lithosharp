@@ -99,6 +99,140 @@ function Get-Property($Object, [string] $Name, $Default = $null) {
     return $property.Value
 }
 
+function Test-NonnegativeFiniteNumber($Value) {
+    if ($null -eq $Value -or !($Value -is [byte] -or $Value -is [sbyte] -or $Value -is [int16] -or $Value -is [uint16] -or
+        $Value -is [int32] -or $Value -is [uint32] -or $Value -is [int64] -or $Value -is [uint64] -or
+        $Value -is [single] -or $Value -is [double] -or $Value -is [decimal])) { return $false }
+    return [double]::IsFinite([double]$Value) -and $Value -ge 0
+}
+
+function Test-MeasurementProperty($Object, [string] $Name) {
+    if ($null -eq $Object) { return $false }
+    if ($Object -is [Collections.IDictionary]) { return $Object.Contains($Name) }
+    return $null -ne $Object.PSObject.Properties[$Name]
+}
+
+function Test-WorkCount($Value, [decimal] $Maximum) {
+    if (!(Test-NonnegativeFiniteNumber $Value)) { return $false }
+    # Floating counts outside their exact-safe integer range are UNPROVEN;
+    # decimal and integral CLR values retain their exact representation.
+    if ($Value -is [single] -and $Value -gt 16777215) { return $false }
+    if ($Value -is [double] -and $Value -gt 9007199254740991) { return $false }
+    $exact = [decimal]$Value
+    if ($Value -is [single] -or $Value -is [double]) {
+        if ([double]$Value -ne [Math]::Floor([double]$Value)) { return $false }
+    }
+    elseif ($exact -ne [decimal]::Truncate($exact)) { return $false }
+    return $exact -le $Maximum
+}
+
+function Assert-MdxWorkMeasurement($Metrics) {
+    if (!(Test-MeasurementProperty $Metrics 'work')) { return }
+    $work = Get-Property $Metrics 'work'
+    if ($null -eq $work -or (Get-Property $work 'hasCompleteReports') -isnot [bool]) { throw 'Invalid reported MDX Work metrics.' }
+    $counts = @('requestAttempts', 'workerStarts', 'compiledModules', 'renderedPages', 'mdxCompileInvocations',
+        'renderInvocations', 'esbuildInvocations', 'browserBuildInvocations', 'browserEntryBuildAttempts')
+    foreach ($field in @($counts + @('requestMilliseconds', 'workerMilliseconds', 'serverBundleMilliseconds',
+        'browserBundleMilliseconds', 'liveRuntimeMilliseconds', 'renderMilliseconds', 'pluginBundleMilliseconds'))) {
+        $value = Get-Property $work $field
+        if (!(Test-NonnegativeFiniteNumber $value)) { throw "Invalid reported MDX Work measurement '$field'." }
+        if ($counts -ccontains $field) {
+            $maximum = if ($field -cin @('requestAttempts', 'workerStarts')) { [decimal]([int]::MaxValue) } else { [decimal]([long]::MaxValue) }
+            if (!(Test-WorkCount $value $maximum)) { throw "Invalid or unproven reported MDX Work count '$field'." }
+        }
+    }
+}
+
+function Get-UnknownMeasurementFields($Measured, [string] $MeasurementHarness = $Harness) {
+    $unknown = [Collections.Generic.List[string]]::new()
+    if ($MeasurementHarness -ceq 'mdx') {
+        $metrics = Get-Property $Measured 'mdx'
+        if ($null -eq (Get-Property $metrics 'rebundledPages')) { $unknown.Add('mdx.rebundledPages') }
+        if (!(Test-MeasurementProperty $metrics 'work')) { $unknown.Add('mdx.work') }
+    }
+    return ,$unknown.ToArray()
+}
+
+function Assert-PrepareMeasurement($Prepare) {
+    if ($null -eq $Prepare) { return }
+    foreach ($field in 'elapsedMilliseconds', 'cacheHitCount', 'cacheMissCount') {
+        if (!(Test-NonnegativeFiniteNumber (Get-Property $Prepare $field))) { throw "Invalid preparation measurement '$field'." }
+    }
+}
+
+function Assert-MeasurementSet($Entries, [string] $RequestedScenario, [string] $MeasurementHarness = $Harness) {
+    if ($MeasurementHarness -cnotin 'markdown', 'mdx') { throw 'Unknown measurement harness.' }
+    $scenarioNames = if ($MeasurementHarness -ceq 'markdown') { @('clean', 'no-op', 'single-page-change', 'layout-change') }
+        else { @('cold', 'warm-cache', 'no-op', 'one-page', 'shared-component', 'shared-css', 'shared-image', 'layout', 'route', 'lockfile') }
+    if ($RequestedScenario -cne 'all' -and $scenarioNames -cnotcontains $RequestedScenario) { throw 'Unknown requested scenario.' }
+    $expected = @(if ($RequestedScenario -ceq 'all') { $scenarioNames } else { $RequestedScenario })
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($entry in @($Entries)) {
+        $name = Get-Property $entry 'name'
+        if ($name -isnot [string] -or $expected -cnotcontains $name -or !$seen.Add($name)) {
+            throw 'Measurements contain an unexpected or duplicate scenario name.'
+        }
+        $measured = Get-Property $entry 'measured'
+        $required = if ($MeasurementHarness -ceq 'markdown') {
+            @('elapsedMilliseconds', 'allocatedBytes', 'generatedNodeCount', 'invalidatedNodeCount', 'artifactCount', 'peakWorkingSetBytes')
+        } else { @('elapsedMilliseconds', 'allocatedBytes', 'cacheHits', 'cacheMisses', 'generatedFiles', 'outputBytes') }
+        foreach ($field in $required) {
+            if (!(Test-NonnegativeFiniteNumber (Get-Property $measured $field))) { throw "Invalid mandatory measurement '$field'." }
+        }
+        if ($MeasurementHarness -ceq 'mdx') {
+            $metrics = Get-Property $measured 'mdx'
+            foreach ($field in 'workerStarts', 'workerMilliseconds', 'serverBundleMilliseconds', 'renderMilliseconds',
+                'browserBundleMilliseconds', 'nodeHeapUsedBytes', 'compiledModules', 'renderedPages', 'bundledPages') {
+                if (!(Test-NonnegativeFiniteNumber (Get-Property $metrics $field))) { throw "Invalid mandatory MDX measurement '$field'." }
+            }
+            # Additive work metrics are UNKNOWN when absent, never inferred zero.
+            $rebundled = Get-Property $metrics 'rebundledPages'
+            if ($null -ne $rebundled -and !(Test-NonnegativeFiniteNumber $rebundled)) { throw 'Invalid optional MDX measurement rebundledPages.' }
+            Assert-MdxWorkMeasurement $metrics
+        }
+    }
+    if ($seen.Count -ne $expected.Count) { throw 'Measurements do not contain the complete requested scenario set.' }
+}
+
+function Test-CompletedRecordSet($Rows, [string] $RequestedScenario) {
+    if (@($Rows).Count -eq 0) { return $false }
+    $first = @($Rows)[0]
+    if ((Get-Property $first 'requestedScenario') -cne $RequestedScenario) { return $false }
+    $entries = [Collections.Generic.List[object]]::new()
+    foreach ($row in @($Rows)) {
+        if ((Get-Property $row 'status') -cne 'completed' -or
+            !(Test-NonnegativeFiniteNumber (Get-Property $row 'exitCode')) -or (Get-Property $row 'exitCode') -ne 0) { return $false }
+        foreach ($field in 'harness', 'label', 'size', 'requestedScenario', 'run', 'attempt', 'startedAt', 'resultFile', 'stdoutFile', 'stderrFile') {
+            $value = Get-Property $row $field
+            if ($null -eq $value -or [string]$value -cne [string](Get-Property $first $field)) { return $false }
+        }
+        foreach ($field in 'resultFile', 'stdoutFile', 'stderrFile') {
+            $value = Get-Property $row $field
+            if ($value -isnot [string] -or [string]::IsNullOrWhiteSpace($value)) { return $false }
+        }
+        foreach ($field in 'size', 'run', 'attempt') {
+            $value = Get-Property $row $field
+            if (!(Test-NonnegativeFiniteNumber $value) -or $value -lt 1 -or [double]$value -ne [Math]::Floor([double]$value)) { return $false }
+        }
+        try { Assert-PrepareMeasurement (Get-Property $row 'prepare') } catch { return $false }
+        $entries.Add([ordered]@{ name = Get-Property $row 'scenario'; measured = Get-Property $row 'measured' })
+    }
+    try { Assert-MeasurementSet $entries.ToArray() $RequestedScenario (Get-Property $first 'harness'); return $true } catch { return $false }
+}
+
+function Test-CompletedRun($Rows, [int] $Size, [string] $RequestedScenario, [int] $Run) {
+    $matching = @($Rows | Where-Object {
+        (Get-Property $_ 'harness') -ceq $Harness -and (Get-Property $_ 'label') -ceq $Label -and
+        (Test-NonnegativeFiniteNumber (Get-Property $_ 'size')) -and (Get-Property $_ 'size') -eq $Size -and
+        (Get-Property $_ 'requestedScenario') -ceq $RequestedScenario -and
+        (Test-NonnegativeFiniteNumber (Get-Property $_ 'run')) -and (Get-Property $_ 'run') -eq $Run
+    })
+    foreach ($group in ($matching | Group-Object { Get-Property $_ 'attempt' })) {
+        if (Test-CompletedRecordSet @($group.Group) $RequestedScenario) { return $true }
+    }
+    return $false
+}
+
 function Get-Statistics([double[]] $Values) {
     if ($null -eq $Values -or $Values.Count -eq 0) { return $null }
     $sorted = @($Values | Sort-Object)
@@ -189,7 +323,9 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
 
     $entries = [Collections.Generic.List[object]]::new()
     $prepare = $null
+    $measurementError = $null
     if ($status -eq 'completed' -and (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+        try {
         $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
         if ($Harness -eq 'markdown') {
             $prepareValue = Get-Property $result 'prepare'
@@ -202,7 +338,6 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
             }
             foreach ($workload in @(Get-Property $result 'workloads' @())) {
                 $name = [string](Get-Property $workload 'name')
-                if ($Scenario -ne 'all' -and $name -ne $Scenario) { continue }
                 $entries.Add([ordered]@{
                     name     = $name
                     measured = [ordered]@{
@@ -220,7 +355,8 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
         else {
             foreach ($entry in @(Get-Property $result 'measurements' @())) {
                 $name = [string](Get-Property $entry 'name')
-                if ($name -eq 'prepare') {
+                if ($name -ceq 'prepare') {
+                    if ($Scenario -ceq 'all' -or $Scenario -ceq 'cold' -or $null -ne $prepare) { throw 'Unexpected or duplicate preparation measurement.' }
                     $prepare = [ordered]@{
                         elapsedMilliseconds = Get-Property $entry 'elapsedMilliseconds'
                         cacheHitCount       = Get-Property $entry 'cacheHits'
@@ -228,7 +364,6 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
                     }
                     continue
                 }
-                if ($Scenario -ne 'all' -and $name -ne $Scenario) { continue }
                 $metrics = Get-Property $entry 'mdx'
                 $entries.Add([ordered]@{
                     name     = $name
@@ -247,9 +382,17 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
                         bundledPages    = Get-Property $metrics 'bundledPages'
                         rebundledPages  = Get-Property $metrics 'rebundledPages'
                         workerStarts    = Get-Property $metrics 'workerStarts'
+                        work            = Get-Property $metrics 'work'
                     }
                 })
             }
+        }
+        Assert-PrepareMeasurement $prepare
+        Assert-MeasurementSet $entries.ToArray() $Scenario
+        }
+        catch {
+            $status = 'invalid-measurement'
+            $measurementError = $_.Exception.Message
         }
     }
     if ($status -eq 'completed' -and $entries.Count -eq 0) { $status = 'no-measurement' }
@@ -262,6 +405,10 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
         foreach ($entry in $entries) {
             $records.Add((ConvertTo-Record $entry $entry.name $Scenario $status $exitCode $startedAt $clock.ElapsedMilliseconds $prepare $arguments $resultPath $stdoutPath $stderrPath $Size))
         }
+    }
+    foreach ($record in $records) {
+        $record.measurementError = $measurementError
+        $record.unknownMetrics = Get-UnknownMeasurementFields $record.measured
     }
     return $records.ToArray()
 }
@@ -277,11 +424,7 @@ foreach ($size in $sizeList) {
         for ($run = 1; $run -le $Runs; $run++) {
             $runDirectory = Join-Path $StateRoot "$Harness-$size-$scenario-run-$run"
             if ($Resume) {
-                $doneRuns = @($existing | Where-Object {
-                    (Get-Property $_ 'harness') -eq $Harness -and (Get-Property $_ 'size') -eq $size -and
-                    (Get-Property $_ 'requestedScenario') -eq $scenario -and (Get-Property $_ 'status') -eq 'completed'
-                } | ForEach-Object { [int](Get-Property $_ 'run') } | Sort-Object -Unique)
-                if ($doneRuns -contains $run) {
+                if (Test-CompletedRun $existing $size $scenario $run) {
                     Write-Host ("resume: skipping $Harness $size $scenario run $run")
                     continue
                 }
@@ -309,6 +452,26 @@ foreach ($size in $sizeList) {
 $all = [Collections.Generic.List[object]]::new()
 foreach ($item in $existing) { $all.Add($item) }
 foreach ($item in $records) { $all.Add($item) }
+# Reclassify old false-completed cohorts in the derived summary only. Raw ledger
+# bytes and historical attempts remain untouched; separate retries cannot fill gaps.
+foreach ($item in $all) {
+    $unknown = Get-UnknownMeasurementFields (Get-Property $item 'measured') (Get-Property $item 'harness')
+    if ($item -is [Collections.IDictionary]) { $item['unknownMetrics'] = $unknown }
+    else { $item | Add-Member -NotePropertyName unknownMetrics -NotePropertyValue $unknown -Force }
+    if ((Get-Property $item 'status') -cne 'completed') { continue }
+    $cohort = @($all | Where-Object {
+        $same = $true
+        foreach ($field in 'harness', 'label', 'size', 'requestedScenario', 'run', 'attempt') {
+            if ([string](Get-Property $_ $field) -cne [string](Get-Property $item $field)) { $same = $false; break }
+        }
+        $same
+    })
+    if (!(Test-CompletedRecordSet $cohort (Get-Property $item 'requestedScenario'))) {
+        if ($item -is [Collections.IDictionary]) { $item['originalStatus'] = 'completed' }
+        else { $item | Add-Member -NotePropertyName originalStatus -NotePropertyValue 'completed' -Force }
+        $item.status = 'invalid-measurement'
+    }
+}
 
 # The B0/B1 harnesses predate --scenario. Keep those failed invocations in the
 # raw ledger, but do not count their argument errors as workload attempts.
@@ -316,13 +479,13 @@ $excluded = @($all | Where-Object {
     $label = [string](Get-Property $_ 'label')
     $status = [string](Get-Property $_ 'status')
     $command = @(Get-Property $_ 'command' @())
-    $label -in @('B0', 'B1') -and $status -ne 'completed' -and $command -contains '--scenario'
+    $label -in @('B0', 'B1') -and $status -notin @('completed', 'invalid-measurement') -and $command -contains '--scenario'
 })
 $included = @($all | Where-Object {
     $label = [string](Get-Property $_ 'label')
     $status = [string](Get-Property $_ 'status')
     $command = @(Get-Property $_ 'command' @())
-    !($label -in @('B0', 'B1') -and $status -ne 'completed' -and $command -contains '--scenario')
+    !($label -in @('B0', 'B1') -and $status -notin @('completed', 'invalid-measurement') -and $command -contains '--scenario')
 })
 
 $cells = [Collections.Generic.List[object]]::new()
@@ -350,6 +513,7 @@ foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(G
         elapsedMs = Get-Statistics $values.ToArray()
         prepareMs = Get-Statistics $prepareValues.ToArray()
         counters  = @($completed | ForEach-Object { Get-Property $_ 'counters' } | Where-Object { $null -ne $_ })
+        unknownMetrics = @($completed | ForEach-Object { Get-Property $_ 'unknownMetrics' @() } | Sort-Object -Unique)
     })
 }
 

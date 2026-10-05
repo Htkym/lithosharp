@@ -8,6 +8,7 @@ const observed: { doc?: vscode.TextDocument; readyBeforeRestore: number; errorBa
 function summarizeErrors(log: string): ErrorCounts {
   const categoryPatterns: [string, RegExp][] = [
     ['analysis-unavailable', /MDX analysis unavailable/],
+    ['analysis-failed', /^Discarding a failed analysis:/],
     ['unpositioned-diagnostic', /MDX diagnostic .*no reliable/],
     ['worker-resolution-failed', /MDX worker resolution failed/],
     ['worker-restore-failed', /MDX worker restore failed/],
@@ -28,6 +29,28 @@ function summarizeErrors(log: string): ErrorCounts {
     categoryCounts: categoryPatterns.map(([category, pattern]) => ({ category, count: errors.filter(line => pattern.test(line)).length })),
     reasonCounts: reasonPatterns.map(([reason, pattern]) => ({ reason, count: errors.filter(line => pattern.test(line)).length })) };
 }
+// BEGIN bounded readiness tuple parser (diagnostic evidence only).
+function reportedReadinessTuples(log: string) {
+  const prefix = 'The worker protocol or toolchain does not match the supported locked versions. Readiness tuple: expected(protocol=1,type=ready,node=24.13.0,mdx=3.1.1,react=19.2.4,esbuild=0.28.2) reported(';
+  const scalar = '(?:[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|\\[invalid\\])';
+  const pattern = new RegExp('^protocol=([0-9]{1,3}|\\[invalid\\]),type=(ready|\\[invalid\\]),node=(' + scalar + '),mdx=(' + scalar + '),react=(' + scalar + '),esbuild=(' + scalar + ')\\)$');
+  const rows = [];
+  let matchedCount = 0;
+  for (const line of log.split(/\r?\n/)) {
+    if (!/MDX analysis unavailable|^Discarding a failed analysis:/.test(line)) continue;
+    const offset = line.indexOf(prefix);
+    if (offset < 0) continue;
+    const match = pattern.exec(line.slice(offset + prefix.length));
+    if (!match) continue;
+    matchedCount++;
+    if (rows.length < 8) rows.push({ protocol: match[1] === '[invalid]' ? null : Number(match[1]),
+      type: match[2] === 'ready' ? 'ready' : null,
+      node: match[3] === '[invalid]' ? null : match[3], mdx: match[4] === '[invalid]' ? null : match[4],
+      react: match[5] === '[invalid]' ? null : match[5], esbuild: match[6] === '[invalid]' ? null : match[6] });
+  }
+  return { matchedCount, retainedCount: rows.length, truncated: matchedCount > rows.length, rows };
+}
+// END bounded readiness tuple parser.
 function captureErrorBaseline(log: string): void {
   observed.errorBaseline = { counts: summarizeErrors(log), characters: log.length, sha256: createHash('sha256').update(log).digest('hex') };
 }
@@ -91,6 +114,8 @@ async function captureFailure(stage: string): Promise<void> {
     diagnosticGroupCount: groups.length, fileDiagnosticGroupCount: fileGroups.length, retainedDiagnosticGroups: diagnostics.length,
     diagnostics, errorLineCount: currentErrors.lineCount,
     errorCategoryCounts: currentErrors.categoryCounts, errorReasonCounts: currentErrors.reasonCounts,
+    readinessTupleEvidence: { current: reportedReadinessTuples(log),
+      postRestore: continuous && baseline ? reportedReadinessTuples(log.slice(baseline.characters)) : null },
     preRestoreErrorCounts: baseline?.counts ?? null,
     preRestoreLogProof: baseline ? { characters: baseline.characters, sha256: baseline.sha256 } : null,
     postRestoreErrorDelta: { status: baseline === undefined ? 'unknown-no-baseline'

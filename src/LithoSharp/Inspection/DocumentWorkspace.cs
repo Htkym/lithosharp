@@ -11,6 +11,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
     private readonly ConcurrentDictionary<string, DocumentEntry> _entries = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _analysisSlots = new(2, 2);
     private readonly object _lifetimeLock = new();
+    private readonly HashSet<Task> _activeAnalyses = new();
     private bool _disposed;
 
     /// <summary>workspace識別子を取得します。</summary>
@@ -24,8 +25,9 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         public long? ReservedVersion;
         public long? ReservedGeneration;
         public string? LastText;
+        public string? LastSourcePath;
+        public DocumentInspectionOptions? LastOptions;
         public CancellationTokenSource? Pending;
-        public Task? Active;
     }
 
     /// <summary>文書を検査し、workspace所有のsnapshotとして保存します。</summary>
@@ -85,7 +87,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
             {
                 throw new OperationCanceledException(cancellationToken);
             }
-            if (IsSameRevision(entry, documentVersion, projectGeneration, text)
+            if (IsSameRevision(entry, documentVersion, projectGeneration, sourcePath, text, options)
                 && _snapshots.TryGetValue(key, out var current))
             {
                 return current;
@@ -121,7 +123,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                     }
 
                     analysis = Task.Run(() => DocumentInspection.Inspect(sourcePath, text, options, linked.Token), linked.Token);
-                    entry.Active = analysis;
+                    _activeAnalyses.Add(analysis);
                 }
 
                 DocumentInfo info;
@@ -133,10 +135,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                 {
                     lock (_lifetimeLock)
                     {
-                        if (ReferenceEquals(entry.Active, analysis))
-                        {
-                            entry.Active = null;
-                        }
+                        _activeAnalyses.Remove(analysis);
                     }
                 }
 
@@ -163,6 +162,8 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                     entry.Version = documentVersion ?? long.MaxValue;
                     entry.Generation = projectGeneration ?? long.MaxValue;
                     entry.LastText = text;
+                    entry.LastSourcePath = sourcePath;
+                    entry.LastOptions = options;
 
                     return info;
                 }
@@ -188,10 +189,23 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         }
     }
 
-    private static bool IsSameRevision(DocumentEntry entry, long? version, long? generation, string text) =>
+    private static bool IsSameRevision(DocumentEntry entry, long? version, long? generation,
+        string sourcePath, string text, DocumentInspectionOptions? options) =>
         entry.LastText is not null
         && string.Equals(entry.LastText, text, StringComparison.Ordinal)
+        && string.Equals(entry.LastSourcePath, sourcePath, StringComparison.Ordinal)
+        && SameOptions(entry.LastOptions, options)
         && (version is null || (entry.Version == version && entry.Generation == (generation ?? long.MaxValue)));
+
+    // Project snapshots are immutable. A replacement object conservatively
+    // invalidates reuse even when its project id and generation are unchanged.
+    private static bool SameOptions(DocumentInspectionOptions? previous, DocumentInspectionOptions? current) =>
+        string.Equals(previous?.DocumentId, current?.DocumentId, StringComparison.Ordinal)
+        && string.Equals(previous?.Route, current?.Route, StringComparison.Ordinal)
+        && string.Equals(previous?.Version, current?.Version, StringComparison.Ordinal)
+        && string.Equals(previous?.Locale, current?.Locale, StringComparison.Ordinal)
+        && (previous?.EnableCompatibilityAdvisory ?? false) == (current?.EnableCompatibilityAdvisory ?? false)
+        && ReferenceEquals(previous?.Project, current?.Project);
 
     private static bool IsOlderReservation(DocumentEntry entry, long? version, long? generation)
     {
@@ -308,6 +322,11 @@ public sealed class DocumentWorkspace : IAsyncDisposable
                 entry.ReservedVersion = null;
                 entry.ReservedGeneration = null;
                 entry.LastText = null;
+                entry.LastSourcePath = null;
+                entry.LastOptions = null;
+                // Active work owns its entry locally and is tracked separately
+                // for disposal; a closed key does not retain an empty tombstone.
+                _entries.TryRemove(key, out _);
             }
 
             return _snapshots.TryRemove(key, out _);
@@ -323,7 +342,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         lock (_lifetimeLock)
         {
             _disposed = true;
-            active = _entries.Values.Select(entry => entry.Active).OfType<Task>().ToList();
+            active = _activeAnalyses.ToList();
             pending = _entries.Values.Select(entry => entry.Pending).OfType<CancellationTokenSource>().ToList();
             foreach (var source in pending)
             {

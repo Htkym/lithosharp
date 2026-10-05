@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -68,7 +69,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 collection.PublicationMapper(entry).Title ?? string.Empty,
                 collection.PublicationMapper(entry).Description,
                 (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, collection.PublicationMapper(entry).Language ?? context.Site.Language,
-                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None)).ToArray();
+                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs)).ToArray();
             return new Loaded(pages, results =>
             {
                 var entries = published.Select((entry, index) =>
@@ -81,6 +82,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine, entry.Body.BodyStartOffset)
                     {
                         RenderedHtml = html,
+                        CapturedInputs = entry.Body.CapturedInputs,
                         PlainText = page.GetProperty("text").GetString(),
                         Semantics = MdxSemantics.FromWorker(
                             entry.SourcePath,
@@ -95,7 +97,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         .Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { ContentDependency.FromAsset(AssetId(page.GetProperty("entry").GetString()!)) })
                         .Append(ContentDependency.FromValue("mdx-render", Hash(Encoding.UTF8.GetBytes(html)))).ToArray();
                     return new ContentEntry<TFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint,
-                        entry.FrontMatter, body, entry.SourceLocation) { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces };
+                        entry.FrontMatter, body, entry.SourceLocation) { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces, CapturedInputs = entry.CapturedInputs };
                 });
                 var prepared = new ContentCollection<TFrontMatter, MdxDocument>(collection.Id, collection.InputRoot, entries,
                     collection.RouteConvention, collection.PublicationMapper, collection.LayoutId, collection.OrderingComparer,
@@ -112,11 +114,12 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(context);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var starts = worker.Starts;
+        var work = new WorkAccumulator();
         try
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             Metrics = new();
-            var starts = worker.Starts;
             var loaded = new List<Loaded>();
             foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
             var pages = loaded.SelectMany(value => value.Pages).ToArray();
@@ -126,6 +129,9 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             foreach (var page in pages) routes.Register(SiteRoute.ForDirectoryIndex(page.Url.Trim('/')), page.Id);
             routes.ValidateOrThrow();
             var sources = pages.ToDictionary(page => page.Source, page => page.Code, StringComparer.Ordinal);
+            var capturedInputs = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (var input in pages.SelectMany(page => page.CapturedInputs))
+                AddCapturedInput(capturedInputs, input.File, input.Hash);
             var linkMap = pages.ToDictionary(page => page.Source, page => page.Url, StringComparer.Ordinal);
             var tools = await ToolFingerprintAsync(cancellationToken).ConfigureAwait(false);
             if (previousTools is not null && previousTools != tools) await worker.DisposeAsync().ConfigureAwait(false);
@@ -157,9 +163,12 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 {
                     using var cached = JsonDocument.Parse(await File.ReadAllBytesAsync(cachePath, cancellationToken).ConfigureAwait(false));
                     var envelope = cached.RootElement;
-                    var candidate = envelope.GetProperty("result");
-                    if (envelope.GetProperty("hash").GetString() == Hash(JsonSerializer.SerializeToUtf8Bytes(candidate))
-                        && await InputsMatchAsync(candidate, cancellationToken).ConfigureAwait(false)) result = candidate.Clone();
+                    if (envelope.ValueKind == JsonValueKind.Object
+                        && envelope.TryGetProperty("result", out var candidate)
+                        && envelope.TryGetProperty("hash", out var checksum) && checksum.ValueKind == JsonValueKind.String
+                        && CachedResultHasShape(candidate)
+                        && checksum.GetString() == Hash(JsonSerializer.SerializeToUtf8Bytes(candidate))
+                        && await InputsMatchAsync(candidate, capturedInputs, cancellationToken).ConfigureAwait(false)) result = candidate.Clone();
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or ArgumentException) { }
             }
@@ -173,14 +182,30 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     while (true)
                     {
                         var requestId = Guid.NewGuid().ToString("N");
-                        var response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
+                        JsonElement response;
+                        work.RequestAttempts++;
+                        var attemptStarted = Stopwatch.GetTimestamp();
+                        var received = false;
+                        try
+                        {
+                        response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
                             projectRoot = options.ProjectDirectory, workRoot = scratch, allowWorkWithinProject = true,
                             assetBaseUrl = AssetUrl(context, ""), basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
                             timestamp = context.BuildTimestamp, cacheable = options.Cacheable,
                             resolutionFingerprint = Hash(JsonSerializer.SerializeToUtf8Bytes(resolutionCandidates, MdxJson.Options)),
                             pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
-                            sources, linkMap, crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value), plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
+                            sources, capturedInputs, linkMap, crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value), plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
+                        work.Observe(response);
+                        received = true;
+                        }
+                        finally
+                        {
+                            work.RequestMilliseconds += Stopwatch.GetElapsedTime(attemptStarted).TotalMilliseconds;
+                            if (!received) work.Complete = false;
+                        }
                         if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
+                        if (!await CapturedInputsMatchAsync(capturedInputs, cancellationToken).ConfigureAwait(false))
+                            throw MdxWorker.Failure("LSMDX005", "An MDX input changed after its source snapshot was captured; retry the build.");
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();
                         if (missing.Length == 0 || sources.Count + missing.Length > 10000)
                             throw new SiteBuildExtensionException(response.GetProperty("diagnostics").EnumerateArray()
@@ -189,10 +214,12 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         {
                             var relative = RelativeSource(file);
                             if (sources.ContainsKey(relative)) throw MdxWorker.Failure("LSMDX003", "Worker requested an already validated source.");
-                            sources.Add(relative, await ReadPartialAsync(file, relative, cancellationToken).ConfigureAwait(false));
+                            var partial = await ReadPartialAsync(file, relative, cancellationToken).ConfigureAwait(false);
+                            sources.Add(relative, partial.Code);
+                            AddCapturedInput(capturedInputs, file, partial.Hash);
                         }
                     }
-                    if (!await InputsMatchAsync(result, cancellationToken).ConfigureAwait(false))
+                    if (!await InputsMatchAsync(result, capturedInputs, cancellationToken).ConfigureAwait(false))
                         throw MdxWorker.Failure("LSMDX005", "An MDX input changed during compilation; retry the build.");
                 }
                 finally { DeleteScratch(scratch); }
@@ -243,7 +270,8 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 ServerBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("serverBundleMilliseconds").GetDouble(),
                 RenderMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("renderMilliseconds").GetDouble(),
                 BrowserBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("browserBundleMilliseconds").GetDouble(),
-                NodeHeapUsedBytes = hit ? 0 : result.GetProperty("memory").GetProperty("heapUsed").GetInt64() };
+                NodeHeapUsedBytes = hit ? 0 : result.GetProperty("memory").GetProperty("heapUsed").GetInt64(),
+                Work = work.Snapshot(worker.Starts - starts) };
             inspection = JsonSerializer.SerializeToElement(new { kind = "mdx", protocol = 1, node = "24.13.0", mdx = "3.1.1", react = "19.2.4", esbuild = "0.28.2", metrics = Metrics,
                 pages = results.Values.Select(page => new { id = page.GetProperty("id").GetString(), entry = page.GetProperty("entry"), hydration = page.GetProperty("hydration"),
                     fallback = page.GetProperty("fallback"), islands = page.GetProperty("islands"), publicProps = inputPages[page.GetProperty("id").GetString()!].Props }),
@@ -252,7 +280,39 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                     ? RelativeSource(input.GetProperty("file").GetString()!) : "@worker/" + Path.GetRelativePath(options.WorkerDirectory, input.GetProperty("file").GetString()!).Replace('\\', '/'), hash = input.GetProperty("hash").GetString() }) }, MdxJson.Options);
             return new() { Assets = assets, ContentCollections = loaded.Select(value => value.Create(results)).ToArray(), Diagnostics = loadDiagnostics };
         }
-        finally { gate.Release(); }
+        finally
+        {
+            Metrics = Metrics with { Work = work.Snapshot(worker.Starts - starts) };
+            gate.Release();
+        }
+    }
+
+    private static bool CachedResultHasShape(JsonElement result)
+    {
+        static bool Has(JsonElement value, string name, JsonValueKind kind) =>
+            value.ValueKind == JsonValueKind.Object
+            && value.TryGetProperty(name, out var field) && field.ValueKind == kind;
+        static bool Strings(JsonElement value) => value.ValueKind == JsonValueKind.Array
+            && value.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String);
+        static bool NullableString(JsonElement value, string name) =>
+            Has(value, name, JsonValueKind.String) || Has(value, name, JsonValueKind.Null);
+
+        if (!Has(result, "inputs", JsonValueKind.Array) || !Has(result, "assets", JsonValueKind.Array)
+            || !Has(result, "pages", JsonValueKind.Array)) return false;
+        foreach (var input in result.GetProperty("inputs").EnumerateArray())
+            if (!Has(input, "file", JsonValueKind.String) || !Has(input, "hash", JsonValueKind.String)) return false;
+        foreach (var asset in result.GetProperty("assets").EnumerateArray())
+            if (!Has(asset, "path", JsonValueKind.String) || !Has(asset, "bytes", JsonValueKind.String)
+                || !Has(asset, "hash", JsonValueKind.String) || !Has(asset, "imports", JsonValueKind.Array)
+                || !Strings(asset.GetProperty("imports"))) return false;
+        foreach (var page in result.GetProperty("pages").EnumerateArray())
+            if (!Has(page, "id", JsonValueKind.String) || !Has(page, "html", JsonValueKind.String)
+                || !NullableString(page, "text") || !NullableString(page, "entry")
+                || !Has(page, "css", JsonValueKind.Array) || !Strings(page.GetProperty("css"))
+                || !Has(page, "headings", JsonValueKind.Array) || !Has(page, "links", JsonValueKind.Array)
+                || !Has(page, "islands", JsonValueKind.Array) || !Has(page, "hydration", JsonValueKind.String)
+                || !NullableString(page, "fallback")) return false;
+        return true;
     }
 
     private IReadOnlyList<SiteGeneratedAsset> ValidateAssets(JsonElement result)
@@ -293,13 +353,39 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             location);
     }
 
-    private async Task<bool> InputsMatchAsync(JsonElement result, CancellationToken cancellationToken)
+    private void AddCapturedInput(Dictionary<string, string> inputs, string file, string hash)
     {
+        var relative = RelativeSource(file);
+        if (inputs.TryGetValue(relative, out var existing) && existing != hash)
+            throw MdxWorker.Failure("LSMDX005", "An MDX input changed between source captures; retry the build.");
+        inputs[relative] = hash;
+    }
+
+    private async Task<bool> CapturedInputsMatchAsync(Dictionary<string, string> capturedInputs, CancellationToken cancellationToken)
+    {
+        foreach (var (relative, hash) in capturedInputs)
+        {
+            try
+            {
+                var bytes = await ContentPath.ReadAllBytesAsync(options.ProjectDirectory,
+                    Path.GetFullPath(relative, options.ProjectDirectory), cancellationToken).ConfigureAwait(false);
+                if (Hash(bytes) != hash) return false;
+            }
+            catch (IOException) { return false; }
+        }
+        return true;
+    }
+
+    private async Task<bool> InputsMatchAsync(JsonElement result, Dictionary<string, string> capturedInputs, CancellationToken cancellationToken)
+    {
+        var remaining = new Dictionary<string, string>(capturedInputs, capturedInputs.Comparer);
         foreach (var input in result.GetProperty("inputs").EnumerateArray())
         {
             var file = input.GetProperty("file").GetString()!;
             var root = IsWithin(options.ProjectDirectory, file) ? options.ProjectDirectory : options.WorkerDirectory;
             if (!IsWithin(root, file)) throw MdxWorker.Failure("LSMDX003", "Worker input is outside its declared roots.");
+            if (IsWithin(options.ProjectDirectory, file) && remaining.Remove(RelativeSource(file), out var captured)
+                && captured != input.GetProperty("hash").GetString()) return false;
             try
             {
                 await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(root, file, asynchronous: true);
@@ -307,7 +393,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             }
             catch (IOException) { return false; }
         }
-        return true;
+        return remaining.Count == 0;
     }
 
     private async Task<string> ToolFingerprintAsync(CancellationToken cancellationToken)
@@ -325,18 +411,20 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
 
-    private async Task<string> ReadPartialAsync(string file, string relative, CancellationToken cancellationToken)
+    private async Task<(string Code, string Hash)> ReadPartialAsync(string file, string relative, CancellationToken cancellationToken)
     {
         if (!MdxContentCollectionLoader<object>.IsPartial(relative))
             throw MdxWorker.Failure("LSMDX006", "A published entry cannot import an excluded or unregistered document. Move reusable content to an underscore-prefixed partial.", relative);
-        var text = new UTF8Encoding(false, true).GetString(await ContentPath.ReadAllBytesAsync(options.ProjectDirectory, file, cancellationToken).ConfigureAwait(false));
-        if (!text.TrimStart('\uFEFF').StartsWith("---", StringComparison.Ordinal)) return text;
+        var bytes = await ContentPath.ReadAllBytesAsync(options.ProjectDirectory, file, cancellationToken).ConfigureAwait(false);
+        var hash = Hash(bytes);
+        var text = new UTF8Encoding(false, true).GetString(bytes);
+        if (!text.TrimStart('\uFEFF').StartsWith("---", StringComparison.Ordinal)) return (text, hash);
         var parsed = MarkdownContentCollectionLoader<object>.MarkdownSourceDocument.Parse(text, relative, cancellationToken);
         if (!parsed.IsSuccess) throw new SiteBuildExtensionException(parsed.Diagnostics);
         var document = parsed.Value!;
         var yaml = MarkdownContentCollectionLoader<object>.ParseYaml(document.Yaml, relative, document.YamlStartLine, cancellationToken);
         if (!yaml.IsSuccess) throw new SiteBuildExtensionException(yaml.Diagnostics);
-        return new string('\n', text.AsSpan(0, text.Length - document.Body.Length).Count('\n')) + document.Body;
+        return (new string('\n', text.AsSpan(0, text.Length - document.Body.Length).Count('\n')) + document.Body, hash);
     }
 
     private string RelativeSource(string file)
@@ -446,6 +534,63 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         try { if (!disposed) { disposed = true; await worker.DisposeAsync().ConfigureAwait(false); } }
         finally { gate.Release(); }
     }
-    private sealed record Page(string Id, string Source, string Code, string Url, string Title, string? Description, JsonElement Props, string Locale, bool Discoverable);
+    private sealed class WorkAccumulator
+    {
+        internal int RequestAttempts;
+        internal double RequestMilliseconds;
+        internal bool Complete = true;
+        private readonly long[] counts = new long[7];
+        private readonly double[] durations = new double[6];
+        private static readonly string[] CountKeys = ["compiledModules", "renderedPages", "mdxCompileInvocations", "renderInvocations", "esbuildInvocations", "browserBuildInvocations", "browserEntryBuildAttempts"];
+        private static readonly string[] DurationKeys = ["totalMilliseconds", "serverBundleMilliseconds", "browserBundleMilliseconds", "liveRuntimeMilliseconds", "pluginBundleMilliseconds", "renderMilliseconds"];
+
+        internal void Observe(JsonElement response)
+        {
+            JsonElement report = default;
+            if (response.ValueKind == JsonValueKind.Object)
+            {
+                if (response.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.True
+                    && response.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object)
+                    result.TryGetProperty("workMetrics", out report);
+                else response.TryGetProperty("workMetrics", out report);
+            }
+            if (report.ValueKind != JsonValueKind.Object || !report.TryGetProperty("schema", out var schema)
+                || schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version) || version != 1
+                || !report.TryGetProperty("complete", out var complete) || complete.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            { Complete = false; return; }
+            var nextCounts = new long[counts.Length];
+            var nextDurations = new double[durations.Length];
+            for (var i = 0; i < CountKeys.Length; i++)
+            {
+                if (!report.TryGetProperty(CountKeys[i], out var value) || value.ValueKind != JsonValueKind.Number
+                    || !value.TryGetInt64(out var count) || count < 0 || count > int.MaxValue)
+                { Complete = false; return; }
+                nextCounts[i] = counts[i] + count;
+            }
+            for (var i = 0; i < DurationKeys.Length; i++)
+            {
+                if (!report.TryGetProperty(DurationKeys[i], out var value) || value.ValueKind != JsonValueKind.Number
+                    || !value.TryGetDouble(out var elapsed) || elapsed < 0 || !double.IsFinite(elapsed)
+                    || !double.IsFinite(durations[i] + elapsed))
+                { Complete = false; return; }
+                nextDurations[i] = durations[i] + elapsed;
+            }
+            Array.Copy(nextCounts, counts, counts.Length);
+            Array.Copy(nextDurations, durations, durations.Length);
+            Complete &= complete.GetBoolean();
+        }
+
+        internal MdxWorkerWorkMetrics Snapshot(int starts) => new()
+        {
+            RequestAttempts = RequestAttempts, RequestMilliseconds = RequestMilliseconds,
+            WorkerStarts = starts, HasCompleteReports = Complete,
+            CompiledModules = counts[0], RenderedPages = counts[1], MdxCompileInvocations = counts[2], RenderInvocations = counts[3],
+            EsbuildInvocations = counts[4], BrowserBuildInvocations = counts[5], BrowserEntryBuildAttempts = counts[6],
+            WorkerMilliseconds = durations[0], ServerBundleMilliseconds = durations[1], BrowserBundleMilliseconds = durations[2],
+            LiveRuntimeMilliseconds = durations[3], PluginBundleMilliseconds = durations[4], RenderMilliseconds = durations[5],
+        };
+    }
+
+    private sealed record Page(string Id, string Source, string Code, string Url, string Title, string? Description, JsonElement Props, string Locale, bool Discoverable, IReadOnlyList<CapturedContentInput> CapturedInputs);
     private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics);
 }

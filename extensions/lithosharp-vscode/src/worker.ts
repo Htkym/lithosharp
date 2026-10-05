@@ -9,6 +9,8 @@ export interface WorkerFileSystem {
   isFile(filePath: string): Promise<boolean>;
   ensureDir(dirPath: string): Promise<void>;
   writeFile(filePath: string, contents: string): Promise<void>;
+  /** Relative production source paths, excluding dependencies and restore markers. */
+  sourceFiles(dirPath: string): Promise<string[]>;
   copySourceTree(from: string, to: string): Promise<number>;
   runNpmCi(cwd: string): Promise<{ exit: number; stdout: string; stderr: string }>;
 }
@@ -32,6 +34,8 @@ export interface ResolvedWorker {
   /** True when node_modules exists, so MDX analysis can run. */
   ready: boolean;
   source: 'explicit' | 'storage' | 'none';
+  /** Bundled source identity; explicit directories retain their own source. */
+  sourceHash?: string;
 }
 
 /** SHA-256 of a worker package-lock.json, or null when it is absent. */
@@ -43,8 +47,19 @@ export async function workerLockHash(fs: WorkerFileSystem, dir: string): Promise
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function storageName(lockHash: string | null): string {
-  return lockHash ? `worker-${lockHash.slice(0, 12)}` : 'worker-unversioned';
+/** Names and bytes both participate: a same-lock source upgrade gets fresh storage. */
+export async function workerSourceHash(fs: WorkerFileSystem, dir: string): Promise<string> {
+  const digest = createHash('sha256');
+  for (const file of (await fs.sourceFiles(dir)).sort()) {
+    if (path.isAbsolute(file) || file.split(/[\\/]/).includes('..')) {
+      throw new Error('Worker source paths must be relative to the worker directory.');
+    }
+    const bytes = await fs.readFile(path.join(dir, file));
+    if (!bytes) throw new Error(`Worker source file could not be read: ${file}`);
+    digest.update(file.replace(/\\/g, '/')).update('\0');
+    digest.update(createHash('sha256').update(bytes).digest()).update('\0');
+  }
+  return digest.digest('hex');
 }
 
 /**
@@ -65,9 +80,10 @@ export async function resolveWorker(deps: WorkerDeps): Promise<ResolvedWorker> {
   if (bundledLock === null) {
     return { directory: '', lockHash: null, ready: false, source: 'none' };
   }
-  const directory = path.join(deps.storageDir, storageName(bundledLock));
-  const ready = await isRestored(deps.fs, directory, bundledLock);
-  return { directory, lockHash: bundledLock, ready, source: 'storage' };
+  const sourceHash = await workerSourceHash(deps.fs, deps.bundledDir);
+  const directory = path.join(deps.storageDir, `worker-${sourceHash}`);
+  const ready = await isRestored(deps.fs, directory, bundledLock, sourceHash);
+  return { directory, lockHash: bundledLock, sourceHash, ready, source: 'storage' };
 }
 
 const restores = new Map<string, Promise<ResolvedWorker>>();
@@ -97,13 +113,16 @@ export async function restoreWorker(
   if (active) return active;
   const pending = (async (): Promise<ResolvedWorker> => {
     // Another restore may have completed while initial discovery was pending.
-    const current = { ...resolved, ready: await isRestored(deps.fs, resolved.directory, lockHash) };
+    const current = { ...resolved, ready: await isRestored(deps.fs, resolved.directory, lockHash, resolved.sourceHash) };
     if (current.ready) {
       onLog(`MDX worker is already restored: ${current.directory}`);
       return current;
     }
     if (current.source === 'storage') {
       const copied = await deps.fs.copySourceTree(deps.bundledDir, current.directory);
+      if (await workerSourceHash(deps.fs, current.directory) !== current.sourceHash) {
+        throw new Error('Copied MDX worker source does not match the bundled worker.');
+      }
       onLog(`Copied ${copied} worker files to ${current.directory}.`);
     }
     await deps.fs.writeFile(path.join(current.directory, '.lithosharp-worker-lock'), '');
@@ -127,11 +146,12 @@ export async function restoreWorker(
   }
 }
 
-async function isRestored(fs: WorkerFileSystem, directory: string, lockHash: string | null): Promise<boolean> {
+async function isRestored(fs: WorkerFileSystem, directory: string, lockHash: string | null, sourceHash?: string): Promise<boolean> {
   if (lockHash === null || !(await fs.isDirectory(path.join(directory, 'node_modules')))) {
     return false;
   }
 
   const marker = await fs.readFile(path.join(directory, '.lithosharp-worker-lock'));
-  return marker?.toString('utf8').trim() === lockHash;
+  return marker?.toString('utf8').trim() === lockHash &&
+    (sourceHash === undefined || await workerSourceHash(fs, directory) === sourceHash);
 }

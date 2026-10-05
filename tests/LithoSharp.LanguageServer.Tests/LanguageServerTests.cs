@@ -490,6 +490,106 @@ public sealed class LanguageServerTests
     }
 
     [Test]
+    public async Task EqualFolderOwnershipIsSyntaxOnlyInBothArrivalOrders()
+    {
+        foreach (var reverse in new[] { false, true })
+        {
+            await using var client = LspTestClient.Start();
+            await InitializeAsync(client);
+            foreach (var id in reverse ? new[] { "two", "one" } : new[] { "one", "two" })
+                SendOwnershipContext(client, id, "document", []);
+            const string uri = "file:///proj/intro.md";
+            Open(client, uri, "markdown", 1, OwnershipText);
+            await WaitOwnershipDiagnostics(client, uri, false);
+        }
+    }
+
+    [Test]
+    public async Task ExactSourceOwnershipOverridesEqualFolderInBothArrivalOrders()
+    {
+        foreach (var reverse in new[] { false, true })
+        {
+            await using var client = LspTestClient.Start();
+            await InitializeAsync(client);
+            foreach (var id in reverse ? new[] { "other", "owner" } : new[] { "owner", "other" })
+                SendOwnershipContext(client, id, id == "owner" ? "document" : "custom",
+                    [id == "owner" ? "/proj/intro.md" : "/proj/other.md"]);
+            const string uri = "file:///proj/intro.md";
+            Open(client, uri, "markdown", 1, OwnershipText);
+            await WaitOwnershipDiagnostics(client, uri, true);
+        }
+    }
+
+    [Test]
+    public async Task SharedSourceAndRemovalReanalyseOpenBufferWithoutAnEdit()
+    {
+        foreach (var reverse in new[] { false, true })
+        {
+            await using var client = LspTestClient.Start();
+            await InitializeAsync(client);
+            var first = reverse ? "two" : "one";
+            var second = reverse ? "one" : "two";
+            SendOwnershipContext(client, first, "document", ["/proj/intro.md"]);
+            const string uri = "file:///proj/intro.md";
+            Open(client, uri, "markdown", 1, OwnershipText);
+            await WaitOwnershipDiagnostics(client, uri, true);
+            SendOwnershipContext(client, second, "document", ["/proj/intro.md"]);
+            await WaitOwnershipDiagnostics(client, uri, false);
+            client.SendNotification("lithosharp/projectContext", new { projectId = first, folders = Array.Empty<string>(), snapshot = (object?)null });
+            await WaitOwnershipDiagnostics(client, uri, true);
+            client.SendNotification("lithosharp/projectContext", new { projectId = second, folders = Array.Empty<string>(), snapshot = (object?)null });
+            await WaitOwnershipDiagnostics(client, uri, false);
+        }
+    }
+
+    [Test]
+    public async Task ExactSourceOutsideFolderReacquisitionReanalysesOpenBuffer()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///shared/intro.md";
+        Open(client, uri, "markdown", 1, OwnershipText);
+        await WaitOwnershipDiagnostics(client, uri, false);
+        SendOwnershipContext(client, "owner", "document", ["/shared/intro.md"]);
+        await WaitOwnershipDiagnostics(client, uri, true);
+        SendOwnershipContext(client, "owner", "document", ["/proj/other.md"]);
+        await WaitOwnershipDiagnostics(client, uri, false);
+    }
+
+    private const string OwnershipText = "---\ntitle: Hi\nunknown_field_xyz: 1\n---\n# Hi\n";
+
+    private static void SendOwnershipContext(LspTestClient client, string projectId, string schema, string[] sources) =>
+        client.SendNotification("lithosharp/projectContext", new
+        {
+            projectId,
+            folders = new[] { "file:///proj" },
+            snapshot = new
+            {
+                schemaVersion = "1.0", projectId, projectGeneration = (long)1,
+                coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version?.ToString(3),
+                collection = "docs", language = "markdown", schema, version = "current", locale = "default",
+                acquiredAt = "2026-10-05T00:00:00Z",
+                routes = sources.Select(sourcePath => new
+                {
+                    sourcePath, publicPath = "/intro/", projectId, collection = "docs",
+                    version = "current", locale = "default", publication = "Published",
+                }).ToArray(),
+            },
+        });
+
+    private static async Task WaitOwnershipDiagnostics(LspTestClient client, string uri, bool hasBinderDiagnostic)
+    {
+        var message = await client.WaitForAsync(message =>
+            message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
+            && message.TryGetProperty("params", out var parameters)
+            && parameters.GetProperty("uri").GetString() == uri
+            && parameters.GetProperty("version").GetInt64() == 1
+            && parameters.GetProperty("diagnostics").EnumerateArray().Any(item =>
+                item.GetProperty("code").GetString() == "LSC101") == hasBinderDiagnostic);
+        await Assert.That(message.GetProperty("params").GetProperty("version").GetInt64()).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task RegressedVersionsAndInvalidRanges_DoNotCrash()
     {
         await using var client = LspTestClient.Start();
@@ -521,6 +621,255 @@ public sealed class LanguageServerTests
         });
         var published = await WaitDiagnosticsAsync(client, uri, 5);
         await Assert.That(published.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task MdxDiagnosticsAndConcurrentSymbolsShareOneOwnedAnalysis()
+    {
+        await WithProtocolInspectionWorkerAsync(async (worker, client) =>
+        {
+            await InitializeAsync(client, new { workerDirectory = worker.Root });
+            const string uri = "file:///proj/shared.mdx";
+            Open(client, uri, "mdx", 1, "# Shared\n");
+            await worker.WaitForRequestAsync(1);
+            var first = client.NextId(); var second = client.NextId();
+            client.SendRequest(first, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            client.SendRequest(second, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            // Release possible extra requests too: the old implementation must fail
+            // by its actual duplicate count, rather than an unreleased-fixture timeout.
+            worker.Release(2); worker.Release(3); worker.Release(1);
+            await WaitProtocolDiagnosticsAsync(client, uri, 1, 1);
+            await AssertProtocolSymbolAsync(client, first, "Shared");
+            await AssertProtocolSymbolAsync(client, second, "Shared");
+            await Assert.That(worker.RequestCount).IsEqualTo(1);
+            await Assert.That(worker.WorkerStartCount).IsEqualTo(1);
+        });
+    }
+
+    [Test]
+    public async Task CancellingOneMdxSymbolWaiterDoesNotStopSharedDiagnosticsOrOtherWaiters()
+    {
+        await WithProtocolInspectionWorkerAsync(async (worker, client) =>
+        {
+            await InitializeAsync(client, new { workerDirectory = worker.Root });
+            const string uri = "file:///proj/cancel-shared.mdx";
+            Open(client, uri, "mdx", 1, "# Survives\n");
+            await worker.WaitForRequestAsync(1);
+            var cancelled = client.NextId(); var surviving = client.NextId();
+            client.SendRequest(cancelled, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            client.SendRequest(surviving, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            client.SendNotification("$/cancelRequest", new { id = cancelled });
+            var response = await WaitProtocolResponseAsync(client, cancelled);
+            await Assert.That(response.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32800);
+            worker.Release(2); worker.Release(3); worker.Release(1);
+            await WaitProtocolDiagnosticsAsync(client, uri, 1, 1);
+            await AssertProtocolSymbolAsync(client, surviving, "Survives");
+            await Assert.That(worker.RequestCount).IsEqualTo(1);
+            await Assert.That(worker.WorkerStartCount).IsEqualTo(1);
+        });
+    }
+
+    [Test]
+    [Arguments("edit")]
+    [Arguments("reopen")]
+    [Arguments("context")]
+    public async Task SupersededMdxAnalysisCannotSupplyOldSymbolsOrDiagnostics(string change)
+    {
+        await WithProtocolInspectionWorkerAsync(async (worker, client) =>
+        {
+            await InitializeAsync(client, new { workerDirectory = worker.Root });
+            const string uri = "file:///proj/revision.mdx";
+            if (change == "context") SendOwnershipContext(client, "owner", "custom", ["/proj/revision.mdx"]);
+            Open(client, uri, "mdx", 1, "# Original\n");
+            await worker.WaitForRequestAsync(1);
+            var obsolete = client.NextId();
+            client.SendRequest(obsolete, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            var version = change == "edit" ? 2 : 1;
+            if (change == "edit")
+                client.SendNotification("textDocument/didChange", new { textDocument = new { uri, version }, contentChanges = new[] { new { text = "# Current\n" } } });
+            else if (change == "reopen")
+            {
+                client.SendNotification("textDocument/didClose", new { textDocument = new { uri } });
+                Open(client, uri, "mdx", 1, "# Current\n");
+            }
+            else
+                SendOwnershipContext(client, "owner", "custom", ["/proj/revision.mdx"]);
+            await worker.WaitForRequestAsync(2);
+            var current = client.NextId();
+            client.SendRequest(current, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            worker.Release(1); worker.Release(2); worker.Release(3); worker.Release(4);
+            var rejected = await WaitProtocolResponseAsync(client, obsolete);
+            await Assert.That(rejected.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32800);
+            await AssertProtocolSymbolAsync(client, current, change == "context" ? "Original" : "Current");
+            await Assert.That(worker.RequestCount).IsEqualTo(2);
+            await WaitProtocolDiagnosticsAsync(client, uri, version, 2);
+            await Assert.That(client.Received.Any(message =>
+                message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
+                && message.GetProperty("params").GetProperty("diagnostics").EnumerateArray().Any(diagnostic =>
+                    diagnostic.GetProperty("message").GetString() == "analysis-1"))).IsFalse();
+        });
+    }
+
+    [Test]
+    public async Task UnavailableMdxResultIsSharedUntilAnExplicitSaveRetriesIt()
+    {
+        await WithProtocolInspectionWorkerAsync(async (worker, client) =>
+        {
+            await File.WriteAllTextAsync(Path.Combine(worker.Root, "unavailable"), "controlled");
+            await InitializeAsync(client, new { workerDirectory = worker.Root });
+            const string uri = "file:///proj/unavailable.mdx";
+            Open(client, uri, "mdx", 1, "# Restored\n");
+            await worker.WaitForRequestAsync(1); worker.Release(1);
+            var unavailable = await WaitDiagnosticsAsync(client, uri, 1);
+            await Assert.That(unavailable.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+            worker.Release(2);
+            var first = client.NextId();
+            client.SendRequest(first, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            var empty = await WaitProtocolResponseAsync(client, first);
+            await Assert.That(empty.GetProperty("result").GetArrayLength()).IsEqualTo(0);
+            await Assert.That(worker.RequestCount).IsEqualTo(1);
+            File.Delete(Path.Combine(worker.Root, "unavailable"));
+            client.SendNotification("textDocument/didSave", new { textDocument = new { uri } });
+            await worker.WaitForRequestAsync(2); worker.Release(2);
+            await WaitProtocolDiagnosticsAsync(client, uri, 1, 2);
+            var restored = client.NextId();
+            client.SendRequest(restored, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            await AssertProtocolSymbolAsync(client, restored, "Restored");
+            await Assert.That(worker.RequestCount).IsEqualTo(2);
+        });
+    }
+
+    private static async Task WithProtocolInspectionWorkerAsync(Func<ProtocolInspectionWorker, LspTestClient, Task> run)
+    {
+        var worker = await ProtocolInspectionWorker.CreateAsync();
+        LspTestClient? client = null;
+        Exception? failure = null;
+        List<Exception> cleanupFailures = [];
+        try
+        {
+            client = LspTestClient.Start();
+            await run(worker, client);
+        }
+        catch (Exception error)
+        {
+            failure = error;
+        }
+        finally
+        {
+            if (client is not null)
+            {
+                try { await client.DisposeAsync(); }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            try { worker.Dispose(); }
+            catch (Exception error) { cleanupFailures.Add(error); }
+        }
+
+        if (failure is not null)
+        {
+            if (cleanupFailures.Count > 0)
+                failure.Data["OwnedProtocolFixtureCleanupFailures"] = new AggregateException(cleanupFailures);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+        if (cleanupFailures.Count > 0)
+            throw new AggregateException("Owned protocol fixture cleanup did not complete cleanly.", cleanupFailures);
+    }
+
+    private static Task<JsonElement> WaitProtocolResponseAsync(LspTestClient client, string id) =>
+        client.WaitForAsync(message => message.TryGetProperty("id", out var value) && value.GetString() == id);
+
+    private static async Task AssertProtocolSymbolAsync(LspTestClient client, string id, string heading)
+    {
+        var message = await WaitProtocolResponseAsync(client, id);
+        await Assert.That(message.GetProperty("result").EnumerateArray().Single().GetProperty("name").GetString()).IsEqualTo(heading);
+    }
+
+    private static Task<JsonElement> WaitProtocolDiagnosticsAsync(LspTestClient client, string uri, long version, int request) =>
+        client.WaitForAsync(message => IsProtocolDiagnostics(message, uri, version, request));
+
+    private static bool IsProtocolDiagnostics(JsonElement message, string uri, long version, int request) =>
+        message.TryGetProperty("method", out var method) && method.GetString() == "textDocument/publishDiagnostics"
+        && message.GetProperty("params").GetProperty("uri").GetString() == uri
+        // didClose legitimately publishes an empty, versionless diagnostic clear.
+        && message.GetProperty("params").TryGetProperty("version", out var publishedVersion)
+        && publishedVersion.ValueKind == JsonValueKind.Number && publishedVersion.TryGetInt64(out var value) && value == version
+        && message.GetProperty("params").GetProperty("diagnostics").EnumerateArray().Any(diagnostic =>
+            diagnostic.GetProperty("message").GetString() == "analysis-" + request);
+
+    [Test]
+    public async Task ProtocolDiagnosticsMatcherSkipsCloseClearAndObsoleteAnalysis()
+    {
+        const string uri = "file:///proj/revision.mdx";
+        using var messages = JsonDocument.Parse("""
+            [
+              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","diagnostics":[]}},
+              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","version":1,"diagnostics":[{"message":"analysis-1"}]}},
+              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","version":1,"diagnostics":[{"message":"analysis-2"}]}}
+            ]
+            """);
+        var rows = messages.RootElement.EnumerateArray().ToArray();
+        await Assert.That(IsProtocolDiagnostics(rows[0], uri, 1, 2)).IsFalse();
+        await Assert.That(IsProtocolDiagnostics(rows[1], uri, 1, 2)).IsFalse();
+        await Assert.That(IsProtocolDiagnostics(rows[2], uri, 1, 2)).IsTrue();
+        await Assert.That(IsProtocolDiagnostics(rows[2], uri, 2, 2)).IsFalse();
+        await Assert.That(IsProtocolDiagnostics(rows[2], "file:///proj/other.mdx", 1, 2)).IsFalse();
+    }
+
+    // Real process + actual MdxInspectionSession/MdxWorker JSONL protocol. This
+    // fixture controls only worker replies, not the MDX compiler semantics.
+    private sealed class ProtocolInspectionWorker : IDisposable
+    {
+        public string Root { get; } = Path.Combine(Path.GetTempPath(), "lithosharp-lsp-shared-mdx-" + Guid.NewGuid().ToString("N"));
+        public int RequestCount => Directory.EnumerateFiles(Root, "request-*.json").Count();
+        public int WorkerStartCount => File.Exists(Path.Combine(Root, "starts.jsonl")) ? File.ReadAllLines(Path.Combine(Root, "starts.jsonl")).Length : 0;
+
+        public static async Task<ProtocolInspectionWorker> CreateAsync()
+        {
+            var result = new ProtocolInspectionWorker();
+            Directory.CreateDirectory(result.Root);
+            await File.WriteAllTextAsync(Path.Combine(result.Root, "worker.mjs"), WorkerSource);
+            return result;
+        }
+
+        public void Release(int request) => File.WriteAllText(Path.Combine(Root, "release-" + request), "released");
+
+        public async Task WaitForRequestAsync(int request)
+        {
+            using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            while (!File.Exists(Path.Combine(Root, "request-" + request + ".json")))
+                await Task.Delay(10, limit.Token);
+        }
+
+        public void Dispose() => Directory.Delete(Root, recursive: true);
+
+        private const string WorkerSource = """
+            import fs from 'node:fs';
+            import path from 'node:path';
+            import readline from 'node:readline';
+            import { fileURLToPath } from 'node:url';
+            const root = path.dirname(fileURLToPath(import.meta.url));
+            fs.appendFileSync(path.join(root, 'starts.jsonl'), JSON.stringify({pid:process.pid})+'\n');
+            const emit = value => process.stdout.write(JSON.stringify(value)+'\n');
+            emit({protocol:1,type:'ready',node:process.versions.node,mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'});
+            for await (const line of readline.createInterface({input:process.stdin,crlfDelay:Infinity})) {
+              const request = JSON.parse(line);
+              if (request.type !== 'analyze') throw new Error('Unexpected control request');
+              const number = fs.readdirSync(root).filter(name=>/^request-\d+\.json$/.test(name)).length+1;
+              const final = path.join(root, `request-${number}.json`);
+              fs.writeFileSync(final+'.pending', JSON.stringify({type:request.type,text:request.text}));
+              fs.renameSync(final+'.pending',final);
+              while(!fs.existsSync(path.join(root,`release-${number}`))) await new Promise(resolve=>setTimeout(resolve,10));
+              if(fs.existsSync(path.join(root,'unavailable'))) {
+                emit({protocol:1,requestId:request.requestId,success:false,diagnostics:[{id:'LSMDX002',message:'controlled unavailable'}]});
+                continue;
+              }
+              const heading = request.text.split('\n').find(line=>line.startsWith('# '))?.slice(2) ?? 'Controlled';
+              emit({protocol:1,requestId:request.requestId,success:true,result:{
+                headings:[{depth:1,text:heading,line:1}],links:[],islands:[],text:heading,imports:[],
+                diagnostics:[{message:`analysis-${number}`,line:1,column:0}]
+              }});
+            }
+            """;
     }
 
     [Test]

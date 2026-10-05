@@ -218,7 +218,7 @@ public sealed partial class SiteGenerator
                         var verifyRoot = bypass ? transaction.PublishedRoot : transaction.StagingRoot;
                         var verifyStart = Stopwatch.GetTimestamp();
                         var verified = await VerifyCachedArtifactAsync(verifyRoot, artifact, token).ConfigureAwait(false);
-                        timing.AddVerificationMilliseconds((long)Stopwatch.GetElapsedTime(verifyStart).TotalMilliseconds);
+                        timing.AddVerificationTimestampTicks(Stopwatch.GetTimestamp() - verifyStart);
                         if (!verified)
                         {
                             reason = "An artifact is missing or corrupt.";

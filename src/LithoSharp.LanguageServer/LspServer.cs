@@ -43,6 +43,8 @@ public sealed class LspServer
         public required long Version;
         public required string Text;
         public DocumentInfo? Inspection;
+        public MdxAnalysisResult? MdxInspection;
+        public bool MdxInspectionCompleted;
         public ProjectContextEntry? InspectionContext;
     }
 
@@ -475,23 +477,25 @@ public sealed class LspServer
         List<(string Uri, long Version)> affected;
         lock (stateGate)
         {
-            var previouslyMatched = buffers.Values
-                .Where(buffer => Matches(buffer.Uri, projectId, contexts))
-                .Select(buffer => (buffer.Uri, buffer.Version))
-                .ToArray();
+            var previousOwners = buffers.Values.ToDictionary(buffer => buffer.Uri, buffer => ContextFor(buffer.Uri));
             contexts.RemoveAll(entry => entry.ProjectId == projectId);
             if (snapshot is not null)
             {
                 contexts.Add(new ProjectContextEntry(projectId, folders, snapshot));
             }
 
-            var newlyMatched = buffers.Values
-                .Where(buffer => Matches(buffer.Uri, projectId, contexts))
-                .Select(buffer => (buffer.Uri, buffer.Version));
-            affected = previouslyMatched.Concat(newlyMatched).Distinct().ToList();
+            affected = buffers.Values
+                .Where(buffer => !ReferenceEquals(previousOwners[buffer.Uri], ContextFor(buffer.Uri)))
+                .Select(buffer => (buffer.Uri, buffer.Version)).ToList();
             foreach (var (uri, _) in affected)
             {
-                workspace.Remove(projectId, UriPath(uri));
+                // Ownership can change to another project or to syntax-only.
+                // Clear each previous/current cache before reserving new analysis.
+                var path = UriPath(uri);
+                workspace.Remove(path);
+                workspace.Remove(projectId, path);
+                if (previousOwners[uri] is { } previous) workspace.Remove(previous.ProjectId, path);
+                if (ContextFor(uri) is { } current) workspace.Remove(current.ProjectId, path);
             }
             foreach (var (uri, version) in affected)
             {
@@ -518,25 +522,19 @@ public sealed class LspServer
         }
     }
 
-    private static bool Matches(string uri, string projectId, List<ProjectContextEntry> contexts)
+    private static bool ClaimsSource(ProjectContextEntry entry, string uri)
     {
-        foreach (var entry in contexts)
+        var path = UriPath(uri).Replace('\\', '/');
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        foreach (var route in entry.Snapshot.Routes)
         {
-            if (entry.ProjectId != projectId)
-            {
-                continue;
-            }
-
-            foreach (var folder in entry.Folders)
-            {
-                if (uri.Equals(folder, StringComparison.Ordinal)
-                    || uri.StartsWith(folder.TrimEnd('/') + "/", StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
+            var source = route.SourcePath.Replace('\\', '/');
+            if (string.Equals(source, path, comparison)) return true;
+            // Relative sources are scoped to the declared folders, never matched
+            // by filename alone across unrelated roots.
+            if (!Path.IsPathRooted(source) && entry.Folders.Any(folder =>
+                string.Equals(UriPath(folder).TrimEnd('/') + "/" + source, path, comparison))) return true;
         }
-
         return false;
     }
 
@@ -544,8 +542,17 @@ public sealed class LspServer
     {
         lock (stateGate)
         {
+            ProjectContextEntry? sourceOwner = null;
+            foreach (var entry in contexts.Where(entry => ClaimsSource(entry, uri)))
+            {
+                if (sourceOwner is not null) return null;
+                sourceOwner = entry;
+            }
+            if (sourceOwner is not null) return sourceOwner;
+
             ProjectContextEntry? best = null;
             var bestFolderLength = -1;
+            var ambiguous = false;
             foreach (var entry in contexts)
             {
                 foreach (var folder in entry.Folders)
@@ -553,16 +560,20 @@ public sealed class LspServer
                     if (uri.Equals(folder, StringComparison.Ordinal)
                         || uri.StartsWith(folder.TrimEnd('/') + "/", StringComparison.Ordinal))
                     {
-                        if (folder.Length >= bestFolderLength)
+                        if (folder.Length > bestFolderLength)
                         {
                             best = entry;
                             bestFolderLength = folder.Length;
+                            ambiguous = false;
+                        }
+                        else if (folder.Length == bestFolderLength && !ReferenceEquals(best, entry))
+                        {
+                            ambiguous = true;
                         }
                     }
                 }
             }
-
-            return best;
+            return ambiguous ? null : best;
         }
     }
 
@@ -584,6 +595,14 @@ public sealed class LspServer
             if (documentAnalyses.TryGetValue(uri, out var previous))
             {
                 previous.Source.Cancel();
+            }
+            if (buffers.TryGetValue(uri, out var buffer) && IsMdx(buffer.LanguageId, uri))
+            {
+                // Explicit save/context reanalysis retries even an unavailable
+                // result without changing the buffer text or version.
+                buffer.MdxInspection = null;
+                buffer.MdxInspectionCompleted = false;
+                buffer.InspectionContext = null;
             }
             source = new CancellationTokenSource();
             task = Task.Run(async () =>
@@ -749,6 +768,9 @@ public sealed class LspServer
                     return;
                 }
 
+                buffer.MdxInspection = null;
+                buffer.MdxInspectionCompleted = true;
+                buffer.InspectionContext = entry;
                 Publish(buffer.Uri, buffer.Version, []);
             }
             return;
@@ -770,6 +792,9 @@ public sealed class LspServer
                 return;
             }
 
+            buffer.MdxInspection = result;
+            buffer.MdxInspectionCompleted = true;
+            buffer.InspectionContext = entry;
             Publish(buffer.Uri, buffer.Version, diagnostics);
         }
     }
@@ -787,7 +812,7 @@ public sealed class LspServer
         }
         if (IsMdx(buffer.LanguageId, buffer.Uri))
         {
-            var symbols = MdxSymbols(buffer, cancellationToken);
+            var symbols = await MdxSymbolsAsync(buffer, context, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             lock (stateGate)
             {
@@ -864,34 +889,54 @@ public sealed class LspServer
         return BuildSymbols(info.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
     }
 
-    private JsonElement MdxSymbols(DocumentBuffer buffer, CancellationToken cancellationToken)
+    private async Task<JsonElement> MdxSymbolsAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
     {
-        MdxInspectionSession session;
-        lock (stateGate)
+        MdxAnalysisResult? result;
+        for (;;)
         {
-            mdxSession ??= new MdxInspectionSession(new MdxOptions(
-                serverOptions.MdxProjectDirectory ?? Directory.GetCurrentDirectory(),
-                serverOptions.WorkerDirectory)
+            Task pending;
+            lock (stateGate)
             {
-                NodeExecutable = serverOptions.NodeExecutable ?? "node",
-            });
-            session = mdxSession;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!buffers.TryGetValue(buffer.Uri, out var latest) || !ReferenceEquals(latest, buffer)
+                    || !ReferenceEquals(ContextFor(buffer.Uri), context))
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+
+                if (buffer.MdxInspectionCompleted && ReferenceEquals(buffer.InspectionContext, context))
+                {
+                    // A terminal unavailable result is also shared. Its primary
+                    // error was logged by diagnostics; do not spin/restart here.
+                    result = buffer.MdxInspection;
+                    break;
+                }
+
+                if (!documentAnalyses.TryGetValue(buffer.Uri, out var analysis)
+                    || analysis.Task.IsCompletedSuccessfully || analysis.Task.IsCanceled)
+                {
+                    TrackDocumentAnalysis(buffer.Uri, buffer.Version);
+                    analysis = documentAnalyses[buffer.Uri];
+                }
+                pending = analysis.Task;
+            }
+
+            try
+            {
+                // This token belongs only to the waiter; the owned analysis has
+                // the document lifecycle token passed by TrackDocumentAnalysis.
+                await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Same-buffer save/context work can supersede the queued task.
+                // Revalidate ownership before joining its replacement.
+            }
         }
 
-        MdxAnalysisResult result;
-        try
-        {
-            // Off-loop blocking is safe here: this runs on a pool thread and the
-            // request stays cancellable through the token.
-            result = session.AnalyzeAsync(UriPath(buffer.Uri), buffer.Text,
-                new MdxAnalysisOptions(buffer.Version, ContextFor(buffer.Uri)?.Snapshot.ProjectGeneration ?? 0), cancellationToken).GetAwaiter().GetResult();
-        }
-        catch (Exception exception) when (exception is OperationCanceledException or SiteBuildExtensionException)
-        {
-            return EmptySymbols();
-        }
-
-        return BuildSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
+        cancellationToken.ThrowIfCancellationRequested();
+        return result is null ? EmptySymbols()
+            : BuildSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
     }
 
     private static JsonElement EmptySymbols() =>

@@ -182,10 +182,9 @@ internal sealed class SiteBuildCache
             var path = Path.Combine(_directory, "parses", CachedPostParse.CacheKey(compiler, sourceHash) + ".json");
             EnsureSafePath(path);
             await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(_directory, path, asynchronous: true);
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            var parse = await JsonSerializer.DeserializeAsync<CachedPostParse>(stream, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var parse = JsonSerializer.Deserialize<CachedPostParse>(buffer.ToArray());
             if (parse is null
                 || parse.Version != CachedPostParse.CurrentVersion
                 || !string.Equals(parse.Compiler, compiler, StringComparison.Ordinal)

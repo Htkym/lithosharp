@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
@@ -301,6 +302,122 @@ public sealed class MdxIntegrationTests
         await Assert.That(Directory.Exists(stale)).IsFalse();
         await Assert.That(File.Exists(staleTemporary)).IsFalse();
         await Assert.That(Directory.Exists(live)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("null-envelope")]
+    [Arguments("array-envelope")]
+    [Arguments("numeric-hash")]
+    [Arguments("null-result")]
+    [Arguments("array-result")]
+    [Arguments("missing-result-fields")]
+    [Arguments("null-inputs")]
+    [Arguments("numeric-input-file")]
+    [Arguments("numeric-input-hash")]
+    [Arguments("numeric-page-id")]
+    [Arguments("object-page-css")]
+    [Arguments("numeric-asset-bytes")]
+    [Arguments("numeric-asset-import")]
+    [Arguments("truncated")]
+    [Arguments("hash-mismatch")]
+    public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes(string corruption)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
+        await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
+            { Cacheable = true, Hydration = "selective" });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
+            { TransformationFingerprint = "cache-corruption-test" });
+        var generator = new SiteGenerator();
+        var output = Path.Combine(workspace.Root, "out");
+        var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
+        var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
+        await generator.GenerateWithOptionsAsync(settings, [], output, true, null, options, default);
+        var before = HashOutput(output);
+        var file = Directory.GetFiles(Path.Combine(workspace.Root, ".lithosharp", "mdx"), "*.json").Single();
+        await File.WriteAllTextAsync(file, CorruptCache(await File.ReadAllTextAsync(file), corruption));
+
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.CacheHit).IsFalse();
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        // Recovery rewrites the bad optional artifact; a third identical build
+        // must hit it rather than silently disabling or repeatedly missing cache.
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.CacheHit).IsTrue();
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+    }
+
+    [Test]
+    public async Task CorruptCacheRebuildFailurePreservesPublishedOutputAndCanRecover()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"),
+            "---\ntitle: Page\n---\nimport Counter from './Counter.jsx'\n\n# Page\n\n<Counter />\n");
+        var component = Path.Combine(source, "Counter.jsx");
+        const string good = "export default function Counter(){return <button>Ready</button>}";
+        await File.WriteAllTextAsync(component, good);
+        await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
+            { Cacheable = true });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
+            { TransformationFingerprint = "cache-corruption-test" });
+        var generator = new SiteGenerator();
+        var output = Path.Combine(workspace.Root, "out");
+        var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
+        var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
+        await generator.GenerateWithOptionsAsync(settings, [], output, true, null, options, default);
+        var before = HashOutput(output);
+        var file = Directory.GetFiles(Path.Combine(workspace.Root, ".lithosharp", "mdx"), "*.json").Single();
+        await File.WriteAllTextAsync(file, "[]");
+        // Only imported component bytes change. Entry request/signature stays
+        // the same, forcing the corrupt artifact read before actual compilation.
+        await File.WriteAllTextAsync(component, "export default function Counter( {");
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output,
+            false, null, options, default)).Throws<LithoSharp.Build.SiteBuildExtensionException>();
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        await File.WriteAllTextAsync(component, good);
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.CacheHit).IsTrue();
+    }
+
+    private static string CorruptCache(string original, string corruption)
+    {
+        if (corruption == "null-envelope") return "null";
+        if (corruption == "array-envelope") return "[]";
+        if (corruption == "truncated") return "{\"result\":";
+        var envelope = JsonNode.Parse(original)!.AsObject();
+        var result = envelope["result"]!.AsObject();
+        switch (corruption)
+        {
+            case "numeric-hash": envelope["hash"] = 123; break;
+            case "null-result": envelope["result"] = null; break;
+            case "array-result": envelope["result"] = new JsonArray(); break;
+            case "missing-result-fields": envelope["result"] = new JsonObject { ["inputs"] = new JsonArray() }; break;
+            case "null-inputs": result["inputs"] = null; break;
+            case "numeric-input-file": result["inputs"]![0]!["file"] = 123; break;
+            case "numeric-input-hash": result["inputs"]![0]!["hash"] = 123; break;
+            case "numeric-page-id": result["pages"]![0]!["id"] = 123; break;
+            case "object-page-css": result["pages"]![0]!["css"] = new JsonObject(); break;
+            case "numeric-asset-bytes": result["assets"]![0]!["bytes"] = 123; break;
+            case "numeric-asset-import": result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123)); break;
+            case "hash-mismatch": envelope["hash"] = new string('0', 64); break;
+            default: throw new ArgumentOutOfRangeException(nameof(corruption));
+        }
+        if (corruption is not ("numeric-hash" or "hash-mismatch"))
+        {
+            // A matching outer checksum must not make a malformed result shape
+            // usable. Serialize JsonElement exactly as the production bridge does.
+            using var candidate = JsonDocument.Parse(envelope["result"]?.ToJsonString() ?? "null");
+            envelope["hash"] = Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(candidate.RootElement)));
+        }
+        return envelope.ToJsonString();
     }
 
     private sealed class WarningLoader : IContentCollectionLoader<FrontMatter, MdxDocument>

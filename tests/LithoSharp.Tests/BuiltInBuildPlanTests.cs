@@ -76,6 +76,22 @@ public sealed class BuiltInBuildPlanTests
     }
 
     [Test]
+    public async Task BlogAndDocsMarkdownNodesDeclareTheActualSourceForEditorRoutes()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var post = Post("alpha", "Alpha");
+        foreach (var template in new ISiteTemplate[] { new BlogSiteTemplate(), new DocsSiteTemplate() })
+        {
+            var generated = await GenerateAsync(workspace, template.GetType().Name, template, [post]);
+            var node = generated.BuildPlan.Nodes.Single(node => node.Id.Value == "page:markdown:posts/alpha.html");
+            var source = node.Inputs.Single(input => input.Key == "page.source");
+            await Assert.That(source.Kind).IsEqualTo(BuildInputKind.Value);
+            await Assert.That(source.Value).IsEqualTo(post.FilePath);
+            await Assert.That(node.Artifacts.Single().RelativeOutputPath).IsEqualTo("posts/alpha.html");
+        }
+    }
+
+    [Test]
     public async Task BlogPlan_NoChangeHasNoInvalidations()
     {
         using var workspace = new TemporaryWorkspace();

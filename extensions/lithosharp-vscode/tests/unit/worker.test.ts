@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
-import { resolveWorker, restoreWorker, workerLockHash, type WorkerDeps, type WorkerFileSystem } from '../../src/worker.js';
+import { resolveWorker, restoreWorker, workerLockHash, workerSourceHash, type WorkerDeps, type WorkerFileSystem } from '../../src/worker.js';
 import { UntrustedWorkspaceError } from '../../src/trust.js';
 
 function fakeFs(files: Record<string, string>, dirs: string[] = []): WorkerFileSystem & { copied: [string, string][]; installs: string[]; failInstall: boolean } {
@@ -20,9 +20,14 @@ function fakeFs(files: Record<string, string>, dirs: string[] = []): WorkerFileS
     writeFile: async (filePath, contents) => {
       files[norm(filePath)] = contents;
     },
+    sourceFiles: async (dir) => Object.keys(files).filter(file => file.startsWith(norm(dir) + '/'))
+      .map(file => file.slice(norm(dir).length + 1))
+      .filter(file => !file.split('/').some(part => ['node_modules', '.cache', 'tests', '.git', '.lithosharp-worker-lock'].includes(part))),
     copySourceTree: async (from, to) => {
       handle.copied.push([from, to]);
-      return Object.keys(files).filter((file) => file.startsWith(`${norm(from)}/`)).length;
+      const source = await handle.sourceFiles(from);
+      for (const file of source) files[norm(to) + '/' + file] = files[norm(from) + '/' + file]!;
+      return source.length;
     },
     runNpmCi: async (cwd) => {
       handle.installs.push(cwd);
@@ -64,16 +69,22 @@ test('explicit directory without node_modules is not ready', async () => {
   assert.equal(resolved.lockHash, lockHash);
 });
 
-test('storage directory is hash-named from the bundled lockfile', async () => {
-  const storage = '/storage/worker-' + lockHash.slice(0, 12);
-  const fs = fakeFs({
+test('storage identity includes the bundled production source and lockfile', async () => {
+  const files: Record<string, string> = {
     '/bundled/package.json': '{}',
     '/bundled/package-lock.json': lockfile,
-    [storage + '/.lithosharp-worker-lock']: lockHash,
-  }, [storage + '/node_modules']);
+  };
+  const dirs: string[] = [];
+  const fs = fakeFs(files, dirs);
+  const sourceHash = await workerSourceHash(fs, '/bundled');
+  const storage = '/storage/worker-' + sourceHash;
+  await fs.copySourceTree('/bundled', storage);
+  files[storage + '/.lithosharp-worker-lock'] = lockHash;
+  dirs.push(storage + '/node_modules');
   const resolved = await resolveWorker(deps({ fs }));
   assert.equal(resolved.source, 'storage');
-  assert.equal(resolved.directory.replace(/\\/g, '/'), '/storage/worker-' + lockHash.slice(0, 12));
+  assert.equal(resolved.directory.replace(/\\/g, '/'), storage);
+  assert.equal(resolved.sourceHash, sourceHash);
   assert.equal(resolved.ready, true);
 });
 
@@ -116,18 +127,65 @@ test('restore copies, installs and verifies', async () => {
 });
 
 test('restore skips install when already ready', async () => {
-  const fs = fakeFs(
-    {
+  const files: Record<string, string> = {
       '/bundled/package.json': '{}',
       '/bundled/package-lock.json': lockfile,
-      ['/storage/worker-' + lockHash.slice(0, 12) + '/.lithosharp-worker-lock']: lockHash,
-    },
-    ['/storage/worker-' + lockHash.slice(0, 12) + '/node_modules'],
-  );
+  };
+  const dirs: string[] = [];
+  const fs = fakeFs(files, dirs);
+  const storage = '/storage/worker-' + await workerSourceHash(fs, '/bundled');
+  await fs.copySourceTree('/bundled', storage);
+  fs.copied.length = 0;
+  files[storage + '/.lithosharp-worker-lock'] = lockHash;
+  dirs.push(storage + '/node_modules');
   const restored = await restoreWorker(deps({ fs }), () => {});
   assert.equal(restored.ready, true);
   assert.equal(fs.installs.length, 0);
   assert.equal(fs.copied.length, 0);
+});
+
+test('same-lock worker upgrades restore changed compiler and runtime source into fresh storage', async () => {
+  const files: Record<string, string> = {
+    '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile,
+    '/bundled/worker.mjs': 'worker-v1', '/bundled/compiler.mjs': 'compiler-v1',
+    '/bundled/runtime/components.mjs': 'runtime-v1',
+  };
+  const fs = fakeFs(files);
+  fs.isDirectory = async dir => dir.endsWith('node_modules');
+  const first = await restoreWorker(deps({ fs }), () => {});
+  files['/bundled/compiler.mjs'] = 'compiler-v2';
+  const pending = await resolveWorker(deps({ fs }));
+  assert.equal(pending.ready, false);
+  assert.equal(pending.lockHash, first.lockHash);
+  assert.notEqual(pending.directory, first.directory);
+  const second = await restoreWorker(deps({ fs }), () => {});
+  assert.equal((await fs.readFile(second.directory + '/compiler.mjs'))?.toString(), 'compiler-v2');
+  assert.equal((await fs.readFile(first.directory + '/compiler.mjs'))?.toString(), 'compiler-v1');
+  files['/bundled/runtime/components.mjs'] = 'runtime-v2';
+  const third = await restoreWorker(deps({ fs }), () => {});
+  assert.notEqual(third.directory, second.directory);
+  assert.equal((await fs.readFile(third.directory + '/runtime/components.mjs'))?.toString(), 'runtime-v2');
+  assert.equal(fs.installs.length, 3);
+});
+
+test('restored source tampering invalidates readiness while dependencies stay present', async () => {
+  const files: Record<string, string> = {'/bundled/package-lock.json': lockfile, '/bundled/worker.mjs': 'worker'};
+  const fs = fakeFs(files);
+  fs.isDirectory = async dir => dir.endsWith('node_modules');
+  const restored = await restoreWorker(deps({ fs }), () => {});
+  files[restored.directory.replace(/\\/g, '/') + '/worker.mjs'] = 'stale';
+  assert.equal((await resolveWorker(deps({ fs }))).ready, false);
+});
+
+test('source hashing ignores dependencies and tracks file names as well as bytes', async () => {
+  const files = {'/bundled/package-lock.json': lockfile, '/bundled/a.mjs': 'body'} as Record<string, string>;
+  const fs = fakeFs(files);
+  const original = await workerSourceHash(fs, '/bundled');
+  files['/bundled/node_modules/foreign.mjs'] = 'foreign';
+  files['/bundled/.lithosharp-worker-lock'] = lockHash;
+  assert.equal(await workerSourceHash(fs, '/bundled'), original);
+  delete files['/bundled/a.mjs']; files['/bundled/b.mjs'] = 'body';
+  assert.notEqual(await workerSourceHash(fs, '/bundled'), original);
 });
 
 test('restore without a bundle explains instead of guessing', async () => {

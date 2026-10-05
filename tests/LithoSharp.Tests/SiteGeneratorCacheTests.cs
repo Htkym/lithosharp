@@ -144,6 +144,7 @@ public sealed class SiteGeneratorCacheTests
     [Arguments("missing")]
     [Arguments("html")]
     [Arguments("span")]
+    [Arguments("json")]
     public async Task ChangedPostSearchReusesVerifiedPlainTextAndRejectsCorruption(string cacheState)
     {
         using var workspace = new TemporaryWorkspace();
@@ -173,6 +174,12 @@ public sealed class SiteGeneratorCacheTests
                     if (cacheState == "missing") File.Delete(path);
                     else
                     {
+                        if (cacheState == "json")
+                        {
+                            await File.WriteAllTextAsync(path, "{\"PlainText\":");
+                            tamperedRecords++;
+                            continue;
+                        }
                         if (cacheState == "plaintext") json["PlainText"] = "forged search text";
                         else if (cacheState == "html") json["RawHtml"] = "forged HTML";
                         else

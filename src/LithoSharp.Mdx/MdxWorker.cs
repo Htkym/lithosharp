@@ -50,7 +50,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                 if (ready.GetProperty("protocol").GetInt32() != 1 || ready.GetProperty("type").GetString() != "ready"
                     || ready.GetProperty("node").GetString() != "24.13.0" || ready.GetProperty("mdx").GetString() != "3.1.1"
                     || ready.GetProperty("react").GetString() != "19.2.4" || ready.GetProperty("esbuild").GetString() != "0.28.2")
-                    throw Failure("LSMDX003", "The worker protocol or toolchain does not match the supported locked versions.");
+                    throw Failure("LSMDX003", ReadinessMismatchMessage(ready));
             }
             var json = JsonSerializer.Serialize(request, MdxJson.Options);
             if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes) throw Failure("LSMDX003", "MDX request exceeds the configured message size.");
@@ -78,6 +78,31 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
             throw Failure("LSMDX003", $"The MDX worker failed: {error.Message}");
         }
         finally { gate.Release(); }
+    }
+
+    private static string ReadinessMismatchMessage(JsonElement ready)
+    {
+        // Only known bounded scalar fields may enter diagnostics. Never emit
+        // arbitrary worker JSON, paths, stderr, environment, or unknown values.
+        string Version(string name)
+        {
+            if (!ready.TryGetProperty(name, out var item) || item.ValueKind != JsonValueKind.String)
+                return "[invalid]";
+            var value = item.GetString();
+            if (value is null || value.Length > 11) return "[invalid]";
+            var parts = value.Split('.');
+            return parts.Length == 3 && parts.All(part => part.Length is >= 1 and <= 3 && part.All(char.IsAsciiDigit))
+                ? value : "[invalid]";
+        }
+        var protocol = ready.TryGetProperty("protocol", out var protocolItem)
+            && protocolItem.ValueKind == JsonValueKind.Number && protocolItem.TryGetInt32(out var number)
+            && number is >= 0 and <= 999
+            ? number.ToString(System.Globalization.CultureInfo.InvariantCulture) : "[invalid]";
+        var type = ready.TryGetProperty("type", out var typeItem) && typeItem.ValueKind == JsonValueKind.String
+            && typeItem.GetString() == "ready" ? "ready" : "[invalid]";
+        return "The worker protocol or toolchain does not match the supported locked versions. "
+            + "Readiness tuple: expected(protocol=1,type=ready,node=24.13.0,mdx=3.1.1,react=19.2.4,esbuild=0.28.2) "
+            + $"reported(protocol={protocol},type={type},node={Version("node")},mdx={Version("mdx")},react={Version("react")},esbuild={Version("esbuild")})";
     }
 
     private async Task<JsonElement> ReadMessageAsync(CancellationToken cancellationToken)
