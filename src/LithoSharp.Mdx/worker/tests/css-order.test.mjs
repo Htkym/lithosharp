@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,rm,realpath} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {createHash} from 'node:crypto';
@@ -49,7 +49,10 @@ test('emitted CSS preserves theme cascade priority in static, page, selective an
     const warm=await compileSite(request);check(warm);assert.equal(warm.bundledPages,0);assert.deepEqual(warm.pages.map(page=>page.css),cold.pages.map(page=>page.css));
     await writeFile(path.join(projectRoot,'shared.css'),'.fixture-shared{color:navy}');
     const changed=await compileSite(request);check(changed);assert(changed.bundledPages>0,'Changed shared stylesheet must invalidate cached browser graph');
-    const file=path.join(projectRoot,'shared.css');assert.notEqual(cold.inputs.find(input=>input.file===file)?.hash,changed.inputs.find(input=>input.file===file)?.hash);
+    const file=await realpath(path.join(projectRoot,'shared.css'));
+    const before=cold.inputs.filter(input=>input.file===file),after=changed.inputs.filter(input=>input.file===file);
+    assert.equal(before.length,1,'Cold compilation must track the canonical shared stylesheet');assert.equal(after.length,1,'Changed compilation must track the canonical shared stylesheet');
+    assert.equal(before[0].hash,digest(Buffer.from(files['shared.css'])));assert.equal(after[0].hash,digest(Buffer.from('.fixture-shared{color:navy}')));assert.notEqual(before[0].hash,after[0].hash);
     assert(pageCss(changed,changed.pages[3]).includes('.fixture-shared{color:navy}'));assert(pageCss(changed,changed.pages[4]).includes('.fixture-shared{color:navy}'));
     const changedWarm=await compileSite(request);check(changedWarm);assert.equal(changedWarm.bundledPages,0);
   }finally{await rm(root,{recursive:true,force:true})}
