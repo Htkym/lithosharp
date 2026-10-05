@@ -439,6 +439,127 @@ public sealed class SiteGeneratorCacheTests
         await Assert.That(SiteGenerator.MeasureCache(output, options).FileCount).IsGreaterThan(0);
     }
 
+    [Test]
+    [Arguments("measure", "output-root")]
+    [Arguments("clear", "output-root")]
+    [Arguments("generate", "output-root")]
+    [Arguments("measure", "public-root")]
+    [Arguments("clear", "public-root")]
+    [Arguments("generate", "public-root")]
+    [Arguments("measure", "public-partition")]
+    [Arguments("clear", "public-partition")]
+    [Arguments("generate", "public-partition")]
+    [Arguments("measure", "public-partition-child")]
+    [Arguments("clear", "public-partition-child")]
+    [Arguments("generate", "public-partition-child")]
+    public async Task CacheAdmissionRejectsCaseVariantOverlapWithoutChangingInputs(string operation, string overlap)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        var publicRoot = Path.Combine(workspace.Root, "public");
+        Directory.CreateDirectory(output);
+        Directory.CreateDirectory(publicRoot);
+        await File.WriteAllTextAsync(Path.Combine(output, "published.html"), "published canary");
+        var safeCache = Path.Combine(workspace.Root, "safe-cache");
+        var partitionName = Path.GetFileName(SiteGenerator.MeasureCache(output,
+            new SiteGenerationOptions { BuildCacheDirectory = safeCache }).CacheDirectory);
+        var cacheRoot = overlap switch
+        {
+            "output-root" => Path.Combine(workspace.Root, "OUT"),
+            "public-root" => Path.Combine(workspace.Root, "PUBLIC"),
+            "public-partition" or "public-partition-child" => safeCache,
+            _ => throw new InvalidOperationException("Unknown case fixture."),
+        };
+        var partition = Path.Combine(cacheRoot, partitionName);
+        Directory.CreateDirectory(partition);
+        await File.WriteAllTextAsync(Path.Combine(partition, "cache-canary.txt"), "cache canary");
+        if (overlap is "public-partition" or "public-partition-child")
+            publicRoot = Path.Combine(workspace.Root, "SAFE-CACHE", partitionName);
+        if (overlap == "public-partition-child") publicRoot = Path.Combine(publicRoot, "public-child");
+        Directory.CreateDirectory(publicRoot);
+        var publicCanary = Path.Combine(publicRoot, "input.txt");
+        await File.WriteAllTextAsync(publicCanary, "public canary");
+        var outputBefore = SnapshotCacheCanaryTree(output);
+        var publicBefore = SnapshotCacheCanaryTree(publicRoot);
+        var cacheBefore = SnapshotCacheCanaryTree(cacheRoot);
+        var publicWriteTime = File.GetLastWriteTimeUtc(publicCanary);
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = cacheRoot, PublicDirectory = publicRoot,
+        };
+
+        await Assert.That(async () => await InvokeCacheAdmissionFixture(operation, output, options))
+            .Throws<ArgumentException>();
+
+        await Assert.That(SnapshotCacheCanaryTree(output)).IsEqualTo(outputBefore);
+        await Assert.That(SnapshotCacheCanaryTree(publicRoot)).IsEqualTo(publicBefore);
+        await Assert.That(SnapshotCacheCanaryTree(cacheRoot)).IsEqualTo(cacheBefore);
+        await Assert.That(File.GetLastWriteTimeUtc(publicCanary)).IsEqualTo(publicWriteTime);
+    }
+
+    [Test]
+    [Arguments("measure", "partition")]
+    [Arguments("clear", "partition")]
+    [Arguments("generate", "partition")]
+    [Arguments("measure", "partition-child")]
+    [Arguments("clear", "partition-child")]
+    [Arguments("generate", "partition-child")]
+    [Arguments("measure", "ancestor")]
+    [Arguments("clear", "ancestor")]
+    [Arguments("generate", "ancestor")]
+    public async Task CacheAdmissionRejectsPublicRootOrAncestorLinkToItsOrdinaryPartition(string operation, string linkKind)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "out");
+        Directory.CreateDirectory(output);
+        await File.WriteAllTextAsync(Path.Combine(output, "published.html"), "published canary");
+        var cacheRoot = Path.Combine(workspace.Root, "safe-cache");
+        var partition = SiteGenerator.MeasureCache(output,
+            new SiteGenerationOptions { BuildCacheDirectory = cacheRoot }).CacheDirectory;
+        Directory.CreateDirectory(partition);
+        var target = linkKind switch
+        {
+            "partition" or "ancestor" => partition,
+            "partition-child" => Path.Combine(partition, "public-child"),
+            _ => throw new InvalidOperationException("Unknown link fixture."),
+        };
+        Directory.CreateDirectory(target);
+        var publicCanary = Path.Combine(target, "input.txt");
+        await File.WriteAllTextAsync(publicCanary, "linked public input must survive");
+        var outputBefore = SnapshotCacheCanaryTree(output);
+        var cacheBefore = SnapshotCacheCanaryTree(cacheRoot);
+        var writeTime = File.GetLastWriteTimeUtc(publicCanary);
+        var link = Path.Combine(workspace.Root, "public-link");
+        // Capability failure is an explicit fixture failure, never a silent pass/skip.
+        Directory.CreateSymbolicLink(link, linkKind == "ancestor" ? cacheRoot : target);
+        try
+        {
+            var publicRoot = linkKind == "ancestor" ? Path.Combine(link, Path.GetFileName(partition)) : link;
+            var options = new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp, BuildCacheDirectory = cacheRoot, PublicDirectory = publicRoot,
+            };
+            await Assert.That(async () => await InvokeCacheAdmissionFixture(operation, output, options))
+                .Throws<InvalidOperationException>();
+            await Assert.That(SnapshotCacheCanaryTree(output)).IsEqualTo(outputBefore);
+            await Assert.That(SnapshotCacheCanaryTree(cacheRoot)).IsEqualTo(cacheBefore);
+            await Assert.That(await File.ReadAllTextAsync(publicCanary)).IsEqualTo("linked public input must survive");
+            await Assert.That(File.GetLastWriteTimeUtc(publicCanary)).IsEqualTo(writeTime);
+        }
+        finally { Directory.Delete(link); }
+    }
+
+    private static async Task InvokeCacheAdmissionFixture(string operation, string output, SiteGenerationOptions options)
+    {
+        if (operation == "measure") SiteGenerator.MeasureCache(output, options);
+        else if (operation == "clear") SiteGenerator.ClearCache(output, options);
+        else if (operation == "generate")
+            await new SiteGenerator().GenerateWithOptionsAsync(
+                new SiteSettings { BaseUrl = "https://example.test/" }, [Post()], output, clean: false,
+                new SiteCustomization { Template = new BlogSiteTemplate() }, options, CancellationToken.None);
+        else throw new InvalidOperationException("Unknown cache operation fixture.");
+    }
+
     private static MarkdownPost Post() => new(
         "content/alpha.md",
         "alpha",

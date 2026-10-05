@@ -169,7 +169,7 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                         && envelope.TryGetProperty("hash", out var checksum) && checksum.ValueKind == JsonValueKind.String
                         && CachedResultHasShape(candidate)
                         && checksum.GetString() == Hash(JsonSerializer.SerializeToUtf8Bytes(candidate))
-                        && TryValidateCachedAssets(candidate, out var candidateAssets)
+                        && TryValidateCachedAssets(candidate, pages, out var candidateAssets)
                         && await InputsMatchAsync(candidate, capturedInputs, cancellationToken).ConfigureAwait(false))
                     {
                         result = candidate.Clone();
@@ -231,14 +231,8 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 finally { DeleteScratch(scratch); }
             }
             var assets = cachedAssets ?? ValidateAssets(result);
-            var assetIds = assets.Select(asset => asset.Id).ToHashSet();
             var inputPages = pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
-            var results = result.GetProperty("pages").EnumerateArray().ToDictionary(page => page.GetProperty("id").GetString()!, StringComparer.Ordinal);
-            if (!results.Keys.Order(StringComparer.Ordinal).SequenceEqual(pages.Select(page => page.Id).Order(StringComparer.Ordinal)))
-                throw MdxWorker.Failure("LSMDX003", "Worker page identities do not match the request.");
-            foreach (var page in results.Values)
-                foreach (var path in page.GetProperty("css").EnumerateArray().Select(value => value.GetString()!).Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { page.GetProperty("entry").GetString()! }))
-                    if (!assetIds.Contains(AssetId(path))) throw MdxWorker.Failure("LSMDX003", "A page references an unknown bundle.");
+            var results = ValidatePages(result, pages, assets);
             if (!hit && options.Cacheable)
             {
                 var temporary = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -323,20 +317,36 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         return true;
     }
 
-    private bool TryValidateCachedAssets(JsonElement result, out IReadOnlyList<SiteGeneratedAsset> assets)
+    private bool TryValidateCachedAssets(JsonElement result, IReadOnlyList<Page> pages, out IReadOnlyList<SiteGeneratedAsset> assets)
     {
         try
         {
             assets = ValidateAssets(result);
+            // Validate before accepting the optional artifact, but do not retain
+            // page JsonElements owned by the cache document disposed above.
+            _ = ValidatePages(result, pages, assets);
             return true;
         }
         catch (FormatException) { }
         catch (ArgumentException) { }
         catch (SiteBuildExtensionException error) when (error.Diagnostics.All(diagnostic => diagnostic.Id == "LSMDX003")) { }
-        // Only the optional artifact's asset-validation failures are cache misses.
+        // Only the optional artifact's asset/page-validation failures are cache misses.
         // Input containment, live worker and output failures remain outside this guard.
         assets = [];
         return false;
+    }
+
+    private static Dictionary<string, JsonElement> ValidatePages(JsonElement result, IReadOnlyList<Page> pages,
+        IReadOnlyList<SiteGeneratedAsset> assets)
+    {
+        var assetIds = assets.Select(asset => asset.Id).ToHashSet();
+        var results = result.GetProperty("pages").EnumerateArray().ToDictionary(page => page.GetProperty("id").GetString()!, StringComparer.Ordinal);
+        if (!results.Keys.Order(StringComparer.Ordinal).SequenceEqual(pages.Select(page => page.Id).Order(StringComparer.Ordinal)))
+            throw MdxWorker.Failure("LSMDX003", "Worker page identities do not match the request.");
+        foreach (var page in results.Values)
+            foreach (var path in page.GetProperty("css").EnumerateArray().Select(value => value.GetString()!).Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { page.GetProperty("entry").GetString()! }))
+                if (!assetIds.Contains(AssetId(path))) throw MdxWorker.Failure("LSMDX003", "A page references an unknown bundle.");
+        return results;
     }
 
     private IReadOnlyList<SiteGeneratedAsset> ValidateAssets(JsonElement result)

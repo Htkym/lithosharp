@@ -238,8 +238,9 @@ public sealed partial class SiteGenerator
         var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
         var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
             ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, DefaultBuildCacheDirectoryName));
-        if (ContainsDirectory(outputRoot, buildCacheRoot) || ContainsDirectory(buildCacheRoot, outputRoot)
-            || options.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
+        ValidateCachePathAncestry(outputRoot, options);
+        if (ContainsCacheDirectory(outputRoot, buildCacheRoot) || ContainsCacheDirectory(buildCacheRoot, outputRoot)
+            || options.PublicDirectory is { } publicInput && ContainsCacheDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
             throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
         foreach (var asset in options.Assets)
         {
@@ -3018,6 +3019,7 @@ public sealed partial class SiteGenerator
                 throw new InvalidOperationException("The file system root cannot be used as the output directory.");
             }
 
+            if (cacheOptions is not null) ValidateCachePathAncestry(outputRoot, cacheOptions);
             CreateSafeAbsoluteDirectory(parentRoot);
             var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
             var lockIdentity = CreateLockIdentity(outputRoot);

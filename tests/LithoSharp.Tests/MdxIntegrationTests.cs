@@ -323,6 +323,11 @@ public sealed class MdxIntegrationTests
     [Arguments("numeric-asset-import")]
     [Arguments("unresolved-asset-import")]
     [Arguments("duplicate-asset-path")]
+    [Arguments("wrong-page-id")]
+    [Arguments("missing-page")]
+    [Arguments("duplicate-page-id")]
+    [Arguments("unknown-page-entry")]
+    [Arguments("unknown-page-css")]
     [Arguments("truncated")]
     [Arguments("hash-mismatch")]
     public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes(string corruption)
@@ -398,6 +403,11 @@ public sealed class MdxIntegrationTests
     [Arguments("inner-hash-mismatch")]
     [Arguments("unresolved-import")]
     [Arguments("duplicate-asset-path")]
+    [Arguments("wrong-page-id")]
+    [Arguments("missing-page")]
+    [Arguments("duplicate-page-id")]
+    [Arguments("unknown-page-entry")]
+    [Arguments("unknown-page-css")]
     public async Task InvalidLiveWorkerAssetFailsWithoutPublishingOrBecomingAnOptionalCacheHit(string corruption)
     {
         using var workspace = new TemporaryWorkspace();
@@ -407,23 +417,7 @@ public sealed class MdxIntegrationTests
         await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
         // Scripted successful protocol reply; these cases test bridge validation,
         // not actual MDX/esbuild operation counts or compiler failure behavior.
-        await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), """
-            import {createInterface} from 'node:readline';
-            import {createHash} from 'node:crypto';
-            import path from 'node:path';
-            console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));
-            for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
-              const request=JSON.parse(line),page=request.pages[0],corruption=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION,badEncoding=corruption==='invalid-base64';
-              const assets=[{path:'asset.txt',bytes:badEncoding?'!':'',hash:corruption==='inner-hash-mismatch'?'0'.repeat(64):createHash('sha256').update('').digest('hex'),imports:corruption==='unresolved-import'?['__missing__.js']:[]}];
-              if(corruption==='duplicate-asset-path') assets.push({...assets[0]});
-              console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{
-                inputs:Object.entries(request.capturedInputs).map(([file,hash])=>({file:path.resolve(request.projectRoot,file),hash})),
-                assets,
-                pages:[{id:page.id,html:'<h1>UntrustedLiveAsset</h1>',text:'Page',entry:null,css:[],headings:[],links:[],islands:[],hydration:'selective',fallback:null}],
-                compiledModules:1,renderedPages:1,bundledPages:0,rebundledPages:[],
-                timings:{totalMilliseconds:1,serverBundleMilliseconds:1,browserBundleMilliseconds:0,renderMilliseconds:0},memory:{heapUsed:1}}}));
-            }
-            """);
+        await WriteScriptedValidationWorkerAsync(worker);
         var generator = new SiteGenerator();
         var settings = new SiteSettings();
         var output = Path.Combine(workspace.Root, "out");
@@ -445,15 +439,91 @@ public sealed class MdxIntegrationTests
             await generator.GenerateWithOptionsAsync(settings, [], output, false, null,
                 new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
         }
-        catch (SiteBuildExtensionException error) when (corruption is "inner-hash-mismatch" or "unresolved-import" or "duplicate-asset-path") { failure = error; }
+        catch (SiteBuildExtensionException error) when (corruption is "inner-hash-mismatch" or "unresolved-import" or "duplicate-asset-path"
+            or "wrong-page-id" or "missing-page" or "unknown-page-entry" or "unknown-page-css") { failure = error; }
+        catch (ArgumentException error) when (corruption == "duplicate-page-id") { failure = error; }
         catch (FormatException error) when (corruption == "invalid-base64") { failure = error; }
         await Assert.That(failure).IsNotNull();
         if (corruption is "unresolved-import" or "duplicate-asset-path")
             await Assert.That(failure!.Message).Contains("LSMDX003: Worker returned duplicate assets or unresolved chunk references.");
+        if (corruption is "wrong-page-id" or "missing-page")
+            await Assert.That(failure!.Message).Contains("LSMDX003: Worker page identities do not match the request.");
+        if (corruption is "unknown-page-entry" or "unknown-page-css")
+            await Assert.That(failure!.Message).Contains("LSMDX003: A page references an unknown bundle.");
         await Assert.That(HashOutput(output)).IsEquivalentTo(before);
         await Assert.That(mdx.Metrics.Work.RequestAttempts).IsEqualTo(1);
         await Assert.That(mdx.Metrics.CacheHit).IsFalse();
         await Assert.That(Directory.GetFiles(Path.Combine(workspace.Root, ".lithosharp", "mdx"), "*.json").Length).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("valid-null-entry-empty")]
+    [Arguments("valid-nonnull-entry-empty")]
+    [Arguments("valid-null-entry-css")]
+    [Arguments("valid-nonnull-entry-css")]
+    public async Task ValidPageBundleReferencesRemainUsableOnTheOptionalCacheHit(string mode)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var source = Path.Combine(workspace.Root, "content");
+        var worker = Path.Combine(workspace.Root, "worker");
+        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
+        await WriteScriptedValidationWorkerAsync(worker);
+        await using var mdx = new MdxSite(new(workspace.Root, worker)
+        {
+            Cacheable = true,
+            Hydration = "selective",
+            Environment = new Dictionary<string, string> { ["LITHOSHARP_TEST_ASSET_CORRUPTION"] = mode },
+        });
+        mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
+            _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
+            { TransformationFingerprint = "valid-page-reference-test" });
+        var generator = new SiteGenerator();
+        var output = Path.Combine(workspace.Root, "out");
+        var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
+        await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, true, null, options, default);
+        await Assert.That(mdx.Metrics.CacheHit).IsFalse();
+        var html = await File.ReadAllTextAsync(Path.Combine(output, "page/index.html"));
+        await Assert.That(html).Contains("UntrustedLiveAsset");
+        await Assert.That(html.Contains("src=\"/_mdx/entry.js\"", StringComparison.Ordinal)).IsEqualTo(mode.Contains("nonnull-entry", StringComparison.Ordinal));
+        await Assert.That(html.Contains("href=\"/_mdx/style.css\"", StringComparison.Ordinal)).IsEqualTo(mode.EndsWith("-css", StringComparison.Ordinal));
+        var before = HashOutput(output);
+        await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null, options, default);
+        await Assert.That(mdx.Metrics.CacheHit).IsTrue();
+        await Assert.That(mdx.Metrics.Work.RequestAttempts).IsEqualTo(0);
+        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+    }
+
+    private static async Task WriteScriptedValidationWorkerAsync(string worker)
+    {
+        await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), """
+            import {createInterface} from 'node:readline';
+            import {createHash} from 'node:crypto';
+            import path from 'node:path';
+            console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));
+            for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
+              const request=JSON.parse(line),page=request.pages[0],corruption=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION,badEncoding=corruption==='invalid-base64';
+              const assets=[{path:'asset.txt',bytes:badEncoding?'!':'',hash:corruption==='inner-hash-mismatch'?'0'.repeat(64):createHash('sha256').update('').digest('hex'),imports:corruption==='unresolved-import'?['__missing__.js']:[]}];
+              if(corruption==='duplicate-asset-path') assets.push({...assets[0]});
+              const resultPages=[{id:page.id,html:'<h1>UntrustedLiveAsset</h1>',text:'Page',entry:null,css:[],headings:[],links:[],islands:[],hydration:'selective',fallback:null}];
+              if(corruption==='wrong-page-id') resultPages[0].id='__wrong_page__';
+              if(corruption==='missing-page') resultPages.length=0;
+              if(corruption==='duplicate-page-id') resultPages.push({...resultPages[0]});
+              if(corruption==='unknown-page-entry') resultPages[0].entry='__missing__.js';
+              if(corruption==='unknown-page-css') resultPages[0].css=['__missing__.css'];
+              if(corruption.startsWith('valid-')){
+                for(const assetPath of ['third-party-notices.txt','entry.js','style.css']) assets.push({...assets[0],path:assetPath});
+                if(corruption.includes('nonnull-entry')) resultPages[0].entry='entry.js';
+                if(corruption.endsWith('-css')) resultPages[0].css=['style.css'];
+              }
+              console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{
+                inputs:Object.entries(request.capturedInputs).map(([file,hash])=>({file:path.resolve(request.projectRoot,file),hash})),
+                assets,
+                pages:resultPages,
+                compiledModules:1,renderedPages:1,bundledPages:0,rebundledPages:[],
+                timings:{totalMilliseconds:1,serverBundleMilliseconds:1,browserBundleMilliseconds:0,renderMilliseconds:0},memory:{heapUsed:1}}}));
+            }
+            """);
     }
 
     private static string CorruptCache(string original, string corruption)
@@ -480,6 +550,11 @@ public sealed class MdxIntegrationTests
             case "numeric-asset-import": result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123)); break;
             case "unresolved-asset-import": result["assets"]![0]!["imports"] = new JsonArray("__missing__.js"); break;
             case "duplicate-asset-path": result["assets"]!.AsArray().Add(result["assets"]![0]!.DeepClone()); break;
+            case "wrong-page-id": result["pages"]![0]!["id"] = "__wrong_page__"; break;
+            case "missing-page": result["pages"]!.AsArray().Clear(); break;
+            case "duplicate-page-id": result["pages"]!.AsArray().Add(result["pages"]![0]!.DeepClone()); break;
+            case "unknown-page-entry": result["pages"]![0]!["entry"] = "__missing__.js"; break;
+            case "unknown-page-css": result["pages"]![0]!["css"] = new JsonArray("__missing__.css"); break;
             case "hash-mismatch": envelope["hash"] = new string('0', 64); break;
             default: throw new ArgumentOutOfRangeException(nameof(corruption));
         }
