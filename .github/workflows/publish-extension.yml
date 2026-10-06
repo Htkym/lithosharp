@@ -71,7 +71,7 @@ jobs:
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v7
         with:
-          name: lithosharp-vscode-${{ github.ref_name }}
+          name: lithosharp-vscode-${{ github.sha }}
           path: artifacts/vsix/*.vsix
           if-no-files-found: error
 
