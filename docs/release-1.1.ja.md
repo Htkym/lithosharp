@@ -2,9 +2,9 @@
 
 [English](release-1.1.md)
 
-候補状態：Core 1.1と拡張0.1.0は検証候補である。NuGet packageの版数を1.1.0へ更新した。
-最終の配布検証は未完で、拡張はMarketplaceにない。*未測定*の数値は
-最終のV110-25測定後に差し替える。ここで先行して高速化を主張しない。
+Core 1.1.0と拡張0.1.0は未公開である。NuGet packageの版数は1.1.0で、拡張はMarketplaceにない。
+性能目標は未達であり、[既知の制約](performance.ja.md#110の性能上の制約)として記録する。
+出力設計の大きな変更は次版以降へ回す。
 
 ## 機能表
 
@@ -24,11 +24,11 @@
 - browser検証はChromiumのみ。Firefox/Safariは主張しない。
 - CLI/site hostのtrimmingとNative AOTは非対応のままである。
 - AVIFは信頼済みの`avifenc`を明示設定しない限り未検証である。
-- 先の検証候補はWindows、Linux、macOSのCIに成功した。現候補の最終の複数OS検証と30分soakは未完で、現行soakの証拠はWindowsでの高速編集である。
+- 1.1.0ではWatchとEditorの長時間検証は実施していない。高速編集と復旧は30分の連続稼働を証明しない。
 
 ## 1.0から1.1への更新
 
-1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。公開後は同じ1.1.0版を使う。local RCの最終検証は未完である。
+1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。公開後は同じ1.1.0版を使う。
 2. siteを再buildし、content警告・link・custom CSSを見直す。
 3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](known-limitations.ja.md#markdown-の互換性)参照）。
 4. `markdown-compat --advisory on`と`--project`はEditor検査と同一解析であり、既定出力を変えない。
@@ -41,6 +41,17 @@ YamlDotNet 18.1.0では、デシリアライザーの既定の再帰上限が130
 
 KaTeXを0.16.22から0.16.47へ更新した。同梱CSSの`font-display: block`により、
 フォントを読み込む間、組版された数式が一時的に表示されないことがある。
+
+DOMPurifyを3.4.16へ更新した。DOM node入力を`IN_PLACE: true`で処理し、
+DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローする。hookが
+除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げた。
+hookが単にrootをdetachする場合まで、この受入差に含めるものではない。独自呼出しでは例外を処理し、失敗した入力・結果を破棄する。除去したnodeを安全な
+コンテンツとして使い回したり、シリアライズしたりしない。この限定した互換性差を受け入れ、
+[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持する。
+通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入らない。
+DOMの完全一致を主張するものではない。
+
+更新時の範囲は[既知の制約](known-limitations.ja.md)も参照。
 
 ## APIとschemaの方針
 

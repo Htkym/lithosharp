@@ -48,6 +48,11 @@ the dynamically loaded CLI/site path; no trimmed or AOT deployment is certified.
 PNG, JPEG and WebP were exercised with Skia. AVIF needs an explicitly configured
 trusted `avifenc`; real AVIF encoding remains unverified in this environment.
 
+1.1.0 did not meet its generation speed targets. A one-page edit still copies the
+existing output tree into independent staging, so its cost can scale with total
+output size. The limitation is retained for 1.1.0 and a larger design change is
+deferred; no speedup is promised. See [the scoped comparison](performance.md#110-performance-limitation).
+
 ## MDX and browser scope
 
 The 1.0.0 Docs/Blog palettes require CSS `light-dark()` support. Restoring
@@ -68,6 +73,18 @@ The measured static-page reduction does not apply to every island or fallback.
 Only the documented Docusaurus aliases are implemented. Arbitrary Docusaurus
 plugins and JavaScript configuration execution are unsupported. Migration reports
 unsupported constructs; it is not a complete automated site conversion.
+
+DOMPurify is updated to 3.4.16. With a DOM node input and `IN_PLACE: true`,
+sanitization throws `TypeError` when DOMPurify records that its removal policy
+removed the input root, including a hook that changes that policy to forbid the
+root. In the observed case, 3.4.15 returned the removed node and 3.4.16 rejected
+it. A hook that only detaches the root is outside this accepted difference.
+Custom callers must handle the exception and discard the failed input/result;
+do not reuse or serialize the removed node as sanitized content. This change is
+retained for the [upstream XSS fix](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2).
+The ordinary Flow/Class/State tooltip callers pass strings and do not enter this
+DOM-node plus `IN_PLACE` branch. This limited compatibility difference is accepted;
+complete DOM equality is not claimed.
 
 ## Trust and publication
 
@@ -116,11 +133,10 @@ migration route scope; monthly archives and directory indexes may appear as a
 documented superset. Markdown link targets pass through the build unchanged;
 `check` reports unsupported schemes while MDX anchors fail the build.
 
-## 1.1 extension and soak scope
+## 1.1 extension and stability scope
 
-Editor diagnostics run in stages: Markdown first, MDX through the restored
-worker. Preview shows saved documents only; unsaved buffers have no preview.
-The worker transpiles TypeScript without type-checking. The 0.1.0 extension is
-not distributed on the Marketplace; 30-minute soak evidence, multi-OS runs and
-packaged-VSIX verification are scheduled for V110-25/26. The current soak
-evidence is 1,000 rapid edits on Windows with one bounded server restart.
+Editor diagnostics run in stages: Markdown first, MDX through the restored worker.
+Preview shows saved documents only; the worker transpiles TypeScript without
+type-checking. The extension is not distributed on the Marketplace. Long-duration
+Watch and Editor checks were not run for 1.1.0. Existing rapid-edit/recovery,
+multi-OS CI and packaged-VSIX checks do not establish 30-minute continuous operation.

@@ -2,10 +2,10 @@
 
 [日本語](release-1.1.ja.md)
 
-Candidate status: Core 1.1 and extension 0.1.0 are verification candidates.
-NuGet package metadata now targets 1.1.0; final distribution checks are pending.
-The extension is not on the Marketplace. Numbers marked *unmeasured* below are
-replaced after the final V110-25 measurements; nothing here claims them early.
+Core 1.1.0 and extension 0.1.0 remain unreleased. NuGet package metadata targets
+1.1.0; the extension is not on the Marketplace. Performance targets were not met
+and are documented as a [known limitation](performance.md#110-performance-limitation),
+with larger output-design work deferred to a later version.
 
 ## Feature table
 
@@ -25,11 +25,11 @@ Explicitly **not** in 1.1:
 - Browser verification is Chromium-only; Firefox/Safari runs are not claimed.
 - Trimming and Native AOT remain unsupported for the CLI/site host.
 - AVIF encoding needs an explicitly configured trusted `avifenc` and is otherwise unverified.
-- The earlier verification candidate passed Windows, Linux and macOS CI. The current candidate still requires final multi-OS validation and the 30-minute soaks; current soak evidence is rapid edits on Windows.
+- Long-duration Watch and Editor checks were not run for 1.1.0; rapid edits and recovery do not establish 30-minute continuous operation.
 
 ## Upgrade from 1.0 to 1.1
 
-1. Update all seven Core packages and the tool together; do not mix 1.0 and 1.1 assemblies. Use matching 1.1.0 packages after their release; local release-candidate verification is still pending.
+1. Update all seven Core packages and the tool together; do not mix 1.0 and 1.1 assemblies. Use matching 1.1.0 packages after their release.
 2. Rebuild the site and review content warnings, links and custom CSS.
 3. The Markdown compiler is unchanged since 1.0: footnotes, definition lists and the other listed Markdig extensions stay unsupported (see [Known limitations](known-limitations.md#markdown-compatibility)).
 4. `markdown-compat --advisory on` and `--project` share the editor inspection; advisories never change default output.
@@ -44,6 +44,20 @@ and the static-content generator keeps its existing nesting limit of 64.
 
 KaTeX is updated from 0.16.22 to 0.16.47. Its bundled CSS uses
 `font-display: block`, so typeset math may briefly remain hidden while its fonts load.
+
+DOMPurify is updated to 3.4.16. With a DOM node input and `IN_PLACE: true`,
+sanitization throws `TypeError` when DOMPurify records that its removal policy
+removed the input root, including a hook that changes that policy to forbid the
+root. In the observed case, 3.4.15 returned the removed node and 3.4.16 rejected
+it. A hook that only detaches the root is outside this accepted difference.
+Custom callers must handle the exception and discard the failed input/result;
+do not reuse or serialize the removed node as sanitized content. This change is
+retained for the [upstream XSS fix](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2).
+The ordinary Flow/Class/State tooltip callers pass strings and do not enter this
+DOM-node plus `IN_PLACE` branch. This limited compatibility difference is accepted;
+complete DOM equality is not claimed.
+
+See [known limitations](known-limitations.md) for the upgrade scope.
 
 ## API and schema policy
 

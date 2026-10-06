@@ -29,6 +29,10 @@ Native AOTは非対応であり、その配布形態の動作保証はありま�
 PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定した信頼できる`avifenc`が必要です。
 この環境では実AVIF encodeは未検証です。
 
+1.1.0の生成速度目標は未達である。本文1件の編集でも既存出力全体を独立したstagingへコピーするため、
+処理時間は出力全体の規模にも依存する。1.1.0の制約として記録し、大きな設計変更は次版以降へ回す。
+高速化は保証しない。[比較条件と結果](performance.ja.md#110の性能上の制約)を参照。
+
 ## MDXとブラウザー機能の範囲
 
 1.0.0のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
@@ -46,6 +50,15 @@ fallbackします。静的ページでMDX hydration entryがなくても、任�
 
 Docusaurus aliasは文書に記載した範囲のみです。任意のpluginとJavaScript設定の実行は非対応です。
 移行機能は非対応構文を報告するもので、サイト全体の自動変換を保証しません。
+
+DOMPurifyを3.4.16へ更新した。DOM node入力を`IN_PLACE: true`で処理し、
+DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローする。hookが
+除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げた。
+hookが単にrootをdetachする場合まで、この受入差に含めるものではない。独自呼出しでは例外を処理し、失敗した入力・結果を破棄する。除去したnodeを安全な
+コンテンツとして使い回したり、シリアライズしたりしない。この限定した互換性差を受け入れ、
+[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持する。
+通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入らない。
+DOMの完全一致を主張するものではない。
 
 ## 信頼と公開
 
@@ -85,10 +98,9 @@ authors と archive と pagination と tags に1:1の元文書はなく、移行
 Markdown の link 先は build を通し、`check` が非対応 scheme を指摘します。MDX の
 anchor は build で落とします。
 
-## 1.1の拡張とsoakの範囲
+## 1.1の拡張と安定性検証の範囲
 
-Editor診断は段階実施である。Markdownが先で、MDXはrestore済みworker経由である。
-previewは保存済み文書のみで、未保存bufferのpreviewはない。workerはTypeScriptを
-変換するだけで型検査はしない。0.1.0拡張の配布はなく、30分soak、複数OS実行、
-package済みVSIX検証はV110-25/26の予定である。現行soak証拠はWindows高速1,000編集
-（有界server再起動1回）である。
+Editor診断はMarkdownが先で、MDXはrestore済みworker経由である。previewは保存済み文書のみで、
+workerはTypeScriptを変換するだけで型検査はしない。拡張はMarketplaceに配布していない。
+1.1.0ではWatchとEditorの長時間検証を実施していない。高速編集・復旧、複数OSのCI、
+package済みVSIXの確認は、30分の連続稼働を証明するものではない。

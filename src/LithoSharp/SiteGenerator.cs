@@ -3677,7 +3677,7 @@ public sealed partial class SiteGenerator
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
-                            bufferSize: 1,
+                            bufferSize: 81920,
                             FileOptions.Asynchronous | FileOptions.SequentialScan);
                         EnsureOpenedFilePath(source, entry);
                         await using var target = new FileStream(
@@ -3685,7 +3685,7 @@ public sealed partial class SiteGenerator
                             FileMode.CreateNew,
                             FileAccess.Write,
                             FileShare.None,
-                            bufferSize: 1,
+                            bufferSize: 81920,
                             FileOptions.Asynchronous);
                         EnsureOpenedFilePath(target, destination);
                         await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
