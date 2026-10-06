@@ -88,6 +88,98 @@ public sealed class DevServerLifecycleTests
         await Assert.That(serve.ExitCode).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task QueuedInitialEditCannotPrecedeImmutableStartupEvidence()
+    {
+        Fixture? fixture = null;
+        ServeProcess? serve = null;
+        Task? releaseStartup = null;
+        Exception? primary = null;
+        var cleanupFailures = new List<Exception>();
+        try
+        {
+            fixture = await Fixture.CreateAsync("render", delayStartupOutput: true);
+            serve = ServeProcess.Start(fixture);
+            var read = Path.Combine(fixture.Barriers, "render-entered");
+            await WaitForFileAsync(read);
+            await Assert.That(await File.ReadAllTextAsync(read)).IsEqualTo("before-initial-read");
+            // The only watched edit is queued while the real first host render is held.
+            // The .mdx extension avoids the unrelated conservative C# restart path.
+            await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, "content.mdx"), "startup-order-latest-content");
+            await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, "render-release"), "release");
+            await WaitForFileAsync(Path.Combine(fixture.Barriers, "startup-output-entered"));
+            var barriers = fixture.Barriers;
+            // This delay controls the real synchronous Serving stderr write. It does not
+            // infer a source read or rebuild from a sleep; both must be observed below.
+            releaseStartup = Task.Run(async () =>
+            {
+                await Task.Delay(1000);
+                await File.WriteAllTextAsync(Path.Combine(barriers, "startup-output-release"), "release");
+            });
+            var first = await serve.WaitForEventAsync(value => IsEvent(value, "startup")
+                || IsEvent(value, "rebuild-started") || IsEvent(value, "rebuild-succeeded") || IsEvent(value, "rebuild-failed"));
+            await Assert.That(IsEvent(first, "startup")).IsTrue();
+            await Assert.That(first.GetProperty("generation").GetInt64()).IsEqualTo(1);
+            var rebuilt = await serve.WaitForEventAsync(value => IsEvent(value, "rebuild-succeeded"));
+            await Assert.That(rebuilt.GetProperty("generation").GetInt64()).IsEqualTo(2);
+            var machine = serve.Events.Where(value => IsEvent(value, "startup")
+                || IsEvent(value, "rebuild-started") || IsEvent(value, "rebuild-succeeded") || IsEvent(value, "rebuild-failed")).ToArray();
+            await Assert.That(IsEvent(machine[0], "startup")).IsTrue();
+            await Assert.That(IsEvent(machine[1], "rebuild-started")).IsTrue();
+            await Assert.That(machine.Where(value => IsEvent(value, "startup")).Count()).IsEqualTo(1);
+            var terminalGenerations = machine.Where(value => IsEvent(value, "rebuild-succeeded") || IsEvent(value, "rebuild-failed"))
+                .Select(value => value.GetProperty("generation").GetInt64()).ToArray();
+            await Assert.That(terminalGenerations.SequenceEqual(Enumerable.Range(2, terminalGenerations.Length).Select(value => (long)value))).IsTrue();
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var published = await http.GetStringAsync(new Uri(new Uri(first.GetProperty("url").GetString()!), "index.html"));
+            await Assert.That(published).Contains("startup-order-latest-content");
+            await Assert.That(published.Contains("before-initial-read", StringComparison.Ordinal)).IsFalse();
+            await serve.ShutdownAsync("shutdown-startup-order");
+            await serve.WaitForExitAsync();
+            await Assert.That(serve.ExitCode).IsEqualTo(0);
+        }
+        catch (Exception failure) { primary = failure; }
+        finally
+        {
+            if (fixture is not null)
+            {
+                try
+                {
+                    await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, "startup-output-release"), "cleanup-only");
+                    fixture.ReleaseForCleanup();
+                }
+                catch (Exception failure) { cleanupFailures.Add(failure); }
+            }
+            if (releaseStartup is not null)
+                try { await releaseStartup; } catch (Exception failure) { cleanupFailures.Add(failure); }
+            if (serve is not null)
+                try { await serve.DisposeAsync(); } catch (Exception failure) { cleanupFailures.Add(failure); }
+            try
+            {
+                Console.WriteLine("STARTUP_ORDER_OBSERVATION " + JsonSerializer.Serialize(new
+                {
+                    startupDelayMilliseconds = 1000,
+                    sourceEditCount = 1,
+                    events = serve?.Events.Where(value => IsEvent(value, "startup") || IsEvent(value, "rebuild-started")
+                        || IsEvent(value, "rebuild-succeeded") || IsEvent(value, "rebuild-failed")).Select(value => new
+                        {
+                            name = value.GetProperty("event").GetString(),
+                            generation = value.TryGetProperty("generation", out var field) ? field.GetInt64() : (long?)null,
+                        }).ToArray(),
+                    primaryFailure = primary?.GetType().Name,
+                    cleanupFailures = cleanupFailures.Select(value => value.GetType().Name).ToArray(),
+                }));
+            }
+            catch (Exception failure) { cleanupFailures.Add(failure); }
+            if (fixture is not null)
+                try { fixture.Dispose(); } catch (Exception failure) { cleanupFailures.Add(failure); }
+        }
+        if (primary is not null && cleanupFailures.Count != 0)
+            throw new AggregateException("Startup-order assertion and owned cleanup failed.", new[] { primary }.Concat(cleanupFailures));
+        if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
+        if (cleanupFailures.Count != 0) throw new AggregateException("Startup-order owned cleanup failed.", cleanupFailures);
+    }
+
     private static bool IsEvent(JsonElement value, string name) => value.TryGetProperty("event", out var field)
         && field.GetString() == name;
 
@@ -106,8 +198,9 @@ public sealed class DevServerLifecycleTests
         public string Barriers => Path.Combine(workspace.Root, "barriers");
         public string Output => Path.Combine(workspace.Root, "publication");
         public string Project => Path.Combine(ProjectDirectory, "site.csproj");
+        public string? StartupOutputHook { get; private set; }
 
-        public static async Task<Fixture> CreateAsync(string? blockedPhase)
+        public static async Task<Fixture> CreateAsync(string? blockedPhase, bool delayStartupOutput = false)
         {
             var fixture = new Fixture();
             try
@@ -115,8 +208,11 @@ public sealed class DevServerLifecycleTests
                 Directory.CreateDirectory(fixture.ProjectDirectory);
                 Directory.CreateDirectory(fixture.Barriers);
                 if (blockedPhase is not null) await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, blockedPhase + "-arm"), "arm");
-                await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, "content.txt"), "before-initial-read");
-                await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, "Factory.cs"), FactorySource);
+                var contentFile = delayStartupOutput ? "content.mdx" : "content.txt";
+                await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, contentFile), "before-initial-read");
+                await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, "Factory.cs"), delayStartupOutput
+                    ? FactorySource.Replace("content.txt", "content.mdx", StringComparison.Ordinal) : FactorySource);
+                if (delayStartupOutput) fixture.StartupOutputHook = await BuildStartupOutputHookAsync(Path.Combine(fixture.workspace.Root, "startup-output-hook"));
                 var project = new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
                     new XElement("PropertyGroup", new XElement("TargetFramework", "net10.0"),
                         new XElement("ImplicitUsings", "enable"), new XElement("Nullable", "enable"),
@@ -148,6 +244,78 @@ public sealed class DevServerLifecycleTests
         }
 
         public void Dispose() => workspace.Dispose();
+
+        private static async Task<string> BuildStartupOutputHookAsync(string directory)
+        {
+            Directory.CreateDirectory(directory);
+            var project = Path.Combine(directory, "StartupOrderBarrierHook.csproj");
+            await File.WriteAllTextAsync(project, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><UseSharedCompilation>false</UseSharedCompilation></PropertyGroup></Project>");
+            await File.WriteAllTextAsync(Path.Combine(directory, "NuGet.Config"), "<configuration><packageSources><clear /></packageSources></configuration>");
+            await File.WriteAllTextAsync(Path.Combine(directory, "StartupHook.cs"), StartupOutputHookSource);
+            var start = new ProcessStartInfo("dotnet")
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+                RedirectStandardError = true, WorkingDirectory = directory };
+            foreach (var argument in new[] { "build", project, "--nologo", "-c", "Release", "-m:1", "-p:UseSharedCompilation=false" }) start.ArgumentList.Add(argument);
+            start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
+            start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("Cannot build owned startup-output fixture hook.");
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            Exception? primary = null;
+            var secondary = new List<Exception>();
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+                await process.WaitForExitAsync(timeout.Token);
+                if (process.ExitCode != 0)
+                    throw new InvalidOperationException("Owned startup-output hook build failed. " + await output + await error);
+            }
+            catch (Exception failure) { primary = failure; }
+            finally
+            {
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+                catch (Exception failure) { secondary.Add(failure); }
+                using var drain = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                try { await process.WaitForExitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
+                try { await output.WaitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
+                try { await error.WaitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
+            }
+            if (primary is not null && secondary.Count != 0)
+                throw new AggregateException("Startup-output hook build and owned cleanup failed.", new[] { primary }.Concat(secondary));
+            if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
+            if (secondary.Count != 0) throw new AggregateException("Startup-output hook cleanup failed.", secondary);
+            var assembly = Path.Combine(directory, "bin", "Release", "net10.0", "StartupOrderBarrierHook.dll");
+            if (!File.Exists(assembly)) throw new InvalidOperationException("Owned startup-output hook assembly missing.");
+            return assembly;
+        }
+
+        private const string StartupOutputHookSource = """
+            using System.Text;
+            public static class StartupHook
+            {
+                public static void Initialize()
+                {
+                    var barriers = Environment.GetEnvironmentVariable("LITHOSHARP_OWNED_STARTUP_OUTPUT_BARRIERS");
+                    if (string.IsNullOrEmpty(barriers)) throw new InvalidOperationException("Owned startup-output barrier configuration required.");
+                    Console.SetError(new StartupOutputWriter(Console.Error, barriers));
+                }
+                private sealed class StartupOutputWriter(TextWriter original, string barriers) : TextWriter
+                {
+                    public override Encoding Encoding => original.Encoding;
+                    public override void Write(char value) => original.Write(value);
+                    public override void Write(string? value) => original.Write(value);
+                    public override void WriteLine(string? value)
+                    {
+                        if (value is not null && value.StartsWith("Serving ", StringComparison.Ordinal))
+                        {
+                            File.WriteAllText(Path.Combine(barriers, "startup-output-entered"), "entered");
+                            while (!File.Exists(Path.Combine(barriers, "startup-output-release"))) Thread.Sleep(10);
+                        }
+                        original.WriteLine(value);
+                    }
+                }
+            }
+            """;
 
         private const string FactorySource = """
             using LithoSharp;
@@ -206,6 +374,11 @@ public sealed class DevServerLifecycleTests
                 RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = fixture.ProjectDirectory };
             foreach (var arg in new[] { tool, "serve", fixture.Project, "--configuration", "Release", "--format", "json",
                 "--control-stdin", "--host", "127.0.0.1", "--port", "0", "--output", fixture.Output }) start.ArgumentList.Add(arg);
+            if (fixture.StartupOutputHook is not null)
+            {
+                start.Environment["DOTNET_STARTUP_HOOKS"] = fixture.StartupOutputHook;
+                start.Environment["LITHOSHARP_OWNED_STARTUP_OUTPUT_BARRIERS"] = fixture.Barriers;
+            }
             start.Environment["UseSharedCompilation"] = "false";
             start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
             start.Environment["MSBUILDDISABLENODEREUSE"] = "1";

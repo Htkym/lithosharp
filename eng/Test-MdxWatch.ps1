@@ -424,15 +424,18 @@ namespace LithoSharp.WatchR7 {
     $baseSource = [IO.File]::ReadAllText($pagePath)
     $soak = [Diagnostics.Stopwatch]::StartNew()
     for ($edit = 1; $edit -le $StressEdits; $edit++) {
+        Receive-WatchMachineEvents
         [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n")
+        Receive-WatchMachineEvents
         if ($SoakMinutes -gt 0) {
             if ($edit % 25 -eq 0) {
                 Wait-For { (Page) -match "Revision $edit\." -and (State).success } "edit $edit convergence"
             }
             $due = $SoakMinutes * 60 * $edit / $StressEdits
-            while ($soak.Elapsed.TotalSeconds -lt $due) { Start-Sleep -Milliseconds 150 }
+            while ($soak.Elapsed.TotalSeconds -lt $due) { Receive-WatchMachineEvents; Start-Sleep -Milliseconds 150; Receive-WatchMachineEvents }
         }
         if ($edit % 5 -eq 0) { $resources.Add((Sample-ServeResources "edit-$edit")) }
+        Receive-WatchMachineEvents
         if ($edit % 25 -eq 0) { Write-Host "Watch edit $edit/$StressEdits; elapsed $([Math]::Round($soak.Elapsed.TotalSeconds)) seconds." }
     }
     Wait-For { (Page) -match "Revision $StressEdits" -and (State).success } 'continuous edits convergence'

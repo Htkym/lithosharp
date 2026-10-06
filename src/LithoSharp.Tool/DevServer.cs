@@ -96,10 +96,11 @@ internal static class DevServer
         if (host is "*" or "+") throw new CliUsageException("Use an explicit address for --host.");
         var url = $"http://{host}:{port}";
         var hub = new ReloadHub();
-        state.Latest = latest with { Generation = 1 };
+        const long initialGeneration = 1;
+        state.Latest = latest with { Generation = initialGeneration };
         state.OutputRoot = outputRoot;
         state.IgnoredPaths = latest.IgnoredPaths;
-        controller.Generation = 1;
+        controller.Generation = initialGeneration;
         var builder = WebApplication.CreateSlimBuilder();
         // Machine mode keeps stdout as pure JSON Lines, so ASP.NET logs must not pollute it.
         if (machine) builder.Logging.ClearProviders();
@@ -151,7 +152,6 @@ internal static class DevServer
             if (controller.ShutdownRequested) WriteRunShutdown(controller.Generation, 0);
             return controller.ShutdownRequested ? 0 : 1;
         }
-        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
         actualUrl = app.Services.GetRequiredService<IServer>().Features
             .Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault() ?? url;
         started = true;
@@ -170,7 +170,7 @@ internal static class DevServer
                 OutputDirectory = outputRoot,
                 BasePath = "/",
                 SiteBasePath = state.Latest.SiteBasePath,
-                Generation = controller.Generation,
+                Generation = initialGeneration,
                 Routes = state.Latest.BuildPlan
                     .SelectMany(node => node.Artifacts)
                     .Select(artifact => new { Path = artifact.Path, PublicPath = artifact.PublicPath })
@@ -181,6 +181,7 @@ internal static class DevServer
         {
             Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
         }
+        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
         if (options.Has("open")) OpenBrowser(actualUrl);
         try { await app.WaitForShutdownAsync(stopping.Token); }
         finally
