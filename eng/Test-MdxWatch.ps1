@@ -40,10 +40,13 @@ $start.UseShellExecute = $false; $start.CreateNoWindow = $true
 $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
 $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
 foreach ($argument in @((Join-Path $repo 'src/LithoSharp.Tool/bin/Release/net10.0/LithoSharp.Tool.dll'), 'serve', (Join-Path $project 'Watch.csproj'), '-c', 'Release', '--port', "$port", '--format', 'json')) { $start.ArgumentList.Add($argument) }
-$process = $null; $stdout = $null; $stderr = $null
+$process = $null; $stdout = $null; $stderr = $null; $stdoutReader = $null
 # Only known scalar observations leave the owned fixture. Raw output stays local.
 $watchEvidence = [ordered]@{ schemaVersion = 1; outcome = 'RUNNING'; failureCategory = $null; warmupBaselineGeneration = $null; warmupCompletedGeneration = $null; importedEditBaselineGeneration = $null; errorRecovery = [Collections.Generic.List[object]]::new(); droppedPolls = 0; stdoutCaptured = $false; stderrCaptured = $false; cleanupCompleted = $false; cleanupFailures = [Collections.Generic.List[string]]::new(); polls = [Collections.Generic.List[object]]::new() }
 $pollPage = $null; $pollState = $null; $activeFailure = $null; $cleanupFailure = $null
+$liveTerminalEvents = [Collections.Generic.List[object]]::new()
+$liveLastGeneration = $null; $livePendingBuild = $false; $liveStartupSeen = $false; $liveShutdownSeen = $false; $liveDroppedTerminals = 0
+$script:watchEvidence.importedEditWitness = $null
 function Record-WatchCleanupFailure([string] $Stage, [Management.Automation.ErrorRecord] $Failure) {
     if ($null -eq $script:cleanupFailure) { $script:cleanupFailure = $Failure }
     if ($script:watchEvidence.cleanupFailures.Count -lt 16) { $script:watchEvidence.cleanupFailures.Add($Stage) }
@@ -72,6 +75,93 @@ function Add-WatchPoll([string] $Description, [long] $ElapsedMilliseconds, [bool
         strictReuseSatisfied = if ($null -ne $script:pollPage -and $null -ne $script:pollState -and $null -ne $script:pollState.workerStarts) { $script:pollPage.count2 -and $script:pollState.workerStarts -eq 0 } else { $null }
     })
 }
+function Get-WatchMachineWork($Value) {
+    if ($Value -isnot [pscustomobject]) { return $null }
+    $workers = Known-Count $Value.workerStarts; $rendered = Known-Count $Value.renderedPages
+    $compiled = Known-Count $Value.compiledModules; $hit = Known-Bool $Value.cacheHit
+    if ($null -eq $workers -or $null -eq $rendered -or $null -eq $compiled -or $null -eq $hit) { return $null }
+    return [ordered]@{ workerStarts = $workers; renderedPages = $rendered; compiledModules = $compiled; cacheHit = $hit }
+}
+function Receive-WatchMachineEvents {
+    if ($null -eq $script:stdoutReader) { return }
+    if ($script:stdoutReader.Completion.IsFaulted -or $script:stdoutReader.Invalid) {
+        $script:watchEvidence.failureCategory = 'LIVE_MACHINE_WITNESS_INVALID'
+        throw 'Live machine stream failed, overflowed or exceeded its line bound.'
+    }
+    foreach ($line in $script:stdoutReader.TakePending()) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $record = ConvertFrom-Json -InputObject $line -ErrorAction Stop
+        if ($record -isnot [pscustomobject] -or $record.schemaVersion -isnot [string] -or $record.event -isnot [string] -or $record.schemaVersion -cne '1.0' -or $record.event -cnotin @('startup', 'rebuild-started', 'rebuild-succeeded', 'rebuild-failed', 'shutdown')) { throw 'Unknown live machine event schema.' }
+        if ($record.event -ceq 'rebuild-started') {
+            if (!$script:liveStartupSeen -or $script:livePendingBuild) { throw 'Unexpected live rebuild-started sequence.' }
+            $script:livePendingBuild = $true; continue
+        }
+        if ($record.event -ceq 'shutdown') { $script:liveShutdownSeen = $true; continue }
+        $generation = Known-Count $record.generation
+        if ($null -eq $generation -or $generation -lt 1) { throw 'Unknown live machine generation.' }
+        if ($record.event -ceq 'startup') {
+            if ($script:liveStartupSeen -or $generation -ne 1) { throw 'Duplicate or unexpected live startup generation.' }
+            $script:liveStartupSeen = $true; $script:liveLastGeneration = $generation; continue
+        }
+        $success = Known-Bool $record.success; $exitCode = Known-Count $record.exitCode
+        if (!$script:livePendingBuild -or $generation -ne $script:liveLastGeneration + 1 -or $null -eq $success -or $null -eq $exitCode -or
+            ($record.event -ceq 'rebuild-succeeded' -and (!$success -or $exitCode -ne 0)) -or
+            ($record.event -ceq 'rebuild-failed' -and $success)) { throw 'Missing, duplicate, conflicting or out-of-order terminal event.' }
+        # The bounded tail exceeds the original 1000-edit/80-recovery phase
+        # count. Older terminal rows may expire during soak; last-generation
+        # sequence checking remains continuous. A required window gap rejects.
+        if ($script:liveTerminalEvents.Count -eq 4096) { $script:liveTerminalEvents.RemoveAt(0); $script:liveDroppedTerminals++ }
+        # Failed terminal events intentionally have no work snapshot. Optional
+        # property access remains safe under the caller's StrictMode Latest.
+        $workProperty = $record.PSObject.Properties['mdxWork']
+        $terminalWork = if ($record.event -ceq 'rebuild-succeeded' -and $null -ne $workProperty) { Get-WatchMachineWork $workProperty.Value } else { $null }
+        $script:liveTerminalEvents.Add([ordered]@{ event = $record.event; generation = $generation; success = $success; exitCode = $exitCode; mdxWork = $terminalWork })
+        $script:liveLastGeneration = $generation; $script:livePendingBuild = $false
+    }
+}
+function Test-WatchImportedGeneration {
+    Receive-WatchMachineEvents
+    $beforeState = State; $before = $script:pollState
+    $observedPage = Page; $afterState = State; $after = $script:pollState
+    $generation = Known-Count $afterState.generation; $baseline = Known-Count $script:watchEvidence.importedEditBaselineGeneration
+    if ($null -eq $baseline -or $baseline -lt 1) { throw 'Unknown imported-edit baseline generation.' }
+    if ($null -eq $generation -or $generation -le $baseline -or $before.generation -ne $generation -or
+        $before.success -ne $true -or $after.success -ne $true -or $observedPage -notmatch 'Count (<!-- -->)?2') { return $false }
+    Receive-WatchMachineEvents
+    # Publication precedes stdout terminal emission; an event not delivered yet
+    # is pending, not invented. Retry within the original deadline.
+    if ($script:liveShutdownSeen) { throw 'Live shutdown cannot witness a completed imported edit.' }
+    if ($script:livePendingBuild -or $script:liveLastGeneration -ne $generation) { return $false }
+    $window = @($script:liveTerminalEvents | Where-Object { $_.generation -gt $baseline -and $_.generation -le $generation })
+    if ($window.Count -ne $generation - $baseline) { throw 'Imported generation terminal witness window has a gap or overflow.' }
+    $witness = $null; $successors = [Collections.Generic.List[long]]::new()
+    for ($i = 0; $i -lt $window.Count; $i++) {
+        $event = $window[$i]; $work = $event.mdxWork
+        if ($event.generation -ne $baseline + $i + 1 -or $event.event -cne 'rebuild-succeeded' -or $event.success -ne $true -or
+            $event.exitCode -ne 0 -or $null -eq $work) { throw 'Imported generation has failed or unknown terminal work.' }
+        if ($work.workerStarts -ne 0) {
+            $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
+            throw 'A completed component-edit window restarted the worker.'
+        }
+        if ($work.renderedPages -ge 1 -and $work.compiledModules -ge 0 -and $work.cacheHit -eq $false) {
+            $witness = $event; $successors.Clear()
+        } elseif ($work.cacheHit -eq $true -and $work.renderedPages -eq 0 -and $work.compiledModules -eq 0) {
+            if ($null -ne $witness) { $successors.Add($event.generation) }
+        } else { throw 'Imported generation has unknown noop or inconsistent work.' }
+    }
+    if ($null -eq $witness) { return $false }
+    $latest = $window[-1].mdxWork
+    foreach ($key in @('workerStarts', 'renderedPages', 'compiledModules', 'cacheHit')) {
+        if ($null -eq $before[$key] -or $null -eq $after[$key] -or $before[$key] -cne $latest[$key] -or $after[$key] -cne $latest[$key]) { return $false }
+    }
+    $script:watchEvidence.importedEditWitness = [ordered]@{
+        baselineGeneration = $baseline; witnessGeneration = $witness.generation; observedGeneration = $generation
+        beforeGeneration = $before.generation; afterGeneration = $after.generation; stateMatched = $true; contentCount2 = $true
+        workerStarts = $witness.mdxWork.workerStarts; renderedPages = $witness.mdxWork.renderedPages; compiledModules = $witness.mdxWork.compiledModules; cacheHit = $witness.mdxWork.cacheHit
+        followingCacheHitGenerations = @($successors.ToArray()); terminalWindow = $window
+    }
+    return $true
+}
 function Summarize-MachineOutput([string] $Text) {
     $events = [Collections.Generic.List[object]]::new(); $invalid = 0; $dropped = 0
     # Inspect at most the last 1 MiB of characters, then at most 4096 bounded lines.
@@ -96,6 +186,8 @@ function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
         timeoutSeconds = $TimeoutSeconds; strictImportedReuse = 'Count2_AND_workerStarts0'
         warmupBaselineGeneration = $script:watchEvidence.warmupBaselineGeneration; warmupCompletedGeneration = $script:watchEvidence.warmupCompletedGeneration
         importedEditBaselineGeneration = $script:watchEvidence.importedEditBaselineGeneration
+        importedEditWitness = $script:watchEvidence.importedEditWitness
+        liveMachine = [ordered]@{ terminalLimit = 4096; ingressLineLimit = 256; lineLimitCharacters = 65536; droppedTerminals = $script:liveDroppedTerminals; pendingBuild = $script:livePendingBuild; shutdownSeen = $script:liveShutdownSeen; lastGeneration = $script:liveLastGeneration; events = @($script:liveTerminalEvents.ToArray()) }
         errorRecovery = @($script:watchEvidence.errorRecovery.ToArray())
         droppedPolls = $script:watchEvidence.droppedPolls; polls = @($script:watchEvidence.polls.ToArray())
         stdoutCaptured = $script:watchEvidence.stdoutCaptured; stderrCaptured = $script:watchEvidence.stderrCaptured; cleanupCompleted = $script:watchEvidence.cleanupCompleted; cleanupFailures = @($script:watchEvidence.cleanupFailures.ToArray()); cleanupBudgetMilliseconds = 10000
@@ -116,6 +208,7 @@ function Wait-For([scriptblock] $Condition, [string] $Description) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         if ($process.HasExited) { throw "Server stopped while waiting for $Description" }
+        Receive-WatchMachineEvents
         $script:pollPage = $null; $script:pollState = $null; $passed = $false
         try { $passed = [bool](& $Condition); if ($passed) { return } } catch [Net.Http.HttpRequestException] { }
         finally { Add-WatchPoll $Description $timer.ElapsedMilliseconds $passed }
@@ -224,8 +317,54 @@ function Sample-ServeResources([string] $Label) {
     }
 }
 try {
+    # Private stdout drainer: raw text remains local as before; only a bounded
+    # complete-line queue is exposed to the scalar witness parser on this thread.
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+namespace LithoSharp.WatchR7 {
+    public sealed class LiveStdout {
+        private readonly object gate = new object();
+        private readonly Queue<string> pending = new Queue<string>();
+        private bool invalid;
+        public Task<string> Completion { get; }
+        public bool Invalid { get { lock (gate) return invalid; } }
+        public LiveStdout(StreamReader reader) { Completion = DrainAsync(reader); }
+        public string[] TakePending() { lock (gate) { var rows = pending.ToArray(); pending.Clear(); return rows; } }
+        private void Publish(string line) {
+            lock (gate) {
+                if (pending.Count == 256) { invalid = true; return; }
+                pending.Enqueue(line);
+            }
+        }
+        private async Task<string> DrainAsync(StreamReader reader) {
+            var raw = new StringBuilder(); var line = new StringBuilder();
+            var buffer = new char[4096]; bool oversized = false; int count;
+            while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0) {
+                raw.Append(buffer, 0, count);
+                for (int i = 0; i < count; i++) {
+                    char c = buffer[i];
+                    if (c == '\n') {
+                        if (!oversized) Publish(line.ToString());
+                        line.Clear(); oversized = false;
+                    } else if (!oversized) {
+                        if (line.Length == 65536) { lock (gate) invalid = true; oversized = true; line.Clear(); }
+                        else line.Append(c);
+                    }
+                }
+            }
+            if (line.Length > 0 && !oversized) Publish(line.ToString());
+            return raw.ToString();
+        }
+    }
+}
+'@
     $process = [Diagnostics.Process]::Start($start)
-    $stdout = $process.StandardOutput.ReadToEndAsync(); $stderr = $process.StandardError.ReadToEndAsync()
+    $stdoutReader = [LithoSharp.WatchR7.LiveStdout]::new($process.StandardOutput)
+    $stdout = $stdoutReader.Completion; $stderr = $process.StandardError.ReadToEndAsync()
     Wait-For { (Page) -match 'Count (<!-- -->)?1' } 'initial MDX build'
     $initialState = State
     if ($initialState.extensions[0].mdx.metrics.workerStarts -ne 1) { throw 'Initial build did not start one worker.' }
@@ -242,22 +381,7 @@ try {
     } 'completed MDX warmup'
     $script:watchEvidence.importedEditBaselineGeneration = $script:watchEvidence.warmupCompletedGeneration
     [IO.File]::WriteAllText($componentPath, $component.Replace('useState(1)', 'useState(2)'))
-    Wait-For {
-        # Page and State are separate HTTP observations, not an atomic snapshot.
-        # Require completed non-noop work; a later cache-only generation cannot mask it.
-        $observedPage = Page; $observedState = State
-        $generation = Known-Count $observedState.generation; $success = Known-Bool $observedState.success
-        $compiled = Known-Count $observedState.extensions[0].mdx.metrics.compiledModules
-        $rendered = Known-Count $observedState.extensions[0].mdx.metrics.renderedPages
-        $workers = Known-Count $observedState.extensions[0].mdx.metrics.workerStarts
-        $completed = $observedPage -match 'Count (<!-- -->)?2' -and $success -eq $true -and $null -ne $generation -and $generation -gt $script:watchEvidence.importedEditBaselineGeneration -and $null -ne $compiled -and $compiled -ge 0 -and $null -ne $rendered -and $rendered -ge 1
-        if (!$completed) { return $false }
-        if ($null -eq $workers -or $workers -ne 0) {
-            $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
-            throw 'A completed non-noop component edit did not reuse the worker.'
-        }
-        return $true
-    } 'completed imported component rebuild'
+    Wait-For { Test-WatchImportedGeneration } 'completed imported component rebuild'
     if ((State).extensions[0].mdx.metrics.workerStarts -ne 0) { throw 'A component edit restarted the worker.' }
     $mdxFailure = Start-WatchFailureEvidence 'MDX diagnostic'
     [IO.File]::WriteAllText($pagePath, $source + "`n<Unclosed")
@@ -381,6 +505,7 @@ try {
         catch { Record-WatchCleanupFailure 'stdout-save' $_ }
         try { if ($script:watchEvidence.stderrCaptured) { [IO.File]::WriteAllText((Join-Path $fixture 'stderr.txt'), $stderrText) } }
         catch { Record-WatchCleanupFailure 'stderr-save' $_ }
+        try { Receive-WatchMachineEvents } catch { Record-WatchCleanupFailure 'live-machine-capture' $_ }
         try { $process.Dispose() } catch { Record-WatchCleanupFailure 'dispose' $_ }
     }
     $script:watchEvidence.cleanupCompleted = $null -eq $cleanupFailure

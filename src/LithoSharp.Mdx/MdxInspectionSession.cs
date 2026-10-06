@@ -114,6 +114,7 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private readonly MdxWorker worker;
     private readonly SemaphoreSlim lifetime = new(1, 1);
     private readonly CancellationTokenSource ownerCancellation = new();
+    private readonly CancellationToken ownerCancellationToken;
     private readonly TaskCompletionSource<bool> disposalCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int disposalStarted;
 
@@ -122,6 +123,7 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         this.options = options;
+        ownerCancellationToken = ownerCancellation.Token;
         if (options.Timeout <= TimeSpan.Zero || options.MaximumMessageBytes < 1024)
             throw new ArgumentException("Worker timeout and message size must be positive.", nameof(options));
         worker = new MdxWorker(options);
@@ -145,12 +147,13 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(text);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
-        using var analysisCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ownerCancellation.Token);
+        using var analysisCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ownerCancellationToken);
         await lifetime.WaitAsync(analysisCancellation.Token).ConfigureAwait(false);
         try
         {
+            if (Volatile.Read(ref disposalStarted) != 0)
+                analysisCancellation.Cancel();
             analysisCancellation.Token.ThrowIfCancellationRequested();
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
             return await AnalyzeCoreAsync(sourcePath, text, analysisOptions, analysisCancellation.Token).ConfigureAwait(false);
         }
         finally

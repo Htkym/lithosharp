@@ -254,6 +254,7 @@ internal static class DevServer
                         OutputDirectory = state.OutputRoot,
                         Generation = controller.Generation,
                         RouteCount = response.BuildPlan.SelectMany(node => node.Artifacts).Count(),
+                        MdxWork = ReadMachineMdxWork(response),
                     });
                     else WriteMachine(new
                     {
@@ -447,6 +448,47 @@ internal static class DevServer
         Success = false,
         Error = error,
     });
+
+    // Exact completed response only. Never serialize inspection paths, source,
+    // props or arbitrary extension values into this bounded machine witness.
+    private sealed record MachineMdxWork(int WorkerStarts, int RenderedPages, int CompiledModules, bool CacheHit);
+
+    private static MachineMdxWork? ReadMachineMdxWork(HostResponse response)
+    {
+        if (response.Extensions is null || response.Extensions.Length > 256) return null;
+        JsonElement? selected = null;
+        foreach (var extension in response.Extensions)
+        {
+            if (extension.ValueKind != JsonValueKind.Object
+                || !extension.TryGetProperty("kind", out var kind) || kind.ValueKind != JsonValueKind.String) continue;
+            JsonElement mdx;
+            if (kind.GetString() == "mdx") mdx = extension;
+            else if (kind.GetString() == "documentation")
+            {
+                if (!extension.TryGetProperty("mdx", out mdx) || mdx.ValueKind != JsonValueKind.Object
+                    || !mdx.TryGetProperty("kind", out var nestedKind) || nestedKind.ValueKind != JsonValueKind.String
+                    || nestedKind.GetString() != "mdx") return null;
+            }
+            else continue;
+            if (selected.HasValue) return null;
+            selected = mdx;
+        }
+        if (!selected.HasValue || !selected.Value.TryGetProperty("metrics", out var metrics)
+            || metrics.ValueKind != JsonValueKind.Object
+            || !TryMachineCount(metrics, "workerStarts", out var workers)
+            || !TryMachineCount(metrics, "renderedPages", out var rendered)
+            || !TryMachineCount(metrics, "compiledModules", out var compiled)
+            || !metrics.TryGetProperty("cacheHit", out var hit)
+            || hit.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return null;
+        return new(workers, rendered, compiled, hit.GetBoolean());
+    }
+
+    private static bool TryMachineCount(JsonElement metrics, string name, out int value)
+    {
+        value = 0;
+        return metrics.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.Number
+            && element.TryGetInt32(out value) && value >= 0;
+    }
 
     private static readonly JsonSerializerOptions MachineOptions = new(JsonSerializerDefaults.Web);
 

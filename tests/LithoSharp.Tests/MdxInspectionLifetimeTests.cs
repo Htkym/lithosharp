@@ -259,4 +259,200 @@ public sealed class MdxInspectionLifetimeTests
             }
         }
     }
+
+    [Test]
+    public async Task Lsr25ResidualAdmittedAnalysisCancelsBeforeOwnerPropagation()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var session = new MdxInspectionSession(new MdxOptions(workspace.Root, workspace.Root)
+        {
+            NodeExecutable = "no-such-node-executable",
+        });
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var gate = (SemaphoreSlim)typeof(MdxInspectionSession).GetField("lifetime", flags)!.GetValue(session)!;
+        var owner = (CancellationTokenSource)typeof(MdxInspectionSession).GetField("ownerCancellation", flags)!.GetValue(session)!;
+        await gate.WaitAsync();
+        using var acceptedCancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.Token);
+        var acceptedToken = acceptedCancellation.Token;
+        using var callbackEntered = new ManualResetEventSlim();
+        using var releaseCallback = new ManualResetEventSlim();
+        // Registered after the linked CTS: Cancel invokes this blocker first.
+        // Disposal has published its flag, but propagation to acceptedToken is held.
+        using var blocker = owner.Token.Register(() =>
+        {
+            callbackEntered.Set();
+            if (!releaseCallback.Wait(TimeSpan.FromSeconds(10)))
+                throw new TimeoutException("LSR25_RESIDUAL owner cancellation blocker was not released.");
+        });
+        var transferred = false;
+        var completionObserved = false;
+        Task<MdxAnalysisResult>? completion = null;
+        Task? disposal = null;
+        Exception? primary = null;
+        try
+        {
+            var continuation = GateGrantedContinuation(session, acceptedCancellation);
+            completion = continuation.Completion;
+            disposal = Task.Run(async () => await session.DisposeAsync());
+            if (!callbackEntered.Wait(TimeSpan.FromSeconds(5)))
+                throw new TimeoutException("LSR25_RESIDUAL owner cancellation did not enter the blocker.");
+            await Assert.That(owner.IsCancellationRequested).IsTrue();
+            await Assert.That(acceptedToken.IsCancellationRequested).IsFalse();
+            await Assert.That((int)typeof(MdxInspectionSession).GetField("disposalStarted", flags)!.GetValue(session)!).IsEqualTo(1);
+            transferred = true;
+            continuation.Resume();
+            Exception? outcome = null;
+            try { await completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception error) { outcome = error; }
+            completionObserved = completion.IsCompleted;
+            Console.WriteLine("LSR25_RESIDUAL_BOUNDARY " + JsonSerializer.Serialize(new
+            {
+                stage = "gate-granted-owner-propagation-held",
+                exceptionType = outcome?.GetType().Name,
+                cancellationRequested = acceptedToken.IsCancellationRequested,
+                workerStarts = session.WorkerStarts,
+            }));
+            await Assert.That(acceptedToken.IsCancellationRequested).IsTrue();
+            await Assert.That(outcome is OperationCanceledException).IsTrue();
+            await Assert.That(outcome is ObjectDisposedException).IsFalse();
+            await Assert.That(((OperationCanceledException)outcome!).CancellationToken == acceptedToken).IsTrue();
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+            releaseCallback.Set();
+            await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(acceptedToken.IsCancellationRequested).IsTrue();
+            await Assert.That(gate.CurrentCount).IsEqualTo(1);
+            Exception? newRequest = null;
+            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
+            catch (Exception error) { newRequest = error; }
+            await Assert.That(newRequest is ObjectDisposedException).IsTrue();
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+        }
+        catch (Exception error)
+        {
+            primary = error;
+            throw;
+        }
+        finally
+        {
+            releaseCallback.Set();
+            var cleanupFailures = new List<Exception>();
+            if (!transferred)
+            {
+                try { gate.Release(); }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            if (completion is not null && !completionObserved)
+            {
+                try { await completion.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (OperationCanceledException) { }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            if (disposal is not null)
+            {
+                try { await disposal.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (Exception error) { cleanupFailures.Add(error); }
+            if (cleanupFailures.Count != 0)
+            {
+                if (primary is not null)
+                    throw new AggregateException("LSR25_RESIDUAL boundary failed; owned cleanup also failed.", new[] { primary }.Concat(cleanupFailures));
+                throw new AggregateException("LSR25_RESIDUAL owned cleanup failed.", cleanupFailures);
+            }
+        }
+    }
+
+    [Test]
+    public async Task Lsr25EntryGuardPassedBeforeOwnerTokenDisposalCancelsAcceptedPrefix()
+    {
+        using var workspace = new TemporaryWorkspace();
+        using var caller = new CancellationTokenSource();
+        var session = new MdxInspectionSession(new MdxOptions(workspace.Root, workspace.Root)
+        {
+            NodeExecutable = "no-such-node-executable",
+        });
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var owner = (CancellationTokenSource)typeof(MdxInspectionSession).GetField("ownerCancellation", flags)!.GetValue(session)!;
+        var ownerToken = owner.Token;
+        var disposalFlag = typeof(MdxInspectionSession).GetField("disposalStarted", flags)!;
+        Task<MdxAnalysisResult>? analysis = null;
+        var completionObserved = false;
+        Exception? primary = null;
+        try
+        {
+            await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(ownerToken.IsCancellationRequested).IsTrue();
+            await Assert.That((int)disposalFlag.GetValue(session)!).IsEqualTo(1);
+            var disposedGetterRejected = false;
+            try { _ = owner.Token; }
+            catch (ObjectDisposedException) { disposedGetterRejected = true; }
+            await Assert.That(disposedGetterRejected).IsTrue();
+
+            // Owned boundary-state replay, not a scheduler race reproduction:
+            // AnalyzeAsync had read entry flag0 before real disposal completed.
+            // Replaying that read reaches the actual public method prefix with
+            // the real canceled/disposed owner. Neither branch can reach worker
+            // or read the post-gate flag: old getter faults, new wait cancels.
+            disposalFlag.SetValue(session, 0);
+            try { analysis = session.AnalyzeAsync("accepted.mdx", "# Accepted", cancellationToken: caller.Token); }
+            finally { disposalFlag.SetValue(session, 1); }
+            await Assert.That(analysis.IsCompleted).IsTrue();
+            Exception? outcome = null;
+            try { await analysis.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception error) { outcome = error; }
+            completionObserved = analysis.IsCompleted;
+            var cancellation = outcome as OperationCanceledException;
+            Console.WriteLine("LSR25_PRECTS_BOUNDARY " + JsonSerializer.Serialize(new
+            {
+                stage = "entry-read-replay-owner-disposed",
+                exceptionType = outcome?.GetType().Name,
+                cancellationRequested = cancellation?.CancellationToken.IsCancellationRequested,
+                canBeCanceled = cancellation?.CancellationToken.CanBeCanceled,
+                callerCanceled = caller.IsCancellationRequested,
+                workerStarts = session.WorkerStarts,
+            }));
+            await Assert.That(outcome is OperationCanceledException).IsTrue();
+            await Assert.That(outcome is ObjectDisposedException).IsFalse();
+            await Assert.That(cancellation!.CancellationToken.IsCancellationRequested).IsTrue();
+            await Assert.That(cancellation.CancellationToken.CanBeCanceled).IsTrue();
+            // The analyzed request uses its own linked CTS, not the owner token.
+            await Assert.That(cancellation.CancellationToken == ownerToken).IsFalse();
+            await Assert.That(cancellation.CancellationToken == caller.Token).IsFalse();
+            await Assert.That(caller.IsCancellationRequested).IsFalse();
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+            await Assert.That((int)disposalFlag.GetValue(session)!).IsEqualTo(1);
+            Exception? newRequest = null;
+            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
+            catch (Exception error) { newRequest = error; }
+            await Assert.That(newRequest is ObjectDisposedException).IsTrue();
+            await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+        }
+        catch (Exception error)
+        {
+            primary = error;
+            throw;
+        }
+        finally
+        {
+            var cleanupFailures = new List<Exception>();
+            try { disposalFlag.SetValue(session, 1); }
+            catch (Exception error) { cleanupFailures.Add(error); }
+            if (analysis is not null && !completionObserved)
+            {
+                try { await analysis.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (OperationCanceledException) { }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (Exception error) { cleanupFailures.Add(error); }
+            if (cleanupFailures.Count != 0)
+            {
+                if (primary is not null)
+                    throw new AggregateException("LSR25 pre-CTS boundary failed; owned cleanup also failed.", new[] { primary }.Concat(cleanupFailures));
+                throw new AggregateException("LSR25 pre-CTS owned cleanup failed.", cleanupFailures);
+            }
+        }
+    }
 }
