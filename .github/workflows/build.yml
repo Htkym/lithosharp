@@ -124,7 +124,7 @@ jobs:
       - name: Test
         env:
           LITHOSHARP_T06_OUTPUT: ${{ github.workspace }}/artifacts/test-diagnostics/workspace-resource-series.json
-        run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
+        run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal --report-trx --results-directory artifacts/test-diagnostics/solution-trx
 
       - name: Preserve workspace resource diagnostics
         if: always()
@@ -132,6 +132,14 @@ jobs:
         with:
           name: workspace-resources-${{ matrix.os }}
           path: artifacts/test-diagnostics/workspace-resource-series.json
+          if-no-files-found: ignore
+
+      - name: Preserve exact solution test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: solution-trx-${{ matrix.os }}
+          path: artifacts/test-diagnostics/solution-trx/*.trx
           if-no-files-found: ignore
 
       - name: Check 1.x compatibility gates
@@ -149,6 +157,14 @@ jobs:
           ./eng/Test-ServeControl.ps1
           ./eng/Test-MdxWatch.ps1
           ./eng/Test-DocumentationVerification.ps1
+
+      - name: Preserve sanitized MDX watch diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdx-watch-diagnostics-${{ matrix.os }}
+          path: artifacts/test-diagnostics/mdx-watch/*.json
+          if-no-files-found: ignore
 
       - name: Migration smoke
         shell: pwsh

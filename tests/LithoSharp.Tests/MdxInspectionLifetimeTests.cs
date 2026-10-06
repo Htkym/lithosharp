@@ -53,11 +53,12 @@ public sealed class MdxInspectionLifetimeTests
         using var workspace = new TemporaryWorkspace();
         using var abort = new CancellationTokenSource();
         var owner = await CreateSessionAsync(workspace, "owner", hold: true);
-        await using var other = await CreateSessionAsync(workspace, "other", hold: false);
+        var other = await CreateSessionAsync(workspace, "other", hold: false);
         Task<MdxAnalysisResult>? active = null;
         Task<MdxAnalysisResult>? queued = null;
         Task? disposal = null;
         Task? repeated = null;
+        Exception? primary = null;
         try
         {
             active = owner.AnalyzeAsync("owner.mdx", "# Owner", cancellationToken: abort.Token);
@@ -94,20 +95,43 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(rejected).IsTrue();
             await owner.DisposeAsync();
         }
+        catch (Exception error)
+        {
+            primary = error;
+            throw;
+        }
         finally
         {
-            // Also clean the OLD implementation after its expected5s failure:
-            // caller cancellation releases its blocked analysis before disposal.
-            abort.Cancel();
+            // Preserve the primary assertion/analysis failure and finish every
+            // owned analysis/disposer/session even when one cleanup task faults.
+            // Expected cancellation of analyses is the only suppressed outcome.
+            var cleanupFailures = new List<Exception>();
+            try { abort.Cancel(); }
+            catch (Exception error) { cleanupFailures.Add(error); }
             foreach (var analysis in new[] { active, queued })
             {
                 if (analysis is null) continue;
                 try { await analysis.WaitAsync(TimeSpan.FromSeconds(10)); }
                 catch (OperationCanceledException) { }
+                catch (Exception error) { cleanupFailures.Add(error); }
             }
-            if (disposal is not null) await disposal.WaitAsync(TimeSpan.FromSeconds(10));
-            if (repeated is not null) await repeated.WaitAsync(TimeSpan.FromSeconds(10));
-            await owner.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            foreach (var disposer in new[] { disposal, repeated })
+            {
+                if (disposer is null) continue;
+                try { await disposer.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            foreach (var ownedSession in new[] { owner, other })
+            {
+                try { await ownedSession.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (Exception error) { cleanupFailures.Add(error); }
+            }
+            if (cleanupFailures.Count != 0)
+            {
+                if (primary is not null)
+                    throw new AggregateException("MDX inspection test failed; owned cleanup also failed.", new[] { primary }.Concat(cleanupFailures));
+                throw new AggregateException("MDX inspection owned cleanup failed.", cleanupFailures);
+            }
         }
     }
 
@@ -126,5 +150,113 @@ public sealed class MdxInspectionLifetimeTests
         try { await session.AnalyzeAsync("later.mdx", "# Later"); }
         catch (ObjectDisposedException) { rejected = true; }
         await Assert.That(rejected).IsTrue();
+    }
+
+    // WaitAsync can grant a queued request before disposal cancels its token,
+    // while its ConfigureAwait(false) continuation is still pending. Releasing
+    // the semaphore and racing DisposeAsync cannot force that boundary. Replay
+    // the actual compiled continuation there instead of adding a product hook
+    // or depending on ThreadPool scheduling. The existing active/queued worker
+    // test above still exercises ordinary AnalyzeAsync admission and cleanup.
+    private static (Task<MdxAnalysisResult> Completion, Action Resume) GateGrantedContinuation(
+        MdxInspectionSession session, CancellationTokenSource analysisCancellation)
+    {
+        var method = typeof(MdxInspectionSession).GetMethod(nameof(MdxInspectionSession.AnalyzeAsync))!;
+        var attribute = method.GetCustomAttributes(typeof(System.Runtime.CompilerServices.AsyncStateMachineAttribute), false)
+            .Cast<System.Runtime.CompilerServices.AsyncStateMachineAttribute>().Single();
+        var machine = Activator.CreateInstance(attribute.StateMachineType, nonPublic: true)!;
+        var fields = attribute.StateMachineType.GetFields(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var builder = System.Runtime.CompilerServices.AsyncTaskMethodBuilder<MdxAnalysisResult>.Create();
+        var completion = builder.Task;
+        var stateField = fields.Single(field => field.Name == "<>1__state" && field.FieldType == typeof(int));
+        stateField.SetValue(machine, 0);
+        fields.Single(field => field.FieldType == typeof(MdxInspectionSession)).SetValue(machine, session);
+        fields.Single(field => field.FieldType == typeof(System.Runtime.CompilerServices.AsyncTaskMethodBuilder<MdxAnalysisResult>))
+            .SetValue(machine, builder);
+        fields.Single(field => field.FieldType == typeof(CancellationTokenSource)).SetValue(machine, analysisCancellation);
+        var gateAwaiter = Task.CompletedTask.ConfigureAwait(false).GetAwaiter();
+        if (!gateAwaiter.IsCompleted || (int)stateField.GetValue(machine)! != 0)
+            throw new InvalidOperationException("The admitted lifetime-await continuation must be complete at state zero.");
+        fields.Single(field => field.FieldType == typeof(System.Runtime.CompilerServices.ConfiguredTaskAwaitable.ConfiguredTaskAwaiter))
+            .SetValue(machine, gateAwaiter);
+        return (completion, () => ((System.Runtime.CompilerServices.IAsyncStateMachine)machine).MoveNext());
+    }
+
+    [Test]
+    public async Task Lsr25GateGrantedAcceptedAnalysisCancelsAfterDisposalAndNewRequestStillThrowsDisposed()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var session = new MdxInspectionSession(new MdxOptions(workspace.Root, workspace.Root)
+        {
+            NodeExecutable = "no-such-node-executable",
+        });
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var gate = (SemaphoreSlim)typeof(MdxInspectionSession).GetField("lifetime", flags)!.GetValue(session)!;
+        var owner = (CancellationTokenSource)typeof(MdxInspectionSession).GetField("ownerCancellation", flags)!.GetValue(session)!;
+        await gate.WaitAsync();
+        var transferred = false;
+        Task? disposal = null;
+        Exception? primary = null;
+        using var acceptedCancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.Token);
+        var acceptedToken = acceptedCancellation.Token;
+        try
+        {
+            var continuation = GateGrantedContinuation(session, acceptedCancellation);
+            disposal = session.DisposeAsync().AsTask();
+            await Assert.That(acceptedToken.IsCancellationRequested).IsTrue();
+            // This held permit now belongs to the already-granted continuation.
+            // Its unchanged production finally releases it to the real disposer.
+            transferred = true;
+            continuation.Resume();
+            Exception? outcome = null;
+            try { await continuation.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception error) { outcome = error; }
+            await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            Console.WriteLine("LSR25_BOUNDARY " + JsonSerializer.Serialize(new
+            {
+                stage = "gate-granted-disposal",
+                exceptionType = outcome?.GetType().Name,
+                cancellationRequested = acceptedToken.IsCancellationRequested,
+                workerStarts = session.WorkerStarts,
+            }));
+            await Assert.That(outcome is OperationCanceledException).IsTrue();
+            await Assert.That(outcome is ObjectDisposedException).IsFalse();
+            await Assert.That(((OperationCanceledException)outcome!).CancellationToken == acceptedToken).IsTrue();
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+            await Assert.That(gate.CurrentCount).IsEqualTo(1);
+
+            Exception? newRequest = null;
+            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
+            catch (Exception error) { newRequest = error; }
+            await Assert.That(newRequest is ObjectDisposedException).IsTrue();
+            await Assert.That(session.WorkerStarts).IsEqualTo(0);
+        }
+        catch (Exception error)
+        {
+            primary = error;
+            throw;
+        }
+        finally
+        {
+            Exception? cleanup = null;
+            try
+            {
+                if (!transferred) gate.Release();
+                if (disposal is not null) await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception error) { cleanup = error; }
+            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception error)
+            {
+                cleanup = cleanup is null ? error : new AggregateException("Both owned disposal waits failed.", cleanup, error);
+            }
+            if (cleanup is not null)
+            {
+                if (primary is not null)
+                    throw new AggregateException("LSR25 test failed; owned disposal also failed.", primary, cleanup);
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanup).Throw();
+            }
+        }
     }
 }

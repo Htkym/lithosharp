@@ -149,8 +149,8 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         await lifetime.WaitAsync(analysisCancellation.Token).ConfigureAwait(false);
         try
         {
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
             analysisCancellation.Token.ThrowIfCancellationRequested();
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposalStarted) != 0, this);
             return await AnalyzeCoreAsync(sourcePath, text, analysisOptions, analysisCancellation.Token).ConfigureAwait(false);
         }
         finally
