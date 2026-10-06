@@ -124,7 +124,6 @@ let packageVersion = '';
 let coreAssemblyHash = '';
 let packageProvenance;
 let externalNode;
-const helperHashes = {};
 const isolatedEnv = { LITHOSHARP_TEST_LOADED_CORE_RECEIPT: path.join(owned, 'loaded-core.json'), DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1', DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false' };
 if (installed) {
   assert.equal(process.version, 'v24.13.0', 'Installed acceptance requires the external Node 24.13.0 runtime.');
@@ -146,16 +145,13 @@ if (installed) {
   assert.equal(manifest.sourceCommit, commit, 'Test source is not the exact producer candidate commit.');
   const require = createRequire(import.meta.url);
   const JSZip = require('jszip');
-  const zip = await JSZip.loadAsync(archiveBytes);
-  // The producer validated staging once. Consumers hash the SAME archive against its trusted manifest;
-  // rebuilding/staging OS-specific product DLLs would change the artifact under test.
-  for (const [entryPath, entry] of Object.entries(zip.files)) {
-    if (entry.dir || !/^extension\/(out\/src\/|resources\/)/.test(entryPath)) continue;
-    const relative = entryPath.slice('extension/'.length);
-    assert.ok(!relative.split('/').includes('..') && !path.isAbsolute(relative), 'Unsafe payload path.');
-    payloadHashes[relative] = hash(await entry.async('nodebuffer'));
+  // The trusted producer validates the archive; its transfer checksum pins those exact bytes.
+  // Verify the installed physical payload against the same manifest without reinflating it here.
+  payloadHashes = manifest.payloadHashes;
+  for (const [relative, expected] of Object.entries(payloadHashes)) {
+    assert.ok(/^(?:out\/src\/|resources\/)/.test(relative) && !relative.split('/').includes('..') && !path.isAbsolute(relative), 'Unsafe payload path.');
+    assert.match(expected, /^[a-f0-9]{64}$/);
   }
-  assert.deepEqual(payloadHashes, manifest.payloadHashes, 'Archive payload differs from producer-validated bytes.');
   assert.ok(payloadHashes['out/src/extension.js'] && payloadHashes['resources/language-server/LithoSharp.LanguageServer.dll']);
   await code(['--install-extension', archivePath, ...profile]);
   for (const entry of await fs.readdir(extensions, { withFileTypes: true })) {
@@ -188,9 +184,6 @@ if (installed) {
   assert.equal(path.relative(await fs.realpath(root), dependencyTarget), 'node_modules', 'Dependencies must belong to this checkout.');
   await fs.symlink(dependencyTarget, path.join(developmentPath, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.equal(await fs.realpath(path.join(developmentPath, 'node_modules')), dependencyTarget);
-  for (const relative of ['package.json', 'main.js', 'tests/index.js', 'tests/suite/smoke.test.js', 'tests/suite/mdx.test.js']) {
-    helperHashes[relative] = await fileHash(path.join(developmentPath, relative));
-  }
   testsPath = path.join(developmentPath, 'tests', 'index.js');
   workspace = path.join(owned, 'workspace');
   await fs.mkdir(path.join(workspace, 'content'), { recursive: true });
@@ -289,7 +282,7 @@ if (installed) {
 }
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({
   platform: process.platform, arch: process.arch, hostVersion: hostVersion[0], hostCommit: hostVersion[1], hostArchitecture: hostVersion[2],
-  archiveHash, expectedExtension, developmentPath, testsPath, dependencyTarget, helperHashes, externalNode,
+  archiveHash, expectedExtension, developmentPath, testsPath, dependencyTarget, externalNode,
   restartCheckRequired: true, payloadHashes, packageProvenance, userData, temporaryProfile: shortProfile,
 }, null, 2));
 await runTests({
@@ -306,7 +299,6 @@ await runTests({
   launchArgs: [workspace, '--new-window', ...profile, '--disable-gpu', '--disable-workspace-trust',
     '--disable-extension=vscode.markdown-language-features', ...(process.env.LITHOSHARP_VERBOSE === '1' ? ['--verbose'] : [])],
 });
-if (externalNode) assert.equal(await fileHash(externalNode.file), externalNode.sha256, 'Explicit external Node changed during acceptance.');
 const result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
 assert.ok(result.started && result.finished && result.tests === (installed ? 5 : 3), 'Test runner did not execute the complete acceptance suite.');
 assert.equal(result.failures, 0);

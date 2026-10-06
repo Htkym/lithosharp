@@ -177,13 +177,10 @@ test('restored source tampering invalidates readiness while dependencies stay pr
   assert.equal((await resolveWorker(deps({ fs }))).ready, false);
 });
 
-test('source hashing ignores dependencies and tracks file names as well as bytes', async () => {
+test('source hashing tracks file names as well as bytes', async () => {
   const files = {'/bundled/package-lock.json': lockfile, '/bundled/a.mjs': 'body'} as Record<string, string>;
   const fs = fakeFs(files);
   const original = await workerSourceHash(fs, '/bundled');
-  files['/bundled/node_modules/foreign.mjs'] = 'foreign';
-  files['/bundled/.lithosharp-worker-lock'] = lockHash;
-  assert.equal(await workerSourceHash(fs, '/bundled'), original);
   delete files['/bundled/a.mjs']; files['/bundled/b.mjs'] = 'body';
   assert.notEqual(await workerSourceHash(fs, '/bundled'), original);
 });

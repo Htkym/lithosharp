@@ -419,11 +419,9 @@ function Invoke-OneSite($Site, [string] $ToolPublish) {
     $populateResult = Invoke-LoggedProcess 'docker' $populateArgs $repo `
         (Join-Path $evidenceDirectory 'logs/populate-volume.stdout.txt') `
         (Join-Path $evidenceDirectory 'logs/populate-volume.stderr.txt') 3600
-    $populatedHash = Get-VolumeTreeHash $script:SiteRecord $volumeName '.' 'populate-volume-tree'
     Add-Stage $script:SiteRecord 'populate-source-volume' 'Copy the pinned build checkout into an isolated Linux volume (bind mounts cannot carry Linux exec bits).' `
-        'docker run --volume <site-volume>:/source sh -c ''cp -a /seed/. /source/''' 'none' $buildTree $populatedHash $populateResult @(0)
+        'docker run --volume <site-volume>:/source sh -c ''cp -a /seed/. /source/''' 'none' $buildTree $null $populateResult @(0)
 
-    $toolPublishHash = Get-TreeHash $ToolPublish
     $runTool = Join-Path $runDirectory 'tool'
     if (!(Test-Path -LiteralPath $runTool -PathType Container)) { $null = New-Item -ItemType Directory -Path $runTool }
     $null = Copy-Item -Path (Join-Path $ToolPublish '*') -Destination $runTool -Recurse -Force

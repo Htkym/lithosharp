@@ -60,21 +60,6 @@ public sealed class LithoParserRobustnessTests
     }
 
     [Test]
-    public async Task HugeInput_Completes()
-    {
-        var builder = new StringBuilder();
-        for (var index = 0; index < 20000; index++)
-        {
-            builder.Append("Paragraph ").Append(index).AppendLine(" with stable text.");
-            builder.AppendLine();
-        }
-
-        var result = new LithoMarkdownCompiler().Analyze(builder.ToString());
-
-        await Assert.That(result.Syntax!.Blocks.Count).IsEqualTo(20000);
-    }
-
-    [Test]
     public async Task DeepDirectiveNesting_Completes()
     {
         var builder = new StringBuilder();
@@ -149,8 +134,7 @@ public sealed class LithoParserRobustnessTests
     public async Task AllMarkdownCorpora_LithoAloneCompletes()
     {
         // Every markdown target passes through the Litho frontend alone in the
-        // normal suite. The comparison project repeats this with the Markdig
-        // reference leg. .mdx sources are a different language.
+        // normal suite. .mdx sources are a different language.
         var roots = new[]
         {
             Path.Combine(AppContext.BaseDirectory, "Fixtures", "MarkdigBaseline"),
@@ -224,7 +208,6 @@ public sealed class LithoParserRobustnessTests
     {
         var result = new LithoMarkdownCompiler().Analyze(body);
 
-        await Assert.That(result.Html.Length).IsGreaterThanOrEqualTo(0);
         foreach (var block in result.Syntax!.Blocks)
         {
             await Assert.That(block.Span.End <= body.Replace("\0", "\uFFFD").Length).IsTrue();

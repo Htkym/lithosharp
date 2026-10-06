@@ -20,10 +20,8 @@ function Get-Workflow([string] $Name) {
 
 function Test-CoreTag {
     $nuget = Get-Workflow 'publish-nuget.yml'
-    # The Core publisher triggers only on v* tags. An extension tag starts
-    # with 'extension/', so the glob can never match it; assert both sides.
+    # Check the actual workflow trigger; fixed tag prefixes need no glob self-test.
     if ($nuget -notmatch "(?m)^\s*-\s*'v\*'") { Fail 'publish-nuget.yml lost its v* tag trigger.' }
-    if ('extension/lithosharp-vscode/0.1.0' -like 'v*') { Fail 'extension tag unexpectedly matches the v* glob.' }
     $projects = @(
         'src/LithoSharp/LithoSharp.csproj',
         'src/LithoSharp.Generators/LithoSharp.Generators.csproj',
@@ -76,7 +74,6 @@ function Test-ExtensionTag {
     if ($version -notmatch '^\d+\.\d+\.\d+$') { Fail "extension version '$version' is not a plain release version." }
     if ($package.PSObject.Properties['publisher']) { Fail 'extension package.json must not claim a publisher before the account exists.' }
     $expectedTag = "extension/lithosharp-vscode/$version"
-    if ($expectedTag -like 'v*') { Fail "extension tag '$expectedTag' collides with the Core v* series." }
     if ($Tag -and $Tag -cne $expectedTag) { Fail "extension tag '$Tag' does not match package version $version (expected '$expectedTag')." }
     foreach ($script in @('eng/Test-VsixContents.ps1')) {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw

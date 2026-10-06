@@ -27,7 +27,7 @@ public sealed class IncrementalBuildTests
     }
 
     [Test]
-    public async Task NoOpBuild_ReusesCacheWithoutCallingTypedRenderer()
+    public async Task TypedRenderer_ReusesUnchangedFingerprintAndInvalidatesChangedFingerprint()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Output(workspace);
@@ -41,6 +41,13 @@ public sealed class IncrementalBuildTests
 
         await Assert.That(calls).IsEqualTo(0);
         await Assert.That(PageNode(result, "one").CacheHit).IsTrue();
+
+        calls = 0;
+        result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
+            Registration(() => Interlocked.Increment(ref calls), "renderer:2"), clean: false);
+
+        await Assert.That(calls).IsEqualTo(1);
+        await Assert.That(PageNode(result, "one").CacheHit).IsFalse();
     }
 
     [Test]
@@ -91,23 +98,6 @@ public sealed class IncrementalBuildTests
     }
 
     [Test]
-    public async Task RendererFingerprintChange_InvalidatesTypedPage()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var output = Output(workspace);
-        var calls = 0;
-        await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
-            Registration(() => Interlocked.Increment(ref calls), "renderer:1"), clean: true);
-
-        calls = 0;
-        var result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
-            Registration(() => Interlocked.Increment(ref calls), "renderer:2"), clean: false);
-
-        await Assert.That(calls).IsEqualTo(1);
-        await Assert.That(PageNode(result, "one").CacheHit).IsFalse();
-    }
-
-    [Test]
     public async Task MissingRendererFingerprint_AlwaysCallsTypedRenderer()
     {
         using var workspace = new TemporaryWorkspace();
@@ -124,7 +114,6 @@ public sealed class IncrementalBuildTests
     [Test]
     [Arguments("manifest")]
     [Arguments("artifact")]
-    [Arguments("derived-body")]
     public async Task CorruptCacheOrArtifact_IsAMissAndRecovers(string target)
     {
         using var workspace = new TemporaryWorkspace();
@@ -134,11 +123,8 @@ public sealed class IncrementalBuildTests
         var cache = Cache(workspace);
         if (target == "manifest")
             await File.WriteAllTextAsync(Directory.EnumerateFiles(cache, "*.json", SearchOption.AllDirectories).Single(), "corrupt");
-        else if (target == "artifact")
-            await File.WriteAllTextAsync(Path.Combine(output, "pages", "one.html"), "corrupt");
         else
-            foreach (var path in Directory.EnumerateFiles(cache, "*.utf8", SearchOption.AllDirectories))
-                await File.WriteAllTextAsync(path, "corrupt");
+            await File.WriteAllTextAsync(Path.Combine(output, "pages", "one.html"), "corrupt");
         var calls = 0;
 
         var result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],

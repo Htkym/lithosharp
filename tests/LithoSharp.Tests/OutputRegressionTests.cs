@@ -51,7 +51,7 @@ public sealed class OutputRegressionTests
     }
 
     [Test]
-    public async Task RenderFeed_WritesRssChannelAndItems()
+    public async Task BlogOutput_PreservesFeedSitemapSearchSeoAndEnglishMessages()
     {
         using var workspace = new TemporaryWorkspace();
         var (output, _) = await GenerateAsync(workspace);
@@ -62,13 +62,6 @@ public sealed class OutputRegressionTests
         await Assert.That(feed).Contains("<description>A test site.</description>");
         await Assert.That(feed).Contains("<title>First Post</title>");
         await Assert.That(feed).Contains("<link>https://example.test/posts/post.html</link>");
-    }
-
-    [Test]
-    public async Task RenderSitemap_ListsCorePagesAndPosts()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var (output, _) = await GenerateAsync(workspace);
 
         var sitemap = await File.ReadAllTextAsync(Path.Combine(output, "sitemap.xml"));
         await Assert.That(sitemap).Contains("http://www.sitemaps.org/schemas/sitemap/0.9");
@@ -78,13 +71,6 @@ public sealed class OutputRegressionTests
         await Assert.That(sitemap).Contains("<loc>https://example.test/search.html</loc>");
         await Assert.That(sitemap).Contains("<loc>https://example.test/posts/post.html</loc>");
         await Assert.That(sitemap).Contains("<lastmod>2026-01-02</lastmod>");
-    }
-
-    [Test]
-    public async Task BuildSearchIndex_WritesDocumentsWithExpectedFields()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var (output, _) = await GenerateAsync(workspace);
 
         await using var stream = File.OpenRead(Path.Combine(output, "search-index.json"));
         using var document = await JsonDocument.ParseAsync(stream);
@@ -101,13 +87,6 @@ public sealed class OutputRegressionTests
         await Assert.That(first.GetProperty("url").GetString()).IsEqualTo("/posts/post.html");
         await Assert.That(first.GetProperty("tags")[0].GetString()).IsEqualTo("sample");
         await Assert.That(first.GetProperty("body").GetString()!).Contains("Body text for First Post.");
-    }
-
-    [Test]
-    public async Task RenderPost_WritesSeoMetaTags()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var (output, _) = await GenerateAsync(workspace);
 
         var post = await File.ReadAllTextAsync(Path.Combine(output, "posts", "post.html"));
         await Assert.That(post).Contains("<link rel=\"canonical\" href=\"https://example.test/posts/post.html\">");
@@ -118,13 +97,6 @@ public sealed class OutputRegressionTests
         await Assert.That(post).DoesNotContain("property=\"og:image\"");
         await Assert.That(post).DoesNotContain("name=\"twitter:image\"");
         await Assert.That(post).Contains("<meta property=\"og:url\" content=\"https://example.test/posts/post.html\">");
-    }
-
-    [Test]
-    public async Task BuildSearchScript_DefaultText_EmitsEnglishStatusMessages()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var (output, _) = await GenerateAsync(workspace);
 
         var script = await File.ReadAllTextAsync(Path.Combine(output, "assets", "search.js"));
         await Assert.That(script).Contains("No posts match '{query}'.");

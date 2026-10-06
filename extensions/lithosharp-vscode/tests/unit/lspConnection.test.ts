@@ -57,12 +57,14 @@ test('split multibyte frames reassemble', async () => {
   void connection;
   const body = JSON.stringify({ jsonrpc: '2.0', method: 'ping', params: { text: '日本語🎉' } });
   const framed = frame(body);
-  // Split inside multibyte sequences on both seams.
-  child.emit(framed.subarray(0, 45));
-  child.emit(framed.subarray(45, 47));
-  child.emit(framed.subarray(47));
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0]!.method, 'ping');
+  const characterStart = framed.indexOf(Buffer.from('日', 'utf8'));
+  assert.ok(characterStart >= 0);
+  const split = characterStart + 1;
+  // Both seams split the three UTF-8 bytes of 日.
+  child.emit(framed.subarray(0, split));
+  child.emit(framed.subarray(split, split + 1));
+  child.emit(framed.subarray(split + 1));
+  assert.deepEqual(notifications, [{ method: 'ping', params: { text: '日本語🎉' } }]);
 });
 
 test('concatenated responses match out of order', async () => {

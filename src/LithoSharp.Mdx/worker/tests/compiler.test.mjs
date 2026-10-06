@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, rm, cp} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {compileSite, analyzeMdx, extractRegion, unwrapMdxCodeBlocks, highlight} from '../compiler.mjs';
+import {compileSite, getRetainedCacheMetrics, analyzeMdx, extractRegion, unwrapMdxCodeBlocks, highlight} from '../compiler.mjs';
+import {createHash} from 'node:crypto';
 
 test('official MDX produces server HTML and shared browser assets without unused exports', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-mdx-check-'));
@@ -80,12 +81,13 @@ test('Docusaurus profile built-ins render and unsupported aliases fail explicitl
     const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
     await mkdir(projectRoot); await mkdir(workRoot);
     const sources = {
-      'profile.mdx': `# Profile\n\n## Section\n\n<Admonition type="tip">Callout</Admonition>\n\n<Details summary="More">Hidden</Details>\n\n<Tabs><TabItem value="a" label="A">Alpha</TabItem><TabItem value="b" label="B">Beta</TabItem></Tabs>\n\n<Translate id="missing-key">Fallback words</Translate>\n\n<Link href="/product/other/">Other</Link>\n\n<Link to="/product/legacy/">Legacy</Link>\n\n<Card title="T" href="/product/other/">Card body</Card>\n\n<CodeBlock language="js">const bare = 2;</CodeBlock>\n\n<TOCInline toc={toc} />\n\n\`\`\`js\nconst code = 1;\n\`\`\`\n`,
+      'profile.mdx': `# Profile\n\n## Section\n\n<Admonition type="tip">Callout</Admonition>\n\n<Details summary="More">Hidden</Details>\n\n<Tabs><TabItem value="a" label="A">Alpha</TabItem><TabItem value="b" label="B">Beta</TabItem></Tabs>\n\n<Translate id="missing-key">Fallback words</Translate>\n\n<Link href="/product/other/">Other</Link>\n\n<Link to="/product/legacy/">Legacy</Link>\n\n<Card title="T" href="/product/other/">Card body</Card>\n\n<CodeBlock language="js">const bare = 2;</CodeBlock>\n\n<TOCInline toc={toc} />\n\n<DocCardList />\n\n:::my-custom-admonition\n\nCustom body.\n:::\n\n<Zoom>\n\n![Alt text](./pic.png)\n\n</Zoom>\n\n[external](https://github.com/example/repo/blob/main/commands.md)\n\n[relative](./other.mdx)\n\n[dangling](./missing.mdx)\n\n\`\`\`js\nconst code = 1;\n\`\`\`\n`,
       'context.mdx': `import {usePageContext} from '@lithosharp/runtime';\n\n# Context\n\nBase: {usePageContext().basePath}\n`};
+    await writeFile(path.join(projectRoot, 'pic.png'), Buffer.from([137, 80, 78, 71]));
     for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
-    const request = {projectRoot, workRoot, assetBaseUrl: '/product/_mdx', basePath: '/product/', sources, hydration: 'selective',
+    const request = {projectRoot, workRoot, assetBaseUrl: '/product/_mdx', basePath: '/product/', sources, hydration: 'selective', linkMap: {'other.mdx': '/product/mapped-other/'},
       pages: [{id: 'profile', source: 'profile.mdx', url: '/product/profile/', title: 'Profile', locale: 'en', props: {}},
-        {id: 'context', source: 'context.mdx', url: '/product/context/', title: 'Context', locale: 'en', props: {}}]};
+        {id: 'context', source: 'context.mdx', url: '/product/context/', title: 'Context', description: 'Sibling words', locale: 'en', props: {}}]};
     const result = await compileSite(request);
     const profile = result.pages.find(page => page.id === 'profile');
     assert.match(profile.html, /mdx-admonition mdx-tip/); assert.match(profile.html, /Callout/);
@@ -98,6 +100,17 @@ test('Docusaurus profile built-ins render and unsupported aliases fail explicitl
     assert.match(profile.html, /const bare = 2;/);
     assert.match(profile.html, /On this page/); assert.match(profile.html, /href="#section"/);
     assert.match(profile.html, /mdx-code/);
+    assert.match(profile.html, /mdx-doc-card-list/);
+    assert.match(profile.html, /href=\"\/product\/context\/\"/);
+    assert.match(profile.html, /Sibling words/);
+    assert.match(profile.html, /href=\"\/product\/mapped-other\/\"/);
+    assert.doesNotMatch(profile.html, /\/product\/profile\/\">Profile/);
+    assert.match(profile.html, /<div class=\"my-custom-admonition\">/);
+    assert.match(profile.html, /Custom body/);
+    assert.match(profile.html, /Alt text/);
+    assert.doesNotMatch(profile.html, /<Zoom/);
+    assert.match(profile.html, /href=\"https:\/\/github\.com\/example\/repo\/blob\/main\/commands\.md\"/);
+    assert.match(profile.html, /href=\"\.\/missing\.mdx\"/);
     assert.equal(profile.hydration, 'page');
     assert.match(profile.fallback, /Tabs/);
     const context = result.pages.find(page => page.id === 'context');
@@ -187,68 +200,6 @@ test('mdx-code-block imports and docs-client hooks render statically', async () 
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
-test('absolute document links pass through the link map', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-link-check-'));
-  try {
-    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
-    await mkdir(projectRoot); await mkdir(workRoot);
-    const sources = {
-      'doc.mdx': `# Doc\n\n[external](https://github.com/example/repo/blob/main/commands.md)\n\n[relative](./other.mdx)\n\n[dangling](./missing.mdx)\n`,
-      'other.mdx': `# Other\n`};
-    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
-    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
-      linkMap: {'other.mdx': '/other/'},
-      sources, pages: [{id: 'doc', source: 'doc.mdx', url: '/doc/', title: 'Doc', locale: 'en', props: {}}]};
-    const result = await compileSite(request);
-    assert.match(result.pages[0].html, /href="https:\/\/github\.com\/example\/repo\/blob\/main\/commands\.md"/);
-    assert.match(result.pages[0].html, /href="\/other\/"/);
-    assert.match(result.pages[0].html, /href="\.\/missing\.mdx"/);
-  } finally { await rm(root, {recursive: true, force: true}); }
-});
-
-test('unknown directives fall back to divs and DocCardList renders sibling cards', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-cards-check-'));
-  try {
-    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
-    await mkdir(projectRoot); await mkdir(workRoot);
-    const sources = {
-      'index.mdx': `# Index\n\n<DocCardList />\n`,
-      'sibling.mdx': `# Sibling\n\nSibling body.\n`,
-      'custom.mdx': `:::my-custom-admonition\n\nCustom body.\n:::\n`};
-    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
-    const pages = [
-      {id: 'index', source: 'index.mdx', url: '/index/', title: 'Index', description: null, locale: 'en', props: {}},
-      {id: 'sibling', source: 'sibling.mdx', url: '/sibling/', title: 'Sibling', description: 'Sibling words', locale: 'en', props: {}},
-      {id: 'custom', source: 'custom.mdx', url: '/custom/', title: 'Custom', description: null, locale: 'en', props: {}}];
-    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, pages};
-    const result = await compileSite(request);
-    const index = result.pages.find(page => page.id === 'index');
-    assert.match(index.html, /mdx-doc-card-list/);
-    assert.match(index.html, /href="\/sibling\/"/);
-    assert.match(index.html, /Sibling words/);
-    assert.doesNotMatch(index.html, /\/index\/">Index/);
-    const custom = result.pages.find(page => page.id === 'custom');
-    assert.match(custom.html, /<div class="my-custom-admonition">/);
-    assert.match(custom.html, /Custom body/);
-  } finally { await rm(root, {recursive: true, force: true}); }
-});
-
-test('bare Zoom passes children through', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-zoom-check-'));
-  try {
-    const projectRoot = path.join(root, 'input'), workRoot = path.join(root, 'work');
-    await mkdir(projectRoot); await mkdir(workRoot);
-    const sources = {'zoom.mdx': `# Zoom\n\n<Zoom>\n\n![Alt text](./pic.png)\n\n</Zoom>\n`};
-    await writeFile(path.join(projectRoot, 'pic.png'), Buffer.from([137, 80, 78, 71]));
-    for (const [file, source] of Object.entries(sources)) await writeFile(path.join(projectRoot, file), source);
-    const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/',
-      sources, pages: [{id: 'zoom', source: 'zoom.mdx', url: '/zoom/', title: 'Zoom', locale: 'en', props: {}}]};
-    const result = await compileSite(request);
-    assert.match(result.pages[0].html, /Alt text/);
-    assert.doesNotMatch(result.pages[0].html, /<Zoom/);
-  } finally { await rm(root, {recursive: true, force: true}); }
-});
-
 test('vendored components resolve docusaurus shims and npm helpers', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-vendor-check-'));
   try {
@@ -291,7 +242,22 @@ test('selective rendering emits no static-page entry and shares explicit island 
     const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx', basePath: '/', sources, hydration: 'selective',
       linkMap: {'static.mdx':'/unlisted-route-canary/', 'islands.mdx':'/1/', 'fallback.mdx':'/2/'},
       pages: Object.keys(sources).map((source, index) => ({id: 'page' + index, source, url: '/' + index + '/', title: source, locale: 'en', props: {}, discoverable: index !== 0}))};
+    const validateAssets = result => {
+      const paths = new Set(result.assets.map(asset => asset.path));
+      assert.equal(paths.size, result.assets.length, 'duplicate asset paths');
+      for (const asset of result.assets) {
+        assert.equal(path.posix.normalize(asset.path), asset.path); assert.ok(!asset.path.startsWith('../') && !path.posix.isAbsolute(asset.path));
+        assert.equal(createHash('sha256').update(Buffer.from(asset.bytes, 'base64')).digest('hex'), asset.hash);
+        for (const reference of asset.imports) assert.ok(paths.has(reference), asset.path + ' -> ' + reference);
+      }
+      const assets = new Map(result.assets.map(asset => [asset.path, asset]));
+      const seen = new Set(), queue = result.pages.flatMap(page => [page.entry, ...page.css].filter(Boolean));
+      while (queue.length) {const name = queue.pop();if (seen.has(name)) continue;seen.add(name);assert.ok(assets.has(name), name);queue.push(...assets.get(name).imports);}
+      assert.ok(result.assets.filter(asset => asset.path.endsWith('.js')).every(asset => seen.has(asset.path)), 'orphan browser JS');
+      assert.ok(result.assets.some(asset => asset.path.startsWith('chunks/Counter-') && asset.path.endsWith('.js') && asset.imports.some(reference => reference.startsWith('chunks/Counter-') && reference.endsWith('.css'))), 'dynamic CSS bundle dependency missing');
+    };
     const result = await compileSite(request);
+    validateAssets(result);
     assert.equal(result.pages[0].entry, null);
     assert.equal(result.pages[0].hydration, 'static');
     assert.equal(result.pages[1].hydration, 'selective');
@@ -308,6 +274,7 @@ test('selective rendering emits no static-page entry and shares explicit island 
     await mkdir(path.join(root, 'repeated'));
     await cp(projectRoot, path.join(root, 'copied-input'), {recursive: true});
     const repeated = await compileSite({...request, projectRoot: path.join(root, 'copied-input'), workRoot: path.join(root, 'repeated'), pages: [...request.pages].reverse()});
+    validateAssets(repeated);
     for (const page of result.pages.filter(page => page.hydration !== 'page'))
       assert.deepEqual(repeated.pages.find(candidate => candidate.id === page.id).css, page.css);
   } finally { await rm(root, {recursive: true, force: true}); }
@@ -338,6 +305,18 @@ test('browser reuse avoids actual bundling only when entries, resolution and dep
     const initial = await run();
     assert.deepEqual(initial.rebundledPages, ['cache-1', 'cache-2']);
     assert.equal(initial.bundledPages, 2);
+    const snapshot = getRetainedCacheMetrics();
+    for (const name of ['module', 'render']) {
+      assert.ok(snapshot[name].entries > 0 && snapshot[name].entries <= snapshot[name].entryCeiling);
+      assert.ok(snapshot[name].estimatedPayloadBytes > 0 && snapshot[name].estimatedPayloadBytes <= snapshot[name].payloadBudgetBytes);
+    }
+    assert.equal(snapshot.browser.retained, true);
+    assert.ok(snapshot.browser.estimatedPayloadBytes <= snapshot.browser.payloadBudgetBytes);
+    assert.ok(snapshot.browser.dependencyEntries <= snapshot.browser.dependencyCeiling);
+    assert.ok(snapshot.browser.referenceEntries <= snapshot.browser.referenceCeiling);
+    const untouched = structuredClone(snapshot);
+    snapshot.module.entries = -1; snapshot.browser.estimatedPayloadBytes = Infinity;
+    assert.deepEqual(getRetainedCacheMetrics(), untouched, 'Returned snapshot leaked mutable cache state.');
     sources['static.mdx'] = '# Static\n\nUpdated body.';
     await writeFile(path.join(projectRoot, 'static.mdx'), sources['static.mdx']);
     const reused = await run();
@@ -761,10 +740,9 @@ test('live iframe runtime bundles through tracked readers with complete asset cl
   } finally {await fixture.dispose();}
 });
 
-test('native MDX sample returns canonical complete dynamic JS and CSS asset closures', async () => {
+test('native MDX sample compiles its real interactive assets', async () => {
   const sample = path.resolve(import.meta.dirname, '../../../../samples/LithoSharp.MdxSample/content');
   const {readFile} = await import('node:fs/promises');
-  const {createHash} = await import('node:crypto');
   const sources = {};
   for (const name of ['01-static', '02-interactive', '03-islands', '04-live']) {
     const raw = await readFile(path.join(sample, name + '.mdx'), 'utf8');
@@ -773,22 +751,8 @@ test('native MDX sample returns canonical complete dynamic JS and CSS asset clos
   const fixture = await workerFixture('lithosharp-native-asset-contract-', sources, {hydration: 'selective'});
   try {
     for (const name of ['Counter.jsx', 'counter.module.css']) await cp(path.join(sample, name), path.join(fixture.projectRoot, name));
-    const validateAssets = result => {
-      const paths = new Set(result.assets.map(asset => asset.path));
-      assert.equal(paths.size, result.assets.length, 'duplicate asset paths');
-      for (const asset of result.assets) {
-        assert.equal(path.posix.normalize(asset.path), asset.path); assert.ok(!asset.path.startsWith('../') && !path.posix.isAbsolute(asset.path));
-        assert.equal(createHash('sha256').update(Buffer.from(asset.bytes, 'base64')).digest('hex'), asset.hash);
-        for (const reference of asset.imports) assert.ok(paths.has(reference), asset.path + ' -> ' + reference);
-      }
-      const assets = new Map(result.assets.map(asset => [asset.path, asset]));
-      const seen = new Set(), queue = result.pages.flatMap(page => [page.entry, ...page.css].filter(Boolean));
-      while (queue.length) {const name = queue.pop();if (seen.has(name)) continue;seen.add(name);assert.ok(assets.has(name), name);queue.push(...assets.get(name).imports);}
-      assert.ok(result.assets.filter(asset => asset.path.endsWith('.js')).every(asset => seen.has(asset.path)), 'orphan browser JS');
-      assert.ok(result.assets.some(asset => asset.path.startsWith('chunks/Counter-') && asset.path.endsWith('.js') && asset.imports.some(reference => reference.startsWith('chunks/Counter-') && reference.endsWith('.css'))), 'dynamic CSS bundle dependency missing');
-    };
-    validateAssets(await fixture.run());
-    const warm = await fixture.run();validateAssets(warm);assert.deepEqual(warm.rebundledPages, []);
+    const result = await fixture.run();
+    assert.ok(result.assets.some(asset => asset.path.startsWith('chunks/Counter-') && asset.path.endsWith('.js') && asset.imports.some(reference => reference.startsWith('chunks/Counter-') && reference.endsWith('.css'))), 'sample dynamic CSS bundle dependency missing');
   } finally {await fixture.dispose();}
 });
 

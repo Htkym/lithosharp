@@ -68,7 +68,9 @@ function Assert-Rejected([string] $Name, [string] $Directory, [string] $Pattern,
 }
 
 # Mutate copies of valid shipping archives, so unrelated missing metadata cannot
-# make a negative test appear to work. Sweep both package and symbols payloads.
+# make a negative test appear to work. The shared scanner is fully swept on nupkg;
+# symbols retain unsafe/private/duplicate representatives and all identity checks.
+# Expand the symbols sweep if Validate-Package adds format-specific scanner rules.
 $entries = @(
     @{ label = 'private'; path = '.local/plan.md'; diagnostic = 'Package contains private' },
     @{ label = 'credential'; path = 'nested/.env.production'; diagnostic = 'Package contains private' },
@@ -86,24 +88,30 @@ $entries = @(
     @{ label = 'file-directory-conflict'; path = 'lib'; diagnostic = 'Conflicting archive path' }
 )
 foreach ($extension in @('nupkg', 'snupkg')) {
-    foreach ($entry in $entries) {
+    $archiveEntries = if ($extension -eq 'nupkg') { $entries } else {
+        @($entries | Where-Object { $_.label -in @('private', 'traversal') })
+    }
+    foreach ($entry in $archiveEntries) {
         $name = "$extension/$($entry.label)"
         $directory = New-CoreFixture "$extension-$($entry.label)"
         Add-ZipEntry (Join-Path $directory "LithoSharp.$ExpectedVersion.$extension") $entry.path
         Assert-Rejected $name $directory $entry.diagnostic
     }
     $duplicate = if ($extension -eq 'nupkg') { 'README.md' } else { 'lib/net10.0/LithoSharp.pdb' }
-    foreach ($variant in @('exact', 'case')) {
+    $variants = if ($extension -eq 'nupkg') { @('exact', 'case') } else { @('exact') }
+    foreach ($variant in $variants) {
         $directory = New-CoreFixture "$extension-duplicate-$variant"
         $path = if ($variant -eq 'case') { $duplicate.ToUpperInvariant() } else { $duplicate }
         Add-ZipEntry (Join-Path $directory "LithoSharp.$ExpectedVersion.$extension") $path
         Assert-Rejected "$extension/duplicate-$variant" $directory 'Duplicate archive path'
     }
-    $directory = New-CoreFixture "$extension-file-directory-conflict-first"
-    $archivePath = Join-Path $directory "LithoSharp.$ExpectedVersion.$extension"
-    Add-ZipEntry $archivePath 'conflict'
-    Add-ZipEntry $archivePath 'conflict/file.txt'
-    Assert-Rejected "$extension/file-directory-conflict-first" $directory 'Conflicting archive path'
+    if ($extension -eq 'nupkg') {
+        $directory = New-CoreFixture "$extension-file-directory-conflict-first"
+        $archivePath = Join-Path $directory "LithoSharp.$ExpectedVersion.$extension"
+        Add-ZipEntry $archivePath 'conflict'
+        Add-ZipEntry $archivePath 'conflict/file.txt'
+        Assert-Rejected "$extension/file-directory-conflict-first" $directory 'Conflicting archive path'
+    }
 }
 
 $directory = New-CoreFixture 'symbols-filename'

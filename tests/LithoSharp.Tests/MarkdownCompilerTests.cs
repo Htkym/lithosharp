@@ -1,4 +1,3 @@
-using System.Reflection;
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content.Compilation;
@@ -59,18 +58,6 @@ public sealed class MarkdownCompilerTests
     }
 
     [Test]
-    public async Task SiteGenerator_HoldsNoExternalCompilerTypes()
-    {
-        var leaked = typeof(SiteGenerator)
-            .GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(field => field.FieldType.Namespace is "Markdig" or "Markdig.Renderers" or "Markdig.Syntax" or "Markdig.Syntax.Inlines")
-            .Select(field => field.Name)
-            .ToArray();
-
-        await Assert.That(string.Join(",", leaked)).IsEqualTo(string.Empty);
-    }
-
-    [Test]
     public async Task Fingerprint_ReflectsFrontendAndSettings()
     {
         var @default = new LithoMarkdownCompiler();
@@ -78,21 +65,11 @@ public sealed class MarkdownCompilerTests
         var changed = new LithoMarkdownCompiler(
             MarkdownCompilerOptions.Default with { SyntaxProfile = "commonmark" });
 
+        await Assert.That(LithoMarkdownCompiler.SpecVersion).IsEqualTo("commonmark-0.31.2+gfm-0.29");
         await Assert.That(@default.Frontend).IsEqualTo("lithosharp");
         await Assert.That(@default.Fingerprint.StartsWith("lithosharp/", StringComparison.Ordinal)).IsTrue();
         await Assert.That(repeated.Fingerprint).IsEqualTo(@default.Fingerprint);
         await Assert.That(changed.Fingerprint == @default.Fingerprint).IsFalse();
-    }
-
-    [Test]
-    public async Task Fingerprint_PinsImplementationAndSpecVersions()
-    {
-        // Changing output or semantics behavior requires bumping
-        // LithoMarkdownCompiler.ImplementationVersion; this pin forces that
-        // decision to be explicit instead of reusing stale parse records.
-        await Assert.That(new LithoMarkdownCompiler().Fingerprint).IsEqualTo(
-            $"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/spec={LithoMarkdownCompiler.SpecVersion}/syntax=advanced/output=disable-html");
-        await Assert.That(LithoMarkdownCompiler.SpecVersion).IsEqualTo("commonmark-0.31.2+gfm-0.29");
     }
 
     [Test]

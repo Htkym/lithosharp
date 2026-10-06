@@ -131,13 +131,13 @@ public sealed class MdxSemanticsTests
     }
 
     [Test]
-    public async Task DocsSearch_UsesStaticTextOnly()
+    public async Task DocsSearchAndToc_UseStaticWorkerSemantics()
     {
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "intro.mdx"),
-            "---\ntitle: Guide\n---\nimport Counter from './Counter.jsx'\n\n## Section\n\nStatic text here.\n\n<Counter />\n");
+            "---\ntitle: Guide\n---\nimport Counter from './Counter.jsx'\n\n## Guide <Counter />\n\nStatic text here.\n\n<Counter />\n");
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
             "import {useState} from 'react';export default function Counter(){const [n,set]=useState(0);return <button onClick={()=>set(n+1)}>Count {n}</button>}");
         await using var docs = new DocumentationSite(new(workspace.Root, WorkerDirectory()) { Cacheable = true })
@@ -155,6 +155,8 @@ public sealed class MdxSemanticsTests
             .Select(path => File.ReadAllText(path)).Single(text => text.Contains("Static text here."));
         // The rendered button exists in final HTML (final-DOM territory) ...
         await Assert.That(page).Contains("<button");
+        await Assert.That(page).Contains(">Guide </a>");
+        await Assert.That(page.Contains(">Guide Count 0</a>")).IsFalse();
         // ... but the indexed body carries worker text only. Snippets stay
         // HTML-derived by design (final-DOM territory, like link validation).
         await using var stream = File.OpenRead(Path.Combine(output, "guide", "_search.json"));
@@ -165,96 +167,17 @@ public sealed class MdxSemanticsTests
     }
 
     [Test]
-    public async Task DocsToc_UsesWorkerHeadings()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var source = Path.Combine(workspace.Root, "content");
-        Directory.CreateDirectory(source);
-        await File.WriteAllTextAsync(Path.Combine(source, "intro.mdx"),
-            "---\ntitle: Guide\n---\nimport Counter from './Counter.jsx'\n\n## Guide <Counter />\n\nBody.\n");
-        await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
-            "export default function Counter(){return <button>Count 0</button>}");
-        await using var docs = new DocumentationSite(new(workspace.Root, WorkerDirectory()) { Cacheable = true });
-        docs.AddCollection(new("guide", [new("current", "en", source, "guide")]) { UseMdx = true });
-        var output = Path.Combine(workspace.Root, "out");
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            new SiteSettings { BaseUrl = "https://example.test/" }, [], output, clean: true,
-            new() { Template = new DocsSiteTemplate() },
-            new() { Extensions = [docs], BuildTimestamp = DateTimeOffset.UnixEpoch }, CancellationToken.None);
-
-        var page = Directory.EnumerateFiles(Path.Combine(output, "guide"), "*.html", SearchOption.AllDirectories)
-            .Select(path => File.ReadAllText(path)).Single(text => text.Contains("post-toc"));
-        // Worker heading text ("Guide ") rather than rendered text ("Guide Count 0").
-        await Assert.That(page).Contains(">Guide </a>");
-        await Assert.That(page.Contains(">Guide Count 0</a>")).IsFalse();
-    }
-
-    [Test]
-    public async Task MarkdownDocs_NeedNoNode()
+    public async Task MarkdownDocs_SearchRenderAndWarningsNeedNoNode()
     {
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "intro.md"),
-            "---\ntitle: Guide\n---\n## Section\n\nBody text.\n");
-        await using var docs = new DocumentationSite(new(workspace.Root, "must-not-start-node"));
-        docs.AddCollection(new("guide", [new("current", "en", source, "guide")])
-        {
-            UseMdx = false,
-        });
-        var output = Path.Combine(workspace.Root, "out");
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            new SiteSettings { BaseUrl = "https://example.test/" }, [], output, clean: true,
-            new() { Template = new DocsSiteTemplate() },
-            new() { Extensions = [docs], BuildTimestamp = DateTimeOffset.UnixEpoch }, CancellationToken.None);
-
-        await Assert.That(docs.MdxMetrics.WorkerStarts).IsEqualTo(0);
-        var page = Directory.EnumerateFiles(Path.Combine(output, "guide"), "*.html", SearchOption.AllDirectories)
-            .Select(path => File.ReadAllText(path)).Single(text => text.Contains("Body text."));
-        await Assert.That(page).Contains("href=\"#section\"");
-    }
-
-    [Test]
-    public async Task MarkdownDocs_ShareSearchAndRenderFromOneParse()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var source = Path.Combine(workspace.Root, "content");
-        Directory.CreateDirectory(source);
-        await File.WriteAllTextAsync(Path.Combine(source, "intro.md"),
-            "---\ntitle: Guide\n---\n## Section\n\nShared body text.\n");
+            "---\ntitle: Guide\n---\n## Section\n\nShared body text. Note[^a]\n\n[^a]: footnote text\n");
         await using var docs = new DocumentationSite(new(workspace.Root, "must-not-start-node"))
         {
             Browser = new DocumentationBrowserOptions(),
         };
-        docs.AddCollection(new("guide", [new("current", "en", source, "guide")])
-        {
-            UseMdx = false,
-        });
-        var output = Path.Combine(workspace.Root, "out");
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            new SiteSettings { BaseUrl = "https://example.test/" }, [], output, clean: true,
-            new() { Template = new DocsSiteTemplate() },
-            new() { Extensions = [docs], BuildTimestamp = DateTimeOffset.UnixEpoch }, CancellationToken.None);
-
-        await Assert.That(docs.MdxMetrics.WorkerStarts).IsEqualTo(0);
-        var page = Directory.EnumerateFiles(Path.Combine(output, "guide"), "*.html", SearchOption.AllDirectories)
-            .Select(path => File.ReadAllText(path)).Single(text => text.Contains("Shared body text."));
-        await Assert.That(page).Contains("href=\"#section\"");
-        await using var stream = File.OpenRead(Path.Combine(output, "guide", "_search.json"));
-        using var search = await JsonDocument.ParseAsync(stream);
-        var body = search.RootElement.EnumerateArray().Single().GetProperty("body").GetString()!;
-        await Assert.That(body).Contains("Shared body text.");
-    }
-
-    [Test]
-    public async Task MarkdownDocs_SurfaceFootnoteWarningsInBuildReport()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var source = Path.Combine(workspace.Root, "content");
-        Directory.CreateDirectory(source);
-        await File.WriteAllTextAsync(Path.Combine(source, "intro.md"),
-            "---\ntitle: Guide\n---\nNote[^a]\n\n[^a]: footnote text\n");
-        await using var docs = new DocumentationSite(new(workspace.Root, "must-not-start-node"));
         docs.AddCollection(new("guide", [new("current", "en", source, "guide")])
         {
             UseMdx = false,
@@ -267,7 +190,14 @@ public sealed class MdxSemanticsTests
 
         await Assert.That(docs.MdxMetrics.WorkerStarts).IsEqualTo(0);
         await Assert.That(generation.BuildReport.Diagnostics.Any(diagnostic =>
-            diagnostic.Id == LithoSharp.Content.Compilation.LithoLimits.UnsupportedFootnoteDiagnosticId)).IsTrue();
+            diagnostic.Id == LithoLimits.UnsupportedFootnoteDiagnosticId)).IsTrue();
+        var page = Directory.EnumerateFiles(Path.Combine(output, "guide"), "*.html", SearchOption.AllDirectories)
+            .Select(path => File.ReadAllText(path)).Single(text => text.Contains("Shared body text."));
+        await Assert.That(page).Contains("href=\"#section\"");
+        await using var stream = File.OpenRead(Path.Combine(output, "guide", "_search.json"));
+        using var search = await JsonDocument.ParseAsync(stream);
+        var body = search.RootElement.EnumerateArray().Single().GetProperty("body").GetString()!;
+        await Assert.That(body).Contains("Shared body text.");
     }
 
     private static string WorkerDirectory()

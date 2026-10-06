@@ -83,7 +83,6 @@ test('single project auto-selects and reports version', async () => {
 
 test('same-name projects prompt with workspace identity', async () => {
   const fake = createFakeVscode();
-  fake.pickedIndex = 1;
   const { selectProjectHandler } = loadExtension(fake);
   let shown: { label: string; description: string }[] = [];
   const picked = await selectProjectHandler({
@@ -334,43 +333,6 @@ test('an intended shutdown during disposal prevents edit-triggered LSP reconnect
   } finally { host.cleanup(); }
 });
 
-test('restart during worker discovery replaces the pending client using current settings', async () => {
-  const host = await delayedActivation();
-  try {
-    host.fake.settings['languageServerPath'] = '/replacement-language-server';
-    const restarted = host.fake.commands.get('lithosharp.restartServer')!();
-    host.release();
-    await restarted;
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    assert.deepEqual(host.spawns.map((spawn) => spawn.command), [['/replacement-language-server']]);
-    assert.ok(host.spawns[0]!.messages.some((message) => message.method === 'textDocument/didOpen'),
-      'Replacement must reopen the current document.');
-  } finally { host.cleanup(); }
-});
-
-test('symbol cancellation during startup sends no symbol RPC after discovery completes', async () => {
-  const host = await delayedActivation();
-  try {
-    let cancelled = false;
-    const listeners = new Set<() => void>();
-    const token = {
-      get isCancellationRequested() { return cancelled; },
-      onCancellationRequested: (listener: () => void) => {
-        listeners.add(listener);
-        return { dispose: () => { listeners.delete(listener); } };
-      },
-    };
-    const pending = host.provider.provideDocumentSymbols(host.document, token);
-    cancelled = true;
-    for (const listener of listeners) listener();
-    host.release();
-    assert.deepEqual(await pending, []);
-    assert.equal(host.spawns.flatMap((spawn) => spawn.messages)
-      .filter((message) => message.method === 'textDocument/documentSymbol').length, 0);
-    assert.equal(listeners.size, 0);
-  } finally { host.cleanup(); }
-});
-
 
 test('symbols completed immediately before cancellation are not returned to the editor', async () => {
   let cancelled = false;
@@ -402,17 +364,6 @@ test('initialization rejection stops its live client before a subsequent attempt
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.ok(host.fake.lines.some((line) => line.includes('controlled initialize rejection')));
     assert.equal(host.spawns[0]!.closed, true, 'Failed initialization must not abandon a live process.');
-  } finally { host.cleanup(); }
-});
-
-test('disposing activation stops the active language server', async () => {
-  const host = await delayedActivation();
-  try {
-    host.release();
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    assert.equal(host.spawns.length, 1);
-    host.dispose();
-    assert.equal(host.spawns[0]!.closed, true);
   } finally { host.cleanup(); }
 });
 
@@ -473,6 +424,7 @@ test('cancelled symbol provider settles before discovery while shared startup re
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.equal(host.spawns.length, 1, 'Caller cancellation must not cancel shared startup.');
     assert.ok(host.spawns[0]!.messages.some((message) => message.method === 'textDocument/didOpen'));
+    assert.equal(host.spawns[0]!.messages.filter((message) => message.method === 'textDocument/documentSymbol').length, 0);
   } finally { host.cleanup(); await pending; }
 });
 

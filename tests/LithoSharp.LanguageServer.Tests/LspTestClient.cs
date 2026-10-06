@@ -168,6 +168,21 @@ internal sealed class LspTestClient : IAsyncDisposable
         throw new TimeoutException("Timed out waiting for a language server message.");
     }
 
+    /// <summary>Validates every remaining stdout byte after the owned server exits.</summary>
+    public async Task DrainStdoutAsync()
+    {
+        if (!process.HasExited) throw new InvalidOperationException("Exit is required before draining stdout.");
+        var chunk = new byte[8192];
+        int count;
+        while ((count = await process.StandardOutput.BaseStream.ReadAsync(chunk.AsMemory())
+            .AsTask().WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false)) > 0)
+        {
+            pendingBytes.AddRange(chunk.Take(count));
+            Received.AddRange(Extract(pendingBytes));
+        }
+        if (pendingBytes.Count != 0) throw new InvalidDataException("Unframed or incomplete stdout at EOF.");
+    }
+
     private static IEnumerable<JsonElement> Extract(List<byte> pending)
     {
         var messages = new List<JsonElement>();
@@ -179,25 +194,33 @@ internal sealed class LspTestClient : IAsyncDisposable
                 return messages;
             }
 
-            var length = 0;
+            var length = -1;
             var header = Encoding.ASCII.GetString(pending.GetRange(0, headerEnd).ToArray());
             foreach (var line in header.Split("\r\n"))
             {
-                if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)
-                    && int.TryParse(line["Content-Length:".Length..].Trim(), out var parsed))
+                if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                 {
-                    length = parsed;
+                    if (length != -1 || !int.TryParse(line["Content-Length:".Length..].Trim(), out length) || length <= 0)
+                        throw new InvalidDataException("Invalid or duplicate Content-Length on stdout.");
                 }
+                else if (!line.StartsWith("Content-Type:", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Unexpected non-protocol stdout header.");
             }
+            if (length == -1) throw new InvalidDataException("Content-Length missing on stdout.");
 
             if (pending.Count - (headerEnd + 4) < length)
             {
                 return messages;
             }
 
-            var body = Encoding.UTF8.GetString(pending.GetRange(headerEnd + 4, length).ToArray());
+            var body = new UTF8Encoding(false, true).GetString(pending.GetRange(headerEnd + 4, length).ToArray());
+            using var document = JsonDocument.Parse(body);
+            var message = document.RootElement;
+            if (message.ValueKind != JsonValueKind.Object
+                || !message.TryGetProperty("jsonrpc", out var version) || version.GetString() != "2.0")
+                throw new InvalidDataException("Non-JSON-RPC stdout body.");
             pending.RemoveRange(0, headerEnd + 4 + length);
-            messages.Add(JsonDocument.Parse(body).RootElement.Clone());
+            messages.Add(message.Clone());
         }
     }
 

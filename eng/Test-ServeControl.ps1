@@ -207,6 +207,7 @@ public sealed class ControlLayout : IPageLayout<ContentEntry<string, string>>
     try {
         $startup = Wait-Event $serve 'startup'
         Assert-True ($startup.schemaVersion -eq '1.0') 'Startup omitted schemaVersion.'
+        Assert-True (![string]::IsNullOrWhiteSpace($startup.outputDirectory)) 'Startup omitted outputDirectory.'
         Assert-True ($startup.actualPort -gt 0 -and $startup.requestedPort -eq 0) 'Port 0 was not allocated dynamically.'
         Assert-True ($startup.url -eq "http://127.0.0.1:$($startup.actualPort)") 'Startup URL/port mismatch without regex parsing.'
         Assert-True ($startup.basePath -eq '/') 'Served base path is not the root-delivery contract.'
@@ -224,7 +225,7 @@ public sealed class ControlLayout : IPageLayout<ContentEntry<string, string>>
         Assert-True (![IO.File]::ReadAllText((Join-Path $cliOutput 'typed/one/index.html'), [Text.Encoding]::UTF8).Contains('EventSource(')) 'Serve persisted its injected client into production output.'
         Assert-True ((Get-Http "$url/no-such-page/").StatusCode -eq 404) 'Unknown path did not fall back to 404.'
         $state = (Get-Http "$url/_lithosharp/diagnostics").Content | ConvertFrom-Json
-        Assert-True ($state.success -and $state.generation -eq 1) 'Diagnostics endpoint did not expose the generation.'
+        Assert-True ($state.success -and $state.generation -eq 1 -and $state.schemaVersion -eq '1.0') 'Diagnostics endpoint did not expose structured generation state.'
 
         Write-Host 'Checking invalid and fragmented control input...'
         $serve.Stdin.WriteLine('not json')
@@ -256,6 +257,12 @@ public sealed class ControlLayout : IPageLayout<ContentEntry<string, string>>
         Assert-True ($failState.generation -eq 3) 'Diagnostics endpoint did not expose the failure generation.'
         [IO.File]::WriteAllText((Join-Path $site 'two.txt'), 'control-v3')
         $recovered = Wait-Event $serve 'rebuild-succeeded' { param($e) $e.generation -eq 4 }
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        while ($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+            if ((Get-Http "$url/typed/two/index.html").Content.Contains('control-v3')) { break }
+            Start-Sleep -Milliseconds 300
+        }
+        Assert-True ((Get-Http "$url/typed/two/index.html").Content.Contains('control-v3')) 'Recovery event did not publish the latest output.'
 
         Write-Host 'Checking idempotent structured shutdown...'
         $serve.Stdin.WriteLine('{"schemaVersion":"1.0","command":"shutdown","requestId":"stop-1"}')

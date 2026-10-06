@@ -104,6 +104,26 @@ public sealed class CompatibilityContractTests
         await Assert.That(llms).Contains("[日本語 Install](https://example.test/product/posts/日本語/install.html)");
         await Assert.That(File.Exists(Path.Combine(output, "feed.xml"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, "sitemap.xml"))).IsFalse();
+
+        await AssertInOrderAsync(
+            post,
+            "<header class=\"docs-header\">",
+            "<div class=\"docs-shell\">",
+            "<aside id=\"docs-sidebar\" class=\"docs-sidebar\"",
+            "<main id=\"docs-main\" class=\"docs-main\" tabindex=\"-1\">",
+            "<article class=\"docs-content\">",
+            "<h1>Install</h1>",
+            "<nav class=\"docs-pagination\"",
+            "<aside class=\"post-toc docs-toc\"",
+            "<footer class=\"docs-footer\">");
+        await Assert.That(post).Contains("class=\"docs-nav-link is-current\"");
+        await Assert.That(post).Contains("aria-current=\"page\"");
+        await Assert.That(post).Contains("class=\"toc-list\"");
+
+        var unicode = await File.ReadAllTextAsync(Path.Combine(output, "posts", "日本語", "install.html"));
+        await Assert.That(unicode).Contains("<h1>日本語 Install</h1>");
+        await Assert.That(unicode).Contains("同じ名前のファイルを別のディレクトリに置きます。");
+
     }
 
     [Test]
@@ -183,56 +203,9 @@ public sealed class CompatibilityContractTests
         await Assert.That(installDocument.GetProperty("body").GetString()).Contains("Install the package.");
         await Assert.That(searchIndex.RootElement.GetProperty("generated").GetString())
             .IsEqualTo(FixedBuildTimestamp.ToString("O"));
-    }
 
-    [Test]
-    public async Task GenerateAsync_BuiltInTemplates_PreserveMajorDomStructureAndOrdering()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var (posts, faviconSource) = await CreateInputsAsync(workspace);
-        var docsOutput = Path.Combine(workspace.Root, "docs-output");
-        var blogOutput = Path.Combine(workspace.Root, "blog-output");
-
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            TestSite(),
-            posts,
-            docsOutput,
-            clean: true,
-            ContractCustomization(faviconSource, new DocsSiteTemplate()),
-            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp },
-            CancellationToken.None);
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            TestSite(),
-            posts,
-            blogOutput,
-            clean: true,
-            ContractCustomization(faviconSource, new BlogSiteTemplate()),
-            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp },
-            CancellationToken.None);
-
-        var docs = await File.ReadAllTextAsync(Path.Combine(docsOutput, "posts", "guides", "install.html"));
         await AssertInOrderAsync(
-            docs,
-            "<header class=\"docs-header\">",
-            "<div class=\"docs-shell\">",
-            "<aside id=\"docs-sidebar\" class=\"docs-sidebar\"",
-            "<main id=\"docs-main\" class=\"docs-main\" tabindex=\"-1\">",
-            "<article class=\"docs-content\">",
-            "<h1>Install</h1>",
-            "<nav class=\"docs-pagination\"",
-            "<aside class=\"post-toc docs-toc\"",
-            "<footer class=\"docs-footer\">");
-        await Assert.That(docs).Contains("class=\"docs-nav-link is-current\"");
-        await Assert.That(docs).Contains("aria-current=\"page\"");
-        await Assert.That(docs).Contains("class=\"toc-list\"");
-
-        var unicode = await File.ReadAllTextAsync(Path.Combine(docsOutput, "posts", "日本語", "install.html"));
-        await Assert.That(unicode).Contains("<h1>日本語 Install</h1>");
-        await Assert.That(unicode).Contains("同じ名前のファイルを別のディレクトリに置きます。");
-
-        var blog = await File.ReadAllTextAsync(Path.Combine(blogOutput, "posts", "guides", "install.html"));
-        await AssertInOrderAsync(
-            blog,
+            post,
             "<header class=\"site-header\">",
             "class=\"site-nav-home\"",
             ">Archives</a>",
@@ -246,9 +219,9 @@ public sealed class CompatibilityContractTests
             "<h1 class=\"post-title\">Install</h1>",
             "<aside class=\"post-toc\"",
             "<footer class=\"site-footer\">");
-        await Assert.That(blog).Contains("<meta property=\"article:published_time\"");
-        await Assert.That(blog).Contains("class=\"toc-nav\"");
-        await Assert.That(blog).Contains("class=\"toc-list\"");
+        await Assert.That(post).Contains("<meta property=\"article:published_time\"");
+        await Assert.That(post).Contains("class=\"toc-nav\"");
+        await Assert.That(post).Contains("class=\"toc-list\"");
     }
 
     [Test]

@@ -306,31 +306,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
-    [Arguments("null-envelope")]
-    [Arguments("array-envelope")]
-    [Arguments("numeric-hash")]
-    [Arguments("null-result")]
-    [Arguments("array-result")]
-    [Arguments("missing-result-fields")]
-    [Arguments("null-inputs")]
-    [Arguments("numeric-input-file")]
-    [Arguments("numeric-input-hash")]
-    [Arguments("numeric-page-id")]
-    [Arguments("object-page-css")]
-    [Arguments("numeric-asset-bytes")]
-    [Arguments("invalid-base64-asset-bytes")]
-    [Arguments("inner-asset-hash-mismatch")]
-    [Arguments("numeric-asset-import")]
-    [Arguments("unresolved-asset-import")]
-    [Arguments("duplicate-asset-path")]
-    [Arguments("wrong-page-id")]
-    [Arguments("missing-page")]
-    [Arguments("duplicate-page-id")]
-    [Arguments("unknown-page-entry")]
-    [Arguments("unknown-page-css")]
-    [Arguments("truncated")]
-    [Arguments("hash-mismatch")]
-    public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes(string corruption)
+    public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes()
     {
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
@@ -348,16 +324,56 @@ public sealed class MdxIntegrationTests
         await generator.GenerateWithOptionsAsync(settings, [], output, true, null, options, default);
         var before = HashOutput(output);
         var file = Directory.GetFiles(Path.Combine(workspace.Root, ".lithosharp", "mdx"), "*.json").Single();
-        await File.WriteAllTextAsync(file, CorruptCache(await File.ReadAllTextAsync(file), corruption));
+        var knownGoodCache = await File.ReadAllTextAsync(file);
+        string[] corruptions =
+        [
+            "null-envelope",
+            "array-envelope",
+            "numeric-hash",
+            "null-result",
+            "array-result",
+            "missing-result-fields",
+            "null-inputs",
+            "numeric-input-file",
+            "numeric-input-hash",
+            "numeric-page-id",
+            "object-page-css",
+            "numeric-asset-bytes",
+            "invalid-base64-asset-bytes",
+            "inner-asset-hash-mismatch",
+            "numeric-asset-import",
+            "unresolved-asset-import",
+            "duplicate-asset-path",
+            "wrong-page-id",
+            "missing-page",
+            "duplicate-page-id",
+            "unknown-page-entry",
+            "unknown-page-css",
+            "truncated",
+            "hash-mismatch",
+        ];
+        var failures = new List<Exception>();
+        foreach (var corruption in corruptions)
+        {
+            try
+            {
+                // Every mutation starts from the same valid cache, not the previous repair.
+                await File.WriteAllTextAsync(file, CorruptCache(knownGoodCache, corruption));
+                await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+                await Assert.That(mdx.Metrics.CacheHit).IsFalse();
+                await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+                // Each repaired artifact must support the next identical build as a hit.
+                await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
+                await Assert.That(mdx.Metrics.CacheHit).IsTrue();
+                await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(new Exception($"Cache corruption case '{corruption}' failed.", failure));
+            }
+        }
 
-        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.CacheHit).IsFalse();
-        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
-        // Recovery rewrites the bad optional artifact; a third identical build
-        // must hit it rather than silently disabling or repeatedly missing cache.
-        await generator.GenerateWithOptionsAsync(settings, [], output, false, null, options, default);
-        await Assert.That(mdx.Metrics.CacheHit).IsTrue();
-        await Assert.That(HashOutput(output)).IsEquivalentTo(before);
+        if (failures.Count != 0) throw new AggregateException(failures);
     }
 
     [Test]

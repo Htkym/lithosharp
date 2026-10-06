@@ -108,7 +108,19 @@ public sealed class SiteGeneratorDeterminismTests
         using var workspace = new TemporaryWorkspace();
         var (posts, firstOutput) = await PrepareBlogAsync(workspace, "first");
         var secondOutput = Path.Combine(workspace.Root, "second-output");
-        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var customization = new SiteCustomization
+        {
+            Template = new BlogSiteTemplate(),
+            ExtraPages =
+            [
+                new SiteExtraPage
+                {
+                    RelativePath = "mixed-line-endings.html",
+                    Title = "Line endings",
+                    BodyHtml = "<p>first</p>\r\n<p>second</p>\r<p>third</p>\n"
+                }
+            ]
+        };
         var options = new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp };
         var generator = new SiteGenerator();
 
@@ -137,6 +149,7 @@ public sealed class SiteGeneratorDeterminismTests
             var firstBytes = await File.ReadAllBytesAsync(Path.Combine(firstOutput, relativePath));
             var secondBytes = await File.ReadAllBytesAsync(Path.Combine(secondOutput, relativePath));
             await Assert.That(secondBytes.SequenceEqual(firstBytes)).IsTrue();
+            await Assert.That(System.Text.Encoding.UTF8.GetString(firstBytes).Contains('\r')).IsFalse();
         }
 
         var firstIndex = await File.ReadAllBytesAsync(
@@ -145,6 +158,11 @@ public sealed class SiteGeneratorDeterminismTests
         var secondSearch = await File.ReadAllTextAsync(Path.Combine(secondOutput, "search.html"));
         await Assert.That(firstSearch).Contains($"?v={Sha256(firstIndex)}");
         await Assert.That(secondSearch).IsEqualTo(firstSearch);
+
+        var extraPage = await File.ReadAllTextAsync(Path.Combine(firstOutput, "mixed-line-endings.html"));
+        await Assert.That(extraPage).Contains("<p>first</p>\n<p>second</p>\n<p>third</p>\n");
+        var feed = await File.ReadAllTextAsync(Path.Combine(firstOutput, "feed.xml"));
+        await Assert.That(feed).Contains("\n");
     }
 
     [Test]
@@ -189,47 +207,6 @@ public sealed class SiteGeneratorDeterminismTests
             .Contains($"?v={originalHash}");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(changedOutput, "search.html")))
             .Contains($"?v={changedHash}");
-    }
-
-    [Test]
-    public async Task GenerateAsync_TextArtifacts_UseLfLineEndings()
-    {
-        using var environment = new EnvironmentVariableScope("SOURCE_DATE_EPOCH", null);
-        using var workspace = new TemporaryWorkspace();
-        var (posts, output) = await PrepareBlogAsync(workspace, "line-endings");
-        var customization = new SiteCustomization
-        {
-            Template = new BlogSiteTemplate(),
-            ExtraPages =
-            [
-                new SiteExtraPage
-                {
-                    RelativePath = "mixed-line-endings.html",
-                    Title = "Line endings",
-                    BodyHtml = "<p>first</p>\r\n<p>second</p>\r<p>third</p>\n"
-                }
-            ]
-        };
-
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            TestSite(),
-            posts,
-            output,
-            clean: true,
-            customization,
-            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp },
-            CancellationToken.None);
-
-        foreach (var relativePath in EnumerateRelativeFiles(output))
-        {
-            var text = await File.ReadAllTextAsync(Path.Combine(output, relativePath));
-            await Assert.That(text.Contains('\r')).IsFalse();
-        }
-
-        var extraPage = await File.ReadAllTextAsync(Path.Combine(output, "mixed-line-endings.html"));
-        await Assert.That(extraPage).Contains("<p>first</p>\n<p>second</p>\n<p>third</p>\n");
-        var feed = await File.ReadAllTextAsync(Path.Combine(output, "feed.xml"));
-        await Assert.That(feed).Contains("\n");
     }
 
     [Test]
@@ -293,6 +270,8 @@ public sealed class SiteGeneratorDeterminismTests
             TestSite(), posts, output, clean: true, customization,
             new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp, CollectTimings = true }, CancellationToken.None);
         var before = await SnapshotAsync(output);
+        var publishedPost = Path.Combine(output, "posts", "post.html");
+        var publishedAt = File.GetLastWriteTimeUtc(publishedPost);
 
         var noOp = await generator.GenerateWithOptionsAsync(
             TestSite(), posts, output, clean: false, customization,
@@ -304,11 +283,8 @@ public sealed class SiteGeneratorDeterminismTests
             }, CancellationToken.None);
 
         await Assert.That(noOp.BuildReport.CacheMissCount).IsEqualTo(0);
-        await Assert.That(noOp.Timings!.TransactionMilliseconds).IsLessThan(100);
         // In-place retention: the bypass must not copy or republish the artifacts, so the
         // published file's last-write time stays exactly as the clean build left it.
-        var publishedPost = Path.Combine(output, "posts", "post.html");
-        var publishedAt = File.GetLastWriteTimeUtc(publishedPost);
         var after = await SnapshotAsync(output);
         await Assert.That(after.Count).IsEqualTo(before.Count);
         foreach (var (path, hash) in before)

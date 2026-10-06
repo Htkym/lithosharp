@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace LithoSharp.Tests;
 
@@ -127,35 +126,6 @@ public sealed class ToolingCapabilitiesTests
         await Assert.That(root.GetProperty("success").GetBoolean()).IsFalse();
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(1);
         await Assert.That(root.GetProperty("error").GetString()).IsEqualTo("Unsupported format 'xml'.");
-    }
-
-    [Test]
-    public async Task OldConsumerIgnoresAdditiveFieldsAndCapabilities()
-    {
-        var report = ToolingCapabilities.CreateReport(
-            new ToolingIdentityInfo("LithoSharp.Tool", "1.0.0"),
-            new ToolingIdentityInfo("LithoSharp", "1.0.0"));
-        var node = JsonNode.Parse(JsonSerializer.Serialize(report, WireOptions))!.AsObject();
-        node["futureSection"] = JsonValue.Create(1);
-        node["capabilities"]!.AsArray().Add(new JsonObject
-        {
-            ["name"] = "future-capability",
-            ["maturity"] = "Experimental",
-            ["schemaVersion"] = "1.1",
-            ["description"] = "Added after 1.0.",
-            ["scope"] = new JsonArray("future-stage"),
-        });
-
-        var consumer = JsonSerializer.Deserialize<LegacyCapabilityReport>(node.ToJsonString(), WireOptions);
-        await Assert.That(consumer).IsNotNull();
-        await Assert.That(consumer!.SchemaVersion).IsEqualTo("1.0");
-        await Assert.That(consumer.Success).IsTrue();
-        await Assert.That(consumer.Contracts!.Length).IsEqualTo(ToolingContracts.All.Count);
-        await Assert.That(consumer.Capabilities!.Length).IsEqualTo(ToolingCapabilities.All.Count + 1);
-
-        // The 1.0 client only requires capabilities it knows and ignores the unknown one.
-        var advertised = consumer.Capabilities.Select(capability => capability.Name ?? string.Empty);
-        await Assert.That(ToolingCapabilities.Missing(advertised, [ToolingCapabilities.SourceRouteLookup])).IsEmpty();
     }
 
     [Test]

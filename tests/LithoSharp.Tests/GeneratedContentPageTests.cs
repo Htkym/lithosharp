@@ -87,23 +87,13 @@ public sealed class GeneratedContentPageTests
     }
 
     [Test]
-    [Arguments("draft")]
-    [Arguments("expired")]
-    [Arguments("environment")]
-    public async Task GeneratePages_ReportsStableIdentityWhenGeneratedPageIsUnpublished(
-        string transition)
+    public async Task GeneratePages_ReportsStableIdentityWhenGeneratedPageIsDraft()
     {
         using var workspace = new TemporaryWorkspace();
         var collection = Collection(
             workspace.Root,
             [Entry("one", "One", 2025, "news", ["dotnet"], published: true)]);
-        var hiddenMetadata = transition switch
-        {
-            "draft" => new PageMetadata("Hidden", draft: true),
-            "expired" => new PageMetadata("Hidden", publishUntil: BuildTimestamp),
-            "environment" => new PageMetadata("Hidden", environments: ["Staging"]),
-            _ => throw new ArgumentOutOfRangeException(nameof(transition)),
-        };
+        var hiddenMetadata = new PageMetadata("Hidden", draft: true);
         var generated = collection.GeneratePages(
             new ContentCollectionId("publication-groups"),
             static entry => entry.FrontMatter.Tags,

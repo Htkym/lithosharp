@@ -103,7 +103,7 @@ public sealed class BuiltInBuildPlanTests
     }
 
     [Test]
-    public async Task TemplateSwitch_DocsToBlogInvalidatesSharedAssetsAndBlogNodes()
+    public async Task TemplateSwitch_InvalidatesSharedAssetsAndBothTemplateNodeSets()
     {
         using var workspace = new TemporaryWorkspace();
         var posts = new[] { Post("alpha", "Alpha") };
@@ -131,17 +131,8 @@ public sealed class BuiltInBuildPlanTests
             .IsEquivalentTo(["入力 'Configuration:template.builtIn' が変更されました。"]);
         await Assert.That(invalidations.Single(item => item.NodeId.Value == "asset:site-script").Reasons)
             .IsEquivalentTo(["入力 'Configuration:template.builtIn' が変更されました。"]);
-    }
 
-    [Test]
-    public async Task TemplateSwitch_BlogToDocsInvalidatesSharedAssetsAndDocsNodes()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var posts = new[] { Post("alpha", "Alpha") };
-        var blog = await GenerateAsync(workspace, "blog", new BlogSiteTemplate(), posts);
-        var docs = await GenerateAsync(workspace, "docs", new DocsSiteTemplate(), posts);
-
-        var invalidations = docs.BuildPlan.GetInvalidatedNodes(blog.BuildPlan);
+        invalidations = docs.BuildPlan.GetInvalidatedNodes(blog.BuildPlan);
 
         await Assert.That(InvalidatedNodeIds(invalidations)).IsEquivalentTo(
         [

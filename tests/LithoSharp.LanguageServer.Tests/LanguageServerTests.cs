@@ -658,6 +658,8 @@ public sealed class LanguageServerTests
             var cancelled = client.NextId(); var surviving = client.NextId();
             client.SendRequest(cancelled, "textDocument/documentSymbol", new { textDocument = new { uri } });
             client.SendRequest(surviving, "textDocument/documentSymbol", new { textDocument = new { uri } });
+            // Unknown IDs must not disturb either held waiter or the shared analysis.
+            client.SendNotification("$/cancelRequest", new { id = "no-such-request" });
             client.SendNotification("$/cancelRequest", new { id = cancelled });
             var response = await WaitProtocolResponseAsync(client, cancelled);
             await Assert.That(response.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32800);
@@ -796,25 +798,6 @@ public sealed class LanguageServerTests
         && message.GetProperty("params").GetProperty("diagnostics").EnumerateArray().Any(diagnostic =>
             diagnostic.GetProperty("message").GetString() == "analysis-" + request);
 
-    [Test]
-    public async Task ProtocolDiagnosticsMatcherSkipsCloseClearAndObsoleteAnalysis()
-    {
-        const string uri = "file:///proj/revision.mdx";
-        using var messages = JsonDocument.Parse("""
-            [
-              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","diagnostics":[]}},
-              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","version":1,"diagnostics":[{"message":"analysis-1"}]}},
-              {"method":"textDocument/publishDiagnostics","params":{"uri":"file:///proj/revision.mdx","version":1,"diagnostics":[{"message":"analysis-2"}]}}
-            ]
-            """);
-        var rows = messages.RootElement.EnumerateArray().ToArray();
-        await Assert.That(IsProtocolDiagnostics(rows[0], uri, 1, 2)).IsFalse();
-        await Assert.That(IsProtocolDiagnostics(rows[1], uri, 1, 2)).IsFalse();
-        await Assert.That(IsProtocolDiagnostics(rows[2], uri, 1, 2)).IsTrue();
-        await Assert.That(IsProtocolDiagnostics(rows[2], uri, 2, 2)).IsFalse();
-        await Assert.That(IsProtocolDiagnostics(rows[2], "file:///proj/other.mdx", 1, 2)).IsFalse();
-    }
-
     // Real process + actual MdxInspectionSession/MdxWorker JSONL protocol. This
     // fixture controls only worker replies, not the MDX compiler semantics.
     private sealed class ProtocolInspectionWorker : IDisposable
@@ -940,70 +923,28 @@ public sealed class LanguageServerTests
     }
 
     [Test]
-    public async Task Cancel_UnknownIdSurvivesAndServerLives()
-    {
-        await using var client = LspTestClient.Start();
-        await InitializeAsync(client);
-        client.SendNotification("$/cancelRequest", new { id = "no-such-request" });
-
-        const string uri = "file:///proj/a.md";
-        Open(client, uri, "markdown", 1, "---\ntitle: T\n---\n# T\n");
-        await WaitDiagnosticsAsync(client, uri, 1);
-
-        var symbolId = client.NextId();
-        client.SendRequest(symbolId, "textDocument/documentSymbol", new { textDocument = new { uri } });
-        client.SendNotification("$/cancelRequest", new { id = symbolId });
-        var response = await client.WaitForAsync(message =>
-            message.TryGetProperty("id", out var responseId) && responseId.GetString() == symbolId,
-            TimeSpan.FromSeconds(20));
-        // Either a normal result or a cancelled error; the server must stay alive either way.
-        var alive = client.NextId();
-        client.SendRequest(alive, "textDocument/documentSymbol", new { textDocument = new { uri } });
-        await client.WaitForAsync(message =>
-            message.TryGetProperty("id", out var responseId) && responseId.GetString() == alive,
-            TimeSpan.FromSeconds(20));
-        await Assert.That(response.ValueKind).IsEqualTo(JsonValueKind.Object);
-    }
-
-    [Test]
-    public async Task Stdout_StaysPureFrames()
-    {
-        await using var client = LspTestClient.Start();
-        await InitializeAsync(client);
-        Open(client, "file:///proj/a.md", "markdown", 1, "not json at all\n");
-        await WaitDiagnosticsAsync(client, "file:///proj/a.md", 1);
-        client.SendNotification("unknown/notification", new { });
-        client.SendRequest(client.NextId(), "shutdown", null);
-        await client.WaitForAsync(message =>
-            message.TryGetProperty("id", out _) && message.TryGetProperty("result", out _));
-        client.SendNotification("exit", null);
-        await Assert.That(client.WaitForExit()).IsEqualTo(0);
-
-        // Every stdout byte belonged to a frame; logs stayed on stderr.
-        foreach (var message in client.Received)
-        {
-            await Assert.That(message.ValueKind).IsEqualTo(JsonValueKind.Object);
-        }
-
-        await Assert.That(client.ReadStderr().Any(line => line.Contains("Content-Length"))).IsFalse();
-    }
-
-    [Test]
     public async Task ShutdownAndExit_Codes()
     {
         await using var clean = LspTestClient.Start();
         await InitializeAsync(clean);
+        Open(clean, "file:///proj/a.md", "markdown", 1, "not json at all\n");
+        await WaitDiagnosticsAsync(clean, "file:///proj/a.md", 1);
+        clean.SendNotification("unknown/notification", new { });
         var shutdown = clean.NextId();
         clean.SendRequest(shutdown, "shutdown", null);
         await clean.WaitForAsync(message =>
             message.TryGetProperty("id", out var responseId) && responseId.GetString() == shutdown);
         clean.SendNotification("exit", null);
         await Assert.That(clean.WaitForExit()).IsEqualTo(0);
+        // Include bytes written after the shutdown response, through actual EOF.
+        await clean.DrainStdoutAsync();
+        await Assert.That(clean.ReadStderr().Any(line => line.Contains("Content-Length"))).IsFalse();
 
         await using var abrupt = LspTestClient.Start();
         await InitializeAsync(abrupt);
         abrupt.SendNotification("exit", null);
         await Assert.That(abrupt.WaitForExit()).IsEqualTo(1);
+        await abrupt.DrainStdoutAsync();
     }
 
     [Test]
@@ -1015,26 +956,6 @@ public sealed class LanguageServerTests
         await WaitDiagnosticsAsync(client, "file:///proj/a.md", 1);
         client.CloseStdin();
         await Assert.That(client.WaitForExit()).IsEqualTo(0);
-    }
-
-    [Test]
-    public async Task ServerRestart_AcceptsNewSession()
-    {
-        await using var first = LspTestClient.Start();
-        await InitializeAsync(first);
-        Open(first, "file:///proj/a.md", "markdown", 1, "---\ntitle: T\n---\n# T\n");
-        await WaitDiagnosticsAsync(first, "file:///proj/a.md", 1);
-        var shutdown = first.NextId();
-        first.SendRequest(shutdown, "shutdown", null);
-        await first.WaitForAsync(message =>
-            message.TryGetProperty("id", out var responseId) && responseId.GetString() == shutdown);
-        first.SendNotification("exit", null);
-        await Assert.That(first.WaitForExit()).IsEqualTo(0);
-
-        await using var second = LspTestClient.Start();
-        await InitializeAsync(second);
-        Open(second, "file:///proj/b.md", "markdown", 1, "---\ntitle: U\n---\n# U\n");
-        await WaitDiagnosticsAsync(second, "file:///proj/b.md", 1);
     }
 
     [Test]

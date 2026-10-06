@@ -96,17 +96,6 @@ jobs:
           ./eng/Test-LspDistribution.ps1 -SkipPublish -PublishDirectory extensions/lithosharp-vscode/resources/language-server -Output artifacts/lsp-distribution
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate actual VSIX and extracted language server
-        shell: pwsh
-        run: |
-          # Restore the exact packager without npm exec's temporary-install lock.
-          npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Pack
         run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
 

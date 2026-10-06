@@ -58,7 +58,9 @@ $knownScenarios = if ($Harness -eq 'markdown') {
 else {
     @('all', 'cold', 'warm-cache', 'no-op', 'one-page', 'shared-component', 'shared-css', 'shared-image', 'layout', 'route', 'lockfile')
 }
-if (!$Scenarios) { $scenarioList = $knownScenarios }
+# Each named scenario already has its own measurement. The combined sequence
+# remains available explicitly; running both by default repeats every workload.
+if (!$Scenarios) { $scenarioList = @($knownScenarios | Where-Object { $_ -ne 'all' }) }
 else { $scenarioList = @($Scenarios -split '[,\s]+' | Where-Object { $_ }) }
 $sizeList = @($Sizes -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { [int]$_ })
 foreach ($scenario in $scenarioList) {

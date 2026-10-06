@@ -173,6 +173,7 @@ public sealed class DocumentWorkspaceTests
         var snapshot = await workspace.InspectAsync("docs/d.md", SampleA);
         await workspace.DisposeAsync();
 
+        await Assert.That(workspace.Remove("docs/d.md")).IsFalse();
         await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
         await Assert.That(snapshot.Title).IsEqualTo("Alpha");
 
@@ -187,17 +188,6 @@ public sealed class DocumentWorkspaceTests
         }
 
         await Assert.That(disposed).IsTrue();
-    }
-
-    [Test]
-    public async Task RemoveAfterDisposeReturnsFalse()
-    {
-        var workspace = new DocumentWorkspace();
-        await workspace.InspectAsync("docs/d.md", SampleA);
-        await workspace.DisposeAsync();
-
-        await Assert.That(workspace.Remove("docs/d.md")).IsFalse();
-        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
     }
 
     [Test]
@@ -617,19 +607,5 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(latest!.Title).IsEqualTo("Heading 198");
     }
 
-    [Test]
-    public async Task RapidOverwritesConvergeToLastSequentialWrite()
-    {
-        await using var workspace = new DocumentWorkspace();
-        var first = await workspace.InspectAsync("docs/rapid.md", EditText(1));
-        var second = await workspace.InspectAsync("docs/rapid.md", EditText(2));
 
-        await Assert.That(first.Title).IsEqualTo("Heading 1");
-        await Assert.That(second.Title).IsEqualTo("Heading 2");
-        var found = workspace.TryGet("docs/rapid.md", out var latest);
-        await Assert.That(found).IsTrue();
-        await Assert.That(latest!.Title).IsEqualTo("Heading 2");
-        // The stale object still reports its own revision.
-        await Assert.That(first.Title).IsEqualTo("Heading 1");
-    }
 }

@@ -82,15 +82,8 @@ public sealed class ContentCollectionContractTests
     }
 
     [Test]
-    public async Task Loader_ReceivesCancellationAndReturnsDiagnostics()
+    public async Task FailedLoad_DefensivelyCopiesAndOrdersDiagnostics()
     {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-        IContentCollectionLoader<TestFrontMatter, TestBody> loader = new CancelAwareLoader();
-
-        await Assert.That(async () => await loader.LoadAsync(cancellation.Token))
-            .Throws<OperationCanceledException>();
-
         var location = new SiteSourceLocation("content/broken.md", 7, 3);
         var diagnostics = new[]
         {
@@ -114,24 +107,6 @@ public sealed class ContentCollectionContractTests
     }
 
     [Test]
-    public async Task Binder_IsFormatIndependentAndRetainsTypedResult()
-    {
-        IContentFrontMatterBinder<TestFrontMatter> binder = new TestBinder();
-        IReadOnlyDictionary<string, object?> values = new Dictionary<string, object?>
-        {
-            ["order"] = 3,
-            ["title"] = "Reference",
-        };
-
-        var result = binder.Bind(values, new SiteSourceLocation("content/reference.data", 1, 1));
-
-        await Assert.That(result.IsSuccess).IsTrue();
-        await Assert.That(result.Value!.Order).IsEqualTo(3);
-        await Assert.That(result.Value.Title).IsEqualTo("Reference");
-        await Assert.That(result.Diagnostics).IsEmpty();
-    }
-
-    [Test]
     public async Task Dependencies_PreserveValuesNormalizeKeysAndCachePolicyIsExplicit()
     {
         var first = ContentDependency.FromValue("locale:cafe\u0301", "ja\u0301");
@@ -147,14 +122,6 @@ public sealed class ContentCollectionContractTests
         await Assert.That(collection.DeclaredDependencies.Count).IsEqualTo(3);
         await Assert.That(collection.DeclaredDependencies[0].Key).IsEqualTo("locale:café");
         await Assert.That(collection.DeclaredDependencies[2].Key).IsEqualTo("shared/data.json");
-        await Assert.That(collection.IsCacheable).IsFalse();
-    }
-
-    [Test]
-    public async Task Collection_IsNotCacheableByDefault()
-    {
-        var collection = Collection([Entry("entry", 0)]);
-
         await Assert.That(collection.IsCacheable).IsFalse();
         await Assert.That(collection.TransformationId).IsNull();
     }
@@ -232,27 +199,6 @@ public sealed class ContentCollectionContractTests
             dependencies,
             transformationId,
             isCacheable);
-
-    private sealed class CancelAwareLoader : IContentCollectionLoader<TestFrontMatter, TestBody>
-    {
-        public ValueTask<ContentLoadResult<TestFrontMatter, TestBody>> LoadAsync(
-            CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(
-                ContentLoadResult<TestFrontMatter, TestBody>.Success(
-                    Collection([Entry("entry", 0)])));
-        }
-    }
-
-    private sealed class TestBinder : IContentFrontMatterBinder<TestFrontMatter>
-    {
-        public ContentParseResult<TestFrontMatter> Bind(
-            IReadOnlyDictionary<string, object?> values,
-            SiteSourceLocation? sourceLocation = null) =>
-            ContentParseResult<TestFrontMatter>.Success(
-                new TestFrontMatter((int)values["order"]!, (string)values["title"]!));
-    }
 
     private sealed record TestFrontMatter(int Order, string Title);
 

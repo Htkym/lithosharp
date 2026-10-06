@@ -52,20 +52,6 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
-    public async Task UnknownIslandLocationDoesNotInventFirstLine()
-    {
-        using var workspace = new TemporaryWorkspace();
-        await using var session = new MdxInspectionSession(new(workspace.Root, FindWorker()));
-        const string text = "import Counter from './Counter.jsx';\n\n# Page\n\n<Island component={Counter} />\n";
-        var result = await session.AnalyzeAsync("island.mdx", text);
-        await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
-        var component = result.Components.Single();
-        await Assert.That(component.Name).IsEqualTo("./Counter.jsx#default");
-        await Assert.That(component.Location).IsNull();
-        await Assert.That(File.Exists(Path.Combine(workspace.Root, "Counter.jsx"))).IsFalse();
-    }
-
-    [Test]
     public async Task HeaderlessMdxRemainsSupported()
     {
         using var workspace = new TemporaryWorkspace();

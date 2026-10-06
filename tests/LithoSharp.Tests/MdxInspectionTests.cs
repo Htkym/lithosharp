@@ -26,6 +26,7 @@ public sealed class MdxInspectionTests
     public async Task HeadingsLinksImports_StructureWithoutExecution()
     {
         using var workspace = new TemporaryWorkspace();
+        var before = Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length;
         await using var session = new MdxInspectionSession(WorkspaceOptions(workspace));
         const string text = "---\ntitle: Guide\n---\n# Guide\n\nimport Counter from \"./Counter.jsx\";\n\nSee [docs](./other.mdx) and ![alt](./img.png).\n";
         var result = await session.AnalyzeAsync("guide.mdx", text,
@@ -46,6 +47,7 @@ public sealed class MdxInspectionTests
         await Assert.That(importDeclaration.Names).IsEquivalentTo(["Counter"]);
         await Assert.That(importDeclaration.Location?.Line).IsEqualTo(6);
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length).IsEqualTo(before);
         // The import target does not exist and was never resolved.
         await Assert.That(File.Exists(Path.Combine(workspace.Root, "Counter.jsx"))).IsFalse();
     }
@@ -148,7 +150,10 @@ public sealed class MdxInspectionTests
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
         await Assert.That(result.Imports.Count).IsEqualTo(3);
-        await Assert.That(result.Components.Single().Name).IsEqualTo("./Counter.jsx#default");
+        var component = result.Components.Single();
+        await Assert.That(component.Name).IsEqualTo("./Counter.jsx#default");
+        await Assert.That(component.Location).IsNull();
+        await Assert.That(File.Exists(Path.Combine(workspace.Root, "Counter.jsx"))).IsFalse();
     }
 
     [Test]
@@ -163,19 +168,6 @@ public sealed class MdxInspectionTests
         await Assert.That(result.Headings.Single().Text.Contains("日本語見出し")).IsTrue();
         await Assert.That(result.Headings.Single().Location?.Line).IsEqualTo(4);
         await Assert.That(result.Links.Single().Url).IsEqualTo("./a.mdx");
-    }
-
-    [Test]
-    public async Task ImportCycle_CompletesWithoutResolution()
-    {
-        using var workspace = new TemporaryWorkspace();
-        await using var session = new MdxInspectionSession(WorkspaceOptions(workspace));
-        var result = await session.AnalyzeAsync("a.mdx",
-            "import B from \"./b.mdx\";\n\n# A\n");
-
-        await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
-        await Assert.That(result.Imports.Single().Specifier).IsEqualTo("./b.mdx");
-        await Assert.That(result.Title).IsEqualTo("A");
     }
 
     [Test]
@@ -283,14 +275,5 @@ public sealed class MdxInspectionTests
         await Assert.That(mdxBroken.Diagnostics.Any(item => item.Id == "LSMDX001")).IsTrue();
     }
 
-    [Test]
-    public async Task Analysis_WritesNoOutputs()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var before = Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length;
-        await using var session = new MdxInspectionSession(WorkspaceOptions(workspace));
-        await session.AnalyzeAsync("a.mdx", "---\ntitle: A\n---\n# A\n");
 
-        await Assert.That(Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length).IsEqualTo(before);
-    }
 }

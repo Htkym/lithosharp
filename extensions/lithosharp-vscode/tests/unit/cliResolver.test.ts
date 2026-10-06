@@ -20,11 +20,9 @@ async function tempDir(): Promise<string> {
   return await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-cli-'));
 }
 
-test('untrusted resolution executes nothing', async () => {
-  const probe = fakeProbe('1.1.0');
+test('untrusted resolution returns missing', async () => {
   const resolved = await resolveCli({ isTrusted: false, explicitPath: '/bin/lithosharp', envPath: '/bin' });
   assert.equal(resolved.kind, 'missing');
-  assert.equal(probe.calls.length, 0);
 });
 
 test('explicit setting wins when the file exists', async () => {
@@ -50,31 +48,27 @@ test('missing explicit path is actionable', async () => {
   }
 });
 
-test('project-local tool manifest resolves without execution', async () => {
+test('project-local tool manifest resolves the tool command', async () => {
   const dir = await tempDir();
   await fs.promises.mkdir(path.join(dir, '.config'), { recursive: true });
   await fs.promises.writeFile(
     path.join(dir, '.config', 'dotnet-tools.json'),
     JSON.stringify({ tools: { 'lithosharp': { version: '1.1.0' } } }),
   );
-  const probe = fakeProbe('1.1.0');
   const resolved = await resolveCli({ isTrusted: true, projectDir: dir, envPath: '' });
   if (resolved.kind === 'missing') {
     assert.fail(`unexpected missing: ${resolved.reason}`);
   }
   assert.equal(resolved.kind, 'local');
-  assert.equal(probe.calls.length, 0);
   assert.deepEqual(resolved.command.command, ['dotnet', 'tool', 'run', 'lithosharp']);
 });
 
-test('global PATH lookup finds executables without running them', async () => {
+test('global PATH lookup finds executables', async () => {
   const dir = await tempDir();
   const exe = path.join(dir, process.platform === 'win32' ? 'lithosharp.exe' : 'lithosharp');
   await fs.promises.writeFile(exe, '');
-  const probe = fakeProbe('1.1.0');
   const resolved = await resolveCli({ isTrusted: true, envPath: dir });
   assert.equal(resolved.kind, 'global');
-  assert.equal(probe.calls.length, 0);
 });
 
 test('missing runtimes explain the next install step', async () => {

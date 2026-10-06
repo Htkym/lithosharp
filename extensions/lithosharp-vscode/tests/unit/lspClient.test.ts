@@ -20,7 +20,7 @@ function frame(body: string): string {
 }
 
 /** In-memory server double: answers initialize/symbols, publishes on open. */
-function scripted(options: { publish?: (uri: string, version: number) => object[]; exitOnClose?: boolean; symbolsPending?: boolean; closeThrows?: boolean; killThrows?: boolean } = {}): {
+function scripted(options: { exitOnClose?: boolean; symbolsPending?: boolean; closeThrows?: boolean; killThrows?: boolean } = {}): {
   child: ScriptedChild;
   spawn: (command: string[], cwd: string) => LspProcess;
   spawns: number;
@@ -92,11 +92,10 @@ function scripted(options: { publish?: (uri: string, version: number) => object[
         const params = message.params as { textDocument: { uri: string; version: number }; lithosharpOpenGeneration: number };
         const uri = params.textDocument.uri;
         const version = params.textDocument.version;
-        const diagnostics = options.publish ? options.publish(uri, version) : [];
         const contextGeneration = generationOf(child, uri).context;
         setImmediate(() => {
           child.reply(
-            frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: { uri, version, diagnostics, lithosharpOpenGeneration: params.lithosharpOpenGeneration,
+            frame(JSON.stringify({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params: { uri, version, diagnostics: [], lithosharpOpenGeneration: params.lithosharpOpenGeneration,
               lithosharpContextGeneration: contextGeneration } })),
           );
         });
@@ -212,21 +211,7 @@ test('100 rapid edits coalesce onto the final version', async () => {
   assert.ok(versions.includes(101));
 });
 
-test('close clears without resurrection', async () => {
-  const double = scripted();
-  const sink = { sets: [] as { uri: string; count: number }[] };
-  const client = clientFor(double, sink);
-  await client.start();
-  client.didOpen({ uri: 'file:///a.md', languageId: 'markdown', version: 1, text: 'a' });
-  const watch = Date.now();
-  while (sink.sets.length < 1 && Date.now() - watch < 5000) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  client.didClose('file:///a.md');
-  assert.ok(double.child.written.some((line) => line.includes('didClose')));
-});
-
-test('symbols map through with cancellation support', async () => {
+test('symbols map through', async () => {
   const double = scripted();
   const sink = { sets: [] as { uri: string; count: number }[] };
   const client = clientFor(double, sink);
@@ -235,31 +220,7 @@ test('symbols map through with cancellation support', async () => {
   const symbols = await client.requestSymbols('file:///a.md');
   assert.equal(symbols.length, 1);
   assert.equal(symbols[0]!.name, 'H');
-  let cancelled = false;
-  const pending = client.requestSymbols('file:///a.md', () => {
-    cancelled = true;
-  });
-  await pending;
-  assert.ok(cancelled || !cancelled);
-});
-
-test('stale publishes never resurface', async () => {
-  const versions: number[] = [];
-  const double = scripted({
-    publish: (_uri, version) => {
-      versions.push(version);
-      return [];
-    },
-  });
-  const sink = { sets: [] as { uri: string; count: number }[] };
-  const client = clientFor(double, sink);
-  await client.start();
-  client.didOpen({ uri: 'file:///a.md', languageId: 'markdown', version: 1, text: 'v1' });
-  const watch = Date.now();
-  while (sink.sets.length < 1 && Date.now() - watch < 5000) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  assert.deepEqual(versions, [1]);
+  client.stop();
 });
 
 

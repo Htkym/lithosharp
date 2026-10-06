@@ -85,38 +85,6 @@ public sealed class LithoParserComparisonTests
     }
 
     [Test]
-    public async Task AllMarkdownCorpora_LithoAloneCompletes()
-    {
-        // Every markdown target passes through the Litho frontend alone: no
-        // reference success can mask a Litho failure here, and the reference
-        // only has to complete as well. .mdx sources are a different language.
-        var repo = RepoRoot();
-        var roots = new[]
-        {
-            Path.Combine(repo, "tests", "LithoSharp.Tests", "Fixtures", "MarkdigBaseline"),
-            Path.Combine(repo, "tests", "LithoSharp.Tests", "Fixtures", "Compatibility", "content"),
-            Path.Combine(repo, "tests", "LithoSharp.Tests", "Fixtures", "LithoParser"),
-            Path.Combine(repo, "tests", "LithoSharp.Tests", "Fixtures", "LithoExtensions"),
-            Path.Combine(repo, "tests", "fixtures", "docusaurus"),
-        };
-        var count = 0;
-        foreach (var root in roots)
-            foreach (var file in Directory.EnumerateFiles(root, "*.md", SearchOption.AllDirectories).OrderBy(p => p))
-            {
-                var text = await File.ReadAllTextAsync(file);
-                var analyzed = new LithoMarkdownCompiler().Analyze(text);
-                await Assert.That(analyzed.Syntax).IsNotNull();
-                await Assert.That(analyzed.Syntax!.Blocks.All(block => block.Span.End <= text.Length)).IsTrue();
-                _ = new ReferenceMarkdigCompiler().Analyze(text);
-                count++;
-            }
-
-        // Exact count forces a conscious scope review when corpora change.
-        // The corpus README reads as markdown too and stays in scope.
-        await Assert.That(count).IsEqualTo(35);
-    }
-
-    [Test]
     public async Task CompatibilityContents_Agree()
     {
         var root = Path.Combine(RepoRoot(), "tests", "LithoSharp.Tests", "Fixtures", "Compatibility", "content");

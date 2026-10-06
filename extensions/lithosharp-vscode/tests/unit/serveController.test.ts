@@ -134,14 +134,19 @@ test('chunk-split multibyte JSON reassembles', () => {
   const fake = fakeSpawn();
   const controller = controllerFor(fake);
   controller.start();
-  const line = startup().replace('53111', '53112').replace('"host":"127.0.0.1"', '"host":"日本語"');
+  const url = 'http://127.0.0.1:53112/日本語🎉';
+  const line = JSON.stringify({ ...JSON.parse(startup(53112)), url }) + '\n';
   const bytes = Buffer.from(line, 'utf8');
-  // Split inside a multibyte character on both seams.
-  fake.children[0]!.emitStdout(bytes.subarray(0, 60));
-  fake.children[0]!.emitStdout(bytes.subarray(60, 63));
-  fake.children[0]!.emitStdout(bytes.subarray(63));
+  const characterStart = bytes.indexOf(Buffer.from('日', 'utf8'));
+  assert.ok(characterStart >= 0);
+  const split = characterStart + 1;
+  // Both seams split the three UTF-8 bytes of 日 in the public URL.
+  fake.children[0]!.emitStdout(bytes.subarray(0, split));
+  fake.children[0]!.emitStdout(bytes.subarray(split, split + 1));
+  fake.children[0]!.emitStdout(bytes.subarray(split + 1));
   assert.equal(controller.getState(), 'Running');
   assert.equal(controller.actualPort, 53112);
+  assert.equal(controller.url, url);
 });
 
 test('double stop coalesces onto one shutdown', () => {
