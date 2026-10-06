@@ -22,6 +22,7 @@ $passed = $false
 $http = $null
 $sseResponse = $null
 $sseReader = $null
+$factoryChild = $null
 $sequence = 0
 
 function Assert-True([bool] $Condition, [string] $Message) {
@@ -194,8 +195,10 @@ public sealed class FixtureFactory : ISiteFactory
         var root = context.ProjectDirectory;
         if (File.Exists(Path.Combine(root, "wait.flag")))
         {
-            await File.WriteAllTextAsync(Path.Combine(Directory.GetParent(root)!.FullName, "active-host.pid"),
-                Environment.ProcessId.ToString(), cancellationToken);
+            var pidPath = Path.Combine(Directory.GetParent(root)!.FullName, "active-host.pid");
+            var pendingPidPath = pidPath + "." + Environment.ProcessId + ".tmp";
+            await File.WriteAllTextAsync(pendingPidPath, Environment.ProcessId.ToString(), cancellationToken);
+            File.Move(pendingPidPath, pidPath, overwrite: true);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
         var entries = new List<ContentEntry<string, string>>();
@@ -545,7 +548,10 @@ finally {
     $childPidPath = Join-Path $fixture 'active-host.pid'
     Wait-Until { Test-Path -LiteralPath $childPidPath } 'waiting factory child'
     $hostPid = [int](Get-Content -LiteralPath $childPidPath -Raw)
-    Assert-True ($null -ne (Get-Process -Id $hostPid -ErrorAction SilentlyContinue)) 'The cancellation fixture child was not running.'
+    $factoryChild = Get-Process -Id $hostPid -ErrorAction SilentlyContinue
+    Assert-True ($null -ne $factoryChild) 'The cancellation fixture child was not running.'
+    $null = $factoryChild.Handle # Bind the original live process before sending Ctrl+C.
+    Assert-True (!$factoryChild.HasExited) 'The cancellation fixture child exited before Ctrl+C.'
     $toolPid = [int](Get-Content -LiteralPath $serverPidPath -Raw)
     if ($SkipCancellation) {
         # Some non-interactive hosts cannot deliver a console Ctrl+C; the structured shutdown
@@ -558,7 +564,7 @@ finally {
         $null = Complete-TestProcess $signal
         $null = Complete-TestProcess $server @(0, 130)
     }
-    Wait-Until { $null -eq (Get-Process -Id $hostPid -ErrorAction SilentlyContinue) } 'factory child termination'
+    Wait-Until { $factoryChild.HasExited } 'factory child termination'
     Assert-True ($null -eq (Get-Process -Id $toolPid -ErrorAction SilentlyContinue)) 'Serve process remained alive after cancellation.'
     Remove-Item -LiteralPath (Join-Path $site 'wait.flag') -ErrorAction SilentlyContinue
     if ($sseReader) { $sseReader.Dispose(); $sseReader = $null }
@@ -624,6 +630,7 @@ finally {
     if ($sseReader) { $sseReader.Dispose() }
     if ($sseResponse) { $sseResponse.Dispose() }
     if ($http) { $http.Dispose() }
+    if ($factoryChild) { $factoryChild.Dispose() }
     foreach ($running in $processes) {
         try { Stop-TestProcess $running }
         finally { $running.Process.Dispose() }

@@ -67,7 +67,8 @@ public sealed class MarkdownCompilerTests
 
         await Assert.That(LithoMarkdownCompiler.SpecVersion).IsEqualTo("commonmark-0.31.2+gfm-0.29");
         await Assert.That(@default.Frontend).IsEqualTo("lithosharp");
-        await Assert.That(@default.Fingerprint.StartsWith("lithosharp/", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(@default.Fingerprint.StartsWith($"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(@default.Fingerprint).Contains($"/spec={LithoMarkdownCompiler.SpecVersion}/");
         await Assert.That(repeated.Fingerprint).IsEqualTo(@default.Fingerprint);
         await Assert.That(changed.Fingerprint == @default.Fingerprint).IsFalse();
     }
