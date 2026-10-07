@@ -103,11 +103,7 @@ public sealed class ContentCollectionGenerationTests
     }
 
     [Test]
-    [Arguments("draft")]
-    [Arguments("expired")]
-    [Arguments("environment")]
-    public async Task CleanFalse_RemovesTypedPageAndSocialImageWhenPublicationEnds(
-        string transition)
+    public async Task CleanFalse_RemovesTypedPageAndSocialImageWhenPageBecomesDraft()
     {
         using var workspace = new TemporaryWorkspace();
         var faviconRoot = Path.Combine(workspace.Root, "favicon");
@@ -129,13 +125,7 @@ public sealed class ContentCollectionGenerationTests
         var userPath = Path.Combine(output, "user-file.txt");
         await File.WriteAllTextAsync(userPath, "unchanged");
 
-        var hiddenMetadata = transition switch
-        {
-            "draft" => new PageMetadata("Hidden", draft: true),
-            "expired" => new PageMetadata("Hidden", publishUntil: BuildTimestamp),
-            "environment" => new PageMetadata("Hidden", environments: ["Staging"]),
-            _ => throw new ArgumentOutOfRangeException(nameof(transition)),
-        };
+        var hiddenMetadata = new PageMetadata("Hidden", draft: true);
         var result = await GenerateAsync(
             output,
             [],

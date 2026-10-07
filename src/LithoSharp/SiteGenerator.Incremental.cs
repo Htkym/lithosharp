@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,7 +9,10 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
-    private sealed record BuildExecutionResult(string CacheKey, IReadOnlyList<SiteBuildReportNode> Nodes);
+    private sealed record BuildExecutionResult(
+        string CacheKey,
+        IReadOnlyList<SiteBuildReportNode> Nodes,
+        bool PublishedOutputRetained);
 
     private Dictionary<string, Func<string?, string>> CreatePlannedTemplateRenders(SiteTemplateContext context, ISiteTemplate template)
     {
@@ -58,10 +62,35 @@ public sealed partial class SiteGenerator
         SiteBuildPlan plan, RenderContext configuration, SiteTemplateContext context,
         IReadOnlyDictionary<string, Func<string?, string>> textRenders,
         IReadOnlyList<IntegratedContentPage> pages, AssetRegistry assets, IReadOnlyList<SiteTemplateFile> redirects,
-        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, bool subset, CancellationToken cancellationToken)
+        OutputTransaction transaction, string cacheRoot, bool clean, int parallelism, bool subset, BuildTimingRecorder timing,
+        CancellationToken cancellationToken)
     {
         var cache = new SiteBuildCache(cacheRoot, transaction.OutputIdentity);
         var previous = await cache.LoadAsync(clean ? null : await transaction.ReadPreviousBuildCacheKeyAsync(cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        timing.MarkCacheLoad();
+
+        // A full no-op build verifies the published output in place instead of copying the whole
+        // tree into staging. Any unexpected state falls back to the staged copy below.
+        var bypass = !clean && !subset && previous.Count > 0 && assets.ExecutedTransformNodes.Count == 0
+            && !plan.Nodes.Any(static node => node.Inputs.Any(static input =>
+                input.Key.EndsWith("cachePolicy", StringComparison.Ordinal) && input.Value == "always-rebuild"))
+            && plan.Nodes.All(node => previous.TryGetValue(node.Id.Value, out var cached)
+                && cached.NodeKey == ComputeNodeKey(node, id => previous.TryGetValue(id, out var dependency) ? dependency.NodeKey : null)
+                && cached.Artifacts.Count == node.Artifacts.Count
+                && cached.Artifacts.Zip(node.Artifacts).All(static pair =>
+                    pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
+            && transaction.CanBypassPublishedOutput(
+                plan.Artifacts.Select(static artifact => artifact.RelativeOutputPath).Append(OutputManifestRelativePath));
+        // The full-plan check above already proved every current key equals its previous key.
+        // Artifact corruption can still require staging, but does not change declared inputs.
+        var reusePreviousNodeKeys = bypass;
+        // Never update a published tree in place: readers must not observe a mixture of build
+        // generations. A verified full no-op is the only path that skips staging.
+        if (!bypass)
+        {
+            await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
+            timing.MarkTransaction();
+        }
         // Layout-independent post parses are reused across builds (keyed by compiler
         // fingerprint plus source hash), so no-op builds parse nothing and layout-only
         // changes re-render without re-parsing. Clean builds still re-execute every
@@ -133,27 +162,48 @@ public sealed partial class SiteGenerator
                 remaining.Remove(result.Cache.NodeId);
             }
         }
-        var digest = await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
-        return new BuildExecutionResult(digest, reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray());
-
-        async Task<(CachedBuildNode Cache, SiteBuildReportNode Report)> ExecuteNodeAsync(BuildNode node, CancellationToken token)
+        timing.MarkExecution();
+        var cacheKey = string.Empty;
+        if (!bypass)
         {
-            var inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray();
-            var dependencies = node.Dependencies.Select(id => id.Value).ToArray();
+            try
+            {
+                cacheKey = await cache.SaveAsync(completed.Values, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
+            {
+                // The output is still buildable; an unavailable cache only costs the next build time.
+            }
+        }
+        return new BuildExecutionResult(
+            cacheKey,
+            reports.Values.OrderBy(report => report.NodeId, StringComparer.Ordinal).ToArray(),
+            bypass);
+
+        string? ComputeNodeKey(BuildNode node, Func<string, string?> dependencyKey)
+        {
             var keyBytes = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 Implementation = typeof(SiteGenerator).Module.ModuleVersionId,
                 MarkdownCompiler = _markdownCompiler.Fingerprint,
-                node.Id.Value, Inputs = inputs,
-                Dependencies = dependencies.Select(id => new { Id = id, completed[id].NodeKey }),
-                Artifacts = node.Artifacts.Select(artifact => new { artifact.Id.Value, artifact.RelativeOutputPath }),
+                node.Id.Value,
+                Inputs = node.Inputs.Select(static input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
+                Dependencies = node.Dependencies.Select(id => new { Id = id.Value, NodeKey = dependencyKey(id.Value) }),
+                Artifacts = node.Artifacts.Select(static artifact => new { artifact.Id.Value, artifact.RelativeOutputPath }),
             });
-            var key = Convert.ToHexStringLower(SHA256.HashData(keyBytes));
+            return Convert.ToHexStringLower(SHA256.HashData(keyBytes));
+        }
+
+        async Task<(CachedBuildNode Cache, SiteBuildReportNode Report)> ExecuteNodeAsync(BuildNode node, CancellationToken token)
+        {
+            var key = reusePreviousNodeKeys
+                ? previous[node.Id.Value].NodeKey
+                : ComputeNodeKey(node, id => completed[id].NodeKey)!;
             pagesByNode.TryGetValue(node.Id.Value, out var page);
             var needsBody = page?.IsIncludedIn(GeneratedPageDerivedSurfaces.Search) == true;
             var reason = clean ? "Clean build." : assets.ExecutedTransformNodes.Contains(node.Id.Value) ? "The asset transform was executed."
                 : node.Inputs.Any(input => input.Key.EndsWith("cachePolicy", StringComparison.Ordinal) && input.Value == "always-rebuild")
-                ? "Renderer has undeclared inputs." : dependencies.Any(id => !reports[id].CacheHit) ? "A dependency was regenerated."
+                ? "Renderer has undeclared inputs." : node.Dependencies.Any(id => !reports[id.Value].CacheHit) ? "A dependency was regenerated."
                 : !previous.TryGetValue(node.Id.Value, out var candidate) ? "No cached node."
                 : candidate.NodeKey != key ? "Inputs or implementation changed." : null;
             previous.TryGetValue(node.Id.Value, out var old);
@@ -164,8 +214,18 @@ public sealed partial class SiteGenerator
                     reason = "Artifact declarations changed.";
                 else
                     foreach (var artifact in old.Artifacts)
-                        if (!await VerifyCachedArtifactAsync(transaction.StagingRoot, artifact, token).ConfigureAwait(false))
-                        { reason = "An artifact is missing or corrupt."; break; }
+                    {
+                        var verifyRoot = bypass ? transaction.PublishedRoot : transaction.StagingRoot;
+                        var verifyStart = Stopwatch.GetTimestamp();
+                        var verified = await VerifyCachedArtifactAsync(verifyRoot, artifact, token).ConfigureAwait(false);
+                        timing.AddVerificationTimestampTicks(Stopwatch.GetTimestamp() - verifyStart);
+                        if (!verified)
+                        {
+                            reason = "An artifact is missing or corrupt.";
+                            break;
+                        }
+                        timing.CountVerifiedArtifact();
+                    }
                 if (reason is null && needsBody && (old.DerivedBodyHash is null || await cache.ReadBodyAsync(old.DerivedBodyHash, token).ConfigureAwait(false) is null))
                     reason = "The rendered body is missing or corrupt.";
             }
@@ -174,6 +234,11 @@ public sealed partial class SiteGenerator
                 SetBodyProvider(page, old.DerivedBodyHash);
                 return (old, new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheHit = true });
             }
+
+            // Every cache miss, including a missing rendered body, must finish the shared
+            // staging copy before rendering or writing any replacement artifacts.
+            await transaction.MaterializeExistingOutputCopyAsync(token).ConfigureAwait(false);
+            bypass = false;
 
             var artifacts = new List<CachedBuildArtifact>();
             foreach (var artifact in node.Artifacts)
@@ -190,10 +255,30 @@ public sealed partial class SiteGenerator
                 artifacts.Add(new CachedBuildArtifact(artifact.Id.Value, artifact.RelativeOutputPath, bytes.LongLength,
                     Convert.ToHexStringLower(SHA256.HashData(bytes))));
             }
-            var bodyHash = needsBody ? await cache.StoreBodyAsync(page!.DerivedContent ?? string.Empty, token).ConfigureAwait(false) : null;
-            SetBodyProvider(page, bodyHash);
+            var derivedBody = needsBody ? page!.DerivedContent ?? string.Empty : null;
+            string? bodyHash = null;
+            if (derivedBody is not null)
+            {
+                try
+                {
+                    bodyHash = await cache.StoreBodyAsync(derivedBody, token).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
+                {
+                    // Keep the rendered body in memory for this build if persistence fails.
+                }
+            }
+
+            if (bodyHash is not null)
+                SetBodyProvider(page, bodyHash);
+            else if (derivedBody is not null)
+                page!.SetDerivedContentProvider(() => derivedBody);
             page?.ClearRenderedContent();
-            return (new CachedBuildNode(node.Id.Value, key, artifacts, bodyHash) { Inputs = inputs, Dependencies = dependencies },
+            return (new CachedBuildNode(node.Id.Value, key, artifacts, bodyHash)
+            {
+                Inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
+                Dependencies = node.Dependencies.Select(id => id.Value).ToArray(),
+            },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
         }
 
@@ -204,6 +289,10 @@ public sealed partial class SiteGenerator
                     ?? throw new InvalidOperationException("A verified rendered body became unavailable during generation."));
         }
     }
+
+    private static bool IsOptionalCacheWriteFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException
+            or NotSupportedException or System.ComponentModel.Win32Exception;
 
     private static async Task<bool> VerifyCachedArtifactAsync(string root, CachedBuildArtifact artifact, CancellationToken cancellationToken)
     {

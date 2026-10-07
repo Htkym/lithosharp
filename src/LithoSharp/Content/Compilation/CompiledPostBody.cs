@@ -38,6 +38,10 @@ internal sealed class CompiledPostBodyCache
             compile).Value;
     }
 
+    /// <summary>Returns a body already being compiled in this build, without starting another parse.</summary>
+    internal CompiledPostBody? GetExisting(MarkdownPost post) =>
+        _cache.TryGetValue(post, out var compiled) ? compiled.Value : null;
+
     /// <summary>
     /// Attaches the cross-build parse cache. Reads and writes are keyed by compiler
     /// fingerprint plus source hash, so reuse is sound on every build kind.

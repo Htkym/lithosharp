@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmitOnError": true,
+    "declaration": false,
+    "sourceMap": false,
+    "outDir": "out",
+    "rootDir": ".",
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "tests/**/*"]
+}

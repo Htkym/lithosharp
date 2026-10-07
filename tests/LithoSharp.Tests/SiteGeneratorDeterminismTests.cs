@@ -108,7 +108,19 @@ public sealed class SiteGeneratorDeterminismTests
         using var workspace = new TemporaryWorkspace();
         var (posts, firstOutput) = await PrepareBlogAsync(workspace, "first");
         var secondOutput = Path.Combine(workspace.Root, "second-output");
-        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var customization = new SiteCustomization
+        {
+            Template = new BlogSiteTemplate(),
+            ExtraPages =
+            [
+                new SiteExtraPage
+                {
+                    RelativePath = "mixed-line-endings.html",
+                    Title = "Line endings",
+                    BodyHtml = "<p>first</p>\r\n<p>second</p>\r<p>third</p>\n"
+                }
+            ]
+        };
         var options = new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp };
         var generator = new SiteGenerator();
 
@@ -137,6 +149,7 @@ public sealed class SiteGeneratorDeterminismTests
             var firstBytes = await File.ReadAllBytesAsync(Path.Combine(firstOutput, relativePath));
             var secondBytes = await File.ReadAllBytesAsync(Path.Combine(secondOutput, relativePath));
             await Assert.That(secondBytes.SequenceEqual(firstBytes)).IsTrue();
+            await Assert.That(System.Text.Encoding.UTF8.GetString(firstBytes).Contains('\r')).IsFalse();
         }
 
         var firstIndex = await File.ReadAllBytesAsync(
@@ -145,6 +158,11 @@ public sealed class SiteGeneratorDeterminismTests
         var secondSearch = await File.ReadAllTextAsync(Path.Combine(secondOutput, "search.html"));
         await Assert.That(firstSearch).Contains($"?v={Sha256(firstIndex)}");
         await Assert.That(secondSearch).IsEqualTo(firstSearch);
+
+        var extraPage = await File.ReadAllTextAsync(Path.Combine(firstOutput, "mixed-line-endings.html"));
+        await Assert.That(extraPage).Contains("<p>first</p>\n<p>second</p>\n<p>third</p>\n");
+        var feed = await File.ReadAllTextAsync(Path.Combine(firstOutput, "feed.xml"));
+        await Assert.That(feed).Contains("\n");
     }
 
     [Test]
@@ -192,44 +210,116 @@ public sealed class SiteGeneratorDeterminismTests
     }
 
     [Test]
-    public async Task GenerateAsync_TextArtifacts_UseLfLineEndings()
+    public async Task GenerateAsync_TimingCountersAreOptInAndReportVerifiedArtifacts()
     {
-        using var environment = new EnvironmentVariableScope("SOURCE_DATE_EPOCH", null);
         using var workspace = new TemporaryWorkspace();
-        var (posts, output) = await PrepareBlogAsync(workspace, "line-endings");
-        var customization = new SiteCustomization
-        {
-            Template = new BlogSiteTemplate(),
-            ExtraPages =
-            [
-                new SiteExtraPage
-                {
-                    RelativePath = "mixed-line-endings.html",
-                    Title = "Line endings",
-                    BodyHtml = "<p>first</p>\r\n<p>second</p>\r<p>third</p>\n"
-                }
-            ]
-        };
+        var (posts, output) = await PrepareBlogAsync(workspace, "timings");
+        var site = TestSite();
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var generator = new SiteGenerator();
 
-        await new SiteGenerator().GenerateWithOptionsAsync(
-            TestSite(),
-            posts,
-            output,
-            clean: true,
-            customization,
-            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp },
-            CancellationToken.None);
+        var withoutTimings = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp }, CancellationToken.None);
+        await Assert.That(withoutTimings.Timings).IsNull();
 
-        foreach (var relativePath in EnumerateRelativeFiles(output))
+        var clean = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp, CollectTimings = true }, CancellationToken.None);
+        await Assert.That(clean.Timings).IsNotNull();
+        await Assert.That(clean.Timings!.VerifiedArtifactCount).IsEqualTo(0);
+        await Assert.That(clean.Timings.TotalMilliseconds).IsGreaterThanOrEqualTo(0);
+
+        var noOp = await generator.GenerateWithOptionsAsync(
+            site, posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = clean.BuildPlan,
+            }, CancellationToken.None);
+        await Assert.That(noOp.Timings).IsNotNull();
+        await Assert.That(noOp.BuildReport.CacheHitCount).IsGreaterThan(0);
+        await Assert.That(noOp.Timings!.VerifiedArtifactCount).IsGreaterThan(0);
+        await Assert.That(noOp.Timings.TotalMilliseconds).IsGreaterThanOrEqualTo(noOp.Timings.ExecutionMilliseconds);
+        await Assert.That(noOp.Timings.VerificationMilliseconds)
+            .IsLessThanOrEqualTo(noOp.Timings.ExecutionMilliseconds);
+        foreach (var field in new[]
         {
-            var text = await File.ReadAllTextAsync(Path.Combine(output, relativePath));
-            await Assert.That(text.Contains('\r')).IsFalse();
+            noOp.Timings.PlanMilliseconds,
+            noOp.Timings.TransactionMilliseconds,
+            noOp.Timings.CacheLoadMilliseconds,
+            noOp.Timings.ExecutionMilliseconds,
+            noOp.Timings.VerificationMilliseconds,
+            noOp.Timings.QualityMilliseconds,
+            noOp.Timings.CommitMilliseconds,
+        })
+        {
+            await Assert.That(field).IsGreaterThanOrEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task GenerateAsync_NoOpBuildRetainsThePublishedOutputInPlace()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var (posts, output) = await PrepareBlogAsync(workspace, "bypass");
+        var generator = new SiteGenerator();
+        var customization = new SiteCustomization { Template = new BlogSiteTemplate() };
+        var clean = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: true, customization,
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp, CollectTimings = true }, CancellationToken.None);
+        var before = await SnapshotAsync(output);
+        var publishedPost = Path.Combine(output, "posts", "post.html");
+        var publishedAt = File.GetLastWriteTimeUtc(publishedPost);
+
+        var noOp = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = clean.BuildPlan,
+            }, CancellationToken.None);
+
+        await Assert.That(noOp.BuildReport.CacheMissCount).IsEqualTo(0);
+        // In-place retention: the bypass must not copy or republish the artifacts, so the
+        // published file's last-write time stays exactly as the clean build left it.
+        var after = await SnapshotAsync(output);
+        await Assert.That(after.Count).IsEqualTo(before.Count);
+        foreach (var (path, hash) in before)
+        {
+            await Assert.That(after[path]).IsEqualTo(hash);
         }
 
-        var extraPage = await File.ReadAllTextAsync(Path.Combine(output, "mixed-line-endings.html"));
-        await Assert.That(extraPage).Contains("<p>first</p>\n<p>second</p>\n<p>third</p>\n");
-        var feed = await File.ReadAllTextAsync(Path.Combine(output, "feed.xml"));
-        await Assert.That(feed).Contains("\n");
+        await Assert.That(File.GetLastWriteTimeUtc(publishedPost)).IsEqualTo(publishedAt);
+
+        // An external edit of a published artifact must be detected and regenerated.
+        var tampered = publishedPost;
+        await File.WriteAllTextAsync(tampered, "tampered");
+        var repaired = await generator.GenerateWithOptionsAsync(
+            TestSite(), posts, output, clean: false, customization,
+            new SiteGenerationOptions
+            {
+                BuildTimestamp = FixedBuildTimestamp,
+                CollectTimings = true,
+                PreviousBuildPlan = noOp.BuildPlan,
+            }, CancellationToken.None);
+
+        await Assert.That(repaired.BuildReport.CacheMissCount).IsGreaterThan(0);
+        await Assert.That(await File.ReadAllTextAsync(tampered)).Contains("</html>");
+    }
+
+    private static async Task<Dictionary<string, string>> SnapshotAsync(string root)
+    {
+        var snapshot = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            snapshot[Path.GetRelativePath(root, path).Replace('\\', '/')] =
+                Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(path)));
+        }
+
+        return snapshot;
     }
 
     private static SiteSettings TestSite() => new()

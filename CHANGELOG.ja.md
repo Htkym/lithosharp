@@ -2,6 +2,14 @@
 
 [English](CHANGELOG.md)
 
+## 1.1.0（候補、未公開）
+
+- Editor検査をCLIと同一解析に統合した。opt-inのMarkdown互換助言（`LIT003`/`LIT004`/`LIT005`）、route候補付きproject対応snapshot、plugin読込・bundle・SSR実行なしのMDX解析専用sessionを追加した。
+- 最小stdio言語serverとVS Code 0.1.0 shellを追加した。MSBuild評価なしのproject検出、限定workspace trust、構造化停止付きbuild/serve制御、debounce診断、symbols、実出力previewを持つ。
+- Docusaurus移行に分類済みroute oracle、明示の正規化page set比較、component機能差分類を追加し、pin済み3サイトcorpusで変換を再現する。
+- 非互換の公開signatureはない。Markdown互換は[文書化した範囲](docs/known-limitations.ja.md#markdown-の互換性)のままである。
+  package公開は配布gateまで1.0.0のままである。[1.1の機能](docs/release-1.1.ja.md)参照。
+
 ## 1.0.0
 
 - 実行時の Markdig 依存を Litho Markdown コンパイラーへ置き換えました。HTML、見出し、リンク、画像、検索文字列を同じ解析結果から取得し、永続キャッシュは内容を検証して再利用します。

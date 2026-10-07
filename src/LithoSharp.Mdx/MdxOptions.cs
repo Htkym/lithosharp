@@ -62,6 +62,52 @@ public sealed record MdxBuildMetrics
     public int RenderedPages { get; init; }
     /// <summary>The number of browser entries bundled.</summary>
     public int BundledPages { get; init; }
+    /// <summary>The number of interactive entries processed by browser bundling in this worker request; zero when a validated browser cache avoids bundling.</summary>
+    public int RebundledPages { get; init; }
+    /// <summary>The page ids counted by <see cref="RebundledPages"/>; empty on a cache hit.</summary>
+    public IReadOnlyList<string> RebundledPageIds { get; init; } = [];
     /// <summary>Whether a validated preparation cache avoided worker execution.</summary>
     public bool CacheHit { get; init; }
+    /// <summary>Observed work across all worker attempts, including validation retries and partial failures.</summary>
+    [System.Text.Json.Serialization.JsonInclude]
+    internal MdxWorkerWorkMetrics Work { get; init; } = new();
+}
+/// <summary>Observed worker work across every request attempted by one preparation.</summary>
+/// <remarks>Failure reports may be partial. These counts are separate from the final-success metrics and unique page inventory.</remarks>
+internal sealed record MdxWorkerWorkMetrics
+{
+    /// <summary>Bridge SendAsync attempts, including startup, validation retries and transport failures.</summary>
+    public int RequestAttempts { get; init; }
+    /// <summary>Workers actually started during this preparation, including failed requests.</summary>
+    public int WorkerStarts { get; init; }
+    /// <summary>Bridge wall time spent awaiting all requests, including startup and cleanup.</summary>
+    public double RequestMilliseconds { get; init; }
+    /// <summary>True only if every attempted request supplied a complete compiler-work report. This does not imply build success.</summary>
+    public bool HasCompleteReports { get; init; } = true;
+    /// <summary>Reported completed MDX compilations, summed across requests; a failure report may omit unfinished work.</summary>
+    public long CompiledModules { get; init; }
+    /// <summary>Reported completed React renders, summed across requests; a failure report may omit unfinished work.</summary>
+    public long RenderedPages { get; init; }
+    /// <summary>Reported MDX compiler calls, including calls that failed.</summary>
+    public long MdxCompileInvocations { get; init; }
+    /// <summary>Reported React renderer calls, including calls that failed.</summary>
+    public long RenderInvocations { get; init; }
+    /// <summary>Reported esbuild API calls for all platforms, including failed or exploratory calls.</summary>
+    public long EsbuildInvocations { get; init; }
+    /// <summary>Reported browser-platform esbuild calls, including page, shared-runtime and live-runtime builds.</summary>
+    public long BrowserBuildInvocations { get; init; }
+    /// <summary>Reported interactive page entry submissions to browser builds; repeated submissions count again.</summary>
+    public long BrowserEntryBuildAttempts { get; init; }
+    /// <summary>Reported compiler elapsed time across requests, excluding worker protocol/startup/cleanup.</summary>
+    public double WorkerMilliseconds { get; init; }
+    /// <summary>Reported server-build elapsed time, including nested live-runtime work; failures may report only settled work.</summary>
+    public double ServerBundleMilliseconds { get; init; }
+    /// <summary>Reported shared-runtime/page browser-build elapsed time; nested live runtime is reported separately.</summary>
+    public double BrowserBundleMilliseconds { get; init; }
+    /// <summary>Reported nested live-runtime build elapsed time, which overlaps its containing server/browser phase.</summary>
+    public double LiveRuntimeMilliseconds { get; init; }
+    /// <summary>Reported module loading and rendering elapsed time across requests, including failed render phases.</summary>
+    public double RenderMilliseconds { get; init; }
+    /// <summary>Reported compiler-plugin bundle elapsed time across requests.</summary>
+    public double PluginBundleMilliseconds { get; init; }
 }

@@ -20,6 +20,9 @@ internal static class Cli
             return 0;
         }
         if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
+        if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
+        if (args[0] == "cache") return CacheCommand.Run(args[1..]);
+        if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
             return await ContentCommands.RunAsync(args, cancellationToken);
         if (args[0] == "migrate" && args.Length > 1 && args[1] == "docusaurus")
@@ -193,14 +196,17 @@ internal static class Cli
         LithoSharp static site tool
 
         Commands:
+          lithosharp capabilities [-f json] (tool, core, contract and capability report; never evaluates a project)
+          lithosharp cache <info|clean> -o directory [--cache-dir directory] (explicit per-output cache usage or reclamation)
+          lithosharp markdown-compat <markdown-file> [--advisory on|off] [--format text|json] [--project snapshot.json] (explicit Markdown compatibility check; same analysis as document inspection)
           lithosharp new <docs|blog|empty|mdx> [name] [-o directory]
           lithosharp snapshot <source> <destination> <version>
           lithosharp extract-translations <source>
           lithosharp restore-mdx <worker-directory> [--allow-scripts]
           lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)
-          lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] (exit 0 done, 1 failure, 3 unconvertible)
+          lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] [--source-version version] [--source-base-path path] [--compare-normalized-pages] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
-          lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [-c configuration]
+          lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
@@ -227,6 +233,7 @@ internal sealed class CommandOptions
                 "-o" => "output", "-c" => "configuration", "-f" => "format",
                 "--output" => "output", "--configuration" => "configuration", "--format" => "format",
                 "--port" => "port", "--host" => "host", "--clean" => "clean", "--open" => "open",
+                "--cache-dir" => "cache-dir", "--control-stdin" => "control-stdin",
                 _ => null,
             };
             if (key is null)
@@ -235,7 +242,7 @@ internal sealed class CommandOptions
                 if (project is not null) throw new CliUsageException("Specify only one site project.");
                 project = argument;
             }
-            else if (key is "clean" or "open") values[key] = null;
+            else if (key is "clean" or "open" or "control-stdin") values[key] = null;
             else if (++index >= args.Count) throw new CliUsageException($"Option '{argument}' requires a value.");
             else values[key] = args[index];
         }

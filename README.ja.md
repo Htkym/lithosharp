@@ -63,10 +63,11 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 
 ## 必要な環境
 
-.NET 10が必要です。公開準備ではSDK 10.0.300を使っています。CLIの開発serverはSDKに含まれる
+.NET 10が必要です。最低対応SDKは10.0.300です。現在の公開準備ではSDK 10.0.401と
+runtime 10.0.12を使っています。CLIの開発serverはSDKに含まれる
 ASP.NET Core shared frameworkも使います。MarkdownだけならNode.jsとReactは不要です。
 MDXはNode.js 24.13.0と明示的なworker restoreが必要です。lockfileはMDX 3.1.1、React 19.2.4、
-esbuild 0.25.12を固定しています。本番出力の配信には静的HTTP hostだけで十分です。
+esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP hostだけで十分です。
 
 ## ドキュメント
 

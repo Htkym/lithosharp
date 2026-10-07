@@ -2,6 +2,23 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 1.1.0 (candidate, unreleased)
+
+- Editor inspection shares one analysis with the CLI: opt-in Markdown
+  compatibility advisories (`LIT003`/`LIT004`/`LIT005`), project-aware snapshots
+  with route candidates, and an analysis-only MDX worker session that never
+  loads plugins, bundles, or runs SSR.
+- Minimal stdio language server plus a VS Code 0.1.0 shell: project detection
+  without MSBuild evaluation, limited workspace trust, build/serve control with
+  structured shutdown, debounced diagnostics, symbols, and a real-output preview.
+- Docusaurus migration gains a classified route oracle, an explicit normalized
+  page-set comparison, and component functional-change classifications; a pinned
+  Prettier/Jest/Docusaurus corpus reproduces conversion end to end.
+- No incompatible public signatures. Markdown compatibility stays limited to the
+  [documented subset](docs/known-limitations.md#markdown-compatibility).
+  Packages still publish at 1.0.0 until the distribution gate; see the
+  [1.1 features](docs/release-1.1.md).
+
 ## 1.0.0
 
 - Replace the runtime Markdig dependency with the Litho Markdown compiler. HTML,

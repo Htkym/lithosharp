@@ -3,8 +3,8 @@ import {PageContext} from './context.mjs';
 import {Island} from './islands.mjs';
 export {PageContext, Island};
 export {HydrationProbe} from './context.mjs';
-import './style.css';
 import 'katex/dist/katex.min.css';
+import './style.css';
 
 export const usePageContext = () => useContext(PageContext);
 export function useTranslation() {

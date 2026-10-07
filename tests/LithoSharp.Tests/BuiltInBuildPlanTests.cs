@@ -76,6 +76,22 @@ public sealed class BuiltInBuildPlanTests
     }
 
     [Test]
+    public async Task BlogAndDocsMarkdownNodesDeclareTheActualSourceForEditorRoutes()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var post = Post("alpha", "Alpha");
+        foreach (var template in new ISiteTemplate[] { new BlogSiteTemplate(), new DocsSiteTemplate() })
+        {
+            var generated = await GenerateAsync(workspace, template.GetType().Name, template, [post]);
+            var node = generated.BuildPlan.Nodes.Single(node => node.Id.Value == "page:markdown:posts/alpha.html");
+            var source = node.Inputs.Single(input => input.Key == "page.source");
+            await Assert.That(source.Kind).IsEqualTo(BuildInputKind.Value);
+            await Assert.That(source.Value).IsEqualTo(post.FilePath);
+            await Assert.That(node.Artifacts.Single().RelativeOutputPath).IsEqualTo("posts/alpha.html");
+        }
+    }
+
+    [Test]
     public async Task BlogPlan_NoChangeHasNoInvalidations()
     {
         using var workspace = new TemporaryWorkspace();
@@ -87,7 +103,7 @@ public sealed class BuiltInBuildPlanTests
     }
 
     [Test]
-    public async Task TemplateSwitch_DocsToBlogInvalidatesSharedAssetsAndBlogNodes()
+    public async Task TemplateSwitch_InvalidatesSharedAssetsAndBothTemplateNodeSets()
     {
         using var workspace = new TemporaryWorkspace();
         var posts = new[] { Post("alpha", "Alpha") };
@@ -115,17 +131,8 @@ public sealed class BuiltInBuildPlanTests
             .IsEquivalentTo(["入力 'Configuration:template.builtIn' が変更されました。"]);
         await Assert.That(invalidations.Single(item => item.NodeId.Value == "asset:site-script").Reasons)
             .IsEquivalentTo(["入力 'Configuration:template.builtIn' が変更されました。"]);
-    }
 
-    [Test]
-    public async Task TemplateSwitch_BlogToDocsInvalidatesSharedAssetsAndDocsNodes()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var posts = new[] { Post("alpha", "Alpha") };
-        var blog = await GenerateAsync(workspace, "blog", new BlogSiteTemplate(), posts);
-        var docs = await GenerateAsync(workspace, "docs", new DocsSiteTemplate(), posts);
-
-        var invalidations = docs.BuildPlan.GetInvalidatedNodes(blog.BuildPlan);
+        invalidations = docs.BuildPlan.GetInvalidatedNodes(blog.BuildPlan);
 
         await Assert.That(InvalidatedNodeIds(invalidations)).IsEquivalentTo(
         [

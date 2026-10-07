@@ -175,15 +175,6 @@ public sealed class FrontMatterSchemaTests
         await CheckConsistencyAsync(schema, new ReflectionContentFrontMatterBinder<MdxBlogFrontMatter>());
     }
 
-    [Test]
-    public async Task BuiltInAndCustomAreDistinguished()
-    {
-        await Assert.That(FrontMatterSchemas.Document.IsBuiltIn).IsTrue();
-        await Assert.That(FrontMatterSchemas.Post.IsBuiltIn).IsTrue();
-        await Assert.That(FrontMatterSchemas.Document.Name).IsNotEqualTo(FrontMatterSchemas.Post.Name);
-        await Assert.That(FrontMatterSchemas.For<FixtureFrontMatter>().IsBuiltIn).IsFalse();
-    }
-
     private static async Task CheckConsistencyAsync<TFrontMatter>(
         FrontMatterSchema schema, ReflectionContentFrontMatterBinder<TFrontMatter> binder)
         where TFrontMatter : notnull

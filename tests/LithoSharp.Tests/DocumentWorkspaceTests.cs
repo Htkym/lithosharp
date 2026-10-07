@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using LithoSharp.Inspection;
+using LithoSharp.Documentation;
 
 namespace LithoSharp.Tests;
 
@@ -18,6 +19,96 @@ public sealed class DocumentWorkspaceTests
         "title: Beta\n" +
         "---\n" +
         "# Beta\n";
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ThousandsOfUniqueClosedDocumentsReleaseOwnedMetadata(bool projectScoped)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var project = projectScoped ? ProjectInspectionSnapshot.Create("owner", 1, "docs", "markdown", "document", "current", "default") : null;
+        var options = project is null ? null : new DocumentInspectionOptions { Project = project };
+        for (var index = 0; index < 2000; index++)
+        {
+            var source = $"docs/closed-{index}.md";
+            var snapshot = await workspace.InspectVersionedAsync(source, SampleA, 1, 1, options);
+            var removed = project is null ? workspace.Remove(source) : workspace.Remove(project.ProjectId, source);
+            await Assert.That(removed).IsTrue();
+            await Assert.That(snapshot.Title).IsEqualTo("Alpha");
+        }
+        // Measure the exact owned metadata count, without a global GC heap gate
+        // or unrelated concurrent test allocations.
+        await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(0);
+        await Assert.That(OwnedActiveAnalysisCount(workspace)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RemoveQueuedInspectionAndReopenCannotResurrectTheOldEntry()
+    {
+        await using var workspace = new DocumentWorkspace();
+        var slots = AnalysisSlots(workspace);
+        await slots.WaitAsync(); await slots.WaitAsync();
+        Task<DocumentInfo>? obsolete = null;
+        Task<DocumentInfo>? current = null;
+        try
+        {
+            // Both slots are held: reservation has happened, CPU analysis cannot
+            // begin. Removal must invalidate/cancel this actual queued request.
+            obsolete = workspace.InspectVersionedAsync("docs/reopen.md", SampleA, 10, 10);
+            await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(1);
+            await Assert.That(workspace.Remove("docs/reopen.md")).IsFalse();
+            await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(0);
+            await Assert.That(async () => await obsolete.WaitAsync(TimeSpan.FromSeconds(5)))
+                .Throws<OperationCanceledException>();
+            // Reopening starts a new lifetime and may use a lower version/gen.
+            current = workspace.InspectVersionedAsync("docs/reopen.md", SampleB, 1, 1);
+        }
+        finally { slots.Release(2); }
+        var latest = await current!.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(latest.Title).IsEqualTo("Beta");
+        await Assert.That(workspace.TryGet("docs/reopen.md", out var saved)).IsTrue();
+        await Assert.That(ReferenceEquals(saved, latest)).IsTrue();
+        await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(1);
+        await Assert.That(workspace.Remove("docs/reopen.md")).IsTrue();
+        await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(0);
+        await Assert.That(OwnedActiveAnalysisCount(workspace)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DisposeCancelsQueuedInspectionAndKeepsNoClosedMetadata()
+    {
+        var workspace = new DocumentWorkspace();
+        var slots = AnalysisSlots(workspace);
+        await slots.WaitAsync(); await slots.WaitAsync();
+        Task<DocumentInfo>? pending = null;
+        try
+        {
+            pending = workspace.InspectVersionedAsync("docs/dispose-queued.md", SampleA, 1, 1);
+            await workspace.DisposeAsync();
+            await Assert.That(async () => await pending.WaitAsync(TimeSpan.FromSeconds(5)))
+                .Throws<OperationCanceledException>();
+            await Assert.That(workspace.TryGet("docs/dispose-queued.md", out _)).IsFalse();
+            await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(0);
+            await Assert.That(OwnedActiveAnalysisCount(workspace)).IsEqualTo(0);
+        }
+        finally { slots.Release(2); await workspace.DisposeAsync(); }
+    }
+
+    private static object OwnedField(DocumentWorkspace workspace, string name) =>
+        typeof(DocumentWorkspace).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(workspace)!;
+
+    private static int OwnedMetadataCount(DocumentWorkspace workspace)
+    {
+        var entries = OwnedField(workspace, "_entries");
+        return (int)entries.GetType().GetProperty("Count")!.GetValue(entries)!;
+    }
+
+    private static int OwnedActiveAnalysisCount(DocumentWorkspace workspace) =>
+        ((HashSet<Task>)OwnedField(workspace, "_activeAnalyses")).Count;
+
+    private static SemaphoreSlim AnalysisSlots(DocumentWorkspace workspace) =>
+        (SemaphoreSlim)OwnedField(workspace, "_analysisSlots");
 
     [Test]
     public async Task SameDocumentNameDoesNotMixAcrossWorkspaces()
@@ -82,6 +173,7 @@ public sealed class DocumentWorkspaceTests
         var snapshot = await workspace.InspectAsync("docs/d.md", SampleA);
         await workspace.DisposeAsync();
 
+        await Assert.That(workspace.Remove("docs/d.md")).IsFalse();
         await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
         await Assert.That(snapshot.Title).IsEqualTo("Alpha");
 
@@ -96,17 +188,6 @@ public sealed class DocumentWorkspaceTests
         }
 
         await Assert.That(disposed).IsTrue();
-    }
-
-    [Test]
-    public async Task RemoveAfterDisposeReturnsFalse()
-    {
-        var workspace = new DocumentWorkspace();
-        await workspace.InspectAsync("docs/d.md", SampleA);
-        await workspace.DisposeAsync();
-
-        await Assert.That(workspace.Remove("docs/d.md")).IsFalse();
-        await Assert.That(workspace.TryGet("docs/d.md", out _)).IsFalse();
     }
 
     [Test]
@@ -131,6 +212,167 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(kept!.Title).IsEqualTo("Alpha");
     }
 
+    private static Task<DocumentInfo> InspectSameRevision(
+        DocumentWorkspace workspace, bool versioned, string path, string text,
+        DocumentInspectionOptions? options, CancellationToken cancellationToken = default) =>
+        versioned
+            ? workspace.InspectVersionedAsync(path, text, documentVersion: 7, projectGeneration: 11,
+                options: options, cancellationToken: cancellationToken)
+            : workspace.InspectAsync(path, text, options, cancellationToken);
+
+    [Test]
+    [Arguments(false, "route")]
+    [Arguments(true, "route")]
+    [Arguments(false, "version")]
+    [Arguments(true, "version")]
+    [Arguments(false, "locale")]
+    [Arguments(true, "locale")]
+    public async Task SameTextMetadataChangeUpdatesSnapshot(bool versioned, string field)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var first = await InspectSameRevision(workspace, versioned, "docs/same.md", SampleA,
+            new DocumentInspectionOptions { DocumentId = "same", Route = "/old/", Version = "v1", Locale = "en" });
+        var second = await InspectSameRevision(workspace, versioned, "docs/same.md", SampleA,
+            new DocumentInspectionOptions
+            {
+                DocumentId = "same",
+                Route = field == "route" ? "/new/" : "/old/",
+                Version = field == "version" ? "v2" : "v1",
+                Locale = field == "locale" ? "ja" : "en",
+            });
+
+        await Assert.That(second.Route).IsEqualTo(field == "route" ? "/new/" : "/old/");
+        await Assert.That(second.Version).IsEqualTo(field == "version" ? "v2" : "v1");
+        await Assert.That(second.Locale).IsEqualTo(field == "locale" ? "ja" : "en");
+        await Assert.That(second.ProjectStatus).IsEqualTo(DocumentProjectStatus.NoContext);
+        await Assert.That(first.Route).IsEqualTo("/old/");
+        await Assert.That(first.Version).IsEqualTo("v1");
+        await Assert.That(first.Locale).IsEqualTo("en");
+        await Assert.That(workspace.TryGet("same", out var latest)).IsTrue();
+        await Assert.That(ReferenceEquals(latest, second)).IsTrue();
+    }
+
+    [Test]
+    [Arguments(false, "docs/new.md")]
+    [Arguments(true, "docs/new.md")]
+    [Arguments(false, "Docs/Old.MD")]
+    [Arguments(true, "Docs/Old.MD")]
+    public async Task SameTextSourcePathChangeUpdatesEveryLocation(bool versioned, string newPath)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var options = new DocumentInspectionOptions { DocumentId = "same-path" };
+        const string text = "---\ntitle: Test\n---\n# Test\n\nSee [^missing].\n";
+        var first = await InspectSameRevision(workspace, versioned, "docs/old.md", text, options);
+        var second = await InspectSameRevision(workspace, versioned, newPath, text, options);
+
+        await Assert.That(second.SourcePath).IsEqualTo(newPath);
+        await Assert.That(second.Headings[0].Location?.FilePath).IsEqualTo(newPath);
+        await Assert.That(second.Diagnostics.Single(item => item.Id == "LIT001").Location?.FilePath).IsEqualTo(newPath);
+        await Assert.That(second.DocumentId).IsEqualTo("same-path");
+        await Assert.That(first.SourcePath).IsEqualTo("docs/old.md");
+        await Assert.That(first.Headings[0].Location?.FilePath).IsEqualTo("docs/old.md");
+        await Assert.That(first.Diagnostics.Single(item => item.Id == "LIT001").Location?.FilePath).IsEqualTo("docs/old.md");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SameTextAdvisoryToggleUpdatesDiagnostics(bool versioned)
+    {
+        await using var workspace = new DocumentWorkspace();
+        const string text = "---\ntitle: Test\n---\nTerm\n\n: definition body\n";
+        var off = await InspectSameRevision(workspace, versioned, "docs/advisory.md", text,
+            new DocumentInspectionOptions { DocumentId = "advisory" });
+        var on = await InspectSameRevision(workspace, versioned, "docs/advisory.md", text,
+            new DocumentInspectionOptions { DocumentId = "advisory", EnableCompatibilityAdvisory = true });
+        var offAgain = await InspectSameRevision(workspace, versioned, "docs/advisory.md", text,
+            new DocumentInspectionOptions { DocumentId = "advisory" });
+
+        await Assert.That(on.Diagnostics.Count(item => item.Id == "LIT003")).IsEqualTo(1);
+        await Assert.That(off.Diagnostics.Any(item => item.Id == "LIT003")).IsFalse();
+        await Assert.That(offAgain.Diagnostics.Any(item => item.Id == "LIT003")).IsFalse();
+        await Assert.That(on.Diagnostics.Count(item => item.Id == "LIT003")).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SameTextReplacementProjectSnapshotUpdatesRoute(bool versioned)
+    {
+        await using var workspace = new DocumentWorkspace();
+        static ProjectInspectionSnapshot Project(string route) => ProjectInspectionSnapshot.Create(
+            "same-project", 11, "docs", ToolingCapabilities.LanguageMarkdown, "document", "v1", "en",
+            [new ProjectRouteCandidate("docs/context.md", route, "same-project", "docs", "v1", "en",
+                DocumentPublicationState.Published)]);
+        var first = await InspectSameRevision(workspace, versioned, "docs/context.md", SampleA,
+            new DocumentInspectionOptions { DocumentId = "context", Project = Project("/old/") });
+        var second = await InspectSameRevision(workspace, versioned, "docs/context.md", SampleA,
+            new DocumentInspectionOptions { DocumentId = "context", Project = Project("/new/") });
+
+        await Assert.That(second.Route).IsEqualTo("/new/");
+        await Assert.That(second.RouteCandidates.Single().PublicPath).IsEqualTo("/new/");
+        await Assert.That(second.ProjectStatus).IsEqualTo(DocumentProjectStatus.Resolved);
+        await Assert.That(first.Route).IsEqualTo("/old/");
+        await Assert.That(first.RouteCandidates.Single().PublicPath).IsEqualTo("/old/");
+        await Assert.That(workspace.TryGet("same-project", "context", out var latest)).IsTrue();
+        await Assert.That(ReferenceEquals(latest, second)).IsTrue();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task EquivalentOptionsReuseUnchangedSnapshot(bool versioned)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var project = ProjectInspectionSnapshot.Create("stable", 11, "docs",
+            ToolingCapabilities.LanguageMarkdown, "document", "v1", "en");
+        var first = await InspectSameRevision(workspace, versioned, "docs/stable.md", SampleA,
+            new DocumentInspectionOptions { DocumentId = "stable", Route = "/stable/", Project = project });
+        var second = await InspectSameRevision(workspace, versioned, "docs/stable.md", SampleA,
+            new DocumentInspectionOptions { DocumentId = "stable", Route = "/stable/", Project = project });
+
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task NullAndDefaultOptionsReuseUnchangedSnapshot(bool versioned)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var first = await InspectSameRevision(workspace, versioned, "docs/default.md", SampleA, null);
+        var second = await InspectSameRevision(workspace, versioned, "docs/default.md", SampleA,
+            new DocumentInspectionOptions());
+
+        await Assert.That(ReferenceEquals(first, second)).IsTrue();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CancelledOptionChangeKeepsPriorSnapshotAndReuseIdentity(bool versioned)
+    {
+        await using var workspace = new DocumentWorkspace();
+        var oldOptions = new DocumentInspectionOptions { DocumentId = "cancel-options", Route = "/old/" };
+        var first = await InspectSameRevision(workspace, versioned, "docs/cancel-options.md", SampleA, oldOptions);
+        var cancelled = false;
+        try
+        {
+            await InspectSameRevision(workspace, versioned, "docs/cancel-options.md", SampleA,
+                new DocumentInspectionOptions { DocumentId = "cancel-options", Route = "/new/" },
+                new CancellationToken(true));
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+        await Assert.That(cancelled).IsTrue();
+        await Assert.That(workspace.TryGet("cancel-options", out var kept)).IsTrue();
+        await Assert.That(ReferenceEquals(first, kept)).IsTrue();
+        var unchanged = await InspectSameRevision(workspace, versioned, "docs/cancel-options.md", SampleA, oldOptions);
+        await Assert.That(ReferenceEquals(first, unchanged)).IsTrue();
+    }
+
     private static string EditText(int index) =>
         "---\n" +
         $"title: Edit {index}\n" +
@@ -141,7 +383,7 @@ public sealed class DocumentWorkspaceTests
 
     private static (long ManagedBytes, long WorkingSetBytes, int HandleCount, int ThreadCount) SampleProcess()
     {
-        var process = Process.GetCurrentProcess();
+        using var process = Process.GetCurrentProcess();
         process.Refresh();
         int handles;
         try
@@ -156,6 +398,9 @@ public sealed class DocumentWorkspaceTests
     }
 
     [Test]
+    // These are process-wide measurements, so unrelated tests must not allocate
+    // into the sampled heap or working set while the edit sequence runs.
+    [NotInParallel]
     public async Task ThousandSequentialEditsConvergeToLatestWithoutUnboundedGrowth()
     {
         await using var workspace = new DocumentWorkspace();
@@ -199,20 +444,6 @@ public sealed class DocumentWorkspaceTests
         // Same DocumentId overwrites: no unbounded snapshot accumulation.
         await Assert.That(workspace.TryGet("docs/unknown.md", out _)).IsFalse();
 
-        // Post-warmup resource stability: allow noise but fail on continuous leak.
-        var managed = series.Select(item => (long)((dynamic)item).ManagedBytes).ToArray();
-        var working = series.Select(item => (long)((dynamic)item).WorkingSetBytes).ToArray();
-        var firstManaged = managed[0];
-        var lastManaged = managed[^1];
-        var firstWorking = working[0];
-        var lastWorking = working[^1];
-        await Assert.That(lastManaged - firstManaged).IsLessThanOrEqualTo(50_000_000);
-        await Assert.That(lastWorking - firstWorking).IsLessThanOrEqualTo(150_000_000);
-        foreach (var item in series)
-        {
-            await Assert.That((int)((dynamic)item).HandleCount).IsGreaterThanOrEqualTo(-1);
-        }
-
         var output = Environment.GetEnvironmentVariable("LITHOSHARP_T06_OUTPUT");
         if (!string.IsNullOrWhiteSpace(output))
         {
@@ -228,6 +459,11 @@ public sealed class DocumentWorkspaceTests
                 TotalEdits = total,
                 WarmupEdits = warmup,
                 Stride = stride,
+                ResourceScope = "process-wide",
+                TestScheduling = "exclusive-within-assembly",
+                ForceFullCollection = false,
+                ManagedGrowthLimitBytes = 50_000_000,
+                WorkingSetGrowthLimitBytes = 150_000_000,
                 FinalTitle = latest.Title,
                 StaleTitle = stale.Title,
                 Environment = new
@@ -240,6 +476,20 @@ public sealed class DocumentWorkspaceTests
                 Series = series,
             };
             await File.WriteAllTextAsync(output, JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
+        }
+
+        // Post-warmup resource stability: allow noise but fail on continuous leak.
+        var managed = series.Select(item => (long)((dynamic)item).ManagedBytes).ToArray();
+        var working = series.Select(item => (long)((dynamic)item).WorkingSetBytes).ToArray();
+        var firstManaged = managed[0];
+        var lastManaged = managed[^1];
+        var firstWorking = working[0];
+        var lastWorking = working[^1];
+        await Assert.That(lastManaged - firstManaged).IsLessThanOrEqualTo(50_000_000);
+        await Assert.That(lastWorking - firstWorking).IsLessThanOrEqualTo(150_000_000);
+        foreach (var item in series)
+        {
+            await Assert.That((int)((dynamic)item).HandleCount).IsGreaterThanOrEqualTo(-1);
         }
     }
 
@@ -357,19 +607,5 @@ public sealed class DocumentWorkspaceTests
         await Assert.That(latest!.Title).IsEqualTo("Heading 198");
     }
 
-    [Test]
-    public async Task RapidOverwritesConvergeToLastSequentialWrite()
-    {
-        await using var workspace = new DocumentWorkspace();
-        var first = await workspace.InspectAsync("docs/rapid.md", EditText(1));
-        var second = await workspace.InspectAsync("docs/rapid.md", EditText(2));
 
-        await Assert.That(first.Title).IsEqualTo("Heading 1");
-        await Assert.That(second.Title).IsEqualTo("Heading 2");
-        var found = workspace.TryGet("docs/rapid.md", out var latest);
-        await Assert.That(found).IsTrue();
-        await Assert.That(latest!.Title).IsEqualTo("Heading 2");
-        // The stale object still reports its own revision.
-        await Assert.That(first.Title).IsEqualTo("Heading 1");
-    }
 }

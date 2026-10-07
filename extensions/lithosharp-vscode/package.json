@@ -1,0 +1,143 @@
+{
+  "name": "lithosharp",
+  "displayName": "LithoSharp",
+  "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
+  "version": "0.1.0",
+  "publisher": "htkym",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Htkym/lithosharp"
+  },
+  "engines": {
+    "vscode": "^1.139.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Project detection works without trust. Build, serve, language server, and installs stay disabled until the workspace is trusted."
+    }
+  },
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onLanguage:mdx",
+    "onCommand:lithosharp.selectProject",
+    "onCommand:lithosharp.build",
+    "onCommand:lithosharp.startServer",
+    "onCommand:lithosharp.stopServer",
+    "onCommand:lithosharp.inspectSite",
+    "onCommand:lithosharp.restartServer",
+    "onCommand:lithosharp.restoreWorker",
+    "onCommand:lithosharp.openPreview",
+    "onCommand:lithosharp.refreshPreview",
+    "onCommand:lithosharp.openInBrowser"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "lithosharp.selectProject",
+        "title": "LithoSharp: Select Project"
+      },
+      {
+        "command": "lithosharp.build",
+        "title": "LithoSharp: Build"
+      },
+      {
+        "command": "lithosharp.startServer",
+        "title": "LithoSharp: Start Server"
+      },
+      {
+        "command": "lithosharp.stopServer",
+        "title": "LithoSharp: Stop Server"
+      },
+      {
+        "command": "lithosharp.inspectSite",
+        "title": "LithoSharp: Inspect Site"
+      },
+      {
+        "command": "lithosharp.restartServer",
+        "title": "LithoSharp: Restart Language Server"
+      },
+      {
+        "command": "lithosharp.restoreWorker",
+        "title": "LithoSharp: Restore MDX Worker"
+      },
+      {
+        "command": "lithosharp.openPreview",
+        "title": "LithoSharp: Open Preview"
+      },
+      {
+        "command": "lithosharp.refreshPreview",
+        "title": "LithoSharp: Refresh Preview"
+      },
+      {
+        "command": "lithosharp.openInBrowser",
+        "title": "LithoSharp: Open in Browser"
+      }
+    ],
+    "configuration": {
+      "title": "LithoSharp",
+      "restrictedConfigurations": [
+        "lithosharp.cliPath",
+        "lithosharp.languageServerPath",
+        "lithosharp.workerDirectory",
+        "lithosharp.nodeExecutable"
+      ],
+      "properties": {
+        "lithosharp.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit LithoSharp CLI executable. Empty resolves automatically. Ignored in untrusted workspaces."
+        },
+        "lithosharp.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Selected project file. Empty prompts when several candidates exist."
+        },
+        "lithosharp.languageServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit language server executable or DLL. Empty uses the bundled server through dotnet (.NET 10 runtime required). Ignored in untrusted workspaces."
+        },
+        "lithosharp.workerDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit MDX worker directory. Empty uses extension storage named by the bundled worker hash. Changing this needs LithoSharp: Restart Language Server. Without a restored worker, Markdown diagnostics keep working and MDX stays unexplained."
+        },
+        "lithosharp.nodeExecutable": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit external Node executable for MDX analysis (Node 24.13.0 required). Empty resolves node from the language server environment. Ignored in untrusted workspaces. Changing this needs LithoSharp: Restart Language Server."
+        },
+        "lithosharp.diagnosticDebounceMs": {
+          "type": "integer",
+          "default": 150,
+          "minimum": 50,
+          "maximum": 1000,
+          "description": "Debounce for change diagnostics in milliseconds."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "typecheck": "tsc --noEmit -p ./",
+    "test:unit": "npm run compile && node --test \"out/tests/unit/**/*.test.js\"",
+    "test:integration": "npm run compile && node tests/integration/run.mjs",
+    "measure:editor": "npm run compile && node eng/measure-editor.mjs",
+    "vsix:stage": "node eng/stage-worker.mjs && node eng/stage-language-server.mjs",
+    "vsix:pack": "npm run compile && npm run vsix:stage && node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce package --no-dependencies --no-update-package-json",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.19.1",
+    "@types/vscode": "1.138.0",
+    "@vscode/test-electron": "^3.1.0",
+    "mocha": "^12.0.3",
+    "typescript": "^5.9.3"
+  }
+}

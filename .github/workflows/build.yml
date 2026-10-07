@@ -11,6 +11,11 @@ permissions:
   contents: read
 
 jobs:
+  installed-extension:
+    name: Installed extension with one VSIX across three OSes
+    needs: build
+    uses: ./.github/workflows/installed-extension.yml
+
   build:
     # Keep the required status names while pinning the runner images below.
     name: build (${{ matrix.check-name }})
@@ -74,6 +79,23 @@ jobs:
       - name: Build
         run: dotnet build LithoSharp.slnx --no-restore --configuration Release
 
+      - name: Check bundled language server and editor units
+        shell: pwsh
+        run: |
+          Push-Location extensions/lithosharp-vscode
+          try {
+            npm ci --ignore-scripts --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test:unit
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run vsix:stage
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+          ./eng/Test-LspDistribution.ps1 -SkipPublish -PublishDirectory extensions/lithosharp-vscode/resources/language-server -Output artifacts/lsp-distribution
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Pack
         run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
 
@@ -89,14 +111,55 @@ jobs:
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
 
       - name: Test
-        run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal
+        env:
+          LITHOSHARP_T06_OUTPUT: ${{ github.workspace }}/artifacts/test-diagnostics/workspace-resource-series.json
+        run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal --report-trx --results-directory artifacts/test-diagnostics/solution-trx
+
+      - name: Preserve workspace resource diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: workspace-resources-${{ matrix.os }}
+          path: artifacts/test-diagnostics/workspace-resource-series.json
+          if-no-files-found: ignore
+
+      - name: Preserve exact solution test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: solution-trx-${{ matrix.os }}
+          path: artifacts/test-diagnostics/solution-trx/*.trx
+          if-no-files-found: ignore
+
+      - name: Check 1.x compatibility gates
+        shell: pwsh
+        run: |
+          ./eng/Test-GeneratorHostCompatibility.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-CompatibilityGate.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check extension release guards without publishing
+        shell: pwsh
+        run: |
+          ./eng/Test-ReleasePipeline.ps1
+          ./eng/Test-ExtensionPublishGuards.ps1
 
       - name: Check CLI and development server
         shell: pwsh
         run: |
           ./eng/Test-Tool.ps1
+          ./eng/Test-ServeControl.ps1
           ./eng/Test-MdxWatch.ps1
           ./eng/Test-DocumentationVerification.ps1
+
+      - name: Preserve sanitized MDX watch diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdx-watch-diagnostics-${{ matrix.os }}
+          path: artifacts/test-diagnostics/mdx-watch/*.json
+          if-no-files-found: ignore
 
       - name: Migration smoke
         shell: pwsh
@@ -114,7 +177,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Tool
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
-          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages
+          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages -CandidateVersion 1.1.0
 
       - name: Pack and validate images
         shell: pwsh
@@ -132,6 +195,27 @@ jobs:
           dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --no-build --no-restore --configuration Release --output artifacts/packages
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
+
+      - name: Check package security gate controls
+        shell: pwsh
+        run: |
+          ./eng/Test-PackageSecurityGate.ps1 -PackageDirectory artifacts/packages -ExpectedVersion 1.1.0 -Output (Join-Path $env:RUNNER_TEMP 'package-security-gate')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check migration normalization controls
+        shell: pwsh
+        run: |
+          ./eng/Test-MigrationNormalizationGate.ps1 -Output (Join-Path $env:RUNNER_TEMP 'migration-normalization-gate')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check consumer compatibility
+        shell: pwsh
+        run: |
+          $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
+          $null = New-Item -ItemType Directory -Force -Path $baseline
+          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/lithosharp/1.0.0/lithosharp.1.0.0.nupkg' -OutFile (Join-Path $baseline 'LithoSharp.1.0.0.nupkg')
+          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion 1.0.0 -CandidateVersion 1.1.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run sample
         run: |

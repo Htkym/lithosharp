@@ -121,7 +121,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
             var json = JsonSerializer.Serialize(new { version = "https://jsonfeed.org/version/1.1", title = blog.Id, home_page_url = context.Site.BaseUrl,
                 items = listed.Select(entry => new { id = Absolute(entry), url = Absolute(entry), title = entry.FrontMatter.Title, content_text = entry.FrontMatter.FeedText ?? entry.FrontMatter.Summary,
                     date_published = entry.FrontMatter.Date, tags = entry.FrontMatter.Tags, authors = entry.FrontMatter.Authors.Select(id => new { name = blog.Authors[id].Name, url = blog.Authors[id].Url?.Value }) }) });
-            foreach (var (file, content) in new[] { ("atom.xml", atomFeed.ToString()), ("rss.xml", rss.ToString()), ("feed.json", json) })
+            foreach (var (file, content) in new[] { ("atom.xml", ToLfXml(atomFeed)), ("rss.xml", ToLfXml(rss)), ("feed.json", json) })
                 assets.Add(new("blog:" + blog.Id + ":" + file, blog.RoutePrefix.Trim('/') + "/" + file, Encoding.UTF8.GetBytes(content)));
         }
         return new() { ContentCollections = collections, Assets = assets, Diagnostics = prepared.Diagnostics };
@@ -133,6 +133,10 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
             + "<a href=\"" + SiteUrl.ForDirectory(blog.RoutePrefix.Trim('/') + "/authors/" + Uri.EscapeDataString(id), baseUrl).ToAttributeValue() + "\">" + Html.Encode(author.Name) + "</a><p>"
             + Html.Encode(author.Bio ?? "") + "</p>" + (author.Url is null ? "" : "<a href=\"" + author.Url.ToAttributeValue() + "\">Profile</a>") + "</aside>";
     }
+    /// <summary>Serializes a feed document with LF line endings on every host.</summary>
+    /// <remarks>XElement.ToString uses the host newline (CRLF on Windows).</remarks>
+    private static string ToLfXml(XElement element) =>
+        element.ToString().Replace("\r\n", "\n", StringComparison.Ordinal);
     /// <inheritdoc />
     public JsonElement? GetInspection() => mdx.GetInspection();
     /// <inheritdoc />

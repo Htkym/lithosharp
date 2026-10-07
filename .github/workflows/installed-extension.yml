@@ -1,0 +1,183 @@
+name: installed extension acceptance
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      vsix-sha256:
+        description: SHA256 of the VSIX validated on all three operating systems.
+        value: ${{ jobs.package.outputs.vsix-sha256 }}
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Produce immutable validation bundle
+    runs-on: windows-2025
+    timeout-minutes: 30
+    outputs:
+      vsix-sha256: ${{ steps.manifest.outputs.vsix-sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+      - name: Restore and build exact candidate
+        shell: pwsh
+        run: |
+          if ((dotnet --version) -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
+          dotnet restore LithoSharp.slnx --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build LithoSharp.slnx --no-restore --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location extensions/lithosharp-vscode
+          try {
+            npm ci --ignore-scripts --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test:unit
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+      - name: Pack and validate one shipping VSIX
+        shell: pwsh
+        run: |
+          # Restore the exact packager without npm exec's temporary-install lock.
+          npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Create isolated seven-package RC feed
+        shell: pwsh
+        run: |
+          ./eng/Test-PackageDistribution.ps1 -Output artifacts/candidate-distribution -CandidatePackageVersion '1.1.0-rc.${{ github.run_id }}'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record immutable artifact handoff
+        id: manifest
+        shell: pwsh
+        working-directory: extensions/lithosharp-vscode
+        run: |
+          @'
+          import * as fs from 'node:fs/promises';
+          import * as path from 'node:path';
+          import { createHash } from 'node:crypto';
+          import JSZip from 'jszip';
+          const artifacts = path.resolve('../../artifacts');
+          const vsix = JSON.parse(await fs.readFile(path.join(artifacts, 'vsix-validation/vsix-contents.json'), 'utf8'));
+          const report = JSON.parse(await fs.readFile(path.join(artifacts, 'candidate-distribution/package-distribution.json'), 'utf8'));
+          const bytes = await fs.readFile(path.join(artifacts, 'vsix-validation', vsix.vsix));
+          const sha256 = createHash('sha256').update(bytes).digest('hex');
+          if (sha256 !== vsix.sha256 || report.packageCount !== 7 || !/^\d+\.\d+\.\d+-rc\./.test(report.version)) throw Error('Invalid validated producer receipts.');
+          const archive = await JSZip.loadAsync(bytes);
+          const payloadHashes = {};
+          for (const [name, entry] of Object.entries(archive.files)) {
+            if (entry.dir || !/^extension\/(out\/src\/|resources\/)/.test(name)) continue;
+            payloadHashes[name.slice('extension/'.length)] = createHash('sha256').update(await entry.async('nodebuffer')).digest('hex');
+          }
+          await fs.writeFile(path.join(artifacts, 'installed-extension-manifest.json'), JSON.stringify({
+            schemaVersion: '1.0', sourceCommit: process.env.GITHUB_SHA, vsix: { file: vsix.vsix, sha256 },
+            payloadHashes, packageVersion: report.version, packages: report.packages,
+          }, null, 2));
+          await fs.appendFile(process.env.GITHUB_OUTPUT, 'vsix-sha256=' + sha256 + '\n');
+          '@ | node --input-type=module -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload ordinary validation artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: installed-extension-candidate-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            artifacts/vsix-validation/*.vsix
+            artifacts/vsix-validation/vsix-contents.json
+            artifacts/candidate-distribution/feed/*.nupkg
+            artifacts/candidate-distribution/package-distribution.json
+            artifacts/installed-extension-manifest.json
+
+  installed:
+    name: Installed package (${{ matrix.os }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            node-platform: win32
+            arch: x64
+          - os: ubuntu-24.04
+            node-platform: linux
+            arch: x64
+          - os: macos-15
+            node-platform: darwin
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: installed-extension-candidate-${{ github.sha }}
+          path: artifacts/installed-bundle
+          digest-mismatch: error
+      - name: Compile tests and obtain pinned Extension Host
+        shell: pwsh
+        working-directory: extensions/lithosharp-vscode
+        run: |
+          node -e "if(process.platform !== '${{ matrix.node-platform }}' || process.arch !== '${{ matrix.arch }}') throw Error('Unexpected runner architecture'); console.log(process.platform + '/' + process.arch)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet --info
+          if ((dotnet --version) -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run compile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "const fs=require('fs'),path=require('path'); require('@vscode/test-electron').downloadAndUnzipVSCode({version:'1.139.1'}).then(host=>fs.writeFileSync(path.resolve('../../artifacts/vscode-executable.txt'),host)).catch(error=>{console.error(error);process.exitCode=1})"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate identical installed VSIX and package-only GoldenPath
+        shell: pwsh
+        working-directory: extensions/lithosharp-vscode
+        env:
+          EXPECTED_VSIX_SHA256: ${{ needs.package.outputs.vsix-sha256 }}
+          LITHOSHARP_EVIDENCE_DIR: ${{ github.workspace }}/artifacts/installed-host
+        run: |
+          $bundle = Join-Path $env:GITHUB_WORKSPACE 'artifacts/installed-bundle'
+          $manifestPath = Join-Path $bundle 'installed-extension-manifest.json'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.vsix.sha256 -cne $env:EXPECTED_VSIX_SHA256) { throw 'Producer job SHA does not match transferred artifact manifest.' }
+          $env:LITHOSHARP_VSCODE_EXE = Get-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts/vscode-executable.txt') -Raw
+          $arguments = @('tests/integration/run.mjs', '--installed-vsix', (Join-Path $bundle "vsix-validation/$($manifest.vsix.file)"),
+            '--sha256', $env:EXPECTED_VSIX_SHA256, '--artifact-manifest', $manifestPath,
+            '--rc-feed', (Join-Path $bundle 'candidate-distribution/feed'),
+            '--package-report', (Join-Path $bundle 'candidate-distribution/package-distribution.json'))
+          if ($IsLinux) {
+            # Ubuntu's standard runner image supplies Xvfb; do not install system tools.
+            $xvfb = (Get-Command xvfb-run -ErrorAction Stop).Source
+            $help = & $xvfb --help
+            if (!($help -join "`n").Contains('--auto-servernum')) { throw 'Xvfb does not advertise auto-servernum.' }
+            & $xvfb --auto-servernum node @arguments
+          } else { node @arguments }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve focused acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: installed-extension-evidence-${{ matrix.os }}-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            artifacts/installed-host/**/identity.json
+            artifacts/installed-host/**/test-result.json
+            artifacts/installed-host/**/package-provenance.json
+            artifacts/installed-host/**/site-provenance.json
+            artifacts/installed-host/**/mdx-restore-evidence.json
+            artifacts/installed-host/**/mdx-failure-evidence.json

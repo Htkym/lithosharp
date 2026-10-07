@@ -537,9 +537,12 @@ public sealed class SiteGeneratorAtomicOutputTests
             $".lithosharp-lock-{CreateLockIdentity(heldOutput)}.lock");
         var readyPath = Path.Combine(workspace.Root, "child-ready");
         var stopPath = Path.Combine(workspace.Root, "child-stop");
+        // Windows PowerShell uses .NET Framework and needs extended syntax for long fixture paths.
+        var childLockPath = @"\\?\" + lockPath;
         var script = $$"""
+            $ErrorActionPreference = 'Stop'
             $stream = [System.IO.FileStream]::new(
-                '{{lockPath.Replace("'", "''", StringComparison.Ordinal)}}',
+                '{{childLockPath.Replace("'", "''", StringComparison.Ordinal)}}',
                 [System.IO.FileMode]::OpenOrCreate,
                 [System.IO.FileAccess]::ReadWrite,
                 [System.IO.FileShare]::None)
@@ -803,6 +806,283 @@ public sealed class SiteGeneratorAtomicOutputTests
         await Assert.That(Directory.Exists(unregistered)).IsTrue();
         await Assert.That(await File.ReadAllTextAsync(lockPath))
             .DoesNotContain("S|");
+    }
+
+    [Test]
+    public async Task GenerateAsync_RestoresRegisteredBackupAfterInterruptedDirectorySwap()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(
+            output,
+            clean: true,
+            new SingleFileTemplate("index.html", "initial"));
+        var lockIdentity = CreateLockIdentity(output);
+        var backup = Path.Combine(
+            workspace.Root,
+            $".lithosharp-backup-{lockIdentity}-{Guid.NewGuid():N}");
+        await File.WriteAllTextAsync(Path.Combine(output, "assets"), "existing file");
+        Directory.Move(output, backup);
+        var lockPath = Path.Combine(
+            workspace.Root,
+            $".lithosharp-lock-{lockIdentity}.lock");
+        await File.WriteAllTextAsync(
+            lockPath,
+            $"B|{Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(output)))}"
+            + $"|{Convert.ToBase64String(Encoding.UTF8.GetBytes(backup))}\n");
+
+        // The next build fails while staging, after recovery has restored the entire prior tree.
+        await Assert.That(async () => await GenerateAsync(
+                output,
+                clean: false,
+                new SingleFileTemplate("assets/site.css", "new")))
+            .Throws<IOException>();
+
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "assets"))).IsEqualTo("existing file");
+        await Assert.That(Directory.Exists(backup)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(lockPath)).DoesNotContain("B|");
+        await AssertNoTransactionDirectoriesAsync(workspace.Root);
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, true)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    public async Task Lsr22_RegisteredStagingRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(output, true, new SingleFileTemplate("initial.txt", "initial"));
+        var identity = CreateLockIdentity(output);
+        var registered = Path.Combine(workspace.Root, $".lithosharp-staging-{identity}-{Guid.NewGuid():N}");
+        var unregistered = Path.Combine(workspace.Root, $".lithosharp-staging-{identity}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(registered);
+        Directory.CreateDirectory(unregistered);
+        await File.WriteAllTextAsync(Path.Combine(registered, "stale.txt"), "registered");
+        await File.WriteAllTextAsync(Path.Combine(unregistered, "keep.txt"), "unregistered");
+        var journal = Lsr22WriteJournal(workspace.Root, output, "S", registered, recordedExtended);
+        await Lsr22ObserveRecoveryAsync(
+            () => GenerateAsync(Lsr22Namespace(output, restartExtended), false, new SingleFileTemplate("current.txt", "current")),
+            workspace.Root, output, registered, journal, "staging", recordedExtended, restartExtended);
+        await Assert.That(Directory.Exists(registered)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(unregistered, "keep.txt"))).IsEqualTo("unregistered");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "current.txt"))).IsEqualTo("current");
+        await Assert.That(await File.ReadAllTextAsync(journal)).DoesNotContain("S|");
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, true)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    public async Task Lsr22_RegisteredBackupRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
+        await File.WriteAllTextAsync(Path.Combine(output, "assets"), "existing file");
+        var identity = CreateLockIdentity(output);
+        var backup = Path.Combine(workspace.Root, $".lithosharp-backup-{identity}-{Guid.NewGuid():N}");
+        Directory.Move(output, backup);
+        var journal = Lsr22WriteJournal(workspace.Root, output, "B", backup, recordedExtended);
+        // The restored tree blocks this staging write, exactly as the existing
+        // interrupted-swap test. Recovery must complete before this IOException.
+        await Assert.That(async () => await Lsr22ObserveRecoveryAsync(
+                () => GenerateAsync(Lsr22Namespace(output, restartExtended), false, new SingleFileTemplate("assets/site.css", "new")),
+                workspace.Root, output, backup, journal, "backup", recordedExtended, restartExtended))
+            .Throws<IOException>();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "assets"))).IsEqualTo("existing file");
+        await Assert.That(Directory.Exists(backup)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(journal)).DoesNotContain("B|");
+        await AssertNoTransactionDirectoriesAsync(workspace.Root);
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, true)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    public async Task Lsr22_PendingOwnershipRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(output, true, new SingleFileTemplate("initial.txt", "initial"));
+        var identity = CreateLockIdentity(output);
+        var state = GetOwnershipStatePath(workspace.Root);
+        using var parsed = JsonDocument.Parse(await File.ReadAllTextAsync(state));
+        var outputIdentity = parsed.RootElement.GetProperty("outputIdentity").GetString()!;
+        var pending = Path.Combine(workspace.Root, $".lithosharp-ownership-pending-{identity}-{outputIdentity}-{Guid.NewGuid():N}.json");
+        File.Copy(state, pending);
+        Lsr22RestrictAndCheckPendingOwner(pending);
+        var journal = Lsr22WriteJournal(workspace.Root, output, "O", pending, recordedExtended);
+        await Lsr22ObserveRecoveryAsync(
+            () => GenerateAsync(Lsr22Namespace(output, restartExtended), false, new SingleFileTemplate("current.txt", "current")),
+            workspace.Root, output, pending, journal, "ownership", recordedExtended, restartExtended);
+        await Assert.That(File.Exists(pending)).IsFalse();
+        await Assert.That(GetOwnershipStatePath(workspace.Root)).IsEqualTo(state);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "current.txt"))).IsEqualTo("current");
+        using var current = JsonDocument.Parse(await File.ReadAllTextAsync(state));
+        await Assert.That(current.RootElement.GetProperty("outputIdentity").GetString()).IsEqualTo(outputIdentity);
+        await Assert.That(await File.ReadAllTextAsync(journal)).DoesNotContain("O|");
+        await AssertNoTransactionDirectoriesAsync(workspace.Root);
+    }
+
+    [Test]
+    [Arguments("staging", false, false)]
+    [Arguments("staging", false, true)]
+    [Arguments("staging", true, false)]
+    [Arguments("staging", true, true)]
+    [Arguments("backup", false, false)]
+    [Arguments("backup", false, true)]
+    [Arguments("backup", true, false)]
+    [Arguments("backup", true, true)]
+    [Arguments("ownership", false, false)]
+    [Arguments("ownership", false, true)]
+    [Arguments("ownership", true, false)]
+    [Arguments("ownership", true, true)]
+    public async Task Lsr22_RecoveryRejectsWrongParentOrTamperedName(string kind, bool wrongParent, bool recordedExtended)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
+        var identity = CreateLockIdentity(output);
+        var state = GetOwnershipStatePath(workspace.Root);
+        using var parsed = JsonDocument.Parse(await File.ReadAllTextAsync(state));
+        var outputIdentity = parsed.RootElement.GetProperty("outputIdentity").GetString()!;
+        var parent = wrongParent ? Path.Combine(workspace.Root, "outside") : workspace.Root;
+        Directory.CreateDirectory(parent);
+        var name = kind == "ownership"
+            ? $".lithosharp-ownership-pending-{identity}-{outputIdentity}-{Guid.NewGuid():N}.json"
+            : $".lithosharp-{kind}-{identity}-{Guid.NewGuid():N}";
+        if (!wrongParent) name = "tampered-" + name;
+        var registered = Path.Combine(parent, name);
+        if (kind == "ownership") File.Copy(state, registered);
+        else if (kind == "backup") Directory.Move(output, registered);
+        else { Directory.CreateDirectory(registered); await File.WriteAllTextAsync(Path.Combine(registered, "keep.txt"), "untouched"); }
+        var journal = Lsr22WriteJournal(workspace.Root, output, kind == "staging" ? "S" : kind == "backup" ? "B" : "O", registered, recordedExtended);
+        var beforeJournal = await File.ReadAllBytesAsync(journal);
+        var beforeState = await File.ReadAllBytesAsync(state);
+        await Assert.That(async () => await Lsr22ObserveRecoveryAsync(
+                () => GenerateAsync(Lsr22Namespace(output, !recordedExtended), false, new SingleFileTemplate("current.txt", "current")),
+                workspace.Root, output, registered, journal, "reject-" + kind, recordedExtended, !recordedExtended))
+            .Throws<InvalidOperationException>();
+        await Assert.That(await File.ReadAllBytesAsync(journal)).IsEquivalentTo(beforeJournal);
+        await Assert.That(await File.ReadAllBytesAsync(state)).IsEquivalentTo(beforeState);
+        if (kind == "ownership") await Assert.That(await File.ReadAllBytesAsync(registered)).IsEquivalentTo(beforeState);
+        else await Assert.That(await File.ReadAllTextAsync(Path.Combine(registered, kind == "backup" ? "index.html" : "keep.txt"))).IsEqualTo(kind == "backup" ? "initial" : "untouched");
+        await Assert.That(File.Exists(Path.Combine(output, "current.txt"))).IsFalse();
+        if (kind != "backup") await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        else await Assert.That(Directory.Exists(output)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Lsr22_PendingRecoveryRejectsWrongOutputIdentity(bool recordedExtended)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
+        var identity = CreateLockIdentity(output);
+        var state = GetOwnershipStatePath(workspace.Root);
+        var original = await File.ReadAllTextAsync(state);
+        using var parsed = JsonDocument.Parse(original);
+        var outputIdentity = parsed.RootElement.GetProperty("outputIdentity").GetString()!;
+        var pending = Path.Combine(workspace.Root, $".lithosharp-ownership-pending-{identity}-{outputIdentity}-{Guid.NewGuid():N}.json");
+        var badIdentity = outputIdentity[0] == 'a' ? "b" + outputIdentity[1..] : "a" + outputIdentity[1..];
+        await File.WriteAllTextAsync(pending, original.Replace(outputIdentity, badIdentity, StringComparison.Ordinal));
+        Lsr22RestrictAndCheckPendingOwner(pending);
+        var journal = Lsr22WriteJournal(workspace.Root, output, "O", pending, recordedExtended);
+        var pendingBytes = await File.ReadAllBytesAsync(pending);
+        await Assert.That(async () => await Lsr22ObserveRecoveryAsync(
+                () => GenerateAsync(Lsr22Namespace(output, !recordedExtended), false, new SingleFileTemplate("current.txt", "current")),
+                workspace.Root, output, pending, journal, "reject-output-identity", recordedExtended, !recordedExtended))
+            .Throws<InvalidOperationException>();
+        await Assert.That(await File.ReadAllBytesAsync(pending)).IsEquivalentTo(pendingBytes);
+        await Assert.That(await File.ReadAllTextAsync(state)).IsEqualTo(original);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        await Assert.That(File.Exists(Path.Combine(output, "current.txt"))).IsFalse();
+    }
+
+    private static void Lsr22RestrictAndCheckPendingOwner(string path)
+    {
+        // Synthetic copied/written pending files do not inherit the protected
+        // ownership-state ACL. Use and verify the real transaction predicates
+        // before writing the journal or taking recovery evidence snapshots.
+        var transaction = typeof(SiteGenerator).GetNestedType(
+            "OutputTransaction", System.Reflection.BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("OutputTransaction fixture method was not found.");
+        foreach (var name in new[] { "RestrictTransactionPathToOwner", "EnsureTransactionPathIsOwnerRestricted" })
+        {
+            var method = transaction.GetMethod(
+                name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException($"Transaction fixture method '{name}' was not found.");
+            try
+            {
+                method.Invoke(null, new object[] { path, false });
+            }
+            catch (System.Reflection.TargetInvocationException error) when (error.InnerException is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();
+                throw;
+            }
+        }
+    }
+
+    private static string Lsr22Namespace(string path, bool extended)
+    {
+        var full = Path.GetFullPath(path);
+        if (!extended) return full;
+        return full.StartsWith(@"\\", StringComparison.Ordinal)
+            ? @"\\?\UNC\" + full[2..]
+            : @"\\?\" + full;
+    }
+
+    private static string Lsr22WriteJournal(string parent, string output, string operation, string registered, bool extended)
+    {
+        var journal = Path.Combine(parent, $".lithosharp-lock-{CreateLockIdentity(output)}.lock");
+        // Scope is already the canonical ordinary ownership identity. Only the
+        // recorded I/O path preserves the interrupted process's namespace.
+        File.WriteAllText(journal, operation + "|" + Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(output)))
+            + "|" + Convert.ToBase64String(Encoding.UTF8.GetBytes(Lsr22Namespace(registered, extended))) + "\n");
+        return journal;
+    }
+
+    private static async Task Lsr22ObserveRecoveryAsync(Func<Task> action, string root, string output, string registered, string journal, string kind, bool recordedExtended, bool restartExtended)
+    {
+        async Task Snapshot(string phase, Exception? failure)
+        {
+            async Task<object> Tree(string path)
+            {
+                if (File.Exists(path)) return new { exists = true, file = true, sha256 = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(path))) };
+                if (!Directory.Exists(path)) return new { exists = false };
+                var rows = new List<object>();
+                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+                    rows.Add(new { relative = Path.GetRelativePath(path, file), sha256 = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(file))) });
+                return new { exists = true, file = false, files = rows };
+            }
+            Console.WriteLine("LSR_RECOVERY " + JsonSerializer.Serialize(new
+            {
+                kind, phase, recordedExtended, restartExtended, error = failure?.GetType().FullName,
+                output = await Tree(output), registered = await Tree(registered), journal = await Tree(journal),
+                staging = FindTransactionDirectories(root, "staging").Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray(),
+                backup = FindTransactionDirectories(root, "backup").Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray()
+            }));
+        }
+        await Snapshot("before-recovery", null);
+        Exception? primary = null;
+        try { await action(); } catch (Exception exception) { primary = exception; }
+        try { await Snapshot("after-recovery-before-assertions", primary); }
+        catch (Exception secondary) { if (primary is not null) throw new AggregateException(primary, secondary); throw; }
+        if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
     }
 
     [Test]

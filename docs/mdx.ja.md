@@ -2,14 +2,14 @@
 
 `LithoSharp.Mdx` は .NET 10 向けの追加パッケージです。従来の Markdown
 サイトには Node.js や React は不要です。MDX のビルドには Node.js 24.13.0、
-MDX 3.1.1、React 19.2.4、esbuild 0.25.12 を使います。依存関係は worker の
+MDX 3.1.1、React 19.2.4、esbuild 0.28.2 を使います。依存関係は worker の
 `package-lock.json` で固定しています。公開先は静的 HTTP ホストだけで構いません。
 
 ## サイトを作る
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.0.0
-dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker

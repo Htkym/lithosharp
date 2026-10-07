@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
@@ -223,6 +224,7 @@ public sealed partial class SiteGenerator
         {
             throw new ArgumentNullException(nameof(options.ContentCollections));
         }
+        var timing = new BuildTimingRecorder(options.CollectTimings);
 
         if (options.Assets is null)
         {
@@ -233,22 +235,31 @@ public sealed partial class SiteGenerator
         var redirectDeclarations = options.Redirects.ToArray();
         if (redirectDeclarations.Any(redirect => redirect is null))
             throw new ArgumentException("Redirects must not contain null entries.", nameof(options.Redirects));
+        ValidateCacheNamespaceAdmission(outputDirectory, options);
         var outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory));
         var buildCacheRoot = Path.GetFullPath(options.BuildCacheDirectory
-            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, ".lithosharp"));
-        if (ContainsDirectory(outputRoot, buildCacheRoot) || ContainsDirectory(buildCacheRoot, outputRoot)
-            || options.PublicDirectory is { } publicInput && ContainsDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
+            ?? Path.Combine(Path.GetDirectoryName(outputRoot)!, DefaultBuildCacheDirectoryName));
+        ValidateCachePathAncestry(outputRoot, options);
+        if (ContainsCacheDirectory(outputRoot, buildCacheRoot) || ContainsCacheDirectory(buildCacheRoot, outputRoot)
+            || options.PublicDirectory is { } publicInput && ContainsCacheDirectory(Path.GetFullPath(publicInput), buildCacheRoot))
             throw new ArgumentException("The build cache must not overlap output or be inside public input.", nameof(options));
+        if (options.PublicDirectory is not null)
+        {
+            var prospectiveScope = OutputTransaction.CreateProspectiveOwnershipScope(
+                Path.GetDirectoryName(outputRoot)!, Path.GetFileName(outputRoot));
+            ValidateCachePartitionPublicInput(
+                Path.Combine(buildCacheRoot, OutputTransaction.CreateOutputIdentity(prospectiveScope)), options);
+        }
         foreach (var asset in options.Assets)
         {
             ArgumentNullException.ThrowIfNull(asset);
-            if (ContainsDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath))))
+            if (ContainsInputDirectory(outputRoot, Path.GetFullPath(Path.Combine(asset.InputRoot, asset.RelativeInputPath.Replace('/', Path.DirectorySeparatorChar)))))
                 throw new ArgumentException("Asset input files must be outside the output directory.", nameof(options));
         }
         if (options.Quality?.ExternalLinks is { } external)
         {
             var cachePath = Path.GetFullPath(external.CacheFilePath);
-            if (ContainsDirectory(outputRoot, cachePath))
+            if (ContainsInputDirectory(outputRoot, cachePath))
                 throw new ArgumentException("The external link cache must be outside the site output directory.", nameof(options.Quality));
         }
 
@@ -256,17 +267,17 @@ public sealed partial class SiteGenerator
         if (options.AssetCacheDirectory is { } assetCacheDirectory)
         {
             var cachePath = Path.GetFullPath(assetCacheDirectory);
-            if (ContainsDirectory(outputRoot, cachePath))
+            if (ContainsInputDirectory(outputRoot, cachePath))
                 throw new ArgumentException("The asset cache must be outside the output directory.", nameof(options));
         }
         if (options.PublicDirectory is { } publicDirectory)
         {
             var publicRoot = Path.GetFullPath(publicDirectory);
-            if (ContainsDirectory(publicRoot, outputRoot) || ContainsDirectory(outputRoot, publicRoot))
+            if (ContainsInputDirectory(publicRoot, outputRoot) || ContainsInputDirectory(outputRoot, publicRoot))
                 throw new ArgumentException("The public input directory and output directory must not overlap.", nameof(options));
-            if (options.AssetCacheDirectory is { } cache && ContainsDirectory(publicRoot, Path.GetFullPath(cache)))
+            if (options.AssetCacheDirectory is { } cache && ContainsInputDirectory(publicRoot, Path.GetFullPath(cache)))
                 throw new ArgumentException("The asset cache must be outside the public input directory.", nameof(options));
-            if (options.Quality?.ExternalLinks is { } links && ContainsDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
+            if (options.Quality?.ExternalLinks is { } links && ContainsInputDirectory(publicRoot, Path.GetFullPath(links.CacheFilePath)))
                 throw new ArgumentException("The external link cache must be outside the public input directory.", nameof(options));
         }
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
@@ -565,29 +576,36 @@ public sealed partial class SiteGenerator
             ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
             currentOwnedPaths = ownedArtifactPaths.Append(OutputManifestRelativePath).ToArray();
         }
+        timing.MarkPlan();
         var outputTransaction = await OutputTransaction.CreateAsync(
                 outputRoot,
                 preserveExisting: !clean,
-                cancellationToken)
+                cancellationToken,
+                deferExistingCopy: builtInTemplate && !clean && outputScope.Length == 0,
+                cacheOptions: options)
             .ConfigureAwait(false);
+        timing.MarkTransaction();
         var generatedInStaging = new List<string>();
+        var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
         var committed = false;
         try
         {
-            staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
-                    currentOwnedPaths,
-                    cancellationToken, InScope)
-                .ConfigureAwait(false);
-
             if (builtInTemplate)
             {
                 execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
                     assetRegistry, redirectOutputs.Select(redirect => redirect.File).ToArray(), outputTransaction,
-                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, cancellationToken).ConfigureAwait(false);
-                generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                    buildCacheRoot, clean, options.MaxDegreeOfParallelism, outputScope.Length > 0, timing, cancellationToken).ConfigureAwait(false);
+                if (!execution.PublishedOutputRetained)
+                {
+                    generatedInStaging.AddRange(ownedArtifactPaths.Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                    modifiedInStaging.AddRange(execution.Nodes
+                        .Where(static node => !node.CacheHit)
+                        .SelectMany(static node => node.OwnedArtifacts)
+                        .Select(path => SafeCombine(outputTransaction.StagingRoot, path)));
+                }
             }
             else
             {
@@ -697,7 +715,13 @@ public sealed partial class SiteGenerator
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
+
+                modifiedInStaging.AddRange(generatedInStaging);
             }
+
+            staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
+                    currentOwnedPaths, cancellationToken, InScope)
+                .ConfigureAwait(false);
 
             if (options.Quality is { } qualityOptions)
             {
@@ -705,8 +729,11 @@ public sealed partial class SiteGenerator
                     .Select(file => file.RelativePath).Concat(assetRegistry.Files
                         .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
                     .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
+                string ValidationRootFor(string path) => execution?.PublishedOutputRetained == true
+                    ? outputRoot
+                    : outputTransaction.StagingRoot;
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
-                    (path, token) => ReadStagedTextAsync(outputTransaction.StagingRoot, path, token), artifactRoutes,
+                    (path, token) => ReadStagedTextAsync(ValidationRootFor(path), path, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
                     qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
@@ -714,21 +741,27 @@ public sealed partial class SiteGenerator
                     throw new SiteQualityValidationException(qualityReport);
             }
 
-            await WriteOutputManifestAsync(
-                    outputTransaction.StagingRoot,
-                    outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
-                    generatedInStaging,
-                    cancellationToken,
-                    execution?.CacheKey)
-                .ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            await outputTransaction.PrepareOwnershipStateAsync(
-                    generatedInStaging,
-                    cancellationToken, outputScope.Length == 0 ? null : InScope)
-                .ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            await outputTransaction.CommitAsync(generatedInStaging).ConfigureAwait(false);
-            committed = true;
+            timing.MarkQuality();
+            if (execution?.PublishedOutputRetained != true)
+            {
+                await WriteOutputManifestAsync(
+                        outputTransaction.StagingRoot,
+                        outputScope.Length == 0 ? ownedArtifactPaths : outputTransaction.MergeRetainedPaths(ownedArtifactPaths, InScope),
+                        generatedInStaging,
+                        cancellationToken,
+                        execution?.CacheKey)
+                    .ConfigureAwait(false);
+                modifiedInStaging.Add(SafeCombine(outputTransaction.StagingRoot, OutputManifestRelativePath));
+                cancellationToken.ThrowIfCancellationRequested();
+                await outputTransaction.PrepareOwnershipStateAsync(
+                        generatedInStaging,
+                        cancellationToken, outputScope.Length == 0 ? null : InScope)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                await outputTransaction.CommitAsync(generatedInStaging, modifiedInStaging).ConfigureAwait(false);
+                committed = true;
+                timing.MarkCommit();
+            }
         }
         finally
         {
@@ -745,22 +778,25 @@ public sealed partial class SiteGenerator
             }
         }
 
-        var generated = generatedInStaging
-            .Where(path => !string.Equals(
-                Path.GetRelativePath(outputTransaction.StagingRoot, path)
-                    .Replace('\\', '/'),
-                OutputManifestRelativePath,
-                StringComparison.Ordinal))
-            .Select(path => SafeCombine(
-                outputRoot,
-                Path.GetRelativePath(outputTransaction.StagingRoot, path)))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var generated = execution?.PublishedOutputRetained == true
+            ? ownedArtifactPaths.Select(path => SafeCombine(outputRoot, path)).Order(StringComparer.Ordinal).ToArray()
+            : generatedInStaging
+                .Where(path => !string.Equals(
+                    Path.GetRelativePath(outputTransaction.StagingRoot, path)
+                        .Replace('\\', '/'),
+                    OutputManifestRelativePath,
+                    StringComparison.Ordinal))
+                .Select(path => SafeCombine(
+                    outputRoot,
+                    Path.GetRelativePath(outputTransaction.StagingRoot, path)))
+                .Order(StringComparer.Ordinal)
+                .ToArray();
         var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
                 options.PreviousBuildPlan,
@@ -1050,6 +1086,26 @@ public sealed partial class SiteGenerator
             candidate => CompilePostBodyUncached(configuration, candidate),
             post);
 
+    private string GetPostSearchText(RenderContext configuration, MarkdownPost post)
+    {
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (configuration.CompiledBodies.GetExisting(post) is { } compiled)
+            return compiled.PlainText;
+        // Search needs no layout HTML or TOC. The same verified parse record is used
+        // by page rendering; corrupt or missing records still take the normal compile path.
+        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody))?.PlainText
+            ?? CompilePostBody(configuration, post).PlainText;
+    }
+
+    private static CachedPostParse? ReadCachedPostParse(RenderContext configuration, MarkdownPost post, string sourceHash)
+    {
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent) return null;
+        return persistent.Cache.ReadPostParseAsync(persistent.CompilerFingerprint,
+            sourceHash, post.MarkdownBody.Length,
+            configuration.Cancellation).GetAwaiter().GetResult();
+    }
+
     private CompiledPostBody CompilePostBodyUncached(RenderContext configuration, MarkdownPost post)
     {
         var cancellation = configuration.Cancellation;
@@ -1062,8 +1118,7 @@ public sealed partial class SiteGenerator
             // (precedent: SetBodyProvider). Cache reads degrade to a miss and the
             // post is analyzed instead; cache writes are best-effort and never
             // fail the build.
-            var cached = persistent.Value.Cache.ReadPostParseAsync(
-                persistent.Value.CompilerFingerprint, sourceHash, post.MarkdownBody.Length, cancellation).GetAwaiter().GetResult();
+            var cached = ReadCachedPostParse(configuration, post, sourceHash);
             if (cached is not null)
             {
                 var cachedHeadings = cached.Headings.Select(heading => new DocumentHeading(
@@ -1111,7 +1166,7 @@ public sealed partial class SiteGenerator
                             asset.Url, asset.Span.Start, asset.Span.Length)).ToArray()),
                     cancellation).GetAwaiter().GetResult();
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
             {
                 // Best-effort write: the analyzed result below is still returned.
             }
@@ -1606,7 +1661,13 @@ public sealed partial class SiteGenerator
     {
         var compiled = CompilePostBody(configuration, post);
         var postBody = compiled.Html;
-        var currentIndex = Array.IndexOf(orderedPosts.ToArray(), post);
+        var currentIndex = -1;
+        for (var index = 0; index < orderedPosts.Count; index++)
+        {
+            if (!EqualityComparer<MarkdownPost>.Default.Equals(orderedPosts[index], post)) continue;
+            currentIndex = index;
+            break;
+        }
         var body = new StringBuilder();
         body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
         if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
@@ -2008,19 +2069,20 @@ public sealed partial class SiteGenerator
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
         {
-            var compiled = CompilePostBody(configuration, post);
+            var plainText = GetPostSearchText(configuration, post);
             documents.Add(new SearchDocument(
                 post.FrontMatter.Title,
                 post.FrontMatter.Summary,
                 post.FrontMatter.Tags,
                 configuration.Routes.PublicPath(configuration.Routes.Post(post)),
                 SiteFormatting.FormatDateTime(configuration.Site, post.FrontMatter.Date),
-                NormalizeForIndex(compiled.PlainText)));
+                NormalizeForIndex(plainText)));
         }
 
         foreach (var page in contentPages
                      .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)))
         {
+            var derivedContent = page.DerivedContent ?? string.Empty;
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
@@ -2029,10 +2091,10 @@ public sealed partial class SiteGenerator
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
                     : string.Empty,
-                NormalizeForIndex(StripTagsRegex.Replace(page.DerivedContent ?? string.Empty, " ")))
+                NormalizeForIndex(StripTagsRegex.Replace(derivedContent, " ")))
             {
                 Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
-                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(page.DerivedContent ?? string.Empty)
+                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(derivedContent)
             });
         }
 
@@ -2094,7 +2156,7 @@ public sealed partial class SiteGenerator
         IReadOnlyList<MarkdownPost> posts,
         IReadOnlyList<IntegratedContentPage> contentPages)
     {
-        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
+        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8, NewLineChars = "\n" };
         using var stringWriter = new Utf8StringWriter();
         using var writer = XmlWriter.Create(stringWriter, settings);
         writer.WriteStartDocument();
@@ -2147,7 +2209,7 @@ public sealed partial class SiteGenerator
         IReadOnlyList<IntegratedContentPage> contentPages,
         bool docs = false)
     {
-        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8 };
+        var settings = new XmlWriterSettings { Indent = true, Encoding = Encoding.UTF8, NewLineChars = "\n" };
         using var stringWriter = new Utf8StringWriter();
         using var writer = XmlWriter.Create(stringWriter, settings);
         writer.WriteStartDocument();
@@ -2222,12 +2284,27 @@ public sealed partial class SiteGenerator
     private static byte[] GetTextContentBytes(string contents) =>
         Encoding.UTF8.GetBytes(contents.ReplaceLineEndings("\n"));
 
+    // Input admission compares existing physical directory spellings as well as lexical paths.
+    // This catches case/Unicode aliases on insensitive volumes without conflating distinct inputs.
+    private static bool ContainsInputDirectory(string root, string path)
+    {
+        if (ContainsDirectory(root, path)) return true;
+        return ContainsDirectory(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
+    }
+
     private static bool ContainsDirectory(string root, string path)
     {
-        root = Path.TrimEndingDirectorySeparator(root);
+        root = Path.TrimEndingDirectorySeparator(NormalizePathComparisonIdentity(root));
+        path = NormalizePathComparisonIdentity(path);
         return string.Equals(root, Path.TrimEndingDirectorySeparator(path), PathComparison)
             || path.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, PathComparison);
     }
+
+    private static FileStream OpenVerifiedContainedOutputRead(
+        string outputRoot,
+        string path,
+        bool asynchronous = false) =>
+        BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, path, asynchronous);
 
     private static async Task WriteBinaryAssetAsync(string outputRoot, string relativePath, byte[] contents, List<string> generated, CancellationToken cancellationToken)
     {
@@ -2235,7 +2312,7 @@ public sealed partial class SiteGenerator
         CreateSafeDirectory(outputRoot, Path.GetDirectoryName(fullPath)!);
         if (File.Exists(fullPath))
         {
-            await using var existing = BuildInputFingerprint.OpenVerifiedContainedRead(outputRoot, fullPath, asynchronous: true);
+            await using var existing = OpenVerifiedContainedOutputRead(outputRoot, fullPath, asynchronous: true);
             if (existing.Length == contents.Length
                 && (await SHA256.HashDataAsync(existing, cancellationToken).ConfigureAwait(false))
                     .AsSpan().SequenceEqual(SHA256.HashData(contents)))
@@ -2475,7 +2552,7 @@ public sealed partial class SiteGenerator
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            bufferSize: 81920,
+            bufferSize: 1,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         EnsureOpenedFilePath(stream, path);
         var attributes = File.GetAttributes(stream.SafeFileHandle);
@@ -2627,9 +2704,20 @@ public sealed partial class SiteGenerator
 
     private static string SafeCombine(string root, string relativePath)
     {
+        relativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+        if (OperatingSystem.IsWindows()
+            && root.StartsWith(@"\\?\", StringComparison.Ordinal)
+            && (Path.IsPathRooted(relativePath)
+                || relativePath.Split(Path.DirectorySeparatorChar).Any(static segment => segment is "." or "..")))
+        {
+            throw new InvalidOperationException($"Output path '{relativePath}' escapes output directory.");
+        }
+
         var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
-        var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(normalizedRoot, PathComparison))
+        var normalizedRoot = root.AsSpan().TrimEnd([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        if (!fullPath.AsSpan().StartsWith(normalizedRoot, PathComparison)
+            || fullPath.Length <= normalizedRoot.Length
+            || fullPath[normalizedRoot.Length] != Path.DirectorySeparatorChar)
         {
             throw new InvalidOperationException($"Output path '{relativePath}' escapes output directory.");
         }
@@ -2644,6 +2732,15 @@ public sealed partial class SiteGenerator
     {
         EnsureNotNameSurrogateReparsePoint(root);
         var relativePath = Path.GetRelativePath(root, directory);
+        if (OperatingSystem.IsWindows()
+            && root.StartsWith(@"\\?\", StringComparison.Ordinal)
+            && relativePath == ".")
+        {
+            Directory.CreateDirectory(root);
+            EnsureNotNameSurrogateReparsePoint(root);
+            return;
+        }
+
         var current = root;
         foreach (var segment in relativePath.Split(
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
@@ -2741,16 +2838,60 @@ public sealed partial class SiteGenerator
 
     private static void EnsureOpenedFilePath(FileStream stream, string expectedPath)
     {
-        if (!string.Equals(
-                Path.GetFullPath(stream.Name),
-                Path.GetFullPath(expectedPath),
-                PathComparison))
+        var fullPath = Path.GetFullPath(expectedPath);
+        EnsureNotNameSurrogateReparsePoint(fullPath);
+        var comparisonPath = OperatingSystem.IsWindows()
+            ? NormalizeWindowsCacheNamespacePath(fullPath)
+            : fullPath;
+        BuildInputFingerprint.VerifyOpenedContainedFile(
+            Path.GetDirectoryName(comparisonPath)!, comparisonPath, stream.SafeFileHandle);
+    }
+
+    /// <summary>Opt-in phase counters; no allocations when disabled.</summary>
+    internal sealed class BuildTimingRecorder(bool enabled)
+    {
+        private readonly long start = Stopwatch.GetTimestamp();
+        private long last = Stopwatch.GetTimestamp();
+        private long plan, transaction, cacheLoad, execution, verificationTimestampTicks, quality, commit;
+        private int verifiedArtifacts;
+
+        private void Advance(ref long field)
         {
-            throw new InvalidOperationException(
-                $"Opened file path '{stream.Name}' does not match expected path '{expectedPath}'.");
+            if (!enabled) return;
+            var now = Stopwatch.GetTimestamp();
+            field += (long)Stopwatch.GetElapsedTime(last, now).TotalMilliseconds;
+            last = now;
         }
 
-        EnsureNotNameSurrogateReparsePoint(expectedPath);
+        internal void MarkPlan() => Advance(ref plan);
+
+        internal void MarkTransaction() => Advance(ref transaction);
+
+        internal void MarkCacheLoad() => Advance(ref cacheLoad);
+
+        internal void MarkExecution() => Advance(ref execution);
+
+        internal void MarkQuality() => Advance(ref quality);
+
+        internal void MarkCommit() => Advance(ref commit);
+
+        internal void AddVerificationTimestampTicks(long timestampTicks)
+        {
+            if (enabled) Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
+        }
+
+        internal void CountVerifiedArtifact()
+        {
+            if (enabled) Interlocked.Increment(ref verifiedArtifacts);
+        }
+
+        internal long VerificationTimestampTicks => Interlocked.Read(ref verificationTimestampTicks);
+
+        internal SiteBuildTimings? ToTimings() => enabled
+            ? new SiteBuildTimings(plan, transaction, cacheLoad, execution,
+                (long)Stopwatch.GetElapsedTime(0, VerificationTimestampTicks).TotalMilliseconds, quality, commit,
+                (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds, Volatile.Read(ref verifiedArtifacts))
+            : null;
     }
 
     private sealed class OutputTransaction
@@ -2770,6 +2911,10 @@ public sealed partial class SiteGenerator
         private readonly string _ownershipStatePath;
         private readonly string _pendingOwnershipStatePath;
         private readonly OutputLock _outputLock;
+        private readonly bool _preserveExisting;
+        private volatile bool _existingOutputCopied;
+        private readonly object _existingOutputCopyGate = new();
+        private Task? _existingOutputCopyTask;
         private readonly List<FileSystemMetadata> _copiedDirectoryMetadata = [];
         private readonly List<FileSystemMetadata> _copiedFileMetadata = [];
         private readonly List<SiteDiagnostic> _diagnostics = [];
@@ -2784,7 +2929,8 @@ public sealed partial class SiteGenerator
             string outputIdentity,
             string ownershipStatePath,
             string pendingOwnershipStatePath,
-            OutputLock outputLock)
+            OutputLock outputLock,
+            bool preserveExisting)
         {
             _outputRoot = outputRoot;
             _parentRoot = parentRoot;
@@ -2794,9 +2940,13 @@ public sealed partial class SiteGenerator
             _ownershipStatePath = ownershipStatePath;
             _pendingOwnershipStatePath = pendingOwnershipStatePath;
             _outputLock = outputLock;
+            _preserveExisting = preserveExisting;
         }
 
         public string StagingRoot { get; }
+
+        /// <summary>The published output tree that a bypassing build reads and verifies in place.</summary>
+        internal string PublishedRoot => _outputRoot;
 
         internal string OutputIdentity => _outputIdentity;
 
@@ -2808,9 +2958,10 @@ public sealed partial class SiteGenerator
             if (owned is null) return null;
             try
             {
-                var path = SafeCombine(StagingRoot, OutputManifestRelativePath);
+                var manifestRoot = _existingOutputCopied ? StagingRoot : _outputRoot;
+                var path = SafeCombine(manifestRoot, OutputManifestRelativePath);
                 EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
-                await using var file = BuildInputFingerprint.OpenVerifiedContainedRead(StagingRoot, path, asynchronous: true);
+                await using var file = OpenVerifiedContainedOutputRead(manifestRoot, path, asynchronous: true);
                 using var buffer = new MemoryStream();
                 await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bytes = buffer.ToArray();
@@ -2832,14 +2983,77 @@ public sealed partial class SiteGenerator
             }
         }
 
-        public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
+        /// <summary>
+        /// Copies the published output into staging. Deferred so that a full no-op build can verify
+        /// the published tree in place instead of copying it. Idempotent.
+        /// </summary>
+        internal Task MaterializeExistingOutputCopyAsync(CancellationToken cancellationToken)
+        {
+            lock (_existingOutputCopyGate)
+            {
+                return _existingOutputCopyTask ??= MaterializeExistingOutputCopyCoreAsync(cancellationToken);
+            }
+        }
 
+        private async Task MaterializeExistingOutputCopyCoreAsync(CancellationToken cancellationToken)
+        {
+            _existingOutputCopied = true;
+            if (_preserveExisting && GetAttributes(_outputRoot) is not null)
+            {
+                await CopyDirectoryAsync(_outputRoot, StagingRoot, cancellationToken, includeRootMetadata: true)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// True when the published output already contains every owned artifact of the current plan,
+        /// so a build that reuses every cache entry can verify it in place without staging a copy.
+        /// </summary>
+        internal bool CanBypassPublishedOutput(IEnumerable<string> currentOwnedPaths)
+        {
+            if (_previousOwnershipState is null) return false;
+            var current = currentOwnedPaths.Select(ArtifactPathIdentity).ToHashSet(StringComparer.Ordinal);
+            return _previousOwnershipState.Artifacts.All(artifact => current.Contains(ArtifactPathIdentity(artifact.Path)));
+        }
+
+        public IReadOnlyList<SiteDiagnostic> Diagnostics => _diagnostics;
         public bool RetainedRecoveryState => _diagnostics.Count != 0;
+
+        /// <summary>Runs a cache operation under the same per-output lock as generation.</summary>
+        internal static async Task<T> WithOutputLockAsync<T>(string outputRoot, Func<T> operation)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
+            ArgumentNullException.ThrowIfNull(operation);
+            outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
+            var parentRoot = Path.GetDirectoryName(outputRoot);
+            var outputName = Path.GetFileName(outputRoot);
+            if (parentRoot is null || string.IsNullOrEmpty(outputName))
+            {
+                throw new InvalidOperationException("The file system root cannot be used as the output directory.");
+            }
+
+            if (!Directory.Exists(parentRoot))
+            {
+                throw new DirectoryNotFoundException($"The output parent directory '{parentRoot}' does not exist.");
+            }
+
+            CreateSafeAbsoluteDirectory(parentRoot);
+            var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
+            var lockIdentity = CreateLockIdentity(outputRoot);
+            await using var outputLock = await OutputLock.AcquireAsync(
+                Path.Combine(parentRoot, $".lithosharp-lock-{lockIdentity}.lock"),
+                lockIdentity,
+                ownershipScope,
+                CancellationToken.None).ConfigureAwait(false);
+            return operation();
+        }
 
         public static async Task<OutputTransaction> CreateAsync(
             string outputRoot,
             bool preserveExisting,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool deferExistingCopy = false,
+            SiteGenerationOptions? cacheOptions = null)
         {
             outputRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputRoot));
             var parentRoot = Path.GetDirectoryName(outputRoot);
@@ -2849,10 +3063,17 @@ public sealed partial class SiteGenerator
                 throw new InvalidOperationException("The file system root cannot be used as the output directory.");
             }
 
+            if (cacheOptions is not null) ValidateCachePathAncestry(outputRoot, cacheOptions);
             CreateSafeAbsoluteDirectory(parentRoot);
             var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
             var lockIdentity = CreateLockIdentity(outputRoot);
             var outputIdentity = CreateOutputIdentity(ownershipScope);
+            if (cacheOptions?.PublicDirectory is not null)
+            {
+                var cacheRoot = Path.GetFullPath(cacheOptions.BuildCacheDirectory
+                    ?? Path.Combine(parentRoot, DefaultBuildCacheDirectoryName));
+                ValidateCachePartitionPublicInput(Path.Combine(cacheRoot, outputIdentity), cacheOptions);
+            }
             var outputLock = await OutputLock.AcquireAsync(
                     Path.Combine(
                         parentRoot,
@@ -2905,7 +3126,8 @@ public sealed partial class SiteGenerator
                 outputIdentity,
                 ownershipStatePath,
                 pendingOwnershipStatePath,
-                outputLock);
+                outputLock,
+                preserveExisting);
             var initialized = false;
             try
             {
@@ -2932,14 +3154,9 @@ public sealed partial class SiteGenerator
                 await outputLock.RegisterStagingAsync(stagingRoot).ConfigureAwait(false);
                 CreateTransactionDirectory(stagingRoot);
                 EnsureNotNameSurrogateReparsePoint(stagingRoot);
-                if (preserveExisting && outputAttributes is not null)
+                if (!deferExistingCopy)
                 {
-                    await transaction.CopyDirectoryAsync(
-                            outputRoot,
-                            stagingRoot,
-                            cancellationToken,
-                            includeRootMetadata: true)
-                        .ConfigureAwait(false);
+                    await transaction.MaterializeExistingOutputCopyAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 initialized = true;
@@ -3073,7 +3290,9 @@ public sealed partial class SiteGenerator
             }
         }
 
-        public async Task CommitAsync(IReadOnlyCollection<string> generatedFiles)
+        public async Task CommitAsync(
+            IReadOnlyCollection<string> generatedFiles,
+            IReadOnlyCollection<string>? modifiedFiles = null)
         {
             if (!_pendingOwnershipStateRegistered
                 || GetAttributes(_pendingOwnershipStatePath) is null)
@@ -3083,8 +3302,9 @@ public sealed partial class SiteGenerator
             }
 
             EnsureTreeContainsNoNameSurrogateReparsePoints(StagingRoot);
-            ApplyCopiedMetadata(generatedFiles);
+            ApplyCopiedMetadata(modifiedFiles ?? generatedFiles);
             EnsureNotNameSurrogateReparsePoint(StagingRoot);
+
             var outputAttributes = GetAttributes(_outputRoot);
             if (outputAttributes is null)
             {
@@ -3687,16 +3907,16 @@ public sealed partial class SiteGenerator
             }
         }
 
-        private void ApplyCopiedMetadata(IReadOnlyCollection<string> generatedFiles)
+        private void ApplyCopiedMetadata(IReadOnlyCollection<string> modifiedFiles)
         {
-            var generatedPaths = generatedFiles.ToHashSet(
+            var modifiedPaths = modifiedFiles.ToHashSet(
                 OperatingSystem.IsWindows()
                     ? StringComparer.OrdinalIgnoreCase
                     : StringComparer.Ordinal);
             foreach (var metadata in _copiedFileMetadata)
             {
                 metadata.Apply(
-                    preserveTimestamps: !generatedPaths.Contains(metadata.DestinationPath));
+                    preserveTimestamps: !modifiedPaths.Contains(metadata.DestinationPath));
             }
 
             for (var index = _copiedDirectoryMetadata.Count - 1; index >= 0; index--)
@@ -3949,6 +4169,7 @@ public sealed partial class SiteGenerator
 
         private static string CreateLockIdentity(string outputRoot)
         {
+            if (OperatingSystem.IsWindows()) outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
             var normalizedPath = outputRoot
                 .Normalize(NormalizationForm.FormC)
                 .ToUpperInvariant();
@@ -3957,7 +4178,19 @@ public sealed partial class SiteGenerator
                 .ToLowerInvariant();
         }
 
-        private static string CreateOwnershipScope(
+        // Admission must precede public input reads and extension code. A future
+        // parent is resolved read-only through its closest existing ancestor.
+        internal static string CreateProspectiveOwnershipScope(string parentRoot, string outputName)
+        {
+            if (Directory.Exists(parentRoot)) return CreateOwnershipScope(parentRoot, outputName);
+            var canonicalParent = CanonicalizeCacheBoundaryPath(parentRoot);
+            var prospectiveName = OperatingSystem.IsMacOS()
+                ? outputName.Normalize(NormalizationForm.FormD)
+                : outputName;
+            return NormalizeOutputOwnershipIdentity(Path.Combine(canonicalParent, prospectiveName));
+        }
+
+        internal static string CreateOwnershipScope(
             string parentRoot,
             string outputName)
         {
@@ -3968,7 +4201,7 @@ public sealed partial class SiteGenerator
                 string.Equals(Path.GetFileName(entry), outputName, StringComparison.Ordinal));
             if (exact is not null)
             {
-                return Path.TrimEndingDirectorySeparator(Path.GetFullPath(exact));
+                return NormalizeOutputOwnershipIdentity(Path.TrimEndingDirectorySeparator(Path.GetFullPath(exact)));
             }
 
             if (Directory.Exists(requestedOutput))
@@ -3985,15 +4218,20 @@ public sealed partial class SiteGenerator
                         $"Output path '{requestedOutput}' has an ambiguous physical identity.");
                 }
 
-                return Path.TrimEndingDirectorySeparator(
-                    Path.GetFullPath(aliases[0]));
+                return NormalizeOutputOwnershipIdentity(Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(aliases[0])));
             }
 
             var prospectiveName = OperatingSystem.IsMacOS()
                 ? outputName.Normalize(NormalizationForm.FormD)
                 : outputName;
-            return Path.Combine(canonicalParent, prospectiveName);
+            return NormalizeOutputOwnershipIdentity(Path.Combine(canonicalParent, prospectiveName));
         }
+
+        // Identity-only normalization: all parent enumeration and output I/O
+        // above continue to use their original namespace spelling.
+        private static string NormalizeOutputOwnershipIdentity(string identity)
+            => OperatingSystem.IsWindows() ? NormalizeWindowsCacheNamespacePath(identity) : identity;
 
         private static string ResolveExistingDirectoryPath(string path)
         {
@@ -4056,7 +4294,7 @@ public sealed partial class SiteGenerator
             return string.Equals(left, right, StringComparison.Ordinal);
         }
 
-        private static string CreateOutputIdentity(string canonicalOutputRoot) =>
+        internal static string CreateOutputIdentity(string canonicalOutputRoot) =>
             Convert.ToHexStringLower(
                 SHA256.HashData(Encoding.UTF8.GetBytes(canonicalOutputRoot)));
 
@@ -4087,8 +4325,8 @@ public sealed partial class SiteGenerator
                     $".lithosharp-ownership-{lockIdentity}-{outputIdentity}.json",
                     StringComparison.Ordinal);
             if (!string.Equals(
-                    Path.GetDirectoryName(fullPath),
-                    parentRoot,
+                    NormalizePathComparisonIdentity(Path.GetDirectoryName(fullPath)!),
+                    NormalizePathComparisonIdentity(parentRoot),
                     PathComparison)
                 || !validName)
             {
@@ -4126,8 +4364,8 @@ public sealed partial class SiteGenerator
             var expectedPrefix =
                 $".lithosharp-{kind}-{lockIdentity}-";
             if (!string.Equals(
-                    Path.GetDirectoryName(fullPath),
-                    parentRoot,
+                    NormalizePathComparisonIdentity(Path.GetDirectoryName(fullPath)!),
+                    NormalizePathComparisonIdentity(parentRoot),
                     PathComparison)
                 || !Path.GetFileName(fullPath).StartsWith(
                     expectedPrefix,
@@ -4161,6 +4399,16 @@ public sealed partial class SiteGenerator
         private static async Task MoveDirectoryWithRetriesAsync(            string source,
             string destination)
         {
+            // Directory.Move compares roots before reaching Win32. Equivalent
+            // ordinary and extended roots must use one spelling for this move.
+            if (OperatingSystem.IsWindows()
+                && source.StartsWith(@"\\?\", StringComparison.Ordinal)
+                    != destination.StartsWith(@"\\?\", StringComparison.Ordinal))
+            {
+                source = NormalizeWindowsCacheNamespacePath(source);
+                destination = NormalizeWindowsCacheNamespacePath(destination);
+            }
+
             for (var attempt = 0; ; attempt++)
             {
                 try
@@ -4190,6 +4438,33 @@ public sealed partial class SiteGenerator
                 try
                 {
                     Directory.Delete(path, recursive: true);
+                    return;
+                }
+                catch (IOException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+                catch (UnauthorizedAccessException) when (
+                    OperatingSystem.IsWindows()
+                    && attempt < WindowsFileLockRetryCount)
+                {
+                }
+
+                await Task.Delay(WindowsFileLockRetryDelay).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task MoveFileWithRetriesAsync(
+            string source,
+            string destination,
+            bool overwrite)
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    File.Move(source, destination, overwrite);
                     return;
                 }
                 catch (IOException) when (

@@ -1,0 +1,20 @@
+FROM node:24.13.0-bookworm-slim@sha256:46feb5752989c05b8606e6323fbbc3db667d14ade1c24f5d0d44d9ca9909d607 AS node
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:28e7a5db4f5d40cc805acd939a065668ba2e17d697a09153054dce98db240d0e
+
+COPY --from=node /usr/local/bin/ /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules/ /usr/local/lib/node_modules/
+
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1 \
+    COREPACK_HOME=/opt/corepack \
+    YARN_CACHE_FOLDER=/work/cache/yarn \
+    npm_config_cache=/work/cache/npm \
+    npm_config_userconfig=/dev/null
+
+WORKDIR /work
+
+RUN test "$(dotnet --version)" = "10.0.401" \
+    && test "$(node --version)" = "v24.13.0" \
+    && corepack --version \
+    && corepack prepare yarn@4.9.2 --activate \
+    && corepack prepare yarn@1.22.22 --activate

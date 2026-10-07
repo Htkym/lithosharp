@@ -1,0 +1,98 @@
+name: publish-extension
+
+# An extension tag requests publication of the exact VSIX certified below.
+# Credentials and required marketplace reviewers must already be configured.
+# Branch dispatches default to validation only and cannot publish.
+on:
+  push:
+    tags:
+      - 'extension/lithosharp-vscode/*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish from the matching extension tag after marketplace approval; false validates only.'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: marketplace-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check release tag and configured approval gate
+        id: gate
+        shell: pwsh
+        env:
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $null }
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $tag
+          $publish = $env:GITHUB_EVENT_NAME -eq 'push' -or $env:INPUT_PUBLISH -eq 'true'
+          if ($publish) {
+            if (!$tag) { throw 'Marketplace publication requires an extension tag, not a branch dispatch.' }
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'The tagged commit must already be on main.' }
+            # An environment name alone would auto-create an unprotected environment.
+            $policy = gh api "repos/$env:GITHUB_REPOSITORY/environments/marketplace"
+            if ($LASTEXITCODE -ne 0) { throw 'Configure the marketplace environment with required reviewers before releasing.' }
+            $policy | Set-Content -LiteralPath marketplace-policy.json -Encoding utf8
+            ./eng/Test-ExtensionPublish.ps1 -Check Environment -EnvironmentFile marketplace-policy.json
+          }
+          "publish=$($publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+  validate:
+    needs: preflight
+    uses: ./.github/workflows/installed-extension.yml
+
+  publish:
+    needs: [preflight, validate]
+    if: needs.preflight.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    environment: marketplace
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: installed-extension-candidate-${{ github.sha }}
+          path: artifacts/installed-bundle
+          digest-mismatch: error
+      - name: Verify certified artifact before publication
+        id: artifact
+        shell: pwsh
+        env:
+          EXPECTED_VSIX_SHA256: ${{ needs.validate.outputs.vsix-sha256 }}
+        run: |
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:GITHUB_REF_NAME
+          $vsix = ./eng/Test-ExtensionPublish.ps1 -Check Artifact -Bundle artifacts/installed-bundle -ExpectedSHA256 $env:EXPECTED_VSIX_SHA256 -SourceCommit $env:GITHUB_SHA
+          "vsix=$vsix" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.13.0
+      - name: Publish the certified VSIX
+        shell: pwsh
+        env:
+          VSIX_PATH: ${{ steps.artifact.outputs.vsix }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) { throw 'VSCE_PAT is not configured; no publication attempted.' }
+          npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath $env:VSIX_PATH
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

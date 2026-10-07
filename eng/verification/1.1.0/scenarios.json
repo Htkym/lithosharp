@@ -1,0 +1,337 @@
+{
+  "schemaVersion": "1.0",
+  "planVersion": "1.1.0",
+  "taskId": "V110-01",
+  "generatedAt": "2026-09-23",
+  "baselineCommit": "324842d64ce8505957a1e84b227db6177cdd64bb",
+  "notes": [
+    "Each scenario fixes the expected artifacts, invalidations, parse/render/bundle targets, diagnostics and previous-output retention before any optimization.",
+    "coverage=existing means an existing test already asserts the expectation; partial means part of the expectation is unasserted; gap means no assertion exists yet.",
+    "A gap names the task that must add the assertion. Scenarios are not deleted or renamed without recording the old and new id.",
+    "Numerical targets stay in the plan (§5); this file only fixes the semantics that a measurement or counter must preserve."
+  ],
+  "scenarios": [
+    {
+      "id": "no-op-rebuild",
+      "changeKind": "none",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "Every published artifact keeps its byte hash; no new or removed files.",
+        "invalidations": "none",
+        "parseRenderBundleTargets": "0 documents parsed, 0 pages rendered, 0 entries bundled",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "IncrementalBuildTests.NoOpBuild_ReusesCacheWithoutCallingTypedRenderer",
+        "DocumentIncrementalTests.NoOpBuild_ReusesCacheWithoutReparsing"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "body-edit",
+      "changeKind": "body",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "Changed page HTML plus dependent surfaces (search index, feed, sitemap when the body contributes) change; unrelated pages keep their hashes.",
+        "invalidations": ["changed document parse", "changed page render", "search records for that document"],
+        "parseRenderBundleTargets": "1 document parsed, 1 page rendered",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.BodyOnlyEdit_InvalidatesPageAndSearchButReusesOtherParses",
+        "IncrementalBuildTests.SourceChange_RegeneratesChangedPageAndDependentIndex_WithCleanEquivalentBytes"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "heading-edit",
+      "changeKind": "heading",
+      "fixtures": ["docs-template"],
+      "expected": {
+        "artifacts": "TOC/navigation for the page and dependent documents change; body-only pages stay.",
+        "invalidations": ["changed document parse", "navigation snapshot", "TOC", "dependent pages"],
+        "parseRenderBundleTargets": "1 document parsed, navigation consumers re-rendered",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.MarkdownNavigationChange_InvalidatesDependentPages"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "front-matter-title",
+      "changeKind": "front-matter",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "Title surfaces change (page title, feed title, navigation label) while the body parse stays reusable.",
+        "invalidations": ["front matter binding", "title surfaces"],
+        "parseRenderBundleTargets": "0 body reparses",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": ["DocumentIncrementalTests.TitleOnlyEdit_ReusesParse"],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "front-matter-slug",
+      "changeKind": "front-matter",
+      "fixtures": ["docs-template", "typed-collections"],
+      "expected": {
+        "artifacts": "Old artifact is removed and the new route artifact is written; inbound links and navigation entries update.",
+        "invalidations": ["route table", "navigation", "old artifact ownership entry", "new artifact"],
+        "parseRenderBundleTargets": "1 page rendered under a new route",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "the old artifact must not survive as an unowned file"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.AddDeleteRename_UpdatesArtifacts",
+        "IncrementalBuildTests.RouteRename_RemovesOldArtifactAndPreservesUserFile"
+      ],
+      "coverage": "partial",
+      "gapTask": "V110-05",
+      "gapDetail": "No test edits only the slug front matter key and asserts the invalidation set."
+    },
+    {
+      "id": "add-delete-rename",
+      "changeKind": "file-lifecycle",
+      "fixtures": ["docs-template", "typed-collections"],
+      "expected": {
+        "artifacts": "Added page appears; deleted page artifact and ownership entry disappear; renamed page keeps neither the old artifact nor a stale cache entry.",
+        "invalidations": ["route table", "navigation", "search index", "derived surfaces"],
+        "parseRenderBundleTargets": "only the added/renamed documents are parsed and rendered",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "unrelated user files survive"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.AddDeleteRename_UpdatesArtifacts",
+        "IncrementalBuildTests.RouteRename_RemovesOldArtifactAndPreservesUserFile",
+        "DocumentWorkspaceTests.AddDeleteRenameCycleConverges"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "shared-asset",
+      "changeKind": "asset",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "Asset references keep pointing at the same paths; page HTML changes only where the asset fingerprint is embedded.",
+        "invalidations": ["asset fingerprint consumers only"],
+        "parseRenderBundleTargets": "0 document reparses",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "removed assets leave no orphan artifact"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.SharedAssetChange_KeepsPages",
+        "IncrementalBuildTests.SocialImageSourceAddedThenRemoved_UpdatesOutputWithoutLeavingArtifacts"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "code-include",
+      "changeKind": "include",
+      "fixtures": ["docs-template"],
+      "expected": {
+        "artifacts": "Including page changes; other pages that include a different region stay.",
+        "invalidations": ["including document fingerprint", "including page render"],
+        "parseRenderBundleTargets": "1 including page re-rendered",
+        "diagnostics": "missing or unterminated regions keep their explicit diagnostic and location",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "MarkdownInclusionTests.PostReader_ResolvesInclusions",
+        "MarkdownInclusionTests.TypedLoader_FoldsTargetsIntoFingerprint",
+        "DocumentIncrementalTests.IncludeTargetChange_InvalidatesDependentPage"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "layout-change",
+      "changeKind": "layout",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "All pages using the layout change; unrelated layouts stay.",
+        "invalidations": ["layout fingerprint consumers"],
+        "parseRenderBundleTargets": "0 document reparses, affected pages re-rendered",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.LayoutChange_ReRendersWithoutReparsing",
+        "GeneratedContentPageTests.GeneratePages_InvalidatesForMembershipContentRouteLayoutAndTransformations"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "route-change",
+      "changeKind": "route",
+      "fixtures": ["docs-template", "typed-collections", "docusaurus-corpus"],
+      "expected": {
+        "artifacts": "Route table, navigation, public URLs and sitemap update consistently; collisions fail before output mutation.",
+        "invalidations": ["route table", "navigation", "sitemap", "social image paths when they embed the route"],
+        "parseRenderBundleTargets": "only documents whose public route changed",
+        "diagnostics": "collision and invalid route diagnostics keep their ids and refuse to publish",
+        "previousOutputRetention": "the previous output tree stays intact when preflight fails"
+      },
+      "coveringTests": [
+        "SiteGeneratorRouteIntegrationTests.GenerateAsync_RouteCollisionsFailBeforeOutputMutation",
+        "IncrementalBuildTests.InvalidRoute_FailsPreflightWithoutCallingRenderer",
+        "ContentCollectionGenerationTests.CollectionRouteCollision_FailsBeforeOutputMutation"
+      ],
+      "coverage": "partial",
+      "gapTask": "V110-05",
+      "gapDetail": "The invalidation set for a route-only change is not asserted with counters."
+    },
+    {
+      "id": "locale-version",
+      "changeKind": "version-locale",
+      "fixtures": ["version-locale", "docs-template"],
+      "expected": {
+        "artifacts": "Version switcher and variant navigation update; other versions keep their content.",
+        "invalidations": ["variant navigation", "switcher surfaces"],
+        "parseRenderBundleTargets": "only the edited variant document",
+        "diagnostics": "missing variants stay explicit rather than silently reused",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.DocsVersionAdded_UpdatesVersionSwitcherKeepingContent",
+        "DocumentWorkspaceTests.VersionLocaleAndRouteSwitchingDoesNotMix",
+        "DocumentNavigationTests.MissingVariantsAreExplicit"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "settings-change",
+      "changeKind": "settings",
+      "fixtures": ["docs-template", "blog-template"],
+      "expected": {
+        "artifacts": "Only artifacts whose inputs changed are regenerated; a settings change invalidates the affected plan or renderer fingerprint.",
+        "invalidations": ["plan/fingerprint consumers"],
+        "parseRenderBundleTargets": "depends on the setting; must be explained by the fingerprint, not by mtime",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "IncrementalBuildTests.TrailingOutputSeparator_UsesSiblingDefaultCache",
+        "IncrementalBuildTests.RendererFingerprintChange_InvalidatesTypedPage",
+        "IncrementalBuildTests.MissingRendererFingerprint_AlwaysCallsTypedRenderer"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "output-corruption",
+      "changeKind": "corruption",
+      "fixtures": ["docs-template", "atomic-output"],
+      "expected": {
+        "artifacts": "Damaged or deleted output is detected and rewritten; unrelated output keeps its bytes.",
+        "invalidations": ["the damaged artifact only"],
+        "parseRenderBundleTargets": "recovery must not require a full reparse when the cache is intact",
+        "diagnostics": "recovery is reported, not silent",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [
+        "IncrementalBuildTests.CorruptCacheOrArtifact_IsAMissAndRecovers",
+        "SiteFactoryTests.Clean_RemovesOnlyUnchangedOwnedFiles_AndCanGenerateAgain"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "cache-corruption",
+      "changeKind": "corruption",
+      "fixtures": ["docs-template", "atomic-output"],
+      "expected": {
+        "artifacts": "Output is regenerated to the same bytes as a clean build; unknown or corrupt cache versions are discarded safely.",
+        "invalidations": ["corrupt cache entries only"],
+        "parseRenderBundleTargets": "full reparse allowed only for the discarded entries",
+        "diagnostics": "tampered ownership or cache state fails closed without changing the published tree",
+        "previousOutputRetention": "published tree hash is unchanged on failure"
+      },
+      "coveringTests": [
+        "DocumentIncrementalTests.CorruptParseCache_ReparsesWithIdenticalOutput",
+        "SiteGeneratorAtomicOutputTests.GenerateAsync_CorruptOwnershipStateFailsWithoutChangingOutput",
+        "SiteGeneratorAtomicOutputTests.GenerateAsync_TamperedOwnershipIdentityFailsWithoutChangingOutput"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "failure-retention",
+      "changeKind": "failure",
+      "fixtures": ["docs-template", "mdx-semantics", "atomic-output"],
+      "expected": {
+        "artifacts": "The last successful published tree is preserved; a later successful run converges to the newest inputs.",
+        "invalidations": "none on failure",
+        "parseRenderBundleTargets": "not applicable",
+        "diagnostics": "failure diagnostics are returned separately from the retained output",
+        "previousOutputRetention": "required; byte hash of the published tree before and after the failure must match"
+      },
+      "coveringTests": [
+        "IncrementalBuildTests.RendererFailureOrCancellation_KeepsPreviousOutput",
+        "SiteGeneratorAtomicOutputTests.GenerateAsync_WriteFailurePreservesExistingOutput",
+        "SiteGeneratorAtomicOutputTests.GenerateAsync_CancellationDuringStagingPreservesExistingOutput",
+        "MdxIntegrationTests.WorkerFailuresTimeoutAndCancellationPreserveThePublishedSite"
+      ],
+      "coverage": "existing",
+      "gapTask": null
+    },
+    {
+      "id": "mdx-static-body-edit",
+      "changeKind": "body",
+      "fixtures": ["mdx-baseline", "samples"],
+      "expected": {
+        "artifacts": "Static HTML changes for the edited page; interactive entries that the page does not use are neither rebundled nor rehashed.",
+        "invalidations": ["edited module's static render"],
+        "parseRenderBundleTargets": "0 rebundled interactive entries for static-only content",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [],
+      "coverage": "gap",
+      "gapTask": "V110-07",
+      "gapDetail": "The 1.1.0 counter gate (no unrelated interactive entry rebundle) has no asserting test or counter yet."
+    },
+    {
+      "id": "mdx-interactive-component-edit",
+      "changeKind": "component",
+      "fixtures": ["mdx-baseline", "samples"],
+      "expected": {
+        "artifacts": "Only entries that import the changed component are rebundled; unrelated entries keep their bytes.",
+        "invalidations": ["dependency closure of the changed component"],
+        "parseRenderBundleTargets": "exactly the dependent entries",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [],
+      "coverage": "gap",
+      "gapTask": "V110-07"
+    },
+    {
+      "id": "mdx-shared-runtime-edit",
+      "changeKind": "runtime",
+      "fixtures": ["mdx-baseline", "samples"],
+      "expected": {
+        "artifacts": "Every entry that depends on the runtime (or on a shared CSS asset) is updated; missing one is a failure, not an optimization.",
+        "invalidations": ["runtime/asset dependency closure"],
+        "parseRenderBundleTargets": "all dependent entries, verified by counter and artifact list",
+        "diagnostics": "unchanged",
+        "previousOutputRetention": "not applicable"
+      },
+      "coveringTests": [],
+      "coverage": "gap",
+      "gapTask": "V110-07"
+    }
+  ]
+}

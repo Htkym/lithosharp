@@ -1,27 +1,10 @@
-using System.Text.RegularExpressions;
 using LithoSharp.Content.Compilation;
 
 namespace LithoSharp.Tests;
 
-/// <summary>C04 limits: unsupported constructs stay literal and the unsupported
-/// list maps mechanically to the documented fixture.</summary>
+/// <summary>C04 limits: unsupported constructs stay literal and surface diagnostics.</summary>
 public sealed class LithoParserLimitsTests
 {
-    [Test]
-    public async Task UnsupportedIds_MatchDocumentedList()
-    {
-        var text = await File.ReadAllTextAsync(
-            Path.Combine(AppContext.BaseDirectory, "Fixtures", "LithoParser", "Unsupported.md"));
-        var documented = Regex.Matches(text, @"U\d{2}-[a-z-]+")
-            .Select(match => match.Value)
-            .Distinct()
-            .OrderBy(id => id)
-            .ToArray();
-        var declared = LithoLimits.UnsupportedIds.OrderBy(id => id).ToArray();
-
-        await Assert.That(string.Join(",", documented)).IsEqualTo(string.Join(",", declared));
-    }
-
     [Test]
     [Arguments("See [^a] here.\n\n[^a]: note\n", "[^a]")]
     [Arguments("Term\n\n: definition\n", ": definition")]

@@ -53,23 +53,24 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     }
 
     /// <inheritdoc />
-    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source = null)
-    {
-        ArgumentNullException.ThrowIfNull(markdown);
-        var prepared = PrepareTree(markdown, default);
-        var resolved = source ?? new DocumentSource(null, 0);
-        var (syntax, semantics) = Map(prepared, markdown, resolved);
-        return new MarkdownCompilationResult(RenderHtml(prepared), syntax, semantics);
-    }
+    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source = null) =>
+        AnalyzeCore(markdown, source, default, renderHtml: true);
 
     /// <summary>Analyzes with cancellation.</summary>
-    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken)
+    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: true);
+
+    /// <summary>Analyzes editor information without materializing discarded body HTML.</summary>
+    internal MarkdownCompilationResult AnalyzeForInspection(string markdown, DocumentSource? source, CancellationToken cancellationToken = default) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: false);
+
+    private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken, bool renderHtml)
     {
         ArgumentNullException.ThrowIfNull(markdown);
         var prepared = PrepareTree(markdown, cancellationToken);
         var resolved = source ?? new DocumentSource(null, 0);
         var (syntax, semantics) = Map(prepared, markdown, resolved);
-        return new MarkdownCompilationResult(RenderHtml(prepared), syntax, semantics);
+        return new MarkdownCompilationResult(renderHtml ? RenderHtml(prepared) : string.Empty, syntax, semantics);
     }
 
     private readonly record struct PreparedTree(

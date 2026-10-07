@@ -71,11 +71,12 @@ switching, responsive menus and keyboard navigation. Set
 
 ## Requirements
 
-.NET 10 is required; release preparation uses SDK 10.0.300. The CLI development
+.NET 10 is required. The minimum supported SDK is 10.0.300; current release
+preparation uses SDK 10.0.401 and runtime 10.0.12. The CLI development
 server also uses the ASP.NET Core shared framework provided with the SDK.
 Markdown-only sites do not need Node.js or React. MDX requires Node.js 24.13.0
 and explicit worker restore; the lockfile pins MDX 3.1.1, React 19.2.4 and
-esbuild 0.25.12. Production output needs only a static HTTP host.
+esbuild 0.28.2. Production output needs only a static HTTP host.
 
 ## Documentation
 

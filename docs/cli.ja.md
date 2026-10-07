@@ -71,7 +71,7 @@ CLI の `-o` はシェルの作業ディレクトリを基準にします。
 | `clean [project]` | 所有情報を検証し、生成後に変更されていない成果物を削除する。 |
 | `inspect [project]` | サイトを更新し、グラフ、出力パス、所有者、キャッシュのヒットとミスの理由を表示する。 |
 | `restore-mdx <worker>` | MDX worker の固定依存を明示的に復元する。 |
-| `migrate docusaurus <source>` | Docusaurus サイトを解析する。JavaScript 設定は実行しない。`--output <directory>` で別出力先へ変換し、入力は上書きしない。`--expected-routes <file>` で route を照合し、`--base-url` と `--default-locale` で前提を定める。[移行手順](docusaurus-migration.ja.md) を参照する。 |
+| `migrate docusaurus <source>` | Docusaurus サイトを解析する。JavaScript 設定は実行しない。`--output <directory>` で別出力先へ変換し、入力は上書きしない。`--expected-routes <file>` はrouteをexact比較する。分類oracleと`--compare-normalized-pages`で文書page set比較を追加できる。`--base-url` と`--default-locale`で前提を定める。[移行手順](docusaurus-migration.ja.md)を参照する。 |
 
 プロジェクトファイル、またはプロジェクトが1つだけあるディレクトリを指定します。
 `-c Release` で構成を変更できます。`check --format text|json|sarif` はライブラリと

@@ -20,13 +20,48 @@ lithosharp migrate docusaurus ./website --output ./converted \
   --expected-routes ./expected.json --base-url https://example.com/docs/
 ```
 
-Without `--output` the command is a read-only dry run. `--expected-routes`
-takes a JSON array of public paths and compares converted routes; `--base-url`
-and `--default-locale` set the migration assumptions. Exit codes are `0` for
-clean migration, `2` for usage errors and `3` when files need manual work or
-are unconvertible. The printed JSON report carries `schemaVersion`,
-per-file verdicts with positions and replacements, manifest variants and
-authors, converted routes with missing/extra lists, and the exit code.
+Without `--output` the command is a read-only dry run. The legacy
+`--expected-routes` JSON string array keeps its raw, ordinal exact comparison.
+For route classification and provenance, use an object oracle:
+
+```json
+{
+  "sourceVersion": "3.10.2",
+  "basePath": "/old-site/",
+  "routes": [
+    { "path": "/old-site/docs/start/", "kind": "document", "locale": "en" },
+    { "path": "/old-site/docs/category/", "kind": "categoryIndex", "locale": "en" },
+    { "path": "/old-site/blog/tags/dotnet/", "kind": "blogTag", "locale": "en" }
+  ]
+}
+```
+
+The mutually exclusive `kind` values are `document`, `categoryIndex`,
+`blogIndex`, `blogAuthor`, `blogTag`, `blogArchive`, `blogPagination`,
+`other`, and `unclassified`. `locale` is a facet, not an extra denominator.
+Only declared `document` routes enter the document page-set comparison;
+derived routes and their counts/reasons remain visible as exclusions. A
+`reason` on a document route explicitly excludes that route from the page set.
+Without an oracle the report says `NotCompared`; empty missing/extra arrays
+are not a pass. It also reports the analyzed source-tree hash, the oracle hash,
+and a source Docusaurus version when declared or found in `package.json`.
+
+Raw public-path equality stays the default. To additionally compare a
+normalized document page set, opt in with `--compare-normalized-pages`. The
+report lists every applied rule: declared source/target base paths are removed
+only at segment boundaries, trailing slashes are normalized, path segments
+are decoded once with strict UTF-8 and re-encoded after NFC normalization, and
+comparison remains ordinal and case-sensitive. It does not case-fold or
+recursively decode percent escapes. This comparison does not change exit codes.
+A legacy string-array oracle leaves routes unclassified, so the normalized
+page set stays `NotCompared`; use an object oracle with `document` kinds.
+`--source-version` and `--source-base-path` can supply/override oracle metadata.
+
+Exit codes are `0` for completed analysis/conversion, `1` for processing
+failure, `2` for usage errors and `3` when files are unconvertible. The printed
+JSON report keeps the existing fields and adds route-comparison scope and
+component-change classifications. A route match covers only the declared
+page set; it does not claim that the original site as a whole is equivalent.
 
 ## Verdicts
 
@@ -53,13 +88,13 @@ front-matter titles are derived and recorded. Directory posts without date
 information (such as blog release folders) keep directory routes instead of
 dated slugs.
 
-The generator emits trailing-slash routes. Originals built with
-`trailingSlash: false` use flat `.html` files, so comparisons normalize the
-slash style; the compared page set still comes from the original build.
-Generated category indexes, blog authors/archive/pagination/tag indexes and
-debug surfaces have no 1:1 source documents and stay outside the migration
-route scope; the build may emit its own monthly archives and directory
-indexes as a documented superset.
+The generator emits trailing-slash routes. The default comparison still uses
+raw public paths; the optional page-set comparison can normalize the declared
+slash and base-path differences. The compared page set must come from the
+original build. Generated category indexes, blog index/author/archive/
+pagination/tag routes and other surfaces have no 1:1 source documents; the
+oracle classifies them separately and the report shows their exclusion count
+and reason. A matching document page set is not a whole-site equivalence claim.
 
 ## Manual steps from the migrated sites
 
@@ -71,6 +106,24 @@ indexes as a documented superset.
 - Themed-image and inline-SVG live demos become static notes or images.
 - Bare third-party imports are either installed in the target project or
   rewritten; `@docusaurus/useBaseUrl` call sites use static paths.
+
+The report labels manual component changes as appearance changes, interaction
+changes, staticization, deletion, or unverified. It records known losses (for
+example, a YouTube link does not preserve embedded playback) as non-equivalent;
+unverified components remain unverified and never become automatic actions.
+
+## Third-party reproduction corpus
+
+Three pinned upstream sites reproduce the full flow from a fixed manifest
+(`eng/verification/1.1.0/migration-sites.json`): Prettier 3.6.2, Jest 30.2.0
+and Docusaurus 3.10.2, all MIT, built in digest-pinned containers without host
+profiles or credentials. Each site keeps its original route oracle, classified
+exclusions with reasons, a bounded clean-page candidate build, and a loopback
+serve check of representative pages, navigation, assets and the search index.
+Manual patches are recorded, never silently applied. A route match covers only
+the declared page set. Sanitized summaries, hashes, rerun commands and the
+version manifest are published under `docs/evidence/1.1.0/`; full traces stay
+local. See the [V110-21 memo](verification/1.1.0/tasks/V110-21.md).
 
 ## Unsupported inputs
 

@@ -33,6 +33,35 @@ public sealed class ToolingContract
     public string Description { get; }
 }
 
+/// <summary>1つの機能capabilityを表します。</summary>
+public sealed class ToolingCapability
+{
+    internal ToolingCapability(string name, ToolingContractMaturity maturity, string schemaVersion, string description,
+        IReadOnlyList<string>? scope = null)
+    {
+        Name = name;
+        Maturity = maturity;
+        SchemaVersion = schemaVersion;
+        Description = description;
+        Scope = scope ?? [];
+    }
+
+    /// <summary>capability名を取得します。</summary>
+    public string Name { get; }
+
+    /// <summary>成熟度を取得します。</summary>
+    public ToolingContractMaturity Maturity { get; }
+
+    /// <summary>capabilityのschema versionを取得します。</summary>
+    public string SchemaVersion { get; }
+
+    /// <summary>capabilityの説明を取得します。</summary>
+    public string Description { get; }
+
+    /// <summary>対象にする言語・解析段階・操作の名前を取得します。</summary>
+    public IReadOnlyList<string> Scope { get; }
+}
+
 /// <summary>1.xのTooling互換方針を表します。</summary>
 /// <remarks>
 /// 診断コード、JSON、inspection、dev server、migration reportを分類します。
@@ -69,7 +98,7 @@ public static class ToolingContracts
     /// <summary>移行reportの契約を取得します。</summary>
     public static ToolingContract MigrationReport { get; } = new(
         "MigrationReport", ToolingContractMaturity.Stable, CurrentSchemaVersion,
-        "Migration verdicts, aggregates and fix candidates from T09. Fingerprint rules stay stable.");
+        "Migration verdicts, route comparison scope, functional-change classifications, aggregates and fix candidates from T09/T20. Fields grow additively; fingerprint rules stay stable.");
 
     /// <summary>全Tooling契約を取得します。</summary>
     public static IReadOnlyList<ToolingContract> All { get; } =

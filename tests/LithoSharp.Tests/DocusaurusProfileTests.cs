@@ -94,6 +94,19 @@ public sealed class DocusaurusProfileTests
     }
 
     [Test]
+    public async Task ManualComponentChangesKeepTheirNonEquivalentClassification()
+    {
+        var changes = DocusaurusProfile.ManualComponentChanges;
+        await Assert.That(changes.Select(change => change.Kind).Distinct().Order().ToArray())
+            .IsEquivalentTo(Enum.GetValues<MigrationComponentChangeKind>()
+                .Where(kind => kind != MigrationComponentChangeKind.Unverified).Order().ToArray());
+        await Assert.That(changes.All(change => change.FunctionalEquivalence == MigrationFunctionalEquivalence.NotEquivalent)).IsTrue();
+        await Assert.That(changes.Single(change => change.Name == "LiteYouTubeEmbed").Note)
+            .Contains("not functionally equivalent");
+        await Assert.That(changes.All(change => !string.IsNullOrWhiteSpace(change.Note))).IsTrue();
+    }
+
+    [Test]
     public async Task IsSupportedImport_ClassifiesLikeTheWorker()
     {
         await Assert.That(DocusaurusProfile.IsSupportedImport("@docusaurus/BrowserOnly")).IsTrue();

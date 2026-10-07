@@ -43,9 +43,7 @@ internal static class BuildInputFingerprint
         var verified = false;
         try
         {
-            EnsureRegularFile(stream.SafeFileHandle, fullPath);
-            var finalPath = GetFinalPath(stream.SafeFileHandle);
-            EnsureContainedFinalPath(fullRoot, fullPath, finalPath);
+            VerifyOpenedContainedFile(fullRoot, fullPath, stream.SafeFileHandle);
             verified = true;
             return stream;
         }
@@ -58,13 +56,24 @@ internal static class BuildInputFingerprint
         }
     }
 
+    internal static void VerifyOpenedContainedFile(string root, string expectedPath, SafeFileHandle handle)
+    {
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var fullPath = Path.GetFullPath(expectedPath);
+        EnsureRegularFile(handle, fullPath);
+        EnsureContainedFinalPath(
+            SiteGenerator.NormalizePathComparisonIdentity(fullRoot),
+            SiteGenerator.NormalizePathComparisonIdentity(fullPath),
+            GetFinalPath(handle));
+    }
+
     private static FileStream OpenRead(string path, bool asynchronous = false) =>
         new(
             path,
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            bufferSize: asynchronous ? 1 : 81920,
+            bufferSize: asynchronous ? 4096 : 81920,
             FileOptions.SequentialScan
                 | (asynchronous ? FileOptions.Asynchronous : FileOptions.None));
 

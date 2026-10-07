@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "planTask": "V110-21",
+  "runId": "20260930-final",
+  "corpusId": "v110-21-pinned-sites-2026-09",
+  "state": "verified-scoped",
+  "fullSiteEquivalenceClaimed": false,
+  "manifestSha256": "d38cf1a0e0a3f5193c834f84809c821b962883b0fbfdb9b6588312f58c4d63e3",
+  "sites": [
+    {
+      "siteId": "prettier",
+      "state": "verified-scoped",
+      "failure": null
+    },
+    {
+      "siteId": "jest",
+      "state": "verified-scoped",
+      "failure": null
+    },
+    {
+      "siteId": "docusaurus",
+      "state": "verified-scoped",
+      "failure": null
+    }
+  ]
+}

@@ -100,6 +100,40 @@ MDX・Interactiveのprofileで測った。下表はprofile別のbuild時間の�
 fixtureの削減は、全MDXページがzero-JSになること、全islandが速くなること、任意のnpm依存が動くことを
 示しません。実行とplatformの境界は[既知の制約](known-limitations.ja.md)を参照してください。
 
+## 1.1.0候補：Editor latency（測定済み）
+
+V110-19 harnessで2026-09-28に測定した（実Release言語server×実`LspClient`、
+Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外する。50 KiB代表文書に
+100編集ずつ、50 ms debounce込みend-to-endの値である。
+
+| 文書 | burst p50/p95/max | spaced p50/p95/max |
+| --- | ---: | ---: |
+| Markdown | 94/96/97 ms | 94/96/116 ms |
+| MDX | 94/97/101 ms | 94/96/125 ms |
+
+解析単独は約46 ms（end-to-endからdebounceを除いた相当）である。当時の検証閾値は
+解析Markdown p95≤250 ms・MDX p95≤750 ms、体感Markdown p95≤500 ms・
+MDX p95≤1500 msであり、このmachineでは4つとも適合する。他machineは未測定である。
+
+二root 1,000編集＋途中server kill→有界再起動のsoakは両rootの最新版数へ収束し、
+所有process残留はなかった。このsoakは高速編集であり、30分wall-clock soakではない。
+
+## 1.1.0の性能上の制約
+
+生成速度の目標は未達である。2026-10-06に、Windows x64、SDK 10.0.401、runtime 10.0.12で
+Markdown 1,000ページをReleaseで比較した1組では、本文1件の編集に基準版1,416.16 ms、
+採用したbuffer設定を使う開発候補2,521.28 msを要した。比率は1.780で、目標0.70以下を満たさない。
+1組の結果であり、中央値、全性能matrix、所要時間の保証ではない。Markdown 10,000ページや
+MDX 1,000ページの結果は証明せず、以前の表も記載した範囲のままである。
+
+本文変更でも、変更のない生成物と無関係なファイルを含む既存出力全体を、独立したstagingへ
+コピーしてから変更分を置き換える。出力の照合とディレクトリ切替・復旧の規則は維持する。
+この処理は小さな編集の時間でも大きな割合を占め得る。目標未達は1.1.0の既知の制約として記録し、
+出力設計の大きな変更は次版以降へ回す。生成の高速化や性能目標の合格は主張しない。
+
+1.1.0ではWatchとEditorの長時間安定性検証は実施していない。高速編集と復旧の確認は、30分の
+連続稼働を証明しない。複数OSのCIとpackage済み拡張の確認は機能検証で、性能測定とは区別する。
+
 ## 再現
 
 Release buildと明示的なworker restoreを先に行います。SDK、lockfile、時刻、corpusを揃え、

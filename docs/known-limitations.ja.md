@@ -2,13 +2,14 @@
 
 [English](known-limitations.md)
 
-1.0.0の制約です。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.0.0と1.1.0候補の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.1の範囲（Core候補と拡張0.1.0）は[1.1の機能](release-1.1.ja.md)にまとめています。
 
 ## Markdown の互換性
 
 実行時は Litho コンパイラーを使い、CommonMark 0.31.2 と GFM 0.29 の一部をテストしています。表、タスクリスト、取り消し線、自動リンク、admonition、コンテナー、コードのメタデータに対応します。数式と図の描画にはテンプレート側でブラウザー用の資材が必要で、`LIT002` で案内します。
 
-Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。未対応の構文は文字列として残り、脚注では `LIT001` も返します。更新前に対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。
+Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。未対応の構文は文字列として残り、脚注では `LIT001` も返します。更新前に対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。定義リスト（`LIT003`）、汎用属性（`LIT004`）、grid table（`LIT005`）の高確度な形だけは opt-in の advisory で案内します。既定出力は変わりません。
 
 ## 生成コストと検証環境
 
@@ -28,6 +29,10 @@ Native AOTは非対応であり、その配布形態の動作保証はありま�
 PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定した信頼できる`avifenc`が必要です。
 この環境では実AVIF encodeは未検証です。
 
+1.1.0の生成速度目標は未達である。本文1件の編集でも既存出力全体を独立したstagingへコピーするため、
+処理時間は出力全体の規模にも依存する。1.1.0の制約として記録し、大きな設計変更は次版以降へ回す。
+高速化は保証しない。[比較条件と結果](performance.ja.md#110の性能上の制約)を参照。
+
 ## MDXとブラウザー機能の範囲
 
 1.0.0のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
@@ -45,6 +50,15 @@ fallbackします。静的ページでMDX hydration entryがなくても、任�
 
 Docusaurus aliasは文書に記載した範囲のみです。任意のpluginとJavaScript設定の実行は非対応です。
 移行機能は非対応構文を報告するもので、サイト全体の自動変換を保証しません。
+
+DOMPurifyを3.4.16へ更新した。DOM node入力を`IN_PLACE: true`で処理し、
+DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローする。hookが
+除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げた。
+hookが単にrootをdetachする場合まで、この受入差に含めるものではない。独自呼出しでは例外を処理し、失敗した入力・結果を破棄する。除去したnodeを安全な
+コンテンツとして使い回したり、シリアライズしたりしない。この限定した互換性差を受け入れ、
+[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持する。
+通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入らない。
+DOMの完全一致を主張するものではない。
 
 ## 信頼と公開
 
@@ -76,9 +90,17 @@ portableな保証に含みません。after-build observerはcommit後に実行�
 ## 配置と移行の範囲
 
 公開 route は末尾 slash の directory index 形式です。`trailingSlash: false` の原本は
-flat ファイルのため、route 比較では slash 形式を正規化します。`404.html` は出さず、
+flat ファイルのため、既定のroute比較はraw public pathを使い、追加のpage set
+比較だけが slash 形式を正規化します。`404.html` は出さず、
 欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
 authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
 月別 archive と directory index は文書化した上積みとして出す場合があります。
 Markdown の link 先は build を通し、`check` が非対応 scheme を指摘します。MDX の
 anchor は build で落とします。
+
+## 1.1の拡張と安定性検証の範囲
+
+Editor診断はMarkdownが先で、MDXはrestore済みworker経由である。previewは保存済み文書のみで、
+workerはTypeScriptを変換するだけで型検査はしない。拡張はMarketplaceに配布していない。
+1.1.0ではWatchとEditorの長時間検証を実施していない。高速編集・復旧、複数OSのCI、
+package済みVSIXの確認は、30分の連続稼働を証明するものではない。

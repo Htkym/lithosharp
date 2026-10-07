@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Testing</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>Htkym</Authors>
     <Description>Framework-independent site and DOM assertions for LithoSharp.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -13,11 +13,13 @@
     <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;CS1591</WarningsAsErrors>
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
-    <PackageReference Include="AngleSharp" Version="1.7.3" />
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <PackageReference Include="AngleSharp" Version="1.8.3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>

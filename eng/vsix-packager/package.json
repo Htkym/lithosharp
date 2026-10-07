@@ -1,0 +1,12 @@
+{
+  "name": "lithosharp-vsix-packager",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Locked build-time VSIX packager for LithoSharp.",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@vscode/vsce": "4.0.0"
+  }
+}

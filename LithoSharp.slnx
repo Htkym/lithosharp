@@ -6,9 +6,11 @@
     <Project Path="src/LithoSharp.Tool/LithoSharp.Tool.csproj" />
     <Project Path="src/LithoSharp.Testing/LithoSharp.Testing.csproj" />
     <Project Path="src/LithoSharp.Mdx/LithoSharp.Mdx.csproj" />
+    <Project Path="src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LithoSharp.Tests/LithoSharp.Tests.csproj" />
+    <Project Path="tests/LithoSharp.LanguageServer.Tests/LithoSharp.LanguageServer.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/LithoSharp.MdxPerformance/LithoSharp.MdxPerformance.csproj" />

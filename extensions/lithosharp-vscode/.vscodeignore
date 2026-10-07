@@ -1,0 +1,19 @@
+# VSIX contents: only the runtime shell, its docs, the language server, and the MDX worker source.
+# Everything else (tests, harnesses, dev dependencies, restored worker
+# dependencies, verification state) stays out of distribution.
+.vscode-test/**
+.vscode/**
+.git/**
+eng/**
+tests/**
+node_modules/**
+out/tests/**
+out/eng/**
+resources/worker/node_modules/**
+resources/worker/.cache/**
+resources/worker/tests/**
+*.vsix
+resources/language-server/**/*.pdb
+resources/language-server/**/*.xml
+resources/.language-server-stage-*/**
+resources/.language-server-backup-*/**

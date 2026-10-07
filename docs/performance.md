@@ -113,6 +113,48 @@ Linux/macOS throughput. Fixture savings do not imply that every MDX page is
 zero-JS, that all islands become faster, or that arbitrary npm dependencies work.
 See [Known limitations](known-limitations.md) for execution and platform boundaries.
 
+## 1.1.0 candidate: editor latency (measured)
+
+Measured 2026-09-28 with the V110-19 harness (real Release language server
+through a real `LspClient`, Windows x64, 8 CPUs, Node.js 24.13.0). Warm runs
+are excluded. Samples are end-to-end including a 50 ms debounce, 100 edits per
+shape on a representative 50 KiB document:
+
+| Document | Burst p50/p95/max | Spaced p50/p95/max |
+| --- | ---: | ---: |
+| Markdown | 94/96/97 ms | 94/96/116 ms |
+| MDX | 94/97/101 ms | 94/96/125 ms |
+
+Analysis alone is roughly 46 ms (end-to-end minus the debounce). The historically reported thresholds
+were: analysis Markdown p95 ≤ 250 ms and MDX p95 ≤ 750 ms, and debounce
+included Markdown p95 ≤ 500 ms and MDX p95 ≤ 1,500 ms. All four pass on this
+machine; other machines are unmeasured.
+
+A 1,000-edit soak across two roots with one bounded mid-run server restart
+converged to the latest versions on both roots with no owned-process residue.
+That soak is rapid edits, not a 30-minute wall-clock soak.
+
+## 1.1.0 performance limitation
+
+The generation speed targets were not met. In one paired Release comparison on
+2026-10-06, with 1,000 Markdown pages on Windows x64, SDK 10.0.401 and runtime
+10.0.12, one body edit took 1,416.16 ms for the baseline and 2,521.28 ms for the
+development candidate with the adopted buffering: a ratio of 1.780 against the
+target of at most 0.70. This is one pair, not a median, a full performance matrix,
+or a latency guarantee. It does not establish results for 10,000-page Markdown
+or 1,000-page MDX workloads; the older tables keep their stated scope.
+
+A body edit still copies the existing output tree into independent staging,
+including unchanged and unrelated files, before replacing the changed artifacts.
+Output verification and the directory commit/rollback rules remain in force.
+That cost can dominate a small edit. The unmet targets are a known limitation of
+1.1.0; a larger output design change is deferred to a later version. No generation
+speedup or performance-target pass is claimed.
+
+Long-duration Watch and Editor stability checks were not run for 1.1.0. Rapid-edit
+and recovery checks do not establish 30-minute continuous operation. Multi-OS CI
+and packaged-extension checks are functional validation, not performance measurements.
+
 ## Reproduce
 
 Build Release and restore the worker explicitly before measuring. Use the same

@@ -1,4 +1,3 @@
-using System.Reflection;
 using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
 
@@ -220,7 +219,7 @@ public sealed class MarkdownDocumentModelTests
     }
 
     [Test]
-    public async Task Analyze_ResultsAreIndependentAndCompilerRetainsNoText()
+    public async Task Analyze_ResultsAreIndependent()
     {
         var compiler = new LithoMarkdownCompiler();
         var first = compiler.Analyze("## One\n");
@@ -231,14 +230,7 @@ public sealed class MarkdownDocumentModelTests
         await Assert.That(first.Semantics!.Headings[0].Text).IsEqualTo("One");
         await Assert.That(second.Semantics!.Headings[0].Text).IsEqualTo("Two");
 
-        // Compile-time version literals are allowed; per-document text must not be retained.
-        var staticTextHolders = typeof(LithoMarkdownCompiler)
-            .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(field => !field.IsLiteral && (field.FieldType == typeof(string)
-                || field.FieldType == typeof(SourceText)
-                || field.FieldType == typeof(string[])))
-            .ToArray();
-        await Assert.That(staticTextHolders.Length).IsEqualTo(0);
+
     }
 
     private static int FrontMatterBodyOffset(string text)

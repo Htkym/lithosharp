@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0",
+  "planVersion": "1.1.0",
+  "taskId": "V110-04",
+  "generatedAt": "2026-09-23",
+  "runner": "eng/Measure-IncrementalScenarios.ps1",
+  "harnesses": [
+    {
+      "id": "markdown",
+      "project": "benchmarks/LithoSharp.Performance",
+      "assembly": "benchmarks/LithoSharp.Performance/bin/Release/net10.0/LithoSharp.Performance.dll",
+      "invocation": "dotnet <assembly> --size <100|1000|10000> [--scenario <name>] --output <runDir>/result.json",
+      "resultFile": "result.json",
+      "workloadField": "workloads",
+      "corpus": "generated per run: N Markdown pages in sections of 100, Blog template, deterministic timestamp 2026-01-01T00:00:00Z",
+      "prepare": "the clean build at the start of the process; reported as result.prepare and excluded from the scenario elapsed"
+    },
+    {
+      "id": "mdx",
+      "project": "benchmarks/LithoSharp.MdxPerformance",
+      "assembly": "benchmarks/LithoSharp.MdxPerformance/bin/Release/net10.0/LithoSharp.MdxPerformance.dll",
+      "invocation": "dotnet <assembly> <100|1000|10000> <restored-worker-directory> <new-run-directory> [--scenario <name>]",
+      "resultFile": "measurements.json",
+      "workloadField": "measurements",
+      "corpus": "generated per run: N MDX documents (80% static, 10% page hydration, 10% load islands), shared CSS/SVG/Counter, Docs template, 100-document sidebars, deterministic timestamp 2026-01-01T00:00:00Z",
+      "prepare": "an isolated scenario first runs a cold build (clean=true) reported as the prepare entry and excluded from the scenario elapsed"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "clean",
+      "harness": "markdown",
+      "meaning": "process-cold clean build into a new output directory with an empty build cache",
+      "prepare": "none; the measured build is the clean build",
+      "expectedShape": "cacheMisses > 0, generatedNodeCount > 0, invalidatedNodeCount = 0",
+      "independentRun": "dotnet <markdown assembly> --size 10000 --scenario clean --output <runDir>/result.json"
+    },
+    {
+      "id": "no-op",
+      "harness": "markdown",
+      "meaning": "rebuild with no input change; the output tree and parse cache are warm",
+      "prepare": "clean build in the same process (result.prepare)",
+      "expectedShape": "cacheHits > 0, cacheMisses = 0, invalidatedNodeCount = 0",
+      "independentRun": "dotnet <markdown assembly> --size 10000 --scenario no-op --output <runDir>/result.json"
+    },
+    {
+      "id": "single-page-change",
+      "harness": "markdown",
+      "meaning": "one body edit (page-00001.md) after a successful build",
+      "prepare": "clean build in the same process (result.prepare)",
+      "expectedShape": "1 document re-parsed and re-rendered, search index and dependent surfaces updated, unrelated pages keep their bytes",
+      "independentRun": "dotnet <markdown assembly> --size 10000 --scenario single-page-change --output <runDir>/result.json"
+    },
+    {
+      "id": "layout-change",
+      "harness": "markdown",
+      "meaning": "theme colour change after a successful build; rendering nodes that consume theme.themeColor are invalidated without re-parsing",
+      "prepare": "clean build in the same process (result.prepare)",
+      "expectedShape": "invalidatedNodeCount = number of theme consumers, cacheMisses = invalidatedNodeCount",
+      "independentRun": "dotnet <markdown assembly> --size 10000 --scenario layout-change --output <runDir>/result.json"
+    },
+    {
+      "id": "cold",
+      "harness": "mdx",
+      "meaning": "process-cold MDX build into a new output directory; the Node worker starts, compiles and bundles",
+      "prepare": "none",
+      "expectedShape": "workerStarts = 1, compiledModules = N, renderedPages = N, cacheMisses > 0",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario cold"
+    },
+    {
+      "id": "warm-cache",
+      "harness": "mdx",
+      "meaning": "second clean build with the build cache and the output tree already present; the worker must not restart",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "workerStarts = 0, compiledModules = 0, renderedPages = 0, cacheHit = true",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario warm-cache"
+    },
+    {
+      "id": "no-op",
+      "harness": "mdx",
+      "meaning": "rebuild with no input change",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "cacheMisses = 0, workerStarts = 0, compiledModules = 0, renderedPages = 0",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario no-op"
+    },
+    {
+      "id": "one-page",
+      "harness": "mdx",
+      "meaning": "one MDX body edit (page-00002.mdx); the harness fails the run if more than the edited page is compiled or rendered",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "compiledModules = 1, renderedPages = 1, cacheMisses <= 5",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario one-page"
+    },
+    {
+      "id": "shared-component",
+      "harness": "mdx",
+      "meaning": "edit of Counter.jsx, which 20% of the corpus imports (page hydration or island)",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "compiledModules = 0 (the changed module is not an MDX document), renderedPages > 0, bundles rebuilt for the dependent pages",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario shared-component"
+    },
+    {
+      "id": "shared-css",
+      "harness": "mdx",
+      "meaning": "edit of shared.css imported by every document",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "compiledModules = 0, cacheMisses > 0, dependent pages and bundles updated",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario shared-css"
+    },
+    {
+      "id": "shared-image",
+      "harness": "mdx",
+      "meaning": "edit of icon.svg imported by every document",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "compiledModules = 0, dependent pages and bundles updated",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario shared-image"
+    },
+    {
+      "id": "layout",
+      "harness": "mdx",
+      "meaning": "theme colour change; every page is re-rendered without recompiling MDX",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "compiledModules = 0, renderedPages = N",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario layout"
+    },
+    {
+      "id": "route",
+      "harness": "mdx",
+      "meaning": "route prefix change (guide to manual); all public URLs change",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "workerStarts = 0, compiledModules = 0, pages re-rendered with new routes",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario route"
+    },
+    {
+      "id": "lockfile",
+      "harness": "mdx",
+      "meaning": "package-lock.json change; the worker dependency set is re-evaluated",
+      "prepare": "cold build (prepare entry)",
+      "expectedShape": "workerStarts = 0, no MDX recompilation when the resolved dependency set is unchanged",
+      "independentRun": "dotnet <mdx assembly> 1000 <worker> <runDir>/harness --scenario lockfile"
+    }
+  ],
+  "nameMapping": [
+    { "old": "cold", "new": "cold", "note": "unchanged" },
+    { "old": "warm-cache", "new": "warm-cache", "note": "unchanged" },
+    { "old": "no-op", "new": "no-op", "note": "unchanged" },
+    { "old": "one-page", "new": "one-page", "note": "unchanged" },
+    { "old": "shared-component", "new": "shared-component", "note": "unchanged" },
+    { "old": "shared-css", "new": "shared-css", "note": "unchanged" },
+    { "old": "shared-image", "new": "shared-image", "note": "unchanged" },
+    { "old": "layout", "new": "layout", "note": "unchanged" },
+    { "old": "route", "new": "route", "note": "unchanged" },
+    { "old": "lockfile", "new": "lockfile", "note": "unchanged" },
+    { "old": "(markdown) clean", "new": "clean", "note": "unchanged" },
+    { "old": "(markdown) no-op", "new": "no-op", "note": "unchanged" },
+    { "old": "(markdown) single-page-change", "new": "single-page-change", "note": "unchanged" },
+    { "old": "(markdown) layout-change", "new": "layout-change", "note": "unchanged" }
+  ],
+  "executionRules": [
+    "One run = one process = one dedicated corpus, build cache and output directory under the run state root.",
+    "A scenario run is measured after a successful baseline build; the baseline is reported separately as prepare and is never counted as the scenario.",
+    "A new process starts a cold Node worker, so a cache hit in a fresh process is recorded as such and is not called a warm worker.",
+    "Timeouts kill the owned process tree and are recorded as status=timeout; the run directory and raw stdout/stderr stay on disk and a retry uses a new run index.",
+    "-Resume skips only runs already recorded as completed; it never rewrites or deletes earlier records.",
+    "The published 1.0.0 harness (B0) has no --scenario switch, so its job unit is the whole sequence; the runner records one entry per measured scenario from that process."
+  ],
+  "conditionsRecordedPerRun": [
+    "process: fresh per run; the B0 markdown job unit runs all four scenarios in one process (same-process sequence)",
+    "product cache: cold for clean/cold; warm for no-op and edit scenarios after the prepare build",
+    "worker: cold start for mdx cold; reused inside the process for the following mdx scenarios",
+    "OS page cache: not controlled; reported as process-cold, not OS-cold",
+    "build timestamp: fixed per harness (2026-01-01T00:00:00Z)"
+  ],
+  "notCoveredByThisTask": [
+    "CLI E2E and Watch E2E measurements (plan §5.3) need the CLI/tool harness; V110-13 adds serve control and the Watch E2E runner is part of the V110-25 matrix.",
+    "Editor latency and soak measurements (V110-19).",
+    "Phase-level attribution inside SiteGenerator (input scan/hash, plan build, cache load, parse/render, staging) is not instrumented in the product; V110-04 attributes it with scenario deltas, engine micro-benchmarks and measured micro-costs, and V110-05/06 may add explicit counters where the deltas are too coarse."
+  ]
+}

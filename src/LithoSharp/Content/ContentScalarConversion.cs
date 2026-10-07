@@ -26,11 +26,16 @@ internal static class ContentScalarConversion
             return true;
         }
 
+        // Offset-less front matter dates (e.g. "2017-12-05") must not depend on the
+        // build machine's local time zone: assume UTC so UTC and JST hosts emit
+        // identical output. Explicit offsets are still preserved. (RoundtripKind
+        // cannot be combined with AssumeUniversal; AssumeUniversal alone keeps
+        // explicit offsets intact and only affects offset-less input.)
         if (targetType == typeof(DateTimeOffset)
             && DateTimeOffset.TryParse(
                 text,
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
+                DateTimeStyles.AssumeUniversal,
                 out var dateTimeOffset))
         {
             converted = dateTimeOffset;
@@ -41,7 +46,7 @@ internal static class ContentScalarConversion
             && DateTime.TryParse(
                 text,
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                 out var dateTime))
         {
             converted = dateTime;

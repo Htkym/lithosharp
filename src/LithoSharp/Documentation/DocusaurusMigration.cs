@@ -38,7 +38,22 @@ internal sealed record DocusaurusMigrationIssue(string Id, SiteDiagnosticSeverit
 /// <param name="Issues">All findings, worst first.</param>
 /// <param name="SourceFingerprint">The lowercase hex SHA-256 of the analyzed source bytes.</param>
 /// <param name="Edits">The recorded mechanical rewrites in source line numbers. Empty when the file is copied or only diagnosed.</param>
-internal sealed record DocusaurusMigrationFile(string SourcePath, DocusaurusMigrationVerdict Verdict, string? ConvertedPath, IReadOnlyList<DocusaurusMigrationIssue> Issues, string SourceFingerprint, IReadOnlyList<DocusaurusMigrationEdit> Edits);
+/// <param name="ComponentChanges">Manual component replacements and their known functional differences.</param>
+internal sealed record DocusaurusMigrationFile(
+    string SourcePath,
+    DocusaurusMigrationVerdict Verdict,
+    string? ConvertedPath,
+    IReadOnlyList<DocusaurusMigrationIssue> Issues,
+    string SourceFingerprint,
+    IReadOnlyList<DocusaurusMigrationEdit> Edits,
+    IReadOnlyList<DocusaurusMigrationComponentChange>? ComponentChanges = null);
+
+/// <summary>A component replacement that remains a human decision.</summary>
+internal sealed record DocusaurusMigrationComponentChange(
+    string Component,
+    MigrationComponentChangeKind Kind,
+    MigrationFunctionalEquivalence FunctionalEquivalence,
+    string Note);
 
 /// <summary>One recorded mechanical rewrite. Line numbers use the analyzed source.</summary>
 /// <param name="Kind">ReplaceLines rewrites StartLine through EndLine; InsertAfter inserts Text lines after StartLine (0 prepends).</param>
@@ -69,7 +84,11 @@ public sealed record DocusaurusMigrationOptions(
     string BaseUrl = "https://example.test/",
     string DefaultLocale = "en",
     string DocsRoutePrefix = "docs",
-    string BlogRoutePrefix = "blog");
+    string BlogRoutePrefix = "blog")
+{
+    /// <summary>明示的に正規化を要求し、文書routeのpage setを別比較します。</summary>
+    public bool CompareNormalizedPageSet { get; init; }
+}
 
 /// <summary>The analysis or conversion outcome.</summary>
 internal sealed record DocusaurusMigrationResult(
@@ -79,7 +98,9 @@ internal sealed record DocusaurusMigrationResult(
     IReadOnlyList<string> MissingRoutes,
     IReadOnlyList<string> ExtraRoutes,
     int ExitCode,
-    bool WroteOutput);
+    bool WroteOutput,
+    string? SourceVersion,
+    string SourceHash);
 
 /// <summary>
 /// Docusaurus migration analysis and conversion, reusable from Core, tests,
@@ -132,11 +153,21 @@ internal static class DocusaurusMigration
         string sourceDirectory,
         IReadOnlyList<string>? expectedRoutes = null,
         DocusaurusMigrationOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        AnalyzeWithOracle(sourceDirectory,
+            expectedRoutes is null ? null : MigrationRouteOracle.FromPaths(expectedRoutes),
+            options, cancellationToken);
+
+    internal static DocusaurusMigrationResult AnalyzeWithOracle(
+        string sourceDirectory,
+        MigrationRouteOracle? routeOracle,
+        DocusaurusMigrationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         var source = Path.GetFullPath(sourceDirectory);
         if (!Directory.Exists(source)) throw new DirectoryNotFoundException($"Migration source not found: {sourceDirectory}.");
-        return Finish(AnalyzeFiles(source, options ?? new(), cancellationToken), expectedRoutes, wroteOutput: false);
+        var effectiveOptions = options ?? new();
+        return Finish(AnalyzeFiles(source, effectiveOptions, cancellationToken), routeOracle, wroteOutput: false);
     }
 
     /// <summary>Converts into an explicit separate destination. Existing inputs are never overwritten.</summary>
@@ -155,6 +186,16 @@ internal static class DocusaurusMigration
         string destinationDirectory,
         IReadOnlyList<string>? expectedRoutes = null,
         DocusaurusMigrationOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        await ConvertWithOracleAsync(sourceDirectory, destinationDirectory,
+            expectedRoutes is null ? null : MigrationRouteOracle.FromPaths(expectedRoutes),
+            options, cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<DocusaurusMigrationResult> ConvertWithOracleAsync(
+        string sourceDirectory,
+        string destinationDirectory,
+        MigrationRouteOracle? routeOracle,
+        DocusaurusMigrationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         var source = Path.GetFullPath(sourceDirectory);
@@ -165,7 +206,8 @@ internal static class DocusaurusMigration
         if (Path.Exists(destination)) throw new IOException("The migration destination already exists; conversion never overwrites it.");
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(source)!, source);
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(destination)!, destination);
-        var plan = AnalyzeFiles(source, options ?? new(), cancellationToken);
+        var effectiveOptions = options ?? new();
+        var plan = AnalyzeFiles(source, effectiveOptions, cancellationToken);
         var parent = Path.GetDirectoryName(destination)!;
         Directory.CreateDirectory(parent);
         var staging = Path.Combine(parent, ".migrate-" + Guid.NewGuid().ToString("N"));
@@ -203,18 +245,21 @@ internal static class DocusaurusMigration
             }
         }
 
-        return Finish(plan, expectedRoutes, wroteOutput: true);
+        return Finish(plan, routeOracle, wroteOutput: true);
     }
 
     private sealed record MigrationPlan(
         IReadOnlyList<DocusaurusMigrationFile> Files,
         DocusaurusMigrationManifest Manifest,
         IReadOnlyList<DocusaurusMigrationRoute> Routes,
-        IReadOnlyList<KeyValuePair<string, byte[]>> Outputs);
+        IReadOnlyList<KeyValuePair<string, byte[]>> Outputs,
+        string? SourceVersion,
+        string SourceHash);
 
-    private static DocusaurusMigrationResult Finish(MigrationPlan plan, IReadOnlyList<string>? expectedRoutes, bool wroteOutput)
+    private static DocusaurusMigrationResult Finish(MigrationPlan plan, MigrationRouteOracle? routeOracle, bool wroteOutput)
     {
         var actual = plan.Routes.Select(route => route.Route).ToArray();
+        var expectedRoutes = routeOracle?.Routes.Select(route => route.Path).ToArray();
         IReadOnlyList<string> missing = expectedRoutes is null
             ? []
             : expectedRoutes.Except(actual, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
@@ -222,7 +267,8 @@ internal static class DocusaurusMigration
             ? []
             : actual.Except(expectedRoutes, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         var exit = plan.Files.Any(file => file.Verdict == DocusaurusMigrationVerdict.Unsupported) ? ExitUnconvertible : ExitClean;
-        return new(plan.Files, plan.Manifest, plan.Routes, missing, extra, exit, wroteOutput);
+        return new(plan.Files, plan.Manifest, plan.Routes, missing, extra, exit, wroteOutput,
+            plan.SourceVersion, plan.SourceHash);
     }
 
     private static MigrationPlan AnalyzeFiles(string source, DocusaurusMigrationOptions options, CancellationToken cancellationToken)
@@ -235,6 +281,7 @@ internal static class DocusaurusMigration
         var manualSteps = new List<string>();
         var unsupported = new List<string>();
         var routes = new List<DocusaurusMigrationRoute>();
+        string? sourceVersion = null;
         var versions = new List<string>();
         var versionDirs = new SortedSet<string>(StringComparer.Ordinal);
         var seenVariants = new HashSet<(string Version, string Locale, string Input)>();
@@ -276,6 +323,7 @@ internal static class DocusaurusMigration
             var bytes = File.ReadAllBytes(file);
             var fingerprint = Fingerprint(bytes);
             IReadOnlyList<DocusaurusMigrationEdit> edits = [];
+            IReadOnlyList<DocusaurusMigrationComponentChange> componentChanges = [];
 
             void Raise(DocusaurusMigrationVerdict level, DocusaurusMigrationIssue issue)
             {
@@ -340,6 +388,7 @@ internal static class DocusaurusMigration
                 converted = document.ConvertedPath;
                 bytes = document.Bytes;
                 edits = document.Edits;
+                componentChanges = document.ComponentChanges ?? [];
                 if (document.Route is not null) routes.Add(document.Route);
             }
             else if (ScanText(bytes, Raise) == TextScan.Unsupported)
@@ -347,11 +396,13 @@ internal static class DocusaurusMigration
                 unsupported.Add($"{relative}: unsupported Docusaurus construct.");
             }
 
+            if (relative == "package.json") sourceVersion = ReadSourceVersion(bytes);
+
             if (segments[0] == "versioned_docs" && segments.Length > 2 && segments[1].StartsWith("version-", StringComparison.Ordinal))
                 versionDirs.Add(segments[1][8..]);
             files.Add(new(relative, verdict, converted,
                 issues.OrderByDescending(issue => issue.Severity).ThenBy(issue => issue.Line).ToArray(),
-                fingerprint, edits));
+                fingerprint, edits, componentChanges));
             if (converted is not null) outputs.Add(new(converted, bytes));
         }
 
@@ -405,10 +456,13 @@ internal static class DocusaurusMigration
             authors.Select(pair => new DocusaurusMigrationAuthor(pair.Key, pair.Value)).ToArray(),
             manualSteps.ToArray(),
             unsupported.Order(StringComparer.Ordinal).ToArray());
+        var sourceHash = FingerprintSource(ordered);
         return new(ordered,
             manifest,
             routes.OrderBy(route => route.Route, StringComparer.Ordinal).ToArray(),
-            outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray());
+            outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray(),
+            sourceVersion,
+            sourceHash);
     }
 
     private static (string? Version, string Locale) I18nVariant(string[] parts)
@@ -529,9 +583,53 @@ internal static class DocusaurusMigration
         return (hash < 0 ? text : text[..hash]).Trim();
     }
 
-    private sealed record AnalyzedDocument(string? ConvertedPath, byte[] Bytes, string Kind, DocusaurusMigrationRoute? Route, IReadOnlyList<DocusaurusMigrationEdit> Edits);
+    private sealed record AnalyzedDocument(
+        string? ConvertedPath,
+        byte[] Bytes,
+        string Kind,
+        DocusaurusMigrationRoute? Route,
+        IReadOnlyList<DocusaurusMigrationEdit> Edits,
+        IReadOnlyList<DocusaurusMigrationComponentChange>? ComponentChanges = null);
 
     private static string Fingerprint(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    private static string FingerprintSource(IReadOnlyList<DocusaurusMigrationFile> files)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var file in files.OrderBy(file => file.SourcePath, StringComparer.Ordinal))
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(file.SourcePath + "\0"));
+            hash.AppendData(Convert.FromHexString(file.SourceFingerprint));
+        }
+
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    private static string? ReadSourceVersion(byte[] bytes)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(bytes);
+            var root = json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
+            foreach (var section in new[] { "dependencies", "devDependencies", "peerDependencies", "optionalDependencies" })
+            {
+                if (root.TryGetProperty(section, out var dependencies)
+                    && dependencies.ValueKind == JsonValueKind.Object
+                    && dependencies.TryGetProperty("@docusaurus/core", out var version)
+                    && version.ValueKind == JsonValueKind.String)
+                {
+                    return version.GetString();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // A package.json is user input; malformed metadata does not block analysis.
+        }
+
+        return null;
+    }
 
     private static void AddLinkRewriteEdits(
         List<DocusaurusMigrationEdit> edits, string before, string after,
@@ -614,6 +712,7 @@ internal static class DocusaurusMigration
         if (scope.Any(segment => segment.StartsWith('_')))
         {
             if (!TryDecode(bytes, out var partial)) return new(relative, bytes, kind, null, Edits: []);
+            var partialChanges = ScanManualComponentChanges(partial, raise);
             var drops = new SortedSet<int>();
             var partialLink = ScanImports(partial, drops, raise);
             ScanRelativeImages(partial, relative, 1, raise);
@@ -621,7 +720,7 @@ internal static class DocusaurusMigration
             var partialEdits = new List<DocusaurusMigrationEdit>();
             AddLinkRewriteEdits(partialEdits, partial, rewritten, drops, []);
             foreach (var drop in drops) partialEdits.Add(new(MigrationActionKind.ReplaceLines, drop, drop, ""));
-            return new(relative, DropLines(rewritten, drops), kind, null, partialEdits);
+            return new(relative, DropLines(rewritten, drops), kind, null, partialEdits, partialChanges);
         }
 
         if (!TryDecode(bytes, out var text))
@@ -630,6 +729,8 @@ internal static class DocusaurusMigration
                 $"Document '{relative}' is not UTF-8 text.", 1, null, null));
             return new(relative, bytes, kind, null, Edits: []);
         }
+
+        var componentChanges = ScanManualComponentChanges(text, raise);
 
         var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
         var titleEdits = new List<DocusaurusMigrationEdit>();
@@ -653,7 +754,7 @@ internal static class DocusaurusMigration
             raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
                 $"Document '{relative}' has no usable YAML front matter; add at least a title.", split.FailureLine,
                 null, "Add front matter with a title. The title cannot be invented safely."));
-            return new(relative, bytes, kind, null, Edits: []);
+            return new(relative, bytes, kind, null, Edits: [], componentChanges);
         }
 
         var parsed = MarkdownContentCollectionLoader<DocumentFrontMatter>.ParseYaml(split.Yaml, relative, 2, cancellationToken);
@@ -662,7 +763,7 @@ internal static class DocusaurusMigration
             foreach (var diagnostic in parsed.Diagnostics)
                 raise(DocusaurusMigrationVerdict.Unsupported, new(Unconvertible, SiteDiagnosticSeverity.Error,
                     diagnostic.Message, diagnostic.Location?.Line ?? 2, null, null));
-            return new(relative, bytes, kind, null, Edits: []);
+            return new(relative, bytes, kind, null, Edits: [], componentChanges);
         }
 
         var mapping = parsed.Value!;
@@ -761,7 +862,8 @@ internal static class DocusaurusMigration
 
             return FinishDocument(text, convertedRelative, kind,
                 SiteRoute.ForDirectoryIndex(prefix.Trim('/') + "/" + (slug ?? routeId).Trim('/'), options.BaseUrl).PublicPath,
-                lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise, titleEdits);
+                lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1,
+                raise, titleEdits, componentChanges);
         }
 
         foreach (var key in mapping.Keys)
@@ -812,7 +914,9 @@ internal static class DocusaurusMigration
             raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
                 $"Blog date is taken from the directory and file name: '{date}'.", 2, $"Set date '{date}'.", null));
         }
-        if ((date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+        // Offset-less dates (e.g. "2017-12-05" from file names) assume UTC so slug
+        // derivation never depends on the host time zone. Explicit offsets stay intact.
+        if ((date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out _))
             && dateMatch.Success && DateOnly.TryParse($"{dateMatch.Groups["year"].Value}-{dateMatch.Groups["month"].Value}-{dateMatch.Groups["day"].Value}",
                 System.Globalization.CultureInfo.InvariantCulture, out _))
         {
@@ -822,11 +926,11 @@ internal static class DocusaurusMigration
                 $"Blog date is taken from the file name: '{date}'.", 2, $"Set date '{date}'.", null));
         }
 
-        if (date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
+        if (date is null || !DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var parsedDate))
         {
             raise(DocusaurusMigrationVerdict.Unsupported, new(Unconvertible, SiteDiagnosticSeverity.Error,
                 $"Blog entry '{relative}' has no usable date.", 2, null, null));
-            return new(relative, bytes, kind, null, Edits: []);
+            return new(relative, bytes, kind, null, Edits: [], componentChanges);
         }
 
         var namePart = dateMatch.Success ? dateMatch.Groups["rest"].Value
@@ -930,7 +1034,7 @@ internal static class DocusaurusMigration
         ScanImports(text, lineDrops, raise);
         return FinishDocument(text, convertedRelative, kind,
             SiteRoute.ForDirectoryIndex(prefix.Trim('/') + "/" + slug.Trim('/'), options.BaseUrl).PublicPath,
-            lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise, titleEdits);
+            lineDrops, injections, replacements, split.Body, relative, text.AsSpan(0, split.BodyStartOffset).Count('\n') + 1, raise, titleEdits, componentChanges);
     }
 
     private static byte[] DropLines(string text, SortedSet<int> lineDrops)
@@ -946,7 +1050,8 @@ internal static class DocusaurusMigration
         string text, string convertedRelative, string kind, string route,
         SortedSet<int> lineDrops, List<string> injections, List<(int Line, string Text)> replacements, string body, string relative, int bodyFirstLine,
         Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise,
-        IReadOnlyList<DocusaurusMigrationEdit>? leadingEdits = null)
+        IReadOnlyList<DocusaurusMigrationEdit>? leadingEdits = null,
+        IReadOnlyList<DocusaurusMigrationComponentChange>? componentChanges = null)
     {
         var exactLinkRemoved = ScanImports(text, lineDrops, raise);
         ScanRelativeImages(body, relative, bodyFirstLine, raise);
@@ -971,7 +1076,7 @@ internal static class DocusaurusMigration
         lines.InsertRange(1, injections);
         if (injections.Count > 0) edits.Add(new(MigrationActionKind.InsertAfter, 1, 1, string.Join("\n", injections)));
         return new(convertedRelative, StrictUtf8.GetBytes(string.Join(newline, lines)), kind,
-            new(route, convertedRelative, kind), edits);
+            new(route, convertedRelative, kind), edits, componentChanges);
     }
 
     private static IEnumerable<string> BlogAuthors(
@@ -1019,6 +1124,47 @@ internal static class DocusaurusMigration
         }
 
         return worst;
+    }
+
+    private static IReadOnlyList<DocusaurusMigrationComponentChange> ScanManualComponentChanges(
+        string text,
+        Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise)
+    {
+        var visible = BlankNonExecutable(text);
+        var changes = new List<DocusaurusMigrationComponentChange>();
+        foreach (var profileChange in DocusaurusProfile.ManualComponentChanges)
+        {
+            var index = FindManualComponentReference(visible, profileChange.Name);
+            if (index < 0) continue;
+            changes.Add(new(profileChange.Name, profileChange.Kind, profileChange.FunctionalEquivalence, profileChange.Note));
+            raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                $"Manual replacement for '{profileChange.Name}' is classified as {profileChange.Kind}: {profileChange.Note}",
+                LineOf(text, index), null, "Review the replacement and preserve the documented appearance and interaction behavior where required."));
+        }
+
+        foreach (Match match in ImportRegex.Matches(visible))
+        {
+            var name = match.Groups["name"].Value;
+            if (DocusaurusProfile.IsSupportedImport(name) || name is "@docusaurus/Link" or "@docusaurus/Translate"
+                || changes.Any(change => change.Component == name)) continue;
+            const string note = "No verified replacement is known; keep this construct manual and do not claim functional equivalence.";
+            changes.Add(new(name, MigrationComponentChangeKind.Unverified, MigrationFunctionalEquivalence.Unverified, note));
+            raise(DocusaurusMigrationVerdict.ManualActionRequired, new(NeedsManualAction, SiteDiagnosticSeverity.Warning,
+                $"Component import '{name}' has no verified migration mapping.", LineOf(text, match.Index), null,
+                "Verify the component behavior and choose an explicit manual replacement."));
+        }
+
+        return changes;
+    }
+
+    private static int FindManualComponentReference(string text, string name)
+    {
+        foreach (Match match in ImportRegex.Matches(text))
+            if (match.Groups["name"].Value.Contains(name, StringComparison.Ordinal)) return match.Index;
+        foreach (Match match in BareImportRegex.Matches(text))
+            if (match.Groups["name"].Value.Contains(name, StringComparison.Ordinal)) return match.Index;
+        var usage = Regex.Match(text, $"<{Regex.Escape(name)}(?=[\\s/>])", RegexOptions.CultureInvariant);
+        return usage.Success ? usage.Index : -1;
     }
 
     private static void ScanRelativeImages(string body, string relative, int firstLine, Action<DocusaurusMigrationVerdict, DocusaurusMigrationIssue> raise)

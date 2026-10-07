@@ -24,9 +24,46 @@ internal static class DevServer
         string project, string configuration, CommandOptions options, CancellationToken cancellationToken)
     {
         var machine = string.Equals(options.Value("format"), "json", StringComparison.Ordinal);
-        var assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
+        var control = options.Has("control-stdin");
+        if (control && !machine)
+            throw new CliUsageException("serve --control-stdin requires --format json.");
         await using var session = new WatchHostSession(machine);
-        var latest = await session.BuildAsync(assembly, project, options, cancellationToken);
+        using var stopSource = new CancellationTokenSource();
+        using var stopping = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopSource.Token);
+        using var controlLifetime = new CancellationTokenSource();
+        var controller = new ServeController(machine, stopSource);
+        // Console.In reads block the calling thread synchronously, so stdin
+        // runs on a worker thread that the main flow never awaits (process
+        // exit reclaims it). Awaiting it here hung startup with an open pipe.
+        var controlLifetimeToken = controlLifetime.Token;
+        var controlTask = control
+            ? Task.Run(() => ControlLoop(controller, controlLifetimeToken))
+            : Task.CompletedTask;
+        var shutdownWritten = false;
+        void WriteRunShutdown(long generation, int exitCode)
+        {
+            if (shutdownWritten) return;
+            shutdownWritten = true;
+            WriteShutdown(generation, exitCode);
+        }
+        try
+        {
+        var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
+        // Subscribe before either initial compiler/host reads. Unknown initial
+        // output paths can cause one conservative rebuild; queued source edits
+        // must not disappear while the first build is in progress.
+        var state = new ServerState(new HostResponse { OutputDirectory = Path.GetDirectoryName(project)! });
+        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
+            (path, changeType) => {
+                // Directory LastWrite notifications can accompany a child edit on Windows.
+                // File and structural changes still request recompilation when needed.
+                var directoryMetadata = changeType == WatcherChangeTypes.Changed && Directory.Exists(path);
+                if (!directoryMetadata && Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1);
+                changes.Writer.TryWrite(true);
+            });
+        var assembly = await ProjectCompiler.BuildAsync(project, configuration, stopping.Token, machine);
+        var latest = await session.BuildAsync(assembly, project, options, stopping.Token);
         if (!latest.Success)
         {
             if (!string.IsNullOrWhiteSpace(latest.Error)) Console.Error.WriteLine(latest.Error);
@@ -39,7 +76,24 @@ internal static class DevServer
                 latest.Error,
                 latest.OutputDirectory,
             });
-            return latest.ExitCode;
+            controlLifetime.Cancel();
+            // The stdin reader blocks in a synchronous read that cancellation
+            // cannot abort; never wait for it here (process exit reclaims the
+            // thread). Only observe it when it already finished (for example EOF).
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+            if (controller.ShutdownRequested) WriteRunShutdown(controller.Generation, 0);
+            return controller.ShutdownRequested ? 0 : latest.ExitCode;
+        }
+        if (controller.ShutdownRequested)
+        {
+            // A shutdown arrived during the initial build: never start serving.
+            controlLifetime.Cancel();
+            // The stdin reader blocks in a synchronous read that cancellation
+            // cannot abort; never wait for it here (process exit reclaims the
+            // thread). Only observe it when it already finished (for example EOF).
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+            if (machine) WriteRunShutdown(controller.Generation, 0);
+            return 0;
         }
         var outputRoot = Path.GetFullPath(latest.OutputDirectory
             ?? throw new InvalidOperationException("The site host did not report an output directory."));
@@ -48,13 +102,17 @@ internal static class DevServer
         if (host is "*" or "+") throw new CliUsageException("Use an explicit address for --host.");
         var url = $"http://{host}:{port}";
         var hub = new ReloadHub();
-        var state = new ServerState(latest);
+        const long initialGeneration = 1;
+        state.Latest = latest with { Generation = initialGeneration };
+        state.OutputRoot = outputRoot;
+        state.IgnoredPaths = latest.IgnoredPaths;
+        controller.Generation = initialGeneration;
         var builder = WebApplication.CreateSlimBuilder();
         // Machine mode keeps stdout as pure JSON Lines, so ASP.NET logs must not pollute it.
         if (machine) builder.Logging.ClearProviders();
         builder.WebHost.UseUrls(url);
-        var app = builder.Build();
-        app.MapGet("/_lithosharp/reload", context => hub.ConnectAsync(context, cancellationToken));
+        await using var app = builder.Build();
+        app.MapGet("/_lithosharp/reload", context => hub.ConnectAsync(context, stopping.Token));
         app.MapGet("/_lithosharp/diagnostics", async context =>
         {
             context.Response.ContentType = "application/json; charset=utf-8";
@@ -63,17 +121,18 @@ internal static class DevServer
         });
         app.MapFallback("/{**path}", context => ServeFileAsync(context, state.OutputRoot));
 
-        var changes = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
-        { SingleReader = true, FullMode = BoundedChannelFullMode.DropWrite });
-        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
-            path => { if (Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1); changes.Writer.TryWrite(true); });
-        var rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, cancellationToken);
+        // Stop order is watch, then worker, then HTTP server, then host: the
+        // rebuild loop (worker) runs on the stopping token so a control shutdown
+        // aborts an in-flight rebuild instead of waiting for it.
+        // Pending initial edits are consumed once HTTP startup succeeded.
+        // Failed HTTP startup never starts an unnecessary queued rebuild.
+        var rebuild = Task.CompletedTask;
         var requestedPort = port;
         var started = false;
         string actualUrl = url;
         try
         {
-            await app.StartAsync(cancellationToken);
+            await app.StartAsync(stopping.Token);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -87,10 +146,17 @@ internal static class DevServer
                 Error = exception.Message,
                 OutputDirectory = (string?)null,
             });
+            watcher.EnableRaisingEvents = false;
             changes.Writer.TryComplete();
-            try { await rebuild; } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
-            return 1;
+            controlLifetime.Cancel();
+            // The stdin reader blocks in a synchronous read that cancellation
+            // cannot abort; never wait for it here (process exit reclaims the
+            // thread). Only observe it when it already finished (for example EOF).
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+            if (controller.ShutdownRequested) WriteRunShutdown(controller.Generation, 0);
+            return controller.ShutdownRequested ? 0 : 1;
         }
         actualUrl = app.Services.GetRequiredService<IServer>().Features
             .Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault() ?? url;
@@ -109,32 +175,57 @@ internal static class DevServer
                 Url = actualUrl,
                 OutputDirectory = outputRoot,
                 BasePath = "/",
+                SiteBasePath = state.Latest.SiteBasePath,
+                Generation = initialGeneration,
+                Routes = state.Latest.BuildPlan
+                    .SelectMany(node => node.Artifacts)
+                    .Select(artifact => new { Path = artifact.Path, PublicPath = artifact.PublicPath })
+                    .ToArray(),
             });
         }
         else
         {
             Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
         }
+        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
         if (options.Has("open")) OpenBrowser(actualUrl);
-        try { await app.WaitForShutdownAsync(cancellationToken); }
+        try { await app.WaitForShutdownAsync(stopping.Token); }
         finally
         {
+            watcher.EnableRaisingEvents = false;
             changes.Writer.TryComplete();
-            try { await rebuild; } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
-            if (machine && started) WriteMachine(new
-            {
-                SchemaVersion = MachineOutput.SchemaVersion,
-                Event = "shutdown",
-                ExitCode = cancellationToken.IsCancellationRequested ? 130 : 0,
-            });
+            controlLifetime.Cancel();
+            // The stdin reader blocks in a synchronous read that cancellation
+            // cannot abort; never wait for it here (process exit reclaims the
+            // thread). Only observe it when it already finished (for example EOF).
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+            if (machine && (started || controller.ShutdownRequested)) WriteRunShutdown(controller.Generation, controller.ShutdownRequested ? 0 : 130);
         }
-        return cancellationToken.IsCancellationRequested ? 130 : 0;
+        return controller.ShutdownRequested ? 0 : cancellationToken.IsCancellationRequested ? 130 : 0;
+        }
+        catch (OperationCanceledException) when (controller.ShutdownRequested)
+        {
+            // Structured shutdown also owns an initial compile/build. Preserve
+            // ordinary external cancellation and non-cancellation failures.
+            if (machine) WriteRunShutdown(controller.Generation, 0);
+            return 0;
+        }
+        finally
+        {
+            controller.CompleteControl();
+            controlLifetime.Cancel();
+            // A parked Console.In read cannot be canceled. If it later wakes,
+            // the lifetime check prevents touching disposed stop ownership.
+            if (controlTask.IsCompleted) await controlTask.ConfigureAwait(false);
+        }
     }
 
     private static async Task RebuildLoopAsync(
         ChannelReader<bool> changes, string project, string configuration, CommandOptions options,
-        ServerState state, ReloadHub hub, WatchHostSession session, string assembly, bool machine, CancellationToken cancellationToken)
+        ServerState state, ReloadHub hub, WatchHostSession session, string assembly, bool machine,
+        ServeController controller, CancellationToken cancellationToken)
     {
         await foreach (var ignored in changes.ReadAllAsync(cancellationToken))
         {
@@ -149,7 +240,8 @@ internal static class DevServer
                     assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
                 }
                 var response = await session.BuildAsync(assembly, project, options, cancellationToken);
-                state.Latest = response;
+                controller.Generation++;
+                state.Latest = response with { Generation = controller.Generation };
                 if (response.Success && response.OutputDirectory is not null)
                 {
                     state.OutputRoot = Path.GetFullPath(response.OutputDirectory);
@@ -167,6 +259,9 @@ internal static class DevServer
                         Success = true,
                         response.ExitCode,
                         OutputDirectory = state.OutputRoot,
+                        Generation = controller.Generation,
+                        RouteCount = response.BuildPlan.SelectMany(node => node.Artifacts).Count(),
+                        MdxWork = ReadMachineMdxWork(response),
                     });
                     else WriteMachine(new
                     {
@@ -176,6 +271,7 @@ internal static class DevServer
                         response.ExitCode,
                         response.Error,
                         OutputDirectory = state.OutputRoot,
+                        Generation = controller.Generation,
                     });
                 }
                 hub.Publish(response.Success ? "reload" : "error");
@@ -184,7 +280,8 @@ internal static class DevServer
             catch (Exception exception)
             {
                 Interlocked.Exchange(ref state.Restart, 1);
-                state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message };
+                controller.Generation++;
+                state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message, Generation = controller.Generation };
                 Console.Error.WriteLine(exception.Message);
                 if (machine) WriteMachine(new
                 {
@@ -194,10 +291,210 @@ internal static class DevServer
                     ExitCode = 1,
                     Error = exception.Message,
                     OutputDirectory = state.OutputRoot,
+                    Generation = controller.Generation,
                 });
                 hub.Publish("error");
             }
         }
+    }
+
+    private static void WriteShutdown(long generation, int exitCode) => WriteMachine(new
+    {
+        SchemaVersion = MachineOutput.SchemaVersion,
+        Event = "shutdown",
+        Generation = generation,
+        ExitCode = exitCode,
+    });
+
+    /// <summary>Structured stdin shutdown ownership: only the control loop requests
+    /// stops through this controller, and duplicate requests share one stop.</summary>
+    private sealed class ServeController
+    {
+        private readonly CancellationTokenSource stopSource;
+        private int shutdowns;
+        private readonly object controlGate = new();
+        private bool controlCompleted;
+
+        public ServeController(bool machine, CancellationTokenSource stopSource)
+        {
+            Machine = machine;
+            this.stopSource = stopSource;
+        }
+
+        public bool Machine { get; }
+
+        public bool ShutdownRequested => Volatile.Read(ref shutdowns) != 0;
+
+        public long Generation;
+
+        public void CompleteControl()
+        {
+            lock (controlGate) controlCompleted = true;
+        }
+
+        public void RequestShutdown(string? requestId)
+        {
+            lock (controlGate)
+            {
+            if (controlCompleted) return;
+            if (Interlocked.Increment(ref shutdowns) == 1)
+            {
+                if (requestId is not null)
+                {
+                    WriteMachine(new
+                    {
+                        SchemaVersion = MachineOutput.SchemaVersion,
+                        Event = "control-ack",
+                        RequestId = requestId,
+                        Success = true,
+                    });
+                }
+
+                stopSource.Cancel();
+            }
+            else if (requestId is not null)
+            {
+                WriteMachine(new
+                {
+                    SchemaVersion = MachineOutput.SchemaVersion,
+                    Event = "control-ack",
+                    RequestId = requestId,
+                    Success = true,
+                });
+            }
+            }
+        }
+    }
+
+    private static void ControlLoop(ServeController controller, CancellationToken lifetime)
+    {
+        // Synchronous stdin reads block the calling thread, so this loop owns a
+        // worker thread the main flow never awaits. Fragments across writes are
+        // reassembled into lines by the reader itself. Duplicate shutdowns are
+        // acked idempotently; the loop ends on EOF, a broken pipe, or process
+        // exit (which abandons a parked read).
+        while (!lifetime.IsCancellationRequested)
+        {
+            string? line;
+            try
+            {
+                line = Console.In.ReadLine();
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException)
+            {
+                return;
+            }
+
+            if (lifetime.IsCancellationRequested) return;
+            if (line is null)
+            {
+                // Stdin EOF (or the parent controller is gone) is a normal stop request.
+                controller.RequestShutdown(null);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            JsonDocument message;
+            try
+            {
+                message = JsonDocument.Parse(line);
+            }
+            catch (JsonException)
+            {
+                ControlError(null, "Unknown control format. Send one JSON object per line.");
+                continue;
+            }
+
+            using (message)
+            {
+                var root = message.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    ControlError(null, "Unknown control format. Send one JSON object per line.");
+                    continue;
+                }
+
+                var requestId = root.TryGetProperty("requestId", out var id)
+                    && id.ValueKind == JsonValueKind.String ? id.GetString() : null;
+                if (string.IsNullOrEmpty(requestId) || requestId.Length > 256)
+                {
+                    ControlError(null, "Control requests require a string requestId.");
+                    continue;
+                }
+
+                var schema = root.TryGetProperty("schemaVersion", out var version)
+                    && version.ValueKind == JsonValueKind.String ? version.GetString() ?? "" : "";
+                if (!ToolingCompatibility.IsCompatible(schema))
+                {
+                    ControlError(requestId, "Unsupported control schema version. Use schema version 1.0.");
+                    continue;
+                }
+
+                if (!root.TryGetProperty("command", out var command)
+                    || command.ValueKind != JsonValueKind.String
+                    || command.GetString() != "shutdown")
+                {
+                    ControlError(requestId, "Unknown control command. The only supported command is shutdown.");
+                    continue;
+                }
+
+                controller.RequestShutdown(requestId);
+            }
+        }
+    }
+
+    private static void ControlError(string? requestId, string error) => WriteMachine(new
+    {
+        SchemaVersion = MachineOutput.SchemaVersion,
+        Event = "control-error",
+        RequestId = requestId,
+        Success = false,
+        Error = error,
+    });
+
+    // Exact completed response only. Never serialize inspection paths, source,
+    // props or arbitrary extension values into this bounded machine witness.
+    private sealed record MachineMdxWork(int WorkerStarts, int RenderedPages, int CompiledModules, bool CacheHit);
+
+    private static MachineMdxWork? ReadMachineMdxWork(HostResponse response)
+    {
+        if (response.Extensions is null || response.Extensions.Length > 256) return null;
+        JsonElement? selected = null;
+        foreach (var extension in response.Extensions)
+        {
+            if (extension.ValueKind != JsonValueKind.Object
+                || !extension.TryGetProperty("kind", out var kind) || kind.ValueKind != JsonValueKind.String) continue;
+            JsonElement mdx;
+            if (kind.GetString() == "mdx") mdx = extension;
+            else if (kind.GetString() == "documentation")
+            {
+                if (!extension.TryGetProperty("mdx", out mdx) || mdx.ValueKind != JsonValueKind.Object
+                    || !mdx.TryGetProperty("kind", out var nestedKind) || nestedKind.ValueKind != JsonValueKind.String
+                    || nestedKind.GetString() != "mdx") return null;
+            }
+            else continue;
+            if (selected.HasValue) return null;
+            selected = mdx;
+        }
+        if (!selected.HasValue || !selected.Value.TryGetProperty("metrics", out var metrics)
+            || metrics.ValueKind != JsonValueKind.Object
+            || !TryMachineCount(metrics, "workerStarts", out var workers)
+            || !TryMachineCount(metrics, "renderedPages", out var rendered)
+            || !TryMachineCount(metrics, "compiledModules", out var compiled)
+            || !metrics.TryGetProperty("cacheHit", out var hit)
+            || hit.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return null;
+        return new(workers, rendered, compiled, hit.GetBoolean());
+    }
+
+    private static bool TryMachineCount(JsonElement metrics, string name, out int value)
+    {
+        value = 0;
+        return metrics.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.Number
+            && element.TryGetInt32(out value) && value >= 0;
     }
 
     private static readonly JsonSerializerOptions MachineOptions = new(JsonSerializerDefaults.Web);
@@ -216,7 +513,7 @@ internal static class DevServer
     }
 
     private static FileSystemWatcher CreateWatcher(
-        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string> changed)
+        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string, WatcherChangeTypes> changed)
     {
         var watcher = new FileSystemWatcher(root)
         {
@@ -224,11 +521,11 @@ internal static class DevServer
             InternalBufferSize = 64 * 1024,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath); };
+        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath, eventArgs.ChangeType); };
         RenamedEventHandler onRename = (_, eventArgs) =>
         {
             if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)
-                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath); changed(eventArgs.OldFullPath); }
+                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath, WatcherChangeTypes.Renamed); changed(eventArgs.OldFullPath, WatcherChangeTypes.Renamed); }
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;
@@ -237,7 +534,7 @@ internal static class DevServer
         watcher.Error += (_, eventArgs) =>
         {
             Console.Error.WriteLine($"File watching lost changes: {eventArgs.GetException().Message} Rebuilding the site.");
-            changed(root);
+            changed(root, WatcherChangeTypes.All);
         };
         watcher.EnableRaisingEvents = true;
         return watcher;

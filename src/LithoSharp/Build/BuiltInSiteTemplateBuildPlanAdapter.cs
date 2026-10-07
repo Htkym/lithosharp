@@ -441,6 +441,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                             text.TableOfContentsHeading,
                             text.TableOfContentsEmpty,
                         })),
+                    Value("page.source", post.FilePath),
                     Value("page.route", routes.Post(post).RelativeOutputPath),
                     Value("page.title", post.FrontMatter.Title),
                     Value("page.summary", post.FrontMatter.Summary),
@@ -753,7 +754,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             post.FrontMatter.Summary,
             post.FrontMatter.Tags,
             Date = SiteFormatting.FormatDateTime(site, post.FrontMatter.Date),
-            post.MarkdownBody,
+            BodyHash = MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody),
         }));
 
     private static string ResolveAnalyticsMeasurementId(SiteSettings site)

@@ -12,3 +12,6 @@
 *.webp binary
 *.pdf binary
 
+
+# Preserve the exact copyright and permission notices supplied upstream.
+licenses/*.txt -text -whitespace

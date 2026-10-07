@@ -65,7 +65,38 @@ public sealed class GeneratorTests
     [Test]
     public async Task GeneratedBinderCompilesAndMatchesReflection()
     {
-        var (compilation, diagnostics) = Generate(Model, new Input("C:/site/content/intro.md", "---\ntitle: hello\n---\nBody"));
+        var source = Model + """
+
+            public sealed class ContextFrontMatter {
+                public string Fallback { get; set; } = null!;
+                public string SetFallback { get => Fallback ?? string.Empty; set => Fallback = value; }
+                public int Count { get; set; } = 7;
+            }
+            [StaticContentCollection(typeof(ContextFrontMatter), typeof(string), "context-binding")]
+            public static partial class ContextBindings { }
+            public static class ContextProbe {
+                public static string Check() {
+                    IReadOnlyDictionary<string, object?>[] cases = [
+                        new Dictionary<string, object?> { ["set_fallback"] = "ready", ["count"] = "42" },
+                        new Dictionary<string, object?> { ["count"] = "invalid", ["fallback"] = null, ["unknown"] = true },
+                        new Dictionary<string, object?>()
+                    ];
+                    var location = new LithoSharp.Diagnostics.SiteSourceLocation("test.yaml", 2, 1);
+                    foreach (var values in cases) {
+                        var expected = new ReflectionContentFrontMatterBinder<ContextFrontMatter>().Bind(values, location);
+                        var actual = ContextBindings.Binder.Bind(values, location);
+                        if (expected.IsSuccess != actual.IsSuccess) return "success differs";
+                        var left = string.Join("|", System.Linq.Enumerable.Select(expected.Diagnostics, Describe));
+                        var right = string.Join("|", System.Linq.Enumerable.Select(actual.Diagnostics, Describe));
+                        if (left != right) return left + " != " + right;
+                        if (actual.IsSuccess && (actual.Value!.Fallback != expected.Value!.Fallback || actual.Value.Count != expected.Value.Count)) return "values differ";
+                    }
+                    return "matched";
+                }
+                private static string Describe(LithoSharp.Diagnostics.SiteDiagnostic d) => d.Id + "|" + d.Message + "|" + d.Location?.FilePath + ":" + d.Location?.Line + ":" + d.Location?.Column;
+            }
+            """;
+        var (compilation, diagnostics) = Generate(source, new Input("C:/site/content/intro.md", "---\ntitle: hello\n---\nBody"));
         await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
         using var stream = new MemoryStream();
         var emitted = compilation.Emit(stream);
@@ -73,6 +104,8 @@ public sealed class GeneratorTests
         var assembly = System.Reflection.Assembly.Load(stream.ToArray());
         var result = (string)assembly.GetType("Probe")!.GetMethod("Check")!.Invoke(null, null)!;
         await Assert.That(result).IsEqualTo("/intro/");
+        var contextResult = (string)assembly.GetType("ContextProbe")!.GetMethod("Check")!.Invoke(null, null)!;
+        await Assert.That(contextResult).IsEqualTo("matched");
         var schema = (string)assembly.GetType("Guides")!.GetField("SchemaJson")!.GetRawConstantValue()!;
         using var document = System.Text.Json.JsonDocument.Parse(schema);
         await Assert.That(document.RootElement.GetProperty("$schema").GetString()).IsEqualTo("https://json-schema.org/draft/2020-12/schema");

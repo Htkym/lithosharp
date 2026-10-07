@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "roots": [
+    {
+      "token": "workspace",
+      "note": "machine-specific absolute prefix replaced"
+    },
+    {
+      "token": "repo",
+      "note": "machine-specific absolute prefix replaced"
+    }
+  ],
+  "files": [
+    "commands.txt",
+    "README.ja.md",
+    "README.md",
+    "routes/docusaurus-route-oracle.json",
+    "routes/jest-route-oracle.json",
+    "routes/prettier-route-oracle.json",
+    "run.json",
+    "sites/docusaurus.json",
+    "sites/jest.json",
+    "sites/prettier.json",
+    "version-manifest.json"
+  ],
+  "findingCount": 0,
+  "findings": []
+}

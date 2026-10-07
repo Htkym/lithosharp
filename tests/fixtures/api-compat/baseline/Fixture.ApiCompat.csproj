@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <PackageId>Fixture.ApiCompat</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>LithoSharp fixtures</Authors>
+    <Description>Negative fixture: baseline package for the API compatibility gate.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Api.cs" />
+  </ItemGroup>
+
+</Project>

@@ -32,7 +32,9 @@ public sealed class ImageAssetTests
         foreach (var variant in image.Variants)
         {
             var artifact = first.BuildPlan.Artifacts.Single(item => item.Id.Value == "asset:" + variant.Output.Id);
-            using var codec = SKCodec.Create(Path.Combine(Output(workspace), artifact.RelativeOutputPath));
+            // Managed file IO supports long and Unicode fixture paths on Windows.
+            using var stream = File.OpenRead(Path.Combine(Output(workspace), artifact.RelativeOutputPath));
+            using var codec = SKCodec.Create(stream);
             await Assert.That(codec).IsNotNull();
             await Assert.That(codec!.Info.Width).IsEqualTo(variant.Width);
             await Assert.That(codec.Info.Height).IsEqualTo(variant.Width / 2);
@@ -44,6 +46,37 @@ public sealed class ImageAssetTests
         oldTimestamp = File.GetLastWriteTimeUtc(cacheFile);
         await Generate(workspace, image, _ => { }, clean: false);
         await Assert.That(File.GetLastWriteTimeUtc(cacheFile)).IsEqualTo(oldTimestamp);
+    }
+
+    [Test]
+    [Arguments(SKEncodedImageFormat.Png)]
+    [Arguments(SKEncodedImageFormat.Jpeg)]
+    [Arguments(SKEncodedImageFormat.Webp)]
+    public async Task SupportedRasterSourcesDecodeThroughManagedStreams(SKEncodedImageFormat format)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var sourcePath = Path.Combine(workspace.Root, "source.image");
+        using (var bitmap = new SKBitmap(40, 20))
+        {
+            bitmap.Erase(SKColors.CornflowerBlue);
+            using var raster = SKImage.FromBitmap(bitmap);
+            using var encoded = raster.Encode(format, 100)
+                ?? throw new InvalidOperationException($"Could not encode the test {format}.");
+            using var stream = File.Create(sourcePath);
+            encoded.SaveTo(stream);
+        }
+
+        var image = new ImageAsset(
+            new SiteAsset("photo", workspace.Root, "source.image", "original.image"),
+            [new ImageVariant("fallback", "images/photo.png", 20, ImageFormat.Png)]);
+        var result = await Generate(workspace, image, _ => { });
+        var output = result.BuildPlan.Artifacts.Single(item => item.Id.Value == "asset:fallback");
+        using var outputStream = File.OpenRead(Path.Combine(Output(workspace), output.RelativeOutputPath));
+        using var codec = SKCodec.Create(outputStream);
+        await Assert.That(codec).IsNotNull();
+        await Assert.That(codec!.Info.Width).IsEqualTo(20);
+        await Assert.That(codec.Info.Height).IsEqualTo(10);
+        await Assert.That(codec.EncodedFormat).IsEqualTo(SKEncodedImageFormat.Png);
     }
 
     [Test]

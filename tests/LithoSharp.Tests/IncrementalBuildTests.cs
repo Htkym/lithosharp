@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Pages;
@@ -25,7 +27,7 @@ public sealed class IncrementalBuildTests
     }
 
     [Test]
-    public async Task NoOpBuild_ReusesCacheWithoutCallingTypedRenderer()
+    public async Task TypedRenderer_ReusesUnchangedFingerprintAndInvalidatesChangedFingerprint()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Output(workspace);
@@ -39,6 +41,13 @@ public sealed class IncrementalBuildTests
 
         await Assert.That(calls).IsEqualTo(0);
         await Assert.That(PageNode(result, "one").CacheHit).IsTrue();
+
+        calls = 0;
+        result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
+            Registration(() => Interlocked.Increment(ref calls), "renderer:2"), clean: false);
+
+        await Assert.That(calls).IsEqualTo(1);
+        await Assert.That(PageNode(result, "one").CacheHit).IsFalse();
     }
 
     [Test]
@@ -89,23 +98,6 @@ public sealed class IncrementalBuildTests
     }
 
     [Test]
-    public async Task RendererFingerprintChange_InvalidatesTypedPage()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var output = Output(workspace);
-        var calls = 0;
-        await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
-            Registration(() => Interlocked.Increment(ref calls), "renderer:1"), clean: true);
-
-        calls = 0;
-        var result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
-            Registration(() => Interlocked.Increment(ref calls), "renderer:2"), clean: false);
-
-        await Assert.That(calls).IsEqualTo(1);
-        await Assert.That(PageNode(result, "one").CacheHit).IsFalse();
-    }
-
-    [Test]
     public async Task MissingRendererFingerprint_AlwaysCallsTypedRenderer()
     {
         using var workspace = new TemporaryWorkspace();
@@ -122,7 +114,6 @@ public sealed class IncrementalBuildTests
     [Test]
     [Arguments("manifest")]
     [Arguments("artifact")]
-    [Arguments("derived-body")]
     public async Task CorruptCacheOrArtifact_IsAMissAndRecovers(string target)
     {
         using var workspace = new TemporaryWorkspace();
@@ -132,11 +123,8 @@ public sealed class IncrementalBuildTests
         var cache = Cache(workspace);
         if (target == "manifest")
             await File.WriteAllTextAsync(Directory.EnumerateFiles(cache, "*.json", SearchOption.AllDirectories).Single(), "corrupt");
-        else if (target == "artifact")
-            await File.WriteAllTextAsync(Path.Combine(output, "pages", "one.html"), "corrupt");
         else
-            foreach (var path in Directory.EnumerateFiles(cache, "*.utf8", SearchOption.AllDirectories))
-                await File.WriteAllTextAsync(path, "corrupt");
+            await File.WriteAllTextAsync(Path.Combine(output, "pages", "one.html"), "corrupt");
         var calls = 0;
 
         var result = await GenerateAsync(output, workspace.Root, [Entry("one", "source:1")],
@@ -146,6 +134,100 @@ public sealed class IncrementalBuildTests
         await Assert.That(PageNode(result, "one").CacheHit).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "pages", "one.html")))
             .Contains("Body one");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task MissingOrCorruptDerivedBody_MaterializesOutputBeforeRenderer(bool missing)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Output(workspace);
+        var entries = new[] { Entry("one", "source:1") };
+        var initial = await GenerateAsync(output, workspace.Root, entries,
+            Registration(null, "renderer:1"), clean: true);
+        var bodyPath = await DerivedBodyPathAsync(Cache(workspace), initial, "one");
+        var originalBody = await File.ReadAllTextAsync(bodyPath);
+        await File.WriteAllTextAsync(Path.Combine(output, "unowned.txt"), "preserve this file");
+        if (missing) File.Delete(bodyPath);
+        else await File.WriteAllTextAsync(bodyPath, "corrupt");
+        var renderedAfterCopy = 0;
+        var calls = 0;
+
+        var repaired = await GenerateAsync(output, workspace.Root, entries, Registration(() =>
+        {
+            Interlocked.Increment(ref calls);
+            if (StagingContainsSentinel(workspace.Root)) Interlocked.Increment(ref renderedAfterCopy);
+        }, "renderer:1"), clean: false);
+
+        await Assert.That(calls).IsEqualTo(1);
+        await Assert.That(renderedAfterCopy).IsEqualTo(1);
+        await Assert.That(PageNode(repaired, "one").CacheHit).IsFalse();
+        await Assert.That(PageNode(repaired, "one").CacheMissReason)
+            .IsEqualTo("The rendered body is missing or corrupt.");
+        await AssertRepairedDerivedBodyAsync(output, repaired, "one", bodyPath, originalBody);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "unowned.txt")))
+            .IsEqualTo("preserve this file");
+        await Assert.That(Directory.EnumerateDirectories(workspace.Root, ".lithosharp-staging-*"))
+            .IsEmpty();
+
+        calls = 0;
+        var noOp = await GenerateAsync(output, workspace.Root, entries,
+            Registration(() => Interlocked.Increment(ref calls), "renderer:1"), clean: false);
+        await Assert.That(calls).IsEqualTo(0);
+        await Assert.That(noOp.BuildReport.CacheMissCount).IsEqualTo(0);
+
+        var cleanOutput = Path.Combine(workspace.Root, "clean");
+        await GenerateAsync(cleanOutput, workspace.Root, entries,
+            Registration(null, "renderer:1"), clean: true);
+        await File.WriteAllTextAsync(Path.Combine(cleanOutput, "unowned.txt"), "preserve this file");
+        await Assert.That(await SnapshotAsync(output)).IsEquivalentTo(await SnapshotAsync(cleanOutput));
+    }
+
+    [Test]
+    public async Task ParallelBodyAndArtifactCorruption_MaterializesBeforeBothMissRenderers()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Output(workspace);
+        var entries = new[] { Entry("one", "source:1"), Entry("two", "source:1") };
+        var initial = await GenerateAsync(output, workspace.Root, entries,
+            Registration(null, "renderer:1", threadSafe: true), clean: true, parallelism: 2);
+        var bodyPath = await DerivedBodyPathAsync(Cache(workspace), initial, "one");
+        var originalBody = await File.ReadAllTextAsync(bodyPath);
+        await File.WriteAllTextAsync(bodyPath, "corrupt");
+        await File.WriteAllTextAsync(Path.Combine(output, "pages", "two.html"), "corrupt");
+        await File.WriteAllTextAsync(Path.Combine(output, "unowned.txt"), "preserve this file");
+        var calls = 0;
+        var renderedAfterCopy = 0;
+
+        var repaired = await GenerateAsync(output, workspace.Root, entries, Registration(() =>
+        {
+            Interlocked.Increment(ref calls);
+            if (StagingContainsSentinel(workspace.Root)) Interlocked.Increment(ref renderedAfterCopy);
+        }, "renderer:1", threadSafe: true), clean: false, parallelism: 2);
+
+        await Assert.That(calls).IsEqualTo(2);
+        await Assert.That(renderedAfterCopy).IsEqualTo(2);
+        await Assert.That(PageNode(repaired, "one").CacheHit).IsFalse();
+        await Assert.That(PageNode(repaired, "two").CacheHit).IsFalse();
+        await AssertRepairedDerivedBodyAsync(output, repaired, "one", bodyPath, originalBody);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "unowned.txt")))
+            .IsEqualTo("preserve this file");
+        await Assert.That(Directory.EnumerateDirectories(workspace.Root, ".lithosharp-staging-*"))
+            .IsEmpty();
+
+        calls = 0;
+        var noOp = await GenerateAsync(output, workspace.Root, entries,
+            Registration(() => Interlocked.Increment(ref calls), "renderer:1", threadSafe: true),
+            clean: false, parallelism: 2);
+        await Assert.That(calls).IsEqualTo(0);
+        await Assert.That(noOp.BuildReport.CacheMissCount).IsEqualTo(0);
+
+        var cleanOutput = Path.Combine(workspace.Root, "clean");
+        await GenerateAsync(cleanOutput, workspace.Root, entries,
+            Registration(null, "renderer:1", threadSafe: true), clean: true, parallelism: 2);
+        await File.WriteAllTextAsync(Path.Combine(cleanOutput, "unowned.txt"), "preserve this file");
+        await Assert.That(await SnapshotAsync(output)).IsEquivalentTo(await SnapshotAsync(cleanOutput));
     }
 
     [Test]
@@ -299,6 +381,46 @@ public sealed class IncrementalBuildTests
                 clean: true, routePrefix: "../invalid"))
             .Throws<SiteRouteValidationException>();
         await Assert.That(calls).IsEqualTo(0);
+    }
+
+    private static bool StagingContainsSentinel(string parentRoot)
+    {
+        var staging = Directory.EnumerateDirectories(parentRoot, ".lithosharp-staging-*").Single();
+        var sentinel = Path.Combine(staging, "unowned.txt");
+        return File.Exists(sentinel) && File.ReadAllText(sentinel) == "preserve this file";
+    }
+
+    private static async Task<string> DerivedBodyPathAsync(
+        string cacheRoot, SiteGenerationResult initial, string id)
+    {
+        var buildPath = Directory.EnumerateFiles(cacheRoot, "*.json", SearchOption.AllDirectories).Single();
+        using var manifest = JsonDocument.Parse(await File.ReadAllBytesAsync(buildPath));
+        var nodeId = PageNode(initial, id).NodeId;
+        var node = manifest.RootElement.GetProperty("Nodes").EnumerateArray()
+            .Single(node => node.GetProperty("NodeId").GetString() == nodeId);
+        var hash = node.GetProperty("DerivedBodyHash").GetString()!;
+        return Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(buildPath))!, "blobs", hash + ".utf8");
+    }
+
+    private static async Task AssertRepairedDerivedBodyAsync(
+        string output, SiteGenerationResult repaired, string id, string bodyPath, string originalBody)
+    {
+        using var outputManifest = JsonDocument.Parse(await File.ReadAllBytesAsync(
+            Path.Combine(output, ".lithosharp-output-manifest.json")));
+        var digest = outputManifest.RootElement.GetProperty("buildCache").GetString()!;
+        await Assert.That(digest.Length).IsEqualTo(64);
+        var partition = Path.GetDirectoryName(Path.GetDirectoryName(bodyPath))!;
+        var buildBytes = await File.ReadAllBytesAsync(Path.Combine(partition, "builds", digest + ".json"));
+        await Assert.That(Convert.ToHexStringLower(SHA256.HashData(buildBytes))).IsEqualTo(digest);
+        using var build = JsonDocument.Parse(buildBytes);
+        var nodeId = PageNode(repaired, id).NodeId;
+        var node = build.RootElement.GetProperty("Nodes").EnumerateArray()
+            .Single(node => node.GetProperty("NodeId").GetString() == nodeId);
+        var bodyHash = node.GetProperty("DerivedBodyHash").GetString();
+        await Assert.That(bodyHash).IsEqualTo(Path.GetFileNameWithoutExtension(bodyPath));
+        var bodyBytes = await File.ReadAllBytesAsync(bodyPath);
+        await Assert.That(Convert.ToHexStringLower(SHA256.HashData(bodyBytes))).IsEqualTo(bodyHash);
+        await Assert.That(await File.ReadAllTextAsync(bodyPath)).IsEqualTo(originalBody);
     }
 
     private static RendererSettings Registration(

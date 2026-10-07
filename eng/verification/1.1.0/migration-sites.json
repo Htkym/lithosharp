@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0",
+  "corpusId": "v110-21-pinned-sites-2026-09",
+  "provenance": {
+    "kind": "new-pinned-corpus",
+    "note": "R21/R29 outputs do not retain verifiable source checkout commits for all three sites. These upstream tag pins are a new corpus and are not represented as equivalent to the historical inputs."
+  },
+  "container": {
+    "image": "lithosharp/migration-corpus:2026-09",
+    "containerfile": "eng/migration-corpus/Containerfile",
+    "nodeImage": "node:24.13.0-bookworm-slim@sha256:46feb5752989c05b8606e6323fbbc3db667d14ade1c24f5d0d44d9ca9909d607",
+    "dotnetImage": "mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:28e7a5db4f5d40cc805acd939a065668ba2e17d697a09153054dce98db240d0e",
+    "nodeVersion": "24.13.0",
+    "dotnetSdkVersion": "10.0.401"
+  },
+  "sites": [
+    {
+      "id": "prettier",
+      "repository": "https://github.com/prettier/prettier.git",
+      "tag": "3.6.2",
+      "commit": "7a8b05f41574633fd3af5298f3eeaf33567ad3d3",
+      "version": "3.6.2",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "targetPath": "website",
+      "sourceVersion": "3.6.2",
+      "docusaurusVersion": "3.8.1",
+      "packageManager": "yarn@4.9.2",
+      "installCommands": [
+        { "cwd": ".", "command": ["corepack", "yarn", "install", "--immutable"] },
+        { "cwd": "website", "command": ["corepack", "yarn", "install", "--immutable"] }
+      ],
+      "buildVariants": [
+        { "locale": "en", "buildOutput": "website/build", "commands": [["corepack", "yarn", "build:website"]] }
+      ],
+      "lockFiles": ["yarn.lock", "website/yarn.lock"],
+      "siteUrl": "https://prettier.io/",
+      "basePath": "/",
+      "defaultLocale": "en",
+      "locales": ["en"],
+      "candidatePageLimit": 12,
+      "documentRoutePrefixes": ["/docs/"],
+      "blogRoutePrefixes": ["/blog/"],
+      "inputMappings": [
+        { "source": "package.json", "target": "package.json", "required": true },
+        { "source": "docs", "target": "docs", "required": true },
+        { "source": "website/blog", "target": "blog", "required": true },
+        { "source": "website/static", "target": "static", "required": true },
+        { "source": "website/versions.json", "target": "versions.json", "required": false },
+        { "source": "website/versioned_docs", "target": "versioned_docs", "required": false },
+        { "source": "website/versioned_sidebars", "target": "versioned_sidebars", "required": false },
+        { "source": "website/i18n", "target": "i18n", "required": false },
+        { "source": "website/docusaurus.config.js", "target": "docusaurus.config.js", "required": true },
+        { "source": "website/sidebars.json", "target": "sidebars.json", "required": true }
+      ],
+      "excludedSitePaths": [
+        { "path": "website/playground", "reason": "Interactive playground application, not a documentation page collection." },
+        { "path": "website/src", "reason": "Site theme and custom components; manually reviewed but not treated as source documents." }
+      ]
+    },
+    {
+      "id": "jest",
+      "repository": "https://github.com/jestjs/jest.git",
+      "tag": "v30.2.0",
+      "commit": "855864e3f9751366455246790be2bf912d4d0dac",
+      "version": "30.2.0",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "targetPath": "website",
+      "sourceVersion": "30.2.0",
+      "docusaurusVersionConstraint": "^3.0.0 (resolved by pinned yarn.lock)",
+      "packageManager": "yarn@4.9.2",
+      "installCommands": [
+        { "cwd": ".", "command": ["corepack", "yarn", "install", "--immutable"] }
+      ],
+      "preBuildCommands": [
+        ["corepack", "yarn", "workspace", "jest-website", "fetchSupporters"]
+      ],
+      "preBuildOutputs": ["website/backers.json"],
+      "buildVariants": [
+        { "locale": "en", "buildOutput": "website/build", "commands": [["corepack", "yarn", "workspace", "jest-website", "build", "--locale", "en", "--out-dir", "build"]] }
+      ],
+      "lockFiles": ["yarn.lock"],
+      "siteUrl": "https://jestjs.io/",
+      "basePath": "/",
+      "defaultLocale": "en",
+      "locales": ["en", "ja", "es-ES", "fr", "pt-BR", "ro", "ru", "uk", "zh-Hans"],
+      "candidatePageLimit": 12,
+      "documentRoutePrefixes": ["/docs/"],
+      "blogRoutePrefixes": ["/blog/"],
+      "inputMappings": [
+        { "source": "package.json", "target": "package.json", "required": true },
+        { "source": "docs", "target": "docs", "required": true },
+        { "source": "website/blog", "target": "blog", "required": true },
+        { "source": "website/static", "target": "static", "required": true },
+        { "source": "website/versions.json", "target": "versions.json", "required": false },
+        { "source": "website/versioned_docs", "target": "versioned_docs", "required": false },
+        { "source": "website/versioned_sidebars", "target": "versioned_sidebars", "required": false },
+        { "source": "website/i18n", "target": "i18n", "required": false },
+        { "source": "website/docusaurus.config.js", "target": "docusaurus.config.js", "required": true },
+        { "source": "website/sidebars.json", "target": "sidebars.json", "required": true }
+      ],
+      "excludedSitePaths": [
+        { "path": "website/src", "reason": "Site theme and custom pages; outside the selected docs/blog content inputs." }
+      ]
+    },
+    {
+      "id": "docusaurus",
+      "repository": "https://github.com/facebook/docusaurus.git",
+      "tag": "v3.10.2",
+      "commit": "f37f9035584917a97a260b91fc2842cba4f8b94f",
+      "version": "3.10.2",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "targetPath": "website",
+      "sourceVersion": "3.10.2",
+      "packageManager": "yarn@1.22.22",
+      "installCommands": [
+        { "cwd": ".", "command": ["corepack", "yarn", "install", "--frozen-lockfile", "--network-timeout", "600000"] }
+      ],
+      "buildVariants": [
+        { "locale": "en", "buildOutput": "website/build", "commands": [["corepack", "yarn", "workspace", "website", "docusaurus", "build", "--locale", "en", "--out-dir", "build"]] }
+      ],
+      "lockFiles": ["yarn.lock"],
+      "siteUrl": "https://docusaurus.io/",
+      "basePath": "/",
+      "defaultLocale": "en",
+      "locales": ["en", "fr", "pt-BR", "ko", "zh-CN"],
+      "candidatePageLimit": 12,
+      "documentRoutePrefixes": ["/docs/"],
+      "blogRoutePrefixes": ["/blog/"],
+      "inputMappings": [
+        { "source": "package.json", "target": "package.json", "required": true },
+        { "source": "website/docs", "target": "docs", "required": true },
+        { "source": "website/blog", "target": "blog", "required": true },
+        { "source": "website/static", "target": "static", "required": true },
+        { "source": "website/versions.json", "target": "versions.json", "required": false },
+        { "source": "website/versioned_docs", "target": "versioned_docs", "required": false },
+        { "source": "website/versioned_sidebars", "target": "versioned_sidebars", "required": false },
+        { "source": "website/i18n", "target": "i18n", "required": false },
+        { "source": "website/docusaurus.config.ts", "target": "docusaurus.config.ts", "required": true },
+        { "source": "website/sidebars.ts", "target": "sidebars.ts", "required": true }
+      ],
+      "excludedSitePaths": [
+        { "path": "website/community", "reason": "Second custom docs plugin collection; not merged into the default docs collection." },
+        { "path": "website/src", "reason": "Dogfooding plugins, custom pages and components; outside the selected docs/blog content inputs." }
+      ]
+    }
+  ]
+}
