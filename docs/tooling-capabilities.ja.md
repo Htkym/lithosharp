@@ -1,5 +1,7 @@
 # Tooling capability contract (v1.1.0 / schema 1.0)
 
+[English](tooling-capabilities.md)
+
 `lithosharp capabilities`が返す機能情報と、ツール・プロジェクト・言語サーバーの識別情報を説明します。
 
 ## 呼び出しと exit code

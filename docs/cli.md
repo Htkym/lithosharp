@@ -137,4 +137,4 @@ References: [custom templates](https://learn.microsoft.com/dotnet/core/tools/cus
 [trimming incompatibilities](https://learn.microsoft.com/dotnet/core/deploying/trimming/incompatibilities),
 [Native AOT](https://learn.microsoft.com/dotnet/core/deploying/native-aot).
 
-See the [capability schema](tooling-capabilities.ja.md) and [language-server protocol](language-server.md) for custom integrations.
+See the [capability schema](tooling-capabilities.md) and [language-server protocol](language-server.md) for custom integrations.
