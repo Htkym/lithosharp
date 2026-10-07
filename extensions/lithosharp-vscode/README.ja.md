@@ -40,8 +40,9 @@ workspace由来の実行path（`lithosharp.cliPath` はrestricted設定）は
 
 build、serve、診断、symbols、previewは実装済み（V110-16/17/18）であり、
 実Extension Hostで検証しています（V110-19）。停止時には編集用セッションと
-所有するサーバー、channel・status・listenerを破棄します。0.1.0の配布はlocal VSIX
-のみであり、Marketplace、複数OS、package済みVSIX検証は予定作業のままです。
+所有するサーバー、channel・status・listenerを破棄します。同一のVSIXを導入した
+Extension Hostで、Windows x64・Linux x64・macOS arm64の検証が通っています。
+Marketplaceへの公開は未実施です。[配布と公開設定](../../docs/distribution.ja.md)を参照してください。
 
 ## Command（V110-16）
 

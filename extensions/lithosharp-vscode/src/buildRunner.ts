@@ -78,7 +78,8 @@ export class BuildRunner {
       return { ok: false, exitCode: 130, error: 'CLI invocation was cancelled.', diagnosticsText: null };
     }
     const cap = this.options.maxOutputChars ?? 65536;
-    const stdout = result.stdout.slice(-cap);
+    // The process probe bounds capture; only display text is truncated here.
+    const stdout = result.stdout;
     const stderr = result.stderr.slice(-cap);
     if (stderr.trim() !== '') {
       this.options.onLog?.(stderr.trim().split('\n').slice(-5).join('\n'));

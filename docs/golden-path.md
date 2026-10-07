@@ -55,14 +55,16 @@ caches; `cache clean -o <directory>` reclaims one output partition explicitly.
 The extension is not on the Marketplace in 0.1.0.
 
 ```sh
-npm --prefix extensions/lithosharp-vscode ci
+npm --prefix extensions/lithosharp-vscode ci --ignore-scripts --no-audit --no-fund
+npm --prefix eng/vsix-packager ci --ignore-scripts --no-audit --no-fund
 npm --prefix extensions/lithosharp-vscode run vsix:pack
 code --install-extension extensions/lithosharp-vscode/lithosharp-0.1.0.vsix
 ```
 
-`npm ci` and the `vsce` download need network access; both run explicitly
-here, never inside the extension. `vsix:pack` compiles, stages the MDX worker
-source with its lockfile hash, then packages without transmitting anything.
+The two `npm ci` commands restore committed lockfiles and need network access.
+The packager lock fixes VSCE at 4.0.0; `vsix:pack` invokes that local CLI
+without downloading another version. It compiles, stages the bundled language
+server and MDX worker, then packages without publishing anything.
 
 Then `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open
 Preview`. The extension resolves the CLI (project-local tool, then PATH) and

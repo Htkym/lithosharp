@@ -46,7 +46,7 @@ async function ownedOutput(): Promise<string> {
 
 describe('lithosharp smoke', () => {
   it('probe host responsiveness', async () => {
-    const ext = vscode.extensions.getExtension('undefined_publisher.lithosharp');
+    const ext = vscode.extensions.getExtension('htkym.lithosharp');
     assert.ok(ext, 'extension is not installed');
     const expected = process.env['LITHOSHARP_INSTALLED_EXTENSION'];
     if (expected) {
@@ -71,7 +71,7 @@ describe('lithosharp smoke', () => {
     const probe = await vscode.workspace.openTextDocument({ language: 'markdown', content: '# probe\n' });
     await vscode.window.showTextDocument(probe);
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-    await vscode.extensions.getExtension('undefined_publisher.lithosharp')?.activate();
+    await vscode.extensions.getExtension('htkym.lithosharp')?.activate();
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes('lithosharp.selectProject'), 'extension did not register (activation failed)');
     await vscode.commands.executeCommand('lithosharp.selectProject');
@@ -88,7 +88,7 @@ describe('lithosharp smoke', () => {
     const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-int-'));
     // Empty setting verifies the actual bundled default, without a server shim
     // or an explicit development DLL overriding the packaged path.
-    const ext = vscode.extensions.getExtension('undefined_publisher.lithosharp');
+    const ext = vscode.extensions.getExtension('htkym.lithosharp');
     assert.ok(ext, 'extension is not installed');
     assert.ok(fs.existsSync(path.join(ext.extensionPath, 'resources', 'language-server', 'LithoSharp.LanguageServer.dll')),
       'stage the language server before running Extension Host tests');

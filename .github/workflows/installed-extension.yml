@@ -3,6 +3,10 @@ name: installed extension acceptance
 on:
   workflow_dispatch:
   workflow_call:
+    outputs:
+      vsix-sha256:
+        description: SHA256 of the VSIX validated on all three operating systems.
+        value: ${{ jobs.package.outputs.vsix-sha256 }}
 
 permissions:
   contents: read
@@ -35,6 +39,8 @@ jobs:
             npm ci --ignore-scripts --no-audit --no-fund
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test:unit
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { Pop-Location }
       - name: Pack and validate one shipping VSIX

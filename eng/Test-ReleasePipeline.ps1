@@ -55,31 +55,31 @@ function Test-CoreTag {
 
 function Test-ExtensionTag {
     $extension = Get-Workflow 'publish-extension.yml'
-    # Tag pushes only pack and validate. Publishing runs exclusively from a
-    # manual dispatch behind the marketplace environment approval.
-    if ($extension -notmatch "extension/lithosharp-vscode/\*") { Fail 'publish-extension.yml lost its extension tag filter.' }
-    if ($extension -match '(?m)^\s+tags:\s*$' -and $extension -match 'publish:' -and $extension -notmatch 'workflow_dispatch') {
-        Fail 'publish-extension.yml publishes from a tag push.'
+    if ($extension -notmatch 'extension/lithosharp-vscode/\*') { Fail 'publish-extension.yml lost its extension tag filter.' }
+    if ($extension -notmatch 'workflow_dispatch' -or $extension -notmatch "default: 'false'") { Fail 'manual dispatch must default to validation only.' }
+    if ($extension -notmatch 'environment:\s*marketplace' -or $extension -notmatch 'Test-ExtensionPublish.ps1 -Check Environment') {
+        Fail 'publish-extension.yml lost its configured required-reviewer gate.'
     }
-    if ($extension -notmatch 'workflow_dispatch') { Fail 'publish-extension.yml lost its manual dispatch.' }
-    if ($extension -notmatch 'environment:\s*marketplace') { Fail 'publish-extension.yml lost its marketplace environment approval.' }
-    if ($extension -notmatch 'VSCE_PUBLISHER') { Fail 'publish-extension.yml lost its publisher-account gate.' }
-    if ($extension -notmatch 'npm pkg set "publisher=') { Fail 'publish-extension.yml does not package the VSIX with its configured publisher.' }
-    if ($extension -notmatch 'VSCE_PAT') { Fail 'publish-extension.yml lost its Marketplace credential gate.' }
-    if ($extension -match 'vsce publish' -and $extension -notmatch "inputs\.publish == 'true'") {
-        Fail 'publish-extension.yml can publish without the explicit publish input.'
+    if ($extension -notmatch 'merge-base --is-ancestor') { Fail 'publication requires the tagged commit on main.' }
+    if ($extension -notmatch 'uses: \./\.github/workflows/installed-extension.yml' -or $extension -notmatch 'needs: \[preflight, validate\]') {
+        Fail 'publication must depend on three-OS installed acceptance.'
     }
+    if ($extension -notmatch 'VSCE_PAT' -or $extension -notmatch "needs.preflight.outputs.publish == 'true'") { Fail 'publish request or credential gate missing.' }
+    if ($extension -notmatch 'Test-ExtensionPublish.ps1 -Check Artifact' -or $extension -notmatch 'publish --packagePath') {
+        Fail 'publication must verify and submit the certified artifact.'
+    }
+    if ($extension -match 'npm pkg set|vsce package|run vsix:stage') { Fail 'publish workflow must not rebuild the certified VSIX.' }
     $package = Get-Content -LiteralPath (Join-Path $repo 'extensions/lithosharp-vscode/package.json') -Raw | ConvertFrom-Json
     $version = [string]$package.version
     if ($version -notmatch '^\d+\.\d+\.\d+$') { Fail "extension version '$version' is not a plain release version." }
-    if ($package.PSObject.Properties['publisher']) { Fail 'extension package.json must not claim a publisher before the account exists.' }
+    if ([string]$package.publisher -cne 'htkym') { Fail 'extension must use the existing htkym publisher identity.' }
     $expectedTag = "extension/lithosharp-vscode/$version"
     if ($Tag -and $Tag -cne $expectedTag) { Fail "extension tag '$Tag' does not match package version $version (expected '$expectedTag')." }
     foreach ($script in @('eng/Test-VsixContents.ps1')) {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw
         if ($text -match 'vsce publish|nuget push') { Fail "$script mixes packaging with publishing." }
     }
-    Write-Host "Extension tag series: $expectedTag packs and validates only; publish needs dispatch plus approval."
+    Write-Host "Extension tag series: $expectedTag requests certified-artifact publication from main after marketplace approval; dispatch defaults to validation only."
 }
 
 if ($Check -in @('All', 'CoreTag')) { Test-CoreTag }

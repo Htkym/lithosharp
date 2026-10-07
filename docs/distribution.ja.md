@@ -2,12 +2,13 @@
 
 [English](distribution.md)
 
-何を配り、どこで動き、誰が承認するか。Marketplace公開はBLOCKEDである。
-publisherアカウントがないため、packageは身元を名乗らず、workflowも公開できない。
+何を配布し、どこで動作させ、誰が承認するかを説明する。拡張機能は既存のMarketplace publisher
+`htkym`を使う。公開は未実施であり、リポジトリの設定と別途のリリース承認が必要である。
+この資料は公開承認を与えるものではない。
 
 ## NuGet package
 
-7 packageを同一version（現行1.0.0）で出す。`LithoSharp`、`LithoSharp.Generators`、
+7 packageを同一version 1.1.0で配布する準備をしている。`LithoSharp`、`LithoSharp.Generators`、
 `LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、
 `LithoSharp.ProjectTemplates`である。test専用の`LithoSharp.FixtureExtension`は
 packしない。`eng/Validate-Package.ps1`が内容・metadata・version整合・Markdig
@@ -30,12 +31,14 @@ VSIXまたは手動導入で運ぶ。
 
 ## VSIX
 
-Windows x64・Linux x64・macOS arm64で同一のportable VSIXである。0.1.0で
-48文書・119.39 KB、native binary（`.node`/`.dll`/`.so`/`.dylib`検査）なし、
-`.local`・secret・log・資格情報・開発用`node_modules`・fixture・testなし。
-内容はcompile済みshell、manifest、文書、MDX worker sourceとlockfileである。
-`eng/Test-VsixContents.ps1`が`vsce`でpackしてから禁止内容・必須項目・version
-整合・publisher不在を検査する。pack（`vsix:pack`）は送信しない。
+Windows x64・Linux x64・macOS arm64で同一のportable VSIXである。
+compile済み拡張、manifest、文書、framework-dependentな言語serverとRID別native資産、
+MDX worker sourceとlockfileを同梱する。`.local`・secret・log・資格情報・
+開発用`node_modules`・fixture・testは含めない。`eng/Test-VsixContents.ps1`は
+lockfileで固定したVSCE 4.0.0を使い、禁止内容・必須項目・stagingとのpayload hash・
+version・publisherの整合を検査する。その後、実VSIXから展開した言語serverで
+3件のsmokeを行う。local導入手順は[Golden Path](golden-path.ja.md#4-vsix導入local)を
+参照する。pack（`vsix:pack`）は公開しない。
 
 ## MDX workerの復元
 
@@ -50,11 +53,37 @@ hash付き拡張storage（`worker-<lockfile12>`）へ写し、`npm ci --ignore-s
 ## tagと承認
 
 - Core：`v1.1.0`系列 → `publish-nuget.yml`（pack・検証・OIDC push）。
-- 拡張：`extension/lithosharp-vscode/0.1.0`系列 → `publish-extension.yml`は
-  tag pushでpack・検証のみ行う。公開は手動dispatchと`marketplace`環境承認の
-  両方が必要であり、設定済みpublisherがなければ閉じて失敗する。
-- `eng/Test-ReleasePipeline.ps1`がtrigger分離・dispatch＋承認gate・
-  version/tag整合・pack経路の公開command混入を検査する。
+- 拡張：`extension/lithosharp-vscode/0.1.0`のpushは`publish-extension.yml`への
+  公開要求になる。tagは`package.json`のversionと一致し、そのcommitは`main`に
+  含まれている必要がある。workflowは、必須reviewerが1人以上設定された
+  `marketplace`環境を確認してから進む。
+- 既存のinstalled-extension workflowがpublisher付きVSIXを1個作り、同じ実体を
+  3 OSで導入して検証する。全jobの成功と環境reviewerの承認後、公開jobが
+  producerのSHA256・source commit・version・publisherを照合する。
+  VSCE 4.0.0へそのVSIXを渡し、compile・staging・再packは行わない。
+- 手動dispatchの既定値`publish=false`は検証のみ行う。`publish=true`には
+  対応する拡張tagが必要であり、branchでのdispatchは失敗する。
+- `eng/Test-ReleasePipeline.ps1`はtrigger分離と公開条件を検査する。
+  `eng/Test-ExtensionPublishGuards.ps1`は環境承認条件とartifactをofflineで検査し、
+  誤tag・改変したbytes・identity不一致の拒否も確認する。
+
+## 初回Marketplace公開の前に必要な設定
+
+1. 公開担当者が`htkym`として公開できる権限を持つことを確認する。拡張機能IDは
+   `htkym.lithosharp`であり、`VSCE_PUBLISHER`変数の設定は不要である。
+2. GitHubの`marketplace`環境に必須レビュアーを1人以上設定する。
+   レビュアーが設定されていない環境を作成しただけでは公開できない。
+3. このrepositoryまたは同環境のsecretに、有効な`VSCE_PAT`を登録する。
+   PATにはMarketplace Manage scopeとpublisherへの権限が必要である。
+   他repositoryのsecretは自動では共有されない。tokenはsource・PR・log・chatに書かない。
+4. レビュー済みPRをmergeし、別途release承認を得てから拡張tagを作りpushする。
+   tagのpushは公開要求になる。
+
+[VS Code公式の公開手順](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)は、
+PATによる公開方法と、2026年12月1日のAzure DevOps global PAT廃止を案内している。
+今回のworkflowは既存SharpDepsと同じPAT経路を準備した。廃止後のidentity認証への
+切り替えには、別途の設定変更とレビューが必要である。このscriptは資格情報や
+権限を設定しない。
 
 ## 監査範囲
 

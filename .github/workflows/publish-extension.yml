@@ -1,11 +1,8 @@
 name: publish-extension
 
-# The VS Code extension ships separately from the Core NuGet packages.
-# Tagging extension/lithosharp-vscode/<version> only packs and validates;
-# publishing to the Marketplace is a manual dispatch behind an environment
-# approval and never runs from a tag push. The publisher account does not
-# exist yet (V110-23 BLOCKED): the publish job fails closed without it.
-
+# An extension tag requests publication of the exact VSIX certified below.
+# Credentials and required marketplace reviewers must already be configured.
+# Branch dispatches default to validation only and cannot publish.
 on:
   push:
     tags:
@@ -13,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish a packed VSIX to the Marketplace (requires the marketplace environment approval and VSCE_PAT).'
+        description: 'Publish from the matching extension tag after marketplace approval; false validates only.'
         required: false
         default: 'false'
         type: choice
@@ -21,118 +18,81 @@ on:
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: marketplace-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  pack:
-    runs-on: ubuntu-latest
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Check tag and version alignment
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check release tag and configured approval gate
+        id: gate
         shell: pwsh
+        env:
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $null }
           ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $tag
-          if (!$?) { exit 1 }
+          $publish = $env:GITHUB_EVENT_NAME -eq 'push' -or $env:INPUT_PUBLISH -eq 'true'
+          if ($publish) {
+            if (!$tag) { throw 'Marketplace publication requires an extension tag, not a branch dispatch.' }
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'The tagged commit must already be on main.' }
+            # An environment name alone would auto-create an unprotected environment.
+            $policy = gh api "repos/$env:GITHUB_REPOSITORY/environments/marketplace"
+            if ($LASTEXITCODE -ne 0) { throw 'Configure the marketplace environment with required reviewers before releasing.' }
+            $policy | Set-Content -LiteralPath marketplace-policy.json -Encoding utf8
+            ./eng/Test-ExtensionPublish.ps1 -Check Environment -EnvironmentFile marketplace-policy.json
+          }
+          "publish=$($publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
-      - name: Setup Node
-        uses: actions/setup-node@v7
+  validate:
+    needs: preflight
+    uses: ./.github/workflows/installed-extension.yml
+
+  publish:
+    needs: [preflight, validate]
+    if: needs.preflight.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    environment: marketplace
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: installed-extension-candidate-${{ github.sha }}
+          path: artifacts/installed-bundle
+          digest-mismatch: error
+      - name: Verify certified artifact before publication
+        id: artifact
+        shell: pwsh
+        env:
+          EXPECTED_VSIX_SHA256: ${{ needs.validate.outputs.vsix-sha256 }}
+        run: |
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:GITHUB_REF_NAME
+          $vsix = ./eng/Test-ExtensionPublish.ps1 -Check Artifact -Bundle artifacts/installed-bundle -ExpectedSHA256 $env:EXPECTED_VSIX_SHA256 -SourceCommit $env:GITHUB_SHA
+          "vsix=$vsix" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.13.0
-          cache: npm
-          cache-dependency-path: extensions/lithosharp-vscode/package-lock.json
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Restore language server dependencies
-        run: dotnet restore src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj --locked-mode
-
-      - name: Restore and test extension
-        working-directory: extensions/lithosharp-vscode
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund
-          npm run typecheck
-          npm run test:unit
-
-      - name: Pack and validate VSIX contents and bundled server
+      - name: Publish the certified VSIX
         shell: pwsh
+        env:
+          VSIX_PATH: ${{ steps.artifact.outputs.vsix }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) { throw 'VSCE_PAT is not configured; no publication attempted.' }
           npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./eng/Test-VsixContents.ps1 -Output artifacts/vsix -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: lithosharp-vscode-${{ github.sha }}
-          path: artifacts/vsix/*.vsix
-          if-no-files-found: error
-
-  publish:
-    needs: pack
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == 'true'
-    runs-on: ubuntu-latest
-    environment: marketplace
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Check tag and publisher configuration
-        shell: pwsh
-        env:
-          VSCE_PUBLISHER: ${{ vars.VSCE_PUBLISHER }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:GITHUB_REF_NAME
-          if (!$?) { exit 1 }
-          if ([string]::IsNullOrWhiteSpace($env:VSCE_PUBLISHER)) {
-            throw 'No Marketplace publisher is configured (vars.VSCE_PUBLISHER is empty). Publishing stays BLOCKED; no placeholder identity is used.'
-          }
-          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) {
-            throw 'No Marketplace token is configured (secrets.VSCE_PAT is empty). Publishing stays BLOCKED.'
-          }
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24.13.0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Restore language server dependencies
-        run: dotnet restore src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj --locked-mode
-
-      - name: Publish VSIX
-        shell: pwsh
-        working-directory: extensions/lithosharp-vscode
-        env:
-          VSCE_PUBLISHER: ${{ vars.VSCE_PUBLISHER }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          if ($env:VSCE_PUBLISHER -notmatch '^[A-Za-z0-9][A-Za-z0-9-]*$') { throw 'VSCE_PUBLISHER contains unsupported characters.' }
-          npm ci --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm ci --prefix ../../eng/vsix-packager --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node -e "if(require('../../eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm pkg set "publisher=$env:VSCE_PUBLISHER"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run compile
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run vsix:stage
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce package --no-update-package-json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath "lithosharp-$(Get-Content package.json -Raw | ConvertFrom-Json | Select-Object -ExpandProperty version).vsix"
+          node eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath $env:VSIX_PATH
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

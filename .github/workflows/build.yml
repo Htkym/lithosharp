@@ -139,6 +139,12 @@ jobs:
           ./eng/Test-CompatibilityGate.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Check extension release guards without publishing
+        shell: pwsh
+        run: |
+          ./eng/Test-ReleasePipeline.ps1
+          ./eng/Test-ExtensionPublishGuards.ps1
+
       - name: Check CLI and development server
         shell: pwsh
         run: |

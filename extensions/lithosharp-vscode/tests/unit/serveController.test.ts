@@ -207,6 +207,35 @@ test('startup failure reports the error', () => {
   assert.equal(controller.lastError, 'Port 9999 is occupied.');
 });
 
+test('startup failure rejects every caller before the child exits', async () => {
+  const fake = fakeSpawn();
+  const controller = controllerFor(fake);
+  controller.start();
+  const callers = [controller.waitUntilRunning(), controller.waitUntilRunning()];
+  const settled = Promise.allSettled(callers);
+  let deadline: NodeJS.Timeout | undefined;
+  try {
+    fake.children[0]!.emitStdout(JSON.stringify({ event: 'startup-failed', error: 'Port is occupied.' }) + '\n');
+    const results = await Promise.race([
+      settled,
+      new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(() => reject(new Error('Startup callers remained pending after failure.')), 200);
+      }),
+    ]);
+    for (const result of results) {
+      assert.equal(result.status, 'rejected');
+      if (result.status === 'rejected') assert.equal((result.reason as Error).message, 'Port is occupied.');
+    }
+    assert.equal(controller.getState(), 'Failed');
+    assert.equal(fake.children[0]!.kills, 0);
+    await assert.rejects(controller.waitUntilRunning(), /Port is occupied/);
+  } finally {
+    if (deadline) clearTimeout(deadline);
+    controller.dispose();
+    fake.children[0]!.exit(0);
+  }
+});
+
 test('missing startup event times out', async () => {
   const fake = fakeSpawn();
   const controller = controllerFor(fake, { startupTimeoutMs: 30 });

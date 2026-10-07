@@ -18,6 +18,8 @@ $Output = [IO.Path]::GetFullPath($Output)
 
 $package = Get-Content -LiteralPath (Join-Path $ExtensionDirectory 'package.json') -Raw | ConvertFrom-Json
 $expectedVersion = [string]$package.version
+$expectedPublisher = [string]$package.publisher
+if ($expectedPublisher -cne 'htkym') { throw 'Expected Marketplace publisher htkym.' }
 if (!$SkipPack) {
     # Resolve through PATH: bare names fail under constrained hosts. Prefer
     # .cmd shims on Windows: .ps1 shims cannot start without a shell.
@@ -259,8 +261,7 @@ foreach ($entryName in $expectedPayload.Keys) {
     if ($entries -notcontains $entryName) { Fail "missing staged payload '$entryName'." }
 }
 
-# No placeholder publisher: an unpublished package must not claim an identity.
-$manifestEntry = $entries | Where-Object { $_ -like 'extension/package.json' }
+# The validated artifact already carries the final Marketplace identity.
 $zip = [System.IO.Compression.ZipFile]::OpenRead($vsix)
 try {
     $entry = $zip.Entries | Where-Object { $_.FullName -eq 'extension/package.json' } | Select-Object -First 1
@@ -270,7 +271,7 @@ try {
 }
 finally { $zip.Dispose() }
 if ([string]$packaged.version -cne $expectedVersion) { Fail "packaged version '$($packaged.version)' mismatches '$expectedVersion'." }
-if ($packaged.PSObject.Properties['publisher']) { Fail 'packaged manifest must not claim a publisher before the account exists.' }
+if ([string]$packaged.publisher -cne $expectedPublisher) { Fail 'packaged publisher differs from the source manifest.' }
 if ($packaged.main -cne './out/src/extension.js') { Fail "packaged main '$($packaged.main)' is not the compiled entry point." }
 
 # Execute the LSP extracted from the actual VSIX, not a bin/staging directory.
@@ -281,6 +282,7 @@ $report = [ordered]@{
     schemaVersion = '1.0'
     vsix = [IO.Path]::GetFileName($vsix)
     version = $expectedVersion
+    publisher = $expectedPublisher
     entryCount = $entries.Count
     bytes = (Get-Item -LiteralPath $vsix).Length
     sha256 = (Get-FileHash -LiteralPath $vsix -Algorithm SHA256).Hash.ToLowerInvariant()

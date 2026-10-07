@@ -260,6 +260,7 @@ export class ServeController {
         this.clearStartupTimer();
         this.lastError = event.error ?? 'Serve failed to start.';
         this.state = 'Failed';
+        this.rejectStartWaiters(new Error(this.lastError));
         break;
       case 'shutdown':
         this.generation = event.generation;

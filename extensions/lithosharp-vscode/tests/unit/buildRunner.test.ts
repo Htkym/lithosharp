@@ -134,7 +134,27 @@ test('untrusted builds never execute', async () => {
   assert.equal(calls, 0);
 });
 
-test('huge outputs stay bounded', async () => {
+test('inspect parses a large valid machine envelope while stderr logs stay bounded', async () => {
+  const routes = Array.from({ length: 3000 }, (_, index) => ({ path: `/page-${index}`, title: 'Large site route' }));
+  const stdout = envelope({ routes });
+  assert.ok(stdout.length > 65536);
+  const logged: string[] = [];
+  const runner = new BuildRunner({
+    isTrusted: () => true,
+    cli: (command) => ({ command: ['cli', command] }),
+    cwd: '/proj',
+    maxOutputChars: 64,
+    probe: { run: async () => ({ exit: 0, stdout, stderr: 'y'.repeat(100000) }) },
+    onLog: (line) => logged.push(line),
+  });
+  const result = await runner.run('inspect');
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual((result.raw as Record<string, unknown>)['routes'], routes);
+  assert.equal(logged.length, 1);
+  assert.ok(logged[0]!.length <= 64);
+});
+
+test('invalid JSON fails while stderr logs stay bounded', async () => {
   const logged: string[] = [];
   const runner = new BuildRunner({
     isTrusted: () => true,
@@ -145,7 +165,7 @@ test('huge outputs stay bounded', async () => {
     onLog: (line) => logged.push(line),
   });
   const result = await runner.run('inspect');
-  // The envelope no longer parses after truncation, but nothing unbounded is kept.
+  // Trailing non-JSON content is invalid regardless of its length.
   assert.equal(result.ok, false);
   assert.ok(logged.join('\n').length <= 4096);
 });

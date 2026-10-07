@@ -43,9 +43,10 @@ workspace is trusted. No telemetry is collected in 0.1.0.
 
 Build, serve, diagnostics, symbols, and preview are implemented (V110-16/17/18)
 and verified on a real Extension Host (V110-19). Shutdown disposes editing
-sessions and owned servers along with the channel, status item, and listeners. Distribution
-is local-VSIX only in 0.1.0; Marketplace, multi-OS and packaged-VSIX
-verification stay scheduled work.
+sessions and owned servers along with the channel, status item, and listeners.
+The same packaged VSIX has passed installed Extension Host acceptance on
+Windows x64, Linux x64, and macOS arm64. Marketplace publication remains
+pending; see [distribution and release setup](../../docs/distribution.md).
 
 ## Commands (V110-16)
 

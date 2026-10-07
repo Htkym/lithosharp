@@ -156,7 +156,7 @@ if (process.env['LITHOSHARP_INSTALLED_EXTENSION']) {
   describe('installed MDX restore and reopen', () => {
   it('restores real bundled worker and reopens already-open MDX across restore and restart', async function () {
     this.timeout(180000);
-    const ext = vscode.extensions.getExtension('undefined_publisher.lithosharp');
+    const ext = vscode.extensions.getExtension('htkym.lithosharp');
     assert.ok(ext);
     const actual = fs.realpathSync(ext.extensionPath);
     assert.equal(actual, fs.realpathSync(process.env['LITHOSHARP_INSTALLED_EXTENSION']!));

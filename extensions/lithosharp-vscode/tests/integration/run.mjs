@@ -158,7 +158,7 @@ if (installed) {
     if (!entry.isDirectory()) continue;
     const dir = path.join(extensions, entry.name);
     const package_ = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf8'));
-    if (package_.name === 'lithosharp' && (package_.publisher ?? 'undefined_publisher') === 'undefined_publisher') {
+    if (package_.name === 'lithosharp' && package_.publisher === 'htkym') {
       assert.equal(expectedExtension, '', 'Multiple installed product copies.');
       expectedExtension = await fs.realpath(dir);
     }

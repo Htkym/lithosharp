@@ -53,14 +53,16 @@ cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを�
 0.1.0の拡張はMarketplaceにない。
 
 ```sh
-npm --prefix extensions/lithosharp-vscode ci
+npm --prefix extensions/lithosharp-vscode ci --ignore-scripts --no-audit --no-fund
+npm --prefix eng/vsix-packager ci --ignore-scripts --no-audit --no-fund
 npm --prefix extensions/lithosharp-vscode run vsix:pack
 code --install-extension extensions/lithosharp-vscode/lithosharp-0.1.0.vsix
 ```
 
-`npm ci`と`vsce`取得にはnetworkが要る。いずれもここで明示実行し、拡張の
-内部では走らない。`vsix:pack`はcompile、MDX worker sourceのlockfile hash付き
-staging、送信なしpackまで行う。
+2つの`npm ci`は、コミット済みlockfileに従って依存関係を取得するためnetworkが要る。
+packagerのlockfileはVSCE 4.0.0に固定してある。`vsix:pack`はそのlocal CLIを使い、
+別のversionを取得しない。compileと言語server・MDX workerのstagingを行い、
+公開せずにpackする。
 
 その後`LithoSharp: Select Project`、`LithoSharp: Build`、
 `LithoSharp: Open Preview`を使う。拡張はCLIを解決し（project local tool、

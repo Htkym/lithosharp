@@ -3,6 +3,7 @@
   "displayName": "LithoSharp",
   "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
   "version": "0.1.0",
+  "publisher": "htkym",
   "repository": {
     "type": "git",
     "url": "https://github.com/Htkym/lithosharp"
@@ -128,7 +129,7 @@
     "test:integration": "npm run compile && node tests/integration/run.mjs",
     "measure:editor": "npm run compile && node eng/measure-editor.mjs",
     "vsix:stage": "node eng/stage-worker.mjs && node eng/stage-language-server.mjs",
-    "vsix:pack": "npm run compile && npm run vsix:stage && npx --yes @vscode/vsce package --no-update-package-json",
+    "vsix:pack": "npm run compile && npm run vsix:stage && node ../../eng/vsix-packager/node_modules/@vscode/vsce/vsce package --no-dependencies --no-update-package-json",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
