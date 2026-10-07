@@ -115,7 +115,7 @@ See [Known limitations](known-limitations.md) for execution and platform boundar
 
 ## 1.1.0 candidate: editor latency (measured)
 
-Measured 2026-09-28 with the V110-19 harness (real Release language server
+Measured 2026-09-28 with the editor measurement harness (real Release language server
 through a real `LspClient`, Windows x64, 8 CPUs, Node.js 24.13.0). Warm runs
 are excluded. Samples are end-to-end including a 50 ms debounce, 100 edits per
 shape on a representative 50 KiB document:

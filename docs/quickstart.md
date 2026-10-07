@@ -5,13 +5,13 @@
 Use the .NET 10 SDK (verified with 10.0.300). MDX additionally uses Node.js
 24.13.0; Markdown-only sites do not use Node. The SDK supplies the ASP.NET Core
 shared framework used by `serve`. Work in a new directory. Commands below target
-1.0.0; candidate verification uses a local package source.
+the released NuGet version 1.1.0.
 
 ## Install and create Markdown Docs
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.0.0
-dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -19,10 +19,7 @@ dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
 
 On Windows use `.tools/lithosharp.exe`. Open `http://localhost:4317/`, then stop
 the server with Ctrl+C. The template installation affects your template catalog;
-the tool is local to `.tools`. For isolated candidate checks, the repository's
-[template test](../eng/Test-Templates.ps1) uses a separate template hive, CLI home,
-NuGet cache and local package source. It checks all four templates without
-changing your installed templates or tools.
+the tool is local to `.tools`.
 
 Add `MyDocs/content/hello.md`:
 

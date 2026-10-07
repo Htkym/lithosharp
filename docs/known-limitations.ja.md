@@ -2,8 +2,8 @@
 
 [English](known-limitations.md)
 
-1.0.0と1.1.0候補の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
-1.1の範囲（Core候補と拡張0.1.0）は[1.1の機能](release-1.1.ja.md)にまとめています。
+1.0.0と1.1.0の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)を、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+1.1の範囲（Core 1.1.0とVS Code拡張）は[1.1の機能](release-1.1.ja.md)にまとめています。
 
 ## Markdown の互換性
 
@@ -101,6 +101,6 @@ anchor は build で落とします。
 ## 1.1の拡張と安定性検証の範囲
 
 Editor診断はMarkdownが先で、MDXはrestore済みworker経由である。previewは保存済み文書のみで、
-workerはTypeScriptを変換するだけで型検査はしない。拡張はMarketplaceに配布していない。
+ワーカーはTypeScriptを変換するだけで、型検査はしない。
 1.1.0ではWatchとEditorの長時間検証を実施していない。高速編集・復旧、複数OSのCI、
 package済みVSIXの確認は、30分の連続稼働を証明するものではない。

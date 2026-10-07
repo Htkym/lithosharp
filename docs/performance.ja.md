@@ -102,7 +102,7 @@ fixtureの削減は、全MDXページがzero-JSになること、全islandが速
 
 ## 1.1.0候補：Editor latency（測定済み）
 
-V110-19 harnessで2026-09-28に測定した（実Release言語server×実`LspClient`、
+Editor測定ハーネスで2026-09-28に測定した（実Release言語サーバー×実`LspClient`、
 Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外する。50 KiB代表文書に
 100編集ずつ、50 ms debounce込みend-to-endの値である。
 

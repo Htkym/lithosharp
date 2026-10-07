@@ -9,7 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-Version: **1.0.0**.
+Version: **1.1.0**.
 
 ## Features
 
@@ -34,8 +34,8 @@ Version: **1.0.0**.
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.0.0
-dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -46,7 +46,7 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 1.0.0`
+Existing applications can use `dotnet add package LithoSharp --version 1.1.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -71,12 +71,15 @@ switching, responsive menus and keyboard navigation. Set
 
 ## Requirements
 
-.NET 10 is required. The minimum supported SDK is 10.0.300; current release
-preparation uses SDK 10.0.401 and runtime 10.0.12. The CLI development
+.NET 10 is required. The minimum supported SDK is 10.0.300. The CLI development
 server also uses the ASP.NET Core shared framework provided with the SDK.
 Markdown-only sites do not need Node.js or React. MDX requires Node.js 24.13.0
 and explicit worker restore; the lockfile pins MDX 3.1.1, React 19.2.4 and
 esbuild 0.28.2. Production output needs only a static HTTP host.
+
+## VS Code extension
+
+Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) for Markdown/MDX diagnostics, heading navigation, build commands and site preview. See the [extension guide](extensions/lithosharp-vscode/README.md).
 
 ## Documentation
 
@@ -88,14 +91,9 @@ esbuild 0.28.2. Production output needs only a static HTTP host.
 - [Testing](docs/testing.md), [HTML/CSS contract](docs/layout-css-contract.md),
   [compatibility contract](docs/compatibility-contract.md)
 
-## Upgrade to 1.0.0
+## Upgrade to 1.1.0
 
-Update the LithoSharp packages and CLI together to 1.0.0, then rebuild your site
-and check content warnings, links and custom CSS. Existing public signatures are
-retained, but the Markdown compiler has changed: footnotes, definition lists and
-some other Markdig extensions are unsupported. Review the
-[Markdown limitations](docs/known-limitations.md#markdown-compatibility) and
-[1.0.0 changes](CHANGELOG.md#100) before upgrading.
+Update the LithoSharp packages and CLI you use together to 1.1.0. Review the [1.1 upgrade notes](docs/release-1.1.md), then rebuild your site and check content warnings, links and custom CSS. The Markdown subset remains limited; footnotes and definition lists are unsupported.
 
 See the [API compatibility contract](docs/compatibility-contract.md#api-compatibility)
 and [1.x tooling policy](docs/cli.md#structured-output-and-1x-compatibility).

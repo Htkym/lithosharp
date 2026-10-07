@@ -1,12 +1,11 @@
 # CLI and site factories
 
 `LithoSharp.Tool` is a .NET 10 tool. Building sites requires the .NET 10 SDK;
-serving also uses the ASP.NET Core shared framework. Install locally built packages
-without publishing them:
+serving also uses the ASP.NET Core shared framework. Install from NuGet:
 
 ```powershell
-dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.1.0.0.nupkg
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -137,3 +136,5 @@ References: [custom templates](https://learn.microsoft.com/dotnet/core/tools/cus
 [single-file deployment](https://learn.microsoft.com/dotnet/core/deploying/single-file/overview),
 [trimming incompatibilities](https://learn.microsoft.com/dotnet/core/deploying/trimming/incompatibilities),
 [Native AOT](https://learn.microsoft.com/dotnet/core/deploying/native-aot).
+
+See the [capability schema](tooling-capabilities.md) and [language-server protocol](language-server.md) for custom integrations.

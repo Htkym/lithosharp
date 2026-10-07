@@ -1,6 +1,6 @@
 # LithoSharp project templates
 
-Install with `dotnet new install LithoSharp.ProjectTemplates::1.0.0` and create a
+Install with `dotnet new install LithoSharp.ProjectTemplates::1.1.0` and create a
 site with `dotnet new lithosharp-docs`, `dotnet new lithosharp-blog`,
 `dotnet new lithosharp-empty`, or `dotnet new lithosharp-mdx`.
 

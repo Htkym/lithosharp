@@ -1,22 +1,6 @@
-# LSP transport decision (V110-14)
+# Language-server protocol
 
-Date: 2026-09-27. LSP 3.17 is the baseline; only the subset below is used.
-
-## Decision
-
-Standard library only (`System.Text.Json` over stdio). No JSON-RPC/LSP
-transport package is added.
-
-## Grounds
-
-- The server speaks 7 methods plus one namespaced notification. A full client
-  library (protocol models, routing, hosting) would dwarf the subset and pull a
-  dependency graph that needs separate license and vulnerability tracking.
-- Framing is Content-Length over pipes: exact byte reads, no socket Concurrency,
-  about 120 lines including resync. It is pinned by tests for split writes,
-  concatenated messages, UTF-8 byte lengths, garbage resync, and stdout purity.
-- `System.Text.Json` is already the repository JSON standard (CLI envelopes,
-  host protocol, snapshots).
+The bundled language server uses LSP 3.17 over stdio with Content-Length framing. Positions use UTF-16.
 
 ## Protocol subset (advertised == implemented)
 
@@ -38,5 +22,5 @@ Stdout carries frames only; every log goes to stderr.
 - Regressed document versions and out-of-range edits are dropped with an
   stderr note; the server keeps serving and never crashes on abnormal input.
 - Incompatible project assemblies are never loaded: contexts are data
-  (V110-10 snapshots), checked for schema-major compatibility, then used for
+  (project snapshots), checked for schema-major compatibility, then used for
   route lookup and built-in front matter binding only.

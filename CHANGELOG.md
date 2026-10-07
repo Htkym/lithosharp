@@ -2,7 +2,7 @@
 
 [日本語](CHANGELOG.ja.md)
 
-## 1.1.0 (candidate, unreleased)
+## 1.1.0 — 2026-10-07
 
 - Editor inspection shares one analysis with the CLI: opt-in Markdown
   compatibility advisories (`LIT003`/`LIT004`/`LIT005`), project-aware snapshots
@@ -16,8 +16,7 @@
   Prettier/Jest/Docusaurus corpus reproduces conversion end to end.
 - No incompatible public signatures. Markdown compatibility stays limited to the
   [documented subset](docs/known-limitations.md#markdown-compatibility).
-  Packages still publish at 1.0.0 until the distribution gate; see the
-  [1.1 features](docs/release-1.1.md).
+  See the [1.1 features and upgrade notes](docs/release-1.1.md).
 
 ## 1.0.0
 

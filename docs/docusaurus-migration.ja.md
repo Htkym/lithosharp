@@ -99,17 +99,6 @@ directory 経路になる。
 埋め込みをlinkへ変える場合など、機能を失う置換は非同等と記録する。未検証componentは
 未検証のまま報告し、自動適用候補にはしない。
 
-## 第三者再現corpus
-
-固定manifest（`eng/verification/1.1.0/migration-sites.json`）から3つのpin済み
-上流site（Prettier 3.6.2、Jest 30.2.0、Docusaurus 3.10.2、いずれもMIT）を再現する。
-digest固定container内でhost profileや資格情報なしにbuildし、原本route oracle、
-分類除外と理由、有界clean-page候補build、代表page・navigation・asset・search indexの
-loopback serve確認まで行う。手動patchは記録のみで、黙って適用しない。route一致は
-宣言page setだけの対象である。sanitize済みsummary、hash、再実行command、version
-manifestは`docs/evidence/1.1.0/`に公開し、全文traceはlocalに残す。
-[V110-21メモ](verification/1.1.0/tasks/V110-21.md)参照。
-
 ## 未対応の入力
 
 任意の plugin と theme、一覧外の theme 上書き、JavaScript 設定の実行、

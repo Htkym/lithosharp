@@ -2,25 +2,22 @@
 
 [English](release-1.1.md)
 
-Core 1.1.0と拡張0.1.0は未公開である。NuGet packageの版数は1.1.0で、拡張はMarketplaceにない。
-性能目標は未達であり、[既知の制約](performance.ja.md#110の性能上の制約)として記録する。
-出力設計の大きな変更は次版以降へ回す。
+Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はMarketplaceで配布している。小さな編集でも出力全体のコピーが発生する点は、[性能上の制約](performance.ja.md#110の性能上の制約)として残る。
 
 ## 機能表
 
-| 領域 | Core 1.1 | VS Code拡張 0.1.0 |
+| 領域 | Core 1.1 | VS Code拡張 |
 | --- | --- | --- |
 | Markdown | Litho compiler、LIT001/002診断、opt-inのLIT003/004/005助言、project対応の検査snapshot | 元ID付きLIT診断、版数管理表示 |
 | MDX | plugin/bundle/SSR実行なしの解析専用検査、lock固定worker（MDX 3.1.1、React 19.2.4、esbuild 0.28.2） | debounce付きLSP session、Outline symbols、キー入力でbuildしない |
 | build/serve | generation追跡、出力別cache報告/回収、構造化`serve`停止 | project別build/serve状態機械、実出力preview shell |
-| 移行 | route oracle・正規化page set比較・component機能差report付きDocusaurus解析/変換、固定3サイト再現corpus | —（CLI駆動） |
+| 移行 | route oracle・正規化ページセット比較・コンポーネント機能差レポート付きDocusaurus解析/変換 | —（CLI駆動） |
 | Tooling契約 | `lithosharp capabilities`、加算的な1.x JSON envelope、schema `"1.0"` | stdio上の言語server `lithosharp`。Core assemblyの版数を返す |
 
 1.1には、次の制限がある。
 
 - previewは保存済み文書のみ。未保存bufferのpreviewはない。
 - MDX workerはTypeScriptを変換するだけで、型検査はしない。
-- 配布は未実施。拡張はlocal VSIXから入れる。
 - browser検証はChromiumのみ。Firefox/Safariは主張しない。
 - CLI/site hostのtrimmingとNative AOTは非対応のままである。
 - AVIFは信頼済みの`avifenc`を明示設定しない限り未検証である。
@@ -28,7 +25,7 @@ Core 1.1.0と拡張0.1.0は未公開である。NuGet packageの版数は1.1.0�
 
 ## 1.0から1.1への更新
 
-1. 7つのCore packageとtoolを同時に上げる。1.0と1.1の混在はしない。公開後は同じ1.1.0版を使う。
+1. 7つのCoreパッケージとツールを同時に更新する。1.0と1.1は混在させない。同じ1.1.0版を使う。
 2. siteを再buildし、content警告・link・custom CSSを見直す。
 3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](known-limitations.ja.md#markdown-の互換性)参照）。
 4. `markdown-compat --advisory on`と`--project`はEditor検査と同一解析であり、既定出力を変えない。
@@ -55,18 +52,17 @@ DOMの完全一致を主張するものではない。
 
 ## APIとschemaの方針
 
-公開signatureは維持し、新規APIは1.x内で加算する。追加は
-`src/LithoSharp/PublicAPI.Unshipped.txt`に記録する。構造化CLI/serve出力は
+公開シグネチャは維持し、新規APIは1.x内で追加する。構造化CLI/serve出力は
 schema `"1.0"`を維持し、未知JSON fieldは無視する。それ以外は2.0待ちである。
 [互換性契約](compatibility-contract.ja.md)と
 [CLI互換性](cli.ja.md#構造化出力と-1x-の互換性)参照。
 
 ## 必要条件とversion組合せ
 
-- .NET 10 SDK。最低対応版は10.0.300で、現在の検証にはSDK 10.0.401とruntime 10.0.12を使う。source generatorは`netstandard2.0`でRoslyn 4.14.0相手であり、利用側も対応SDKが必要である。preview版は使わない。
+- .NET 10 SDK。最低対応版は10.0.300である。ソースジェネレーターは`netstandard2.0`でRoslyn 4.14.0向けであり、利用側も対応SDKが必要である。プレビュー版は使わない。
 - `serve`はSDK付属のASP.NET Core shared frameworkも使う。
 - Linuxでは[.NETのネイティブ依存](https://learn.microsoft.com/en-us/dotnet/core/install/linux-scripted-manual#dependencies)も必要である。
   `libstdc++.so.6`はUbuntuの`libstdc++6`、Alpineの`libstdc++`に含まれる。
   SkiaSharp 4.153.1もこのC++ランタイムを使い、`Linux.NoDependencies`パッケージでも必要になる。
 - Markdown-onlyのsiteにNode.jsは要らない。MDXはNode.js 24.13.0と明示のworker restoreが必要である。任意のNode versionやnpm packageは認定しない。
-- 1つのrepositoryではCore/Tool/Generatorを同一versionで揃える。拡張0.1.0は1.x言語serverとstdioで話し、`serverInfo`にCore versionを出す。CLIとserverでCore assemblyが食い違う組合せは非対応である。拡張はVS Code `^1.139.0`が必要である。
+- 1つのリポジトリではCore/Tool/Generatorを同一バージョンで揃える。拡張機能は1.x言語サーバーとstdioで通信し、`serverInfo`にCoreのバージョンを出力する。CLIとサーバーでCoreアセンブリが一致しない組み合わせは非対応である。拡張機能はVS Code `^1.139.0`が必要である。

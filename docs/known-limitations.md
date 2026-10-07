@@ -2,10 +2,10 @@
 
 [日本語](known-limitations.ja.md)
 
-These limits apply to 1.0.0 and the 1.1.0 candidate unless a section says
+These limits apply to 1.0.0 and 1.1.0 unless a section says
 otherwise. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
-The 1.1 scope (Core candidate plus extension 0.1.0) is summarized in
+The 1.1 scope (Core 1.1.0 plus the VS Code extension) is summarized in
 [1.1 features](release-1.1.md).
 
 ## Markdown compatibility
@@ -24,9 +24,8 @@ Markdown before upgrading. The compiler is not a complete CommonMark/GFM impleme
 An opt-in compatibility advisory reports high-confidence definition lists (`LIT003`),
 generic attributes (`LIT004`), and grid tables (`LIT005`) without changing default
 output: `DocumentInspectionOptions.EnableCompatibilityAdvisory` and
-`lithosharp markdown-compat --advisory on` share the same scan. The correspondence
-ledger is `eng/verification/1.1.0/markdown-compat.json`; official spec examples are
-not vendored and stay `not-run`.
+`lithosharp markdown-compat --advisory on` share the same scan. The shared scan
+with the editor covers these advisories; full conformance to the official specifications is not claimed.
 
 ## Build cost and platform coverage
 
@@ -137,6 +136,6 @@ documented superset. Markdown link targets pass through the build unchanged;
 
 Editor diagnostics run in stages: Markdown first, MDX through the restored worker.
 Preview shows saved documents only; the worker transpiles TypeScript without
-type-checking. The extension is not distributed on the Marketplace. Long-duration
+type-checking. Long-duration
 Watch and Editor checks were not run for 1.1.0. Existing rapid-edit/recovery,
 multi-OS CI and packaged-VSIX checks do not establish 30-minute continuous operation.

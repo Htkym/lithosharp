@@ -8,7 +8,7 @@
 C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
 .NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-バージョンは **1.0.0** です。
+バージョンは **1.1.0** です。
 
 ## サンプルサイト
 
@@ -38,8 +38,8 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 .NET 10 SDKを用意して実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.0.0
-dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -49,7 +49,7 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 `DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存applicationでは`dotnet add package LithoSharp --version 1.0.0`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version 1.1.0`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -63,11 +63,14 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 
 ## 必要な環境
 
-.NET 10が必要です。最低対応SDKは10.0.300です。現在の公開準備ではSDK 10.0.401と
-runtime 10.0.12を使っています。CLIの開発serverはSDKに含まれる
+.NET 10が必要です。最低対応SDKは10.0.300です。CLIの開発サーバーはSDKに含まれる
 ASP.NET Core shared frameworkも使います。MarkdownだけならNode.jsとReactは不要です。
 MDXはNode.js 24.13.0と明示的なworker restoreが必要です。lockfileはMDX 3.1.1、React 19.2.4、
 esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP hostだけで十分です。
+
+## VS Code拡張機能
+
+[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)でMarkdown/MDXの診断、見出しによる移動、ビルド、サイトのプレビューを利用できます。手順は[拡張機能のガイド](extensions/lithosharp-vscode/README.ja.md)を参照してください。
 
 ## ドキュメント
 
@@ -78,13 +81,9 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 1.0.0への更新
+## 1.1.0への更新
 
-利用しているLithoSharpのパッケージとCLIを1.0.0に揃えて更新し、サイトを再生成して、
-コンテンツの警告、リンク、独自CSSの表示を確認してください。既存の公開シグネチャは維持していますが、
-Markdownコンパイラーの変更に伴い、脚注や定義リストなど一部のMarkdig拡張は非対応になりました。
-更新前に[Markdownの制約](docs/known-limitations.ja.md#markdown-の互換性)と
-[1.0.0の変更履歴](CHANGELOG.ja.md#100)を確認してください。
+利用しているLithoSharpのパッケージとCLIを1.1.0に揃えてください。[1.1の更新手順](docs/release-1.1.ja.md)を確認してからサイトを再生成し、コンテンツの警告、リンク、独自CSSの表示を確認してください。Markdownの対応範囲には制限があり、脚注や定義リストは非対応のままです。
 
 [APIの互換性契約](docs/compatibility-contract.ja.md#api-の互換性)と
 [1.xのTooling互換方針](docs/cli.ja.md#構造化出力と-1x-の互換性)も参照してください。
