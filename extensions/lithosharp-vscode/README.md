@@ -1,76 +1,62 @@
-# LithoSharp for VS Code (0.1.0)
+# LithoSharp for VS Code
 
-[日本語](README.ja.md)
+[日本語](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.ja.md)
 
-Everyday entry point for LithoSharp sites. This shell finds the target
-project and controls the CLI. It never guesses a project and never runs code
-without trust.
+Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics and heading navigation.
 
-## What it does
+## Install and get started
 
-- Finds LithoSharp projects from static files (`*.csproj` with a LithoSharp
-  reference, tool manifest, central package settings). MSBuild evaluation
-  never runs for detection.
-- Keeps multi-root selections apart by workspace folder plus project path.
-  Same-name projects stay distinguishable.
-- `LithoSharp: Select Project` saves an explicit selection. Ambiguity prompts
-  instead of guessing.
-- Shows the adopted CLI path and version in the output channel and status bar.
+Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) from the Marketplace, or run:
 
-## Trust
+```sh
+code --install-extension htkym.lithosharp
+```
 
-The extension declares limited workspace trust. Project detection works
-without trust. Every command that could start a process first requires trust
-and otherwise explains itself. Workspace-provided executable paths
-(`lithosharp.cliPath` is a restricted configuration) are ignored until the
-workspace is trusted. No telemetry is collected in 0.1.0.
+Requirements:
+
+- VS Code `^1.139.0`.
+- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool 1.1.0. The SDK includes the required ASP.NET Core shared framework.
+- Node.js 24.13.0 for MDX analysis. Markdown-only diagnostics do not require Node.js.
+
+Create a site using the [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md), open its folder in VS Code, and trust the workspace if you trust its code. Run `LithoSharp: Select Project`, then `LithoSharp: Build` and `LithoSharp: Open Preview`.
+For MDX diagnostics, also run `LithoSharp: Restore MDX Worker` to install the bundled worker's locked dependencies.
+
+## Project selection and commands
+
+- Finds projects from static files, including `*.csproj` references, tool manifests and central package settings. Detection does not evaluate MSBuild.
+- `LithoSharp: Select Project` selects a project explicitly. Multi-root workspaces keep selections per folder and distinguish projects with the same name.
+- `LithoSharp: Build` builds the site. `LithoSharp: Inspect Site` shows CLI inspection results.
+- `LithoSharp: Start Server` and `LithoSharp: Stop Server` control the selected project's development server. Each project has its own server; stopping one does not stop another project's processes.
+- The output channel and status bar show the selected CLI path and version.
+
+## Editing and preview
+
+Markdown/MDX diagnostics retain their original IDs. Changes are debounced by 150 ms by default; stale diagnostic results are discarded. Heading symbols appear in the Outline. Typing does not run a full site build, SSR, or user modules.
+
+`LithoSharp: Open Preview`, `LithoSharp: Refresh Preview`, and `LithoSharp: Open in Browser` show the site's served output. Preview uses routes from site inspection. Unknown, draft, or unbuilt documents show an explanation. If an update fails, the last successful result remains labeled. A server started for preview stops when its last preview panel closes; a server started with `LithoSharp: Start Server` keeps running.
+
+Preview shows saved, built documents; unsaved buffers have no preview. The MDX worker transpiles TypeScript without type-checking.
+
+## Workspace trust
+
+Project detection works in untrusted workspaces. Building, serving, language-server execution and worker installation require workspace trust. Workspace-provided executable paths are ignored until the workspace is trusted. The extension collects no telemetry.
 
 ## Settings
 
-- `lithosharp.cliPath`: explicit CLI executable. Empty resolves
-  automatically (project-local dotnet tool, then global PATH). Resolution
-  never executes; the version is queried once on explicit selection.
-- `lithosharp.projectPath`: selected project file.
-- `lithosharp.languageServerPath`: explicit language server executable or DLL.
-  Empty starts the bundled framework-dependent server using `dotnet` on PATH.
-  Install the .NET 10 runtime before using live diagnostics; the extension
-  does not install it. Missing runtime errors appear in the output channel.
-- `lithosharp.workerDirectory`: explicit MDX worker directory. Empty uses
-  extension storage; run `LithoSharp: Restore MDX Worker` to restore its
-  dependencies. Markdown diagnostics work before that restore.
+| Setting | Purpose |
+| --- | --- |
+| `lithosharp.cliPath` | CLI executable. Empty resolves a project-local dotnet tool, then the global PATH. |
+| `lithosharp.projectPath` | Selected project file. |
+| `lithosharp.languageServerPath` | Language server executable or DLL. Empty starts the bundled server with `dotnet` on PATH. |
+| `lithosharp.workerDirectory` | MDX worker directory. Empty uses extension storage. Changing it requires `LithoSharp: Restart Language Server`. |
+| `lithosharp.nodeExecutable` | Node.js executable for MDX analysis. Empty resolves `node` from the language server environment. Changing it requires `LithoSharp: Restart Language Server`. |
+| `lithosharp.diagnosticDebounceMs` | Diagnostic delay in milliseconds: default 150, range 50–1000. |
 
-## Scope
+## Troubleshooting
 
-Build, serve, diagnostics, symbols, and preview are implemented (V110-16/17/18)
-and verified on a real Extension Host (V110-19). Shutdown disposes editing
-sessions and owned servers along with the channel, status item, and listeners.
-The same packaged VSIX has passed installed Extension Host acceptance on
-Windows x64, Linux x64, and macOS arm64. Marketplace publication remains
-pending; see [distribution and release setup](../../docs/distribution.md).
+- Missing diagnostics: check the LithoSharp output channel, workspace trust, and the .NET 10 runtime on PATH. Use `LithoSharp: Restart Language Server` after changing server or worker settings.
+- MDX diagnostics unavailable: check Node.js 24.13.0 and run `LithoSharp: Restore MDX Worker`. Markdown diagnostics work without that restore.
+- Build or server unavailable: install LithoSharp.Tool 1.1.0 and the .NET 10 SDK, then check the selected project and CLI path in the output channel.
+- Preview unavailable: build the document and check its route, draft status and server output.
 
-## Commands (V110-16)
-
-- `LithoSharp: Build`, `LithoSharp: Start Server`, `LithoSharp: Stop Server`,
-  `LithoSharp: Inspect Site` run the real CLI with machine output and show the
-  result. Build validates only; it is never a publish approval.
-- Each project has its own serve state machine
-  (Stopped/Starting/Running/Rebuilding/Failed/Stopping) driven by real
-  process events. Normal stops use structured stdin shutdown; process-tree
-  recovery is the last resort after a timeout and never touches other processes.
-
-## Editing (V110-17)
-
-- Markdown/MDX documents open a single editing LSP session with debounced
-  change traffic (150 ms, 50-1000 ms configurable). Diagnostics carry the
-  original IDs with version-guarded display; stale results never resurface.
-- Symbols feed the Outline from owned heading ranges. No full-site build, SSR,
-  or user module execution happens on keystrokes.
-
-## Preview (V110-18)
-
-- `LithoSharp: Open Preview`, `Refresh Preview`, and `Open in Browser` show
-  the actually served output in a thin WebView shell. The shell converts
-  nothing: routes come from inspection, never from guessing.
-- Unknown, draft, or unbuilt documents explain instead of opening. Failures
-  keep the labeled last successful result. A preview-owned server stops with
-  its last panel; user-started servers never stop on panel close.
+See [known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md) for Markdown compatibility, execution boundaries and long-running stability coverage.

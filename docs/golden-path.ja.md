@@ -3,14 +3,13 @@
 [English](golden-path.md)
 
 導入からserveまでの対応経路は5つである。各手順で依存restoreとbuildの実行
-境界を明示する。versionは[1.1の機能](release-1.1.ja.md)に従う。packageは
-配布（V110-23）まで1.0.0で入れる。
+境界を明示する。バージョンは[1.1の機能](release-1.1.ja.md)に従い、NuGet 1.1.0を使う。
 
 ## 1. Markdown-onlyのsite
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.0.0
-dotnet tool install LithoSharp.Tool --version 1.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -48,27 +47,15 @@ dotnet build MySite -c Release
 してから設定出力へ増分生成する。`clean`は所有の未変更成果物だけを消し、
 cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを明示回収する。
 
-## 4. VSIX導入（local）
+## 4. VS Code拡張機能
 
-0.1.0の拡張はMarketplaceにない。
+[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールする。
 
 ```sh
-npm --prefix extensions/lithosharp-vscode ci --ignore-scripts --no-audit --no-fund
-npm --prefix eng/vsix-packager ci --ignore-scripts --no-audit --no-fund
-npm --prefix extensions/lithosharp-vscode run vsix:pack
-code --install-extension extensions/lithosharp-vscode/lithosharp-0.1.0.vsix
+code --install-extension htkym.lithosharp
 ```
 
-2つの`npm ci`は、コミット済みlockfileに従って依存関係を取得するためnetworkが要る。
-packagerのlockfileはVSCE 4.0.0に固定してある。`vsix:pack`はそのlocal CLIを使い、
-別のversionを取得しない。compileと言語server・MDX workerのstagingを行い、
-公開せずにpackする。
-
-その後`LithoSharp: Select Project`、`LithoSharp: Build`、
-`LithoSharp: Open Preview`を使う。拡張はCLIを解決し（project local tool、
-次にPATH）、`lithosharp.languageServerPath`から言語serverを起こす。MDX診断
-にはrestore済みworkerも要る。未信頼workspaceでは検出のみ動き、processを
-起こすcommandは理由を説明する。
+同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 1.1.0を用意する。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行する。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要である。未信頼のワークスペースでは検出だけが動作する。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照。
 
 ## 5. multi-rootのworkspace
 
@@ -83,4 +70,4 @@ folderごとに1回ずつ追加する。`LithoSharp: Select Project`はworkspace
 - .NET restore/buildは上記の明示commandである。buildがnpm packageを入れることはない。
 - npm installは`restore-mdx`（MDX worker）と第三者siteのrestoreだけである。
 - 走らない隠れ手順：`build`・`serve`・`check`・Editorキー入力での依存restore、
-  移行時のJavaScript設定実行、telemetry（0.1.0の拡張は収集しない）。
+  移行時のJavaScript設定実行、テレメトリー（拡張は収集しない）。

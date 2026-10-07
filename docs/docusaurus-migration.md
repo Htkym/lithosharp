@@ -112,19 +112,6 @@ changes, staticization, deletion, or unverified. It records known losses (for
 example, a YouTube link does not preserve embedded playback) as non-equivalent;
 unverified components remain unverified and never become automatic actions.
 
-## Third-party reproduction corpus
-
-Three pinned upstream sites reproduce the full flow from a fixed manifest
-(`eng/verification/1.1.0/migration-sites.json`): Prettier 3.6.2, Jest 30.2.0
-and Docusaurus 3.10.2, all MIT, built in digest-pinned containers without host
-profiles or credentials. Each site keeps its original route oracle, classified
-exclusions with reasons, a bounded clean-page candidate build, and a loopback
-serve check of representative pages, navigation, assets and the search index.
-Manual patches are recorded, never silently applied. A route match covers only
-the declared page set. Sanitized summaries, hashes, rerun commands and the
-version manifest are published under `docs/evidence/1.1.0/`; full traces stay
-local. See the [V110-21 memo](verification/1.1.0/tasks/V110-21.md).
-
 ## Unsupported inputs
 
 Arbitrary plugins and themes, theme overrides outside the import list,

@@ -2,11 +2,11 @@
 
 `LithoSharp.Tool` は .NET 10 のツールです。サイトのビルドには .NET 10 SDK、
 開発サーバーには ASP.NET Core の共有フレームワークを使います。
-ローカルで作ったパッケージは、公開せずに次のように試せます。
+NuGetから次のようにインストールできます。
 
 ```powershell
-dotnet tool install LithoSharp.Tool --tool-path .tools --add-source artifacts/packages
-dotnet new install artifacts/packages/LithoSharp.ProjectTemplates.1.0.0.nupkg
+dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::1.1.0
 .tools/lithosharp new docs -n MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -127,3 +127,5 @@ Native AOT では任意のマネージドアセンブリの動的読み込みを
 [単一ファイル配布](https://learn.microsoft.com/dotnet/core/deploying/single-file/overview)、
 [trimming の制限](https://learn.microsoft.com/dotnet/core/deploying/trimming/incompatibilities)、
 [Native AOT](https://learn.microsoft.com/dotnet/core/deploying/native-aot)。
+
+独自の連携には[機能情報のschema](tooling-capabilities.ja.md)と[言語サーバーのプロトコル](language-server.md)を参照してください。
