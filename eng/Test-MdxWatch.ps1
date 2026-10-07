@@ -380,6 +380,9 @@ namespace LithoSharp.WatchR7 {
         return $completed
     } 'completed MDX warmup'
     $script:watchEvidence.importedEditBaselineGeneration = $script:watchEvidence.warmupCompletedGeneration
+    # Windows can report a directory LastWrite notification alongside a child edit.
+    # Exercise that real notification without allowing it to restart the persistent host.
+    if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }
     [IO.File]::WriteAllText($componentPath, $component.Replace('useState(1)', 'useState(2)'))
     Wait-For { Test-WatchImportedGeneration } 'completed imported component rebuild'
     if ((State).extensions[0].mdx.metrics.workerStarts -ne 0) { throw 'A component edit restarted the worker.' }

@@ -14,7 +14,10 @@ async page => {
     check(errors.count === 0, message + ': ' + JSON.stringify({hydrationErrors: errors, consoleFailures: {count: failures.length, items: failures.slice(0, 5).map(error => String(error).slice(0, 2048))}}));
   }
   await page.goto(origin + '/guide/interactive/');
+  // SSR markup and the new URL precede the asynchronous React mount.
+  await page.waitForFunction(() => globalThis[Symbol.for('lithosharp.react-roots')]?.size === 1);
   await page.getByRole('button', {name: 'Count 3', exact: true}).click();
+  await page.getByRole('button', {name: 'Count 4', exact: true}).waitFor();
   check(await page.getByRole('button', {name: 'Count 4', exact: true}).count() === 1, 'Counter did not hydrate');
   await page.getByRole('tab', {name: '日本語', exact: true}).first().click();
   check(await page.locator('[role=tab][aria-selected=true]').allTextContents().then(values => values.every(value => value === '日本語')), 'Tabs did not synchronize');
@@ -50,7 +53,10 @@ async page => {
   await page.evaluate(() => { globalThis.navigationCanary = 'preserved'; });
   await page.locator('#docs-sidebar a[href="/guide/interactive/"]').click();
   await page.waitForURL('**/guide/interactive/');
+  // SSR markup and the new URL precede the asynchronous React mount.
+  await page.waitForFunction(() => globalThis[Symbol.for('lithosharp.react-roots')]?.size === 1);
   await page.getByRole('button', {name: 'Count 3', exact: true}).click();
+  await page.getByRole('button', {name: 'Count 4', exact: true}).waitFor();
   check(await page.getByRole('button', {name: 'Count 4', exact: true}).count() === 1, 'Navigation did not mount the page');
   check(await page.evaluate(() => navigationCanary) === 'preserved', 'Internal navigation performed a full reload');
   await page.locator('#docs-sidebar a[href="/guide/islands/"]').click();
@@ -59,7 +65,10 @@ async page => {
   check(await page.evaluate(() => globalThis[Symbol.for('lithosharp.react-roots')]?.size ?? 0) === 0, 'Page root was leaked');
   await page.goBack();
   await page.waitForURL('**/guide/interactive/');
+  // SSR markup and the new URL precede the asynchronous React mount.
+  await page.waitForFunction(() => globalThis[Symbol.for('lithosharp.react-roots')]?.size === 1);
   await page.getByRole('button', {name: 'Count 3', exact: true}).click();
+  await page.getByRole('button', {name: 'Count 4', exact: true}).waitFor();
   check(await page.getByRole('button', {name: 'Count 4', exact: true}).count() === 1, 'History navigation did not remount');
   check(await page.evaluate(() => globalThis[Symbol.for('lithosharp.islands')].size) === 0, 'Island roots were leaked');
   await checkHydration('Navigation hydration mismatch');
