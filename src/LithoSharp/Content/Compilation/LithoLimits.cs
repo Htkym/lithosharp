@@ -4,14 +4,8 @@ using System.Text.RegularExpressions;
 namespace LithoSharp.Content.Compilation;
 
 /// <summary>Litho frontend scope boundaries.</summary>
-internal static class LithoLimits
+internal static partial class LithoLimits
 {
-    /// <summary>Maximum nested container depth (blockquotes/lists). Deeper input degrades to paragraphs.</summary>
-    public const int MaxNestingDepth = 200;
-
-    /// <summary>Maximum reference label length, per CommonMark.</summary>
-    public const int MaxReferenceLabelLength = 999;
-
     /// <summary>
     /// Constructs deliberately unsupported by the Litho frontend, with stable IDs.
     /// The IDs map mechanically to <c>tests/LithoSharp.Tests/Fixtures/LithoParser/Unsupported.md</c>;

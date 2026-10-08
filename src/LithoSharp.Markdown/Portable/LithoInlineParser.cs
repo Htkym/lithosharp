@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
 using System.Text;
 
 namespace LithoSharp.Content.Compilation;
@@ -42,9 +47,9 @@ internal static class LithoInlineParser
         IReadOnlyDictionary<string, LithoReference> references,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(text);
-        ArgumentNullException.ThrowIfNull(map);
-        ArgumentNullException.ThrowIfNull(references);
+        if (text is null) throw new ArgumentNullException(nameof(text));
+        if (map is null) throw new ArgumentNullException(nameof(map));
+        if (references is null) throw new ArgumentNullException(nameof(references));
         return new Scanner(text, map, references, cancellationToken).Scan();
     }
 
@@ -242,7 +247,7 @@ internal static class LithoInlineParser
 
         private bool MatchAt(string value) =>
             _position + value.Length <= text.Length
-            && text.AsSpan(_position, value.Length).SequenceEqual(value);
+            && string.CompareOrdinal(text, _position, value, 0, value.Length) == 0;
 
         private SourceSpan SpanAt(int local, int length) =>
             Glob(new SourceSpan(local, length));
@@ -374,7 +379,7 @@ internal static class LithoInlineParser
             }
 
             var nameEnd = end;
-            while (nameEnd < text.Length && (char.IsAsciiLetterOrDigit(text[nameEnd])) && nameEnd - _position < 33)
+            while (nameEnd < text.Length && (LithoCharacters.IsAsciiLetterOrDigit(text[nameEnd])) && nameEnd - _position < 33)
             {
                 nameEnd++;
             }
@@ -445,14 +450,14 @@ internal static class LithoInlineParser
                 return false;
             }
 
-            if (!char.IsAsciiLetter(inner[0]))
+            if (!LithoCharacters.IsAsciiLetter(inner[0]))
             {
                 return false;
             }
 
             for (var i = 1; i < colon; i++)
             {
-                if (!(char.IsAsciiLetterOrDigit(inner[i]) || inner[i] is '+' or '.' or '-'))
+                if (!(LithoCharacters.IsAsciiLetterOrDigit(inner[i]) || inner[i] is '+' or '.' or '-'))
                 {
                     return false;
                 }
@@ -511,8 +516,9 @@ internal static class LithoInlineParser
             }
 
             var open = 0;
-            foreach (var ch in candidate.AsSpan(0, end))
+            for (var index = 0; index < end; index++)
             {
+                var ch = candidate[index];
                 if (ch == '(')
                 {
                     open++;

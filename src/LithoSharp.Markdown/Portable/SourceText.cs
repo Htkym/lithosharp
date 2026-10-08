@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace LithoSharp.Content.Compilation;
 
 /// <summary>
@@ -14,7 +17,7 @@ internal sealed class SourceText
     /// <exception cref="ArgumentNullException"><paramref name="text"/> is null.</exception>
     public SourceText(string text)
     {
-        ArgumentNullException.ThrowIfNull(text);
+        if (text is null) throw new ArgumentNullException(nameof(text));
         Text = text;
         var starts = new List<int> { 0 };
         for (var index = 0; index < text.Length; index++)
@@ -47,7 +50,11 @@ internal sealed class SourceText
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="offset"/> is outside the text.</exception>
     public (int Line, int Column) GetLineAndColumn(int offset)
     {
+        #if NETSTANDARD2_0
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset), offset, "Non-negative number required.");
+        #else
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        #endif
         if (offset > Text.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(offset));

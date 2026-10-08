@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/LithoSharp/LithoSharp.csproj" />
+    <ProjectReference Include="../../src/LithoSharp.Markdown/LithoSharp.Markdown.csproj"
+                      SetTargetFramework="TargetFramework=netstandard2.0"
+                      SkipGetTargetFrameworkProperties="true" />
+    <None Include="../LithoSharp.Tests/Fixtures/MarkdigBaseline/body-basics.md"
+          Link="Fixtures/body-basics.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

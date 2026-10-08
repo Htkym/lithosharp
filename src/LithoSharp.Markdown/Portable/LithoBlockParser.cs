@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
 namespace LithoSharp.Content.Compilation;
 
 using System.Text.RegularExpressions;
@@ -21,7 +26,7 @@ internal static partial class LithoBlockParser
     /// <summary>Splits text into lines, tracking body-relative offsets.</summary>
     public static List<Line> SplitLines(string text)
     {
-        ArgumentNullException.ThrowIfNull(text);
+        if (text is null) throw new ArgumentNullException(nameof(text));
         var lines = new List<Line>();
         var start = 0;
         for (var index = 0; index < text.Length; index++)
@@ -56,7 +61,7 @@ internal static partial class LithoBlockParser
         string body,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
+        if (body is null) throw new ArgumentNullException(nameof(body));
         // NUL bytes become the replacement character, per CommonMark.
         var normalized = body.Replace('\0', '\uFFFD');
         var parser = new Parser(SplitLines(normalized), cancellationToken);
@@ -466,17 +471,37 @@ internal static partial class LithoBlockParser
                 : new LithoCodeMeta(title, highlight, numbered, start);
         }
 
+        #if NETSTANDARD2_0
+        private static readonly Regex TitleAttributeRegex = new("(?:^|\\s)title=\"([^\"]*)\"");
+        private static Regex TitleAttribute() => TitleAttributeRegex;
+        #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)title=\"([^\"]*)\"")]
         private static partial Regex TitleAttribute();
+        #endif
 
+        #if NETSTANDARD2_0
+        private static readonly Regex HighlightAttributeRegex = new("\\{([\\d, -]+)\\}");
+        private static Regex HighlightAttribute() => HighlightAttributeRegex;
+        #else
         [System.Text.RegularExpressions.GeneratedRegex("\\{([\\d, -]+)\\}")]
         private static partial Regex HighlightAttribute();
+        #endif
 
+        #if NETSTANDARD2_0
+        private static readonly Regex LineNumbersAttributeRegex = new("(?:^|\\s)showLineNumbers(?:\\s|$)");
+        private static Regex LineNumbersAttribute() => LineNumbersAttributeRegex;
+        #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)showLineNumbers(?:\\s|$)")]
         private static partial Regex LineNumbersAttribute();
+        #endif
 
+        #if NETSTANDARD2_0
+        private static readonly Regex StartAttributeRegex = new("(?:^|\\s)start=(\\d+)");
+        private static Regex StartAttribute() => StartAttributeRegex;
+        #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)start=(\\d+)")]
         private static partial Regex StartAttribute();
+        #endif
 
         private static bool IsClosingFence(string text, char fenceChar, int minRun)
         {
@@ -528,7 +553,7 @@ internal static partial class LithoBlockParser
             }
 
             var end = 0;
-            while (end < rest.Length && (char.IsAsciiLetterOrDigit(rest[end]) || rest[end] is '-' or '_'))
+            while (end < rest.Length && (LithoCharacters.IsAsciiLetterOrDigit(rest[end]) || rest[end] is '-' or '_'))
             {
                 end++;
             }
@@ -1739,6 +1764,11 @@ internal static partial class LithoBlockParser
     private static SourceSpan SpanOf(Line line) =>
         new(line.Offset, line.Text.Length);
 
+    #if NETSTANDARD2_0
+    private static readonly Regex WhitespaceRunRegex = new(@"\s+");
+    private static Regex WhitespaceRun() => WhitespaceRunRegex;
+    #else
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRun();
+    #endif
 }

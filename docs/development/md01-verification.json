@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "taskId": "MD-01",
+  "implementationStatus": "implemented_pending_Bocchi_review",
+  "repository": "LithoSharp",
+  "branch": "feature/2.0.0",
+  "baselineCommit": "3c1adfa15ddf7955f25a854add30393ffaa43ec4",
+  "sourceDirectory": "src/LithoSharp.Markdown/Portable",
+  "architecture": {
+    "canonicalSource": true,
+    "standaloneTargets": ["net10.0", "netstandard2.0"],
+    "languageVersion": "13.0",
+    "implicitUsings": false,
+    "publicApiExpanded": false,
+    "productAssemblyIdentityPreservedBySourceLink": true,
+    "htmlAndSiteDiagnosticAdapters": "remain in the product",
+    "newFacadeAndImmutableFacts": "MD-02",
+    "runtimeInspectionSiteAdapters": "MD-03",
+    "actualRoslynHostAndCache": "MD-04/IN-01",
+    "fixedArtifactPair": "MD-05",
+    "separateRepository": "MD-06 after IN-01",
+    "packable": false
+  },
+  "checks": [
+    {
+      "name": "A-compile-fixed",
+      "command": [
+        "dotnet",
+        "build",
+        "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 3.268
+    },
+    {
+      "name": "B-restore",
+      "command": [
+        "dotnet",
+        "restore",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-nr:false"
+      ],
+      "state": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 2.048
+    },
+    {
+      "name": "B-build-fixed",
+      "command": [
+        "dotnet",
+        "build",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 2.287
+    },
+    {
+      "name": "B-run",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-build",
+        "--no-restore"
+      ],
+      "state": "PASS",
+      "exitCode": 0,
+      "elapsedSeconds": 0.911
+    }
+  ],
+  "canary": {
+    "executionRuntime": "same net10 CLR; two assemblies/compilation paths",
+    "comparison": "product net10 parser vs standalone netstandard2.0 parser",
+    "cases": [
+      {
+        "id": "C01-body-basics",
+        "rawUtf16Length": 332,
+        "runtimeTarget": ".NETCoreApp,Version=v10.0",
+        "portableTarget": ".NETStandard,Version=v2.0",
+        "snapshotSha256": "d7bf5b5aa67debf8b15019e394ad900bb3bc1ef1c029014fc2785d68ac8f034b",
+        "status": "PASS",
+        "rawUtf8Sha256": "2083aafa15fc746c383438fe36ce1e083495c218ae7effa9be77403475c6ba3f"
+      },
+      {
+        "id": "portable-reference-utf16-fence",
+        "rawUtf16Length": 124,
+        "runtimeTarget": ".NETCoreApp,Version=v10.0",
+        "portableTarget": ".NETStandard,Version=v2.0",
+        "snapshotSha256": "6e03611fe22613e990cdc85f62be7f56af47f1014aecf395a17b635f60d55478",
+        "status": "PASS",
+        "rawUtf8Sha256": "277cb21d5070c13c2d830efb73b42d44503c3114a3e07492af1e7dd0eab44dbd"
+      }
+    ],
+    "checks": [
+      "actual target framework attributes",
+      "no product dependency or render/site types in standalone assembly",
+      "node/span/reference structural equality",
+      "baseline raw headings and fence",
+      "fence metadata and entity-decoded reference destination",
+      "existing h2/id/body output and deterministic rerun",
+      "NoMarkdigAssemblyLoads"
+    ]
+  },
+  "issuesResolved": [
+    {
+      "issue": "netstandard2.0 missing Index/Range and char APIs",
+      "fix": "internal conditional compiler/BCL helpers; ASCII-only predicates; two-target compile passed"
+    },
+    {
+      "issue": "canary called internal RenderMarkdown as public",
+      "fix": "reflection; no new public API or friend assembly; product build and run passed"
+    }
+  ],
+  "reviews": {
+    "Muse": "three Index/Range arithmetic cases; consistent",
+    "Copilot": {
+      "model": "claude-sonnet-5.5",
+      "effort": "medium",
+      "scope": "polyfill and explicit TFM reference",
+      "outcome": "completed",
+      "modelMatched": true,
+      "tools": 0,
+      "importantReserve": 4000,
+      "remainingBefore": 19240,
+      "remainingAfter": 19240,
+      "earlierBroadReview": "Opus5.5/high timed out; no success claim"
+    },
+    "Japanese": "AGY gemini-3.8-flash-high + Yomiyasu; three wording-only corrections"
+  },
+  "ownedBuildTestProcessesAfterChecks": 0,
+  "notRun": [
+    "full solution build/test",
+    "benchmark/coverage",
+    "actual Generator/Analyzer source-package host compile",
+    "new DTO/frontmatter/SourceSegments tests",
+    "pack/publish/repository migration"
+  ],
+  "notRunReason": "MD-01 boundary only; later task checks remain later. Local work was limited to the parent-provided measurement window.",
+  "reviewGate": "commit/push -> Bocchi actual diff review -> next task"
+}
