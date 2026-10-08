@@ -1,0 +1,392 @@
+{
+  "task": "MD-03",
+  "state": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "baseSha": "eaacf27f0cbaa05d5ef62e32fda02890864412df",
+  "md02Review": "PASS by Bocchi all14-file diff",
+  "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "localBuildTest": "PASS on final source; bothTFM/runtime-portable canary/Mdx selected only",
+  "scope": [
+    {
+      "id": "MD03-runtime",
+      "paths": [
+        "src/LithoSharp/LithoSharp.csproj",
+        "src/LithoSharp.Markdown/Properties/AssemblyInfo.cs",
+        "src/LithoSharp/Content/Compilation/SourceSpan.cs"
+      ],
+      "symbols": [
+        "ProjectReference",
+        "InternalsVisibleTo",
+        "SourceSpanLocationExtensions.ToSourceLocation"
+      ],
+      "change": "Core consumes the net10 runtime component; source Compile links removed; shared AST/internal span ownership moves to component. Existing official runtime adapters have explicit runtime-only friend access. Public site signatures unchanged."
+    },
+    {
+      "id": "MD03-text",
+      "paths": [
+        "src/LithoSharp/Content/Compilation/LithoLegacyTextPolicy.cs",
+        "src/LithoSharp/Content/Compilation/LithoMarkdownCompiler.cs",
+        "src/LithoSharp.Markdown/Portable/MarkdownParser.cs"
+      ],
+      "symbols": [
+        "MdInlineFacts.LeafText",
+        "LithoLegacyTextPolicy.Heading/Plain",
+        "LithoMarkdownCompiler.AnalyzeForInspection"
+      ],
+      "change": "Shared leaf text with site presentation policy; heading text no longer renders HTML or strips tags. Preserve image exclusion, math delimiters, decoded-once text and plain-text separators."
+    },
+    {
+      "id": "MD03-frontmatter",
+      "paths": [
+        "src/LithoSharp.Markdown/Portable/MarkdownFrontMatterScan.cs",
+        "src/LithoSharp.Markdown/Portable/MarkdownFrontMatter.cs",
+        "src/LithoSharp/Content/Compilation/FrontMatterSplitter.cs"
+      ],
+      "symbols": [
+        "MdFrontMatterScan.Scan",
+        "MdFrontMatterParser.Split",
+        "FrontMatterSplitter.TrySplit"
+      ],
+      "change": "One lexical delimiter scanner for optional strict entry and legacy adapter. Site LSM policy, typed/located YAML reader, whole-input fallback and source offsets remain in Core."
+    },
+    {
+      "id": "MD03-canary",
+      "paths": [
+        "tests/LithoSharp.Markdown.Portability/Program.cs",
+        "tests/LithoSharp.Markdown.Portability/Md03AdapterChecks.cs"
+      ],
+      "symbols": [
+        "Md03AdapterChecks.Run",
+        "AssemblyLoadContext"
+      ],
+      "change": "Real net10 runtime plus separately built netstandard2 portable assembly. Small one-parse/no body HTML, old heading oracle, optional-vs-site FM/LSM001-008, original offsets, generic metadata agreement and cancellation cases. Explicit net10 reference and portable MSBuild TargetOutputs copy after source review."
+    }
+  ],
+  "compatibility": {
+    "publicApi": "No public signatures changed or added",
+    "legacyInput": "Strict Unicode/input/resource policies are not transplanted onto site entry",
+    "legacyCache": "No new cache; legacy entry is not routed through strict result cache",
+    "hashes": "SourceHash/body and SemanticHash implementations unchanged; compiler fingerprint stays2 because observable semantics should remain identical",
+    "internalBinary": "Official friend consumers must be rebuilt against the component-owned internal AST; mixed old/new internal ABI is not a supported proof",
+    "distribution": "Development ProjectReference only; exact runtime/source artifact pair and loaded dependency/host checks remain MD-04/MD-05/IN-01",
+    "scanBudget": "Repeated scan/comparison/break operands are conservatively charged per J01; former exact strict budget cutoff is not promised. Legacy site context remains null."
+  },
+  "proposedValidation": [
+    {
+      "action": "restore",
+      "target": "portability canary and Mdx project",
+      "reason": "Project graph changed; restore assets must reflect the new component references"
+    },
+    {
+      "action": "build",
+      "target": "Markdown component both TFMs",
+      "reason": "Canonical pure source and runtime metadata compile"
+    },
+    {
+      "action": "build/run",
+      "target": "portability canary",
+      "reason": "Core runtime wiring, policy parity and old fixtures"
+    },
+    {
+      "action": "build",
+      "target": "Mdx project",
+      "reason": "Existing official friend consumer of internal spans still compiles"
+    }
+  ],
+  "estimatedFrame": "Original tentative20-30 seconds; selected final checks measured 17.382 seconds, excludes superseded first canary build/run and coordination idle time",
+  "aiReviews": {
+    "state": "COMPLETED_SOURCE_REVIEW_ONLY",
+    "fastTier": false,
+    "copilot": {
+      "requestedModel": "claude-opus-5.5",
+      "requestedEffort": "high",
+      "actualModelBefore": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "actualModelAfter": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "exitCode": 0,
+      "tools": 0,
+      "permissionRequests": 0,
+      "auto": false,
+      "quotaBefore": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 780,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 96.1,
+        "resetDate": "2026-10-08T07:09:19.197Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "quotaAfter": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 780,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 96.1,
+        "resetDate": "2026-10-08T07:09:19.197Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "usage": [
+        {
+          "model": "claude-opus-5.5",
+          "reasoningEffort": "high",
+          "inputTokens": 13228,
+          "outputTokens": 10072,
+          "reasoningTokens": 8585,
+          "cost": 15,
+          "isAuto": false,
+          "availableToolCount": 0,
+          "numToolCalls": 0,
+          "copilotUsage": {
+            "tokenDetails": [
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 400000000000,
+                "tokenCount": 4,
+                "tokenType": "input",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 20000000000,
+                "tokenCount": 0,
+                "tokenType": "cache_read",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 500000000000,
+                "tokenCount": 13224,
+                "tokenType": "cache_write",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 2000000000000,
+                "tokenCount": 10072,
+                "tokenType": "output",
+                "model": "claude-opus-5.5"
+              }
+            ],
+            "totalNanoAiu": 26757600000
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "CP-MD03-1",
+          "decision": "ACCEPTED",
+          "reason": "Make net10 ProjectReference explicit; portable Build TargetOutputs copied, avoiding a duplicate NS direct ProjectReference and hardcoded bin path. SDK10.0.300 Build Returns TargetPathWithTargetPlatformMoniker verified locally. Compile/run still pending."
+        },
+        {
+          "id": "CP-MD03-2",
+          "decision": "NOT_ADOPTED",
+          "reason": "J01 conservative MaxScanWork charges actual scan/comparison/break reads, including repeated operands; exact previous budget threshold is not a promised semantic compatibility boundary. ParserVersion changes with canonical source. Legacy site scanner has no context/budget, so old site acceptance stays uncapped. Removing comparison/break charges would undercount work."
+        },
+        {
+          "id": "CP-MD03-3",
+          "decision": "NO_HEADING_ISSUE_FOUND",
+          "reason": "Reviewer agrees on text/code/autolink/image/math/linebreak parity; renderer Encode remains its existing custom escapes for &, <, > and double quote. It does not normalize Unicode. Final canary still required."
+        }
+      ]
+    },
+    "muse": {
+      "requestedModel": "opencode-go/muse-spark-1.3-contributor",
+      "exitCode": 0,
+      "observedToolEvents": 0,
+      "response": "A: Opening S1 L3 [1,4)・Yaml S6 L13 [6,19)・Closing S19 L3 [19,22)・Body S24 L8 [24,32)・FailureLine=1\nB: FailureLine=4・Yaml S4 L19 [4,23)・legacy heading `# Body` S16 L6 line=3(offset0維持)\n",
+      "decision": "Arithmetic independently confirmed: A [1,4)/[6,19)/[19,22)/[24,32); B failure4, headingline3/offset16. Correct v2 session export confirms requested model/agent. Initial obsolete export syntax failed without inference; corrected read-only export succeeded.",
+      "actualSessionModel": {
+        "id": "muse-spark-1.3-contributor",
+        "providerID": "opencode-go",
+        "variant": "default"
+      },
+      "actualAgent": "md03-muse",
+      "modelMatch": true
+    },
+    "agy": {
+      "requestedModel": "gemini-3.8-flash-high",
+      "actualInitModel": "gemini-3.8-flash-high",
+      "status": "SUCCESS",
+      "numTurns": 1,
+      "exitCode": 0,
+      "actualToolOrSubagentEvents": 0,
+      "skill": "Yomiyasu full text supplied",
+      "accepted": [
+        "合格しました → 合格としました (reviewer subject)",
+        "友好DLL → friend DLL",
+        "site位置への変換を行います → site位置へ変換します"
+      ],
+      "isolationLimit": "init lists tools and permission_mode always-proceed; no actual tool/subagent action observed"
+    }
+  },
+  "ownership": {
+    "buildTestStarted": true,
+    "count": 0,
+    "checkedAt": "2026-10-08T07:26:37.5086566Z",
+    "ownedRootPids": [
+      10008,
+      16368,
+      27724,
+      38844,
+      41536,
+      48072,
+      49116,
+      49888
+    ],
+    "sharedCompilation": false,
+    "msbuildNodeReuse": false,
+    "unrelatedProcessesStopped": false
+  },
+  "reviewGate": "Selected final validation -> owned PID0 report -> MD-03-only feature commit/push -> Bocchi full diff review",
+  "notRun": [
+    "Full solution/test",
+    "Benchmark",
+    "Coverage",
+    "Pack/publish",
+    "Actual Roslyn Generator/Analyzer host",
+    "Bounded cache/epoch changes"
+  ],
+  "finalChecks": [
+    "MD03-restore-canary",
+    "MD03-restore-mdx",
+    "MD03-A-build",
+    "MD03-R1-B-build",
+    "MD03-R1-B-run",
+    "MD03-C-build"
+  ],
+  "runtimeEvidence": {
+    "checkedAt": "2026-10-08T07:29:11.179Z",
+    "checks": [
+      {
+        "name": "MD03-restore-canary",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 3.007,
+        "command": [
+          "dotnet",
+          "restore",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--disable-parallel",
+          "-nr:false"
+        ]
+      },
+      {
+        "name": "MD03-restore-mdx",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 1.979,
+        "command": [
+          "dotnet",
+          "restore",
+          "src/LithoSharp.Mdx/LithoSharp.Mdx.csproj",
+          "--disable-parallel",
+          "-nr:false"
+        ]
+      },
+      {
+        "name": "MD03-A-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 4.926,
+        "command": [
+          "dotnet",
+          "build",
+          "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "-p:UseSharedCompilation=false"
+        ]
+      },
+      {
+        "name": "MD03-R1-B-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 3.102,
+        "command": [
+          "dotnet",
+          "build",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "-p:UseSharedCompilation=false"
+        ]
+      },
+      {
+        "name": "MD03-R1-B-run",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.962,
+        "command": [
+          "dotnet",
+          "run",
+          "--project",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--no-build",
+          "--no-restore"
+        ]
+      },
+      {
+        "name": "MD03-C-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 3.406,
+        "command": [
+          "dotnet",
+          "build",
+          "src/LithoSharp.Mdx/LithoSharp.Mdx.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "-p:UseSharedCompilation=false"
+        ]
+      }
+    ],
+    "canary": {
+      "task": "MD-03",
+      "status": "PASS",
+      "checks": "shared runtime assembly/one parse/no body HTML/heading legacy parity/frontmatter site policy and LSM001-008/offsets/runtime-portable facts/cancellation",
+      "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+      "actualRoslynHost": "NOT_RUN; MD-04/IN-01"
+    },
+    "elapsedSelectedSeconds": 17.382,
+    "history": [
+      {
+        "name": "MD03-B-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 7.235
+      },
+      {
+        "name": "MD03-B-run",
+        "state": "FAIL",
+        "exitCode": 3762504530,
+        "elapsedSeconds": 1.035
+      }
+    ],
+    "fix": "Only canary expected IDs corrected; no product/source-payload changes after A-build"
+  },
+  "restoredLockfiles": {
+    "paths": [
+      "src/LithoSharp/packages.lock.json",
+      "src/LithoSharp.Mdx/packages.lock.json",
+      "tests/LithoSharp.Markdown.Portability/packages.lock.json"
+    ],
+    "verified": "Only the new Markdown ProjectReference and exact YamlDotNet18.1.0 project dependency entries; existing package versions/contentHash/other TFMs unchanged",
+    "developmentProjectVersion": "[1.0.0, ) comes from SDK default development project identity, not a chosen released artifact version. MD-05/IN-01 fixes exact package identities."
+  }
+}

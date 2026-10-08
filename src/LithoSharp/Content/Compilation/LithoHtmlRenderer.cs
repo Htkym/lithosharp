@@ -45,17 +45,7 @@ internal static class LithoHtmlRenderer
     /// <remarks>Mirrors the reference plain renderer: paragraphs, headings, and
     /// code append LF; containers concatenate children; tables concatenate cells
     /// with a trailing space each; breaks and thematic breaks append nothing.</remarks>
-    public static string RenderPlainText(IReadOnlyList<LithoBlock> blocks)
-    {
-        ArgumentNullException.ThrowIfNull(blocks);
-        var writer = new StringBuilder();
-        foreach (var block in blocks)
-        {
-            RenderBlockPlain(block, writer);
-        }
-
-        return writer.ToString();
-    }
+    public static string RenderPlainText(IReadOnlyList<LithoBlock> blocks) => LithoLegacyTextPolicy.Plain(blocks);
 
     private static void RenderBlock(LithoBlock block, StringBuilder writer, RenderState state)
     {
@@ -352,116 +342,7 @@ internal static class LithoHtmlRenderer
         }
     }
 
-    private static string RenderLabelText(IReadOnlyList<LithoInline> label)
-    {
-        var writer = new StringBuilder();
-        RenderLabelInto(label, writer);
-        return writer.ToString();
-    }
-
-    private static void RenderLabelInto(IReadOnlyList<LithoInline> label, StringBuilder writer)
-    {
-        foreach (var (inline, exit) in LithoInline.Walk(label))
-        {
-            if (exit) continue;
-            switch (inline)
-            {
-                case LithoText text:
-                    writer.Append(text.Text);
-                    break;
-                case LithoCodeSpan code:
-                    writer.Append(code.Code);
-                    break;
-                case LithoAutolink autolink:
-                    writer.Append(autolink.Text);
-                    break;
-                case LithoMathInline math:
-                    writer.Append(math.Content);
-                    break;
-                case LithoLineBreak:
-                    writer.Append('\n');
-                    break;
-                case LithoRawText:
-                    throw new InvalidOperationException("Unresolved raw text reached the renderer.");
-            }
-        }
-    }
-
-    private static void RenderBlockPlain(LithoBlock block, StringBuilder writer)
-    {
-        switch (block)
-        {
-            case LithoParagraph paragraph:
-                RenderLabelInto(paragraph.Inlines, writer);
-                writer.Append('\n');
-                break;
-            case LithoHeading heading:
-                RenderLabelInto(heading.Inlines, writer);
-                writer.Append('\n');
-                break;
-            case LithoCode code:
-                writer.Append(code.Text.TrimEnd('\n'));
-                writer.Append('\n');
-                break;
-            case LithoQuote quote:
-                foreach (var child in quote.Children)
-                {
-                    RenderBlockPlain(child, writer);
-                }
-
-                break;
-            case LithoAdmonition admonition:
-                foreach (var child in admonition.Children)
-                {
-                    RenderBlockPlain(child, writer);
-                }
-
-                break;
-            case LithoDirective directive:
-                foreach (var child in directive.Children)
-                {
-                    RenderBlockPlain(child, writer);
-                }
-
-                break;
-            case LithoMath math:
-                writer.Append(math.Content);
-                writer.Append('\n');
-                break;
-            case LithoList list:
-                foreach (var item in list.Items)
-                {
-                    if (item.Checked is true)
-                    {
-                        writer.Append("[x] ");
-                    }
-                    else if (item.Checked is false)
-                    {
-                        writer.Append("[ ] ");
-                    }
-
-                    foreach (var child in item.Children)
-                    {
-                        RenderBlockPlain(child, writer);
-                    }
-                }
-
-                break;
-            case LithoTable table:
-                foreach (var row in table.Rows)
-                {
-                    foreach (var cell in row)
-                    {
-                        RenderLabelInto(cell, writer);
-                        writer.Append(' ');
-                    }
-                }
-
-                break;
-            case LithoBreak:
-                break;
-        }
-    }
+    private static string RenderLabelText(IReadOnlyList<LithoInline> label) => LithoLegacyTextPolicy.Label(label);
 
     private static string EncodeDiagram(string text)
     {

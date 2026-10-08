@@ -45,6 +45,12 @@
         "type": "Transitive",
         "resolved": "4.153.1",
         "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
+      },
+      "lithosharp.markdown": {
+        "type": "Project",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0, 18.1.0]"
+        }
       }
     }
   }

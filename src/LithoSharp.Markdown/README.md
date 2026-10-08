@@ -2,7 +2,7 @@
 
 MD-01では、現行Litho parserのblock/inline解析、node、UTF-16位置、directive名とparser上限を `Portable/` に集めます。同じsourceを使う独立projectの対象はnet10.0/netstandard2.0、言語版はC# 13です。I/O、HTML描画、site診断、Node、SharpDeps graphを参照しません。
 
-内部nodeと位置型のnamespaceは既存の `LithoSharp.Content.Compilation` を維持します。製品はこのsourceをCompile linkで使用し、既存の型所属、assembly identity、描画経路を保ちます。独立assemblyの内部型を製品から参照する変更ではありません。SourceSpanのSiteSourceLocation変換と、LithoLimitsのsite診断は製品側のpartial定義に残します。
+内部nodeと位置型のnamespaceは既存の `LithoSharp.Content.Compilation` を維持します。MD-03では製品のCompile linkを削除し、net10 runtime componentをProjectReferenceで参照します。内部型のassembly所属はcomponentへ変わるため、公式friend consumerも再buildします。SourceSpanからSiteSourceLocationへの変換とsite診断はCoreのadapterに残し、pure helperはLithoParserLimitsへ改名します。固定版artifact pairの認定はMD-05/IN-01で行います。
 
 ## portable境界
 
@@ -29,7 +29,7 @@ dotnet build tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portabili
 dotnet run --project tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj --no-build --no-restore
 ~~~
 
-MD-01のtask証拠には入力hash、command、実行結果、所要時間、未実行理由、所有プロセスの終了確認を残します。測定と競合する間は編集・差分確認を進め、次のローカルbuild/testを待ちます。MD-01はBocchiの実diffレビューに合格しました。現在のMD-02も、対象の確認とcommit/push後にBocchiのレビューを待ち、MD-03へは進みません。
+MD-01のtask証拠には入力hash、command、実行結果、所要時間、未実行理由、所有プロセスの終了確認を残します。測定と競合する間は編集・差分確認を進め、次のローカルbuild/testを待ちます。MD-01はBocchiの実diffレビューに合格しました。MD-02も対象の最終確認とcommit/pushを終え、Bocchiの全14ファイル差分レビューに合格しました。MD-03の限定検証結果は下記の記録に残し、最終実差分レビューを待っています。
 
 ## MD-01の確認結果
 
@@ -48,3 +48,7 @@ MD-01のtask証拠には入力hash、command、実行結果、所要時間、未
 初回MD-02のSHA `41f80208cd7256421f84dcb927a7d34308704a91`の両TFM buildとcanary buildは警告・エラー0、runは成功しました。レビュー修正後の現revisionも両TFM buildとcanary build/runに成功し、buildは警告・エラー0です。BOM/CRLF、YAMLのUTF-16 mark、entity/escape/emoji、prefix gap、outline/reference/fence、Partial/Failed、未解析frontmatterのUnknown、identity/options、resource上限と取消を小さい入力で確認しました。既存2入力のsnapshotはMD-01から変わっていません。[task証拠](../../docs/development/md02-verification.json)に最終commandと失敗・修正の履歴を残しています。
 
 レビュー修正ではcode/escape/entity/link destinationをopaque誤判定から保護し、heading/tableの実HTMLとlink labelにもUnknown mappingを適用します。opaqueの外側のlinkを保持し、通常のimport/export英文をESM候補から除きます。anchorは既存suffix順序を保ちつつ次の候補を記録し、各候補のbudgetと取消を確認します。新しい確認は同じ小さいcanaryに含め、全solution/testや性能測定は追加していません。
+
+## MD-03のruntime接続
+
+Coreは共通componentのnet10 runtimeをProjectReferenceで参照し、内部parserのCompile linkを削除しました。公開generic entryとsite互換adapterは別の入力policyを保ちます。heading/plain textをHTML rendererから分離し、delimiter scannerを共有しています。[MD-03の記録](../../docs/development/md03-verification.ja.md)へ範囲と検証予定を記載しました。限定build/canary/Mdx確認は成功し、所有build/test PID 0を確認しました。BocchiのMD-03実差分レビューと固定版artifact pairの認定は未完了です。

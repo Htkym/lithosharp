@@ -11,62 +11,36 @@ internal static class MdFrontMatterParser
 {
     internal static (MdFrontMatter Facts, MdRawRange? Body, MdDiagnostic? Diagnostic) Split(string raw, MdParseContext context)
     {
-        var first = raw.Length != 0 && raw[0] == '\uFEFF' ? 1 : 0;
-        var openingEnd = LineEnd(raw, first, context);
-        if (raw.Substring(first, openingEnd - first) != "---")
-            return (new MdFrontMatter(MdFrontMatterState.Absent, null, null, null, null), new MdRawRange(first, raw.Length - first), null);
-        var yamlStart = AfterBreak(raw, openingEnd);
-        var closingStart = yamlStart;
-        while (closingStart < raw.Length)
+        var envelope = MdFrontMatterScan.Scan(raw, context.CancellationToken, context);
+        if (!envelope.Opening.HasValue)
+            return (new MdFrontMatter(MdFrontMatterState.Absent, null, null, null, null), envelope.Body, null);
+        if (!envelope.Closing.HasValue)
+            return (new MdFrontMatter(MdFrontMatterState.Unterminated, envelope.Opening, envelope.Yaml, null, null), null,
+                Diagnostic("LMD004", "Frontmatter has no closing delimiter.", envelope.Opening, "unterminated"));
+        var yaml = envelope.Yaml!.Value;
+        var yamlText = raw.Substring(yaml.Start, yaml.Length);
+        if (context.Inspect(yamlText).Trim().Length == 0)
+            return (new MdFrontMatter(MdFrontMatterState.Empty, envelope.Opening, yaml, envelope.Closing, null), envelope.Body, null);
+        try
         {
-            var end = LineEnd(raw, closingStart, context);
-            if (raw.Substring(closingStart, end - closingStart) == "---")
-            {
-                var bodyStart = AfterBreak(raw, end);
-                var opening = new MdRawRange(first, 3); var yaml = new MdRawRange(yamlStart, closingStart - yamlStart);
-                var closing = new MdRawRange(closingStart, 3); var body = new MdRawRange(bodyStart, raw.Length - bodyStart);
-                var yamlText = raw.Substring(yaml.Start, yaml.Length);
-                if (context.Inspect(yamlText).Trim().Length == 0)
-                    return (new MdFrontMatter(MdFrontMatterState.Empty, opening, yaml, closing, null), body, null);
-                try
-                {
-                    var root = new YamlFactsReader(yamlText, yamlStart, context).Parse();
-                    return (new MdFrontMatter(MdFrontMatterState.Parsed, opening, yaml, closing, root), body, null);
-                }
-                catch (YamlFactsError error)
-                {
-                    return (new MdFrontMatter(MdFrontMatterState.Invalid, opening, yaml, closing, null), body,
-                        Diagnostic("LMD005", error.Message, error.Span, error.Reason));
-                }
-                catch (YamlException error)
-                {
-                    var location = MarkSpan(error.Start, error.End, yamlText.Length, yamlStart);
-                    return (new MdFrontMatter(MdFrontMatterState.Invalid, opening, yaml, closing, null), body,
-                        Diagnostic("LMD005", error.Message, location, "syntax"));
-                }
-            }
-            closingStart = AfterBreak(raw, end);
+            var root = new YamlFactsReader(yamlText, yaml.Start, context).Parse();
+            return (new MdFrontMatter(MdFrontMatterState.Parsed, envelope.Opening, yaml, envelope.Closing, root), envelope.Body, null);
         }
-        return (new MdFrontMatter(MdFrontMatterState.Unterminated, new MdRawRange(first, 3),
-            new MdRawRange(yamlStart, raw.Length - yamlStart), null, null), null,
-            Diagnostic("LMD004", "Frontmatter has no closing delimiter.", new MdRawRange(first, 3), "unterminated"));
+        catch (YamlFactsError error)
+        {
+            return (new MdFrontMatter(MdFrontMatterState.Invalid, envelope.Opening, yaml, envelope.Closing, null), envelope.Body,
+                Diagnostic("LMD005", error.Message, error.Span, error.Reason));
+        }
+        catch (YamlException error)
+        {
+            var location = MarkSpan(error.Start, error.End, yamlText.Length, yaml.Start);
+            return (new MdFrontMatter(MdFrontMatterState.Invalid, envelope.Opening, yaml, envelope.Closing, null), envelope.Body,
+                Diagnostic("LMD005", error.Message, location, "syntax"));
+        }
     }
 
     private static MdDiagnostic Diagnostic(string id, string message, MdRawRange? span, string reason) =>
         new(id, MdDiagnosticSeverity.Warning, message, span, "frontmatter", reason);
-
-    private static int LineEnd(string raw, int from, MdParseContext context)
-    {
-        while (from < raw.Length)
-        {
-            context.Scan();
-            if (raw[from] is '\r' or '\n') break;
-            from++;
-        }
-        return from;
-    }
-    private static int AfterBreak(string raw, int end) => end >= raw.Length ? end
-        : end + (raw[end] == '\r' && end + 1 < raw.Length && raw[end + 1] == '\n' ? 2 : 1);
 
     // YamlDotNet 18.1.0's Mark boundaries are checked by the dedicated UTF-16 fixture.
     // An out-of-range event mark is an invariant failure, never silently clamped.

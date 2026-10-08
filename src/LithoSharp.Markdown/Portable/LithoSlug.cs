@@ -15,7 +15,7 @@ internal static partial class LithoSlug
     public static string Slugify(string text)
     {
         if (text is null) throw new ArgumentNullException(nameof(text));
-        var lowered = LithoLimits.RemoveDiacritics(text.ToLowerInvariant());
+        var lowered = LithoParserLimits.RemoveDiacritics(text.ToLowerInvariant());
         var builder = new System.Text.StringBuilder(lowered.Length);
         foreach (var ch in lowered)
         {

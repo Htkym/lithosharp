@@ -206,7 +206,7 @@ internal static partial class LithoBlockParser
                     continue;
                 }
 
-                if (depth > LithoLimits.MaxNestingDepth)
+                if (depth > LithoParserLimits.MaxNestingDepth)
                 {
                     if (context is not null) throw new MdResourceLimit("depth");
                     blocks.AddRange(ParseParagraph(index, to, out index));
@@ -1418,7 +1418,7 @@ internal static partial class LithoBlockParser
             }
 
             var rawLabel = text[(pos + 1)..labelEnd];
-            if (rawLabel.Length == 0 || rawLabel.Length > LithoLimits.MaxReferenceLabelLength)
+            if (rawLabel.Length == 0 || rawLabel.Length > LithoParserLimits.MaxReferenceLabelLength)
             {
                 return false;
             }

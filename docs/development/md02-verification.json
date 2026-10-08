@@ -358,9 +358,9 @@
     }
   ],
   "finalChecks": [
-    "A-unknown-final",
-    "B-unknown-final-build",
-    "B-unknown-final-run"
+    "R1-A-build",
+    "R1-B-build",
+    "R1-B-run"
   ],
   "firstBuildFailure": {
     "name": "A-build",
@@ -591,5 +591,12 @@
       "acceptedWordingChanges": 2,
       "rejectedWordingChanges": 1
     }
+  },
+  "bocchiReview": {
+    "state": "PASS",
+    "baseSha": "41f80208cd7256421f84dcb927a7d34308704a91",
+    "implementationSha": "1c5cc789ba389ff6abbbfa5c501a3a833d54d30c",
+    "finalSha": "eaacf27f0cbaa05d5ef62e32fda02890864412df",
+    "scope": "Direct review of all14 changed files; non-blocking finalChecks record correction applied in MD-03"
   }
 }

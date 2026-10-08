@@ -39,8 +39,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Transitional MD-01 source link; MD-03 will connect the public runtime facade. -->
-    <Compile Include="..\LithoSharp.Markdown\Portable\*.cs" Link="Content\Compilation\%(Filename)%(Extension)" />
+    <!-- Development runtime reference; exact runtime/source artifacts are fixed by MD-05/IN-01. -->
+    <ProjectReference Include="..\LithoSharp.Markdown\LithoSharp.Markdown.csproj" />
   </ItemGroup>
 
   <ItemGroup>

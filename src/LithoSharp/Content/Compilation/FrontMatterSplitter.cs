@@ -36,78 +36,19 @@ internal readonly record struct FrontMatterSplit(
 /// </summary>
 internal static class FrontMatterSplitter
 {
-    /// <summary>Scans the document for a YAML front matter block.</summary>
+    /// <summary>Applies the legacy split result shape to shared delimiter facts.</summary>
     public static FrontMatterSplit TrySplit(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);
-        var start = text.Length > 0 && text[0] == '\uFEFF' ? 1 : 0;
-        var openingEnd = FindLineEnd(text, start);
-        if (!LineEquals(text, start, openingEnd, "---"))
-        {
+        var envelope = MdFrontMatterScan.Scan(text, cancellationToken);
+        if (!envelope.Opening.HasValue)
             return new FrontMatterSplit(FrontMatterSplitStatus.MissingFrontMatter, string.Empty, string.Empty, 0, 1);
-        }
-
-        var yamlStart = SkipLineBreak(text, openingEnd);
-        var line = 2;
-        var lineStart = yamlStart;
-        while (lineStart < text.Length)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var lineEnd = FindLineEnd(text, lineStart);
-            if (LineEquals(text, lineStart, lineEnd, "---"))
-            {
-                var bodyStart = SkipLineBreak(text, lineEnd);
-                var yaml = text[yamlStart..lineStart];
-                if (string.IsNullOrWhiteSpace(yaml))
-                {
-                    return new FrontMatterSplit(FrontMatterSplitStatus.EmptyFrontMatter, yaml, text[bodyStart..], bodyStart, 2);
-                }
-
-                return new FrontMatterSplit(FrontMatterSplitStatus.Ok, yaml, text[bodyStart..], bodyStart, 1);
-            }
-
-            lineStart = SkipLineBreak(text, lineEnd);
-            line++;
-        }
-
-        return new FrontMatterSplit(FrontMatterSplitStatus.UnterminatedFrontMatter, string.Empty, string.Empty, 0, line);
-    }
-
-    private static int FindLineEnd(string text, int start)
-    {
-        for (var index = start; index < text.Length; index++)
-        {
-            if (text[index] is '\n' or '\r')
-            {
-                return index;
-            }
-        }
-
-        return text.Length;
-    }
-
-    private static int SkipLineBreak(string text, int lineEnd)
-    {
-        if (lineEnd >= text.Length)
-        {
-            return lineEnd;
-        }
-
-        if (text[lineEnd] == '\r' && lineEnd + 1 < text.Length && text[lineEnd + 1] == '\n')
-        {
-            return lineEnd + 2;
-        }
-
-        return lineEnd + 1;
-    }
-
-    private static bool LineEquals(string text, int start, int end, string expected)
-    {
-        if (end > start && text[end - 1] == '\r')
-        {
-            end--;
-        }
-
-        return text.AsSpan(start, end - start).SequenceEqual(expected);
+        if (!envelope.Closing.HasValue)
+            return new FrontMatterSplit(FrontMatterSplitStatus.UnterminatedFrontMatter, string.Empty, string.Empty, 0, envelope.FailureLine);
+        var yamlSpan = envelope.Yaml!.Value; var bodySpan = envelope.Body!.Value;
+        var yaml = text.Substring(yamlSpan.Start, yamlSpan.Length);
+        var status = string.IsNullOrWhiteSpace(yaml) ? FrontMatterSplitStatus.EmptyFrontMatter : FrontMatterSplitStatus.Ok;
+        return new FrontMatterSplit(status, yaml, text.Substring(bodySpan.Start, bodySpan.Length), bodySpan.Start,
+            status == FrontMatterSplitStatus.EmptyFrontMatter ? 2 : 1);
     }
 }

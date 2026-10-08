@@ -8,10 +8,18 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LithoSharp/LithoSharp.csproj" />
-    <ProjectReference Include="../../src/LithoSharp.Markdown/LithoSharp.Markdown.csproj"
-                      SetTargetFramework="TargetFramework=netstandard2.0"
-                      SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="../../src/LithoSharp.Markdown/LithoSharp.Markdown.csproj" />
     <None Include="../LithoSharp.Tests/Fixtures/MarkdigBaseline/body-basics.md"
           Link="Fixtures/body-basics.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!-- Keep the runtime reference explicit; copy the actual portable target output. -->
+  <Target Name="CopyPortableMarkdownComponent" BeforeTargets="CopyFilesToOutputDirectory">
+    <MSBuild Projects="$(MSBuildProjectDirectory)/../../src/LithoSharp.Markdown/LithoSharp.Markdown.csproj"
+             Targets="Build" Properties="TargetFramework=netstandard2.0"
+             BuildInParallel="false">
+      <Output TaskParameter="TargetOutputs" ItemName="_PortableMarkdownAssembly" />
+    </MSBuild>
+    <Error Condition="'@(_PortableMarkdownAssembly)' == ''" Text="Portable Markdown target output was not produced." />
+    <Copy SourceFiles="@(_PortableMarkdownAssembly)" DestinationFolder="$(TargetDir)Portable/" />
+  </Target>
 </Project>

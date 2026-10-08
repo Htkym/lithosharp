@@ -1,15 +1,21 @@
 using System.Collections;
 using System.Reflection;
 using System.Runtime.Versioning;
+using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using LithoSharp;
 
-var runtime = typeof(SiteGenerator).Assembly;
+var product = typeof(SiteGenerator).Assembly;
+var runtime = typeof(LithoSharp.Markdown.MarkdownParser).Assembly;
 var runtimeTarget = runtime.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
 Check(runtimeTarget == ".NETCoreApp,Version=v10.0", "Product parser host must target net10.0.");
-var portable = Assembly.Load("LithoSharp.Markdown");
+Check(product.GetType("LithoSharp.Content.Compilation.LithoBlockParser") is null,
+    "Product must consume the shared runtime parser instead of compiling its own copy.");
+var portableContext = new AssemblyLoadContext("MD-03 portable canary", isCollectible: true);
+portableContext.Resolving += (_, name) => AssemblyLoadContext.Default.LoadFromAssemblyName(name);
+var portable = portableContext.LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, "Portable", "LithoSharp.Markdown.dll"));
 var portableTarget = portable.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
 Check(portableTarget == ".NETStandard,Version=v2.0", "Portable assembly must really target netstandard2.0.");
 Check(!portable.GetReferencedAssemblies().Any(reference => reference.Name == "LithoSharp"),
@@ -79,6 +85,7 @@ Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoad
 
 MarkdownFactsChecks.Run();
 Md02ReviewFixChecks.Run(runtime, portable);
+Md03AdapterChecks.Run(product, runtime, portable);
 
 static object Parse(Assembly assembly, string input)
 {

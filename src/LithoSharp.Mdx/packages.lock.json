@@ -46,9 +46,16 @@
         "type": "Project",
         "dependencies": {
           "AngleSharp": "[1.8.3, )",
+          "LithoSharp.Markdown": "[1.0.0, )",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
           "YamlDotNet": "[18.1.0, )"
+        }
+      },
+      "lithosharp.markdown": {
+        "type": "Project",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0, 18.1.0]"
         }
       }
     }

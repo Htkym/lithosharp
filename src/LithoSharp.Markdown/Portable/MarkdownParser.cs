@@ -8,21 +8,25 @@ namespace LithoSharp.Content.Compilation;
 
 internal static class MdInlineFacts
 {
+    internal static string? LeafText(LithoInline node) => node switch
+    {
+        LithoText text => text.Text,
+        LithoCodeSpan code => code.Code,
+        LithoAutolink link => link.Text,
+        LithoMathInline math => math.Content,
+        LithoLineBreak => "\n",
+        LithoRawText => throw new InvalidOperationException("Unresolved raw text reached text projection."),
+        _ => null,
+    };
+
     internal static MdTextProjection Text(IReadOnlyList<LithoInline> inlines, CancellationToken cancellationToken, bool includeImageLabels = true)
     {
         var pieces = new List<MdTextProjection>();
         foreach (var (node, exit) in LithoInline.Walk(inlines, includeImageLabels, cancellationToken))
         {
             if (exit) continue;
-            var piece = node switch
-            {
-                LithoText text => node.Projection ?? MdSourceMapping.Unknown(text.Text),
-                LithoCodeSpan code => node.Projection ?? MdSourceMapping.Unknown(code.Code),
-                LithoAutolink link => node.Projection ?? MdSourceMapping.Unknown(link.Text),
-                LithoMathInline math => node.Projection ?? MdSourceMapping.Unknown(math.Content),
-                LithoLineBreak => node.Projection ?? MdSourceMapping.Unknown("\n"),
-                _ => null,
-            };
+            if (LeafText(node) is not { } value) continue;
+            var piece = node.Projection ?? MdSourceMapping.Unknown(value);
             if (piece is not null) pieces.Add(piece);
         }
         return MdSourceMapping.Join(pieces);
