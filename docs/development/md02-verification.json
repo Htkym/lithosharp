@@ -1,0 +1,386 @@
+{
+  "task": "MD-02",
+  "status": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "baseSha": "aef618b6031ac26485f7b4e457a885aa9de471f5",
+  "contract": "docs/contracts/markdown-v1.ja.md",
+  "canonicalSourceHash": "5995e3589789315b9a974fd59ddeb562e8578b9763a61956f84c06090353d9c2",
+  "localVerification": "PASS on final Unknown-corrected source",
+  "md01Ci": {
+    "sha": "aef618b6031ac26485f7b4e457a885aa9de471f5",
+    "status": "NOT_STARTED",
+    "totalRuns": 0,
+    "checkedAt": "2026-10-08T04:39:52.627Z"
+  },
+  "performanceWatch": {
+    "symbol": "LithoInlineParser.Scanner.MatchAt",
+    "change": "Span.SequenceEqual -> CompareOrdinal",
+    "affectedTargets": [
+      "net10.0",
+      "netstandard2.0"
+    ],
+    "measurement": "NOT_RUN",
+    "assertion": "No speed invariance claimed",
+    "md02": "Additional context-null branches and position metadata are unmeasured; no legacy-speed invariance claim"
+  },
+  "followup": "Commit/push MD-02 only after selected checks; wait for Bocchi actual diff review before MD-03",
+  "limits": [
+    "No cache or runtime/site adapter",
+    "No artifact pair or compiler host verification",
+    "Indeterminate decoded mapping remains Partial",
+    "No full tests/benchmarks/coverage/pack/publish"
+  ],
+  "aiReviews": {
+    "muse": {
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "scope": "Two UTF16 desk calculations",
+      "exit": 0,
+      "outcome": "Consistent; not actual YAML mark evidence"
+    },
+    "copilot": {
+      "model": "claude-sonnet-5.5",
+      "effort": "medium",
+      "scope": "Source mapping/options only",
+      "exit": 0,
+      "modelMatched": true,
+      "toolCalls": 0,
+      "isAuto": false,
+      "dispositions": [
+        "Accepted atomic-empty guard",
+        "Accepted Unknown query for unprojected text",
+        "Kept conservative output reservation; no change to contract lower bound"
+      ],
+      "quotaCheckedBeforeAndAfter": true,
+      "importantReservePassed": true
+    },
+    "agy": {
+      "model": "gemini-3.8-flash-high",
+      "skill": "Yomiyasu",
+      "outcome": "SUCCESS",
+      "turns": 1,
+      "exit": 0,
+      "acceptedWordingChanges": 3
+    },
+    "fastTier": false
+  },
+  "unknownFrontmatterCorrection": {
+    "reason": "Unexamined/unfinished frontmatter must not be advertised as confirmed Absent",
+    "implementation": "Unknown enum state before splitting finishes, including strict input failures",
+    "checks": "Added unfinished YAML output-limit case and failed Unicode state assertion",
+    "state": "PASS on final source"
+  },
+  "ownership": {
+    "checkedAt": "2026-10-08T05:19:01.1680388Z",
+    "count": 0,
+    "sharedCompilation": false,
+    "msbuildNodeReuse": false,
+    "unrelatedProcessesStopped": false
+  },
+  "parserVersion": "1/5995e3589789315b9a974fd59ddeb562e8578b9763a61956f84c06090353d9c2",
+  "checks": [
+    {
+      "task": "MD-02",
+      "name": "restore",
+      "startedAt": "2026-10-08T05:01:23.399Z",
+      "command": [
+        "dotnet",
+        "restore",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--disable-parallel",
+        "-nr:false"
+      ],
+      "state": "PASS",
+      "outputHandler": "raw",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:01:25.616Z",
+      "elapsedSeconds": 2.217
+    },
+    {
+      "task": "MD-02",
+      "name": "A-build",
+      "startedAt": "2026-10-08T05:01:36.304Z",
+      "command": [
+        "dotnet",
+        "build",
+        "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "FAIL",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 1,
+      "finishedAt": "2026-10-08T05:01:40.535Z",
+      "elapsedSeconds": 4.231
+    },
+    {
+      "task": "MD-02",
+      "name": "A-recheck",
+      "startedAt": "2026-10-08T05:03:21.678Z",
+      "command": [
+        "dotnet",
+        "build",
+        "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:03:25.767Z",
+      "elapsedSeconds": 4.089
+    },
+    {
+      "task": "MD-02",
+      "name": "B-build",
+      "startedAt": "2026-10-08T05:03:35.584Z",
+      "command": [
+        "dotnet",
+        "build",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:03:41.728Z",
+      "elapsedSeconds": 6.144
+    },
+    {
+      "task": "MD-02",
+      "name": "B-run",
+      "startedAt": "2026-10-08T05:04:03.084Z",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-build",
+        "--no-restore"
+      ],
+      "state": "PASS",
+      "outputHandler": "raw",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:04:04.057Z",
+      "elapsedSeconds": 0.973
+    },
+    {
+      "task": "MD-02",
+      "name": "A-final",
+      "startedAt": "2026-10-08T05:06:30.833Z",
+      "command": [
+        "dotnet",
+        "build",
+        "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:06:34.956Z",
+      "elapsedSeconds": 4.123
+    },
+    {
+      "task": "MD-02",
+      "name": "B-final-build",
+      "startedAt": "2026-10-08T05:06:49.528Z",
+      "command": [
+        "dotnet",
+        "build",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:06:55.687Z",
+      "elapsedSeconds": 6.159
+    },
+    {
+      "task": "MD-02",
+      "name": "B-final-run",
+      "startedAt": "2026-10-08T05:07:28.119Z",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-build",
+        "--no-restore"
+      ],
+      "state": "PASS",
+      "outputHandler": "raw",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:07:29.066Z",
+      "elapsedSeconds": 0.947
+    },
+    {
+      "task": "MD-02",
+      "name": "A-unknown-final",
+      "startedAt": "2026-10-08T05:15:30.185Z",
+      "command": [
+        "dotnet",
+        "build",
+        "src/LithoSharp.Markdown/LithoSharp.Markdown.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:15:34.294Z",
+      "elapsedSeconds": 4.109
+    },
+    {
+      "task": "MD-02",
+      "name": "B-unknown-final-build",
+      "startedAt": "2026-10-08T05:16:06.785Z",
+      "command": [
+        "dotnet",
+        "build",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "state": "PASS",
+      "outputHandler": "rtk-dotnet-verify",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:16:12.883Z",
+      "elapsedSeconds": 6.098
+    },
+    {
+      "task": "MD-02",
+      "name": "B-unknown-final-run",
+      "startedAt": "2026-10-08T05:17:36.269Z",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "--no-build",
+        "--no-restore"
+      ],
+      "state": "PASS",
+      "outputHandler": "raw",
+      "exitCode": 0,
+      "finishedAt": "2026-10-08T05:17:37.235Z",
+      "elapsedSeconds": 0.966
+    }
+  ],
+  "finalChecks": [
+    "A-unknown-final",
+    "B-unknown-final-build",
+    "B-unknown-final-run"
+  ],
+  "firstBuildFailure": {
+    "name": "A-build",
+    "errors": 8,
+    "warnings": 2,
+    "distinctErrors": 4,
+    "codes": [
+      "CS1503",
+      "CS1061",
+      "CS8602"
+    ],
+    "fixes": [
+      "Materialized LINQ collections before immutable fact constructors",
+      "Corrected string operand length",
+      "Kept a non-null local context inside guarded definition recording"
+    ],
+    "fixedOn": "A-recheck",
+    "finalWarnings": 0,
+    "finalErrors": 0
+  },
+  "finalReviewCorrections": [
+    "Use a dictionary for definition target lookup; keep first definition",
+    "Charge opaque candidate lookahead before its string operations",
+    "Use Unknown for unexamined/unfinished frontmatter instead of confirmed Absent"
+  ],
+  "runtimeEvidence": {
+    "cases": [
+      {
+        "id": "C01-body-basics",
+        "rawUtf16Length": 332,
+        "runtimeTarget": ".NETCoreApp,Version=v10.0",
+        "portableTarget": ".NETStandard,Version=v2.0",
+        "snapshotSha256": "d7bf5b5aa67debf8b15019e394ad900bb3bc1ef1c029014fc2785d68ac8f034b",
+        "status": "PASS"
+      },
+      {
+        "id": "portable-reference-utf16-fence",
+        "rawUtf16Length": 124,
+        "runtimeTarget": ".NETCoreApp,Version=v10.0",
+        "portableTarget": ".NETStandard,Version=v2.0",
+        "snapshotSha256": "6e03611fe22613e990cdc85f62be7f56af47f1014aecf395a17b635f60d55478",
+        "status": "PASS"
+      }
+    ],
+    "newFacts": {
+      "task": "MD-02",
+      "status": "PASS",
+      "checks": "UTF16 mapping/frontmatter/outline/reference/fence/identity/options/resources/cancellation",
+      "yamlMarkUnit": "UTF-16",
+      "yamlAssembly": "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e",
+      "yamlInformationalVersion": "18.1.0",
+      "parserVersion": "1/5995e3589789315b9a974fd59ddeb562e8578b9763a61956f84c06090353d9c2"
+    },
+    "existingCompilerAssertions": "PASS",
+    "noMarkdigAssemblyLoads": "PASS",
+    "strictInputOptionsHash": "PASS",
+    "immutableBinding": "PASS",
+    "resourceAndCancellation": "PASS",
+    "unexaminedFrontMatter": "PASS",
+    "sameRuntimeOnly": true,
+    "actualRoslynHost": "NOT_RUN; MD-04/IN-01"
+  },
+  "loadedYaml": {
+    "packageVersion": "18.1.0",
+    "assemblyIdentity": "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e",
+    "informationalVersion": "18.1.0",
+    "markUnit": "UTF-16",
+    "endConvention": "half-open",
+    "fixture": "title: emoji CRLF next: Z CRLF",
+    "sourceHostIdentityGuard": "NOT_IMPLEMENTED; MD-04"
+  },
+  "notRun": [
+    "Full solution build/test",
+    "Benchmark/performance invariance",
+    "Coverage target",
+    "Pack/publish",
+    "Runtime/inspection/site adapters",
+    "Shared cache",
+    "Actual Generator/Analyzer host",
+    "Artifact pair and cross-repository matching"
+  ],
+  "staticChecks": {
+    "originalSevenHashes": "PASS",
+    "index": "EMPTY before scoped stage",
+    "boundary": "PASS",
+    "immutableFacade": "PASS source and canary",
+    "canonicalSourceHash": "PASS Git blob verification",
+    "diffCheck": "PASS",
+    "xmlReadback": "PASS"
+  },
+  "commitPush": {
+    "branch": "feature/2.0.0",
+    "scope": "MD-02 only",
+    "state": "Ready; exact commit SHA is returned separately after commit/push",
+    "mainMerge": "NOT_DONE",
+    "prTagPublish": "NOT_DONE"
+  }
+}

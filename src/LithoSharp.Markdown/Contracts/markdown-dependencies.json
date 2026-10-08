@@ -1,0 +1,6 @@
+{
+  "contractVersion": "1.0",
+  "dependencies": {
+    "YamlDotNet": "18.1.0"
+  }
+}

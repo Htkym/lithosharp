@@ -24,13 +24,14 @@ internal static partial class LithoBlockParser
     internal readonly record struct Line(string Text, int Offset, string Break);
 
     /// <summary>Splits text into lines, tracking body-relative offsets.</summary>
-    public static List<Line> SplitLines(string text)
+    public static List<Line> SplitLines(string text, MdParseContext? context = null)
     {
         if (text is null) throw new ArgumentNullException(nameof(text));
         var lines = new List<Line>();
         var start = 0;
         for (var index = 0; index < text.Length; index++)
         {
+                context?.Scan(8);
             if (text[index] == '\r')
             {
                 if (index + 1 < text.Length && text[index + 1] == '\n')
@@ -69,26 +70,36 @@ internal static partial class LithoBlockParser
         return (ResolveInlines(raw, parser.References, cancellationToken), parser.References);
     }
 
+    internal static (IReadOnlyList<LithoBlock> Blocks, IReadOnlyDictionary<string, LithoReference> References) ParseFactsBlocks(
+        string body, MdParseContext context)
+    {
+        context.Scan(body.Length); // NUL replacement checks every input unit.
+        var parser = new Parser(SplitLines(body.Replace('\0', '\uFFFD'), context), context.CancellationToken, context: context);
+        var raw = parser.ParseRange(0, parser.Lines.Count, 0);
+        return (ResolveInlines(raw, parser.References, context.CancellationToken, context), parser.References);
+    }
+
     /// <summary>Parses block structure without inline content (for tail checks).</summary>
     internal static IReadOnlyList<LithoBlock> ParseStructure(
         List<Line> lines,
         int depth,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, MdParseContext? context = null)
     {
-        var parser = new Parser(lines, cancellationToken, resolveInlines: false);
+        var parser = new Parser(lines, cancellationToken, resolveInlines: false, context: context);
         return parser.ParseRange(0, lines.Count, depth);
     }
 
     private static List<LithoBlock> ResolveInlines(
         List<LithoBlock> blocks,
         Dictionary<string, LithoReference> references,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, MdParseContext? context = null)
     {
         var resolved = new List<LithoBlock>(blocks.Count);
         foreach (var block in blocks)
         {
+                context?.Scan(8);
             cancellationToken.ThrowIfCancellationRequested();
-            resolved.Add(ResolveBlock(block, references, cancellationToken));
+            resolved.Add(ResolveBlock(block, references, cancellationToken, context));
         }
 
         return resolved;
@@ -97,39 +108,41 @@ internal static partial class LithoBlockParser
     private static LithoBlock ResolveBlock(
         LithoBlock block,
         Dictionary<string, LithoReference> references,
-        CancellationToken cancellationToken) => block switch
+        CancellationToken cancellationToken, MdParseContext? context = null) => block switch
     {
         LithoParagraph paragraph => paragraph with
         {
-            Inlines = ResolveRaw(paragraph.Inlines, references, cancellationToken),
+            Inlines = ResolveRaw(paragraph.Inlines, references, cancellationToken, context),
+            RawContent = context is null ? null : paragraph.Inlines.OfType<LithoRawText>().FirstOrDefault(),
         },
         LithoHeading heading => heading with
         {
-            Inlines = ResolveRaw(heading.Inlines, references, cancellationToken),
+            Inlines = ResolveRaw(heading.Inlines, references, cancellationToken, context),
+            RawContent = context is null ? null : heading.Inlines.OfType<LithoRawText>().FirstOrDefault(),
         },
         LithoQuote quote => quote with
         {
-            Children = ResolveInlines([.. quote.Children], references, cancellationToken),
+            Children = ResolveInlines([.. quote.Children], references, cancellationToken, context),
         },
         LithoAdmonition admonition => admonition with
         {
-            Children = ResolveInlines([.. admonition.Children], references, cancellationToken),
+            Children = ResolveInlines([.. admonition.Children], references, cancellationToken, context),
         },
         LithoDirective directive => directive with
         {
-            Children = ResolveInlines([.. directive.Children], references, cancellationToken),
+            Children = ResolveInlines([.. directive.Children], references, cancellationToken, context),
         },
         LithoList list => list with
         {
             Items = list.Items.Select(item => item with
             {
-                Children = ResolveInlines([.. item.Children], references, cancellationToken),
+                Children = ResolveInlines([.. item.Children], references, cancellationToken, context),
             }).ToArray(),
         },
         LithoTable table => table with
         {
             Rows = table.Rows.Select(row => (IReadOnlyList<IReadOnlyList<LithoInline>>)row
-                .Select(cell => (IReadOnlyList<LithoInline>)ResolveRaw(cell, references, cancellationToken))
+                .Select(cell => (IReadOnlyList<LithoInline>)ResolveRaw(cell, references, cancellationToken, context))
                 .ToArray()).ToArray(),
         },
         _ => block,
@@ -138,15 +151,16 @@ internal static partial class LithoBlockParser
     private static List<LithoInline> ResolveRaw(
         IReadOnlyList<LithoInline> inlines,
         Dictionary<string, LithoReference> references,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, MdParseContext? context = null)
     {
         var resolved = new List<LithoInline>(inlines.Count);
         foreach (var inline in inlines)
         {
+                context?.Scan(8);
             if (inline is LithoRawText raw)
             {
                 resolved.AddRange(LithoInlineParser.Parse(
-                    raw.Text, raw.Map, references, cancellationToken));
+                    raw.Text, raw.Map, references, cancellationToken, context));
             }
             else
             {
@@ -158,14 +172,15 @@ internal static partial class LithoBlockParser
     }
 
     /// <summary>Normalizes a reference label (trim, collapse whitespace, case-fold).</summary>
-    internal static string NormalizeLabel(string label)
+    internal static string NormalizeLabel(string label, MdParseContext? context = null)
     {
+        context?.Scan(label.Length);
         var collapsed = WhitespaceRun().Replace(label.Trim(), " ");
         return collapsed.ToUpperInvariant();
     }
 
     private sealed partial class Parser(List<LithoBlockParser.Line> lines, CancellationToken cancellationToken,
-        bool resolveInlines = true, Dictionary<string, LithoReference>? references = null)
+        bool resolveInlines = true, Dictionary<string, LithoReference>? references = null, MdParseContext? context = null)
     {
         public List<Line> Lines { get; } = lines;
 
@@ -176,13 +191,16 @@ internal static partial class LithoBlockParser
 
         public List<LithoBlock> ParseRange(int from, int to, int depth)
         {
+            context?.Depth(depth);
             var blocks = new List<LithoBlock>();
             var index = from;
             while (index < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[index];
-                if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                if (IsBlank(line.Text, context))
                 {
                     index++;
                     continue;
@@ -190,6 +208,7 @@ internal static partial class LithoBlockParser
 
                 if (depth > LithoLimits.MaxNestingDepth)
                 {
+                    if (context is not null) throw new MdResourceLimit("depth");
                     blocks.AddRange(ParseParagraph(index, to, out index));
                     continue;
                 }
@@ -257,9 +276,11 @@ internal static partial class LithoBlockParser
             var closingKind = 0; // 0 none, 1 setext-h1, 2 setext-h2, 3 table
             while (index < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[index];
-                if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                if (IsBlank(line.Text, context))
                 {
                     break;
                 }
@@ -351,7 +372,7 @@ internal static partial class LithoBlockParser
             return [new LithoRawText(joined.Text, joined.Map)];
         }
 
-        private static Line StripLeading(Line line)
+        private Line StripLeading(Line line)
         {
             var stripped = line.Text.TrimStart(' ', '\t');
             return stripped.Length == line.Text.Length
@@ -359,7 +380,7 @@ internal static partial class LithoBlockParser
                 : new Line(stripped, line.Offset + (line.Text.Length - stripped.Length), line.Break);
         }
 
-        private static (string Text, LithoLineMap Map) JoinLines(List<Line> acc)
+        private (string Text, LithoLineMap Map) JoinLines(List<Line> acc)
         {
             // The final line cannot end in a hard break (no following line),
             // so trailing spaces/tabs are stripped per CommonMark.
@@ -374,6 +395,7 @@ internal static partial class LithoBlockParser
             var bodyStarts = new List<int>(acc.Count);
             for (var i = 0; i < acc.Count; i++)
             {
+                context?.Scan(8);
                 localStarts.Add(builder.Length);
                 bodyStarts.Add(acc[i].Offset);
                 builder.Append(i + 1 < acc.Count ? acc[i].Text : lastText);
@@ -393,7 +415,8 @@ internal static partial class LithoBlockParser
             code = null;
             next = index;
             var line = Lines[index].Text;
-            var indent = CountIndent(line, 0);
+            context?.Scan(line.Length);
+            var indent = CountIndent(line, 0, context);
             if (indent.Columns >= 4 || indent.Chars >= line.Length)
             {
                 return false;
@@ -408,6 +431,7 @@ internal static partial class LithoBlockParser
             var run = 0;
             while (indent.Chars + run < line.Length && line[indent.Chars + run] == fenceChar)
             {
+                context?.Scan(8);
                 run++;
             }
 
@@ -425,18 +449,28 @@ internal static partial class LithoBlockParser
             var infoWord = info.Length == 0 ? null : info.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)[0];
             var meta = ParseCodeMeta(info);
             var content = new List<string>();
+            var contentLines = new List<Line>();
+            SourceSpan? closing = null;
             var cursor = index + 1;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var candidate = Lines[cursor].Text;
+                context?.Scan(candidate.Length);
                 if (IsClosingFence(candidate, fenceChar, run))
                 {
+                    var closeIndent = CountIndent(candidate, 0, context);
+                    var closeRun = 0;
+                    while (closeIndent.Chars + closeRun < candidate.Length && candidate[closeIndent.Chars + closeRun] == fenceChar) { context?.Scan(8); closeRun++; }
+                    closing = new SourceSpan(Lines[cursor].Offset + closeIndent.Chars, closeRun);
                     cursor++;
                     break;
                 }
 
-                content.Add(StripColumns(candidate, Math.Min(indent.Columns, CountIndent(candidate, 0).Columns)).Text);
+                var stripped = StripColumns(candidate, Math.Min(indent.Columns, CountIndent(candidate, 0, context).Columns), context);
+                content.Add(stripped.Text);
+                contentLines.Add(new Line(stripped.Text, Lines[cursor].Offset + stripped.Chars, Lines[cursor].Break));
                 cursor++;
             }
 
@@ -446,6 +480,28 @@ internal static partial class LithoBlockParser
             var end = Lines[lastLine].Offset + Lines[lastLine].Text.Length;
             var text = content.Count == 0 ? string.Empty : string.Join("\n", content) + "\n";
             code = new LithoCode(text, infoWord, Fenced: true, new SourceSpan(start, end - start), meta);
+            if (context is not null)
+            {
+                var markerEnd = indent.Chars + run;
+                var infoStart = markerEnd;
+                while (infoStart < line.Length && char.IsWhiteSpace(line[infoStart])) { context?.Scan(8); infoStart++; }
+                var contentStart = Lines[index].Offset + line.Length + Lines[index].Break.Length;
+                var contentEnd = closing.HasValue ? Lines[cursor - 1].Offset : end;
+                var pieces = new List<MdTextProjection>();
+                foreach (var source in contentLines)
+                {
+                context?.Scan(8);
+                    if (source.Text.Length != 0) pieces.Add(MdSourceMapping.Local(source.Text, source.Text,
+                        LithoLineMap.Contiguous(source.Offset, source.Text.Length), 0, source.Text.Length));
+                    if (source.Break.Length != 0) pieces.Add(new MdTextProjection("\n", new[] { new MdSourceSegment(new MdRawRange(0, 1),
+                            new MdRawRange(source.Offset + source.Text.Length, source.Break.Length),
+                            source.Break == "\n" ? MdSegmentKind.Linear : MdSegmentKind.Atomic) }));
+                }
+                code = code with { FenceSyntax = new MdFenceSyntax(new SourceSpan(start + indent.Chars, run),
+                    info.Length == 0 ? null : new SourceSpan(start + infoStart, info.Length),
+                    new SourceSpan(contentStart, Math.Max(0, contentEnd - contentStart)), closing,
+                    info.Length == 0 ? null : info, MdSourceMapping.Join(pieces)) };
+            }
             return true;
         }
 
@@ -453,8 +509,9 @@ internal static partial class LithoBlockParser
         /// Parses fence metadata with the MDX worker's expressions (title, highlight
         /// lines, line numbers, start). Returns null when only a language is present.
         /// </summary>
-        private static LithoCodeMeta? ParseCodeMeta(string info)
+        private LithoCodeMeta? ParseCodeMeta(string info)
         {
+            context?.Scan((long)info.Length * 4);
             var title = TitleAttribute().Match(info) is { Success: true } titleMatch
                 ? titleMatch.Groups[1].Value
                 : null;
@@ -473,7 +530,7 @@ internal static partial class LithoBlockParser
 
         #if NETSTANDARD2_0
         private static readonly Regex TitleAttributeRegex = new("(?:^|\\s)title=\"([^\"]*)\"");
-        private static Regex TitleAttribute() => TitleAttributeRegex;
+        private Regex TitleAttribute() => TitleAttributeRegex;
         #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)title=\"([^\"]*)\"")]
         private static partial Regex TitleAttribute();
@@ -481,7 +538,7 @@ internal static partial class LithoBlockParser
 
         #if NETSTANDARD2_0
         private static readonly Regex HighlightAttributeRegex = new("\\{([\\d, -]+)\\}");
-        private static Regex HighlightAttribute() => HighlightAttributeRegex;
+        private Regex HighlightAttribute() => HighlightAttributeRegex;
         #else
         [System.Text.RegularExpressions.GeneratedRegex("\\{([\\d, -]+)\\}")]
         private static partial Regex HighlightAttribute();
@@ -489,7 +546,7 @@ internal static partial class LithoBlockParser
 
         #if NETSTANDARD2_0
         private static readonly Regex LineNumbersAttributeRegex = new("(?:^|\\s)showLineNumbers(?:\\s|$)");
-        private static Regex LineNumbersAttribute() => LineNumbersAttributeRegex;
+        private Regex LineNumbersAttribute() => LineNumbersAttributeRegex;
         #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)showLineNumbers(?:\\s|$)")]
         private static partial Regex LineNumbersAttribute();
@@ -497,15 +554,16 @@ internal static partial class LithoBlockParser
 
         #if NETSTANDARD2_0
         private static readonly Regex StartAttributeRegex = new("(?:^|\\s)start=(\\d+)");
-        private static Regex StartAttribute() => StartAttributeRegex;
+        private Regex StartAttribute() => StartAttributeRegex;
         #else
         [System.Text.RegularExpressions.GeneratedRegex("(?:^|\\s)start=(\\d+)")]
         private static partial Regex StartAttribute();
         #endif
 
-        private static bool IsClosingFence(string text, char fenceChar, int minRun)
+        private bool IsClosingFence(string text, char fenceChar, int minRun)
         {
-            var indent = CountIndent(text, 0);
+            context?.Scan(text.Length);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -514,6 +572,7 @@ internal static partial class LithoBlockParser
             var run = 0;
             while (indent.Chars + run < text.Length && text[indent.Chars + run] == fenceChar)
             {
+                context?.Scan(8);
                 run++;
             }
 
@@ -525,12 +584,13 @@ internal static partial class LithoBlockParser
             return string.IsNullOrWhiteSpace(text[(indent.Chars + run)..]);
         }
 
-        private static bool TryParseDirectiveFence(string text, out int run, out string name, out string title)
+        private bool TryParseDirectiveFence(string text, out int run, out string name, out string title)
         {
+            context?.Scan(text.Length);
             run = 0;
             name = string.Empty;
             title = string.Empty;
-            var indent = CountIndent(text, 0);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -538,6 +598,7 @@ internal static partial class LithoBlockParser
 
             while (indent.Chars + run < text.Length && text[indent.Chars + run] == ':')
             {
+                context?.Scan(8);
                 run++;
             }
 
@@ -555,6 +616,7 @@ internal static partial class LithoBlockParser
             var end = 0;
             while (end < rest.Length && (LithoCharacters.IsAsciiLetterOrDigit(rest[end]) || rest[end] is '-' or '_'))
             {
+                context?.Scan(8);
                 end++;
             }
 
@@ -581,9 +643,11 @@ internal static partial class LithoBlockParser
             var cursor = index + 1;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[cursor];
-                if (!IsBlank(line.Text)
+                context?.Scan(line.Text.Length);
+                if (!IsBlank(line.Text, context)
                     && TryParseDirectiveFence(line.Text, out var closeRun, out var closeName, out var closeTitle)
                     && closeName.Length == 0 && closeTitle.Length == 0 && closeRun >= openRun)
                 {
@@ -599,19 +663,21 @@ internal static partial class LithoBlockParser
             next = cursor;
             var start = Lines[index].Offset;
             var endLine = cursor - 1;
-            while (endLine > index && IsBlank(Lines[endLine].Text))
+            while (endLine > index && IsBlank(Lines[endLine].Text, context))
             {
+                context?.Scan(8);
                 endLine--;
             }
 
             var end = Lines[endLine].Offset + Lines[endLine].Text.Length;
             var span = new SourceSpan(start, end - start);
-            while (content.Count > 0 && IsBlank(content[^1].Text))
+            while (content.Count > 0 && IsBlank(content[^1].Text, context))
             {
+                context?.Scan(8);
                 content.RemoveAt(content.Count - 1);
             }
 
-            var children = new Parser(content, cancellationToken, references: References).ParseRange(0, content.Count, depth + 1);
+            var children = new Parser(content, cancellationToken, references: References, context: context).ParseRange(0, content.Count, depth + 1);
             if (name.Length != 0 && LithoDirectives.IsAdmonitionName(name))
             {
                 block = new LithoAdmonition(
@@ -641,14 +707,16 @@ internal static partial class LithoBlockParser
             var cursor = index + 1;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!IsBlank(Lines[cursor].Text) && IsMathFence(Lines[cursor].Text))
+                if (!IsBlank(Lines[cursor].Text, context) && IsMathFence(Lines[cursor].Text))
                 {
                     var start = Lines[index].Offset;
                     var end = Lines[cursor].Offset + Lines[cursor].Text.Length;
                     next = cursor + 1;
                     while (content.Count > 0 && content[^1].Length == 0)
                     {
+                context?.Scan(8);
                         content.RemoveAt(content.Count - 1);
                     }
 
@@ -658,7 +726,7 @@ internal static partial class LithoBlockParser
                     return true;
                 }
 
-                content.Add(IsBlank(Lines[cursor].Text) ? string.Empty : Lines[cursor].Text);
+                content.Add(IsBlank(Lines[cursor].Text, context) ? string.Empty : Lines[cursor].Text);
                 cursor++;
             }
 
@@ -675,8 +743,9 @@ internal static partial class LithoBlockParser
 
             for (var cursor = index + 1; cursor < to; cursor++)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!IsBlank(Lines[cursor].Text) && IsMathFence(Lines[cursor].Text))
+                if (!IsBlank(Lines[cursor].Text, context) && IsMathFence(Lines[cursor].Text))
                 {
                     return true;
                 }
@@ -685,12 +754,13 @@ internal static partial class LithoBlockParser
             return false;
         }
 
-        private static bool IsDirectiveStart(string text) =>
+        private bool IsDirectiveStart(string text) =>
             TryParseDirectiveFence(text, out _, out _, out _);
 
-        private static bool IsMathFence(string text)
+        private bool IsMathFence(string text)
         {
-            var indent = CountIndent(text, 0);
+            context?.Scan(text.Length);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -709,7 +779,7 @@ internal static partial class LithoBlockParser
         {
             heading = null;
             var text = line.Text;
-            var indent = CountIndent(text, 0);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -718,6 +788,7 @@ internal static partial class LithoBlockParser
             var level = 0;
             while (indent.Chars + level < text.Length && text[indent.Chars + level] == '#' && level < 6)
             {
+                context?.Scan(8);
                 level++;
             }
 
@@ -735,6 +806,7 @@ internal static partial class LithoBlockParser
             var contentStart = rest;
             while (contentStart < text.Length && (text[contentStart] is ' ' or '\t'))
             {
+                context?.Scan(8);
                 contentStart++;
             }
 
@@ -747,17 +819,20 @@ internal static partial class LithoBlockParser
             return true;
         }
 
-        private static string StripClosingRun(string content)
+        private string StripClosingRun(string content)
         {
+            context?.Scan(content.Length);
             var end = content.Length;
             while (end > 0 && (content[end - 1] is ' ' or '\t'))
             {
+                context?.Scan(8);
                 end--;
             }
 
             var run = 0;
             while (end - run - 1 >= 0 && content[end - run - 1] == '#')
             {
+                context?.Scan(8);
                 run++;
             }
 
@@ -765,6 +840,7 @@ internal static partial class LithoBlockParser
             {
                 while (end - run - 1 >= 0 && (content[end - run - 1] is ' ' or '\t'))
                 {
+                context?.Scan(8);
                     run++;
                 }
 
@@ -774,11 +850,12 @@ internal static partial class LithoBlockParser
             return content[..end];
         }
 
-        private static bool TryParseThematic(Line line) => IsThematic(line.Text);
+        private bool TryParseThematic(Line line) => IsThematic(line.Text);
 
-        private static bool IsThematic(string text)
+        private bool IsThematic(string text)
         {
-            var indent = CountIndent(text, 0);
+            context?.Scan(text.Length);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -788,6 +865,7 @@ internal static partial class LithoBlockParser
             var count = 0;
             for (var i = indent.Chars; i < text.Length; i++)
             {
+                context?.Scan(8);
                 var ch = text[i];
                 if (ch is ' ' or '\t')
                 {
@@ -806,10 +884,11 @@ internal static partial class LithoBlockParser
             return kind is not null && count >= 3;
         }
 
-        private static bool IsThematicInterrupting(string text)
+        private bool IsThematicInterrupting(string text)
         {
+            context?.Scan(text.Length);
             // "---" after a paragraph line is a Setext underline; only *** and ___ interrupt.
-            var indent = CountIndent(text, 0);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -819,6 +898,7 @@ internal static partial class LithoBlockParser
             var count = 0;
             for (var i = indent.Chars; i < text.Length; i++)
             {
+                context?.Scan(8);
                 var ch = text[i];
                 if (ch is ' ' or '\t')
                 {
@@ -837,9 +917,10 @@ internal static partial class LithoBlockParser
             return kind is '*' or '_' && count >= 3;
         }
 
-        private static bool IsSetextUnderline(string text)
+        private bool IsSetextUnderline(string text)
         {
-            var indent = CountIndent(text, 0);
+            context?.Scan(text.Length);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -850,6 +931,7 @@ internal static partial class LithoBlockParser
             var end = text.Length;
             while (end > start && char.IsWhiteSpace(text[end - 1]))
             {
+                context?.Scan(8);
                 end--;
             }
 
@@ -866,6 +948,7 @@ internal static partial class LithoBlockParser
 
             for (var i = start + 1; i < end; i++)
             {
+                context?.Scan(8);
                 if (text[i] != marker)
                 {
                     return false;
@@ -877,7 +960,7 @@ internal static partial class LithoBlockParser
 
         private int TryParseQuoteStart(Line line)
         {
-            var indent = CountIndent(line.Text, 0);
+            var indent = CountIndent(line.Text, 0, context);
             if (indent.Columns >= 4)
             {
                 return -1;
@@ -904,9 +987,11 @@ internal static partial class LithoBlockParser
             IReadOnlyList<LithoBlock>? tailCache = null;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[cursor];
-                if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                if (IsBlank(line.Text, context))
                 {
                     break;
                 }
@@ -929,7 +1014,7 @@ internal static partial class LithoBlockParser
                 // Lazy continuation: only when the open tail is a paragraph and the
                 // line cannot start a new block. The tail check parses structure
                 // only (no inline content); the cache keeps it cheap on long quotes.
-                tailCache ??= ParseStructure(content, depth + 1, cancellationToken);
+                tailCache ??= ParseStructure(content, depth + 1, cancellationToken, context);
                 if (tailCache.Count > 0 && tailCache[^1] is LithoParagraph
                     && !TryParseFenced(cursor, to, out _, out _)
                     && !TryParseAtx(line, out _)
@@ -950,8 +1035,9 @@ internal static partial class LithoBlockParser
             next = cursor;
             var start = Lines[index].Offset;
             var endLine = cursor - 1;
-            while (endLine > index && IsBlank(Lines[endLine].Text))
+            while (endLine > index && IsBlank(Lines[endLine].Text, context))
             {
+                context?.Scan(8);
                 endLine--;
             }
 
@@ -965,21 +1051,23 @@ internal static partial class LithoBlockParser
                 var rest = content.GetRange(1, content.Count - 1);
                 while (rest.Count > 0 && rest[0].Text.Length == 0)
                 {
+                context?.Scan(8);
                     rest.RemoveAt(0);
                 }
 
-                var children = new Parser(rest, cancellationToken, references: References).ParseRange(0, rest.Count, depth + 1);
+                var children = new Parser(rest, cancellationToken, references: References, context: context).ParseRange(0, rest.Count, depth + 1);
                 block = new LithoAdmonition(kind, LithoDirectives.DefaultTitle(kind), children, span);
                 return true;
             }
 
-            var inner = new Parser(content, cancellationToken, references: References).ParseRange(0, content.Count, depth + 1);
+            var inner = new Parser(content, cancellationToken, references: References, context: context).ParseRange(0, content.Count, depth + 1);
             block = new LithoQuote(inner, span);
             return true;
         }
 
-        private static bool TryParseAlertTag(string text, out string kind)
+        private bool TryParseAlertTag(string text, out string kind)
         {
+            context?.Scan(text.Length);
             kind = string.Empty;
             var trimmed = text.Trim();
             if (trimmed.Length < 4 || !trimmed.StartsWith("[!", StringComparison.Ordinal) || !trimmed.EndsWith(']'))
@@ -992,7 +1080,7 @@ internal static partial class LithoBlockParser
 
         internal sealed record ListMarker(bool Ordered, int Number, int IndentChars, int ContentChars, int ContentColumns);
 
-        private static readonly ListMarker NoListMarker = new(false, 1, 0, 0, 0);
+        private readonly ListMarker NoListMarker = new(false, 1, 0, 0, 0);
 
         private bool TryParseList(int index, int to, int depth, out LithoList? list, out int next)
         {
@@ -1010,6 +1098,7 @@ internal static partial class LithoBlockParser
             var loose = false;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!TryParseListStart(Lines[cursor], out var marker)
                     || marker.Ordered != ordered
@@ -1027,27 +1116,29 @@ internal static partial class LithoBlockParser
                 var pendingBlanks = 0;
                 while (cursor < to)
                 {
+                context?.Scan(8);
                     cancellationToken.ThrowIfCancellationRequested();
                     var line = Lines[cursor];
-                    if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                    if (IsBlank(line.Text, context))
                     {
                         pendingBlanks++;
                         cursor++;
                         continue;
                     }
 
-                    var indent = CountIndent(line.Text, 0);
+                    var indent = CountIndent(line.Text, 0, context);
                     if (indent.Columns >= marker.ContentColumns)
                     {
                         if (pendingBlanks > 0)
                         {
                             blankInside = true;
                             for (var blank = cursor - pendingBlanks; blank < cursor; blank++)
-                                itemLines.Add(new Line(string.Empty, Lines[blank].Offset, Lines[blank].Break));
+                                { context?.Scan(8); itemLines.Add(new Line(string.Empty, Lines[blank].Offset, Lines[blank].Break)); }
                             pendingBlanks = 0;
                         }
 
-                        var stripped = StripColumns(line.Text, marker.ContentColumns);
+                        var stripped = StripColumns(line.Text, marker.ContentColumns, context);
                         itemLines.Add(new Line(stripped.Text, line.Offset + stripped.Chars, line.Break));
                         cursor++;
                         continue;
@@ -1091,10 +1182,11 @@ internal static partial class LithoBlockParser
 
                 while (itemLines.Count > 0 && itemLines[^1].Text.Length == 0)
                 {
+                context?.Scan(8);
                     itemLines.RemoveAt(itemLines.Count - 1);
                 }
 
-                var children = new Parser(itemLines, cancellationToken, references: References).ParseRange(0, itemLines.Count, depth + 1);
+                var children = new Parser(itemLines, cancellationToken, references: References, context: context).ParseRange(0, itemLines.Count, depth + 1);
                 if (blankInside)
                 {
                     loose = true;
@@ -1119,8 +1211,9 @@ internal static partial class LithoBlockParser
             return true;
         }
 
-        private static (bool? Checked, string Remainder) SplitTask(string text, int contentChars)
+        private (bool? Checked, string Remainder) SplitTask(string text, int contentChars)
         {
+            context?.Scan(text.Length);
             var rest = contentChars < text.Length ? text[contentChars..] : string.Empty;
             if (rest.Length >= 3 && rest[0] == '[' && rest[2] == ']'
                 && (rest.Length == 3 || rest[3] is ' ' or '\t'))
@@ -1142,13 +1235,14 @@ internal static partial class LithoBlockParser
         private bool TryParseListStart(Line line, out ListMarker marker) =>
             TryParseListStart(line.Text, out marker);
 
-        private static bool TryParseListStart(string text, out ListMarker marker)
+        private bool TryParseListStart(string text, out ListMarker marker)
         {
+            context?.Scan(text.Length);
             // Failure must not allocate: this probe runs on every
             // paragraph-continuation line. A shared default stands in
             // (all call sites use the marker only on success).
             marker = NoListMarker;
-            var indent = CountIndent(text, 0);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4 || indent.Chars >= text.Length)
             {
                 return false;
@@ -1178,6 +1272,7 @@ internal static partial class LithoBlockParser
             var number = 0;
             while (pos + digits < text.Length && text[pos + digits] is >= '0' and <= '9' && digits < 9)
             {
+                context?.Scan(8);
                 number = (number * 10) + (text[pos + digits] - '0');
                 digits++;
             }
@@ -1204,8 +1299,9 @@ internal static partial class LithoBlockParser
             return true;
         }
 
-        private static (int Chars, int Cols) ContentAfterMarker(string text, int indentChars, int indentColumns, int after)
+        private (int Chars, int Cols) ContentAfterMarker(string text, int indentChars, int indentColumns, int after)
         {
+            context?.Scan(text.Length);
             var markerColumns = indentColumns + (after - indentChars);
             if (after >= text.Length)
             {
@@ -1220,6 +1316,7 @@ internal static partial class LithoBlockParser
             var spaces = 0;
             while (after + spaces < text.Length && text[after + spaces] == ' ' && spaces < 5)
             {
+                context?.Scan(8);
                 spaces++;
             }
 
@@ -1231,14 +1328,14 @@ internal static partial class LithoBlockParser
             return (after + spaces, markerColumns + spaces);
         }
 
-        private static bool CanInterruptParagraph(ListMarker marker) =>
+        private bool CanInterruptParagraph(ListMarker marker) =>
             !marker.Ordered || marker.Number == 1;
 
         private bool TryParseIndentedCode(int index, int to, out LithoCode? code, out int next)
         {
             code = null;
             next = index;
-            if (CountIndent(Lines[index].Text, 0).Columns < 4)
+            if (CountIndent(Lines[index].Text, 0, context).Columns < 4)
             {
                 return false;
             }
@@ -1248,21 +1345,23 @@ internal static partial class LithoBlockParser
             var lastNonBlank = -1;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[cursor];
-                if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                if (IsBlank(line.Text, context))
                 {
                     content.Add(string.Empty);
                     cursor++;
                     continue;
                 }
 
-                if (CountIndent(line.Text, 0).Columns < 4)
+                if (CountIndent(line.Text, 0, context).Columns < 4)
                 {
                     break;
                 }
 
-                var stripped = StripColumns(line.Text, 4);
+                var stripped = StripColumns(line.Text, 4, context);
                 content.Add(line.Text[stripped.Chars..]);
                 lastNonBlank = content.Count - 1;
                 cursor++;
@@ -1270,6 +1369,7 @@ internal static partial class LithoBlockParser
 
             while (content.Count > lastNonBlank + 1)
             {
+                context?.Scan(8);
                 content.RemoveAt(content.Count - 1);
                 cursor--;
             }
@@ -1297,7 +1397,8 @@ internal static partial class LithoBlockParser
         {
             next = index;
             var line = Lines[index];
-            var indent = CountIndent(line.Text, 0);
+                context?.Scan(line.Text.Length);
+            var indent = CountIndent(line.Text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -1341,22 +1442,39 @@ internal static partial class LithoBlockParser
                 return false;
             }
 
-            var key = NormalizeLabel(rawLabel);
+            var key = NormalizeLabel(rawLabel, context);
             if (store && key.Length != 0 && !References.ContainsKey(key))
             {
                 References.Add(key, new LithoReference(LithoInlineParser.DecodeEscapesAndEntities(url),
                     title is null ? null : LithoInlineParser.DecodeEscapesAndEntities(title)));
             }
 
+            if (store && context is not null)
+            {
+                var activeContext = context;
+                var targetStart = after;
+                while (targetStart < text.Length && text[targetStart] is ' ' or '\t') { activeContext.Scan(8); targetStart++; }
+                if (targetStart < text.Length && text[targetStart] == '<') targetStart++;
+                var last = Lines[index + consumedLines - 1];
+                var definitionSpan = new MdRawRange(line.Offset, last.Offset + last.Text.Length - line.Offset);
+                var label = MdSourceMapping.Local(rawLabel, text, LithoLineMap.Contiguous(line.Offset, text.Length), pos + 1, rawLabel.Length);
+                activeContext.Emit(1 + label.SourceSegments.Count);
+                activeContext.Definitions.Add(new MdLink(MdLinkKind.ReferenceDefinition, MdLinkResolution.Inline, false,
+                    definitionSpan, label, LithoInlineParser.DecodeEscapesAndEntities(url),
+                    title is null ? null : LithoInlineParser.DecodeEscapesAndEntities(title),
+                    new MdRawRange(line.Offset + targetStart, url.Length), rawLabel));
+            }
             next = index + consumedLines;
             return true;
         }
 
         private (string? Url, string? Title, int Lines, bool Ok) ParseLinkTarget(string rest, int index, int to)
         {
+            context?.Scan(rest.Length);
             var pos = 0;
             while (pos < rest.Length && rest[pos] is ' ' or '\t')
             {
+                context?.Scan(8);
                 pos++;
             }
 
@@ -1383,6 +1501,7 @@ internal static partial class LithoBlockParser
                 var depth = 0;
                 while (end < rest.Length && rest[end] is not (' ' or '\t'))
                 {
+                context?.Scan(8);
                     if (rest[end] == '(')
                     {
                         depth++;
@@ -1415,6 +1534,7 @@ internal static partial class LithoBlockParser
 
             while (pos < rest.Length && rest[pos] is ' ' or '\t')
             {
+                context?.Scan(8);
                 pos++;
             }
 
@@ -1437,14 +1557,16 @@ internal static partial class LithoBlockParser
             pos = titleEnd;
             while (pos < rest.Length && rest[pos] is ' ' or '\t')
             {
+                context?.Scan(8);
                 pos++;
             }
 
             return pos >= rest.Length ? (url, title, 1, true) : (null, null, 1, false);
         }
 
-        private static bool TryParseTitle(string text, int pos, out string? title, out int end)
+        private bool TryParseTitle(string text, int pos, out string? title, out int end)
         {
+            context?.Scan(text.Length);
             title = null;
             end = pos;
             if (pos >= text.Length)
@@ -1468,6 +1590,7 @@ internal static partial class LithoBlockParser
             var cursor = pos + 1;
             while (cursor < text.Length && text[cursor] != closer)
             {
+                context?.Scan(8);
                 if (text[cursor] == '\\' && cursor + 1 < text.Length)
                 {
                     cursor++;
@@ -1491,10 +1614,11 @@ internal static partial class LithoBlockParser
             return true;
         }
 
-        private static bool TryParseTitleOnly(string text, out string? title)
+        private bool TryParseTitleOnly(string text, out string? title)
         {
+            context?.Scan(text.Length);
             title = null;
-            var indent = CountIndent(text, 0);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return false;
@@ -1518,11 +1642,13 @@ internal static partial class LithoBlockParser
             return true;
         }
 
-        private static int FindLabelEnd(string text, int open)
+        private int FindLabelEnd(string text, int open)
         {
+            context?.Scan(text.Length);
             var depth = 0;
             for (var i = open; i < text.Length; i++)
             {
+                context?.Scan(8);
                 if (text[i] == '\\')
                 {
                     i++;
@@ -1546,6 +1672,7 @@ internal static partial class LithoBlockParser
 
         private bool IsTableDelimiter(string text, List<Line> acc)
         {
+            context?.Scan(text.Length);
             if (acc.Count == 0 || !acc[^1].Text.Contains('|'))
             {
                 return false;
@@ -1559,6 +1686,7 @@ internal static partial class LithoBlockParser
 
             foreach (var cell in cells)
             {
+                context?.Scan(8);
                 var trimmed = cell.Trim();
                 if (trimmed.Length == 0)
                 {
@@ -1575,9 +1703,10 @@ internal static partial class LithoBlockParser
             return SplitRow(acc[^1].Text)?.Count == cells.Count;
         }
 
-        private static List<string>? SplitRow(string text)
+        private List<string>? SplitRow(string text)
         {
-            var indent = CountIndent(text, 0);
+            context?.Scan(text.Length);
+            var indent = CountIndent(text, 0, context);
             if (indent.Columns >= 4)
             {
                 return null;
@@ -1594,6 +1723,7 @@ internal static partial class LithoBlockParser
             var index = 0;
             while (index < content.Length)
             {
+                context?.Scan(8);
                 var ch = content[index];
                 if (ch == '\\' && index + 1 < content.Length && content[index + 1] == '|')
                 {
@@ -1664,9 +1794,11 @@ internal static partial class LithoBlockParser
             var cursor = delimiterIndex + 1;
             while (cursor < to)
             {
+                context?.Scan(8);
                 cancellationToken.ThrowIfCancellationRequested();
                 var line = Lines[cursor];
-                if (IsBlank(line.Text))
+                context?.Scan(line.Text.Length);
+                if (IsBlank(line.Text, context))
                 {
                     break;
                 }
@@ -1679,6 +1811,7 @@ internal static partial class LithoBlockParser
 
                 while (cells.Count < headerCells.Count)
                 {
+                context?.Scan(8);
                     cells.Add(string.Empty);
                 }
 
@@ -1704,6 +1837,7 @@ internal static partial class LithoBlockParser
             var search = 0;
             foreach (var cell in cells)
             {
+                context?.Scan(8);
                 var trimmed = cell.Trim();
                 var relative = trimmed.Length == 0
                     ? -1
@@ -1722,12 +1856,13 @@ internal static partial class LithoBlockParser
 
     private readonly record struct Indent(int Chars, int Columns);
 
-    private static Indent CountIndent(string text, int from)
+    private static Indent CountIndent(string text, int from, MdParseContext? context = null)
     {
         var columns = 0;
         var index = from;
         while (index < text.Length && (text[index] is ' ' or '\t'))
         {
+                context?.Scan(8);
             columns = text[index] == '\t' ? columns + (4 - (columns % 4)) : columns + 1;
             index++;
         }
@@ -1735,10 +1870,11 @@ internal static partial class LithoBlockParser
         return new Indent(index - from, columns);
     }
 
-    private static bool IsBlank(string text)
+    private static bool IsBlank(string text, MdParseContext? context = null)
     {
         foreach (var ch in text)
         {
+                context?.Scan(8);
             if (ch is not (' ' or '\t'))
             {
                 return false;
@@ -1748,12 +1884,13 @@ internal static partial class LithoBlockParser
         return true;
     }
 
-    private static (string Text, int Chars) StripColumns(string text, int columns)
+    private static (string Text, int Chars) StripColumns(string text, int columns, MdParseContext? context = null)
     {
         var consumed = 0;
         var index = 0;
         while (index < text.Length && consumed < columns && (text[index] is ' ' or '\t'))
         {
+                context?.Scan(8);
             consumed = text[index] == '\t' ? consumed + (4 - (consumed % 4)) : consumed + 1;
             index++;
         }

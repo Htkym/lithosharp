@@ -77,6 +77,8 @@ Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName(
     "The normal product path must not load the isolated oracle.");
 Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoads");
 
+MarkdownFactsChecks.Run();
+
 static object Parse(Assembly assembly, string input)
 {
     var parser = assembly.GetType("LithoSharp.Content.Compilation.LithoBlockParser", throwOnError: true)!;

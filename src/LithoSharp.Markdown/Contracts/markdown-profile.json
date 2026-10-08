@@ -1,0 +1,19 @@
+{
+  "profileId": "lithosharp-markdown/1",
+  "commonMark": "0.31.2",
+  "gfm": "0.29",
+  "grammar": "existing Litho parser",
+  "frontMatter": "strict optional delimiter, single mapping YAML document, anchors/aliases forbidden",
+  "slug": "existing Litho pure slug with duplicate suffix",
+  "sourcePositions": "raw UTF16 half-open",
+  "mapping": [
+    "Linear",
+    "Atomic",
+    "Unknown"
+  ],
+  "opaque": [
+    "rawHtml",
+    "MDX"
+  ],
+  "legacyEntry": "separate compatibility policy"
+}

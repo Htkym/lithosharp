@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace LithoSharp.Content.Compilation;
@@ -12,7 +14,7 @@ internal static partial class LithoSlug
     /// <summary>Creates a base slug for heading text (without duplicate suffixing).</summary>
     public static string Slugify(string text)
     {
-        ArgumentNullException.ThrowIfNull(text);
+        if (text is null) throw new ArgumentNullException(nameof(text));
         var lowered = LithoLimits.RemoveDiacritics(text.ToLowerInvariant());
         var builder = new System.Text.StringBuilder(lowered.Length);
         foreach (var ch in lowered)
@@ -24,7 +26,7 @@ internal static partial class LithoSlug
         }
 
         var collapsed = HyphenDotRun().Replace(builder.ToString(), static match =>
-            match.Value.Contains('.', StringComparison.Ordinal) ? "." : "-");
+            match.Value.IndexOf('.') >= 0 ? "." : "-");
         collapsed = collapsed.Trim('-', '.');
         collapsed = LeadingDigits().Replace(collapsed, string.Empty);
         return collapsed.Length == 0 ? "section" : collapsed;
@@ -33,7 +35,7 @@ internal static partial class LithoSlug
     /// <summary>Assigns unique slugs across a document, suffixing duplicates with -1, -2, ....</summary>
     public static IReadOnlyList<string> Assign(IReadOnlyList<string> texts)
     {
-        ArgumentNullException.ThrowIfNull(texts);
+        if (texts is null) throw new ArgumentNullException(nameof(texts));
         var used = new HashSet<string>(StringComparer.Ordinal);
         var result = new string[texts.Count];
         for (var index = 0; index < texts.Count; index++)
@@ -56,9 +58,16 @@ internal static partial class LithoSlug
         return result;
     }
 
+    #if NETSTANDARD2_0
+    private static readonly Regex HyphenDotRunRegex = new(@"[-.]+");
+    private static Regex HyphenDotRun() => HyphenDotRunRegex;
+    private static readonly Regex LeadingDigitsRegex = new(@"^[0-9]+");
+    private static Regex LeadingDigits() => LeadingDigitsRegex;
+    #else
     [GeneratedRegex(@"[-.]+")]
     private static partial Regex HyphenDotRun();
 
     [GeneratedRegex(@"^[0-9]+")]
     private static partial Regex LeadingDigits();
+    #endif
 }

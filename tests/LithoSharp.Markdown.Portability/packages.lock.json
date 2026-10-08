@@ -46,7 +46,10 @@
         }
       },
       "lithosharp.markdown": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0, 18.1.0]"
+        }
       }
     }
   }

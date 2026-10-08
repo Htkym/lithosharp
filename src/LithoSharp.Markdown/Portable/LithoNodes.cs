@@ -14,13 +14,22 @@ internal abstract record LithoNode(SourceSpan Span);
 internal abstract record LithoBlock(SourceSpan Span) : LithoNode(Span);
 
 /// <summary>A paragraph with parsed inlines.</summary>
-internal sealed record LithoParagraph(IReadOnlyList<LithoInline> Inlines, SourceSpan Span) : LithoBlock(Span);
+internal sealed record LithoParagraph(IReadOnlyList<LithoInline> Inlines, SourceSpan Span) : LithoBlock(Span)
+{
+    internal LithoRawText? RawContent { get; init; }
+}
 
 /// <summary>A heading with parsed inlines.</summary>
-internal sealed record LithoHeading(int Level, IReadOnlyList<LithoInline> Inlines, SourceSpan Span) : LithoBlock(Span);
+internal sealed record LithoHeading(int Level, IReadOnlyList<LithoInline> Inlines, SourceSpan Span) : LithoBlock(Span)
+{
+    internal LithoRawText? RawContent { get; init; }
+}
 
 /// <summary>A fenced or indented code block. Text excludes the fence lines.</summary>
-internal sealed record LithoCode(string Text, string? Info, bool Fenced, SourceSpan Span, LithoCodeMeta? Meta = null) : LithoBlock(Span);
+internal sealed record LithoCode(string Text, string? Info, bool Fenced, SourceSpan Span, LithoCodeMeta? Meta = null) : LithoBlock(Span)
+{
+    internal MdFenceSyntax? FenceSyntax { get; init; }
+}
 
 /// <summary>Code fence metadata mirroring the MDX worker names (title, highlight, line numbers).</summary>
 /// <param name="Title">The <c>title="..."</c> value, or null when absent.</param>
@@ -68,6 +77,8 @@ internal sealed record LithoBreak(SourceSpan Span) : LithoBlock(Span);
 /// <summary>An inline node.</summary>
 internal abstract record LithoInline(SourceSpan Span) : LithoNode(Span)
 {
+    internal MdTextProjection? Projection { get; init; }
+    internal MdLink? UnresolvedReference { get; init; }
     /// <summary>Visits inline nodes without using the call stack for document nesting.</summary>
     internal static IEnumerable<(LithoInline Node, bool Exit)> Walk(
         IReadOnlyList<LithoInline> nodes, bool includeImageLabels = true,
@@ -158,7 +169,10 @@ internal sealed record LithoLink(
     string Url,
     string? Title,
     bool Image,
-    SourceSpan Span) : LithoInline(Span);
+    SourceSpan Span) : LithoInline(Span)
+{
+    internal MdLinkSyntax? LinkSyntax { get; init; }
+}
 
 /// <summary>An autolink. Href is the link target; Text is the display text.</summary>
 internal sealed record LithoAutolink(string Href, string Text, SourceSpan Span) : LithoInline(Span);
