@@ -1,0 +1,9 @@
+# LithoSharp.Analyzers
+
+RA-01のcompiler host用候補です。netstandard2.0、Microsoft.CodeAnalysis 4.14.0を使い、Core runtime・Node・MSBuildWorkspace・CodeFixのWorkspacesを参照しません。NuGetには自身のDLL/XMLをanalyzers/dotnet/csへ配置し、Roslyn本体を同梱しません。実行時Coreへの推移依存にもなりません。
+
+最初のLSA1001は、assembly名LithoSharp、型LithoSharp.SiteUrl、public static FromAbsolute(string)の実symbolを対象にします。定数stringから絶対URIが得られ、原文先頭に明示されたschemeがHTTP/HTTPS以外だと確定した場合だけErrorを返します。位置は引数式の元UTF-16 spanです。動的な値、relative/malformed URL、一般的なflow/URL検証はRA-03に残ります。診断なしは値の妥当性の保証ではありません。関連APIがないcompilationでは解析を早期に終了し、生成codeを対象から外します。
+
+LithoSharpMarkdownSourceVersionはIN-01で選ぶ固定版source artifactへの明示入口です。指定時だけsource package、exact YamlDotNetと既存のhost adapterを取り込みます。canonical parserをrepoから直接Compileしたり、net10のruntime Markdown DLLをcompilerへ読み込ませたりしません。RA-01のdefault候補にはMarkdown/YAMLを含めず、実source pairを使うGenerator/Analyzer照合はIN-01で行います。
+
+このpreviewは未公開の開発候補です。全SDK/VS/C#拡張の認定やCodeFix出荷を示しません。host canaryとpackage layoutの結果はdocs/development/ra01-verification.jsonへ記録します。
