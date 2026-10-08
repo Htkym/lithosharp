@@ -99,7 +99,7 @@ Capabilitiesのfeature stateは`Supported`、`Unsupported`、`Partial`です。C
 
 delimiterは現行と同じ厳密な`---`行です。新generic entryは実際の先頭BOMを1つだけ構文解析から除外し、raw offsetとTextHashには残します。AbsentのBodySpan開始はBOMありなら1、なしなら0です。Parsed/Empty/Invalidではclosing delimiter後、UnterminatedではUnknownです。例えばBOM付き`# A\r\n`のBodySpanは[1,6)、Heading RawSpanは[1,4)、preambleは[1,1)です。旧site entryの全文fallbackは現行どおりoffset 0と元の文字列を使い、この新規則を機械適用しません。YAMLはevent parserを使い、1 document・mapping root・非null scalar keyという現行方針を維持します。anchor/alias、重複key、非scalar keyを拒否し、任意型のdeserializeやalias展開をしません。
 
-YAMLのevent開始/終端をraw key/value spansへ変換します。Mark.Indexの単位とEndの意味はMD-03の小さいfixtureで実確認し、その後にUTF-16 offsetへ変換します。現時点ではライブラリのIndexを無条件にUTF-16と断言しません。変換できない位置やfolded scalarのdecoded対応はUnknownです。
+YAMLのevent開始/終端をraw key/value spansへ変換します。Mark.Indexの単位とEndの意味はMD-02の小さいfixtureで実確認し、その後にUTF-16 offsetへ変換します。現時点ではライブラリのIndexを無条件にUTF-16と断言しません。変換できない位置やfolded scalarのdecoded対応はUnknownです。
 
 `Status=Complete`は要求したprofile factsを完了した場合です。未投影の必要なfacts、invalid frontmatter、途中のresource上限等はPartialです。入力上限超過や新strict entryのinvalid Unicode等、意味のあるfactsを作れない入力はFailedです。Partial/Failedは理由を残し、collectionが途中までの場合はcompleteと扱いません。
 
@@ -198,7 +198,7 @@ new strict entryのUnicode・resource・frontmatter方針を、旧public entry�
 
 既存entryの構文spanに改行を含む場合は、その既存spanをadapterで維持し、新Heading RawSpanの定義へ機械置換しません。新DTOの追加と既存DTOの挙動変更を分けます。互換差が避けられない場合は、変更点と移行方法を示して後続レビューへ戻し、未記録の破壊変更を採用しません。現時点で許可されたmajor変更はJ-00にあるTestingの公開DOM撤去です。
 
-MD-01は描画・site処理を残したままparse-only部品を抽出します。MD-02は上記immutable facts、MD-03はsegmentsとYAML位置およびportable compile、MD-04はfacade/host adapterとcache、MD-05は固定版artifact pair、IN-01は両repo/hostの同版実証、MD-06は別repo移管を担当します。既存タスクの依存とレビュー停止条件を変更せず、新しいlaneやタスクを増やしません。
+MD-01は描画・site処理を残したままportableなparse-only部品を抽出します。MD-02は上記immutable facts、segmentsとYAML位置、MD-03はruntime/inspection/site adapter、MD-04はcompiler hostとcache/世代、MD-05は固定版artifact pair、IN-01は両repo/hostの同版実証、MD-06は別repo移管を担当します。既存タスクの依存とレビュー停止条件を変更せず、新しいlaneやタスクを増やしません。
 
 ## J-01の確認と停止条件
 
