@@ -201,8 +201,52 @@ function verifyRestored(out,canaryPath){
     scope:'Fixed local pair + actual Generator Parse body on net10 CLR; both-repo and real Roslyn-host matrix remains IN-01'});
   console.log(JSON.stringify({state:'PASS',componentVersion:m.componentVersion,parserVersion:m.parserVersion,restored}));
 }
+function verifyFixedPackage(packagePath){
+  const m=json(path.join(root,'docs/development/md05-artifact-pair.json'));
+  assert(/^2\.0\.0-preview\.[1-9][0-9]*$/.test(m.componentVersion)&&/^[0-9a-f]{40}$/.test(m.sourceCommit),'Invalid fixed pair identity');
+  const tree=git(['ls-tree','-r','--name-only','-z','HEAD','--',component]).toString().split('\0').filter(Boolean);
+  const byBytes=(a,b)=>Buffer.compare(Buffer.from(a),Buffer.from(b));
+  const canonical=tree.filter(p=>(p.startsWith(component+'Portable/')&&p.endsWith('.cs')&&p!==stamp)||p.startsWith(component+'Contracts/')).sort(byBytes);
+  assert(JSON.stringify(canonical)===JSON.stringify(m.canonicalFiles.map(e=>e.path).sort(byBytes)),'HEAD canonical source set differs from fixed pair');
+  const runtime=tree.filter(p=>p.startsWith(component+'Public/')||p.startsWith(component+'Properties/')).sort(byBytes);
+  assert(JSON.stringify(runtime)===JSON.stringify(m.runtimeFiles.map(e=>e.path).sort(byBytes)),'HEAD runtime-only source set differs from fixed pair');
+  assert(JSON.stringify(tree.filter(p=>p.endsWith('.cs')).sort(byBytes))===JSON.stringify([...canonical.filter(p=>p.endsWith('.cs')),...runtime.filter(p=>p.endsWith('.cs')),stamp].sort(byBytes)),'HEAD contains an undeclared component Compile source');
+  const entries=m.canonicalFiles.map(e=>{
+    assert(e.path.startsWith(component)&&e.path!==stamp&&!e.path.split('/').includes('..'),'Invalid canonical source path');
+    const bytes=blob('HEAD',e.path);assert(bytes.length===e.byteLength&&sha(bytes)===e.sha256,'Selected source differs from fixed pair: '+e.path);
+    return {path:e.path,bytes};
+  });
+  entries.sort((a,b)=>Buffer.compare(Buffer.from(a.path),Buffer.from(b.path)));
+  assert(hashFiles(entries)===m.canonicalSourceHash&&m.parserVersion==='1/'+m.canonicalSourceHash,'Canonical parser identity mismatch');
+  assert(sha(blob('HEAD',stamp))===m.generatedStamp.sha256,'Fixed parser stamp mismatch');
+  for(const e of [...m.runtimeFiles,...m.packagingInputs])assert(sha(blob('HEAD',e.path))===e.sha256,'Fixed source/recipe differs: '+e.path);
+  const kind=Object.keys(m.artifacts).find(k=>path.basename(packagePath)===m.artifacts[k].fileName);
+  assert(kind,'Unexpected fixed component package');const a=m.artifacts[kind],bytes=fs.readFileSync(packagePath);
+  assert(a.packageId===ids[kind==='runtime'?0:1]&&a.componentVersion===m.componentVersion,'Fixed package identity mismatch');
+  assert(bytes.length===a.byteLength&&sha(bytes)===a.sha256,'Fixed artifact bytes/hash mismatch: '+a.fileName);
+  const z=zip(packagePath),inside=JSON.parse(z.get('markdown/manifest.json').toString());
+  const {state,artifacts,...selected}=m;
+  assert(JSON.stringify(inside)===JSON.stringify(selected),'Fixed package source/contract manifest differs');
+  checkLicenses(z,m);
+  if(kind==='runtime')assert(sha(z.get('lib/net10.0/LithoSharp.Markdown.dll'))===a.assemblySha256,'Fixed runtime DLL mismatch');
+  else for(const e of m.canonicalFiles){
+    const p=e.path.startsWith(component+'Portable/')?'src/'+e.path.slice(component.length):'contracts/'+path.basename(e.path);
+    assert(z.has(p)&&sha(z.get(p))===e.sha256,'Fixed source payload differs: '+p);
+  }
+  return {kind,...a,canonicalSourceHash:m.canonicalSourceHash,parserVersion:m.parserVersion};
+}
+function verifyFixed(feed){
+  const m=json(path.join(root,'docs/development/md05-artifact-pair.json'));
+  const expected=Object.values(m.artifacts).map(a=>a.fileName).sort();
+  const actual=fs.readdirSync(feed).filter(p=>p.endsWith('.nupkg')).sort();
+  assert(JSON.stringify(actual)===JSON.stringify(expected),'Fixed feed must contain exactly the selected pair');
+  const verified=expected.map(p=>verifyFixedPackage(path.join(feed,p)));
+  console.log(JSON.stringify({state:'FIXED_PAIR_BYTES_SOURCE_PASS',componentVersion:m.componentVersion,verified}));
+}
 if(action==='prepare'&&args.length===3)prepare(...args);
 else if(action==='check-stage'&&args.length===1){const m=checkStage(args[0]);console.log(JSON.stringify({state:'STAGE_BYTES_PASS',componentVersion:m.componentVersion,canonicalSourceHash:m.canonicalSourceHash}));}
 else if(action==='seal'&&args.length===1)seal(args[0]);
 else if(action==='verify-restored'&&args.length===2)verifyRestored(...args);
+else if(action==='verify-fixed'&&args.length===1)verifyFixed(args[0]);
+else if(action==='verify-fixed-package'&&args.length===1)console.log(JSON.stringify({state:'FIXED_PACKAGE_BYTES_SOURCE_PASS',verified:verifyFixedPackage(args[0])}));
 else throw Error('Usage: New-ArtifactPair.mjs prepare <source SHA> <2.0.0-preview.N> <new absolute stage>; check-stage <stage>; seal <stage>; verify-restored <stage> <canary JSON>');

@@ -40,8 +40,8 @@
 
   <ItemGroup>
     <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
-    <!-- Development runtime reference; exact runtime/source artifacts are fixed by MD-05/IN-01. -->
-    <ProjectReference Include="..\LithoSharp.Markdown\LithoSharp.Markdown.csproj" />
+    <!-- Immutable MD-05 runtime; component version is independent of the Core version. -->
+    <PackageReference Include="LithoSharp.Markdown" Version="[2.0.0-preview.1]" />
   </ItemGroup>
 
   <ItemGroup>

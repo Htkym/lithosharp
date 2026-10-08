@@ -8,6 +8,15 @@
         "resolved": "1.8.3",
         "contentHash": "IiXdbBHzeKRUDayOFT/5nAqkY7Tqbtzr9dqoWrsfseLRs2r1j94qP8MmKnfs9aX+WHucmlmX8xq9QosIUJ/sbA=="
       },
+      "LithoSharp.Markdown": {
+        "type": "Direct",
+        "requested": "[2.0.0-preview.1, 2.0.0-preview.1]",
+        "resolved": "2.0.0-preview.1",
+        "contentHash": "hZM2TqR/fKJSIf16GkSmLZTnLHsTQRV/CCAxo16TOH28aoaQOMUgT6hvrl5gCB5NwOh/2Um3JIAYq/05Qmxl7A==",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0]"
+        }
+      },
       "Microsoft.CodeAnalysis.PublicApiAnalyzers": {
         "type": "Direct",
         "requested": "[5.6.0, )",
@@ -45,12 +54,6 @@
         "type": "Transitive",
         "resolved": "4.153.1",
         "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
-      },
-      "lithosharp.markdown": {
-        "type": "Project",
-        "dependencies": {
-          "YamlDotNet": "[18.1.0, 18.1.0]"
-        }
       }
     }
   }
