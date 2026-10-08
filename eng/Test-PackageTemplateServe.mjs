@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import net from 'node:net';
+import { fileURLToPath } from 'node:url';
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const markdownPair = JSON.parse(await fs.readFile(path.join(repo, 'docs/development/md05-artifact-pair.json'), 'utf8'));
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -16,10 +19,12 @@ assert.equal(projects.length, 1);
 assert.doesNotMatch(await fs.readFile(path.join(project, projects[0]), 'utf8'), /<ProjectReference\b/i);
 for (const [name, library] of Object.entries(assets.libraries)) {
   if (!/^LithoSharp(?:[./])/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
-  assert.equal(name.split('/')[1], version, `Unexpected package: ${name}`);
+  const [id, resolvedVersion] = name.split('/');
+  assert.equal(resolvedVersion, id === 'LithoSharp.Markdown' ? markdownPair.componentVersion : version, `Unexpected package: ${name}`);
   assert.equal(library.type, 'package', `Source project escape: ${name}`);
 }
 assert.ok(assets.libraries[`LithoSharp/${version}`], 'Candidate Core was not resolved');
+assert.ok(assets.libraries[`LithoSharp.Markdown/${markdownPair.componentVersion}`], 'Fixed Markdown runtime was not resolved');
 await fs.mkdir(evidence, { recursive: false });
 const events = [], owned = new Map();
 let pending = '', stdout = '', stderr = '', invalidJson, inputError, exitResult;

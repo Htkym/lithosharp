@@ -103,6 +103,8 @@ $isolatedEnv = [ordered]@{
 foreach ($dir in @($isolatedEnv.DOTNET_CLI_HOME, $isolatedEnv.NUGET_PACKAGES)) {
     $null = New-Item -ItemType Directory -Path $dir
 }
+$componentFeed = Join-Path $work 'markdown-fixed'
+& (Join-Path $repo 'eng/markdown/Copy-FixedRuntime.ps1') -PackageDirectory $componentFeed
 $nugetConfig = Join-Path $work 'NuGet.Config'
 [IO.File]::WriteAllText($nugetConfig, @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -110,9 +112,10 @@ $nugetConfig = Join-Path $work 'NuGet.Config'
   <packageSources>
     <clear />
     <add key="local" value="$([Security.SecurityElement]::Escape($feed))" />
+    <add key="markdown-fixed" value="$([Security.SecurityElement]::Escape($componentFeed))" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
 
@@ -140,6 +143,7 @@ try {
     if ($resolved.Count -ne 1 -or $resolved[0] -ne "LithoSharp/$version") {
         Fail "built site did not resolve the exact candidate LithoSharp/${version}: $($resolved -join ', ')."
     }
+    & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath (Join-Path $site 'obj/project.assets.json')
     $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $feed "LithoSharp.$version.nupkg"))
     try {
         $entry = $archive.GetEntry('lib/net10.0/LithoSharp.dll')
@@ -165,6 +169,8 @@ $report = [ordered]@{
         [ordered]@{ id = $_.id; version = $version; file = [IO.Path]::GetFileName($file); sha256 = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash }
     })
     feed = $feed
+    markdownComponentFeed = $componentFeed
+    markdownComponent = (Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json).artifacts.runtime
     tool = Join-Path $toolPath $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     site = $site
     isolatedCaches = $work

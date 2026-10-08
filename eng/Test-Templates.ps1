@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json
 $packages = [IO.Path]::GetFullPath($PackageDirectory)
 foreach ($id in @('LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')) {
     $package = Join-Path $packages "$id.$CandidateVersion.nupkg"
@@ -21,14 +22,16 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
     foreach ($name in $assets.libraries.Keys) {
         $parts = $name.Split('/')
         if ($parts[0] -notmatch '^LithoSharp(?:\.|$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
-        if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -ne $CandidateVersion) {
-            throw "Expected candidate $CandidateVersion, but resolved $name in $ProjectDirectory."
+        $expectedVersion = if ($parts[0] -ceq 'LithoSharp.Markdown') { $markdownPair.componentVersion } else { $CandidateVersion }
+        if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -cne $expectedVersion) {
+            throw "Expected candidate $expectedVersion, but resolved $name in $ProjectDirectory."
         }
         $resolved[$parts[0]] = $parts[1]
     }
     foreach ($id in $Required) {
         if (!$resolved.ContainsKey($id)) { throw "Required candidate package $id was not resolved in $ProjectDirectory." }
     }
+    & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath $assetsPath
     Write-Host ("Resolved candidate packages: {0}" -f (($resolved.Keys | Sort-Object | ForEach-Object { "$_/$($resolved[$_])" }) -join ', '))
 }
 $fixture = Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N'))
@@ -44,6 +47,7 @@ foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'L
         Copy-Item -LiteralPath $candidateFile -Destination $packages
     }
 }
+& (Join-Path $repo 'eng/markdown/Copy-FixedRuntime.ps1') -PackageDirectory $packages
 $oldPackages = $env:NUGET_PACKAGES
 $oldHome = $env:DOTNET_CLI_HOME
 $oldTimestamp = $env:SOURCE_DATE_EPOCH

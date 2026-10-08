@@ -55,8 +55,8 @@ $failures = [Collections.Generic.List[string]]::new()
 function Write-NuGetConfig([string] $Directory, [string] $LocalFeed) {
     [IO.File]::WriteAllText((Join-Path $Directory 'NuGet.Config'), @"
 <configuration>
-  <packageSources><clear/><add key="local" value="$([Security.SecurityElement]::Escape($LocalFeed))"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSources><clear/><add key="local" value="$([Security.SecurityElement]::Escape($LocalFeed))"/><add key="markdown-fixed" value="$([Security.SecurityElement]::Escape((Join-Path $repo 'eng/markdown/feed')))"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
 }
@@ -134,6 +134,7 @@ try {
     if (!$sourceCompatible) { Write-Host $recompile.output }
     else {
         Assert-ResolvedVersion $sourceDirectory $CandidateVersion
+        & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath (Join-Path $sourceDirectory 'obj/project.assets.json')
         $sourceAssembly = Join-Path $sourceDirectory 'bin/Release/net10.0/LithoSharp.dll'
         if ((Get-FileHash -LiteralPath $sourceAssembly -Algorithm SHA256).Hash -ne $candidateHash) {
             throw 'The recompiled consumer did not use the assembly from the candidate package.'
