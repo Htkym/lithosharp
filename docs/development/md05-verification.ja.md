@@ -1,0 +1,54 @@
+# MD-05の実装と確認記録
+
+MD-05の固定runtime/source候補と限定検証は完了しました。版は2.0.0-preview.1、canonical sourceの選択SHAはccd165a1fd0eff9cb7b54004c8b472547ba74e8eです。全13手順は19.472秒で成功し、3件のbuildは警告・エラー0でした。所有build/test PID 0を2026-10-08T09:49:32.9839944Zに確認し、commit前に報告しました。実Roslyn hostと両repo照合はIN-01に残しています。
+
+MD-04では上記SHAの全16ファイルと既存DisposeAsync経路をBocchiが直接レビューし、合格としました。MD-05ではcanonical parserと公開APIを変更していません。
+
+## 固定artifactとpackの境界
+
+canonicalSourceHashは02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480、ParserVersionは1/にこのhashを続けた値です。Portableと規範のdependency/profile/options JSONの22件を、UTF-8 path順、uint64 big-endianのpath/content長、選択SHAのGit blob bytesから計算しました。生成stampは循環防止のため対象から除きます。checkoutの改行変換や製品ProjectReferenceをpack入力に使いません。
+
+New-ArtifactPair.mjsのprepareは新しいstageへ固定Git bytesを取り出します。runtimeはnet10.0のpublic facadeと既存のruntime friend metadataを含みます。sourceはPortableの内部型とstampだけをsrc/Portableへ置き、public facadeとProperties/AssemblyInfo.csを含めません。YamlDotNetはruntimeのexact [18.1.0]依存とし、source hostも直接exact参照します。両packageには同じ解析metadata、原LICENSE、YamlDotNet licenseと部品用NOTICEを含めます。
+
+check-stageはPortable、stamp、Public/PropertiesのGit hash、runtimeの全cs集合、metadata、license、置換後のpack設定を照合します。bin/obj以外の余分なcsも拒否します。sealはpack後のnupkgを読み、同じmetadata、source bytes、exact依存rangeとlicenseを照合します。nupkg全体の実SHA256は外部のpair manifestへ一度だけ記録し、package内へ自己hashを入れません。
+
+| kind | package | SHA256 |
+| --- | --- | --- |
+| runtime | LithoSharp.Markdown 2.0.0-preview.1 | 554a4c71de4fb8c55872895a985cf8f66e9518346e451e91a2607d69d17fb8ed |
+| source | LithoSharp.Markdown.Source 2.0.0-preview.1 | 537bd22998e5a2560a8cffea2f829b3bfae79179b91572671fbf66d0a46d9a06 |
+
+[pair manifest](md05-artifact-pair.json)のPACKED_NOT_HOST_VERIFIEDはseal時点の状態です。その後の復元・canary成功は[task証跡](md05-verification.json)へ別に記録しました。同kindのfeedと復元済みnupkgのhashは一致しています。runtimeとsourceは別kindなので、互いのnupkg hashの一致は要求しません。
+
+stageとmanifest、既存nupkgは上書きしていません。初回の編集用stageは未packのまま残し、レビュー修正後の新規stageから各kindを一度だけpackしました。artifact bytesが変わる再packには次のpreview版を使います。公開registryへpublishしていません。
+
+## source供給と実Generatorの確認
+
+source packageはbuild/LithoSharp.Markdown.Source.targetsを供給します。LithoSharpMarkdownIncludeSource=trueの場合だけCompileとLITHOSHARP_MARKDOWN_SOURCEを追加し、復元package版と選択版、指定した期待ParserVersionを照合します。無条件のprops/buildTransitive/contentFilesによる供給は使いません。
+
+local feedのexact版を新規Dのisolated packagesへ復元しました。Generatorはそのsource packageを明示的に選択してnetstandard2.0でbuildしました。MD-04のParse本体がsource symbol有効な状態でコンパイルされていること、runtime/site facadeへのassembly参照がないこと、public Markdown facadeとruntime friend metadataがないことを確認しました。
+
+MSBuild評価ではopt-in時にPortable/stampの20件とsource symbolが入り、opt-out時は両方とも入りませんでした。期待stampの不一致はCompile前に予定の診断とexit 1で拒否されました。既定のGenerator版選択は未設定のままです。
+
+## 小さいartifact canaryと残る境界
+
+artifact canaryはProjectReferenceを使わず、exact版runtime packageと実際にbuildしたGenerator DLLを使用します。CRLF/entity/emoji、BOM/YAML/fence、重複heading/referenceの短い3入力は35、48、31 UTF-16 unitsです。runtime public DTOと内部source factsについて、nested YAML、範囲、source segments、診断、identity/hashを含む全共通propertyを比較し、一致しました。未対応型を空objectとして比較することはせず、比較器を失敗させます。
+
+期待ParserVersionとロード済みYamlDotNet identityの不一致時に拒否されることも確認しました。runtimeとsource側の実ロードassemblyはYamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e、InformationalVersionは18.1.0です。source側のassembly参照identityも一致しています。
+
+このcanaryはnet10 CLR上で実GeneratorのParseを呼びました。実RoslynでのGenerator/Analyzer起動、SharpDepsと両repoのconsumer matrixはIN-01に残します。MD-05の成功だけでIN-01や公開の合格としては扱いません。full solution/tests、長時間測定、coverage目標は追加していません。
+
+## 検証の実行とCLIレビュー
+
+親がZendiatorのcleanup、所有測定プロセス0、controller終了を確認してから限定枠を開始しました。runtime/sourceのrestoreとpack、runtime build、source有効Generator restore/build、source選択3件、artifact canary restore/build/runを一度ずつ実行しました。初回から全13手順が成功し、コード修正や再buildは不要でした。
+
+buildはrtk-dotnet-verify、restore/pack/msbuildはrawで実行しました。node reuseとshared compilationは無効です。各実行のPID、argv、開始/終了、exit、timeoutと機械ログをDへ保存し、予測終了後に一度だけ結果を回収しました。最終Win32_Process snapshotで記録されたrootと子孫は0件でした。無関係なprocessは停止していません。ローカル復元のNuGet auditだけを無効にし、既存Dのdependency cacheを読み取りfeedとして使いました。releaseのsecurity checkは変更していません。
+
+Museはsource payloadの8項目を分類し、実sessionのmodelとagentを確認しました。Copilotはclaude-opus-5.5/highで前後の残量を確認し、追加toolは0件です。初回120秒のtimeoutは結果なしとして残し、新規sessionの再レビュー結果を使いました。runtime stageの完全照合、比較器の未知型拒否、source側の参照assemblyと実ロードmetadataの証拠を補強し、最終コードの限定検証は成功しました。前後の累計が同じでも無料とは扱いません。
+
+AGY modelsで確認した最新gemini-3.8-flash-highとYomiyasu全文で日本語を校正しました。観測したstepはuser_inputとagent_responseだけですが、initにtoolが出るため完全な隔離を実証したとは記述しません。Fast tierは使っていません。
+
+原資料7件、main、SharpDeps、既存indexを保全します。task限定のfeature commit/push後はBocchiの全ファイル実差分レビューを待ち、次taskへ進みません。PR、tag、main変更、公開publishは行いません。
+
+## 後続担当への引継ぎ
+
+IN-01ではこの固定版pairとmanifestを使い、同じkindのartifact hashを両consumerで照合してください。runtimeはexact [2.0.0-preview.1]、sourceは同じexact range、PrivateAssets=all、IncludeAssets=buildとし、YamlDotNetのexact18.1.0と実ロードmetadataを検証します。既存の小fixtureを再利用し、実Roslyn Generator/AnalyzerとSharpDepsの未実施境界を埋めます。repo最新sourceへの直接Compileや手動copyを同版供給の代替にしません。MD-06のrepo移管はIN-01合格後です。

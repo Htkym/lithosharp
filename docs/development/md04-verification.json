@@ -1,6 +1,6 @@
 {
   "task": "MD-04",
-  "state": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "state": "REVIEW_PASSED",
   "baseSha": "00d18f770afc529949429ff4ab6b9e59432d870b",
   "md03Review": "PASS by Bocchi actual all25-file diff",
   "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
@@ -367,5 +367,11 @@
   "restoredLockfile": {
     "path": "src/LithoSharp.Generators/packages.lock.json",
     "delta": "RequestedYaml range only; resolved18.1.0/contentHash and all other dependencies unchanged"
+  },
+  "bocchiReview": {
+    "state": "PASS",
+    "sha": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e",
+    "scope": "all16 files + existing DisposeAsync route",
+    "nextTask": "MD-05"
   }
 }

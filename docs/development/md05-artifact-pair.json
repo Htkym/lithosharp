@@ -1,0 +1,204 @@
+{
+  "componentVersion": "2.0.0-preview.1",
+  "sourceCommit": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e",
+  "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "contractVersion": "1.0",
+  "profileId": "lithosharp-markdown/1",
+  "hashEncoding": "UTF8 path byte order + uint64 BE path/content lengths + Git blob bytes",
+  "excludedGeneratedStamp": "src/LithoSharp.Markdown/Portable/MarkdownParserVersion.g.cs",
+  "dependencies": [
+    {
+      "packageId": "YamlDotNet",
+      "version": "18.1.0",
+      "range": "[18.1.0]",
+      "assemblyFullName": "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e",
+      "informationalVersion": "18.1.0",
+      "identityRole": "expected; actual loaded metadata must be verified by consumer"
+    }
+  ],
+  "canonicalFiles": [
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-dependencies.json",
+      "byteLength": 83,
+      "sha256": "d26de340ae230a58fda4e89906ec284d16550a0ae3cfbd80387b1aec38a27643"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-options.json",
+      "byteLength": 405,
+      "sha256": "a4f217c45e933c8ce94080b79f0621fce7fa243d6794b07ccdeb245e9a17d718"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-profile.json",
+      "byteLength": 487,
+      "sha256": "4cc7fcc4d7c091040f7439b6708cbdac53759e575f74d477d925cbb00e3dcd31"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/IndexRange.cs",
+      "byteLength": 1502,
+      "sha256": "8ff0c37c32c26d9e3324a67e784759e4d3e340e62928b1b54af013c9eb4addb5"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/IsExternalInit.cs",
+      "byteLength": 182,
+      "sha256": "58a23596a504a1cf073911fe514b1ce0bbf8e9e6dfda6c52c857ecc25a0c94f6"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoBlockParser.cs",
+      "byteLength": 67978,
+      "sha256": "53620f7b751eef890b5d02c30d0fc62984e048af5edd0253753b165f6aac013a"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoCharacters.cs",
+      "byteLength": 372,
+      "sha256": "00ae41bfe92825d6bcf670cfcfa750b0d76f29eb883ca7885bd101de1997f102"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoDirectives.cs",
+      "byteLength": 1788,
+      "sha256": "f5a0e2637a043d6bfb8743a6178d9b6f23d9f81b3ac1e6e2846a917103f80b7a"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoInlineParser.cs",
+      "byteLength": 41777,
+      "sha256": "69f90c32a08e7f395993be12cddb90ca889d416bcf7adf23473c5b695271e1c5"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoLimits.cs",
+      "byteLength": 2192,
+      "sha256": "f6aff2003028aa3e2deccfbbbd6b79ff2ce22ccac66856edf8184791776ccff4"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoNodes.cs",
+      "byteLength": 8009,
+      "sha256": "e280278fffbaeeb867234cc93e7c370dbe4c0469522fe6cd46869ce8a39a0c0a"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoSlug.cs",
+      "byteLength": 3438,
+      "sha256": "e6acf2ef9dee6b60c6217163318b78c4832c12b6d5eed6a96134784c846fc290"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFacts.cs",
+      "byteLength": 10269,
+      "sha256": "6e983f87469fa57eb08c64d2bee2bf7d58d2d6a5b87ff5cee3f2de8276208d7c"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFrontMatter.cs",
+      "byteLength": 8316,
+      "sha256": "32169ecdd51017050fd16a1c376a16934b7bd44942105dc02bbe8f22e2ea1c91"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFrontMatterScan.cs",
+      "byteLength": 2607,
+      "sha256": "e532018cf91ca1ecda618c2afb2261589fda6427a2a5d93918efc56c1e08b057"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownOpaqueSyntax.cs",
+      "byteLength": 7881,
+      "sha256": "c0d81161187d48c9ac627023da5a329d228a17f6da546abfae17ba4b8f32b784"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownOptions.cs",
+      "byteLength": 4231,
+      "sha256": "3550b0eb2fc851d8735b4dd4d280e6d63e1c9ad1661f43767d8026d3c7b26e06"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownParser.cs",
+      "byteLength": 25009,
+      "sha256": "fcc1d16aae7fca25964fd24cc7c3e2eb27f6677ae7c4c64b829e2bfe273f2689"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownSourceMapping.cs",
+      "byteLength": 5531,
+      "sha256": "0eef70428300fe58989ea502b8b2992d73c98fcef34bb1ab83a15abc0d4c92b3"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/NetStandardCompatibility.cs",
+      "byteLength": 793,
+      "sha256": "9292e5b0ed0547fddceef6e22b5be527e2af1bd4d604a58c83deb8f278809537"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/SourceSpan.cs",
+      "byteLength": 2360,
+      "sha256": "9943609f7c8ec19630d641531faa29a668c3884dc11c537a42f64539218fe0a9"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/SourceText.cs",
+      "byteLength": 2369,
+      "sha256": "c7cc33486e729665bbadabf098c035b349ac299f7b78c6431c9f5b82e60f7a20"
+    }
+  ],
+  "generatedStamp": {
+    "packagePath": "src/Portable/MarkdownParserVersion.g.cs",
+    "sha256": "c66095d3714b067ed8e43e45990445510ac1b5c74e5bbbba3d6595427c5a1b11"
+  },
+  "licenses": [
+    {
+      "sourcePath": "LICENSE",
+      "packagePath": "LICENSE",
+      "sha256": "338a4362bc71dd61116958c2cd4697a7e96deaa8c9eb310320456eabafd27518"
+    },
+    {
+      "sourcePath": "licenses/YamlDotNet.LICENSE.txt",
+      "packagePath": "licenses/YamlDotNet.LICENSE.txt",
+      "sha256": "daea8b7f1b2bab48ea12ad50b0ce91634669d99d7dd0cb64aed8dffeeef69ed3"
+    },
+    {
+      "packagePath": "licenses/THIRD-PARTY-NOTICES.md",
+      "sha256": "1c1c220b80270018dd4da2f0f25c0602703b023faaebd3807b4d999e26ebb981"
+    }
+  ],
+  "runtimeFiles": [
+    {
+      "path": "src/LithoSharp.Markdown/Properties/AssemblyInfo.cs",
+      "stagePath": "Properties/AssemblyInfo.cs",
+      "byteLength": 595,
+      "sha256": "43a517b674b1637a8405365eaaee042ff6d1885bf2df55e75d400906aba2cbd0"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Public/Markdown.cs",
+      "stagePath": "Public/Markdown.cs",
+      "byteLength": 15698,
+      "sha256": "2eff898c23e8ff956e0b6624d7fdc88b24d5fd93ecb41c098860a9c7f8620847"
+    }
+  ],
+  "packagingInputs": [
+    {
+      "path": "eng/markdown/package/runtime.csproj",
+      "sha256": "2b6105cc17fcabaa89d438741c94809f0cfdd03cc89f4f49fe7b6b82fc1de63d",
+      "stagePath": "runtime/runtime.csproj",
+      "stagedSha256": "cf09f7ce48b0a0fffbefa30e255f81f5edb29a85ab6f4e3e3afbb04a12317923"
+    },
+    {
+      "path": "eng/markdown/package/source.csproj",
+      "sha256": "4190d8accd3202f6890cf77fd4613883b3f8b2bcaca9ab951011654fd198a940",
+      "stagePath": "source/source.csproj",
+      "stagedSha256": "f43e8918cc903e98d0dd68ae81e5dee27b5123cd74ea387a2fba0a03e2573a39"
+    },
+    {
+      "path": "eng/markdown/package/LithoSharp.Markdown.Source.targets",
+      "sha256": "1bdec36c468e49e9095e6c504a4c81f64bfb79d4ccada78ef43272748456cb02",
+      "stagePath": "source/build/LithoSharp.Markdown.Source.targets",
+      "stagedSha256": "3acd4174cd80c210514ff9c876192bad6f27557ef88344372c3c08559bddad82"
+    }
+  ],
+  "state": "PACKED_NOT_HOST_VERIFIED",
+  "artifacts": {
+    "runtime": {
+      "packageId": "LithoSharp.Markdown",
+      "componentVersion": "2.0.0-preview.1",
+      "fileName": "LithoSharp.Markdown.2.0.0-preview.1.nupkg",
+      "sha256": "554a4c71de4fb8c55872895a985cf8f66e9518346e451e91a2607d69d17fb8ed",
+      "byteLength": 77332,
+      "assemblySha256": "1208ca8b32332ef58ea68838a6c672e3ea760257f84728e0a7e20b353d8389a5"
+    },
+    "source": {
+      "packageId": "LithoSharp.Markdown.Source",
+      "componentVersion": "2.0.0-preview.1",
+      "fileName": "LithoSharp.Markdown.Source.2.0.0-preview.1.nupkg",
+      "sha256": "537bd22998e5a2560a8cffea2f829b3bfae79179b91572671fbf66d0a46d9a06",
+      "byteLength": 54966
+    }
+  }
+}

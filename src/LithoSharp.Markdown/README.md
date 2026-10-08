@@ -52,3 +52,7 @@ MD-01のtask証拠には入力hash、command、実行結果、所要時間、未
 ## MD-03のruntime接続
 
 Coreは共通componentのnet10 runtimeをProjectReferenceで参照し、内部parserのCompile linkを削除しました。公開generic entryとsite互換adapterは別の入力policyを保ちます。heading/plain textをHTML rendererから分離し、delimiter scannerを共有しています。[MD-03の記録](../../docs/development/md03-verification.ja.md)へ範囲と検証予定を記載しました。限定build/canary/Mdx確認は成功し、所有build/test PID 0を確認しました。BocchiのMD-03実差分レビューと固定版artifact pairの認定は未完了です。
+
+## MD-05の固定artifact準備
+
+[MD-05記録](../../docs/development/md05-verification.ja.md)の独立stageとpack設定を使い、指定SHAのGit blob bytesからruntime/source pairを作ります。この開発projectはIsPackable=falseを維持します。source payloadはPortableとstampだけで、public facadeとruntime friend metadataを含めません。限定13手順は19.472秒で成功し、各buildは警告・エラー0でした。固定版2.0.0-preview.1のruntime/sourceと実GeneratorのParseを照合しました。実Roslyn hostと両repo matrixはIN-01に残しています。

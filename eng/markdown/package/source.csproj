@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>LithoSharp.Markdown.Source</PackageId>
+    <Version>__VERSION__</Version>
+    <Authors>Htkym</Authors>
+    <Description>Explicitly selected portable Markdown source for compiler hosts.</Description>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
+    <RepositoryCommit>__COMMIT__</RepositoryCommit>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="src/Portable/**/*.cs" Pack="true" PackagePath="src/Portable/%(RecursiveDir)" />
+    <None Include="contracts/*.json" Pack="true" PackagePath="contracts/" />
+    <None Include="build/*.targets" Pack="true" PackagePath="build/" />
+    <None Include="LICENSE;README.md" Pack="true" PackagePath="/" />
+    <None Include="licenses/*" Pack="true" PackagePath="licenses/" />
+    <None Include="markdown/manifest.json" Pack="true" PackagePath="markdown/" />
+  </ItemGroup>
+</Project>
