@@ -71,6 +71,7 @@ internal sealed class MdParseContext(MdOptions options, CancellationToken cancel
     internal MdOptions Options { get; } = options;
     internal CancellationToken CancellationToken { get; } = cancellationToken;
     internal System.Collections.Generic.List<MdLink> Definitions { get; } = new();
+    internal System.Collections.Generic.List<MdRawRange> OpaqueTokens { get; } = new();
     internal void Scan(long units = 1)
     {
         CancellationToken.ThrowIfCancellationRequested();

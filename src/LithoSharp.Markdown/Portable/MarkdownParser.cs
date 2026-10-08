@@ -73,7 +73,8 @@ internal static class MdParser
         private readonly List<MdDiagnostic> diagnostics = new();
         private readonly List<MdTextRegion> unprojected = new();
         private readonly HashSet<string> reasons = new(StringComparer.Ordinal);
-        private readonly HashSet<string> anchors = new(StringComparer.Ordinal);
+        private LithoAnchorIds? anchorIds;
+        private MdRawRange[] opaqueRanges = new MdRawRange[0];
         private bool unknownMapping;
         private bool incompleteRaw;
 
@@ -103,7 +104,9 @@ internal static class MdParser
                         var key = LithoBlockParser.NormalizeLabel(shifted.ReferenceLabel!, context);
                         if (!referenceTargets.ContainsKey(key)) referenceTargets.Add(key, shifted.TargetRawSpan);
                     }
+                    PrepareOpaque(parsed.Blocks);
                     foreach (var block in Walk(parsed.Blocks)) Project(block);
+                    foreach (var opaque in opaqueRanges) Opaque("rawHtmlOrMdx", Range(new SourceSpan(opaque.Start, opaque.Length)));
                     MakeSections();
                 }
                 else { incompleteRaw = true; context.Emit(); sections.Add(new MdSection("preamble", null, null, null, null)); }
@@ -137,6 +140,7 @@ internal static class MdParser
 
         private MdTextProjection PublishText(MdTextProjection source, bool shift = true)
         {
+            if (shift) source = MaskOpaque(source);
             var text = shift ? MdSourceMapping.Shift(source, body!.Value.Start) : source;
             var valid = new List<MdSourceSegment>();
             var decodedEnd = 0; var rawEnd = -1;
@@ -209,8 +213,7 @@ internal static class MdParser
                 {
                     var text = PublishText(MdInlineFacts.Text(heading.Inlines, cancellationToken, includeImageLabels: false));
                     context.Scan((long)text.Text!.Length * 8);
-                    var anchor = LithoSlug.Slugify(text.Text!); var basis = anchor; var suffix = 1;
-                    while (!anchors.Add(anchor)) anchor = basis + "-" + (suffix++).ToString(CultureInfo.InvariantCulture);
+                    var anchor = (anchorIds ??= new LithoAnchorIds(context)).Next(LithoSlug.Slugify(text.Text!));
                     MdRawRange? textSpan = null;
                     if (heading.RawContent is not null)
                     {
@@ -225,15 +228,12 @@ internal static class MdParser
                     break;
                 }
                 case LithoParagraph paragraph:
-                    if (IsOpaque(paragraph.RawContent?.Text))
-                        Opaque("rawHtmlOrMdx", Range(paragraph.Span));
-                    else
-                    {
-                        var text = PublishText(MdInlineFacts.Text(paragraph.Inlines, cancellationToken));
-                        context.Emit(); regions.Add(new MdTextRegion("paragraph", Range(paragraph.Span), text));
-                        AddInlineLinks(paragraph.Inlines);
-                    }
+                {
+                    var text = PublishText(MdInlineFacts.Text(paragraph.Inlines, cancellationToken));
+                    context.Emit(); regions.Add(new MdTextRegion("paragraph", Range(paragraph.Span), text));
+                    AddInlineLinks(paragraph.Inlines);
                     break;
+                }
                 case LithoCode code when code.Fenced && code.FenceSyntax is not null:
                 {
                     var fence = code.FenceSyntax; var text = PublishText(fence.Text);
@@ -264,41 +264,119 @@ internal static class MdParser
             }
         }
 
-        private bool IsOpaque(string? text)
+        private void PrepareOpaque(IReadOnlyList<LithoBlock> blocks)
         {
-            if (text is null) return false;
-            context.Scan(text.Length);
-            if (text.TrimStart().StartsWith("import ", StringComparison.Ordinal) || text.TrimStart().StartsWith("export ", StringComparison.Ordinal)) return true;
-            for (var i = 0; i + 1 < text.Length; i++)
-                if (text[i] == '<' && (text[i + 1] is '/' or '!' || char.IsLetter(text[i + 1])))
+            var candidates = new List<MdRawRange>(context.OpaqueTokens);
+            foreach (var block in Walk(blocks))
+                if (block is LithoParagraph { RawContent: { } content }
+                    && MdOpaqueSyntax.TryEsm(content.Text, context, out var end) && end != 0)
                 {
-                    context.Scan((long)(text.Length - i - 1) * 3);
-                    var end = text.IndexOf('>', i + 1);
-                    if (end >= 0 && text.Substring(i + 1, end - i - 1).IndexOf(':') < 0
-                        && text.Substring(i + 1, end - i - 1).IndexOf('@') < 0) return true;
+                    var start = content.Map.Global(0);
+                    candidates.Add(new MdRawRange(start, content.Map.Global(end - 1) + 1 - start));
                 }
-            return false;
+            var merged = new List<MdRawRange>();
+            foreach (var span in candidates.OrderBy(s => s.Start))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (merged.Count != 0 && span.Start <= merged[merged.Count - 1].End)
+                {
+                    var previous = merged[merged.Count - 1];
+                    merged[merged.Count - 1] = new MdRawRange(previous.Start, Math.Max(previous.End, span.End) - previous.Start);
+                }
+                else merged.Add(span);
+            }
+            opaqueRanges = merged.ToArray();
         }
+
+        private int FirstOpaque(int start)
+        {
+            var low = 0; var high = opaqueRanges.Length;
+            while (low < high)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var middle = low + (high - low) / 2;
+                if (opaqueRanges[middle].End <= start) low = middle + 1;
+                else high = middle;
+            }
+            return low;
+        }
+
+        private bool InsideOpaque(SourceSpan span)
+        {
+            var index = FirstOpaque(span.Start);
+            return index < opaqueRanges.Length && opaqueRanges[index].Start <= span.Start && span.End <= opaqueRanges[index].End;
+        }
+
+        private MdTextProjection MaskOpaque(MdTextProjection text)
+        {
+            if (opaqueRanges.Length == 0) return text;
+            var segments = new List<MdSourceSegment>();
+            foreach (var segment in text.SourceSegments)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!segment.RawSpan.HasValue) { segments.Add(segment); continue; }
+                var raw = segment.RawSpan.Value;
+                var index = FirstOpaque(raw.Start);
+                if (index == opaqueRanges.Length || opaqueRanges[index].Start >= raw.End) { segments.Add(segment); continue; }
+                if (segment.Kind != MdSegmentKind.Linear)
+                {
+                    segments.Add(new MdSourceSegment(segment.DecodedSpan, null, MdSegmentKind.Unknown));
+                    continue;
+                }
+                var cursor = raw.Start;
+                while (index < opaqueRanges.Length && opaqueRanges[index].Start < raw.End)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var opaque = opaqueRanges[index++];
+                    var start = Math.Max(cursor, opaque.Start); var end = Math.Min(raw.End, opaque.End);
+                    if (cursor < start) Add(cursor, start, known: true);
+                    if (start < end) Add(start, end, known: false);
+                    cursor = end;
+                }
+                if (cursor < raw.End) Add(cursor, raw.End, known: true);
+                void Add(int start, int end, bool known) => segments.Add(new MdSourceSegment(
+                    new MdRawRange(segment.DecodedSpan.Start + start - raw.Start, end - start),
+                    known ? new MdRawRange(start, end - start) : null, known ? MdSegmentKind.Linear : MdSegmentKind.Unknown));
+            }
+            return new MdTextProjection(text.Text, segments);
+        }
+
         private void Opaque(string kind, MdRawRange span)
         {
             context.Emit(); var region = new MdTextRegion(kind, span, MdSourceMapping.Unknown(null));
             regions.Add(region); unprojected.Add(region); unknownMapping = true; Partial(kind);
         }
 
-        private MdLink ShiftLink(MdLink link) => new(link.Kind, link.Resolution, link.Image,
-            new MdRawRange(link.RawSpan.Start + body!.Value.Start, link.RawSpan.Length),
-            MdSourceMapping.Shift(link.Label, body.Value.Start), link.Target, link.Title,
-            link.TargetRawSpan.HasValue ? new MdRawRange(link.TargetRawSpan.Value.Start + body.Value.Start, link.TargetRawSpan.Value.Length) : null,
-            link.ReferenceLabel);
+        private MdLink ShiftLink(MdLink link, bool maskLabel = false)
+        {
+            var label = maskLabel ? MaskOpaque(link.Label) : link.Label;
+            if (maskLabel)
+            {
+                // The scanner already charged the original unresolved label segments.
+                context.Emit(label.SourceSegments.Count - link.Label.SourceSegments.Count);
+                if (label.SourceSegments.Any(segment => segment.Kind == MdSegmentKind.Unknown)) unknownMapping = true;
+            }
+            return new MdLink(link.Kind, link.Resolution, link.Image,
+                new MdRawRange(link.RawSpan.Start + body!.Value.Start, link.RawSpan.Length),
+                MdSourceMapping.Shift(label, body.Value.Start), link.Target, link.Title,
+                link.TargetRawSpan.HasValue ? new MdRawRange(link.TargetRawSpan.Value.Start + body.Value.Start, link.TargetRawSpan.Value.Length) : null,
+                link.ReferenceLabel);
+        }
 
         private void AddInlineLinks(IReadOnlyList<LithoInline> nodes)
         {
             foreach (var (node, exit) in LithoInline.Walk(nodes, cancellationToken: cancellationToken))
             {
                 if (exit) continue;
-                if (node.UnresolvedReference is not null) { links.Add(ShiftLink(node.UnresolvedReference)); continue; }
+                if (node.UnresolvedReference is not null)
+                {
+                    var unresolved = node.UnresolvedReference;
+                    if (!InsideOpaque(new SourceSpan(unresolved.RawSpan.Start, unresolved.RawSpan.Length))) links.Add(ShiftLink(unresolved, maskLabel: true));
+                    continue;
+                }
                 if (node is LithoLink link)
                 {
+                    if (InsideOpaque(link.Span)) continue;
                     var syntax = link.LinkSyntax ?? throw new InvalidOperationException("Missing link syntax facts.");
                     var label = PublishText(MdInlineFacts.Text(link.Label, cancellationToken));
                     var targetSpan = Range(syntax.Target);
@@ -313,6 +391,7 @@ internal static class MdParser
                 }
                 else if (node is LithoAutolink autolink)
                 {
+                    if (InsideOpaque(autolink.Span)) continue;
                     var label = PublishText(node.Projection ?? MdSourceMapping.Unknown(autolink.Text));
                     var mapped = MdSourceMapping.Map(label, new MdRawRange(0, label.Text!.Length));
                     var target = mapped.RawFragments.Count == 1 ? mapped.RawFragments[0] : (MdRawRange?)null;

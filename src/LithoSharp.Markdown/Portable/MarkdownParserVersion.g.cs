@@ -3,5 +3,5 @@ namespace LithoSharp.Content.Compilation;
 
 internal static class MdParserVersion
 {
-    internal const string Value = "1/5995e3589789315b9a974fd59ddeb562e8578b9763a61956f84c06090353d9c2";
+    internal const string Value = "1/fc50f8ddf4016491861255a99e6419d36b7775dd9305344d7187e677d46ddebe";
 }

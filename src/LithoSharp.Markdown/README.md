@@ -18,7 +18,7 @@ MD-02でYamlDotNetのexact 18.1.0依存、optional frontmatter、新しい公開
 
 入力は既存C01のbody-basicsと、CRLF/entity/escape/emoji/reference/fence metadataを含む124 UTF-16 unitsの小さい例です。内部node、span、referenceをreflectionで読み、構造を比較します。公開APIをテストのために増やしません。既存の小さいh2/id/body描画と再実行一致、通常経路のMarkdig非ロードも確認します。
 
-この比較の対象は、同じnet10 CLRで行う二つの解析経路です。別Roslyn版やGenerator/Analyzerでの実source compileを実証するものではなく、その確認はMD-04/IN-01に残します。MD-02では新strict entry、immutable facts、SourceSegmentsの小さい確認も同canaryへ追加しました。Unknown修正後の新しい確認も成功しました。結果はMD-02のtask証拠に記録しています。
+この比較の対象は、同じnet10 CLRで行う二つの解析経路です。別Roslyn版やGenerator/Analyzerでの実source compileを実証するものではなく、その確認はMD-04/IN-01に残します。MD-02では新strict entry、immutable facts、SourceSegmentsの小さい確認も同canaryへ追加しました。初回SHAのUnknown修正後の確認は成功しました。実diffレビューで求められたopaque判定・anchor探索・sentinelの修正後も、対象build/canaryは成功しました。結果を基準SHAと修正source hashに分けてMD-02のtask証拠へ記録します。
 
 repo rootから、親が調整した検証枠で次を実行します。全solutionのbuild/testやbenchmarkは完了条件にしません。
 
@@ -45,4 +45,6 @@ MD-01のtask証拠には入力hash、command、実行結果、所要時間、未
 
 ## MD-02の確認結果
 
-最終sourceの両TFM buildとcanary buildは警告・エラー0、runは成功しました。BOM/CRLF、YAMLのUTF-16 mark、entity/escape/emoji、prefix gap、outline/reference/fence、Partial/Failed、未解析frontmatterのUnknown、identity/options、resource上限と取消を小さい入力で確認しました。既存2入力のsnapshotはMD-01から変わっていません。[task証拠](../../docs/development/md02-verification.json)に最終commandと失敗・修正の履歴を残しています。
+初回MD-02のSHA `41f80208cd7256421f84dcb927a7d34308704a91`の両TFM buildとcanary buildは警告・エラー0、runは成功しました。レビュー修正後の現revisionも両TFM buildとcanary build/runに成功し、buildは警告・エラー0です。BOM/CRLF、YAMLのUTF-16 mark、entity/escape/emoji、prefix gap、outline/reference/fence、Partial/Failed、未解析frontmatterのUnknown、identity/options、resource上限と取消を小さい入力で確認しました。既存2入力のsnapshotはMD-01から変わっていません。[task証拠](../../docs/development/md02-verification.json)に最終commandと失敗・修正の履歴を残しています。
+
+レビュー修正ではcode/escape/entity/link destinationをopaque誤判定から保護し、heading/tableの実HTMLとlink labelにもUnknown mappingを適用します。opaqueの外側のlinkを保持し、通常のimport/export英文をESM候補から除きます。anchorは既存suffix順序を保ちつつ次の候補を記録し、各候補のbudgetと取消を確認します。新しい確認は同じ小さいcanaryに含め、全solution/testや性能測定は追加していません。

@@ -69,7 +69,7 @@ internal static class MarkdownFactsChecks
         doc = Parse("---\ntitle: X\n# Body\n"); Check(doc.Status == MarkdownParseStatus.Partial && doc.BodySpan is null && doc.Headings.Count == 0, "Unterminated FM is not parsed as Markdown");
         doc = Parse("---\ntitle: >\n  folded\n  text\n---\n# A\n");
         Check(doc.Status == MarkdownParseStatus.Partial && doc.Coverage.DecodedMapping == MarkdownCoverageState.Partial && doc.Diagnostics.Any(d => d.Id == "LMD006"), "Folded scalar Unknown mapping");
-        doc = Parse("<Widget>{value}</Widget>\n"); Check(doc.Status == MarkdownParseStatus.Partial && doc.Coverage.UnprojectedRegions.Single().Content.Text is null, "Opaque HTML/MDX");
+        doc = Parse("<Widget>{value}</Widget>\n"); Check(doc.Status == MarkdownParseStatus.Partial && doc.Coverage.UnprojectedRegions.Count == 2 && doc.Coverage.UnprojectedRegions.All(region => region.Content.Text is null), "Opaque HTML/MDX");
 
         doc = Parse("---\na: b\n---\n# A\n", new MarkdownParseOptions(maxOutputItems: 2));
         Check(doc.Status == MarkdownParseStatus.Partial && doc.FrontMatter.State == MarkdownFrontMatterState.Unknown

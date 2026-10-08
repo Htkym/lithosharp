@@ -36,24 +36,9 @@ internal static partial class LithoSlug
     public static IReadOnlyList<string> Assign(IReadOnlyList<string> texts)
     {
         if (texts is null) throw new ArgumentNullException(nameof(texts));
-        var used = new HashSet<string>(StringComparer.Ordinal);
+        var allocator = new LithoAnchorIds();
         var result = new string[texts.Count];
-        for (var index = 0; index < texts.Count; index++)
-        {
-            var candidate = Slugify(texts[index]);
-            if (!used.Add(candidate))
-            {
-                var suffix = 1;
-                while (!used.Add($"{candidate}-{suffix}"))
-                {
-                    suffix++;
-                }
-
-                candidate = $"{candidate}-{suffix}";
-            }
-
-            result[index] = candidate;
-        }
+        for (var index = 0; index < texts.Count; index++) result[index] = allocator.Next(Slugify(texts[index]));
 
         return result;
     }
@@ -70,4 +55,27 @@ internal static partial class LithoSlug
     [GeneratedRegex(@"^[0-9]+")]
     private static partial Regex LeadingDigits();
     #endif
+}
+
+/// <summary>Remembers the next suffix for each base while preserving first-unused collision ordering.</summary>
+internal sealed class LithoAnchorIds(MdParseContext? context = null)
+{
+    private readonly HashSet<string> used = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> nextSuffix = new(StringComparer.Ordinal);
+    internal string Next(string basis)
+    {
+        context?.Scan((long)basis.Length * 2);
+        if (used.Add(basis)) return basis;
+        var suffix = nextSuffix.TryGetValue(basis, out var next) ? next : 1;
+        while (true)
+        {
+            // Decimal int needs at most ten UTF-16 units; charge before constructing/hashing a candidate.
+            context?.Scan(((long)basis.Length + 11) * 2);
+            var candidate = basis + "-" + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            suffix = checked(suffix + 1);
+            if (!used.Add(candidate)) continue;
+            nextSuffix[basis] = suffix;
+            return candidate;
+        }
+    }
 }

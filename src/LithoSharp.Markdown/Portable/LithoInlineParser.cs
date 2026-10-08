@@ -64,6 +64,7 @@ internal static class LithoInlineParser
         private int _textStart = -1;
         private SourceSpan? _targetSpan;
         private int _referenceTailEnd;
+        private int _opaqueUntil;
         private LithoText TextNode(string value, int local, int length, SourceSpan legacySpan, bool atomic = false) =>
             new(value, legacySpan) { Projection = context is null ? null
                 : MdSourceMapping.Local(value, text, map, local, length, atomic) };
@@ -150,6 +151,13 @@ internal static class LithoInlineParser
                     case '<':
                         if (!ScanAutolink())
                         {
+                            if (context is not null && _position >= _opaqueUntil
+                                && MdOpaqueSyntax.TryTag(text, _position, context, out var opaqueEnd))
+                            {
+                                var span = Glob(new SourceSpan(_position, opaqueEnd - _position));
+                                context.OpaqueTokens.Add(new MdRawRange(span.Start, span.Length));
+                                _opaqueUntil = opaqueEnd;
+                            }
                             AppendTextChar();
                         }
 

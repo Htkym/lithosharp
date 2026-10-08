@@ -1080,7 +1080,7 @@ internal static partial class LithoBlockParser
 
         internal sealed record ListMarker(bool Ordered, int Number, int IndentChars, int ContentChars, int ContentColumns);
 
-        private readonly ListMarker NoListMarker = new(false, 1, 0, 0, 0);
+        private static readonly ListMarker NoListMarker = new(false, 1, 0, 0, 0);
 
         private bool TryParseList(int index, int to, int depth, out LithoList? list, out int next)
         {

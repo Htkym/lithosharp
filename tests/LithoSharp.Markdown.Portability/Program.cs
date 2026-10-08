@@ -78,6 +78,7 @@ Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName(
 Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoads");
 
 MarkdownFactsChecks.Run();
+Md02ReviewFixChecks.Run(runtime, portable);
 
 static object Parse(Assembly assembly, string input)
 {
