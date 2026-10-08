@@ -517,7 +517,7 @@
       {
         "id": "MD02-R1",
         "path": "src/LithoSharp.Markdown/Portable/LithoInlineParser.cs",
-        "symbol": "Scanner.Run / MdOpaqueSyntax.TryTag / MdParser.FactsBuilder.MaskOpaque",
+        "symbol": "Scanner.Scan / MdOpaqueSyntax.TryTag / MdParser.FactsBuilder.MaskOpaque",
         "change": "Collect tag envelopes only at active inline scanner positions; code, escape, entity and destination stay protected. Mask opaque source segments in paragraphs, headings, table cells and link labels; preserve outside links; suppress links wholly inside opaque attributes. ESM candidate start forms are narrowed so ordinary import/export prose retains links.",
         "check": "PASS: protected tokens/outside links, quoted opaque attributes, heading/table Partial, unresolved label mapping, real ESM and ordinary prose"
       },
