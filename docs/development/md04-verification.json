@@ -1,0 +1,371 @@
+{
+  "task": "MD-04",
+  "state": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "baseSha": "00d18f770afc529949429ff4ab6b9e59432d870b",
+  "md03Review": "PASS by Bocchi actual all25-file diff",
+  "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "canonicalParserUnchanged": true,
+  "scope": [
+    {
+      "paths": [
+        "src/LithoSharp/Inspection/DocumentWorkspace.Markdown.cs",
+        "src/LithoSharp/Inspection/DocumentWorkspace.cs"
+      ],
+      "symbols": [
+        "DocumentWorkspace.ParseMarkdownAsync",
+        "IsStale/IsOlderReservation",
+        "ClearMarkdownFacts/RemoveMarkdownFacts"
+      ],
+      "change": "Internal generic path shares the existing lifetime lock, generation-first reservations, epoch and2 analysis slots; final guarded publication into a separate cache. Legacy Inspect APIs remain unchanged."
+    },
+    {
+      "paths": [
+        "src/LithoSharp/Inspection/MarkdownFactCache.cs",
+        "src/LithoSharp/Inspection/MarkdownLogicalSize.cs"
+      ],
+      "symbols": [
+        "MarkdownFactCache.TryGet/Publish",
+        "MarkdownLogicalSize.Measure"
+      ],
+      "change": "Workspace-owned latest1 perScope/Source, full8-field key, LRU64 entries /16MiB logical, Complete+TextHash only, retained raw/fact strings and64-byte facts/32-byte segments. Raw equality validates cached TextHash on a hit."
+    },
+    {
+      "paths": [
+        "eng/markdown/MarkdownYamlIdentity.cs",
+        "src/LithoSharp/LithoSharp.csproj",
+        "src/LithoSharp.Generators/MarkdownSourceHostAdapter.cs",
+        "src/LithoSharp.Generators/LithoSharp.Generators.csproj"
+      ],
+      "symbols": [
+        "MarkdownYamlIdentity.Require",
+        "MarkdownSourceHostAdapter.Verify/Parse",
+        "CheckMarkdownSourceSelection"
+      ],
+      "change": "Consumer startup loaded assembly/informational identity compared separately from package18.1.0. Generator exactYaml and opt-in exact Source PackageReference; source Parse body conditional until artifact target defines marker. No latest parser Compile link/net10 reference."
+    },
+    {
+      "paths": [
+        "tests/LithoSharp.Markdown.Portability/Md04CacheChecks.cs",
+        "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+        "tests/LithoSharp.Markdown.Portability/Program.cs"
+      ],
+      "symbols": [
+        "Md04CacheChecks.Run"
+      ],
+      "change": "Small identity/position/limits/exclusion/generation/remove/clear/dispose/legacy separation/metadata guard cases.65 small documents only for entry cap; semaphore races without sleep. Build/run NOT_RUN."
+    }
+  ],
+  "compatibility": {
+    "publicApi": "No new public methods/types or changed signatures. DocumentWorkspace remains same sealed public type; new generic method internal only.",
+    "legacy": "No strict Unicode/input/resource/cache policy applied to legacy site APIs. Existing snapshots/reuse and project reference condition unchanged.",
+    "hashes": "Raw TextHash used; body SourceHash/SemanticHash not cache keys. Canonical source/ParserVersion and compiler fingerprint2 unchanged.",
+    "cacheAccounting": "Logical byte bound covers retained generic raw/DTO field occurrences, not heap or legacy snapshots. Version reservations keep only IDs/numeric metadata for open generic documents; Remove/Clear/Dispose release them.",
+    "consumerResolution": "Generic cache contains syntax facts only; project-generation syntax hit does not resolve routes/symbols/site policy."
+  },
+  "host": {
+    "default": "Source version unset => no Source PackageReference/Compile payload; existing static validator remains legacy",
+    "packageId": "LithoSharp.Markdown.Source",
+    "versionSelection": "Exact bracket range from explicitly selected full version; wildcard/range syntax rejected",
+    "sourceSymbol": "LITHOSHARP_MARKDOWN_SOURCE must be defined only by source artifact target when IncludeSource=true",
+    "actualSourceArtifactHost": "NOT_RUN; MD-05/IN-01",
+    "noPublicFacadeInSourcePayload": true,
+    "metadataOnlyCanary": "Prepared Generator assembly on same net10 CLR; does not prove actual Roslyn/source artifact hosting",
+    "identityUnavailable": "Missing/empty expected or loaded assembly/informational identity is explicitly rejected; no unverifiable new entry/cache reuse"
+  },
+  "proposedValidation": [
+    {
+      "action": "restore",
+      "target": "portability canary graph including Generator",
+      "reason": "New project reference/host exactYaml lock entries"
+    },
+    {
+      "action": "build/run",
+      "target": "portability canary",
+      "reason": "Core/new generic path and Generator netstandard adapter default compile; existing MD01-03 and newMD04 checks"
+    },
+    {
+      "action": "negative selection",
+      "target": "Generator CheckMarkdownSourceSelection target only",
+      "reason": "Enabling without fixed version/wildcard selection fails before source host startup; no artifact restore"
+    }
+  ],
+  "estimatedFrame": "Original tentative15-25 seconds; actual selected checks total 15.513 seconds, excludes coordination idle",
+  "aiReviews": {
+    "state": "COMPLETED_SOURCE_REVIEW_ONLY",
+    "fastTier": false,
+    "copilot": {
+      "requestedModel": "claude-opus-5.5",
+      "requestedEffort": "high",
+      "modelBefore": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "modelAfter": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "modelMatch": true,
+      "exitCode": 0,
+      "tools": 0,
+      "permissions": 0,
+      "auto": false,
+      "quotaBefore": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 780,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 96.1,
+        "resetDate": "2026-10-08T07:09:19.197Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "quotaAfter": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 780,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 96.1,
+        "resetDate": "2026-10-08T07:09:19.197Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "usage": [
+        {
+          "model": "claude-opus-5.5",
+          "reasoningEffort": "high",
+          "inputTokens": 10718,
+          "outputTokens": 5920,
+          "reasoningTokens": 4216,
+          "cost": 15,
+          "isAuto": false,
+          "availableToolCount": 0,
+          "numToolCalls": 0,
+          "copilotUsage": {
+            "tokenDetails": [
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 400000000000,
+                "tokenCount": 4,
+                "tokenType": "input",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 20000000000,
+                "tokenCount": 0,
+                "tokenType": "cache_read",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 500000000000,
+                "tokenCount": 10714,
+                "tokenType": "cache_write",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 2000000000000,
+                "tokenCount": 5920,
+                "tokenType": "output",
+                "model": "claude-opus-5.5"
+              }
+            ],
+            "totalNanoAiu": 17198600000
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "CP-MD04-1",
+          "decision": "ACCEPTED_AND_FIXED",
+          "reason": "Same malformed source-selection XML caught independently by static readback. Target reconstructed once without JS dollar replacement expansion; all3 project XML parses PASS. Build/negative target execution still pending."
+        },
+        {
+          "id": "CP-MD04-2",
+          "decision": "ALREADY_IMPLEMENTED_OUTSIDE_REVIEW_SNIPPET",
+          "reason": "Core csproj Compile link to eng/markdown/MarkdownYamlIdentity.cs was added during first implementation and remains present. Reviewer input omitted Core csproj diff. Readback/static proof confirms link; default Core compile still pending."
+        },
+        {
+          "id": "CP-MD04-cache",
+          "decision": "NO_ISSUE_FOUND_IN_REVIEWED_CORE",
+          "reason": "Reviewer found cache/latest1/entry-byte handling, generation-first and epoch/final reservation recheck, legacy separation and loaded YAML comparison consistent."
+        },
+        {
+          "id": "CP-MD04-YamlInfo",
+          "decision": "BASELINE_VALUE_OBSERVED_FINAL_CANARY_PENDING",
+          "reason": "MD03 final small canary observed loaded YAML AssemblyVersion18.0.0.0/InformationalVersion18.1.0. MD04 selected checks will test RequirePinned on the actual loaded DLL. Actual artifact/source Roslyn host remains MD05/IN01."
+        }
+      ]
+    },
+    "muse": {
+      "requestedModel": "opencode-go/muse-spark-1.3-contributor",
+      "exitCode": 0,
+      "tools": 0,
+      "response": "834\n838\n残せない\n残せない",
+      "independentArithmetic": {
+        "a": 834,
+        "b": 838,
+        "aPlusB": 1672,
+        "cap1668RetainsBoth": false,
+        "cap833RetainsA": false
+      },
+      "actualSessionModel": {
+        "id": "muse-spark-1.3-contributor",
+        "providerID": "opencode-go",
+        "variant": "default"
+      },
+      "actualAgent": "md04-muse",
+      "modelMatch": true
+    },
+    "agy": {
+      "requestedModel": "gemini-3.8-flash-high",
+      "actualInitModel": "gemini-3.8-flash-high",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "numTurns": 1,
+      "observedStepTypes": [
+        "user_input",
+        "agent_response"
+      ],
+      "actualToolOrSubagentActionsObserved": false,
+      "skill": "Yomiyasu full text supplied",
+      "accepted": [
+        "inspection再利用 -> inspectionの再利用",
+        "entry capのために -> entry capの確認には",
+        "検証はまだです -> 検証はまだ行っていません"
+      ],
+      "isolationLimit": "init permission_mode always-proceed and tools listed; observed no actual tool/subagent step"
+    }
+  },
+  "localBuildTest": "PASS final selected canary/default host metadata checks; source-selection negative guards matched expected nonzero diagnostics",
+  "ownership": {
+    "buildTestStarted": true,
+    "count": 0,
+    "checkedAt": "2026-10-08T08:18:53.0730714Z",
+    "ownedRootPids": [
+      33052,
+      33896,
+      36968,
+      42912,
+      42960
+    ],
+    "sharedCompilation": false,
+    "msbuildNodeReuse": false,
+    "unrelatedProcessesStopped": false
+  },
+  "reviewGate": "Final selected checks -> owned PID0 reported first -> MD04-only feature commit/push -> Bocchi all-file review -> nexttask",
+  "notRun": [
+    "Actual source artifact restore/pack/pair manifest",
+    "Actual Roslyn Generator/Analyzer source payload host",
+    "Full solution/test",
+    "Thousand edit/long-running measurements",
+    "Benchmark/coverage",
+    "Publish"
+  ],
+  "staticEditFix": {
+    "path": "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+    "reason": "JS replacement end-anchor expanded suffix; fixed by literal concatenation before any build/test",
+    "xmlSyntax": "All3 project files parse PASS"
+  },
+  "finalChecks": [
+    "MD04-restore-canary",
+    "MD04-B-build",
+    "MD04-B-run",
+    "MD04-source-selection-no-version.expected",
+    "MD04-source-selection-wildcard.expected"
+  ],
+  "runtimeEvidence": {
+    "checkedAt": "2026-10-08T08:22:35.776Z",
+    "positiveChecks": [
+      {
+        "name": "MD04-restore-canary",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 3.109,
+        "command": [
+          "dotnet",
+          "restore",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--disable-parallel",
+          "-nr:false"
+        ]
+      },
+      {
+        "name": "MD04-B-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 10.211,
+        "command": [
+          "dotnet",
+          "build",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "-p:UseSharedCompilation=false"
+        ]
+      },
+      {
+        "name": "MD04-B-run",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 1.03,
+        "command": [
+          "dotnet",
+          "run",
+          "--project",
+          "tests/LithoSharp.Markdown.Portability/LithoSharp.Markdown.Portability.csproj",
+          "--no-build",
+          "--no-restore"
+        ]
+      }
+    ],
+    "negativeChecks": [
+      {
+        "task": "MD-04",
+        "name": "MD04-source-selection-no-version",
+        "state": "EXPECTED_FAILURE_PASS",
+        "actualExitCode": 1,
+        "elapsedSeconds": 0.627,
+        "checkedAt": "2026-10-08T08:17:41.711Z",
+        "expectedMessage": "Select an immutable LithoSharpMarkdownSourceVersion before enabling Markdown source.",
+        "messageMatched": true,
+        "sourceArtifactRestore": false,
+        "compiled": false
+      },
+      {
+        "task": "MD-04",
+        "name": "MD04-source-selection-wildcard",
+        "state": "EXPECTED_FAILURE_PASS",
+        "actualExitCode": 1,
+        "elapsedSeconds": 0.536,
+        "checkedAt": "2026-10-08T08:17:42.299Z",
+        "expectedMessage": "Markdown source version must be one fixed full version, without wildcard or range syntax.",
+        "messageMatched": true,
+        "sourceArtifactRestore": false,
+        "compiled": false
+      }
+    ],
+    "canary": {
+      "task": "MD-04",
+      "status": "PASS",
+      "checks": "identity/raw positions/LRU-entry-byte limits/Partial-Failed-cancel exclusion/generation reservation/Remove-Clear-Dispose/legacy separation/loaded YAML metadata",
+      "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+      "preparedHostContract": "netstandard2.0 metadata only",
+      "actualSourceArtifactRoslynHost": "NOT_RUN; MD-05/IN-01"
+    },
+    "elapsedSelectedSeconds": 15.513,
+    "codeChangedAfterFinalRun": false
+  },
+  "restoredLockfile": {
+    "path": "src/LithoSharp.Generators/packages.lock.json",
+    "delta": "RequestedYaml range only; resolved18.1.0/contentHash and all other dependencies unchanged"
+  }
+}

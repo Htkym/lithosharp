@@ -21,9 +21,10 @@
   </PropertyGroup>
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
+    <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
     <Compile Include="..\LithoSharp\Routing\SiteRoute.cs" Link="Shared\SiteRoute.cs" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
-    <PackageReference Include="YamlDotNet" Version="18.1.0" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <None Include="buildTransitive\LithoSharp.Generators.props" Pack="true" PackagePath="buildTransitive\" />
@@ -37,4 +38,18 @@
     <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
+  <!-- Set only to the immutable source package version selected by MD-05/IN-01. -->
+  <PropertyGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
+    <LithoSharpMarkdownIncludeSource>true</LithoSharpMarkdownIncludeSource>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
+    <PackageReference Include="LithoSharp.Markdown.Source" Version="[$(LithoSharpMarkdownSourceVersion)]"
+                      PrivateAssets="all" IncludeAssets="build" />
+  </ItemGroup>
+  <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(LithoSharpMarkdownSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
+           Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
+    <Error Condition="'$(LithoSharpMarkdownIncludeSource)' == 'true' and '$(LithoSharpMarkdownSourceVersion)' == ''"
+           Text="Select an immutable LithoSharpMarkdownSourceVersion before enabling Markdown source." />
+  </Target>
 </Project>

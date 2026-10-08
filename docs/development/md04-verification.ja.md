@@ -1,0 +1,49 @@
+# MD-04のcompiler host接続準備とworkspace cache
+
+基準SHAは00d18f770afc529949429ff4ab6b9e59432d870bです。BocchiはMD-03の全25ファイル差分を直接レビューし、合格としました。ZendiatorのStream51〜100測定とcleanupが終わった後、親が許可した枠でMD-04の限定検証を完了しました。所有build/test PID0を確認し、Bocchiの最終実差分レビューを待ちます。
+
+## legacyとgenericの境界
+
+J-01の指定に従い、新しいstrict cacheを従来のDocumentWorkspace inspectionの再利用から分けました。新しいParseMarkdownAsyncは内部consumer向けのgeneric準備入口です。旧InspectAsync/InspectVersionedAsyncを通さず、公開APIを増やしません。LSM診断、frontmatter必須とfallback、旧入力の受理条件、Project参照による保守的な再検査を維持します。
+
+generic入口は既存の寿命lock、二つの解析slot、generationを先に比較する予約、同世代のversion比較、epoch、取消とactive taskの追跡を使います。cache lookup・parse・logical size計算は寿命lockの外で行い、publish前にepochと最新予約を再確認します。Remove/Clear/Dispose後に旧結果を戻しません。
+
+## 保持するfactsと上限
+
+cacheはworkspace instanceの所有物で、ScopeIdはworkspaceのIdです。keyはScopeId、SourceId、SourceVersion、TextHash、ParserVersion、ContractVersion、ProfileId、OptionsHashの八項目です。SourceVersionのnullと空文字を区別します。CompleteでTextHashがある結果だけを保存し、Partial/Failed/取消は保存しません。同じScopeId/SourceIdには最新一件だけを残します。
+
+原文全体のordinal一致でcacheに保持したTextHashを確認するため、hitの原文を再hashしません。原文位置だけ変わる編集はhitにしません。既存の本文SourceHashや位置を含まないSemanticHashをvalidity判定に使いません。解析grammarを変えていないため、canonical sourceとParserVersionはMD-03のままです。
+
+LRUの初期上限は64件と16 MiBの両方です。rawを含むDTOのstring fieldをUTF-16長×2、各factを64 bytes、各source segmentを32 bytesとして計算します。stringの同じ参照が複数fieldにある場合も各fieldを数え、segmentをfactとして重ねて数えません。envelopeのcontract/profile、projection、frontmatter、coverageも対象です。一件がbyte上限を超えれば保存しません。
+
+これは実heapの上限ではありません。既存の公開snapshotと、開いているgeneric文書のID・数値だけの予約metadataは別に管理します。本文やDTOを予約metadataへ保持せず、閉じる時のRemove、Clear、Disposeで解放します。generic syntaxのcache hitを、route/member/site contextの解決結果として返しません。
+
+## 固定版sourceへの接続準備
+
+Generatorsはnetstandard2.0を維持し、net10 facade DLLも最新checkoutのparser sourceも参照しません。選択した固定versionをLithoSharpMarkdownSourceVersionへ設定した場合だけ、LithoSharp.Markdown.Sourceをexact range、PrivateAssets=all、IncludeAssets=buildで参照します。version未指定でsourceを有効にした場合と、wildcard/range指定は早期に拒否します。既定ではsource payloadを取り込みません。
+
+MD-05のsource artifact targetは、明示したIncludeSource=trueの時だけCompileとLITHOSHARP_MARKDOWN_SOURCEを設定する必要があります。条件付きのhost adapterは、そのpayloadのinternal factsを使い、期待ParserVersionとcompile済みstampを照合します。新しいpublic facade DTOのcopyは作りません。既存のtyped static YAML validatorは現段階で維持します。
+
+依存identityのguardはconsumer側に置き、pure parserへI/Oを足しません。YamlDotNetのpackage18.1.0、assembly18.0.0.0、informational18.1.0を別々の意味として照合します。新generic入口はcache参照の前にloaded identityを確認し、不一致なら新cacheをclearして起動を拒否します。Generatorも対応するmanifestの期待identityを受け取る準備をしています。復元graph、source/runtime artifact hashと実Roslyn hostの確認はMD-05/IN-01に残ります。
+
+## 小さい確認と検証枠
+
+canaryは同文の別doc/別workspace、null/空version、位置だけ変わるraw、generation順序、LRUとbyte cap、Partial/Failed/取消除外を確認します。旧要求とRemove/Clearの競合は二つの解析slotを押さえて作るため、sleepや大量編集に依存しません。entry capの確認には65件の小さい入力だけを使います。Dispose後も返したfactsが変わらないこと、legacy結果をstrict cacheへ入れないこと、loaded YAML identityも確認します。
+
+Generatorsの準備済みnetstandard assemblyを同じnet10 CLRで読み、metadata contractだけを確認します。固定source artifactを復元してRoslynへ実装を読み込ませる検証はまだ行っていません。その後続ゲートをこのcanaryで代用しません。
+
+必要な検証はcanary graphのrestore、canary build/run、source選択guardの小さいnegative target確認です。CoreとGeneratorの変更を含め、15〜25秒を仮の見込みとしました。最終実測は下記に記録しています。full solution/test、千回編集測定、benchmark、coverage、pack/publishは実行しません。許可枠で最終コードまで確認し、所有build/test PID0を先に報告してからtask限定commit/pushとBocchiレビューへ返します。
+
+## CLIと静的確認
+
+Museの机上例は834/838 bytesで、合計1672がcap1668を超える計算を独立確認しました。実parserのサイズ値とは扱いません。Copilot Opus 5.5 highは要求・実モデルとeffortが一致し、Auto切替・tool・権限要求は0です。cache・予約・epoch・legacy分離の提示範囲には不具合を見つけませんでした。
+
+source選択targetのXML崩れは読み戻しでも検出し、編集スクリプトの文字列置換を修正してから全3 projectのXML parseを確認しました。CopilotのCoreへのidentity helper linkの指摘は提示snippet外の行で、最初の編集時から実装済みです。実compileとnegative targetは許可枠で確認し、成功しました。最新版一覧のGemini 3.8 Flash HighとYomiyasuは1ターンで校正し、助詞と未実行の表現3点だけを反映しました。Fast tierは使っていません。
+
+## 最終sourceの限定検証結果
+
+canary graph restore、Core/Generator/componentを含むcanary build/runは初回で成功し、buildは警告・エラー0です。MD-01〜03の既存確認と、MD-04のidentity・raw位置・LRU entry/byte cap・Partial/Failed/取消の除外・世代予約・Remove/Clear/Dispose・legacy分離・loaded YAML metadataを確認しました。source選択のversion未指定とwildcard指定は、target単体で意図した診断文とexit1になり、negative確認は成功です。実source artifactのrestore/compileは行っていません。
+
+選択した最終実行の合計は15.513秒です。調整中の待ち時間は含めません。restoreが変更したGeneratorsのlockfileはYamlDotNet requested rangeだけで、resolved18.1.0、contentHash、他の依存は不変です。検証後にsource codeは変更していません。
+
+記録した所有root PIDと子孫の残存は0です。共有compilerとMSBuild node reuseを無効にし、他taskのプロセスを停止していません。固定runtime/source artifact pair、actual source payloadのRoslyn host、manifestと復元graphの同版照合はMD-05/IN-01に残します。BocchiのMD-04実差分レビュー合格まで次taskへ進みません。

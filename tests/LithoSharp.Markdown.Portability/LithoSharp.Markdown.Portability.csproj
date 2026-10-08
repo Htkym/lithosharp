@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LithoSharp/LithoSharp.csproj" />
+    <ProjectReference Include="../../src/LithoSharp.Generators/LithoSharp.Generators.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/LithoSharp.Markdown/LithoSharp.Markdown.csproj" />
     <None Include="../LithoSharp.Tests/Fixtures/MarkdigBaseline/body-basics.md"
           Link="Fixtures/body-basics.md" CopyToOutputDirectory="PreserveNewest" />
@@ -21,5 +22,13 @@
     </MSBuild>
     <Error Condition="'@(_PortableMarkdownAssembly)' == ''" Text="Portable Markdown target output was not produced." />
     <Copy SourceFiles="@(_PortableMarkdownAssembly)" DestinationFolder="$(TargetDir)Portable/" />
+  </Target>
+  <Target Name="CopyPreparedMarkdownHostContract" BeforeTargets="CopyFilesToOutputDirectory">
+    <MSBuild Projects="$(MSBuildProjectDirectory)/../../src/LithoSharp.Generators/LithoSharp.Generators.csproj"
+             Targets="Build" BuildInParallel="false">
+      <Output TaskParameter="TargetOutputs" ItemName="_PreparedMarkdownHostAssembly" />
+    </MSBuild>
+    <Error Condition="'@(_PreparedMarkdownHostAssembly)' == ''" Text="Prepared Markdown host contract output was not produced." />
+    <Copy SourceFiles="@(_PreparedMarkdownHostAssembly)" DestinationFolder="$(TargetDir)Host/" />
   </Target>
 </Project>

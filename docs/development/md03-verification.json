@@ -1,6 +1,6 @@
 {
   "task": "MD-03",
-  "state": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "state": "REVIEW_PASSED",
   "baseSha": "eaacf27f0cbaa05d5ef62e32fda02890864412df",
   "md02Review": "PASS by Bocchi all14-file diff",
   "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
@@ -388,5 +388,10 @@
     ],
     "verified": "Only the new Markdown ProjectReference and exact YamlDotNet18.1.0 project dependency entries; existing package versions/contentHash/other TFMs unchanged",
     "developmentProjectVersion": "[1.0.0, ) comes from SDK default development project identity, not a chosen released artifact version. MD-05/IN-01 fixes exact package identities."
+  },
+  "bocchiReview": {
+    "state": "PASS",
+    "reviewedSha": "00d18f770afc529949429ff4ab6b9e59432d870b",
+    "scope": "all25-file actual diff; runtime ownership/text/scanner/policy/canary; artifact/actual host gates remain later"
   }
 }

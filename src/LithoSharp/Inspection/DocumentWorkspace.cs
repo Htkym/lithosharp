@@ -5,7 +5,7 @@ namespace LithoSharp.Inspection;
 /// <summary>文書検査の利用境界と寿命を表します。</summary>
 /// <remarks>T02の静的InspectをSiteGeneratorやCLIの起動から分離し、workspace単位でsnapshotの所有者を固定します。返したDocumentInfoは不変snapshotであり、再検査や破棄で書き換わりません。破棄済みのsnapshot参照は有効なままです。workerやhandleや一時領域を作らず、所有するmemory cacheのみ破棄します。1件の失敗は他件の保存内容を壊しません。
 /// CPU解析は寿命lockの外で実行し、lockは状態遷移とsnapshot交換に限定します。版数付き検査では予約時と完了時の両方で文書版数とproject generationを照合し、遅い旧要求が新しい結果を上書きしません。</remarks>
-public sealed class DocumentWorkspace : IAsyncDisposable
+public sealed partial class DocumentWorkspace : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, DocumentInfo> _snapshots = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, DocumentEntry> _entries = new(StringComparer.Ordinal);
@@ -312,6 +312,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
     {
         lock (_lifetimeLock)
         {
+            RemoveMarkdownFacts(key);
             if (_entries.TryGetValue(key, out var entry))
             {
                 entry.Epoch++;
@@ -342,6 +343,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         lock (_lifetimeLock)
         {
             _disposed = true;
+            ClearMarkdownFacts();
             active = _activeAnalyses.ToList();
             pending = _entries.Values.Select(entry => entry.Pending).OfType<CancellationTokenSource>().ToList();
             foreach (var source in pending)

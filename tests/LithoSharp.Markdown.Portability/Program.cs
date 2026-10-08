@@ -86,6 +86,7 @@ Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoad
 MarkdownFactsChecks.Run();
 Md02ReviewFixChecks.Run(runtime, portable);
 Md03AdapterChecks.Run(product, runtime, portable);
+await Md04CacheChecks.Run(product, runtime);
 
 static object Parse(Assembly assembly, string input)
 {
