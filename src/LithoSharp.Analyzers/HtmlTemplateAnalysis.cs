@@ -23,7 +23,7 @@ internal sealed class HtmlTemplateAnalysis
         "Interpolation is in the {0} HTML position", DiagnosticSeverity.Error);
     private static readonly DiagnosticDescriptor Encoding = Rule("LSA1104", "HTML encoding in a script or style context",
         "HTML encoding does not establish safety in the {0} context", DiagnosticSeverity.Warning);
-    internal static ImmutableArray<DiagnosticDescriptor> Rules => ImmutableArray.Create(Raw, Fragment, Position, Encoding);
+    internal static ImmutableArray<DiagnosticDescriptor> Rules => ImmutableArray.Create(Raw, Fragment, Position, Encoding, HtmlLiteralAnalysis.Rule);
     internal const int MaxTemplateLength = 65536;
     internal const int MaxHoles = 256;
     private readonly IMethodSymbol raw;
@@ -65,6 +65,7 @@ internal sealed class HtmlTemplateAnalysis
         if (value.Values is null)
             Report(Raw, argument.Syntax.GetLocation(), value.Reason?.EndsWith("-budget", StringComparison.Ordinal) == true ? "Deferred" : "Unknown",
                 value.Reason ?? "unverified-raw", value.Reason ?? "unverified-raw");
+        HtmlLiteralAnalysis.Analyze(context, argument);
         var syntax = argument.Syntax;
         while (syntax is ParenthesizedExpressionSyntax parenthesized) syntax = parenthesized.Expression;
         if (syntax is not InterpolatedStringExpressionSyntax template || template.Span.Length > MaxTemplateLength

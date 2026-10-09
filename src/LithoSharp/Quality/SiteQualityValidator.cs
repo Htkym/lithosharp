@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using LithoSharp.Diagnostics;
 using LithoSharp.Routing;
+using LithoSharp.Internal;
 
 namespace LithoSharp.Quality;
 
@@ -160,22 +161,19 @@ internal static class SiteQualityValidator
         void CheckReference(string value, Uri resolutionBase, string path, bool navigation, bool resource, QualityHtmlElement? element)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (resource && string.IsNullOrWhiteSpace(value))
+            var issue = SiteQualityUrlRules.Resolve(value, resource, resolutionBase, out var address);
+            if (issue != SiteQualityUrlIssue.None)
             {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, "A resource URL is empty.", path, element);
-                return;
-            }
-            if (!Uri.TryCreate(resolutionBase, value.Trim(), out var address))
-            {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, $"Invalid URL '{value}'.", path, element);
+                var message = issue switch
+                {
+                    SiteQualityUrlIssue.EmptyResource => "A resource URL is empty.",
+                    SiteQualityUrlIssue.InvalidReference => $"Invalid URL '{value}'.",
+                    _ => $"Unsupported URL '{value}'.",
+                };
+                Add("LSQ001", SiteDiagnosticSeverity.Error, message, path, element);
                 return;
             }
             if (address.Scheme is "mailto" or "tel" or "data") return;
-            if (address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0)
-            {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, $"Unsupported URL '{value}'.", path, element);
-                return;
-            }
             if (!string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase))
             {
                 externalLinks.TryAdd(new UriBuilder(address) { Fragment = string.Empty }.Uri.AbsoluteUri, Location(path, element));

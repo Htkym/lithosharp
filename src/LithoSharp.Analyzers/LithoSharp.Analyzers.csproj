@@ -21,6 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Shared/StaticApiGuards.cs" />
+    <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Shared/SiteQualityUrlRules.cs" />
     <Compile Include="../LithoSharp/Routing/SiteRoute.cs" Link="Shared/SiteRoute.cs" />
     <Compile Include="../LithoSharp/Diagnostics/SiteDiagnosticSeverity.cs" Link="Shared/SiteDiagnosticSeverity.cs" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />

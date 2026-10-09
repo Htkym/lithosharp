@@ -49,12 +49,44 @@ per tag/attribute name, in addition
 to the static flow's existing graph/operation/depth budgets. Excess work is Deferred
 without an added definite context Error. Concatenated/flow-derived templates, finite
 sets of template prefixes, arbitrary formatting and arbitrary interface dispatch
-are Deferred for context rules; static raw-content Info may still apply. Literal
-HTML URL validation (LSA1105), CodeFix and complete HTML conformance are separate
-tasks. Raw-text fake tags do not switch the cursor into an attribute context.
+are Deferred for interpolation context rules; static raw-content Info may still apply.
+LSA1105 now uses the separate direct-literal contract below. CodeFix and complete
+HTML conformance remain separate. Raw-text fake tags do not switch the cursor into an attribute context.
 
 Locations are the Roslyn original expression spans, not offsets reconstructed from
 decoded HTML. Normal, verbatim, raw/multiline raw and escaped tokens therefore keep
 their source coordinates, including surrogate pairs and indentation. Rules respect
 generated-code exclusion, cancellation and ordinary diagnostic suppression. No
 cross-compilation state or user-code execution is used.
+
+## Direct literal URL contract (RA-04B / LSA1105)
+
+The same UnsafeRaw(string) metadata sink accepts direct normal, verbatim and raw
+string literals for URL analysis. Parentheses are permitted. This first scope does
+not infer HTML from arbitrary strings, const/flow variables, concatenations or
+interpolations, including constant holes. Those composite inputs remain Deferred
+for LSA1105, even if another bounded static-value rule knows their resulting text.
+
+The existing host-safe HtmlLiteralFacts bridge supplies the actual repaired tree's
+URL attributes, decoded entity values, raw source ranges and rel metadata. Parsing
+must finish Complete with no incomplete-coverage diagnostic. Partial/Failed trees
+produce no LSA1105, including bad URLs seen before the incomplete suffix. Compiler
+limits are 65,536 decoded units, 655,360 source units, 8,192 nodes, depth 128 and
+262,144 tree operations. Mapping must match Roslyn ValueText exactly; normal escapes,
+verbatim quote doubling and raw indentation/CRLF are mapped to original UTF-16 spans.
+An empty URL has a zero-length location at its original value boundary.
+
+LSA1105 is Error only for a base-independent LSQ001 issue: empty/whitespace resource
+URLs, explicit-scheme malformed absolute references, unsupported absolute schemes
+or HTTP(S) userinfo. The pure checks are shared with runtime SiteQualityValidator.
+Runtime trimming and allowance of mailto/tel/data are retained. Relative, rooted
+and protocol-relative references require the actual base/site graph and remain
+Deferred. There is no invented origin/base used to prove a compiler Error.
+
+The projection covers href (resource except a/area), src, poster, object data and
+form action, with unnamespaced attributes. It excludes base and every element whose
+rel tokens contain canonical, matching the runtime's policy,
+because their site policy differs. Namespaced xlink, srcset/CSS splitting, formaction,
+site membership/anchors and canonical-route correctness remain outside this scope.
+Inert template content and script fake tags follow the actual bridge tree, not a
+substring scan. The rule does not certify runtime URL validity or security.

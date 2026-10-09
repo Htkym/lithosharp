@@ -38,7 +38,8 @@ internal sealed record HtmlLiteralFacts(HtmlTokenizationStatus Status,
                     urls.Add(new(element.Name!, element.Namespace!, element.Source,
                         attribute.Name, attribute.Namespace, attribute.Prefix, attribute.RawName,
                         source.Substring(span.Start, span.Length), attribute.Value,
-                        line + 1, span.Start - starts[line] + 1));
+                        line + 1, span.Start - starts[line] + 1,
+                        element.Attributes.FirstOrDefault(a => a.Namespace is null && a.Name == "rel")?.Value.Value));
                 }
             }
         }
@@ -49,4 +50,4 @@ internal sealed record HtmlLiteralFacts(HtmlTokenizationStatus Status,
 // Names use the tree's HTML/foreign adjustments; RawName/Value preserve the original UTF-16 mapping.
 internal sealed record HtmlLiteralUrl(string ElementName, string ElementNamespace, HtmlSpan? ElementSource,
     string AttributeName, string? AttributeNamespace, string? AttributePrefix, HtmlText RawName,
-    string RawValue, HtmlText Value, int Line, int Column);
+    string RawValue, HtmlText Value, int Line, int Column, string? Rel = null);

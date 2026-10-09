@@ -41,6 +41,7 @@
 
   <ItemGroup>
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Internal/StaticApiGuards.cs" />
+    <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Internal/SiteQualityUrlRules.cs" />
     <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
     <!-- Immutable MD-05 runtime; component version is independent of the Core version. -->
     <PackageReference Include="Syntamark" Version="[$(SyntamarkComponentVersion)]" />

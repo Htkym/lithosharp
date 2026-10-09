@@ -35,7 +35,17 @@
     "unknownInterface": "IHtmlContent alone does not prove a raw fragment",
     "unknownHolePolicy": "invalidate subsequent context; encoded holes also invalidate pending raw-text closing-tag prefixes; never substitute holes into a document parser",
     "deferred": ["concatenated/flow-derived templates", "format/alignment type classification", "unknown prior holes", "ambiguous/malformed HTML", "declarations", "foreign/RCDATA/special HTML modes", "script escaped states", "comment holes", "template budgets"],
-    "notImplemented": ["LSA1105", "CodeFix", "full HTML conformance", "arbitrary template handlers"]
+    "notImplemented": ["CodeFix", "full HTML conformance", "arbitrary template handlers"]
+  },
+  "literalHtml": {
+    "task": "RA-04B", "id": "LSA1105", "severity": "Error",
+    "sink": "exact Html.UnsafeRaw(string) metadata overload; direct normal/verbatim/raw string literal only",
+    "bridge": "HtmlLiteralFacts/CompactHtmlTreeBuilder compiled privately from the same portable source",
+    "runtimeRule": "LSQ001/SiteQualityUrlRules base-independent projection",
+    "budgets": { "decodedUtf16Length": 65536, "sourceUtf16Length": 655360, "nodes": 8192, "depth": 128, "operations": 262144 },
+    "errorPolicy": "complete tree without incomplete-coverage diagnostics; exact verified source map; empty resource or explicit absolute-scheme malformed/unsupported/credential URL",
+    "origin": "original attribute value URL UTF16 range through validated C# escape/verbatim/raw-indent map; no fabricated substring",
+    "deferred": ["Partial/Failed tree", "unknown or unmappable source", "dynamic/constant interpolation", "concatenation", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "srcset/CSS URL splitting", "unregistered formaction", "budgets"]
   },
   "notImplemented": ["CodeFix", "Closed coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }

@@ -153,6 +153,12 @@ public sealed partial class AnalyzerPackageHostTests
                     == (int)analyzers[0].GetType().Assembly.GetType("LithoSharp.Analyzers." + type)!
                         .GetField(field, BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()!,
                     "Packed HTML budget manifest matches executable analyzer: " + key);
+            var literal = analyzers[0].GetType().Assembly.GetType("LithoSharp.Analyzers.HtmlLiteralAnalysis")!;
+            foreach (var (key, field) in new[] { ("decodedUtf16Length", "MaxInputLength"), ("sourceUtf16Length", "MaxSourceLength"),
+                ("nodes", "MaxNodes"), ("depth", "MaxDepth"), ("operations", "MaxOperations") })
+                Check(contract.RootElement.GetProperty("literalHtml").GetProperty("budgets").GetProperty(key).GetInt32()
+                    == (int)literal.GetField(field, BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()!,
+                    "Packed literal HTML budget manifest matches executable analyzer: " + key);
             return new(path, version, Sha(bytes), analyzers[0].GetType().Assembly, analyzers);
         }
     }

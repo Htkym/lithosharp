@@ -10,3 +10,4 @@ LSA1101 | LithoSharp | Info | Unverified contents passed to the exact Html.Unsaf
 LSA1102 | LithoSharp | Error | Proven raw HTML fragment in a known quoted attribute interpolation.
 LSA1103 | LithoSharp | Error | Interpolation in a known tag name, attribute name or unquoted attribute position.
 LSA1104 | LithoSharp | Warning | HTML encoded interpolation in a known script, style or event handler context.
+LSA1105 | LithoSharp | Error | Complete direct literal HTML has a base-independent URL violation of shared LSQ001 rules.

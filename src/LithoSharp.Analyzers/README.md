@@ -44,6 +44,10 @@ Interpolation in a known tag name, attribute name or unquoted attribute value pr
 
 HTML encoding in a known script/style body, quoted event handler or style attribute produces Warning. Html.Encode and the two sealed encoded wrappers do not establish JavaScript/CSS safety. Choose appropriate serialization manually.
 
-The exact template scope, supported output symbols, budgets, original source spans and unsupported/Deferred cases are recorded in `html-template-context-spec.md`. Suppress individual rules using normal compiler/editor configuration or a documented pragma after reviewing the output contract. LSA1105 and arbitrary/concatenated templates remain outside this implementation.
+The exact template scope, supported output symbols, budgets, original source spans and unsupported/Deferred cases are recorded in `html-template-context-spec.md`. Suppress individual rules using normal compiler/editor configuration or a documented pragma after reviewing the output contract. Arbitrary/concatenated templates remain outside the registered interpolation context scope.
+
+### LSA1105
+
+Direct normal/verbatim/raw HTML literals passed to `Html.UnsafeRaw(string)` use the same portable HTML bridge and pure LSQ001 URL checks as the runtime. Error requires a Complete parse, an exact original URL span, and a base-independent violation: an empty resource URL, malformed explicit absolute scheme, unsupported scheme or HTTP(S) userinfo. Entity decoding follows the bridge. Relative/protocol-relative references, site membership, canonical/base policy, srcset/CSS splitting and composite/dynamic inputs are Deferred. Partial/Failed parses never produce a definite literal URL Error. See `html-template-context-spec.md` for the exact contract and budgets.
 
 このpreviewは未公開の開発候補です。全SDK/VS/C#拡張の認定やCodeFix出荷を示しません。
