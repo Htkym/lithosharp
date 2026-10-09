@@ -31,14 +31,15 @@ internal sealed partial class HtmlTokenizer
     public IReadOnlyList<HtmlTokenizationDiagnostic> Diagnostics => diagnostics.AsReadOnly();
     public int ConsumedRawChars => position;
 
-    public void SetContext(HtmlTextMode mode, string? endTag = null, bool allowCdata = false)
+    public void SetContext(HtmlTextMode mode, string? endTag = null, bool allowCdata = false, bool fragment = false)
     {
         if (finished || aborted) throw new InvalidOperationException("Tokenization has ended.");
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
-        if (mode is HtmlTextMode.RcData or HtmlTextMode.RawText or HtmlTextMode.ScriptData && string.IsNullOrEmpty(endTag))
+        if (!fragment && (mode is HtmlTextMode.RcData or HtmlTextMode.RawText or HtmlTextMode.ScriptData) && string.IsNullOrEmpty(endTag))
             throw new ArgumentException("A text element name is required.", nameof(endTag));
         this.mode = mode;
-        this.endTag = endTag is null ? null : Lower(endTag);
+        // Fragment parsing has no previous start tag, hence no appropriate end tag.
+        this.endTag = fragment || endTag is null ? null : Lower(endTag);
         this.allowCdata = allowCdata;
         scriptState = ScriptState.Normal;
     }
