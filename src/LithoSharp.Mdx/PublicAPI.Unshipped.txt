@@ -1,4 +1,5 @@
 #nullable enable
+LithoSharp.Mdx.MdxSite.InspectCatalogAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SiteCatalogPreflightContribution!>!
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPageIds.init -> void
 LithoSharp.Mdx.MdxBuildMetrics.RebundledPages.get -> int

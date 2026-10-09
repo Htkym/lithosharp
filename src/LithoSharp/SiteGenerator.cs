@@ -285,6 +285,9 @@ public sealed partial class SiteGenerator
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
         ArgumentNullException.ThrowIfNull(options.Extensions);
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
+            .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
+        if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
         var extensionDiagnostics = new List<SiteDiagnostic>();
         foreach (var extension in options.Extensions)
         {
@@ -296,6 +299,8 @@ public sealed partial class SiteGenerator
             ArgumentNullException.ThrowIfNull(contribution.Assets);
             ArgumentNullException.ThrowIfNull(contribution.Diagnostics);
             extensionDiagnostics.AddRange(contribution.Diagnostics);
+            if (extensionDiagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
+                throw new SiteQualityValidationException(new SiteQualityReport(extensionDiagnostics));
             options = options with
             {
                 ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],

@@ -15,6 +15,8 @@ internal static class FactoryHost
         string? responsePath = null;
         string? outputDirectory = null;
         var format = SiteDiagnosticFormat.Text;
+        var preflight = false;
+        var preflightStage = "factory";
         HostResponse response;
         try
         {
@@ -31,7 +33,8 @@ internal static class FactoryHost
             if (!Directory.Exists(projectDirectory))
                 throw new ArgumentException($"Project directory '{projectDirectory}' does not exist.");
             var command = Required(options, "--command");
-            if (command is not ("build" or "check" or "inspect" or "clean"))
+            preflight = command == "preflight";
+            if (command is not ("build" or "check" or "inspect" or "clean" or "preflight"))
                 throw new ArgumentException($"Unknown host command '{command}'.");
             format = options.GetValueOrDefault("--format", "text") switch
             {
@@ -61,6 +64,8 @@ internal static class FactoryHost
                 var factory = (ISiteFactory)Activator.CreateInstance(factories[0])!;
                 definition = await factory.CreateAsync(new SiteFactoryContext(projectDirectory), cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("The site factory returned no definition.");
+                cancellationToken.ThrowIfCancellationRequested();
+                preflightStage = "catalog";
                 outputDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(
                     options.GetValueOrDefault("--output") ?? definition.OutputDirectory, projectDirectory));
                 var projectFromOutput = Path.GetRelativePath(outputDirectory, projectDirectory);
@@ -68,7 +73,14 @@ internal static class FactoryHost
                     && projectFromOutput != ".." && !projectFromOutput.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
                     throw new ArgumentException("The output directory must not contain the project directory or be a file system root.");
                 var generator = new SiteGenerator();
-                if (command == "clean")
+                if (command == "preflight")
+                {
+                    var report = await generator.PreflightCatalogAsync(definition, cancellationToken).ConfigureAwait(false);
+                    response = new HostResponse { Success = report.Succeeded, ExitCode = report.Succeeded ? 0 : 1,
+                        Diagnostics = ToHostDiagnostics(report.Diagnostics),
+                        Preflight = new(report.Mode, report.Stage, report.DeferredReasons.ToArray()) };
+                }
+                else if (command == "clean")
                 {
                     var removed = await generator.CleanAsync(outputDirectory, cancellationToken).ConfigureAwait(false);
                     response = new HostResponse
@@ -166,6 +178,8 @@ internal static class FactoryHost
             };
         }
 
+        if (preflight && response.Preflight is null)
+            response = response with { Preflight = new("trusted-catalog", preflightStage, ["Render was not invoked."]) };
         if (responsePath is null)
         {
             await Console.Error.WriteLineAsync(response.Error ?? "A host response path is required.").ConfigureAwait(false);
@@ -246,7 +260,7 @@ internal static class FactoryHost
         catch (Exception exception) when (exception is UriFormatException or ArgumentException) { return null; }
     }
 
-    private static HostDiagnostic[] ToHostDiagnostics(IEnumerable<SiteDiagnostic> diagnostics) =>
+    internal static HostDiagnostic[] ToHostDiagnostics(IEnumerable<SiteDiagnostic> diagnostics) =>
         diagnostics.Select(diagnostic => new HostDiagnostic(
             diagnostic.Id,
             diagnostic.Severity.ToString(),
@@ -314,6 +328,8 @@ internal static class FactoryHost
 
 internal sealed record HostResponse
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public HostPreflightReport? Preflight { get; init; }
     public string SchemaVersion { get; init; } = MachineOutput.SchemaVersion;
     public bool Success { get; init; }
     public HostDiagnostic[] Diagnostics { get; init; } = [];

@@ -23,6 +23,7 @@ internal static class Cli
         if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
         if (args[0] == "cache") return CacheCommand.Run(args[1..]);
         if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
+        if (args[0] == "preflight") return await PreflightCommand.RunAsync(args[1..], cancellationToken);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
             return await ContentCommands.RunAsync(args, cancellationToken);
         if (args[0] == "migrate" && args.Length > 1 && args[1] == "docusaurus")
@@ -210,6 +211,8 @@ internal static class Cli
           lithosharp check [project] [--format text|json|sarif] [-c configuration]
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
+          lithosharp preflight --mode static --input file.md [--input file.mdx] [--format text|json|sarif] [--worker-directory directory]
+          lithosharp preflight project.csproj --mode trusted [--input file.md] [--format text|json|sarif] [--configuration configuration]
         """);
 }
 

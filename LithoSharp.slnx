@@ -3,6 +3,7 @@
     <Project Path="src/LithoSharp/LithoSharp.csproj" />
     <Project Path="src/LithoSharp.Generators/LithoSharp.Generators.csproj" />
     <Project Path="src/LithoSharp.Analyzers/LithoSharp.Analyzers.csproj" />
+    <Project Path="src/LithoSharp.CodeFixes/LithoSharp.CodeFixes.csproj" />
     <Project Path="src/LithoSharp.Images/LithoSharp.Images.csproj" />
     <Project Path="src/LithoSharp.Tool/LithoSharp.Tool.csproj" />
     <Project Path="src/LithoSharp.Testing/LithoSharp.Testing.csproj" />

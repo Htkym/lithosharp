@@ -59,7 +59,23 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1203/1204", "LSA130x/140x/9001", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1402/1403", "LSA9001", "whole-site publication coverage", "anchors/assets"]
   },
-  "notImplemented": ["CodeFix", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+  "generatedPageReference": {
+    "task": "RA-06", "id": "LSA1401", "severity": "Info", "enabledByDefault": true,
+    "sink": "exact public metadata LithoSharp.Content.StaticSiteManifest.GetUrl(string); parameter ordinal 0; direct generated static manifest property receiver",
+    "argument": "direct string literal only; exact ordinal public path already present in the fresh Closed manifest",
+    "origin": "entire original argument literal UTF16 span; no generated reference location or inferred substring",
+    "proof": ["current compiler fingerprint and AdditionalText route metadata", "verified immutable generated Manifest and Catalog initializers", "one canonical generated PageRef in the same catalog with matching entry ID, PageId and route", "all Pages initializers are canonical pure catalog references", "no explicit collection or Pages static constructor", "no reentrant user static field/property initializers; only verified default generated Binder initialization"],
+    "codeFix": {
+      "package": "LithoSharp.CodeFixes, separate Roslyn 4.14 IDE Workspaces assembly",
+      "replacement": "fully qualified generated PageRef.Route.PublicPath replaces only the literal; preserves trivia, original receiver, GetUrl(string) overload and runtime guard",
+      "revalidation": "current compiler inputs at registration and application; stale solution/document snapshots return the current solution without applying the edit",
+      "fixAll": false
+    },
+    "suppression": "standard Roslyn per-ID severity, editorconfig, NoWarn and original-source pragma; suppression does not remove runtime guards",
+    "noFix": ["Open/Stale/Unavailable", "ambiguous generated page references", "unverified handwritten initializers", "arbitrary expressions or flow-derived values", "user-defined conversions", "getters or side effects", "explicit static constructors or reentrant user initialization", "stale workspace snapshots"],
+    "notImplemented": ["FixAll", "LSA1402", "LSA1403", "other CodeFix actions", "native IDE UI/undo certification"]
+  },
+  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "FixAll", "LSA1402/1403", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }

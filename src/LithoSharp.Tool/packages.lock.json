@@ -53,6 +53,12 @@
           "Syntamark": "[2.0.0-preview.3, 2.0.0-preview.3]",
           "YamlDotNet": "[18.1.0, )"
         }
+      },
+      "lithosharp.mdx": {
+        "type": "Project",
+        "dependencies": {
+          "LithoSharp": "[1.1.0, )"
+        }
       }
     }
   }

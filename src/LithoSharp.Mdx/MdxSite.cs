@@ -9,12 +9,13 @@ using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Routing;
+using LithoSharp.Inspection;
 
 namespace LithoSharp.Mdx;
 
 /// <summary>Compiles all registered MDX collections with one shared React graph and persistent worker.</summary>
 /// <remarks>Dispose after the final build or watch session. MDX is trusted build code, not a sandbox.</remarks>
-public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
+public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtension, IAsyncDisposable
 {
     private readonly MdxOptions options;
     private readonly MdxWorker worker;
@@ -62,14 +63,16 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
             var collection = loaded.Collection!;
             var published = collection.Entries.Where(entry => PagePublicationPolicy.ShouldPublish(
                 collection.PublicationMapper(entry), context.BuildTimestamp, context.Options.EnvironmentName)).ToArray();
-            var pages = published.Select(entry => new Page(
+            var pages = published.Select(entry => {
+                SiteRoute? route = null;
+                return new Page(
                 "mdx-" + Hash(Encoding.UTF8.GetBytes(ContentPageIdentity.Create(collection.Id, entry.Id)))[..24],
                 RelativeSource(Path.Combine(collection.InputRoot, entry.SourcePath)), entry.Body.CompilerSource,
-                collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl).PublicPath,
+                (route = collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl)).PublicPath,
                 collection.PublicationMapper(entry).Title ?? string.Empty,
                 collection.PublicationMapper(entry).Description,
                 (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, collection.PublicationMapper(entry).Language ?? context.Site.Language,
-                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs)).ToArray();
+                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs) { Route = route! }; }).ToArray();
             return new Loaded(pages, results =>
             {
                 var entries = published.Select((entry, index) =>
@@ -107,6 +110,30 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
                 { RendererFingerprint = options.Cacheable ? "mdx-v1" : null, IsThreadSafe = renderer is null };
             }, loadDiagnostics);
         });
+    }
+
+    /// <summary>Loads actual MDX catalog inputs and analyzes their syntax without running modules, plugins, SSR or bundling.</summary>
+    public async Task<SiteCatalogPreflightContribution> InspectCatalogAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var loaded = new List<Loaded>();
+            foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
+            var pages = loaded.SelectMany(value => value.Pages).ToArray();
+            var diagnostics = loaded.SelectMany(value => value.Diagnostics).ToList();
+            await using var analysis = new MdxInspectionSession(options);
+            foreach (var page in pages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await analysis.AnalyzeAsync(page.Source, page.Code, cancellationToken: cancellationToken).ConfigureAwait(false);
+                diagnostics.AddRange(result.Diagnostics);
+            }
+            return new(pages.Select(page => new SitePreflightRoute(page.Route, page.Id, new SiteSourceLocation(page.Source))), diagnostics);
+        }
+        finally { gate.Release(); }
     }
 
     /// <inheritdoc />
@@ -625,6 +652,10 @@ public sealed class MdxSite : ISiteBuildExtension, IAsyncDisposable
         };
     }
 
-    private sealed record Page(string Id, string Source, string Code, string Url, string Title, string? Description, JsonElement Props, string Locale, bool Discoverable, IReadOnlyList<CapturedContentInput> CapturedInputs);
+    private sealed record Page(string Id, string Source, string Code, string Url, string Title, string? Description, JsonElement Props, string Locale, bool Discoverable, IReadOnlyList<CapturedContentInput> CapturedInputs)
+    {
+        [System.Text.Json.Serialization.JsonIgnore]
+        public SiteRoute Route { get; init; } = null!;
+    }
     private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics);
 }

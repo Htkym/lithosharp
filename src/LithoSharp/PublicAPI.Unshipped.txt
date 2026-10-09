@@ -630,3 +630,26 @@ LithoSharp.Content.StaticSiteManifestSourceAttribute.StaticSiteManifestSourceAtt
 LithoSharp.Content.StaticSiteManifestSourceAttribute.Variant.get -> string!
 static LithoSharp.Content.StaticSiteManifest.Create(LithoSharp.Content.StaticContentCatalog! catalog, string! sourceFingerprint) -> LithoSharp.Content.StaticSiteManifest!
 static LithoSharp.Content.StaticSiteManifest.Open(LithoSharp.Content.StaticContentCatalog! catalog, System.Func<string!, LithoSharp.SiteUrl!>? resolver = null) -> LithoSharp.Content.StaticSiteManifest!
+LithoSharp.Inspection.ISiteCatalogPreflightExtension
+LithoSharp.Inspection.ISiteCatalogPreflightExtension.InspectCatalogAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SiteCatalogPreflightContribution!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution
+LithoSharp.Inspection.SiteCatalogPreflightContribution.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution.Routes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.SitePreflightRoute!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution.SiteCatalogPreflightContribution(System.Collections.Generic.IEnumerable<LithoSharp.Inspection.SitePreflightRoute!>! routes, System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> void
+LithoSharp.Inspection.SitePreflight
+LithoSharp.Inspection.SitePreflightReport
+LithoSharp.Inspection.SitePreflightReport.DeferredReasons.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.SitePreflightReport.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Inspection.SitePreflightReport.Mode.get -> string!
+LithoSharp.Inspection.SitePreflightReport.Stage.get -> string!
+LithoSharp.Inspection.SitePreflightReport.Succeeded.get -> bool
+LithoSharp.Inspection.SitePreflightReport.ThrowIfFailed() -> void
+LithoSharp.Inspection.SitePreflightRoute
+LithoSharp.Inspection.SitePreflightRoute.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Inspection.SitePreflightRoute.OwnerId.get -> string!
+LithoSharp.Inspection.SitePreflightRoute.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Inspection.SitePreflightRoute.SitePreflightRoute(LithoSharp.Routing.SiteRoute! route, string! ownerId, LithoSharp.Diagnostics.SiteSourceLocation? location = null) -> void
+LithoSharp.SiteGenerator.PreflightCatalogAsync(LithoSharp.SiteDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SitePreflightReport!>!
+LithoSharp.SiteGenerator.PreflightFactoryAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<LithoSharp.SiteDefinition!>!>! createDefinition, LithoSharp.Inspection.SitePreflightReport! sourceReport, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SitePreflightReport!>!
+static LithoSharp.Inspection.SitePreflight.FromDiagnostics(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> LithoSharp.Inspection.SitePreflightReport!
+static LithoSharp.Inspection.SitePreflight.InspectMarkdown(string! sourcePath, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.SitePreflightReport!

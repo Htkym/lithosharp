@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="[4.14.0]" />
+    <PackageReference Include="TUnit" Version="1.72.16" />
+    <Using Include="TUnit.Core" />
+    <Compile Include="../LithoSharp.Analyzers.Tests/PackedHostFixture.cs" Link="PackedHost.cs" />
+    <Compile Include="../LithoSharp.Analyzers.Tests/ManifestHostFixture.cs" Link="ManifestHost.cs" />
+  </ItemGroup>
+</Project>
