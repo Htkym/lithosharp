@@ -229,9 +229,16 @@ if (installed) {
   await fs.mkdir(isolatedEnv.NUGET_PACKAGES);
   await fs.mkdir(isolatedEnv.DOTNET_CLI_HOME);
   const config = path.join(workspace, 'NuGet.Config');
+  const componentFeed = path.join(owned, 'markdown-fixed');
+  const repo = path.resolve(root, '..', '..');
+  const pair = JSON.parse(await fs.readFile(path.join(repo, 'docs', 'development', 'md05-artifact-pair.json'), 'utf8'));
+  assert.deepEqual(report.markdownComponent, pair.artifacts.runtime, 'Producer fixed runtime differs from the checked-out immutable pair.');
+  await exec('pwsh', ['-NoProfile', '-File', path.join(repo, 'eng', 'markdown', 'Copy-FixedRuntime.ps1'), '-PackageDirectory', componentFeed],
+    { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
   await fs.writeFile(config, '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="candidate" value="'
-    + escapeXml(feed) + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>'
-    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
+    + escapeXml(feed) + '"/><add key="markdown-fixed" value="' + escapeXml(componentFeed)
+    + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>'
+    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
   const toolDir = path.join(owned, 'tools');
   await exec('dotnet', ['tool', 'install', 'LithoSharp.Tool', '--version', packageVersion, '--tool-path', toolDir, '--configfile', config],
     { cwd: workspace, env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
@@ -277,7 +284,8 @@ if (installed) {
   await fs.writeFile(path.join(userData, 'User', 'settings.json'), JSON.stringify(settings));
   packageProvenance = { version: packageVersion, feed, packageHashes, tool, shimHash: await fileHash(tool),
     toolDll: toolDlls[0], toolPayloadHashes, expectedSiteCoreAssemblyHash: coreAssemblyHash,
-    nugetPackages: isolatedEnv.NUGET_PACKAGES, sourceMapping: 'LithoSharp* exclusively from exact local candidate feed' };
+    nugetPackages: isolatedEnv.NUGET_PACKAGES, markdownComponentFeed: componentFeed, markdownComponent: pair.artifacts.runtime,
+    sourceMapping: 'LithoSharp* from exact candidate feed; LithoSharp.Markdown from verified fixed component feed' };
   await fs.writeFile(path.join(owned, 'package-provenance.json'), JSON.stringify(packageProvenance, null, 2));
 }
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({
@@ -299,6 +307,11 @@ await runTests({
   launchArgs: [workspace, '--new-window', ...profile, '--disable-gpu', '--disable-workspace-trust',
     '--disable-extension=vscode.markdown-language-features', ...(process.env.LITHOSHARP_VERBOSE === '1' ? ['--verbose'] : [])],
 });
+if (installed) {
+  await exec('pwsh', ['-NoProfile', '-File', path.resolve(root, '..', '..', 'eng', 'markdown', 'Test-FixedRuntimeAssets.ps1'),
+    '-AssetsPath', path.join(workspace, 'obj', 'project.assets.json')],
+    { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
+}
 const result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
 assert.ok(result.started && result.finished && result.tests === (installed ? 5 : 3), 'Test runner did not execute the complete acceptance suite.');
 assert.equal(result.failures, 0);
