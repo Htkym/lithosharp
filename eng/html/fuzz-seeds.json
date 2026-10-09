@@ -1,0 +1,15 @@
+{
+  "profile": "lithosharp-html-tokenizer/1",
+  "runtime": "net10.0",
+  "generator": "System.Random",
+  "seed": 1702,
+  "samples": 256,
+  "minimumUtf16Length": 1,
+  "maximumUtf16Length": 159,
+  "alphabet": "<>!?/-='\"&;#x0Aa \r\n\u0000\ud800\udc00[]",
+  "assertions": [
+    "finite token count",
+    "token and mapped segment raw spans lie inside original input",
+    "mapped value segments cover each complete decoded value"
+  ]
+}

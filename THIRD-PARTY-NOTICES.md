@@ -35,3 +35,12 @@ notices under `licenses/` alongside their payloads.
 
 Original copyright and permission notices are preserved verbatim. Dependencies
 restored separately through NuGet or npm retain their own upstream notices.
+
+## WHATWG HTML named character references
+
+The internal HTML tokenizer contains the 2,231 named character reference entries
+from https://html.spec.whatwg.org/entities.json, retrieved on 2026-10-09.
+The generated representation and provenance are recorded under eng/html/.
+Upstream source code portions are available under the BSD 3-Clause license;
+the complete, unchanged WHATWG notice is retained in
+licenses/WHATWG.HTML.LICENSE.txt and included in the Core NuGet package.
