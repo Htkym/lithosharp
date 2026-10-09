@@ -1,4 +1,21 @@
 #nullable enable
+LithoSharp.Content.StaticContentCatalog
+LithoSharp.Content.StaticContentCatalog.StaticContentCatalog(LithoSharp.Content.ContentCollectionId! collectionId, System.Collections.Generic.IEnumerable<LithoSharp.Content.StaticContentCatalogEntry!>! entries, string! site = "", string! variant = "") -> void
+LithoSharp.Content.StaticContentCatalog.CollectionId.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.StaticContentCatalog.Site.get -> string!
+LithoSharp.Content.StaticContentCatalog.Variant.get -> string!
+LithoSharp.Content.StaticContentCatalog.Entries.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.StaticContentCatalogEntry!>!
+LithoSharp.Content.StaticContentCatalog.GetEntry(LithoSharp.Content.ContentEntryId! id) -> LithoSharp.Content.StaticContentCatalogEntry!
+LithoSharp.Content.StaticContentCatalog.GetRoute(LithoSharp.Content.ContentEntryId! id) -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.StaticContentCatalogEntry
+LithoSharp.Content.StaticContentCatalogEntry.StaticContentCatalogEntry(LithoSharp.Content.ContentEntryId! id, string! sourcePath, LithoSharp.Routing.SiteRoute! route) -> void
+LithoSharp.Content.StaticContentCatalogEntry.Id.get -> LithoSharp.Content.ContentEntryId!
+LithoSharp.Content.StaticContentCatalogEntry.SourcePath.get -> string!
+LithoSharp.Content.StaticContentCatalogEntry.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.StaticContentCollectionAttribute.Site.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.Site.set -> void
+LithoSharp.Content.StaticContentCollectionAttribute.Variant.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.Variant.set -> void
 const LithoSharp.ToolingCapabilities.DocumentInspection = "document-inspection" -> string!
 const LithoSharp.ToolingCapabilities.LanguageMarkdown = "markdown" -> string!
 const LithoSharp.ToolingCapabilities.LanguageMdx = "mdx" -> string!

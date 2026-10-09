@@ -327,6 +327,7 @@ public sealed class GeneratorTests
     [Arguments("pages")]
     [Arguments("entries")]
     [Arguments("ids")]
+    [Arguments("catalog")]
     public async Task ReservedGeneratedMemberNamesAreDiagnosed(string name)
     {
         var (_, diagnostics) = Generate(Model,
@@ -379,7 +380,151 @@ public sealed class GeneratorTests
         await Assert.That(properties.GetProperty("optional").EnumerateObject().Any()).IsFalse();
     }
 
+    [Test]
+    public async Task CatalogAndReferencesFollowIncrementalMetadataChanges()
+    {
+        var source = Model[..Model.IndexOf("public static class Probe", StringComparison.Ordinal)] + """
+            [StaticContentCollection(typeof(Front), typeof(string), "other")]
+            public static partial class Other { }
+            """;
+        var compilation = CreateCompilation(source);
+        var input = new Input("C:/site/content/intro.md", "---\ntitle: hello\n---\nBody");
+        AdditionalText text = new Text(input);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new StaticContentGenerator().AsSourceGenerator()], [text],
+            (CSharpParseOptions)compilation.SyntaxTrees.First().Options, new OptionsProvider());
+        foreach (var next in new[] { input, input with { Route = "changed/" },
+            input with { Id = "changed", Route = "changed/" },
+            input with { Id = "changed", Route = "changed/", Collection = "other" } })
+        {
+            var replacement = new Text(next);
+            driver = driver.ReplaceAdditionalText(text, replacement);
+            text = replacement;
+            driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
+            await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
+            using var stream = new MemoryStream();
+            await Assert.That(Errors(output.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+            var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+            var type = assembly.GetType(next.Collection == "guides" ? "Guides" : "Other")!;
+            var catalog = (StaticContentCatalog)type.GetProperty("Catalog")!.GetValue(null)!;
+            var declared = catalog.Entries.Single();
+            var page = (LithoSharp.Pages.PageRef<string>)type.GetNestedType("Pages")!.GetProperty("Content_Intro")!.GetValue(null)!;
+            var reference = type.GetNestedType("Entries")!.GetProperty("Content_Intro")!.GetValue(null)!;
+            var id = (ContentEntryId)type.GetNestedType("Ids")!.GetProperty("Content_Intro")!.GetValue(null)!;
+            await Assert.That(catalog.CollectionId.Value).IsEqualTo(next.Collection);
+            await Assert.That(declared.Id.Value).IsEqualTo(next.Id);
+            await Assert.That(declared.SourcePath).IsEqualTo("content/intro.md");
+            await Assert.That(declared.Route.PublicPath).IsEqualTo("/" + next.Route);
+            await Assert.That(ReferenceEquals(page.Route, declared.Route)).IsTrue();
+            await Assert.That(ReferenceEquals(reference.GetType().GetProperty("Route")!.GetValue(reference), declared.Route)).IsTrue();
+            await Assert.That(ReferenceEquals(id, declared.Id)).IsTrue();
+            await Assert.That(ReferenceEquals(catalog.GetRoute(id), declared.Route)).IsTrue();
+            if (next.Collection == "other")
+            {
+                var previous = (StaticContentCatalog)assembly.GetType("Guides")!.GetProperty("Catalog")!.GetValue(null)!;
+                await Assert.That(previous.Entries.Count).IsEqualTo(0);
+            }
+        }
+        driver = driver.RemoveAdditionalTexts([text]);
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out var deleted, out var deletedDiagnostics);
+        await Assert.That(Errors(deletedDiagnostics)).IsEqualTo(string.Empty);
+        await Assert.That(string.Join("\n", deleted.SyntaxTrees.Skip(1))).DoesNotContain("Content_Intro");
+    }
+
+    [Test]
+    public async Task SiteVariantMembershipScopesRoutesAndKeepsYamlDiagnosticsSingle()
+    {
+        const string source = """
+            using LithoSharp.Content;
+            public sealed class Front { public string Title { get; set; } = ""; public int Count { get; set; } }
+            [StaticContentCollection(typeof(Front), typeof(string), "guides", Site = "docs", Variant = "en")]
+            public static partial class English { }
+            [StaticContentCollection(typeof(Front), typeof(string), "guides", Site = "docs", Variant = "ja")]
+            public static partial class Japanese { }
+            [StaticContentCollection(typeof(Front), typeof(string), "guides", Site = "other", Variant = "en")]
+            public static partial class OtherSite { }
+            """;
+        var inputs = new[] {
+            new Input("C:/site/en/intro.md", "---\ntitle: hello\ncount: wrong\n---\n", Site: "docs", Variant: "en"),
+            new Input("C:/site/ja/intro.md", "---\ntitle: hello\nunknown: true\n---\n", Site: "docs", Variant: "ja"),
+            new Input("C:/site/other/intro.md", "---\ntitle: hello\n---\n", Site: "other", Variant: "en") };
+        var (output, diagnostics) = Generate(source, inputs);
+        await Assert.That(diagnostics.Count(d => d.Id == "LSG005")).IsEqualTo(1);
+        await Assert.That(diagnostics.Count(d => d.Id == "LSG006")).IsEqualTo(1);
+        await Assert.That(diagnostics.Any(d => d.Id is "LSG002" or "LSG003" or "LSG004")).IsFalse();
+        using var stream = new MemoryStream();
+        await Assert.That(Errors(output.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+        var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+        foreach (var (type, site, variant) in new[] { ("English", "docs", "en"), ("Japanese", "docs", "ja"), ("OtherSite", "other", "en") })
+        {
+            var catalog = (StaticContentCatalog)assembly.GetType(type)!.GetProperty("Catalog")!.GetValue(null)!;
+            await Assert.That(catalog.Site).IsEqualTo(site);
+            await Assert.That(catalog.Variant).IsEqualTo(variant);
+            await Assert.That(catalog.Entries.Single().Route.PublicPath).IsEqualTo("/intro/");
+        }
+        var (_, missingScope) = Generate(source, inputs[0] with { Site = "", Variant = "" });
+        await Assert.That(missingScope.Count(d => d.Id == "LSG002")).IsEqualTo(1);
+        var (_, nullScope) = Generate(source.Replace("Site = \"docs\"", "Site = null"), inputs[0]);
+        await Assert.That(nullScope.Count(d => d.Id == "LSG001")).IsEqualTo(2);
+        var (_, collision) = Generate(source, inputs[2], inputs[2] with { Path = "C:/site/other/second.md", Id = "second" });
+        await Assert.That(collision.Count(d => d.Id == "LSG004")).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments("Catalog", "", false, "Catalog")]
+    [Arguments("Binder", "", false, "Binder")]
+    [Arguments("Pages", "", false, "Pages")]
+    [Arguments("Guides", "public static object Catalog => new();", false, "Catalog")]
+    [Arguments("Guides", "public static class Ids { }", false, "Ids")]
+    [Arguments("Guides", "private sealed class BinderImpl { }", false, "BinderImpl")]
+    [Arguments("Guides", "public const string SchemaJson = \"existing\";", false, "SchemaJson")]
+    [Arguments("Guides", "public static void WriteJsonSchema(string path) { }", true, "WriteJsonSchema")]
+    public async Task GeneratedNamesCollidingWithDeclarationAreDiagnosed(string typeName, string member, bool emitSchema, string collision)
+    {
+        var source = CollisionDeclaration(typeName, member, emitSchema);
+        // No AdditionalFiles: declaration validation must not depend on inputs.
+        var (output, diagnostics) = Generate(source);
+        await Assert.That(Errors(diagnostics) + "\n" + Errors(output.GetDiagnostics())).Contains("LSG001");
+        var diagnostic = diagnostics.Single(d => d.Id == "LSG001");
+        await Assert.That(diagnostic.GetMessage()).Contains(collision);
+        await Assert.That(diagnostic.Location.IsInSource).IsTrue();
+        await Assert.That(output.SyntaxTrees.Count()).IsEqualTo(1);
+        using var stream = new MemoryStream();
+        await Assert.That(Errors(output.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+    }
+
+    [Test]
+    public async Task DisabledSchemaWriterDoesNotReserveItsName()
+    {
+        foreach (var source in new[] {
+            CollisionDeclaration("WriteJsonSchema", "", false),
+            CollisionDeclaration("Guides", "public static void WriteJsonSchema(string path) { }", false) })
+        {
+            var (output, diagnostics) = Generate(source);
+            await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
+            using var stream = new MemoryStream();
+            await Assert.That(Errors(output.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+        }
+    }
+
+    private static string CollisionDeclaration(string typeName, string member, bool emitSchema) => $$"""
+        using LithoSharp.Content;
+        public sealed class Front { public string Title { get; set; } = ""; }
+        [StaticContentCollection(typeof(Front), typeof(string), "guides", EmitJsonSchema = {{(emitSchema ? "true" : "false")}})]
+        public static partial class {{typeName}} { }
+        public static partial class {{typeName}} { {{member}} }
+        """;
+
     private static (Compilation Compilation, ImmutableArray<Diagnostic> Diagnostics) Generate(string source, params Input[] inputs)
+    {
+        var compilation = CreateCompilation(source);
+        var texts = inputs.Select(input => new Text(input)).ToArray();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new StaticContentGenerator().AsSourceGenerator()], texts,
+            (CSharpParseOptions)compilation.SyntaxTrees.First().Options, new OptionsProvider());
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
+        return (output, diagnostics);
+    }
+
+    private static CSharpCompilation CreateCompilation(string source)
     {
         var paths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Append(typeof(StaticContentCollectionAttribute).Assembly.Location)
@@ -388,14 +533,11 @@ public sealed class GeneratorTests
         var compilation = CSharpCompilation.Create("Generated_" + Guid.NewGuid().ToString("N"),
             [CSharpSyntaxTree.ParseText(source, parse)], paths.Select(path => MetadataReference.CreateFromFile(path)),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
-        var texts = inputs.Select(input => new Text(input)).ToArray();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create([new StaticContentGenerator().AsSourceGenerator()], texts, parse, new OptionsProvider());
-        driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
-        return (output, diagnostics);
+        return compilation;
     }
 
     private static string Errors(IEnumerable<Diagnostic> diagnostics) => string.Join("\n", diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-    private sealed record Input(string Path, string Content, string Id = "intro", string Route = "intro/", string Collection = "guides");
+    private sealed record Input(string Path, string Content, string Id = "intro", string Route = "intro/", string Collection = "guides", string Site = "", string Variant = "");
     private sealed class Text(Input input) : AdditionalText
     {
         public Input Input { get; } = input;
@@ -416,7 +558,9 @@ public sealed class GeneratorTests
             return new Options(new() {
                 ["build_metadata.AdditionalFiles.LithoSharpCollection"] = input.Collection,
                 ["build_metadata.AdditionalFiles.LithoSharpId"] = input.Id,
-                ["build_metadata.AdditionalFiles.LithoSharpRoute"] = input.Route });
+                ["build_metadata.AdditionalFiles.LithoSharpRoute"] = input.Route,
+                ["build_metadata.AdditionalFiles.LithoSharpSite"] = input.Site,
+                ["build_metadata.AdditionalFiles.LithoSharpVariant"] = input.Variant });
         }
     }
 }

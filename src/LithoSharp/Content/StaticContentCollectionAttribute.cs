@@ -30,4 +30,10 @@ public sealed class StaticContentCollectionAttribute : Attribute
     public bool EmitJsonSchema { get; set; }
     /// <summary>The content body type used by generated entry references. Defaults to Markdown strings.</summary>
     public Type BodyType { get; set; } = typeof(string);
+
+    /// <summary>Optional site identity used to select AdditionalFiles for this declaration.</summary>
+    public string Site { get; set; } = string.Empty;
+
+    /// <summary>Optional variant identity within the site.</summary>
+    public string Variant { get; set; } = string.Empty;
 }
