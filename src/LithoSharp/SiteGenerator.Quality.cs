@@ -7,6 +7,28 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
+    // Hash the exact inspected bytes, independently of text decoding and local-facts keys.
+    internal static async Task<string> ReadQualityTextAsync(string root, string path,
+        IDictionary<string, LithoSharp.Build.CachedBuildArtifact> inspected, CancellationToken cancellationToken)
+    {
+        await using var source = LithoSharp.Build.BuildInputFingerprint.OpenVerifiedContainedRead(
+            root, SafeCombine(root, path), asynchronous: true);
+        using var buffer = new MemoryStream();
+        await source.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+        inspected.Add(path, new(path, path, buffer.Length, Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)))));
+        buffer.Position = 0;
+        using var reader = new StreamReader(buffer, new System.Text.UTF8Encoding(false, true));
+        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static async Task VerifyQualityTextAsync(string root, LithoSharp.Build.CachedBuildArtifact artifact,
+        CancellationToken cancellationToken)
+    {
+        if (!await VerifyCachedArtifactAsync(root, artifact, cancellationToken).ConfigureAwait(false))
+            throw new IOException($"Quality-inspected output changed before publication: '{artifact.RelativePath}'.");
+    }
+
     private sealed record RedirectOutput(SiteRoute Source, SiteRoute Target, SiteTemplateFile File);
 
     private static IReadOnlyList<RedirectOutput> PrepareRedirects(

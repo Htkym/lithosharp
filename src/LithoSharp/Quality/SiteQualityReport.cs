@@ -44,6 +44,12 @@ public sealed class SiteQualityReport
     /// <summary>決定的な順序で並べた診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics { get; }
 
+    /// <summary>今回の最終 HTML 品質検査で解析したファイルの件数を取得します。検査未実施時は 0 です。</summary>
+    public int HtmlParseCount { get; internal init; }
+
+    /// <summary>今回の品質検査で内容と実装版が一致する局所 facts を再利用したファイルの件数を取得します。参照先と規則は再検査します。</summary>
+    public int HtmlFactsCacheHitCount { get; internal init; }
+
     /// <summary>指定形式で診断を出力します。</summary>
     /// <param name="format">テキスト、JSON、またはSARIF形式。</param>
     /// <returns>整列済み診断の文字列表現。</returns>

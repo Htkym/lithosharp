@@ -567,6 +567,7 @@ public sealed partial class SiteGenerator
             : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
 
         var outputScope = options.OutputScope.Select(SiteRoute.NormalizeRelativeOutputPath).ToArray();
+        var qualityPlan = buildPlan;
         if (outputScope.Length > 0 && (clean || !Directory.Exists(outputRoot)))
             throw new ArgumentException("A subset build requires an existing full output and clean=false.", nameof(options));
         bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
@@ -587,12 +588,20 @@ public sealed partial class SiteGenerator
                 cacheOptions: options)
             .ConfigureAwait(false);
         timing.MarkTransaction();
+        using var htmlFactsCache = options.Quality is not null && options.HtmlFactsCacheEnabled
+            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity)) : null;
         var generatedInStaging = new List<string>();
         var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
         var committed = false;
+        var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
+        async Task VerifyQualityOutputAsync(string root)
+        {
+            foreach (var artifact in inspectedQualityOutput.Values)
+                await VerifyQualityTextAsync(root, artifact, cancellationToken).ConfigureAwait(false);
+        }
         try
         {
             if (builtInTemplate)
@@ -728,22 +737,26 @@ public sealed partial class SiteGenerator
             if (options.Quality is { } qualityOptions)
             {
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
-                    .Select(file => file.RelativePath).Concat(assetRegistry.Files
-                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
-                    .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
+                    .Select(file => file.RelativePath).Concat(qualityPlan.Artifacts
+                        .Where(artifact => artifact.RelativeOutputPath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+                            || artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                            || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                        .Select(artifact => artifact.RelativeOutputPath))
+                    .Distinct(StringComparer.Ordinal).ToArray();
                 string ValidationRootFor(string path) => execution?.PublishedOutputRetained == true
                     ? outputRoot
                     : outputTransaction.StagingRoot;
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
-                    (path, token) => ReadStagedTextAsync(ValidationRootFor(path), path, token), artifactRoutes,
+                    (path, token) => ReadQualityTextAsync(ValidationRootFor(path), path, inspectedQualityOutput, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
-                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
             }
 
             timing.MarkQuality();
+            cancellationToken.ThrowIfCancellationRequested();
             if (execution?.PublishedOutputRetained != true)
             {
                 await WriteOutputManifestAsync(
@@ -759,11 +772,14 @@ public sealed partial class SiteGenerator
                         generatedInStaging,
                         cancellationToken, outputScope.Length == 0 ? null : InScope)
                     .ConfigureAwait(false);
+                await VerifyQualityOutputAsync(outputTransaction.StagingRoot).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 await outputTransaction.CommitAsync(generatedInStaging, modifiedInStaging).ConfigureAwait(false);
                 committed = true;
                 timing.MarkCommit();
             }
+            else await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
+            if (htmlFactsCache is not null) await htmlFactsCache.PublishAsync().ConfigureAwait(false);
         }
         finally
         {

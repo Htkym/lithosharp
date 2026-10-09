@@ -583,3 +583,7 @@ virtual LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>.Invoke(Li
 virtual LithoSharp.Content.GeneratedContentValueParser<T>.Invoke(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
 virtual LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>.Invoke(LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>! group) -> LithoSharp.Pages.SitePage<TPageContent>!
 virtual LithoSharp.Content.GeneratedPageRenderer<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string!
+LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.get -> bool
+LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.init -> void
+LithoSharp.Quality.SiteQualityReport.HtmlParseCount.get -> int
+LithoSharp.Quality.SiteQualityReport.HtmlFactsCacheHitCount.get -> int

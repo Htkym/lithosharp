@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using LithoSharp.Diagnostics;
-using LithoSharp.HtmlParsing;
 using LithoSharp.Routing;
 
 namespace LithoSharp.Quality;
@@ -19,7 +18,8 @@ internal static class SiteQualityValidator
         IReadOnlyDictionary<string, SiteRoute> redirects,
         SiteQualityOptions options,
         CancellationToken cancellationToken,
-        IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null)
+        IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null,
+        LithoSharp.Build.SiteHtmlFactsCache? factsCache = null)
     {
         ArgumentNullException.ThrowIfNull(textFilePaths);
         ArgumentNullException.ThrowIfNull(readText);
@@ -31,6 +31,7 @@ internal static class SiteQualityValidator
         var referencedAssets = new HashSet<string>(StringComparer.Ordinal);
         var links = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var externalLinks = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+        var parseCount = 0;
         foreach (var path in textFilePaths.Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -38,7 +39,9 @@ internal static class SiteQualityValidator
             if (path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)) cssFiles[path] = content;
             if (!IsHtml(path, content)) continue;
             var route = artifactRoutes[path];
-            var facts = HtmlFacts.Parse(content, cancellationToken);
+            var facts = factsCache is null ? QualityHtmlFacts.Parse(content, cancellationToken)
+                : await factsCache.GetAsync(content, cancellationToken).ConfigureAwait(false);
+            if (factsCache is null) parseCount++;
             var pageUri = new Uri(origin + route.PublicPath);
             var resolutionBase = pageUri;
             var baseHref = facts.BaseHref;
@@ -60,7 +63,7 @@ internal static class SiteQualityValidator
                 Add("LSQ003", SiteDiagnosticSeverity.Error, "A page must declare exactly one canonical URL.", path);
             else
             {
-                var canonical = HtmlFacts.Attribute(canonicalElements[0], "href");
+                var canonical = QualityHtmlFacts.Attribute(canonicalElements[0], "href");
                 var expected = redirects.TryGetValue(path, out var target) ? target.RelativeOutputPath : path;
                 if (string.IsNullOrWhiteSpace(canonical) || !Uri.TryCreate(page.ResolutionBase, canonical, out var address)
                     || address.Query.Length != 0 || address.Fragment.Length != 0
@@ -73,32 +76,32 @@ internal static class SiteQualityValidator
                 if (string.IsNullOrWhiteSpace(page.Title)) AddMissing("title");
                 foreach (var (attribute, name) in new[] { ("name", "description"), ("property", "og:title"), ("property", "og:description"), ("property", "og:url") })
                     if (!facts.Elements.Any(element => element.Name == "meta"
-                        && string.Equals(HtmlFacts.Attribute(element, attribute), name, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(HtmlFacts.Attribute(element, "content")))) AddMissing(name);
+                        && string.Equals(QualityHtmlFacts.Attribute(element, attribute), name, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(QualityHtmlFacts.Attribute(element, "content")))) AddMissing(name);
             }
 
             foreach (var element in facts.Elements)
             {
                 if (!element.Attributes.Any(attribute => attribute.Name is "href" or "src" or "srcset" or "poster")
-                    && !(element.Name == "object" && HtmlFacts.Attribute(element, "data") is not null)
-                    && !(element.Name == "form" && HtmlFacts.Attribute(element, "action") is not null)
-                    && !(element.Name == "meta" && HtmlFacts.Attribute(element, "property") is not null)) continue;
+                    && !(element.Name == "object" && QualityHtmlFacts.Attribute(element, "data") is not null)
+                    && !(element.Name == "form" && QualityHtmlFacts.Attribute(element, "action") is not null)
+                    && !(element.Name == "meta" && QualityHtmlFacts.Attribute(element, "property") is not null)) continue;
                 if (element.Name == "base" || HasRel(element, "canonical")) continue;
-                if (HtmlFacts.Attribute(element, "href") is { } href) Check(href, element.Name is "a" or "area", element.Name is not ("a" or "area"), element);
-                if (HtmlFacts.Attribute(element, "src") is { } src) Check(src, false, true, element);
-                if (HtmlFacts.Attribute(element, "poster") is { } poster) Check(poster, false, true, element);
-                if (element.Name == "object" && HtmlFacts.Attribute(element, "data") is { } data) Check(data, false, true, element);
-                if (element.Name == "form" && HtmlFacts.Attribute(element, "action") is { } action) Check(action, true, false, element);
-                if (HtmlFacts.Attribute(element, "srcset") is { } srcset)
+                if (QualityHtmlFacts.Attribute(element, "href") is { } href) Check(href, element.Name is "a" or "area", element.Name is not ("a" or "area"), element);
+                if (QualityHtmlFacts.Attribute(element, "src") is { } src) Check(src, false, true, element);
+                if (QualityHtmlFacts.Attribute(element, "poster") is { } poster) Check(poster, false, true, element);
+                if (element.Name == "object" && QualityHtmlFacts.Attribute(element, "data") is { } data) Check(data, false, true, element);
+                if (element.Name == "form" && QualityHtmlFacts.Attribute(element, "action") is { } action) Check(action, true, false, element);
+                if (QualityHtmlFacts.Attribute(element, "srcset") is { } srcset)
                     foreach (var candidate in SrcsetUrls(srcset)) Check(candidate, false, true, element);
-                if (string.Equals(HtmlFacts.Attribute(element, "property"), "og:image", StringComparison.OrdinalIgnoreCase))
-                    Check(HtmlFacts.Attribute(element, "content") ?? string.Empty, false, true, element);
+                if (string.Equals(QualityHtmlFacts.Attribute(element, "property"), "og:image", StringComparison.OrdinalIgnoreCase))
+                    Check(QualityHtmlFacts.Attribute(element, "content") ?? string.Empty, false, true, element);
             }
-            foreach (var element in facts.Elements.Where(element => element.Name == "style" || HtmlFacts.Attribute(element, "style") is not null))
-                CheckCss(element.Name == "style" ? facts.TextContent(element.Id) : HtmlFacts.Attribute(element, "style")!, page.ResolutionBase, path, element);
+            foreach (var element in facts.Elements.Where(element => element.Name == "style" || QualityHtmlFacts.Attribute(element, "style") is not null))
+                CheckCss(element.Name == "style" ? element.StyleText! : QualityHtmlFacts.Attribute(element, "style")!, page.ResolutionBase, path, element);
 
             void AddMissing(string name) => Add("LSQ010", SiteDiagnosticSeverity.Warning, $"SEO field '{name}' is missing or empty.", path);
-            void Check(string value, bool navigation, bool resource, HtmlTreeNode element) =>
+            void Check(string value, bool navigation, bool resource, QualityHtmlElement element) =>
                 CheckReference(value, page.ResolutionBase, path, navigation, resource, element);
         }
 
@@ -141,16 +144,20 @@ internal static class SiteQualityValidator
         if (options.ExternalLinks is not null)
             diagnostics.AddRange(await ExternalLinkChecker.CheckAsync(externalLinks, options.ExternalLinks, cancellationToken).ConfigureAwait(false));
         cancellationToken.ThrowIfCancellationRequested();
-        return new SiteQualityReport(diagnostics);
+        return new SiteQualityReport(diagnostics)
+        {
+            HtmlParseCount = factsCache?.ParseCount ?? parseCount,
+            HtmlFactsCacheHitCount = factsCache?.HitCount ?? 0,
+        };
 
-        void CheckCss(string css, Uri address, string path, HtmlTreeNode? element)
+        void CheckCss(string css, Uri address, string path, QualityHtmlElement? element)
         {
             // ponytail: inspect literal CSS url() values; generated dynamic assets must declare their dependency.
             foreach (Match match in CssUrls.Matches(css))
                 CheckReference(match.Groups["url"].Value, address, path, false, true, element);
         }
 
-        void CheckReference(string value, Uri resolutionBase, string path, bool navigation, bool resource, HtmlTreeNode? element)
+        void CheckReference(string value, Uri resolutionBase, string path, bool navigation, bool resource, QualityHtmlElement? element)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (resource && string.IsNullOrWhiteSpace(value))
@@ -207,12 +214,12 @@ internal static class SiteQualityValidator
             catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return false; }
         }
 
-        void Add(string id, SiteDiagnosticSeverity severity, string message, string path, HtmlTreeNode? element = null) =>
+        void Add(string id, SiteDiagnosticSeverity severity, string message, string path, QualityHtmlElement? element = null) =>
             diagnostics.Add(new SiteDiagnostic(id, severity, message, Location(path, element)));
 
-        SiteSourceLocation Location(string path, HtmlTreeNode? element) =>
-            pages.TryGetValue(path, out var page) && page.Facts.Position(element) is { } position
-                ? new(path, position.Line, position.Column) : new(path);
+        SiteSourceLocation Location(string path, QualityHtmlElement? element) =>
+            element is { Line: { } line, Column: { } column }
+                ? new(path, line, column) : new(path);
     }
 
     internal static Task<SiteQualityReport> ValidateAsync(
@@ -232,7 +239,7 @@ internal static class SiteQualityValidator
         || content.AsSpan().TrimStart().StartsWith("<!doctype html", StringComparison.OrdinalIgnoreCase)
         || content.AsSpan().TrimStart().StartsWith("<html", StringComparison.OrdinalIgnoreCase);
 
-    private static bool HasRel(HtmlTreeNode element, string value) => (HtmlFacts.Attribute(element, "rel") ?? string.Empty)
+    private static bool HasRel(QualityHtmlElement element, string value) => (QualityHtmlFacts.Attribute(element, "rel") ?? string.Empty)
         .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Contains(value, StringComparer.OrdinalIgnoreCase);
 
     private static IEnumerable<string> SrcsetUrls(string value)
@@ -250,5 +257,5 @@ internal static class SiteQualityValidator
         }
     }
 
-    private sealed record ParsedPage(SiteRoute Route, Uri ResolutionBase, HashSet<string> Anchors, string? Title, HtmlFacts Facts);
+    private sealed record ParsedPage(SiteRoute Route, Uri ResolutionBase, HashSet<string> Anchors, string? Title, QualityHtmlFacts Facts);
 }
