@@ -39,6 +39,12 @@ $start = [Diagnostics.ProcessStartInfo]::new('dotnet')
 $start.UseShellExecute = $false; $start.CreateNoWindow = $true
 $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
 $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+# Only this owned watch process and its hosts receive the bounded capture.
+# Place it outside the watched site so diagnostics cannot trigger rebuilds.
+$lifecyclePath = Join-Path $fixture 'watch-lifecycle.jsonl'
+[IO.File]::WriteAllText($lifecyclePath, '', [Text.UTF8Encoding]::new($false))
+$start.Environment['LITHOSHARP_WATCH_DIAGNOSTICS_FILE'] = $lifecyclePath
+$start.Environment['LITHOSHARP_WATCH_DIAGNOSTICS_UNTIL'] = [DateTimeOffset]::UtcNow.AddMinutes(5).ToUnixTimeMilliseconds().ToString([Globalization.CultureInfo]::InvariantCulture)
 foreach ($argument in @((Join-Path $repo 'src/LithoSharp.Tool/bin/Release/net10.0/LithoSharp.Tool.dll'), 'serve', (Join-Path $project 'Watch.csproj'), '-c', 'Release', '--port', "$port", '--format', 'json')) { $start.ArgumentList.Add($argument) }
 $process = $null; $stdout = $null; $stderr = $null; $stdoutReader = $null
 # Only known scalar observations leave the owned fixture. Raw output stays local.
@@ -180,6 +186,68 @@ function Summarize-MachineOutput([string] $Text) {
     }
     return [ordered]@{ characters = $Text.Length; tailTruncated = $truncated; lineWindowTruncated = $startLine -gt 0; invalidOrUnrecognizedLines = $invalid; droppedEvents = $dropped; events = @($events.ToArray()) }
 }
+function Read-WatchLifecycleSidecar([string] $Path) {
+    $result = [ordered]@{ maximumBytes = 131072; maximumSeconds = 300; maximumLines = 512; maximumLineBytes = 1024
+        bytes = 0L; discardedLines = 0; incomplete = $false; byteLimitReached = $false; lineLimitReached = $false; readFailed = $false
+        events = @(); completeness = 'Best effort: discarded lines, contention, expiry, byte cap and abrupt termination can omit events; absence is not proof.' }
+    $events = [Collections.Generic.List[object]]::new()
+    $buffer = [byte[]]::new(131073)
+    $stream = $null; $count = 0
+    try {
+        $stream = [IO.FileStream]::new($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        $result.bytes = $stream.Length
+        while ($count -lt $buffer.Length) {
+            $read = $stream.Read($buffer, $count, $buffer.Length - $count)
+            if ($read -eq 0) { break }; $count += $read
+        }
+    } catch {
+        # Diagnostic ingress cannot replace the watch result or cleanup outcome.
+        $result.readFailed = $true; $result.incomplete = $true
+        return $result
+    } finally { if ($null -ne $stream) { $stream.Dispose() } }
+    if ($count -gt 131072) { $result.byteLimitReached = $true; $result.incomplete = $true; $count = 131072 }
+    $utf8 = [Text.UTF8Encoding]::new($false, $true)
+    $keys = @('schemaVersion','utcUnixMilliseconds','writerId','hostId','workerId','event','reason','generation','restartReasons','exitCode','droppedBefore')
+    $eventNames = @('RestartRequested','RestartConsumed','HostStarted','HostBuildRequested','HostBuildReturned','HostStopRequested','HostExited','WorkerStarted','WorkerStopRequested','WorkerExited')
+    $reasonNames = @('None','InitialBuild','FirstRequest','Recompile','BuildFailure','HostAlreadyExited','Cancellation','Timeout','ProtocolOrIoFailure','Dispose','GracefulClose','ForcedAfterTimeout','AlreadyExited')
+    $start = 0; $lines = 0
+    for ($index = 0; $index -lt $count; $index++) {
+        if ($buffer[$index] -ne 10) { continue }
+        if ($lines -eq 512) { $result.lineLimitReached = $true; $result.incomplete = $true; break }
+        $lines++; $length = $index - $start
+        try {
+            if ($length -eq 0 -or $length -gt 1024) { throw 'Unknown bounded lifecycle line.' }
+            $line = $utf8.GetString($buffer, $start, $length)
+            $row = ConvertFrom-Json -InputObject $line -AsHashtable -NoEnumerate -Depth 8 -ErrorAction Stop
+            if ($row -isnot [Collections.IDictionary] -or $row.Count -ne $keys.Count) { throw 'Unknown lifecycle schema.' }
+            foreach ($key in $row.Keys) { if ($key -cnotin $keys) { throw 'Unknown lifecycle field.' } }
+            if (($row.schemaVersion -isnot [int] -and $row.schemaVersion -isnot [long]) -or $row.schemaVersion -ne 1 -or
+                $row.event -isnot [string] -or $row.event -cnotin $eventNames -or
+                $row.reason -isnot [string] -or $row.reason -cnotin $reasonNames) { throw 'Unknown lifecycle enum.' }
+            foreach ($key in @('writerId','hostId')) {
+                if ($row[$key] -isnot [string] -or $row[$key] -cnotmatch '^[0-9a-f]{32}$') { throw 'Unknown lifecycle identifier.' }
+            }
+            if ($null -ne $row.workerId -and ($row.workerId -isnot [string] -or $row.workerId -cnotmatch '^[0-9a-f]{32}$')) { throw 'Unknown worker identifier.' }
+            foreach ($key in @('utcUnixMilliseconds','generation','restartReasons','droppedBefore')) {
+                if (($row[$key] -isnot [int] -and $row[$key] -isnot [long]) -or $row[$key] -lt 0) { throw 'Unknown lifecycle count.' }
+            }
+            if ($row.utcUnixMilliseconds -gt 253402300799999L -or $row.restartReasons -gt 511 -or $row.droppedBefore -gt [int]::MaxValue -or
+                ($null -ne $row.exitCode -and (($row.exitCode -isnot [int] -and $row.exitCode -isnot [long]) -or
+                    $row.exitCode -lt [int]::MinValue -or $row.exitCode -gt [int]::MaxValue))) { throw 'Unknown lifecycle scalar.' }
+            # Reconstruct the fixed scalar schema instead of exporting parsed JSON.
+            $safe = [ordered]@{}; foreach ($key in $keys) { $safe[$key] = $row[$key] }
+            $events.Add($safe)
+            if ($row.droppedBefore -gt 0) { $result.incomplete = $true }
+        } catch { $result.discardedLines++; $result.incomplete = $true }
+        $start = $index + 1
+    }
+    if (!$result.lineLimitReached -and $start -lt $count) {
+        # A killed writer can leave UTF-8 or JSON cut in the last unterminated line.
+        $result.discardedLines++; $result.incomplete = $true
+    }
+    $result.events = @($events.ToArray())
+    return $result
+}
 function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
     $document = [ordered]@{
         schemaVersion = 1; outcome = $script:watchEvidence.outcome; failureCategory = $script:watchEvidence.failureCategory
@@ -187,6 +255,7 @@ function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
         warmupBaselineGeneration = $script:watchEvidence.warmupBaselineGeneration; warmupCompletedGeneration = $script:watchEvidence.warmupCompletedGeneration
         importedEditBaselineGeneration = $script:watchEvidence.importedEditBaselineGeneration
         importedEditWitness = $script:watchEvidence.importedEditWitness
+        lifecycle = Read-WatchLifecycleSidecar $lifecyclePath
         liveMachine = [ordered]@{ terminalLimit = 4096; ingressLineLimit = 256; lineLimitCharacters = 65536; droppedTerminals = $script:liveDroppedTerminals; pendingBuild = $script:livePendingBuild; shutdownSeen = $script:liveShutdownSeen; lastGeneration = $script:liveLastGeneration; events = @($script:liveTerminalEvents.ToArray()) }
         errorRecovery = @($script:watchEvidence.errorRecovery.ToArray())
         droppedPolls = $script:watchEvidence.droppedPolls; polls = @($script:watchEvidence.polls.ToArray())

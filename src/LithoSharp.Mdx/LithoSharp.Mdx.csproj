@@ -16,6 +16,7 @@
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/WatchLifecycleSidecar.cs" Link="WatchLifecycleSidecar.cs" />
     <EmbeddedResource Include="Browser/*" />
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />

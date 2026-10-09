@@ -62,7 +62,9 @@ public sealed class DevServerLifecycleTests
     public async Task ThrowingRebuildReportsCurrentGenerationAndKeepsLastPublication()
     {
         using var fixture = await Fixture.CreateAsync(null);
-        await using var serve = ServeProcess.Start(fixture);
+        var lifecyclePath = Path.Combine(fixture.Barriers, "watch-lifecycle.jsonl");
+        await File.WriteAllTextAsync(lifecyclePath, "");
+        await using var serve = ServeProcess.Start(fixture, lifecyclePath);
         var startup = await serve.WaitForEventAsync(value => IsEvent(value, "startup"));
         var source = Path.Combine(fixture.ProjectDirectory, "Factory.cs");
         var original = await File.ReadAllTextAsync(source);
@@ -86,6 +88,18 @@ public sealed class DevServerLifecycleTests
         await serve.ShutdownAsync("shutdown-rebuild-generation");
         await serve.WaitForExitAsync();
         await Assert.That(serve.ExitCode).IsEqualTo(0);
+        var lifecycle = (await File.ReadAllLinesAsync(lifecyclePath))
+            .Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+        await Assert.That(lifecycle.Any(row => row.GetProperty("event").GetString() == "RestartConsumed"
+            && row.GetProperty("generation").GetInt64() == generation && row.GetProperty("restartReasons").GetInt32() != 0)).IsTrue();
+        await Assert.That(lifecycle.Any(row => row.GetProperty("event").GetString() == "HostStopRequested"
+            && row.GetProperty("reason").GetString() == "Recompile")).IsTrue();
+        var starts = lifecycle.Where(row => row.GetProperty("event").GetString() == "HostStarted").ToArray();
+        await Assert.That(starts.Select(row => row.GetProperty("hostId").GetString()).Distinct().Count()).IsGreaterThan(1);
+        await Assert.That(lifecycle.Any(row => row.GetProperty("event").GetString() == "HostExited"
+            && row.GetProperty("reason").GetString() == "GracefulClose")).IsTrue();
+        await Assert.That(serve.Events.All(row => row.GetProperty("event").GetString() is
+            "startup" or "rebuild-started" or "rebuild-succeeded" or "rebuild-failed" or "control-ack" or "shutdown")).IsTrue();
     }
 
     [Test]
@@ -366,7 +380,7 @@ public sealed class DevServerLifecycleTests
             output = ReadOutputAsync();
         }
 
-        public static ServeProcess Start(Fixture fixture)
+        public static ServeProcess Start(Fixture fixture, string? lifecyclePath = null)
         {
             var tool = FindExactTool();
             var start = new ProcessStartInfo("dotnet")
@@ -382,6 +396,12 @@ public sealed class DevServerLifecycleTests
             start.Environment["UseSharedCompilation"] = "false";
             start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
             start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+            if (lifecyclePath is not null)
+            {
+                start.Environment["LITHOSHARP_WATCH_DIAGNOSTICS_FILE"] = lifecyclePath;
+                start.Environment["LITHOSHARP_WATCH_DIAGNOSTICS_UNTIL"] = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds()
+                    .ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
             return new ServeProcess(Process.Start(start) ?? throw new InvalidOperationException("Cannot start owned serve fixture."), fixture);
         }
 

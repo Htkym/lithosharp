@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using LithoSharp.Build;
+using LithoSharp.Internal;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
@@ -27,7 +28,8 @@ internal static class DevServer
         var control = options.Has("control-stdin");
         if (control && !machine)
             throw new CliUsageException("serve --control-stdin requires --format json.");
-        await using var session = new WatchHostSession(machine);
+        var lifecycle = WatchLifecycleSidecar.FromEnvironment();
+        await using var session = new WatchHostSession(machine, lifecycle);
         using var stopSource = new CancellationTokenSource();
         using var stopping = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopSource.Token);
         using var controlLifetime = new CancellationTokenSource();
@@ -59,11 +61,18 @@ internal static class DevServer
                 // Directory LastWrite notifications can accompany a child edit on Windows.
                 // File and structural changes still request recompilation when needed.
                 var directoryMetadata = changeType == WatcherChangeTypes.Changed && Directory.Exists(path);
-                if (!directoryMetadata && Path.GetExtension(path).ToLowerInvariant() is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")) Interlocked.Exchange(ref state.Restart, 1);
+                var extension = Path.GetExtension(path).ToLowerInvariant();
+                if (!directoryMetadata && extension is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif"))
+                {
+                    var reason = (changeType == WatcherChangeTypes.All ? WatchRestartReason.WatcherError : (WatchRestartReason)(int)changeType)
+                        | (extension == ".cs" ? WatchRestartReason.CSharp : extension is ".csproj" or ".props" or ".targets" ? WatchRestartReason.Project : WatchRestartReason.Other);
+                    Interlocked.Or(ref state.Restart, (int)reason);
+                    lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason);
+                }
                 changes.Writer.TryWrite(true);
             });
         var assembly = await ProjectCompiler.BuildAsync(project, configuration, stopping.Token, machine);
-        var latest = await session.BuildAsync(assembly, project, options, stopping.Token);
+        var latest = await session.BuildAsync(assembly, project, options, stopping.Token, 1);
         if (!latest.Success)
         {
             if (!string.IsNullOrWhiteSpace(latest.Error)) Console.Error.WriteLine(latest.Error);
@@ -187,7 +196,7 @@ internal static class DevServer
         {
             Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
         }
-        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, stopping.Token);
+        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, lifecycle, stopping.Token);
         if (options.Has("open")) OpenBrowser(actualUrl);
         try { await app.WaitForShutdownAsync(stopping.Token); }
         finally
@@ -225,7 +234,7 @@ internal static class DevServer
     private static async Task RebuildLoopAsync(
         ChannelReader<bool> changes, string project, string configuration, CommandOptions options,
         ServerState state, ReloadHub hub, WatchHostSession session, string assembly, bool machine,
-        ServeController controller, CancellationToken cancellationToken)
+        ServeController controller, WatchLifecycleSidecar lifecycle, CancellationToken cancellationToken)
     {
         await foreach (var ignored in changes.ReadAllAsync(cancellationToken))
         {
@@ -234,12 +243,15 @@ internal static class DevServer
             if (machine) WriteMachine(new { SchemaVersion = MachineOutput.SchemaVersion, Event = "rebuild-started" });
             try
             {
-                if (Interlocked.Exchange(ref state.Restart, 0) != 0)
+                var restartReasons = Interlocked.Exchange(ref state.Restart, 0);
+                lifecycle.Write(WatchLifecycleEvent.RestartConsumed, generation: controller.Generation + 1,
+                    restartReasons: restartReasons, hostId: session.HostId);
+                if (restartReasons != 0)
                 {
-                    await session.StopAsync();
+                    await session.StopAsync(WatchLifecycleReason.Recompile);
                     assembly = await ProjectCompiler.BuildAsync(project, configuration, cancellationToken, machine);
                 }
-                var response = await session.BuildAsync(assembly, project, options, cancellationToken);
+                var response = await session.BuildAsync(assembly, project, options, cancellationToken, controller.Generation + 1);
                 controller.Generation++;
                 state.Latest = response with { Generation = controller.Generation };
                 if (response.Success && response.OutputDirectory is not null)
@@ -279,7 +291,9 @@ internal static class DevServer
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception exception)
             {
-                Interlocked.Exchange(ref state.Restart, 1);
+                Interlocked.Or(ref state.Restart, (int)WatchRestartReason.RebuildFailure);
+                lifecycle.Write(WatchLifecycleEvent.RestartRequested, WatchLifecycleReason.BuildFailure,
+                    generation: controller.Generation + 1, restartReasons: (int)WatchRestartReason.RebuildFailure, hostId: session.HostId);
                 controller.Generation++;
                 state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message, Generation = controller.Generation };
                 Console.Error.WriteLine(exception.Message);
