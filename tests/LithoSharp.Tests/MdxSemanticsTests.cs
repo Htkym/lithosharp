@@ -164,6 +164,11 @@ public sealed class MdxSemanticsTests
         var body = search.RootElement.EnumerateArray().Single().GetProperty("body").GetString()!;
         await Assert.That(body).Contains("Static text here.");
         await Assert.That(body.Contains("Count")).IsFalse();
+        var section = search.RootElement.EnumerateArray().Single().GetProperty("sections").EnumerateArray().Single();
+        await Assert.That(section.GetProperty("title").GetString()).IsEqualTo("Guide Count 0");
+        await Assert.That(section.GetProperty("body").GetString()).Contains("Static text here.");
+        await Assert.That(section.GetProperty("body").GetString()).Contains("Count 0");
+        await Assert.That(page).Contains("id=\"" + section.GetProperty("anchor").GetString() + "\"");
     }
 
     [Test]

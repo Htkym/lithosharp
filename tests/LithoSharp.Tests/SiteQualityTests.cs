@@ -1,5 +1,6 @@
 using LithoSharp.Configuration;
 using LithoSharp.Diagnostics;
+using LithoSharp.HtmlParsing;
 using LithoSharp.Quality;
 using LithoSharp.Routing;
 
@@ -8,6 +9,61 @@ namespace LithoSharp.Tests;
 public sealed class SiteQualityTests
 {
     private const string BaseUrl = "https://example.test/sub/";
+
+    [Test]
+    public async Task SharedFacts_ReadEachFileOnceAndPreserveBaseAnchorsSrcsetCssAndRawLocations()
+    {
+        var files = new Dictionary<string, string>
+        {
+            ["index.html"] = Page("", "Home", "<base href='/sub/guide/'><a href='#section'>Guide</a>"
+                + "<img srcset='data:image/png;base64,AAAA 1x, ../images/p.png 2x'><link rel=stylesheet href='../site.css'>"
+                + "<style>.inline{background:url('../images/p.png')}</style>"),
+            ["guide/index.html"] = Page("guide/", "Guide", "<h2 id=section>Section</h2><a name=legacy></a><a href='../'>Home</a>"
+                + "<template><h2 id=hidden>Inert</h2><img src=missing.png></template>"),
+            ["site.css"] = "body{background:url('images/p.png')}"
+        };
+        var routes = files.Keys.Concat(["images/p.png"]).ToDictionary(path => path,
+            path => path.EndsWith("index.html", StringComparison.Ordinal)
+                ? SiteRoute.ForDirectoryIndex(path[..^10], BaseUrl) : SiteRoute.ForFile(path, BaseUrl));
+        var reads = new Dictionary<string, int>();
+        Task<string> Read(string path, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            reads[path] = reads.GetValueOrDefault(path) + 1;
+            return Task.FromResult(files[path]);
+        }
+        var assets = new HashSet<string>(StringComparer.Ordinal) { "images/p.png" };
+        var redirects = new Dictionary<string, SiteRoute>();
+        var report = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(), Read, routes, assets, redirects, new(), default);
+        await Assert.That(report.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(reads.Values).IsEquivalentTo([1, 1, 1]);
+
+        reads.Clear();
+        files["index.html"] = Page("", "Home", "<base href='/sub/guide/'>\r\n😀<a href='#hidden'>Missing</a>"
+            + "<a href='#legacy'>Legacy</a><img src='../images/p.png'><link rel=stylesheet href='../site.css'>");
+        report = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(), Read, routes, assets, redirects, new(), default);
+        var missing = report.Diagnostics.Single(diagnostic => diagnostic.Id == "LSQ002");
+        await Assert.That(missing.Location!.Line).IsEqualTo(2);
+        await Assert.That(missing.Location.Column).IsEqualTo(3);
+        await Assert.That(report.Diagnostics.Any(diagnostic => diagnostic.Id is "LSQ001" or "LSQ008")).IsFalse();
+        await Assert.That(reads.Values).IsEquivalentTo([1, 1, 1]);
+    }
+
+    [Test]
+    public async Task IncompleteTreeCoverage_StopsQualityBeforeReplacingPublishedOutput()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        var settings = new SiteSettings { BaseUrl = BaseUrl };
+        await generator.GenerateWithOptionsAsync(settings, [], output, true,
+            new() { Template = new TextTemplate(Page("", "Home", "")) }, new() { Quality = new() }, default);
+        var original = await File.ReadAllBytesAsync(Path.Combine(output, "index.html"));
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, true,
+            new() { Template = new TextTemplate(Page("", "Home", "<template shadowrootmode=open><p>Unsupported</p></template>")) },
+            new() { Quality = new() }, default)).Throws<HtmlFactsIncompleteException>();
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).IsEquivalentTo(original);
+    }
 
     [Test]
     public async Task DeclaredChunkDependenciesAreReachableButUnusedRootsRemainWarnings()
@@ -21,6 +77,25 @@ public sealed class SiteQualityTests
         var report = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(), (path, _) => Task.FromResult(files[path]), routes,
             assets.ToHashSet(StringComparer.Ordinal), new Dictionary<string, SiteRoute>(), new(), default, nodes);
         await Assert.That(report.Diagnostics.Where(diagnostic => diagnostic.Id == "LSQ008").Select(diagnostic => diagnostic.Location!.FilePath)).IsEquivalentTo(["unused.js"]);
+    }
+
+    [Test]
+    [Arguments("xlink:href='missing.html' href='valid.html'")]
+    [Arguments("href='valid.html' xlink:href='missing.html'")]
+    public async Task SvgHrefRemainsDistinctFromXLinkRegardlessOfAttributeOrder(string attributes)
+    {
+        var files = new Dictionary<string, string>
+        {
+            ["index.html"] = Page("", "Home", $"<svg><a {attributes}>Valid</a></svg>"),
+            ["valid.html"] = Page("valid.html", "Valid", "")
+        };
+        var facts = LithoSharp.HtmlParsing.HtmlFacts.Parse(files["index.html"]);
+        var link = facts.Elements.Single(element => element.Name == "a");
+        await Assert.That(LithoSharp.HtmlParsing.HtmlFacts.Attribute(link, "href")).IsEqualTo("valid.html");
+        await Assert.That(link.Attributes.Single(attribute => attribute.Namespace == LithoSharp.HtmlParsing.HtmlNamespaces.XLink).Value.Value)
+            .IsEqualTo("missing.html");
+        var report = await Validate(files, []);
+        await Assert.That(report.Diagnostics.Count).IsEqualTo(0);
     }
 
     [Test]

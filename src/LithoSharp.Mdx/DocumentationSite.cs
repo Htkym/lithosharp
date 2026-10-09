@@ -2,6 +2,7 @@ using System.Text.Json;
 using LithoSharp.Build;
 using LithoSharp.Content;
 using LithoSharp.Documentation;
+using LithoSharp.HtmlParsing;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Routing;
@@ -228,17 +229,12 @@ public sealed class DocumentationSite : ISiteBuildExtension, IAsyncDisposable
                     // from rendered HTML: React-generated content cannot be inferred.
                     var semantics = registration.Options.UseMdx ? entry.Body.Semantics : null;
                     var html = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
-                    var text = semantics?.PlainText;
-                    if (text is null)
-                    {
-                        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
-                        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
-                        text = document.Body?.TextContent ?? "";
-                    }
+                    var facts = HtmlFacts.Parse(html, cancellationToken);
+                    var text = semantics?.PlainText ?? facts.BodyText;
 
                     return new LithoSharp.Search.SearchDocument(entry.FrontMatter.Title, entry.FrontMatter.Description ?? "", entry.FrontMatter.Tags,
                         collection!.RouteConvention(entry).PublicPath, "", SiteGenerator.NormalizeForIndex(text))
-                    { Collection = registration.Options.Id, Version = registration.Variant.Version, Locale = registration.Variant.Locale, Sections = SiteGenerator.ExtractSearchSections(html) };
+                    { Collection = registration.Options.Id, Version = registration.Variant.Version, Locale = registration.Variant.Locale, Sections = facts.SearchSections() };
                 }).ToArray();
                 var path = registration.Variant.RoutePrefix.Trim('/') + "/_search.json";
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(documentsForSearch, new JsonSerializerOptions(JsonSerializerDefaults.Web));

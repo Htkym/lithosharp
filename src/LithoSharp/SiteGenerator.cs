@@ -16,6 +16,7 @@ using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
+using LithoSharp.HtmlParsing;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Quality;
@@ -2070,6 +2071,7 @@ public sealed partial class SiteGenerator
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
         {
+            configuration.Cancellation.ThrowIfCancellationRequested();
             var plainText = GetPostSearchText(configuration, post);
             documents.Add(new SearchDocument(
                 post.FrontMatter.Title,
@@ -2083,7 +2085,9 @@ public sealed partial class SiteGenerator
         foreach (var page in contentPages
                      .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)))
         {
+            configuration.Cancellation.ThrowIfCancellationRequested();
             var derivedContent = page.DerivedContent ?? string.Empty;
+            var facts = HtmlFacts.Parse(derivedContent, configuration.Cancellation);
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
@@ -2092,10 +2096,10 @@ public sealed partial class SiteGenerator
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
                     : string.Empty,
-                NormalizeForIndex(StripTagsRegex.Replace(derivedContent, " ")))
+                NormalizeForIndex(facts.SearchText))
             {
                 Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
-                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(derivedContent)
+                Sections = page.Metadata.Document is null ? null : facts.SearchSections()
             });
         }
 
@@ -2106,20 +2110,8 @@ public sealed partial class SiteGenerator
         return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
     }
 
-    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
-    {
-        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
-        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
-        var sections = new List<SearchSection>();
-        foreach (var heading in document.QuerySelectorAll("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]"))
-        {
-            var body = new StringBuilder();
-            for (var sibling = heading.NextElementSibling; sibling is not null && !(sibling.LocalName.Length == 2 && sibling.LocalName[0] == 'h' && char.IsDigit(sibling.LocalName[1])); sibling = sibling.NextElementSibling)
-                body.Append(sibling.TextContent).Append(' ');
-            sections.Add(new(heading.TextContent, heading.Id!, NormalizeForIndex(body.ToString())));
-        }
-        return sections;
-    }
+    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html, CancellationToken cancellationToken = default) =>
+        HtmlFacts.Parse(html, cancellationToken).SearchSections();
 
 
     internal static string NormalizeForIndex(string text)
