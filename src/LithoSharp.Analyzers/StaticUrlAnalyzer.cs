@@ -25,7 +25,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option).AddRange(HtmlTemplateAnalysis.Rules);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -36,11 +36,13 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         {
             var sinks = RegisterSinks(start.Compilation);
             var html = HtmlTemplateAnalysis.Create(start.Compilation);
-            if (sinks.Count == 0 && html is null) return;
+            var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
+            if (sinks.Count == 0 && html is null && manifest is null) return;
             start.RegisterOperationBlockAction(block => StaticValueFlow.Analyze(block, (operation, evaluate) =>
             {
                 block.CancellationToken.ThrowIfCancellationRequested();
                 html?.Analyze(block, operation, evaluate);
+                manifest?.Analyze(block, operation, evaluate);
                 var method = operation is IInvocationOperation call ? call.TargetMethod
                     : (operation as IObjectCreationOperation)?.Constructor;
                 if (method is null || !sinks.TryGetValue(method.OriginalDefinition, out var rules)) return;

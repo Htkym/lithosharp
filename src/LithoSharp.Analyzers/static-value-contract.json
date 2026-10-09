@@ -47,5 +47,19 @@
     "origin": "original attribute value URL UTF16 range through validated C# escape/verbatim/raw-indent map; no fabricated substring",
     "deferred": ["Partial/Failed tree", "unknown or unmappable source", "dynamic/constant interpolation", "concatenation", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "srcset/CSS URL splitting", "unregistered formaction", "budgets"]
   },
-  "notImplemented": ["CodeFix", "Closed coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+  "routeManifest": {
+    "task": "RA-05", "contract": "explicit-manifest-route-lookup/1",
+    "sink": "exact StaticSiteManifest.GetUrl(string), direct static generated manifest property",
+    "optIn": "StaticContentCollectionAttribute.EmitStaticSiteManifest",
+    "closedScope": "same immutable runtime catalog exact ordinal public-path lookup; not site publication",
+    "rules": { "LSA1201": "Error/fresh Closed/all known candidates absent", "LSA1205": "Info/Stale/current compiler inputs differ" },
+    "budgets": { "sourceAndAdditionalInputs": 8192, "fingerprintTextUnits": 8388608 },
+    "provenance": ["original C# buffers/path/parse symbols", "AdditionalText buffers/path/collection/id/route/site/variant metadata", "project root/target framework/configuration/profile", "reference identities/MVIDs/aliases/embed-interop"],
+    "owners": { "routeCollision": "LSG004", "yamlShape": "LSG005", "yamlUnknown": "LSG006" },
+    "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
+    "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
+    "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
+    "notImplemented": ["LSA1202/1203/1204", "LSA130x/140x/9001", "whole-site publication coverage", "anchors/assets"]
+  },
+  "notImplemented": ["CodeFix", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }

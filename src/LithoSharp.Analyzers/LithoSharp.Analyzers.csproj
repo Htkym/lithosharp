@@ -20,6 +20,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/StaticManifestFingerprint.cs" Link="Shared/StaticManifestFingerprint.cs" />
+    <None Include="buildTransitive/LithoSharp.Analyzers.props" Pack="true" PackagePath="buildTransitive" />
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Shared/StaticApiGuards.cs" />
     <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Shared/SiteQualityUrlRules.cs" />
     <Compile Include="../LithoSharp/Routing/SiteRoute.cs" Link="Shared/SiteRoute.cs" />

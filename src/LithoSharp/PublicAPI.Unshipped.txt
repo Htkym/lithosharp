@@ -604,3 +604,29 @@ LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.get -> bool
 LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.init -> void
 LithoSharp.Quality.SiteQualityReport.HtmlParseCount.get -> int
 LithoSharp.Quality.SiteQualityReport.HtmlFactsCacheHitCount.get -> int
+LithoSharp.Content.StaticContentCollectionAttribute.EmitStaticSiteManifest.get -> bool
+LithoSharp.Content.StaticContentCollectionAttribute.EmitStaticSiteManifest.set -> void
+LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Closed = 0 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Open = 1 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Stale = 2 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Unavailable = 3 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest
+LithoSharp.Content.StaticSiteManifest.AnchorCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.AssetCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.CollectionId.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.StaticSiteManifest.GetUrl(string! publicPath) -> LithoSharp.SiteUrl!
+LithoSharp.Content.StaticSiteManifest.RouteCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.Site.get -> string!
+LithoSharp.Content.StaticSiteManifest.SourceFingerprint.get -> string!
+LithoSharp.Content.StaticSiteManifest.Variant.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Contract.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Coverage.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Fingerprint.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.PublicPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Site.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.StaticSiteManifestSourceAttribute(string! contract, string! fingerprint, string! coverage, string! site, string! variant, params string![]! publicPaths) -> void
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Variant.get -> string!
+static LithoSharp.Content.StaticSiteManifest.Create(LithoSharp.Content.StaticContentCatalog! catalog, string! sourceFingerprint) -> LithoSharp.Content.StaticSiteManifest!
+static LithoSharp.Content.StaticSiteManifest.Open(LithoSharp.Content.StaticContentCatalog! catalog, System.Func<string!, LithoSharp.SiteUrl!>? resolver = null) -> LithoSharp.Content.StaticSiteManifest!

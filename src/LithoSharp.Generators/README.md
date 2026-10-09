@@ -1,5 +1,10 @@
 # LithoSharp.Generators
 
+`[StaticContentCollection(typeof(Front), typeof(string), "guides", EmitStaticSiteManifest = true)]`
+also emits `Guides.Manifest`, an immutable exact route lookup created from the same `Guides.Catalog` used by generated references. `Guides.Manifest.GetUrl("/intro/")` returns a `SiteUrl`; a missing exact path throws `KeyNotFoundException`. This optional member closes only that selected lookup universe. Catalogs, arbitrary site registrations, HTML anchors and assets do not gain a Closed publication claim. The default is off, so existing declarations and generated member names keep their prior behavior.
+
+The compiler fingerprint records original C# and AdditionalText buffers, relevant metadata/properties and reference assembly MVIDs. A fresh, verified generated manifest permits Analyzer LSA1201 for definitely missing paths; changed inputs cause LSA1205 Info and defer absence. Any generator declaration/input/schema error makes the emitted lookup Open. Dynamic membership should use `StaticSiteManifest.Open(catalog, resolver)`; the Analyzer never executes a resolver or getter. `StaticSiteManifest.Create` alone or a handwritten provenance attribute does not establish compiler evidence. These APIs describe exact public-path membership, not output publication or ordinary HTML link resolution.
+
 Roslyn incremental generators for explicitly declared static Markdown collections.
 Reference `LithoSharp` normally, then add this package as a private analyzer:
 
