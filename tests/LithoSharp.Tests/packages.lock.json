@@ -207,7 +207,6 @@
       "lithosharp.testing": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.8.3, )",
           "LithoSharp": "[1.1.0, )"
         }
       }

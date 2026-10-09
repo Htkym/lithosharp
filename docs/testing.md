@@ -1,6 +1,6 @@
 # Testing sites
 
-`LithoSharp.Testing` is a framework independent DOM testing API built on AngleSharp. It parses HTML without launching a browser, executing scripts, or making network requests.
+`LithoSharp.Testing` provides framework independent assertions and read-only HTML snapshots. It parses HTML without launching a browser, executing scripts, or making network requests. See [the v2 snapshot/query contract and migration examples](Testing-v2-api.md) for the declared selector grammar.
 
 ```csharp
 using LithoSharp;
@@ -13,7 +13,7 @@ document.AssertText("p", "<safe>");
 document.AssertMeta("description", "Description");
 ```
 
-`AssertText` checks the first matching element's exact parsed `TextContent`; entities are decoded. `AssertAttribute`, `AssertMeta`, `AssertLink`, and `AssertImage` compare exact values, including quoted and multiline values. Missing or mismatched values throw `SiteTestException`. Null arguments, blank selectors, and invalid attribute names raise standard argument exceptions; invalid CSS selectors raise AngleSharp syntax exceptions. Empty HTML and expected text/attribute values are valid. A disposed document rejects further assertions and `Document` access.
+`AssertText` checks the first matching element's exact parsed `TextContent`; entities are decoded. `AssertAttribute`, `AssertMeta`, `AssertLink`, and `AssertImage` compare exact values, including quoted and multiline values. Missing or mismatched values throw `SiteTestException`. Null arguments, blank selectors, and invalid attribute names raise standard argument exceptions. Malformed selectors throw `HtmlSelectorSyntaxException`; unsupported features throw `HtmlSelectorUnsupportedException`. Empty HTML and expected text/attribute values are valid. Incomplete HTML tree coverage is rejected before a snapshot is exposed. Disposing the document invalidates its `Snapshot` and retained element views.
 
 For standalone rendering, create the existing contexts explicitly:
 

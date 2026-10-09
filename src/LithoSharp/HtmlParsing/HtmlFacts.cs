@@ -31,6 +31,8 @@ internal sealed class HtmlFacts
 
     public IReadOnlyList<HtmlTreeNode> Elements { get; }
 
+    internal CompactHtmlTree Tree => tree;
+
     public static HtmlFacts Parse(string source, CancellationToken cancellationToken = default)
     {
         var tree = CompactHtmlTreeBuilder.Parse(source, cancellationToken: cancellationToken);

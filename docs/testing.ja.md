@@ -1,6 +1,6 @@
 # サイトのテスト
 
-`LithoSharp.Testing` は AngleSharp を使った、テストフレームワークに依存しない DOM 検証 API です。ブラウザーを起動せず、スクリプトの実行やネットワークへの接続も行わずに HTML を解析します。
+`LithoSharp.Testing` は、テストフレームワークに依存しない検証 API と、読み取り専用の HTML スナップショットを提供します。ブラウザーを起動せず、スクリプトの実行やネットワークへの接続も行わずに HTML を解析します。対応するセレクターと移行例は [v2 の API 仕様](Testing-v2-api.md)を参照してください。
 
 ```csharp
 using LithoSharp;
@@ -15,7 +15,7 @@ document.AssertMeta("description", "Description");
 
 `AssertText` は、最初に一致した要素の `TextContent` を期待値と完全一致で比較します。文字参照は解析時にデコードされます。属性、メタデータ、リンク、画像も、引用符や改行を含めた値の完全一致で検証します。要素が見つからない場合や値が異なる場合は `SiteTestException` が発生します。
 
-null、空白のセレクター、不正な属性名には標準の引数例外が発生します。CSSセレクターの構文エラーはAngleSharpの例外になります。空のHTMLや空文字の期待値は使用できます。破棄した後は検証メソッドや `Document` を使用できません。
+null、空白のセレクター、不正な属性名には標準の引数例外が発生します。セレクターの構文エラーには `HtmlSelectorSyntaxException`、未対応の機能には `HtmlSelectorUnsupportedException` が発生します。空の HTML や空文字の期待値は使用できます。HTML ツリーの解析が不完全な場合は、スナップショットを公開する前に例外が発生します。文書を破棄すると、検証メソッド、`Snapshot`、保持していた要素を使用できなくなります。
 
 コンポーネントやレイアウトは、既存の描画コンテキストを指定して単独で検証できます。
 

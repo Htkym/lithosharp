@@ -1,1 +1,29 @@
 #nullable enable
+*REMOVED*LithoSharp.Testing.SiteTestDocument.Document.get -> AngleSharp.Dom.IDocument!
+LithoSharp.Testing.SiteTestDocument.Snapshot.get -> LithoSharp.Testing.HtmlTestDocument!
+LithoSharp.Testing.HtmlTestDocument
+LithoSharp.Testing.HtmlTestDocument.Title.get -> string!
+LithoSharp.Testing.HtmlTestDocument.TextContent.get -> string!
+LithoSharp.Testing.HtmlTestDocument.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestDocument.Query(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestDocument.QueryAll(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement
+LithoSharp.Testing.HtmlTestElement.TagName.get -> string!
+LithoSharp.Testing.HtmlTestElement.NamespaceUri.get -> string!
+LithoSharp.Testing.HtmlTestElement.TextContent.get -> string!
+LithoSharp.Testing.HtmlTestElement.Parent.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement.TemplateContent.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement.PreviousSibling.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.NextSibling.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.SourceStart.get -> int?
+LithoSharp.Testing.HtmlTestElement.SourceLength.get -> int?
+LithoSharp.Testing.HtmlTestElement.Line.get -> int?
+LithoSharp.Testing.HtmlTestElement.Column.get -> int?
+LithoSharp.Testing.HtmlTestElement.GetAttribute(string! name, string? namespaceUri = null) -> string?
+LithoSharp.Testing.HtmlTestElement.Query(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.QueryAll(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlSelectorSyntaxException
+LithoSharp.Testing.HtmlSelectorSyntaxException.HtmlSelectorSyntaxException(string! message) -> void
+LithoSharp.Testing.HtmlSelectorUnsupportedException
+LithoSharp.Testing.HtmlSelectorUnsupportedException.HtmlSelectorUnsupportedException(string! message) -> void

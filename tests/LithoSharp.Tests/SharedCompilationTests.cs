@@ -126,8 +126,8 @@ public sealed class SharedCompilationTests
         await Assert.That(post).Contains("<h2 id=\"body-title\">");
         await Assert.That(post).Contains("target=\"_blank\"");
         await Assert.That(post).Contains("class=\"toc-list\"");
-        using var dom = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(post);
-        await Assert.That(dom.QuerySelector("a[data-toc-link][href='#a-b']")?.TextContent).IsEqualTo("A & B");
+        using var dom = LithoSharp.Testing.SiteTestDocument.Parse(post);
+        await Assert.That(dom.Snapshot.Query("a[data-toc-link][href='#a-b']")?.TextContent).IsEqualTo("A & B");
 
         await using var stream = File.OpenRead(Path.Combine(output, "search-index.json"));
         using var document = await JsonDocument.ParseAsync(stream);

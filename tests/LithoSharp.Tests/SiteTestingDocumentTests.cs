@@ -16,7 +16,7 @@ public sealed class SiteTestingDocumentTests
         document.AssertMeta("og:title", "A 'quoted' value", property: true);
         document.AssertLink("/docs?a=1&b=2");
         document.AssertImage("/image.png");
-        await Assert.That(document.Document.Title).IsEqualTo("");
+        await Assert.That(document.Snapshot.Title).IsEqualTo("");
     }
 
     [Test]
@@ -29,7 +29,7 @@ public sealed class SiteTestingDocumentTests
         using var layout = SiteTestDocument.RenderLayout(new TestLayout(), page, PageRenderingContext.Create(site));
         layout.AssertText("main", "layout");
         using var empty = SiteTestDocument.Parse("");
-        _ = empty.Document;
+        _ = empty.Snapshot;
     }
 
     [Test]
@@ -52,7 +52,7 @@ public sealed class SiteTestingDocumentTests
         var document = SiteTestDocument.Parse("<p>x</p>");
         document.Dispose();
         await Assert.That(() => document.AssertElement("p")).Throws<ObjectDisposedException>();
-        await Assert.That(() => _ = document.Document).Throws<ObjectDisposedException>();
+        await Assert.That(() => _ = document.Snapshot).Throws<ObjectDisposedException>();
     }
 
     private sealed class TestComponent : ISiteComponent<string>

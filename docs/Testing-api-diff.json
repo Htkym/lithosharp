@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "majorVersion": 2,
+  "changes": [
+    {
+      "id": "BRC001",
+      "removed": "SiteTestDocument.Document : AngleSharp.Dom.IDocument",
+      "replacement": "SiteTestDocument.Snapshot : HtmlTestDocument",
+      "sourceBreaking": true,
+      "binaryBreaking": true,
+      "compatibilityShim": false
+    },
+    {
+      "id": "BRC002",
+      "removed": "Mutable DOM and arbitrary external DOM queries",
+      "replacement": "Read-only HtmlTestDocument/HtmlTestElement and declared bounded selectors",
+      "manualMigration": [
+        "Reparse changed source for mutation",
+        "Rewrite third-party casts/extensions",
+        "Rewrite unsupported selectors"
+      ]
+    }
+  ],
+  "retained": [
+    "Parse",
+    "RenderComponent",
+    "RenderLayout",
+    "existing Assert methods",
+    "SiteTestHost"
+  ],
+  "removedSignature": "LithoSharp.Testing.SiteTestDocument.Document.get -> AngleSharp.Dom.IDocument!",
+  "newSignaturesSource": "src/LithoSharp.Testing/PublicAPI.Unshipped.txt",
+  "historicalShippedBaselinePreserved": true,
+  "incompleteHtml": "Partial/Failed parsing is rejected, not promoted to Complete.",
+  "outOfScope": [
+    "Static migration CLI",
+    "LSA1501 analyzer",
+    "Whole-product dependency-zero gate",
+    "Release/package-version gates"
+  ]
+}
