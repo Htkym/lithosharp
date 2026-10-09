@@ -15,7 +15,7 @@ public sealed record SiteQualityOptions
         bool checkOrphans = true,
         ExternalLinkCheckOptions? externalLinks = null)
     {
-        if (!Enum.IsDefined(failureThreshold)) throw new ArgumentOutOfRangeException(nameof(failureThreshold));
+        Internal.StaticApiGuards.ValidateFailureThreshold((int)failureThreshold);
         FailureThreshold = failureThreshold;
         CheckOrphans = checkOrphans;
         ExternalLinks = externalLinks;

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "lithosharp-static-values/1",
+  "task": "RA-03",
+  "scope": "registered public metadata overloads only; no complete API or IDE certification",
+  "budgets": { "candidates": 8, "blocksPerGraph": 256, "operationsPerGraph": 4096, "evaluationDepth": 64, "stringUtf16Length": 65536, "nestedGraphsPerRoot": 64 },
+  "states": ["Known", "Unknown", "Deferred"],
+  "errorPolicy": "all finite known candidates violate one independent runtime argument guard",
+  "unknownJoin": "absorbing",
+  "loopPolicy": "any CFG back edge disables local/capture propagation for that graph",
+  "exceptionalFlowPolicy": "regions other than Root/LocalLifetime disable local/capture propagation; no inferred finally predecessor",
+  "originPolicy": "original argument expression UTF16 span; no inferred substring offset",
+  "argumentEvaluationPolicy": "expression snapshots at evaluation time; named arguments retain source order; sinks never re-evaluate earlier arguments in final call state",
+  "nonExecution": ["getters", "user calls", "ToString", "static initializers", "reflection", "filesystem", "environment"],
+  "unknownReasons": ["unassigned-or-loop", "unknown-branch", "ref-alias", "call-or-getter-escape", "alias-write", "mutation", "binding-error", "nonconstant-user-code", "interpolation-user-code", "nonstring-concat", "missing-evaluation-snapshot"],
+  "deferredReasons": ["candidate-budget", "depth-budget", "string-budget", "block-budget", "operation-budget", "nested-graph-budget", "mixed-valid-invalid-candidates"],
+  "sinkAssembly": "LithoSharp (metadata only; source types excluded)",
+  "sinks": [
+    { "id": "LSA1001", "type": "LithoSharp.SiteUrl", "member": "FromAbsolute", "parameters": ["string"], "validated": ["value"], "runtimeGuard": "StaticApiGuards.ValidateAbsoluteUrl" },
+    { "id": "LSA1002", "type": "LithoSharp.SiteUrl", "member": "ForFile", "parameters": ["string", "string?"], "validated": ["relativePath", "baseUrl"], "runtimeGuard": "SiteRoute.ForFile" },
+    { "id": "LSA1002", "type": "LithoSharp.SiteUrl", "member": "ForDirectory", "parameters": ["string", "string?"], "validated": ["relativePath", "baseUrl"], "runtimeGuard": "SiteRoute.ForDirectoryIndex" },
+    { "id": "LSA1002", "type": "LithoSharp.Routing.SiteRoute", "member": "ForFile", "parameters": ["string", "string?"], "validated": ["relativePath", "baseUrl"], "runtimeGuard": "SiteRoute.ForFile" },
+    { "id": "LSA1002", "type": "LithoSharp.Routing.SiteRoute", "member": "ForDirectoryIndex", "parameters": ["string", "string?"], "validated": ["relativePath", "baseUrl"], "runtimeGuard": "SiteRoute.ForDirectoryIndex" },
+    { "id": "LSA1003", "type": "LithoSharp.SiteAssetOutput", "member": ".ctor", "parameters": ["string", "string"], "validated": ["relativeOutputPath"], "runtimeGuard": "SiteRoute.NormalizeRelativeOutputPath" },
+    { "id": "LSA1004", "type": "LithoSharp.Quality.SiteQualityOptions", "member": ".ctor", "parameters": ["LithoSharp.Diagnostics.SiteDiagnosticSeverity", "bool", "LithoSharp.Quality.ExternalLinkCheckOptions?"], "validated": ["failureThreshold"], "runtimeGuard": "StaticApiGuards.ValidateFailureThreshold" }
+  ],
+  "schemaOwnersPreserved": ["LSG001", "LSG002", "LSG003", "LSG004", "LSG005", "LSG006"],
+  "notImplemented": ["CodeFix", "Closed coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+}
