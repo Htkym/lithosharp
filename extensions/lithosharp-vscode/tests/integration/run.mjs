@@ -238,7 +238,7 @@ if (installed) {
   await fs.writeFile(config, '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="candidate" value="'
     + escapeXml(feed) + '"/><add key="markdown-fixed" value="' + escapeXml(componentFeed)
     + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>'
-    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
+    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="Syntamark"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
   const toolDir = path.join(owned, 'tools');
   await exec('dotnet', ['tool', 'install', 'LithoSharp.Tool', '--version', packageVersion, '--tool-path', toolDir, '--configfile', config],
     { cwd: workspace, env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
@@ -285,7 +285,7 @@ if (installed) {
   packageProvenance = { version: packageVersion, feed, packageHashes, tool, shimHash: await fileHash(tool),
     toolDll: toolDlls[0], toolPayloadHashes, expectedSiteCoreAssemblyHash: coreAssemblyHash,
     nugetPackages: isolatedEnv.NUGET_PACKAGES, markdownComponentFeed: componentFeed, markdownComponent: pair.artifacts.runtime,
-    sourceMapping: 'LithoSharp* from exact candidate feed; LithoSharp.Markdown from verified fixed component feed' };
+    sourceMapping: 'LithoSharp* from exact candidate feed; Syntamark from verified fixed component feed' };
   await fs.writeFile(path.join(owned, 'package-provenance.json'), JSON.stringify(packageProvenance, null, 2));
 }
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({

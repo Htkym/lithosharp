@@ -21,7 +21,7 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
     $resolved = @{}
     foreach ($name in $assets.libraries.Keys) {
         $parts = $name.Split('/')
-        if ($parts[0] -notmatch '^LithoSharp(?:\.|$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
+        if ($parts[0] -notmatch '^(?:LithoSharp(?:\.|$)|Syntamark$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
         $expectedVersion = if ($parts[0] -ceq 'Syntamark') { $markdownPair.componentVersion } else { $CandidateVersion }
         if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -cne $expectedVersion) {
             throw "Expected candidate $expectedVersion, but resolved $name in $ProjectDirectory."
@@ -68,7 +68,7 @@ try {
     [IO.File]::WriteAllText($config, @"
 <configuration>
   <packageSources><clear/><add key="local" value="$escapedPackages"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/><package pattern="Syntamark"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
     dotnet tool install LithoSharp.Tool --version $CandidateVersion --tool-path $toolDirectory --configfile $config

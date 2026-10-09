@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $pair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $assets = Get-Content -LiteralPath $AssetsPath -Raw | ConvertFrom-Json -AsHashtable
-$keys = @($assets.libraries.Keys | Where-Object { $_ -match '^LithoSharp\.Markdown/' })
+$keys = @($assets.libraries.Keys | Where-Object { $_ -match '^Syntamark/' })
 $expected = "Syntamark/$($pair.componentVersion)"
 if ($keys.Count -ne 1 -or $keys[0] -cne $expected -or $assets.libraries[$expected].type -ne 'package') {
     throw "Expected the fixed runtime package $expected, without a ProjectReference substitute."

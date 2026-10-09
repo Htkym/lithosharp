@@ -18,7 +18,7 @@ const projects = (await fs.readdir(project)).filter(name => name.endsWith('.cspr
 assert.equal(projects.length, 1);
 assert.doesNotMatch(await fs.readFile(path.join(project, projects[0]), 'utf8'), /<ProjectReference\b/i);
 for (const [name, library] of Object.entries(assets.libraries)) {
-  if (!/^LithoSharp(?:[./])/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
+  if (!/^(?:LithoSharp(?:[./])|Syntamark\/)/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
   const [id, resolvedVersion] = name.split('/');
   assert.equal(resolvedVersion, id === 'Syntamark' ? markdownPair.componentVersion : version, `Unexpected package: ${name}`);
   assert.equal(library.type, 'package', `Source project escape: ${name}`);

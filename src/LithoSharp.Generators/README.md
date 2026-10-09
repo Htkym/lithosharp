@@ -35,6 +35,8 @@ duplicate identities or generated names, invalid or conflicting routes, malforme
 YAML or unknown fields, and values that cannot bind to the declared front matter
 type. Dynamic loader data remains a runtime validation concern.
 
-## MD-04の固定source接続準備
+## Markdownの解析
 
-未指定時は既存のstatic validatorを使います。固定artifact取得後にSyntamarkSourceVersionとsource packageの明示opt-inを使い、期待stampとloaded YAML identityを確認します。現段階でsource artifactを復元したとは記録しません。[MD-04の記録](../../docs/development/md04-verification.ja.md)に境界と未実行ゲートを示しています。
+現在の開発候補は、Syntamark.Source [2.0.0-preview.3]のportable sourceを既定でコンパイルします。解析に使うYamlDotNet [18.1.0]もanalyzer payloadへ同梱します。Core runtimeやSyntamarkのruntime DLLをcompiler hostへ読み込ませません。
+
+source-treeからビルドする場合、Directory.Build.propsが固定版を選びます。SyntamarkSourceVersionは選択済みのruntime/source pairと同じ版にする必要があり、不一致はビルド時に拒否されます。

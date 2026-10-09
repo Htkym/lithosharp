@@ -142,9 +142,10 @@ $validLicense = if ($isMarkdownComponent) {
         $metadata.version -ceq $markdownPair.componentVersion -and $metadata.repository.commit -ceq $markdownPair.sourceCommit
 } else { $metadata.license.type -eq 'expression' -and $metadata.license.'#text' -eq 'MIT' -and $metadata.icon -eq 'icon.png' }
 $validRepository = if ($isMarkdownComponent) {
-    # A local migration candidate has no public repository URL until its destination is approved.
-    $metadata.repository.type -eq 'git' -and $metadata.repository.commit -ceq $markdownPair.sourceCommit -and
-        $metadata.repository.GetAttribute('url') -eq ''
+    $metadata.repository.type -ceq 'git' -and
+        $metadata.repository.url -ceq 'https://github.com/Htkym/syntamark' -and
+        $metadata.repository.url -ceq $markdownPair.sourceRepository.url -and
+        $metadata.repository.commit -ceq $markdownPair.sourceCommit
 } else { $metadata.repository.type -eq 'git' -and $metadata.repository.url -eq 'https://github.com/Htkym/lithosharp' }
 if (!$validLicense -or $metadata.readme -ne 'README.md' -or !$validRepository) {
     throw 'Package license, icon, README or repository metadata is incorrect.'
