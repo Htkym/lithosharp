@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using LithoSharp.Content.Compilation;
+using Syntamark.Compilation;
 using static LithoSharp.Performance.EngineWorkload;
 
 namespace LithoSharp.Performance;
