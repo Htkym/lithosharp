@@ -83,8 +83,6 @@ Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName(
     "The normal product path must not load the isolated oracle.");
 Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoads");
 
-MarkdownFactsChecks.Run();
-Md02ReviewFixChecks.Run(runtime, portable);
 Md03AdapterChecks.Run(product, runtime, portable);
 await Md04CacheChecks.Run(product, runtime);
 

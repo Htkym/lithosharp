@@ -27,7 +27,7 @@
     <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(TargetDir)$(TargetName).xml" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
-  <!-- Activated only by the immutable pair selected in IN-01. No runtime facade reference. -->
+  <!-- The default source version is the component pair selected in Directory.Build.props. No runtime facade reference. -->
   <PropertyGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
     <LithoSharpMarkdownIncludeSource>true</LithoSharpMarkdownIncludeSource>
   </PropertyGroup>
@@ -41,6 +41,8 @@
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
   <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '$(LithoSharpMarkdownComponentVersion)'"
+           Text="Markdown source hosts must use the same immutable component pair as the runtime consumers." />
     <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(LithoSharpMarkdownSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
            Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
     <Error Condition="'$(LithoSharpMarkdownIncludeSource)' == 'true' and '$(LithoSharpMarkdownSourceVersion)' == ''"

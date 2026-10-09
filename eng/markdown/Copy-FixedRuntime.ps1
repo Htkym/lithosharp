@@ -2,7 +2,7 @@
 param([Parameter(Mandatory)] [string] $PackageDirectory)
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$pair = Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json
+$pair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $feed = Join-Path $PSScriptRoot 'feed'
 & (Join-Path $repo 'eng/Validate-Package.ps1') -PackageDirectory $feed -PackageId LithoSharp.Markdown -ExpectedVersion $pair.componentVersion
 $null = New-Item -ItemType Directory -Force -Path $PackageDirectory

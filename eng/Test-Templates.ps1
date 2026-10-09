@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json
+$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $packages = [IO.Path]::GetFullPath($PackageDirectory)
 foreach ($id in @('LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')) {
     $package = Join-Path $packages "$id.$CandidateVersion.nupkg"

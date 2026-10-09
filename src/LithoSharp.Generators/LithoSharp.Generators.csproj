@@ -38,7 +38,7 @@
     <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
-  <!-- Set only to the immutable source package version selected by MD-05/IN-01. -->
+  <!-- The component pair selects the exact default source version in Directory.Build.props. -->
   <PropertyGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
     <LithoSharpMarkdownIncludeSource>true</LithoSharpMarkdownIncludeSource>
   </PropertyGroup>
@@ -47,6 +47,8 @@
                       PrivateAssets="all" IncludeAssets="build" />
   </ItemGroup>
   <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '$(LithoSharpMarkdownComponentVersion)'"
+           Text="Markdown source hosts must use the same immutable component pair as the runtime consumers." />
     <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(LithoSharpMarkdownSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
            Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
     <Error Condition="'$(LithoSharpMarkdownIncludeSource)' == 'true' and '$(LithoSharpMarkdownSourceVersion)' == ''"

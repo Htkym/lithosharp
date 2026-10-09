@@ -4,7 +4,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const markdownPair = JSON.parse(await fs.readFile(path.join(repo, 'docs/development/md05-artifact-pair.json'), 'utf8'));
+const markdownPair = JSON.parse(await fs.readFile(path.join(repo, 'eng/markdown/component-pair.json'), 'utf8'));
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 

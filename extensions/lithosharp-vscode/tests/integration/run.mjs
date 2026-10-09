@@ -231,7 +231,7 @@ if (installed) {
   const config = path.join(workspace, 'NuGet.Config');
   const componentFeed = path.join(owned, 'markdown-fixed');
   const repo = path.resolve(root, '..', '..');
-  const pair = JSON.parse(await fs.readFile(path.join(repo, 'docs', 'development', 'md05-artifact-pair.json'), 'utf8'));
+  const pair = JSON.parse(await fs.readFile(path.join(repo, 'eng', 'markdown', 'component-pair.json'), 'utf8'));
   assert.deepEqual(report.markdownComponent, pair.artifacts.runtime, 'Producer fixed runtime differs from the checked-out immutable pair.');
   await exec('pwsh', ['-NoProfile', '-File', path.join(repo, 'eng', 'markdown', 'Copy-FixedRuntime.ps1'), '-PackageDirectory', componentFeed],
     { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });

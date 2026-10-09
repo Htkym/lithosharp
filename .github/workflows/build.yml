@@ -51,7 +51,7 @@ jobs:
           node-version: 24.13.0
 
       - name: Verify immutable Markdown component pair
-        run: node eng/markdown/New-ArtifactPair.mjs verify-fixed eng/markdown/feed
+        run: node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
 
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode

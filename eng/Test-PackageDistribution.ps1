@@ -170,7 +170,7 @@ $report = [ordered]@{
     })
     feed = $feed
     markdownComponentFeed = $componentFeed
-    markdownComponent = (Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json).artifacts.runtime
+    markdownComponent = (Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json).artifacts.runtime
     tool = Join-Path $toolPath $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     site = $site
     isolatedCaches = $work

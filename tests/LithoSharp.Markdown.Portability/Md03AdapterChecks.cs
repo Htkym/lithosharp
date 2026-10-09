@@ -65,14 +65,20 @@ internal static class Md03AdapterChecks
             Check(DocumentInspection.Inspect("doc.md", "---\n" + yamlCase.Item1 + "\n---\n# Body\n").Diagnostics.Any(d => d.Id == yamlCase.Item2),
                 "Located site YAML diagnostic preserved: " + yamlCase.Item2);
 
-        var portableParser = portable.GetType("LithoSharp.Markdown.MarkdownParser", true)!;
-        var portableParse = portableParser.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static)!;
-        var portableDoc = portableParse.Invoke(null, new object?[] { delimited, "scope", "source", null, null, CancellationToken.None })!;
+        // Source packages intentionally exclude the runtime facade; exercise the compiled portable parser.
+        const BindingFlags portableMembers = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        Check(portable.GetType("LithoSharp.Markdown.MarkdownParser") is null, "Source host must exclude the runtime facade");
+        var portableParser = portable.GetType("LithoSharp.Content.Compilation.MdParser", true)!;
+        var optionsType = portable.GetType("LithoSharp.Content.Compilation.MdOptions", true)!;
+        var options = optionsType.GetConstructors(portableMembers).Single().Invoke(new object?[]
+            { 1048576, 131072, 200, 16777216, "lithosharp-markdown/1", 1 });
+        var portableParse = portableParser.GetMethod("Parse", portableMembers)!;
+        var portableDoc = portableParse.Invoke(null, new object?[] { delimited, "scope", "source", null, options, CancellationToken.None })!;
         generic = MarkdownParser.Parse(delimited, "scope", "source");
         foreach (var property in new[] { "ParserVersion", "TextHash", "OptionsHash" })
-            Check((string)portableDoc.GetType().GetProperty(property)!.GetValue(portableDoc)!
+            Check((string)portableDoc.GetType().GetProperty(property, portableMembers)!.GetValue(portableDoc)!
                 == (string)generic.GetType().GetProperty(property)!.GetValue(generic)!, "Runtime/portable generic " + property + " agreement");
-        Check(portableDoc.GetType().GetProperty("Status")!.GetValue(portableDoc)!.ToString() == "Complete",
+        Check(portableDoc.GetType().GetProperty("Status", portableMembers)!.GetValue(portableDoc)!.ToString() == "Complete",
             "Portable generic facts can parse YAML in a separate load context");
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
         try { DocumentInspection.Inspect("doc.md", body, cancellationToken: cancelled.Token); throw new InvalidOperationException("Site cancellation swallowed"); }

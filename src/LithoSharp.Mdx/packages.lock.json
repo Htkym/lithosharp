@@ -15,8 +15,8 @@
       },
       "LithoSharp.Markdown": {
         "type": "Transitive",
-        "resolved": "2.0.0-preview.1",
-        "contentHash": "hZM2TqR/fKJSIf16GkSmLZTnLHsTQRV/CCAxo16TOH28aoaQOMUgT6hvrl5gCB5NwOh/2Um3JIAYq/05Qmxl7A==",
+        "resolved": "2.0.0-preview.2",
+        "contentHash": "bNuKpr8unEk4mKwI9Dff8+XjAbCrf4tdZFwyWU6/5ONivl64U0FRfJSDXNKx1FK6PiMvXHX/mxLPhy55P3rzJw==",
         "dependencies": {
           "YamlDotNet": "[18.1.0]"
         }
@@ -54,7 +54,7 @@
         "type": "Project",
         "dependencies": {
           "AngleSharp": "[1.8.3, )",
-          "LithoSharp.Markdown": "[2.0.0-preview.1, 2.0.0-preview.1]",
+          "LithoSharp.Markdown": "[2.0.0-preview.2, 2.0.0-preview.2]",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
           "YamlDotNet": "[18.1.0, )"

@@ -41,7 +41,7 @@
   <ItemGroup>
     <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
     <!-- Immutable MD-05 runtime; component version is independent of the Core version. -->
-    <PackageReference Include="LithoSharp.Markdown" Version="[2.0.0-preview.1]" />
+    <PackageReference Include="LithoSharp.Markdown" Version="[$(LithoSharpMarkdownComponentVersion)]" />
   </ItemGroup>
 
   <ItemGroup>

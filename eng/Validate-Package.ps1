@@ -10,11 +10,12 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'docs/development/md05-artifact-pair.json') -Raw | ConvertFrom-Json
+$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $isMarkdownComponent = $PackageId -in @('LithoSharp.Markdown', 'LithoSharp.Markdown.Source')
 
 $matchingPackages = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
-    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' })
+    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' -and
+        (!$ExpectedVersion -or $_.Name -ceq "$PackageId.$ExpectedVersion.nupkg") })
 if ($matchingPackages.Count -ne 1) { throw "Expected exactly one $PackageId package in $PackageDirectory." }
 $package = $matchingPackages[0]
 $symbols = $null
@@ -140,8 +141,12 @@ $validLicense = if ($isMarkdownComponent) {
     $metadata.license.type -eq 'file' -and $metadata.license.'#text' -eq 'LICENSE' -and
         $metadata.version -ceq $markdownPair.componentVersion -and $metadata.repository.commit -ceq $markdownPair.sourceCommit
 } else { $metadata.license.type -eq 'expression' -and $metadata.license.'#text' -eq 'MIT' -and $metadata.icon -eq 'icon.png' }
-if (!$validLicense -or $metadata.readme -ne 'README.md' -or
-    $metadata.repository.type -ne 'git' -or $metadata.repository.url -ne 'https://github.com/Htkym/lithosharp') {
+$validRepository = if ($isMarkdownComponent) {
+    # A local migration candidate has no public repository URL until its destination is approved.
+    $metadata.repository.type -eq 'git' -and $metadata.repository.commit -ceq $markdownPair.sourceCommit -and
+        $metadata.repository.GetAttribute('url') -eq ''
+} else { $metadata.repository.type -eq 'git' -and $metadata.repository.url -eq 'https://github.com/Htkym/lithosharp' }
+if (!$validLicense -or $metadata.readme -ne 'README.md' -or !$validRepository) {
     throw 'Package license, icon, README or repository metadata is incorrect.'
 }
 # Analyzer-only packages ship no dependency group; strict mode would throw on
@@ -154,7 +159,7 @@ if ($nuspecDependencies.Count -gt 0 -and $nuspecDependencies.id -contains 'Markd
     throw 'Package metadata must not reference Markdig.'
 }
 if ($isMarkdownComponent) {
-    & node (Join-Path $repo 'eng/markdown/New-ArtifactPair.mjs') verify-fixed-package $package.FullName
+    & node (Join-Path $repo 'eng/markdown/Verify-FixedPair.mjs') verify-fixed-package $package.FullName
     if ($LASTEXITCODE -ne 0) { throw 'Fixed Markdown artifact/source verification failed.' }
     if ($PackageId -eq 'LithoSharp.Markdown') {
         if ($nuspecDependencies.Count -ne 1 -or $nuspecDependencies[0].id -cne 'YamlDotNet' -or $nuspecDependencies[0].version -cne '[18.1.0]') {
