@@ -6,6 +6,8 @@ Package validation compares a 2.x Testing candidate against the published 1.1.0 
 
 Testing has no direct AngleSharp dependency or assembly reference. Its Core dependency still brings AngleSharp transitively; removing that whole-product dependency belongs to IN-02 and is not part of this packaging repair.
 
+The installed-extension workflow independently selects the same release line for its isolated seven-package feed: `feature/2.0.0` (including a pull request's head branch) uses `2.0.0-rc.<run_id>`; other branches retain `1.1.0-rc.<run_id>`. One workflow-level value reaches pack, producer receipt and installed consumers. The producer and receiver reject a report/manifest version that differs from that selected RC. Package-content, hash, exact seven-package membership, package-only consumers and the narrow API compatibility checks remain enabled. The fixed Syntamark pair uses its own immutable component version.
+
 ```csharp
 using LithoSharp.Testing;
 using var page = SiteTestDocument.Parse("<main><p class='lead'>A &amp; B</p></main>");

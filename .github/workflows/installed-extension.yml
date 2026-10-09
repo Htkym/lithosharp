@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Keep the release line aligned with build.yml; the RC suffix isolates this run's feed.
+  LITHOSHARP_RC_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && format('2.0.0-rc.{0}', github.run_id) || format('1.1.0-rc.{0}', github.run_id) }}
+
 jobs:
   package:
     name: Produce immutable validation bundle
@@ -58,7 +62,7 @@ jobs:
       - name: Create isolated seven-package RC feed
         shell: pwsh
         run: |
-          ./eng/Test-PackageDistribution.ps1 -Output artifacts/candidate-distribution -CandidatePackageVersion '1.1.0-rc.${{ github.run_id }}'
+          ./eng/Test-PackageDistribution.ps1 -Output artifacts/candidate-distribution -CandidatePackageVersion $env:LITHOSHARP_RC_VERSION
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Record immutable artifact handoff
         id: manifest
@@ -76,6 +80,7 @@ jobs:
           const bytes = await fs.readFile(path.join(artifacts, 'vsix-validation', vsix.vsix));
           const sha256 = createHash('sha256').update(bytes).digest('hex');
           if (sha256 !== vsix.sha256 || report.packageCount !== 7 || !/^\d+\.\d+\.\d+-rc\./.test(report.version)) throw Error('Invalid validated producer receipts.');
+          if (report.version !== process.env.LITHOSHARP_RC_VERSION) throw Error('Producer package version differs from the selected RC candidate.');
           const archive = await JSZip.loadAsync(bytes);
           const payloadHashes = {};
           for (const [name, entry] of Object.entries(archive.files)) {
@@ -157,6 +162,7 @@ jobs:
           $manifestPath = Join-Path $bundle 'installed-extension-manifest.json'
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
           if ($manifest.vsix.sha256 -cne $env:EXPECTED_VSIX_SHA256) { throw 'Producer job SHA does not match transferred artifact manifest.' }
+          if ($manifest.packageVersion -cne $env:LITHOSHARP_RC_VERSION) { throw 'Transferred package version differs from the selected RC candidate.' }
           $env:LITHOSHARP_VSCODE_EXE = Get-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts/vscode-executable.txt') -Raw
           $arguments = @('tests/integration/run.mjs', '--installed-vsix', (Join-Path $bundle "vsix-validation/$($manifest.vsix.file)"),
             '--sha256', $env:EXPECTED_VSIX_SHA256, '--artifact-manifest', $manifestPath,
