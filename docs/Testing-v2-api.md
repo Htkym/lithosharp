@@ -2,6 +2,10 @@
 
 Testing v2 replaces the mutable third-party DOM getter with a LithoSharp-owned read-only snapshot. Existing Parse, RenderComponent, RenderLayout, AssertElement/Text/Attribute/Meta/Link/Image and the disposable SiteTestDocument ownership pattern remain. Document removal is a source and binary breaking change; the old DOM type is not emulated.
 
+Package validation compares a 2.x Testing candidate against the published 1.1.0 API. For a 2.x package only, `ApiCompat.2.0.xml` permits the exact `Document` getter removal (BRC-001); other compatibility errors remain fatal. A 1.x candidate retains the 1.0.0 baseline and still fails this validation. Feature-branch CI packs the aligned `2.0.0-preview.1` candidate and tests package consumers at that version. Each pack builds and performs a locked restore with the candidate version, so intermediate builds made by other checks cannot supply stale package assemblies or skip restoring the v2 baseline. Local distribution checks can use `eng/Test-PackageDistribution.ps1 -CandidateVersion 2.0.0-preview.1`. Stable project/template version defaults remain unchanged until the release version gate.
+
+Testing has no direct AngleSharp dependency or assembly reference. Its Core dependency still brings AngleSharp transitively; removing that whole-product dependency belongs to IN-02 and is not part of this packaging repair.
+
 ```csharp
 using LithoSharp.Testing;
 using var page = SiteTestDocument.Parse("<main><p class='lead'>A &amp; B</p></main>");

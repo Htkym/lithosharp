@@ -6,6 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Testing</PackageId>
     <Version>1.1.0</Version>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Description>Framework-independent site and DOM assertions for LithoSharp.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -14,8 +15,13 @@
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;CS1591</WarningsAsErrors>
     <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.'))">1.1.0</PackageValidationBaselineVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
+  <!-- Only the documented v2 DOM getter removal is allowed across the major boundary. -->
+  <ItemGroup Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.')) and '$(PackageValidationBaselineVersion)' == '1.1.0'">
+    <ApiCompatSuppressionFile Include="ApiCompat.2.0.xml" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />

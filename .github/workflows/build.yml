@@ -35,6 +35,9 @@ jobs:
             arch: Arm64
             check-name: macos-latest
     runs-on: ${{ matrix.os }}
+    env:
+      # The v2 feature candidate must not advertise the removed Testing API as 1.x.
+      LITHOSHARP_CANDIDATE_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && '2.0.0-preview.1' || '1.1.0' }}
 
     steps:
       - name: Checkout
@@ -100,7 +103,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Pack
-        run: dotnet pack src/LithoSharp/LithoSharp.csproj --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
+        run: dotnet pack src/LithoSharp/LithoSharp.csproj --configuration Release --output artifacts/packages -p:EnablePackageValidation=true -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
 
       - name: Validate package contents
         shell: pwsh
@@ -109,7 +112,7 @@ jobs:
       - name: Pack and validate generator
         shell: pwsh
         run: |
-          dotnet pack src/LithoSharp.Generators/LithoSharp.Generators.csproj --no-restore --configuration Release --output artifacts/packages
+          dotnet pack src/LithoSharp.Generators/LithoSharp.Generators.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
 
@@ -171,21 +174,21 @@ jobs:
       - name: Pack and check CLI and project templates
         shell: pwsh
         run: |
-          dotnet pack src/LithoSharp.Mdx/LithoSharp.Mdx.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          dotnet pack src/LithoSharp.Mdx/LithoSharp.Mdx.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Mdx
-          dotnet pack src/LithoSharp.Tool/LithoSharp.Tool.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          dotnet pack src/LithoSharp.Tool/LithoSharp.Tool.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet pack templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          dotnet pack templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Tool
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
-          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages -CandidateVersion 1.1.0
+          ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
 
       - name: Pack and validate images
         shell: pwsh
         run: |
-          dotnet pack src/LithoSharp.Images/LithoSharp.Images.csproj --no-restore --configuration Release --output artifacts/packages
+          dotnet pack src/LithoSharp.Images/LithoSharp.Images.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Images
 
@@ -195,14 +198,14 @@ jobs:
       - name: Pack and validate testing
         shell: pwsh
         run: |
-          dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --no-build --no-restore --configuration Release --output artifacts/packages
+          dotnet pack src/LithoSharp.Testing/LithoSharp.Testing.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
 
       - name: Check package security gate controls
         shell: pwsh
         run: |
-          ./eng/Test-PackageSecurityGate.ps1 -PackageDirectory artifacts/packages -ExpectedVersion 1.1.0 -Output (Join-Path $env:RUNNER_TEMP 'package-security-gate')
+          ./eng/Test-PackageSecurityGate.ps1 -PackageDirectory artifacts/packages -ExpectedVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }} -Output (Join-Path $env:RUNNER_TEMP 'package-security-gate')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check migration normalization controls
@@ -217,7 +220,7 @@ jobs:
           $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
           $null = New-Item -ItemType Directory -Force -Path $baseline
           Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/lithosharp/1.0.0/lithosharp.1.0.0.nupkg' -OutFile (Join-Path $baseline 'LithoSharp.1.0.0.nupkg')
-          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion 1.0.0 -CandidateVersion 1.1.0
+          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion 1.0.0 -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run sample
