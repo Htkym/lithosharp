@@ -296,6 +296,10 @@ internal static class FactoryHost
         {
             var contract = typeof(ISiteFactory).Assembly;
             if (string.Equals(assemblyName.Name, contract.GetName().Name, StringComparison.Ordinal)) return contract;
+            // Core semantic records use SourceSpan from Markdown; both must keep
+            // the same type identity when MDX runs in the collectible factory context.
+            var markdownContract = typeof(LithoSharp.Markdown.MarkdownParser).Assembly;
+            if (string.Equals(assemblyName.Name, markdownContract.GetName().Name, StringComparison.Ordinal)) return markdownContract;
             var path = resolver.ResolveAssemblyToPath(assemblyName);
             return path is null ? null : LoadFromAssemblyPath(path);
         }
