@@ -146,6 +146,13 @@ public sealed partial class AnalyzerPackageHostTests
                 Check(contract.RootElement.GetProperty("budgets").GetProperty(key).GetInt32()
                     == (int)flow.GetField(field, BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()!,
                     "Packed flow budget manifest must match executable analyzer: " + key);
+            foreach (var (key, type, field) in new[] { ("sourceUtf16Length", "HtmlTemplateAnalysis", "MaxTemplateLength"),
+                ("decodedUtf16Length", "HtmlTemplateAnalysis", "MaxTemplateLength"),
+                ("holes", "HtmlTemplateAnalysis", "MaxHoles"), ("nameLength", "HtmlContextCursor", "MaxNameLength") })
+                Check(contract.RootElement.GetProperty("htmlTemplates").GetProperty("budgets").GetProperty(key).GetInt32()
+                    == (int)analyzers[0].GetType().Assembly.GetType("LithoSharp.Analyzers." + type)!
+                        .GetField(field, BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue()!,
+                    "Packed HTML budget manifest matches executable analyzer: " + key);
             return new(path, version, Sha(bytes), analyzers[0].GetType().Assembly, analyzers);
         }
     }

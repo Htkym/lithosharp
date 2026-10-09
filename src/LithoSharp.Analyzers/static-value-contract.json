@@ -24,5 +24,18 @@
     { "id": "LSA1004", "type": "LithoSharp.Quality.SiteQualityOptions", "member": ".ctor", "parameters": ["LithoSharp.Diagnostics.SiteDiagnosticSeverity", "bool", "LithoSharp.Quality.ExternalLinkCheckOptions?"], "validated": ["failureThreshold"], "runtimeGuard": "StaticApiGuards.ValidateFailureThreshold" }
   ],
   "schemaOwnersPreserved": ["LSG001", "LSG002", "LSG003", "LSG004", "LSG005", "LSG006"],
+  "htmlTemplates": {
+    "task": "RA-04",
+    "sink": "LithoSharp.Html.UnsafeRaw(string) -> LithoSharp.IHtmlContent, exact public metadata overload",
+    "budgets": { "sourceUtf16Length": 65536, "decodedUtf16Length": 65536, "holes": 256, "nameLength": 128 },
+    "rules": { "LSA1101": "Info/unknown raw argument contents", "LSA1102": "Error/proven fragment in known quoted attribute", "LSA1103": "Error/hole at known tag/attribute name or unquoted value", "LSA1104": "Warning/HTML encoding in known script/style/event context" },
+    "origin": "original sink argument for Info; original hole expression for context rules",
+    "knownEncoded": ["Html.Encode(string?)", "sealed HtmlText", "sealed HtmlAttributeValue"],
+    "knownFragment": ["exact Html.UnsafeRaw result", "exact result.ToHtmlString()"],
+    "unknownInterface": "IHtmlContent alone does not prove a raw fragment",
+    "unknownHolePolicy": "invalidate subsequent context; encoded holes also invalidate pending raw-text closing-tag prefixes; never substitute holes into a document parser",
+    "deferred": ["concatenated/flow-derived templates", "format/alignment type classification", "unknown prior holes", "ambiguous/malformed HTML", "declarations", "foreign/RCDATA/special HTML modes", "script escaped states", "comment holes", "template budgets"],
+    "notImplemented": ["LSA1105", "CodeFix", "full HTML conformance", "arbitrary template handlers"]
+  },
   "notImplemented": ["CodeFix", "Closed coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }
