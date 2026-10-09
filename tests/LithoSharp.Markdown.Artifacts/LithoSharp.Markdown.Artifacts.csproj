@@ -7,12 +7,12 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LithoSharp.Markdown" Version="[$(LithoSharpMarkdownArtifactVersion)]" />
+    <PackageReference Include="Syntamark" Version="[$(SyntamarkArtifactVersion)]" />
     <!-- Reflection loads the actual Generator assembly; its Roslyn references are available here. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="[4.14.0]" PrivateAssets="all" />
   </ItemGroup>
   <Target Name="CheckArtifactVersion" BeforeTargets="CollectPackageReferences;PrepareForBuild">
-    <Error Condition="'$(LithoSharpMarkdownArtifactVersion)' == ''"
+    <Error Condition="'$(SyntamarkArtifactVersion)' == ''"
            Text="Select the immutable runtime artifact version for this canary." />
   </Target>
 </Project>

@@ -108,7 +108,7 @@ internal static class Md04CacheChecks
         await workspace.DisposeAsync();
         Check(Count(workspace) == 0 && Bytes(workspace) == 0 && HeadingStart(first) == 0, "Dispose releases retention without rewriting returned facts");
 
-        var identity = product.GetType("LithoSharp.Markdown.Hosting.MarkdownYamlIdentity", true)!;
+        var identity = product.GetType("Syntamark.Hosting.MarkdownYamlIdentity", true)!;
         identity.GetMethod("RequirePinned", All)!.Invoke(null, null);
         var require = identity.GetMethod("Require", All)!;
         try
@@ -123,7 +123,7 @@ internal static class Md04CacheChecks
         var parserVersion = (string)Get(first, "ParserVersion");
         const string yamlIdentity = "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e";
         verify.Invoke(null, new[] { parserVersion, "1.0", "lithosharp-markdown/1", "18.1.0", yamlIdentity, "18.1.0" });
-        Check(!host.GetReferencedAssemblies().Any(a => a.Name == "LithoSharp" || a.Name == "LithoSharp.Markdown"),
+        Check(!host.GetReferencedAssemblies().Any(a => a.Name == "LithoSharp" || a.Name == "Syntamark"),
             "Prepared netstandard host contract does not reference the net10 facade");
         Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-04", status = "PASS",
             checks = "identity/raw positions/LRU-entry-byte limits/Partial-Failed-cancel exclusion/generation reservation/Remove-Clear-Dispose/legacy separation/loaded YAML metadata",

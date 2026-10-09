@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $pair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $feed = Join-Path $PSScriptRoot 'feed'
-& (Join-Path $repo 'eng/Validate-Package.ps1') -PackageDirectory $feed -PackageId LithoSharp.Markdown -ExpectedVersion $pair.componentVersion
+& (Join-Path $repo 'eng/Validate-Package.ps1') -PackageDirectory $feed -PackageId Syntamark -ExpectedVersion $pair.componentVersion
 $null = New-Item -ItemType Directory -Force -Path $PackageDirectory
 $source = Join-Path $feed $pair.artifacts.runtime.fileName
 $destination = Join-Path $PackageDirectory $pair.artifacts.runtime.fileName

@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using LithoSharp.Content;
 using LithoSharp.Inspection;
-using LithoSharp.Markdown;
+using Syntamark;
 
 internal static class Md03AdapterChecks
 {
@@ -33,7 +33,7 @@ internal static class Md03AdapterChecks
                 == JsonSerializer.Serialize(inspected.GetType().GetProperty(property)!.GetValue(inspected)), "Inspection/render " + property + " parity");
 
         // The old observable heading calculation is retained only as this small oracle.
-        var parser = runtime.GetType("LithoSharp.Content.Compilation.LithoBlockParser", true)!;
+        var parser = runtime.GetType("Syntamark.Compilation.LithoBlockParser", true)!;
         var parsed = parser.GetMethod("ParseBlocks", BindingFlags.Public | BindingFlags.Static)!
             .Invoke(null, new object[] { body, CancellationToken.None })!;
         var blocks = ((IEnumerable)parsed.GetType().GetField("Item1")!.GetValue(parsed)!).Cast<object>().ToArray();
@@ -67,9 +67,9 @@ internal static class Md03AdapterChecks
 
         // Source packages intentionally exclude the runtime facade; exercise the compiled portable parser.
         const BindingFlags portableMembers = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
-        Check(portable.GetType("LithoSharp.Markdown.MarkdownParser") is null, "Source host must exclude the runtime facade");
-        var portableParser = portable.GetType("LithoSharp.Content.Compilation.MdParser", true)!;
-        var optionsType = portable.GetType("LithoSharp.Content.Compilation.MdOptions", true)!;
+        Check(portable.GetType("Syntamark.MarkdownParser") is null, "Source host must exclude the runtime facade");
+        var portableParser = portable.GetType("Syntamark.Compilation.MdParser", true)!;
+        var optionsType = portable.GetType("Syntamark.Compilation.MdOptions", true)!;
         var options = optionsType.GetConstructors(portableMembers).Single().Invoke(new object?[]
             { 1048576, 131072, 200, 16777216, "lithosharp-markdown/1", 1 });
         var portableParse = portableParser.GetMethod("Parse", portableMembers)!;

@@ -37,4 +37,4 @@ type. Dynamic loader data remains a runtime validation concern.
 
 ## MD-04の固定source接続準備
 
-未指定時は既存のstatic validatorを使います。固定artifact取得後にLithoSharpMarkdownSourceVersionとsource packageの明示opt-inを使い、期待stampとloaded YAML identityを確認します。現段階でsource artifactを復元したとは記録しません。[MD-04の記録](../../docs/development/md04-verification.ja.md)に境界と未実行ゲートを示しています。
+未指定時は既存のstatic validatorを使います。固定artifact取得後にSyntamarkSourceVersionとsource packageの明示opt-inを使い、期待stampとloaded YAML identityを確認します。現段階でsource artifactを復元したとは記録しません。[MD-04の記録](../../docs/development/md04-verification.ja.md)に境界と未実行ゲートを示しています。

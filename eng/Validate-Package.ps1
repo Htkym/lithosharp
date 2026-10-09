@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.Analyzers', 'LithoSharp.Markdown', 'LithoSharp.Markdown.Source')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.Analyzers', 'Syntamark', 'Syntamark.Source')]
     [string] $PackageId = 'LithoSharp',
     [string] $ExpectedVersion
 )
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
-$isMarkdownComponent = $PackageId -in @('LithoSharp.Markdown', 'LithoSharp.Markdown.Source')
+$isMarkdownComponent = $PackageId -in @('Syntamark', 'Syntamark.Source')
 
 $matchingPackages = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
     Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' -and
@@ -161,7 +161,7 @@ if ($nuspecDependencies.Count -gt 0 -and $nuspecDependencies.id -contains 'Markd
 if ($isMarkdownComponent) {
     & node (Join-Path $repo 'eng/markdown/Verify-FixedPair.mjs') verify-fixed-package $package.FullName
     if ($LASTEXITCODE -ne 0) { throw 'Fixed Markdown artifact/source verification failed.' }
-    if ($PackageId -eq 'LithoSharp.Markdown') {
+    if ($PackageId -eq 'Syntamark') {
         if ($nuspecDependencies.Count -ne 1 -or $nuspecDependencies[0].id -cne 'YamlDotNet' -or $nuspecDependencies[0].version -cne '[18.1.0]') {
             throw 'Fixed Markdown runtime requires exactly YamlDotNet [18.1.0].'
         }
@@ -170,7 +170,7 @@ if ($isMarkdownComponent) {
     return
 }
 foreach ($dependency in $nuspecDependencies) {
-    if ($dependency.id -eq 'LithoSharp.Markdown') {
+    if ($dependency.id -eq 'Syntamark') {
         if ($dependency.version -cne "[$($markdownPair.componentVersion)]") { throw "Markdown runtime dependency must match the exact fixed pair: $($dependency.version)." }
         continue
     }
@@ -244,7 +244,7 @@ if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('AngleSharp', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'LithoSharp.Markdown')) {
+foreach ($expected in @('AngleSharp', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'Syntamark')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

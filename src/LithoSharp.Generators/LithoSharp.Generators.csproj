@@ -39,19 +39,19 @@
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
   <!-- The component pair selects the exact default source version in Directory.Build.props. -->
-  <PropertyGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
-    <LithoSharpMarkdownIncludeSource>true</LithoSharpMarkdownIncludeSource>
+  <PropertyGroup Condition="'$(SyntamarkSourceVersion)' != ''">
+    <SyntamarkIncludeSource>true</SyntamarkIncludeSource>
   </PropertyGroup>
-  <ItemGroup Condition="'$(LithoSharpMarkdownSourceVersion)' != ''">
-    <PackageReference Include="LithoSharp.Markdown.Source" Version="[$(LithoSharpMarkdownSourceVersion)]"
+  <ItemGroup Condition="'$(SyntamarkSourceVersion)' != ''">
+    <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkSourceVersion)]"
                       PrivateAssets="all" IncludeAssets="build" />
   </ItemGroup>
   <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
-    <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '$(LithoSharpMarkdownComponentVersion)'"
+    <Error Condition="'$(SyntamarkSourceVersion)' != '$(SyntamarkComponentVersion)'"
            Text="Markdown source hosts must use the same immutable component pair as the runtime consumers." />
-    <Error Condition="'$(LithoSharpMarkdownSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(LithoSharpMarkdownSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
+    <Error Condition="'$(SyntamarkSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(SyntamarkSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
            Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
-    <Error Condition="'$(LithoSharpMarkdownIncludeSource)' == 'true' and '$(LithoSharpMarkdownSourceVersion)' == ''"
-           Text="Select an immutable LithoSharpMarkdownSourceVersion before enabling Markdown source." />
+    <Error Condition="'$(SyntamarkIncludeSource)' == 'true' and '$(SyntamarkSourceVersion)' == ''"
+           Text="Select an immutable SyntamarkSourceVersion before enabling Markdown source." />
   </Target>
 </Project>

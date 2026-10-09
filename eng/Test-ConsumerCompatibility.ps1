@@ -56,7 +56,7 @@ function Write-NuGetConfig([string] $Directory, [string] $LocalFeed) {
     [IO.File]::WriteAllText((Join-Path $Directory 'NuGet.Config'), @"
 <configuration>
   <packageSources><clear/><add key="local" value="$([Security.SecurityElement]::Escape($LocalFeed))"/><add key="markdown-fixed" value="$([Security.SecurityElement]::Escape((Join-Path $repo 'eng/markdown/feed')))"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="Syntamark"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
 }

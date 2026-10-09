@@ -7,9 +7,9 @@ import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const [action,...args]=process.argv.slice(2);
-const component='src/LithoSharp.Markdown/';
+const component='src/Syntamark/';
 const stamp=component+'Portable/MarkdownParserVersion.g.cs';
-const ids=['LithoSharp.Markdown','LithoSharp.Markdown.Source'];
+const ids=['Syntamark','Syntamark.Source'];
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const json=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 function assert(ok,why){if(!ok)throw Error(why);}
@@ -58,7 +58,7 @@ function verifyFixedPackage(packagePath){
   const {state,artifacts,...selected}=m;
   assert(JSON.stringify(inside)===JSON.stringify(selected),'Fixed package source/contract manifest differs');
   checkLicenses(z,m);
-  if(kind==='runtime')assert(sha(z.get('lib/net10.0/LithoSharp.Markdown.dll'))===a.assemblySha256,'Fixed runtime DLL mismatch');
+  if(kind==='runtime')assert(sha(z.get('lib/net10.0/Syntamark.dll'))===a.assemblySha256,'Fixed runtime DLL mismatch');
   else {
     const entries=m.canonicalFiles.map(e=>{
       assert(e.path.startsWith(component)&&e.path!==stamp&&!e.path.split('/').includes('..'),'Invalid canonical path');

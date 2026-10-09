@@ -5,7 +5,7 @@ using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text.Json;
-using LithoSharp.Markdown;
+using Syntamark;
 
 if (args.Length != 3) throw new ArgumentException("pair manifest, actual Generator DLL, result JSON required");
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[0]));
@@ -24,9 +24,9 @@ var sourceYamlInformation = sourceYaml.GetCustomAttribute<AssemblyInformationalV
 void Check(bool valid, string reason) { if (!valid) throw new InvalidOperationException(reason); }
 Check(generator.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName == ".NETStandard,Version=v2.0",
     "Source host must be the actual netstandard2.0 Generator.");
-Check(!generator.GetReferencedAssemblies().Any(a => a.Name == "LithoSharp.Markdown" || a.Name == "LithoSharp"),
+Check(!generator.GetReferencedAssemblies().Any(a => a.Name == "Syntamark" || a.Name == "LithoSharp"),
     "Source host cannot reference a runtime/site facade.");
-Check(!generator.GetTypes().Any(t => t.IsPublic && t.Namespace == "LithoSharp.Markdown"),
+Check(!generator.GetTypes().Any(t => t.IsPublic && t.Namespace == "Syntamark"),
     "Source host contains a public Markdown facade.");
 Check(!generator.GetCustomAttributes<InternalsVisibleToAttribute>().Any(),
     "Runtime friend metadata leaked into source host.");
@@ -35,7 +35,7 @@ Check(sourceYamlReference.FullName == yamlAssembly && sourceYaml.FullName == yam
 var adapter = generator.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter", true)!;
 var parse = adapter.GetMethod("Parse", staticMembers)
     ?? throw new InvalidOperationException("Source symbol did not compile the MD-04 Parse body.");
-var optionsType = generator.GetType("LithoSharp.Content.Compilation.MdOptions", true)!;
+var optionsType = generator.GetType("Syntamark.Compilation.MdOptions", true)!;
 var options = optionsType.GetConstructors(members).Single().Invoke(
     new object[] { 1048576, 131072, 200, 16777216, Field("profileId"), 1 });
 object SourceParse(string raw, string expected = "", string assembly = "")

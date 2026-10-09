@@ -343,7 +343,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 new SiteSourceLocation(relativePath, 1, 1)) { CapturedInputs = capturedInputs };
         }
 
-        var bodyStartLine = new Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;
+        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;
         return ContentParseResult<ContentEntry<TFrontMatter, string>>.Success(
             entry,
             [.. bindResult.Diagnostics,

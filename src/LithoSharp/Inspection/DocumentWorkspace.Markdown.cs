@@ -1,6 +1,7 @@
+using Syntamark.Compilation;
 using System.Collections.Concurrent;
 using LithoSharp.Content.Compilation;
-using LithoSharp.Markdown.Hosting;
+using Syntamark.Hosting;
 
 namespace LithoSharp.Inspection;
 

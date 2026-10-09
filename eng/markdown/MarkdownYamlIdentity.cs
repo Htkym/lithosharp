@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using YamlDotNet.Core;
 
-namespace LithoSharp.Markdown.Hosting;
+namespace Syntamark.Hosting;
 
 // Consumer startup adapter, outside canonical parser source. No file access or assembly loading.
 internal static class MarkdownYamlIdentity

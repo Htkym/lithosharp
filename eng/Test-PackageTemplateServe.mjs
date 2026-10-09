@@ -20,11 +20,11 @@ assert.doesNotMatch(await fs.readFile(path.join(project, projects[0]), 'utf8'), 
 for (const [name, library] of Object.entries(assets.libraries)) {
   if (!/^LithoSharp(?:[./])/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
   const [id, resolvedVersion] = name.split('/');
-  assert.equal(resolvedVersion, id === 'LithoSharp.Markdown' ? markdownPair.componentVersion : version, `Unexpected package: ${name}`);
+  assert.equal(resolvedVersion, id === 'Syntamark' ? markdownPair.componentVersion : version, `Unexpected package: ${name}`);
   assert.equal(library.type, 'package', `Source project escape: ${name}`);
 }
 assert.ok(assets.libraries[`LithoSharp/${version}`], 'Candidate Core was not resolved');
-assert.ok(assets.libraries[`LithoSharp.Markdown/${markdownPair.componentVersion}`], 'Fixed Markdown runtime was not resolved');
+assert.ok(assets.libraries[`Syntamark/${markdownPair.componentVersion}`], 'Fixed Markdown runtime was not resolved');
 await fs.mkdir(evidence, { recursive: false });
 const events = [], owned = new Map();
 let pending = '', stdout = '', stderr = '', invalidJson, inputError, exitResult;

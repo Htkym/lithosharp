@@ -22,7 +22,7 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
     foreach ($name in $assets.libraries.Keys) {
         $parts = $name.Split('/')
         if ($parts[0] -notmatch '^LithoSharp(?:\.|$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
-        $expectedVersion = if ($parts[0] -ceq 'LithoSharp.Markdown') { $markdownPair.componentVersion } else { $CandidateVersion }
+        $expectedVersion = if ($parts[0] -ceq 'Syntamark') { $markdownPair.componentVersion } else { $CandidateVersion }
         if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -cne $expectedVersion) {
             throw "Expected candidate $expectedVersion, but resolved $name in $ProjectDirectory."
         }

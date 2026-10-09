@@ -13,14 +13,6 @@
         "resolved": "1.8.3",
         "contentHash": "IiXdbBHzeKRUDayOFT/5nAqkY7Tqbtzr9dqoWrsfseLRs2r1j94qP8MmKnfs9aX+WHucmlmX8xq9QosIUJ/sbA=="
       },
-      "LithoSharp.Markdown": {
-        "type": "Transitive",
-        "resolved": "2.0.0-preview.2",
-        "contentHash": "bNuKpr8unEk4mKwI9Dff8+XjAbCrf4tdZFwyWU6/5ONivl64U0FRfJSDXNKx1FK6PiMvXHX/mxLPhy55P3rzJw==",
-        "dependencies": {
-          "YamlDotNet": "[18.1.0]"
-        }
-      },
       "SkiaSharp": {
         "type": "Transitive",
         "resolved": "4.153.1",
@@ -45,6 +37,14 @@
         "resolved": "4.153.1",
         "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
       },
+      "Syntamark": {
+        "type": "Transitive",
+        "resolved": "2.0.0-preview.3",
+        "contentHash": "SS1kDrcSkEDVHPjKorWfy3y/cTKviDXdb/fxeO8ETEEUM82M6Nxstap6VZlHTcppeRfOdZXCs0xpR3ZxJk+TUw==",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0]"
+        }
+      },
       "YamlDotNet": {
         "type": "Transitive",
         "resolved": "18.1.0",
@@ -54,9 +54,9 @@
         "type": "Project",
         "dependencies": {
           "AngleSharp": "[1.8.3, )",
-          "LithoSharp.Markdown": "[2.0.0-preview.2, 2.0.0-preview.2]",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
+          "Syntamark": "[2.0.0-preview.3, 2.0.0-preview.3]",
           "YamlDotNet": "[18.1.0, )"
         }
       }

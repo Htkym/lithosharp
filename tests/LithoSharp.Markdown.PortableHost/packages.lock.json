@@ -2,12 +2,6 @@
   "version": 1,
   "dependencies": {
     ".NETStandard,Version=v2.0": {
-      "LithoSharp.Markdown.Source": {
-        "type": "Direct",
-        "requested": "[2.0.0-preview.2, 2.0.0-preview.2]",
-        "resolved": "2.0.0-preview.2",
-        "contentHash": "obmGwB9fXTE5ltlYiv6D3yGRoaQsbu7YO3lEsHC0Fjrx5oviDoXFs2tonoNzSCFQuxAVbKJNFo0flFBdqeijtw=="
-      },
       "NETStandard.Library": {
         "type": "Direct",
         "requested": "[2.0.3, )",
@@ -16,6 +10,12 @@
         "dependencies": {
           "Microsoft.NETCore.Platforms": "1.1.0"
         }
+      },
+      "Syntamark.Source": {
+        "type": "Direct",
+        "requested": "[2.0.0-preview.3, 2.0.0-preview.3]",
+        "resolved": "2.0.0-preview.3",
+        "contentHash": "Ry2MUhTcH3/06Rzreo3RKjOfgCWUnQC2Ts+y2964TqLP1TM8od9tfJ9rchOgpzlmmx0+lEn4SJOANLpLOzw/+A=="
       },
       "YamlDotNet": {
         "type": "Direct",

@@ -21,7 +21,7 @@
       <Output TaskParameter="TargetOutputs" ItemName="_PortableMarkdownAssembly" />
     </MSBuild>
     <Error Condition="'@(_PortableMarkdownAssembly)' == ''" Text="Portable Markdown target output was not produced." />
-    <Copy SourceFiles="@(_PortableMarkdownAssembly)" DestinationFiles="$(TargetDir)Portable/LithoSharp.Markdown.dll" />
+    <Copy SourceFiles="@(_PortableMarkdownAssembly)" DestinationFiles="$(TargetDir)Portable/Syntamark.dll" />
   </Target>
   <Target Name="CopyPreparedMarkdownHostContract" BeforeTargets="CopyFilesToOutputDirectory">
     <MSBuild Projects="$(MSBuildProjectDirectory)/../../src/LithoSharp.Generators/LithoSharp.Generators.csproj"

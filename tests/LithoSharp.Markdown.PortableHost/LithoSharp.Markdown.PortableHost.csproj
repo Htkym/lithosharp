@@ -3,10 +3,10 @@
     <TargetFramework>netstandard2.0</TargetFramework><LangVersion>13.0</LangVersion>
     <Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems><IsPackable>false</IsPackable>
-    <LithoSharpMarkdownIncludeSource>true</LithoSharpMarkdownIncludeSource>
+    <SyntamarkIncludeSource>true</SyntamarkIncludeSource>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LithoSharp.Markdown.Source" Version="[$(LithoSharpMarkdownComponentVersion)]" PrivateAssets="all" IncludeAssets="build" />
+    <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkComponentVersion)]" PrivateAssets="all" IncludeAssets="build" />
     <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
   </ItemGroup>
 </Project>

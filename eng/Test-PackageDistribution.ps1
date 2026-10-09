@@ -115,7 +115,7 @@ $nugetConfig = Join-Path $work 'NuGet.Config'
     <add key="markdown-fixed" value="$([Security.SecurityElement]::Escape($componentFeed))" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="LithoSharp.Markdown"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="Syntamark"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
 

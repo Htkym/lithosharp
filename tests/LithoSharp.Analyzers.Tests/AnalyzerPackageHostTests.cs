@@ -101,7 +101,7 @@ public sealed class AnalyzerPackageHostTests
         return diagnostics;
     }
 
-    private static bool Forbidden(string name) => name is "LithoSharp" or "LithoSharp.Markdown" or "AngleSharp" or "SkiaSharp" or "Node"
+    private static bool Forbidden(string name) => name is "LithoSharp" or "Syntamark" or "AngleSharp" or "SkiaSharp" or "Node"
         || name.StartsWith("Microsoft.Build", StringComparison.Ordinal) || name.Contains("Workspaces", StringComparison.Ordinal);
     private static string Required(string key) => Environment.GetEnvironmentVariable(key) is { Length: > 0 } value
         ? value : throw new InvalidOperationException("Explicit canary input missing: " + key);

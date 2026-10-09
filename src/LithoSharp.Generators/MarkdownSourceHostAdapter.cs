@@ -1,13 +1,13 @@
 using System;
-using LithoSharp.Markdown.Hosting;
-#if LITHOSHARP_MARKDOWN_SOURCE
+using Syntamark.Hosting;
+#if SYNTAMARK_SOURCE
 using System.Threading;
-using LithoSharp.Content.Compilation;
+using Syntamark.Compilation;
 #endif
 
 namespace LithoSharp.Generators;
 
-// Prepared consumer adapter. MD-05's exact source package defines LITHOSHARP_MARKDOWN_SOURCE.
+// Prepared consumer adapter. MD-05's exact source package defines SYNTAMARK_SOURCE.
 // No current checkout parser Compile links or public runtime facade references are used.
 internal static class MarkdownSourceHostAdapter
 {
@@ -21,14 +21,14 @@ internal static class MarkdownSourceHostAdapter
         for (var i = 2; i < expectedParserVersion.Length; i++)
             if (!(expectedParserVersion[i] is >= '0' and <= '9' or >= 'a' and <= 'f'))
                 throw new InvalidOperationException("Markdown parser hash must be lowercase hex64.");
-#if LITHOSHARP_MARKDOWN_SOURCE
+#if SYNTAMARK_SOURCE
         if (!string.Equals(MdParserVersion.Value, expectedParserVersion, StringComparison.Ordinal))
             throw new InvalidOperationException("Compiled Markdown source differs from the expected artifact.");
 #endif
         MarkdownYamlIdentity.Require(yamlPackage, yamlAssembly, yamlInformation);
     }
 
-#if LITHOSHARP_MARKDOWN_SOURCE
+#if SYNTAMARK_SOURCE
     internal static MdDocumentFacts Parse(string raw, string scopeId, string sourceId, string? sourceVersion,
         MdOptions options, string expectedParserVersion, string contractVersion, string profileId,
         string yamlPackage, string yamlAssembly, string yamlInformation, CancellationToken cancellationToken)

@@ -155,13 +155,13 @@ syntax cacheのhitはroute/member/site contextの解決結果を保証しませ�
 
 ## runtimeとcompiler hostへの同版供給
 
-正式なIDの設計案はruntime NuGet `LithoSharp.Markdown`とsource NuGet `LithoSharp.Markdown.Source`です。両方を同じimmutable version Vで作ります。初期Vは`2.0.0-preview.N`、stable候補は`2.0.0`です。ここではartifactをpack/publishしません。
+正式なIDの設計案はruntime NuGet `Syntamark`とsource NuGet `Syntamark.Source`です。両方を同じimmutable version Vで作ります。初期Vは`2.0.0-preview.N`、stable候補は`2.0.0`です。ここではartifactをpack/publishしません。
 
 net10.0のpublic facadeと、Generator/Analyzerのnetstandard2.0 hostは同じcanonical portable source treeを使います。portable sourceはnetstandard2.0 APIでコンパイルできる範囲に限定し、host/TFMによってgrammar・位置・hashの意味を分岐させません。net10 DLLをcompiler hostへ読み込ませません。
 
 source payloadは`src/Portable/**/*.cs`と生成したversion stampです。namespaceとfactsはinternalとし、compiler hostへpublic facadeのDTOを二重に定義しません。host adapterが内部factsを既存のconsumer型へ投影します。必要な言語機能用helperもcanonical payloadで管理し、consumerが手作業で補修しません。
 
-source packageには`build/LithoSharp.Markdown.Source.targets`を置き、project側の`LithoSharpMarkdownIncludeSource=true`で明示的にCompileへ取り込みます。project propertyの設定前に評価されるpropsへ条件付きCompileを置きません。buildTransitive/contentFilesによる無条件のsource取り込みは使いません。
+source packageには`build/Syntamark.Source.targets`を置き、project側の`SyntamarkIncludeSource=true`で明示的にCompileへ取り込みます。project propertyの設定前に評価されるpropsへ条件付きCompileを置きません。buildTransitive/contentFilesによる無条件のsource取り込みは使いません。
 
 source PackageReferenceは`Version="[2.0.0-preview.N]"`というexact range、`PrivateAssets="all"`、`IncludeAssets="build"`を使う設計です。plain versionは最低版の指定なので固定版の証明には使いません。[公式PackageReference](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files)と[MSBuild filesの配置](https://learn.microsoft.com/en-us/nuget/create-packages/creating-a-package#including-msbuild-props-and-targets-in-a-package)に基づきます。
 
@@ -185,8 +185,8 @@ hash入力は対象fileをpathのUTF-8 byte順に並べ、各fileについてpat
 | sourceCommit | canonical入力を選んだcommit。cache keyには使わない |
 | dependencies | portable sourceのcompile/runtime依存のexact versionと、pack時のloaded assembly identity / informational version |
 | canonicalFiles | path、byte length、SHA256の一覧 |
-| artifacts.runtime | packageId=`LithoSharp.Markdown`、nupkg SHA256 |
-| artifacts.source | packageId=`LithoSharp.Markdown.Source`、nupkg SHA256 |
+| artifacts.runtime | packageId=`Syntamark`、nupkg SHA256 |
+| artifacts.source | packageId=`Syntamark.Source`、nupkg SHA256 |
 
 両nupkgに同じ解析metadataを含め、nupkg全体のhashは外部のpair manifestだけに記録します。自分自身のhashをpackage内部へ含めません。runtime hashとsource hashは別kindなので一致を要求しません。同じkindのartifactを使うconsumer間でhashを一致させ、共通canonicalSourceHashによってpairを確認します。実hashはpack後に計算し、本タスクで架空のartifact hashを発行しません。
 
