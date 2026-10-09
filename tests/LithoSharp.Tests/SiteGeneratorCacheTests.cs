@@ -101,11 +101,11 @@ public sealed class SiteGeneratorCacheTests
             new SiteGenerationOptions { ContentCollections = [firstCollection], BuildTimestamp = FixedBuildTimestamp },
             CancellationToken.None);
 
-        using var entered = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var release = new ManualResetEventSlim();
         var changedCollection = CacheCollection("second", (entry, context) =>
         {
-            entered.Set();
+            entered.TrySetResult();
             release.Wait();
             return context.RenderDocument(entry.Body);
         });
@@ -118,20 +118,36 @@ public sealed class SiteGeneratorCacheTests
                 PreviousBuildPlan = first.BuildPlan,
             },
             CancellationToken.None);
-        await Assert.That(await Task.Run(() => entered.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
-
-        using var clearStarted = new ManualResetEventSlim();
-        var clearing = Task.Run(() =>
+        var clearStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<LithoSharp.Build.SiteBuildCacheUsage>? clearing = null;
+        Exception? failure = null;
+        try
         {
-            clearStarted.Set();
-            return SiteGenerator.ClearCache(output);
-        });
-        await Assert.That(await Task.Run(() => clearStarted.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
-        await Task.Delay(100);
-        await Assert.That(clearing.IsCompleted).IsFalse();
-        release.Set();
-        await building;
-        var cleared = await clearing;
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            // ClearCache blocks synchronously; its startup must not compete with
+            // the blocked renderer and other parallel tests for a pool worker.
+            clearing = Task.Factory.StartNew(() =>
+            {
+                clearStarted.TrySetResult();
+                return SiteGenerator.ClearCache(output);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            await clearStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(100);
+            await Assert.That(clearing.IsCompleted).IsFalse();
+        }
+        catch (Exception exception) { failure = exception; }
+        finally
+        {
+            release.Set();
+            try { await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception cleanup)
+            {
+                if (failure is not null) throw new AggregateException("Assertion and owned fixture cleanup failed.", failure, cleanup);
+                throw;
+            }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        var cleared = await clearing!;
 
         await Assert.That(cleared.FileCount).IsGreaterThan(0);
         await Assert.That(SiteGenerator.MeasureCache(output).FileCount).IsEqualTo(0);
@@ -936,12 +952,12 @@ public sealed class SiteGeneratorCacheTests
         };
         var first = await new SiteGenerator().GenerateWithOptionsAsync(settings, [], buildOutput, clean: true,
             new SiteCustomization { Template = new BlogSiteTemplate() }, options, CancellationToken.None);
-        using var entered = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var release = new ManualResetEventSlim();
-        using var clearStarted = new ManualResetEventSlim();
+        var clearStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var changedCollection = CacheCollection("namespace second", (entry, context) =>
         {
-            entered.Set(); release.Wait(); return context.RenderDocument(entry.Body);
+            entered.TrySetResult(); release.Wait(); return context.RenderDocument(entry.Body);
         });
         var building = new SiteGenerator().GenerateWithOptionsAsync(settings, [], buildOutput, clean: false,
             new SiteCustomization { Template = new BlogSiteTemplate() },
@@ -950,9 +966,13 @@ public sealed class SiteGeneratorCacheTests
         Exception? failure = null;
         try
         {
-            await Assert.That(await Task.Run(() => entered.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
-            clearing = Task.Run(() => { clearStarted.Set(); return SiteGenerator.ClearCache(clearOutput, options); });
-            await Assert.That(await Task.Run(() => clearStarted.Wait(TimeSpan.FromSeconds(5)))).IsTrue();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            clearing = Task.Factory.StartNew(() =>
+            {
+                clearStarted.TrySetResult();
+                return SiteGenerator.ClearCache(clearOutput, options);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            await clearStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Task.Delay(100);
             await Assert.That(clearing.IsCompleted).IsFalse();
         }
