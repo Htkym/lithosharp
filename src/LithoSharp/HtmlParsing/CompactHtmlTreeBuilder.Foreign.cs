@@ -28,9 +28,9 @@ internal sealed partial class CompactHtmlTreeBuilder
             if (ns != HtmlNamespaces.Html)
             {
                 if (name is "xlink:actuate" or "xlink:arcrole" or "xlink:href" or "xlink:role" or "xlink:show" or "xlink:title" or "xlink:type")
-                { attributeNs = HtmlNamespaces.XLink; prefix = "xlink"; name = name[6..]; }
+                { attributeNs = HtmlNamespaces.XLink; prefix = "xlink"; name = name.Substring(6); }
                 else if (name is "xml:base" or "xml:lang" or "xml:space")
-                { attributeNs = HtmlNamespaces.Xml; prefix = "xml"; name = name[4..]; }
+                { attributeNs = HtmlNamespaces.Xml; prefix = "xml"; name = name.Substring(4); }
                 else if (name == "xmlns:xlink") { attributeNs = HtmlNamespaces.Xmlns; prefix = "xmlns"; name = "xlink"; }
                 else if (name == "xmlns") attributeNs = HtmlNamespaces.Xmlns;
             }

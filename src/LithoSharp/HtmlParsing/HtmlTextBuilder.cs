@@ -12,13 +12,13 @@ internal sealed class HtmlTextBuilder(int emptyOffset, int maxLength, Action<int
     {
         if (text.Length == 0) return;
         if (text.Length > maxLength - value.Length) throw new HtmlTokenizerBudgetException("value-budget");
-        var canMerge = segments.Count != 0 && segments[^1].Source.End == source.Start &&
-            segments[^1].ValueLength == segments[^1].Source.Length && text.Length == source.Length;
+        var canMerge = segments.Count != 0 && segments[segments.Count - 1].Source.End == source.Start &&
+            segments[segments.Count - 1].ValueLength == segments[segments.Count - 1].Source.Length && text.Length == source.Length;
         reserve(text.Length, !canMerge);
         if (canMerge)
         {
-            var last = segments[^1];
-            segments[^1] = last with
+            var last = segments[segments.Count - 1];
+            segments[segments.Count - 1] = last with
             {
                 ValueLength = last.ValueLength + text.Length,
                 Source = new HtmlSpan(last.Source.Start, last.Source.Length + source.Length)
@@ -31,7 +31,7 @@ internal sealed class HtmlTextBuilder(int emptyOffset, int maxLength, Action<int
     public HtmlText Build()
     {
         var span = segments.Count == 0 ? new HtmlSpan(emptyOffset, 0) :
-            new HtmlSpan(segments[0].Source.Start, segments[^1].Source.End - segments[0].Source.Start);
+            new HtmlSpan(segments[0].Source.Start, segments[segments.Count - 1].Source.End - segments[0].Source.Start);
         return new HtmlText(value.ToString(), span, Array.AsReadOnly(segments.ToArray()));
     }
 }

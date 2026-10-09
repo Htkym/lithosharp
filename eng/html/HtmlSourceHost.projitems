@@ -1,0 +1,13 @@
+<Project>
+  <!-- Internal LithoSharp-owned HTML source; no Core runtime, site policy or search dependency. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)../../src/LithoSharp/HtmlParsing/*.cs"
+             Exclude="$(MSBuildThisFileDirectory)../../src/LithoSharp/HtmlParsing/HtmlFacts.cs"
+             Link="HtmlParsing/%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)IsExternalInit.cs" Link="HtmlParsing/IsExternalInit.cs" />
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
+</Project>

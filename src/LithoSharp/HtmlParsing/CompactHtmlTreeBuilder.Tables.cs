@@ -173,7 +173,7 @@ internal sealed partial class CompactHtmlTreeBuilder
         if (End("option")) { if (IsHtml(Current, "option")) Pop(); else Error("option-not-current"); return false; }
         if (End("optgroup"))
         {
-            if (IsHtml(Current, "option") && open.Count > 1 && IsHtml(open[^2], "optgroup")) Pop();
+            if (IsHtml(Current, "option") && open.Count > 1 && IsHtml(open[open.Count - 2], "optgroup")) Pop();
             if (IsHtml(Current, "optgroup")) Pop(); else Error("optgroup-not-current");
             return false;
         }

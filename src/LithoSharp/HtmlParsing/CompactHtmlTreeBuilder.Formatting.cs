@@ -17,7 +17,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             var a = nodes[previous]; var b = nodes[id];
             if (a.Name == b.Name && a.Namespace == b.Namespace && SameAttributes(a, b)) same.Add(i);
         }
-        if (same.Count >= 3) formatting.RemoveAt(same[^1]);
+        if (same.Count >= 3) formatting.RemoveAt(same[same.Count - 1]);
         formatting.Add(id);
     }
     private bool SameAttributes(Node left, Node right)
@@ -93,7 +93,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             var oldActive = formatting.IndexOf(element);
             if (oldActive < bookmark) bookmark--;
             formatting.RemoveAt(oldActive);
-            formatting.Insert(Math.Clamp(bookmark, 0, formatting.Count), replacement);
+            formatting.Insert(Math.Min(Math.Max(bookmark, 0), formatting.Count), replacement);
             open.Remove(element);
             open.Insert(open.IndexOf(block) + 1, replacement);
         }

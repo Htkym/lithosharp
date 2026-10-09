@@ -365,7 +365,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     }
     private void SetTemplateMode(Mode value)
     {
-        if (templateModes.Count > 0) templateModes[^1] = value;
+        if (templateModes.Count > 0) templateModes[templateModes.Count - 1] = value;
         mode = value;
     }
     private void CloseTemplate()
@@ -393,7 +393,7 @@ internal sealed partial class CompactHtmlTreeBuilder
                 "select" => Mode.InSelect, "td" or "th" when i > 0 => Mode.InCell,
                 "tr" => Mode.InRow, "tbody" or "thead" or "tfoot" => Mode.InTableBody,
                 "caption" => Mode.InCaption, "colgroup" => Mode.InColumnGroup, "table" => Mode.InTable,
-                "template" => templateModes.Count > 0 ? templateModes[^1] : Mode.InTemplate,
+                "template" => templateModes.Count > 0 ? templateModes[templateModes.Count - 1] : Mode.InTemplate,
                 "head" when i > 0 => Mode.InHead, "body" => Mode.InBody, "frameset" => Mode.InFrameset,
                 "html" => head is null ? Mode.BeforeHead : Mode.AfterHead, _ => (Mode?)null
             };

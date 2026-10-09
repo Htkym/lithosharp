@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../LithoSharp.Html.Portability/HtmlBridgeObservations.cs" Link="HtmlPortability/HtmlBridgeObservations.cs" />
   </ItemGroup>
 
 </Project>

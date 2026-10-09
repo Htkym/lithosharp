@@ -56,7 +56,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     public static CompactHtmlTree Parse(string source, HtmlTreeOptions? options = null,
         HtmlTreeLimits? limits = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        if (source is null) throw new ArgumentNullException(nameof(source));
         return new CompactHtmlTreeBuilder(source, options ?? new(), limits ?? new(), cancellationToken).Build();
     }
 
@@ -98,7 +98,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             status = HtmlTokenizationStatus.Partial;
             var error = new HtmlTreeDiagnostic(ex.Message, token.Source, true);
             if (diagnostics.Count < limits.MaxDiagnostics) diagnostics.Add(error);
-            else diagnostics[^1] = error;
+            else diagnostics[diagnostics.Count - 1] = error;
         }
         if (tokenizer.Status == HtmlTokenizationStatus.Failed) status = HtmlTokenizationStatus.Failed;
         else if (tokenizer.Status == HtmlTokenizationStatus.Partial) status = HtmlTokenizationStatus.Partial;
@@ -114,7 +114,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             Array.AsReadOnly(diagnostics.ToArray()), Array.AsReadOnly(tokenizer.Diagnostics.ToArray()));
     }
 
-    private int Current => open.Count > 0 ? open[^1] : root;
+    private int Current => open.Count > 0 ? open[open.Count - 1] : root;
     private string Name => token.Name?.Value ?? "";
     private bool Start(string name) => token.Kind == HtmlTokenKind.StartTag && Name == name;
     private bool End(string name) => token.Kind == HtmlTokenKind.EndTag && Name == name;
@@ -250,7 +250,7 @@ internal sealed partial class CompactHtmlTreeBuilder
                 ? new HtmlSpan(segment.Source.Start + left - segment.ValueStart, right - left) : segment.Source;
             segments.Add(new(left - start, right - left, source));
         }
-        var raw = segments.Count > 0 ? new HtmlSpan(segments[0].Source.Start, segments[^1].Source.End - segments[0].Source.Start) : new(text.Source.Start, 0);
+        var raw = segments.Count > 0 ? new HtmlSpan(segments[0].Source.Start, segments[segments.Count - 1].Source.End - segments[0].Source.Start) : new(text.Source.Start, 0);
         return new(text.Value.Substring(start, length), raw, segments.AsReadOnly());
     }
     private void Text(HtmlText text, bool foreign = false, bool reconstruct = false)
@@ -258,7 +258,7 @@ internal sealed partial class CompactHtmlTreeBuilder
         if (ignoreNextLf)
         {
             ignoreNextLf = false;
-            if (text.Value.StartsWith('\n')) text = Slice(text, 1, text.Value.Length - 1);
+            if (text.Value.Length > 0 && text.Value[0] == '\n') text = Slice(text, 1, text.Value.Length - 1);
         }
         void InsertNonNull(HtmlText part)
         {
@@ -330,7 +330,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     {
         while (formatting.Count > 0)
         {
-            var last = formatting[^1]; formatting.RemoveAt(formatting.Count - 1);
+            var last = formatting[formatting.Count - 1]; formatting.RemoveAt(formatting.Count - 1);
             if (last is null) break;
         }
     }

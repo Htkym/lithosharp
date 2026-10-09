@@ -34,7 +34,7 @@ internal sealed record HtmlTreeLimits
     {
         if (MaxNodes < 1 || MaxDepth < 1 || MaxAttributesPerElement < 1 || MaxOperations < 1 || MaxDiagnostics < 1)
             throw new ArgumentOutOfRangeException(nameof(HtmlTreeLimits), "Tree limits must be positive.");
-        ArgumentNullException.ThrowIfNull(Tokenizer);
+        if (Tokenizer is null) throw new ArgumentNullException(nameof(Tokenizer));
         Tokenizer.Validate();
     }
 }

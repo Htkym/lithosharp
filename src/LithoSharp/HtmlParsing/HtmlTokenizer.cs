@@ -17,7 +17,7 @@ internal sealed partial class HtmlTokenizer
 
     public HtmlTokenizer(string source, HtmlTokenizerLimits? limits = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        if (source is null) throw new ArgumentNullException(nameof(source));
         this.source = source;
         this.limits = limits ?? new();
         this.limits.Validate();
@@ -34,7 +34,7 @@ internal sealed partial class HtmlTokenizer
     public void SetContext(HtmlTextMode mode, string? endTag = null, bool allowCdata = false, bool fragment = false)
     {
         if (finished || aborted) throw new InvalidOperationException("Tokenization has ended.");
-        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        if (!Enum.IsDefined(typeof(HtmlTextMode), mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         if (!fragment && (mode is HtmlTextMode.RcData or HtmlTextMode.RawText or HtmlTextMode.ScriptData) && string.IsNullOrEmpty(endTag))
             throw new ArgumentException("A text element name is required.", nameof(endTag));
         this.mode = mode;
@@ -104,7 +104,7 @@ internal sealed partial class HtmlTokenizer
             Status = HtmlTokenizationStatus.Partial;
             var diagnostic = new HtmlTokenizationDiagnostic(ex.Code, new(position, 0), line, column);
             if (diagnostics.Count < limits.MaxDiagnostics) diagnostics.Add(diagnostic);
-            else diagnostics[^1] = diagnostic;
+            else diagnostics[diagnostics.Count - 1] = diagnostic;
             return Eof();
         }
     }
