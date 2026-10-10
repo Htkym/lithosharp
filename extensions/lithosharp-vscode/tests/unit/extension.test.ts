@@ -3,6 +3,7 @@ import test from 'node:test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as childProcess from 'node:child_process';
 import { UntrustedWorkspaceError } from '../../src/trust.js';
 import { createFakeVscode, installFakeVscode } from './fakeVscode.js';
 import { fixturePath } from './helpers.js';
@@ -124,7 +125,7 @@ test('untrusted build and serve commands never execute', async () => {
   const { activate } = loadExtension(fake);
   const subscriptions: { dispose(): void }[] = [];
   activate({ subscriptions } as never);
-  for (const id of ['lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.restartServer']) {
+  for (const id of ['lithosharp.build', 'lithosharp.startServer', 'lithosharp.stopServer', 'lithosharp.inspectSite', 'lithosharp.preflight', 'lithosharp.restartServer']) {
     await assert.rejects(fake.commands.get(id)!(), UntrustedWorkspaceError);
   }
 });
@@ -503,4 +504,102 @@ test('disposal settles ready pending symbols without writing to disposed output'
     assert.deepEqual(await pending, []);
     assert.equal(host.spawns[0]!.closed, true);
   } finally { host.cleanup(); await pending?.catch(() => {}); }
+});
+
+async function waitForPreflight(probe: () => boolean | Promise<boolean>): Promise<void> {
+  const started = Date.now();
+  while (!await probe()) {
+    assert.ok(Date.now() - started < 10000, 'Preflight fixture did not settle.');
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+}
+
+test('MDX preflight forwards the configured Node executable as one CLI argument', async () => {
+  const fake = createFakeVscode();
+  fake.folders = [folder(fixturePath('single'), 'single')];
+  fake.settings['cliPath'] = process.execPath;
+  fake.settings['nodeExecutable'] = process.execPath;
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-preflight-node-'));
+  const input = path.join(dir, 'saved.mdx'); const receipt = path.join(dir, 'args.json'); const script = path.join(dir, 'cli.cjs');
+  await fs.promises.writeFile(input, '# Saved MDX\n');
+  await fs.promises.writeFile(script, `const fs=require('node:fs');const args=process.argv.slice(2);
+if(args[0]==='capabilities') console.log(JSON.stringify({schemaVersion:'1.0',success:true,capabilities:[{name:'preflight-static-inputs',schemaVersion:'1.0',maturity:'Preview'}]}));
+else {fs.writeFileSync(${JSON.stringify(receipt)},JSON.stringify(args));console.log(JSON.stringify({schemaVersion:'1.0',success:true,exitCode:0}));}`);
+  (fake.window as unknown as Record<string, unknown>)['activeTextEditor'] = { document: {
+    uri: { scheme: 'file', fsPath: input, toString: () => 'file://' + input }, languageId: 'mdx', version: 1, isDirty: false, isClosed: false,
+  } };
+  fake.window.createOutputChannel = () => ({ appendLine: line => { fake.lines.push(line); }, show() {}, dispose() {} });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const native = require('node:child_process') as { spawn: typeof childProcess.spawn };
+  const originalSpawn = native.spawn;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const worker = require('../../src/worker.js') as typeof import('../../src/worker.js');
+  const originalWorker = worker.resolveWorker;
+  const subscriptions: { dispose(): void }[] = [];
+  try {
+    worker.resolveWorker = async () => ({ source: 'explicit', directory: path.join(dir, 'worker with spaces'), lockHash: 'locked', ready: true });
+    native.spawn = ((command: string, args: string[], options: childProcess.SpawnOptions) =>
+      originalSpawn(command, command === process.execPath ? [script, ...args] : args, options)) as typeof childProcess.spawn;
+    loadExtension(fake).activate({ subscriptions, globalStorageUri: { fsPath: dir }, extensionPath: dir } as never);
+    await waitForPreflight(() => fake.statusText.length > 0);
+    await fake.commands.get('lithosharp.preflight')!('static');
+    const args = JSON.parse(await fs.promises.readFile(receipt, 'utf8')) as string[];
+    assert.equal(args[args.indexOf('--node-executable') + 1], process.execPath);
+    assert.equal(args[args.indexOf('--worker-directory') + 1], path.join(dir, 'worker with spaces'));
+    assert.ok(fake.lines.some(line => line.startsWith('Preflight static:')));
+  } finally {
+    for (const subscription of subscriptions) subscription.dispose();
+    native.spawn = originalSpawn; worker.resolveWorker = originalWorker;
+  }
+});
+
+test('waiting capability probes terminate real wrapper trees on repeat, workspace/configuration changes and disposal', async () => {
+  const fake = createFakeVscode();
+  fake.folders = [folder(fixturePath('single'), 'single')]; fake.settings['cliPath'] = process.execPath;
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-capability-cancel-'));
+  const script = path.join(dir, 'waiting-cli.cjs');
+  await fs.promises.writeFile(script, `const fs=require('node:fs');const {spawn}=require('node:child_process');
+const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore',windowsHide:true});
+child.once('spawn',()=>fs.writeFileSync(process.argv[2],JSON.stringify({root:process.pid,child:child.pid})));setInterval(()=>{},1000);`);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const native = require('node:child_process') as { spawn: typeof childProcess.spawn }; const originalSpawn = native.spawn;
+  let count = 0; let outputDisposed = false;
+  const subscriptions: { dispose(): void }[] = []; const pending: Promise<unknown>[] = [];
+  fake.window.createOutputChannel = () => ({ appendLine: line => {
+    assert.equal(outputDisposed, false, 'Cancelled probes must not write after disposal.'); fake.lines.push(line);
+  }, dispose: () => { outputDisposed = true; } });
+  const exists = (file: string) => fs.promises.access(file).then(() => true, () => false);
+  const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  async function start(): Promise<{ promise: Promise<unknown>; root: number; child: number }> {
+    const number = count + 1; const file = path.join(dir, `tree-${number}.json`);
+    const promise = fake.commands.get('lithosharp.preflight')!('static'); pending.push(promise);
+    await waitForPreflight(() => exists(file));
+    return { promise, ...JSON.parse(await fs.promises.readFile(file, 'utf8')) };
+  }
+  async function stopped(tree: { promise: Promise<unknown>; root: number; child: number }): Promise<void> {
+    await tree.promise; await waitForPreflight(() => !alive(tree.root) && !alive(tree.child));
+  }
+  try {
+    native.spawn = ((command: string, args: string[], options: childProcess.SpawnOptions) => {
+      if (command === process.execPath && args[0] === 'capabilities') {
+        return originalSpawn(command, [script, path.join(dir, `tree-${++count}.json`)], options);
+      }
+      return originalSpawn(command, args, options);
+    }) as typeof childProcess.spawn;
+    loadExtension(fake).activate({ subscriptions } as never);
+    await waitForPreflight(() => fake.statusText.length > 0);
+    const first = await start(); const second = await start(); await stopped(first);
+    let refreshed = fake.statusText.length;
+    fake.folderListeners[0]!(); await stopped(second);
+    await waitForPreflight(() => fake.statusText.length > refreshed);
+    const third = await start(); refreshed = fake.statusText.length;
+    fake.configListeners[0]!({ affectsConfiguration: section => section === 'lithosharp' }); await stopped(third);
+    await waitForPreflight(() => fake.statusText.length > refreshed);
+    const fourth = await start(); for (const subscription of subscriptions) subscription.dispose(); await stopped(fourth);
+    assert.equal(count, 4);
+    assert.ok(!fake.lines.some(line => line.startsWith('Preflight static:')));
+  } finally {
+    for (const subscription of subscriptions) subscription.dispose();
+    native.spawn = originalSpawn; await Promise.allSettled(pending);
+  }
 });

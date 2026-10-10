@@ -26,7 +26,7 @@ internal static class PreflightCommand
                 continue;
             }
             var name = args[i];
-            if (name is not ("--mode" or "--input" or "--format" or "--configuration" or "--worker-directory") || ++i >= args.Length)
+            if (name is not ("--mode" or "--input" or "--format" or "--configuration" or "--worker-directory" or "--node-executable") || ++i >= args.Length)
                 throw new CliUsageException($"Unknown or incomplete preflight option '{name}'.");
             if (name == "--input") inputs.Add(Path.GetFullPath(args[i]));
             else if (!options.TryAdd(name, args[i])) throw new CliUsageException($"Option '{name}' was specified more than once.");
@@ -43,7 +43,9 @@ internal static class PreflightCommand
             throw new CliUsageException("Static preflight requires explicit --input files and accepts no project.");
         if (mode == "trusted-catalog" && project is null) throw new CliUsageException("Trusted preflight requires an explicit project.");
 
-        var source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), cancellationToken);
+        var nodeExecutable = options.GetValueOrDefault("--node-executable", "node");
+        if (string.IsNullOrWhiteSpace(nodeExecutable)) throw new CliUsageException("Preflight --node-executable must not be empty.");
+        var source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
         if (mode == "static-inputs" || !source.Succeeded) return Print(SourceResponse(source), format);
         project = ProjectCompiler.ResolveProject(project);
         var root = SiteGenerator.CreateTemporaryDirectory("lithosharp-preflight-compiler-");
@@ -62,7 +64,7 @@ internal static class PreflightCommand
             }
             // Re-read selected files after compilation; an earlier source snapshot is not
             // authorization to invoke a factory against newly invalid input.
-            source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), cancellationToken);
+            source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
             if (!source.Succeeded) return Print(SourceResponse(source), format);
             var hostOptions = CommandOptions.Parse(["--format", "json"]);
             var response = await Cli.RunHostAsync(assembly, project, "preflight", hostOptions, null, cancellationToken);
@@ -71,10 +73,10 @@ internal static class PreflightCommand
         }
         finally { Directory.Delete(root, recursive: true); }
     }
-    private static async Task<SitePreflightReport> InspectInputsAsync(IReadOnlyList<string> inputs, string? workerDirectory, CancellationToken cancellationToken)
+    private static async Task<SitePreflightReport> InspectInputsAsync(IReadOnlyList<string> inputs, string? workerDirectory, string nodeExecutable, CancellationToken cancellationToken)
     {
         var diagnostics = new List<SiteDiagnostic>();
-        await using var mdx = new MdxInspectionSession(new MdxOptions(Directory.GetCurrentDirectory(), workerDirectory));
+        await using var mdx = new MdxInspectionSession(new MdxOptions(Directory.GetCurrentDirectory(), workerDirectory) { NodeExecutable = nodeExecutable });
         foreach (var input in inputs.Distinct(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();

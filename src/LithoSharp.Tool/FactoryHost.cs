@@ -17,6 +17,7 @@ internal static class FactoryHost
         var format = SiteDiagnosticFormat.Text;
         var preflight = false;
         var preflightStage = "factory";
+        string? projectCoreVersion = null;
         HostResponse response;
         try
         {
@@ -52,7 +53,7 @@ internal static class FactoryHost
                 Directory.SetCurrentDirectory(projectDirectory);
                 var assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
                 var coreAssemblyName = typeof(SiteGenerator).Assembly.GetName().Name;
-                var projectCoreVersion = assembly.GetReferencedAssemblies()
+                projectCoreVersion = assembly.GetReferencedAssemblies()
                     .FirstOrDefault(reference => string.Equals(reference.Name, coreAssemblyName, StringComparison.Ordinal))
                     ?.Version?.ToString(3) ?? "unknown";
                 var factories = assembly.GetExportedTypes().Where(type => type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
@@ -180,6 +181,7 @@ internal static class FactoryHost
 
         if (preflight && response.Preflight is null)
             response = response with { Preflight = new("trusted-catalog", preflightStage, ["Render was not invoked."]) };
+        if (preflight) response = response with { ProjectCoreVersion = projectCoreVersion };
         if (responsePath is null)
         {
             await Console.Error.WriteLineAsync(response.Error ?? "A host response path is required.").ConfigureAwait(false);

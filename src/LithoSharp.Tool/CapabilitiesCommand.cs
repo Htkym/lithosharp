@@ -27,6 +27,14 @@ internal static class CapabilitiesCommand
         var report = ToolingCapabilities.CreateReport(
             new ToolingIdentityInfo(toolAssembly.Name!, Version(toolAssembly.Version)),
             new ToolingIdentityInfo(coreAssembly.Name!, Version(coreAssembly.Version)));
+        // These are this Tool's commands, not capabilities of an unevaluated project.
+        report = new ToolingCapabilitiesReport(report.SchemaVersion, report.Success, report.ExitCode,
+            report.Tool, report.Core, report.Project, report.Contracts,
+            [.. report.Capabilities,
+                new("preflight-static-inputs", "Preview", "1.0",
+                    "Explicit source-only preflight without project evaluation; MDX requires a restored analysis worker.", ["markdown", "mdx"]),
+                new("preflight-trusted-catalog", "Preview", "1.0",
+                    "Explicit compilation and trusted factory/catalog inspection without rendering. Project support is not resolved by this report.", ["trusted-catalog"])], report.Error);
 
         if (format == "json")
         {

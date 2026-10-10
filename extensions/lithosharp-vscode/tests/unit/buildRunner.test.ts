@@ -23,6 +23,21 @@ function failureEnvelope(): string {
   });
 }
 
+test('queued preflight captures arguments and preserves positioned failure diagnostics', async () => {
+  const commands: string[][] = [];
+  const raw = { schemaVersion: '1.0', success: false, exitCode: 1,
+    preflight: { mode: 'static-inputs', stage: 'source' }, diagnostics: [{ id: 'LIT001', line: 4, column: 8 }] };
+  const runner = new BuildRunner({ isTrusted: () => true, cwd: '/project',
+    cli: (name, args) => ({ command: ['cli', name, ...args] }),
+    probe: { run: async command => { commands.push(command); return { exit: 1, stdout: JSON.stringify(raw), stderr: '' }; } } });
+  const args = ['--mode', 'static', '--input', 'original.md'];
+  const pending = runner.run('preflight', args); args[4] = 'changed.md';
+  const result = await pending;
+  assert.deepEqual(commands, [['cli', 'preflight', '--mode', 'static', '--input', 'original.md']]);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.raw, raw);
+});
+
 test('build parses the machine envelope', async () => {
   const calls: string[][] = [];
   const runner = new BuildRunner({
