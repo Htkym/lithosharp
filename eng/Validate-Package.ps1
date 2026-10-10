@@ -93,6 +93,8 @@ function Read-Nuspec([string] $Path, [string] $Id) {
 
 $packageEntries = Get-ZipEntries $package.FullName
 $symbolsEntries = if ($symbols) { Get-ZipEntries $symbols.FullName } else { @() }
+& (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $package.FullName
+if ($symbols) { & (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $symbols.FullName }
 $requiredMetadata = if ($isMarkdownComponent) { @('README.md', 'LICENSE', 'markdown/manifest.json') } else { @('README.md', 'icon.png') }
 foreach ($required in $requiredMetadata) {
     if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
@@ -103,7 +105,7 @@ if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool') -or
     $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $prefix = if ($PackageId -eq 'LithoSharp.Tool') { 'tools/net10.0/any/licenses/' } else { 'licenses/' }
     $notices = if ($PackageId -eq 'LithoSharp.Tool') {
-        @('YamlDotNet.LICENSE.txt', 'AngleSharp.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
+        @('YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
     } else { @('YamlDotNet.LICENSE.txt') }
     $noticeArchive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
     try {
@@ -245,7 +247,7 @@ if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('AngleSharp', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'Syntamark')) {
+foreach ($expected in @('SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'Syntamark')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

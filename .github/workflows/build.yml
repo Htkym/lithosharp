@@ -38,6 +38,7 @@ jobs:
     env:
       # The v2 feature candidate must not advertise the removed Testing API as 1.x.
       LITHOSHARP_CANDIDATE_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && '2.0.0-preview.1' || '1.1.0' }}
+      LITHOSHARP_BASELINE_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && '1.1.0' || '1.0.0' }}
 
     steps:
       - name: Checkout
@@ -58,6 +59,10 @@ jobs:
 
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode
+
+      - name: Check shipping dependency graph
+        shell: pwsh
+        run: ./eng/Test-DependencyZero.ps1 -RepositoryGraph -Output artifacts/dependency-zero-graph.json
 
       - name: Log OS and architecture
         shell: pwsh
@@ -207,6 +212,8 @@ jobs:
         run: |
           ./eng/Test-PackageSecurityGate.ps1 -PackageDirectory artifacts/packages -ExpectedVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }} -Output (Join-Path $env:RUNNER_TEMP 'package-security-gate')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./eng/Test-DependencyZeroGate.ps1 -ShippingPaths artifacts/packages -Output (Join-Path $env:RUNNER_TEMP 'dependency-zero-gate')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check migration normalization controls
         shell: pwsh
@@ -219,8 +226,9 @@ jobs:
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
           $null = New-Item -ItemType Directory -Force -Path $baseline
-          Invoke-WebRequest 'https://api.nuget.org/v3-flatcontainer/lithosharp/1.0.0/lithosharp.1.0.0.nupkg' -OutFile (Join-Path $baseline 'LithoSharp.1.0.0.nupkg')
-          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion 1.0.0 -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
+          $version = '${{ env.LITHOSHARP_BASELINE_VERSION }}'
+          Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/lithosharp/$version/lithosharp.$version.nupkg" -OutFile (Join-Path $baseline "LithoSharp.$version.nupkg")
+          ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion $version -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run sample

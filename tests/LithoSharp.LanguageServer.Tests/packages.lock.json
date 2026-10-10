@@ -15,11 +15,6 @@
           "TUnit.Engine": "1.72.16"
         }
       },
-      "AngleSharp": {
-        "type": "Transitive",
-        "resolved": "1.8.3",
-        "contentHash": "IiXdbBHzeKRUDayOFT/5nAqkY7Tqbtzr9dqoWrsfseLRs2r1j94qP8MmKnfs9aX+WHucmlmX8xq9QosIUJ/sbA=="
-      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
@@ -145,7 +140,6 @@
       "lithosharp": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.8.3, )",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
           "Syntamark": "[2.0.0-preview.3, 2.0.0-preview.3]",

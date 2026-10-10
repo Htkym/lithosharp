@@ -144,6 +144,7 @@ try {
         Fail "built site did not resolve the exact candidate LithoSharp/${version}: $($resolved -join ', ')."
     }
     & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath (Join-Path $site 'obj/project.assets.json')
+    & (Join-Path $repo 'eng/Test-DependencyZero.ps1') -Paths @((Join-Path $site 'obj/project.assets.json'), (Join-Path $site 'bin/Release/net10.0'), $toolPath) -Output (Join-Path $Output 'dependency-zero-consumer.json')
     $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $feed "LithoSharp.$version.nupkg"))
     try {
         $entry = $archive.GetEntry('lib/net10.0/LithoSharp.dll')
