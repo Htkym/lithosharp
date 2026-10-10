@@ -154,9 +154,17 @@ function Get-JsonShape($Node, [string] $Prefix = '') {
     if ($Node -is [System.Collections.IEnumerable] -and $Node -isnot [string]) {
         $items = @($Node)
         if ($items.Count -eq 0) { $paths.Add("$Prefix[]"); return $paths }
+        $elementShape = $null
         foreach ($item in $items) {
-            foreach ($path in (Get-JsonShape $item ($Prefix + '[]'))) { $paths.Add($path) }
+            $shape = @(Get-JsonShape $item ($Prefix + '[]') | Sort-Object)
+            if ($null -eq $elementShape) { $elementShape = $shape }
+            elseif (($elementShape -join "`n") -cne ($shape -join "`n")) {
+                throw "JSON array elements have different shapes at '$Prefix'."
+            }
         }
+        # Additive capability entries and scope lengths do not change the wire
+        # schema. Every element must still carry the same complete shape.
+        foreach ($path in $elementShape) { $paths.Add($path) }
         return $paths
     }
     $paths.Add($Prefix)
@@ -337,8 +345,13 @@ public static class Program
     Assert-True ($capabilities.project.resolved -eq $false -and $null -eq $capabilities.project.coreVersion) 'Capability report filled an unresolved project version.'
     Assert-True (@($capabilities.contracts).Count -eq 5) 'Capability report did not list the five stable contracts.'
     $capabilityNames = @($capabilities.capabilities | ForEach-Object name)
-    foreach ($required in @('document-inspection', 'versioned-snapshot', 'serve-shutdown', 'source-route-lookup')) {
+    Assert-True (@($capabilityNames | Sort-Object -Unique).Count -eq $capabilityNames.Count) 'Capability report duplicated a capability name.'
+    foreach ($required in @('document-inspection', 'versioned-snapshot', 'serve-shutdown', 'source-route-lookup', 'preflight-static-inputs', 'preflight-trusted-catalog')) {
         Assert-True ($capabilityNames -contains $required) "Capability report omitted '$required'."
+    }
+    foreach ($name in @('preflight-static-inputs', 'preflight-trusted-catalog')) {
+        $preflight = @($capabilities.capabilities | Where-Object name -eq $name)[0]
+        Assert-True ($preflight.maturity -ceq 'Preview' -and $preflight.schemaVersion -ceq '1.0') "Preflight capability '$name' changed its declared contract."
     }
     $inspectionCapability = @($capabilities.capabilities | Where-Object name -eq 'document-inspection')[0]
     Assert-True ($inspectionCapability.scope -contains 'markdown' -and $inspectionCapability.scope -contains 'mdx') 'Document inspection did not declare its languages.'
