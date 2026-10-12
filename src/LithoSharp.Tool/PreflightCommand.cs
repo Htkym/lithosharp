@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Reflection;
+using System.Security.Cryptography;
 using LithoSharp.Build;
 using LithoSharp.Diagnostics;
 using LithoSharp.Inspection;
@@ -46,7 +48,7 @@ internal static class PreflightCommand
         var nodeExecutable = options.GetValueOrDefault("--node-executable", "node");
         if (string.IsNullOrWhiteSpace(nodeExecutable)) throw new CliUsageException("Preflight --node-executable must not be empty.");
         var source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
-        if (mode == "static-inputs" || !source.Succeeded) return Print(SourceResponse(source), format);
+        if (mode == "static-inputs" || !source.Report.Succeeded) return Print(SourceResponse(source), format);
         project = ProjectCompiler.ResolveProject(project);
         var root = SiteGenerator.CreateTemporaryDirectory("lithosharp-preflight-compiler-");
         try
@@ -59,48 +61,79 @@ internal static class PreflightCommand
             }
             catch (ProjectCompilationException exception)
             {
-                return Print(new HostResponse { ExitCode = 1, Diagnostics = FactoryHost.ToHostDiagnostics(exception.Diagnostics), Error = exception.Message,
-                    Preflight = new("trusted-catalog", "compiler", ["Factory and render were not invoked."]) }, format);
+                return Print(WithSourceMetadata(new HostResponse { ExitCode = 1, Diagnostics = FactoryHost.ToHostDiagnostics(exception.Diagnostics), Error = exception.Message,
+                    Preflight = new("trusted-catalog", "compiler", ["Factory and render were not invoked."]) }, source.Sources), format);
             }
             // Re-read selected files after compilation; an earlier source snapshot is not
             // authorization to invoke a factory against newly invalid input.
             source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
-            if (!source.Succeeded) return Print(SourceResponse(source), format);
+            if (!source.Report.Succeeded) return Print(SourceResponse(source), format);
             var hostOptions = CommandOptions.Parse(["--format", "json"]);
             var response = await Cli.RunHostAsync(assembly, project, "preflight", hostOptions, null, cancellationToken);
-            response = response with { Diagnostics = FactoryHost.ToHostDiagnostics(source.Diagnostics).Concat(response.Diagnostics).ToArray() };
-            return Print(response, format);
+            response = response with { Diagnostics = FactoryHost.ToHostDiagnostics(source.Report.Diagnostics).Concat(response.Diagnostics).ToArray() };
+            return Print(WithSourceMetadata(response, source.Sources), format);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
-    private static async Task<SitePreflightReport> InspectInputsAsync(IReadOnlyList<string> inputs, string? workerDirectory, string nodeExecutable, CancellationToken cancellationToken)
+    private static async Task<(SitePreflightReport Report, HostPreflightSource[] Sources)> InspectInputsAsync(IReadOnlyList<string> inputs, string? workerDirectory, string nodeExecutable, CancellationToken cancellationToken)
     {
         var diagnostics = new List<SiteDiagnostic>();
+        var sources = new List<HostPreflightSource>();
         await using var mdx = new MdxInspectionSession(new MdxOptions(Directory.GetCurrentDirectory(), workerDirectory) { NodeExecutable = nodeExecutable });
         foreach (var input in inputs.Distinct(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            string? hash = null;
+            var readState = "NotRead";
+            var analysisState = "NotRun";
             try
             {
-                var text = new UTF8Encoding(false, true).GetString(await File.ReadAllBytesAsync(input, cancellationToken));
+                var bytes = await File.ReadAllBytesAsync(input, cancellationToken);
+                hash = Convert.ToHexStringLower(SHA256.HashData(bytes));
+                readState = "Read";
+                var text = new UTF8Encoding(false, true).GetString(bytes);
+                readState = "Utf8";
                 // UTF-8 BOM is transport metadata, not a front matter character.
                 if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
                 if (Path.GetExtension(input).Equals(".mdx", StringComparison.OrdinalIgnoreCase))
+                {
                     diagnostics.AddRange((await mdx.AnalyzeAsync(input, text, cancellationToken: cancellationToken)).Diagnostics);
+                    analysisState = "Inspected";
+                }
                 else if (Path.GetExtension(input).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                {
                     diagnostics.AddRange(SitePreflight.InspectMarkdown(input, text, cancellationToken).Diagnostics);
-                else diagnostics.Add(new("LSC7001", SiteDiagnosticSeverity.Error, "Preflight accepts explicit .md or .mdx inputs.", new SiteSourceLocation(input)));
+                    analysisState = "Inspected";
+                }
+                else
+                {
+                    analysisState = "Unsupported";
+                    diagnostics.Add(new("LSC7001", SiteDiagnosticSeverity.Error, "Preflight accepts explicit .md or .mdx inputs.", new SiteSourceLocation(input)));
+                }
             }
-            catch (SiteBuildExtensionException exception) { diagnostics.AddRange(exception.Diagnostics); }
+            catch (SiteBuildExtensionException exception)
+            {
+                analysisState = "Failed";
+                diagnostics.AddRange(exception.Diagnostics);
+            }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or DecoderFallbackException)
             { diagnostics.Add(new("LSC7001", SiteDiagnosticSeverity.Error, exception.Message, new SiteSourceLocation(input))); }
+            sources.Add(new(input, hash, readState, analysisState));
         }
-        return SitePreflight.FromDiagnostics(diagnostics);
+        return (SitePreflight.FromDiagnostics(diagnostics), sources.ToArray());
     }
-    private static HostResponse SourceResponse(SitePreflightReport report) => new()
+    private static HostResponse SourceResponse((SitePreflightReport Report, HostPreflightSource[] Sources) source) => WithSourceMetadata(new()
     {
-        Success = report.Succeeded, ExitCode = report.Succeeded ? 0 : 1,
-        Diagnostics = FactoryHost.ToHostDiagnostics(report.Diagnostics), Preflight = new(report.Mode, report.Stage, report.DeferredReasons.ToArray()),
+        Success = source.Report.Succeeded, ExitCode = source.Report.Succeeded ? 0 : 1,
+        Diagnostics = FactoryHost.ToHostDiagnostics(source.Report.Diagnostics), Preflight = new(source.Report.Mode, source.Report.Stage, source.Report.DeferredReasons.ToArray()),
+    }, source.Sources);
+    private static HostResponse WithSourceMetadata(HostResponse response, HostPreflightSource[] sources) => response with
+    {
+        Preflight = response.Preflight is null ? null : response.Preflight with
+        {
+            Sources = sources,
+            SourceCoverage = sources.Length == 0 ? "NotRun" : sources.All(source => source.AnalysisState == "Inspected") ? "Inspected" : "Incomplete",
+        },
     };
     private static int Print(HostResponse response, string format)
     {
@@ -124,4 +157,21 @@ internal static class PreflightCommand
     }
 }
 
-internal sealed record HostPreflightReport(string Mode, string Stage, string[] DeferredReasons);
+internal sealed record HostPreflightReport(string Mode, string Stage, string[] DeferredReasons)
+{
+    // These are phase snapshots, even when every selected input was inspected.
+    public string Coverage => "Partial";
+    public string SourceCoverage { get; init; } = "NotRun";
+    public HostPreflightSource[] Sources { get; init; } = [];
+    public HostPreflightRuleVersion[] RuleVersion { get; init; } =
+    [
+        Identity(typeof(PreflightCommand).Assembly), Identity(typeof(SitePreflight).Assembly),
+        Identity(typeof(MdxInspectionSession).Assembly), Identity(typeof(Syntamark.MarkdownParser).Assembly),
+    ];
+    public string[] UnverifiedRuleSources { get; init; } = ["Selected MDX worker and dependencies", "Factory and catalog extension code"];
+    private static HostPreflightRuleVersion Identity(Assembly assembly) => new(assembly.GetName().Name!,
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+        assembly.ManifestModule.ModuleVersionId.ToString("D"));
+}
+internal sealed record HostPreflightSource(string File, string? SourceHash, string ReadState, string AnalysisState);
+internal sealed record HostPreflightRuleVersion(string Implementation, string? InformationalVersion, string ModuleVersionId);

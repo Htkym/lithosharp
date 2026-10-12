@@ -12,6 +12,7 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!$ToolPath) { $ToolPath = Join-Path $repo 'src/LithoSharp.Tool/bin/Release/net10.0/LithoSharp.Tool.dll' }
 $ToolPath = [IO.Path]::GetFullPath($ToolPath)
 if (!(Test-Path -LiteralPath $ToolPath -PathType Leaf)) { throw "Build the Release tool first: $ToolPath" }
+& (Join-Path $PSScriptRoot 'Test-Preflight.ps1') -ToolPath $ToolPath -KeepFixture:$KeepFixture
 $temporaryParent = [IO.Path]::GetFullPath((Join-Path $repo '.tmp'))
 $fixture = Join-Path $temporaryParent ('tool-test-' + [Guid]::NewGuid().ToString('N'))
 $site = Join-Path $fixture 'site'
