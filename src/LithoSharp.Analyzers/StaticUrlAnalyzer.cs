@@ -25,7 +25,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -34,6 +34,8 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.RegisterCompilationStartAction(start =>
         {
+            // Legacy Testing consumers may have no registered Core URL/HTML/manifest sinks.
+            TestingDomMigrationAnalysis.Register(start);
             var sinks = RegisterSinks(start.Compilation);
             var html = HtmlTemplateAnalysis.Create(start.Compilation);
             var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);

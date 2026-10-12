@@ -34,6 +34,23 @@ Locations use the original argument expression's UTF-16 span, including flow-der
 
 現在の開発候補は、Syntamark.Source [2.0.0-preview.3]のportable sourceを既定でコンパイルし、YamlDotNet [18.1.0]をpayloadへ同梱します。source-treeのビルドではDirectory.Build.propsが固定版を選び、SyntamarkSourceVersionの不一致を拒否します。canonical parserをrepoから直接Compileしたり、Syntamarkのruntime DLLをcompiler hostへ読み込ませたりしません。
 
+### LSA1501
+
+Warning identifies a bound use of the public, read-only instance
+`LithoSharp.Testing.SiteTestDocument.Document` getter from metadata assembly
+`LithoSharp.Testing`, returning metadata `AngleSharp.Dom.IDocument` from
+`AngleSharp`. This registration also works in a Testing-only compilation without
+Core URL, HTML or manifest sinks. No getter, factory, DOM method or user code runs.
+Source lookalikes, v2 `Snapshot`, and unresolved `Document` syntax after upgrading
+to v2 are outside this bounded rule. A warning does not certify that all legacy
+DOM uses have been found.
+
+Use the [Testing v2 migration map](../../docs/Testing-v2-api.md#migration)
+to select `Snapshot.Query/QueryAll` or the retained assertion helpers. DOM mutation,
+third-party casts/extensions and unsupported selectors require manual changes.
+There is no automatic CodeFix or blind rename. Normal diagnostic suppression and
+generated-code exclusion apply; runtime snapshot ownership remains unchanged.
+
 ### LSA1101
 
 `Html.UnsafeRaw(string)` receives Info when its contents are Unknown to the bounded static flow. This reports unverified raw output without claiming a vulnerability. A known literal or supported known local is not reported. Ordinary strings and lookalike user APIs are excluded.
