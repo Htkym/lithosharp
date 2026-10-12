@@ -20,7 +20,7 @@ namespace LithoSharp.CodeFixes;
 public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("LSA1401");
-    public override FixAllProvider GetFixAllProvider() => DocumentFixAll.Instance;
+    public override FixAllProvider GetFixAllProvider() => PageReferenceFixAll.Instance;
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var version = await context.Document.GetTextVersionAsync(context.CancellationToken).ConfigureAwait(false);
@@ -48,14 +48,17 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
             ?.TryGetTypedReference(literal, cancellation);
     }
 
-    private sealed class DocumentFixAll : FixAllProvider
+    private sealed class PageReferenceFixAll : FixAllProvider
     {
-        internal static readonly DocumentFixAll Instance = new();
-        public override IEnumerable<FixAllScope> GetSupportedFixAllScopes() => new[] { FixAllScope.Document };
+        internal static readonly PageReferenceFixAll Instance = new();
+        public override IEnumerable<FixAllScope> GetSupportedFixAllScopes()
+            => new[] { FixAllScope.Document, FixAllScope.Project, FixAllScope.Solution };
 
         public override async Task<CodeAction?> GetFixAsync(FixAllContext context)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
+            if (context.Scope is FixAllScope.Project or FixAllScope.Solution)
+                return await ScopedFix(context).ConfigureAwait(false);
             var document = context.Document;
             if (context.Scope != FixAllScope.Document || document is null
                 || context.CodeActionEquivalenceKey != "LSA1401.GeneratedPagePath"
@@ -82,6 +85,64 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
                 }
                 cancellation.ThrowIfCancellationRequested();
                 var changed = editor.GetChangedDocument().Project.Solution;
+                return solution.Workspace.CurrentSolution == solution ? changed : solution.Workspace.CurrentSolution;
+            }, "LSA1401.GeneratedPagePath");
+        }
+
+        private static async Task<CodeAction?> ScopedFix(FixAllContext context)
+        {
+            var solution = context.Solution;
+            if (context.CodeActionEquivalenceKey != "LSA1401.GeneratedPagePath"
+                || solution.Workspace.CurrentSolution != solution) return null;
+            var projects = context.Scope == FixAllScope.Project
+                ? new[] { context.Project } : solution.Projects.Where(project => project.Language == LanguageNames.CSharp);
+            var targets = new List<(Document Document, ImmutableArray<Diagnostic> Diagnostics)>();
+            foreach (var project in projects)
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+                var diagnostics = await context.GetAllDiagnosticsAsync(project).ConfigureAwait(false);
+                foreach (var group in diagnostics.GroupBy(diagnostic => diagnostic.Location.SourceTree))
+                {
+                    // Refuse targets without a unique editable original document. Linked
+                    // files can require incompatible edits in different compilations.
+                    var document = group.Key is null ? null : project.GetDocument(group.Key);
+                    if (document is null || !project.DocumentIds.Contains(document.Id)
+                        || document.GetLinkedDocumentIds().Length != 0) return null;
+                    var originalDiagnostics = group.ToImmutableArray();
+                    if ((await Replacements(document, originalDiagnostics, context.CancellationToken).ConfigureAwait(false)).IsDefaultOrEmpty)
+                        return null;
+                    targets.Add((document, originalDiagnostics));
+                }
+            }
+            if (targets.Count == 0 || solution.Workspace.CurrentSolution != solution) return null;
+            return CodeAction.Create("Use generated page reference paths in this "
+                + (context.Scope == FixAllScope.Project ? "project" : "solution"), async cancellation =>
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+                var plans = new List<(Document Document, ImmutableArray<(LiteralExpressionSyntax Literal, string Path)> Replacements)>();
+                foreach (var target in targets)
+                {
+                    var replacements = await Replacements(target.Document, target.Diagnostics, cancellation).ConfigureAwait(false);
+                    if (replacements.IsDefaultOrEmpty) return solution.Workspace.CurrentSolution;
+                    plans.Add((target.Document, replacements));
+                }
+                if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+                // Every proof used the original immutable project compilation. Construct
+                // one solution only after proving all targets; never chain single fixes.
+                var editor = new SolutionEditor(solution);
+                foreach (var plan in plans)
+                {
+                    var documentEditor = await editor.GetDocumentEditorAsync(plan.Document.Id, cancellation).ConfigureAwait(false);
+                    foreach (var replacement in plan.Replacements)
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        documentEditor.ReplaceNode(replacement.Literal,
+                            SyntaxFactory.ParseExpression(replacement.Path).WithTriviaFrom(replacement.Literal));
+                    }
+                }
+                cancellation.ThrowIfCancellationRequested();
+                var changed = editor.GetChangedSolution();
                 return solution.Workspace.CurrentSolution == solution ? changed : solution.Workspace.CurrentSolution;
             }, "LSA1401.GeneratedPagePath");
         }
