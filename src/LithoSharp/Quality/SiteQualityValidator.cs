@@ -7,9 +7,6 @@ namespace LithoSharp.Quality;
 
 internal static class SiteQualityValidator
 {
-    private static readonly Regex CssUrls = new("url\\(\\s*(?:\"(?<url>[^\"]*)\"|'(?<url>[^']*)'|(?<url>[^)\\s]*))\\s*\\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
-
     internal static async Task<SiteQualityReport> ValidateAsync(
         string baseUrl,
         IReadOnlyList<string> textFilePaths,
@@ -154,8 +151,8 @@ internal static class SiteQualityValidator
         void CheckCss(string css, Uri address, string path, QualityHtmlElement? element)
         {
             // ponytail: inspect literal CSS url() values; generated dynamic assets must declare their dependency.
-            foreach (Match match in CssUrls.Matches(css))
-                CheckReference(match.Groups["url"].Value, address, path, false, true, element);
+            foreach (var value in CssUrlScanner.Read(css, cancellationToken))
+                CheckReference(value, address, path, false, true, element);
         }
 
         void CheckReference(string value, Uri resolutionBase, string path, bool navigation, bool resource, QualityHtmlElement? element)
