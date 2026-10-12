@@ -56,21 +56,25 @@ internal static class DevServer
         // output paths can cause one conservative rebuild; queued source edits
         // must not disappear while the first build is in progress.
         var state = new ServerState(new HostResponse { OutputDirectory = Path.GetDirectoryName(project)! });
-        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
+        await using var watchEvents = new WatchEventQueue(Path.GetDirectoryName(project)!,
             (path, changeType, watcherError) => {
+                if (stopping.IsCancellationRequested) return;
                 // Directory LastWrite notifications can accompany a child edit on Windows.
                 // File and structural changes still request recompilation when needed.
                 var directoryMetadata = changeType == WatcherChangeTypes.Changed && Directory.Exists(path);
                 var extension = Path.GetExtension(path).ToLowerInvariant();
-                if (!directoryMetadata && extension is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif"))
+                var reason = (WatchRestartReason)0;
+                if (changeType == WatcherChangeTypes.All || (!directoryMetadata && extension is not (".mdx" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css" or ".png" or ".jpg" or ".jpeg" or ".svg" or ".webp" or ".avif")))
                 {
-                    var reason = (changeType == WatcherChangeTypes.All ? WatchRestartReason.WatcherError : (WatchRestartReason)(int)changeType)
+                    reason = (changeType == WatcherChangeTypes.All ? WatchRestartReason.WatcherError : (WatchRestartReason)(int)changeType)
                         | (extension == ".cs" ? WatchRestartReason.CSharp : extension is ".csproj" or ".props" or ".targets" ? WatchRestartReason.Project : WatchRestartReason.Other);
                     Interlocked.Or(ref state.Restart, (int)reason);
-                    lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason, watcherError: watcherError);
                 }
                 changes.Writer.TryWrite(true);
-            });
+                if (reason != 0)
+                    lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason, watcherError: watcherError);
+            }, stopSource.Cancel);
+        using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths, watchEvents);
         var assembly = await ProjectCompiler.BuildAsync(project, configuration, stopping.Token, machine);
         var latest = await session.BuildAsync(assembly, project, options, stopping.Token, 1);
         if (!latest.Success)
@@ -156,6 +160,7 @@ internal static class DevServer
                 OutputDirectory = (string?)null,
             });
             watcher.EnableRaisingEvents = false;
+            watchEvents.Stop();
             changes.Writer.TryComplete();
             try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
@@ -202,6 +207,7 @@ internal static class DevServer
         finally
         {
             watcher.EnableRaisingEvents = false;
+            watchEvents.Stop();
             changes.Writer.TryComplete();
             try { await rebuild; } catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }
             await app.StopAsync(CancellationToken.None);
@@ -527,7 +533,7 @@ internal static class DevServer
     }
 
     private static FileSystemWatcher CreateWatcher(
-        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string, WatcherChangeTypes, Exception?> changed)
+        string root, Func<IReadOnlyList<string>> ignoredPaths, WatchEventQueue events)
     {
         var watcher = new FileSystemWatcher(root)
         {
@@ -535,11 +541,13 @@ internal static class DevServer
             InternalBufferSize = 64 * 1024,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath, eventArgs.ChangeType, null); };
+        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) events.Enqueue(eventArgs.FullPath, eventArgs.ChangeType); };
         RenamedEventHandler onRename = (_, eventArgs) =>
         {
-            if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)
-                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath, WatcherChangeTypes.Renamed, null); changed(eventArgs.OldFullPath, WatcherChangeTypes.Renamed, null); }
+            var ignored = ignoredPaths();
+            if (ShouldWatch(root, ignored, eventArgs.FullPath)
+                || ShouldWatch(root, ignored, eventArgs.OldFullPath))
+                events.Enqueue(eventArgs.FullPath, WatcherChangeTypes.Renamed, eventArgs.OldFullPath);
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;
@@ -547,9 +555,7 @@ internal static class DevServer
         watcher.Renamed += onRename;
         watcher.Error += (_, eventArgs) =>
         {
-            var error = eventArgs.GetException();
-            Console.Error.WriteLine($"File watching lost changes: {error.Message} Rebuilding the site.");
-            changed(root, WatcherChangeTypes.All, error);
+            events.Enqueue(root, WatcherChangeTypes.All, error: eventArgs.GetException());
         };
         watcher.EnableRaisingEvents = true;
         return watcher;
@@ -625,10 +631,15 @@ internal static class DevServer
 
     private sealed class ServerState(HostResponse latest)
     {
+        private IReadOnlyList<string> ignoredPaths = latest.IgnoredPaths;
         public int Restart;
         public HostResponse Latest { get; set; } = latest;
         public string OutputRoot { get; set; } = Path.GetFullPath(latest.OutputDirectory!);
-        public IReadOnlyList<string> IgnoredPaths { get; set; } = latest.IgnoredPaths;
+        public IReadOnlyList<string> IgnoredPaths
+        {
+            get => Volatile.Read(ref ignoredPaths);
+            set => Volatile.Write(ref ignoredPaths, value);
+        }
     }
 
     private sealed class ReloadHub
