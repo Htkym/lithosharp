@@ -26,7 +26,7 @@ public sealed partial class AnalyzerPackageHostTests
         var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
         return (CodeFixProvider)Activator.CreateInstance(assembly.GetType("LithoSharp.CodeFixes.GeneratedPageReferenceCodeFix")!)!;
     }
-    private static async Task<(AdhocWorkspace Workspace, Document Document, Diagnostic Diagnostic)> FixWorkspace(string source)
+    private static async Task<(AdhocWorkspace Workspace, Document Document, Diagnostic Diagnostic)> FixWorkspace(string source, int expectedDiagnostics = 1)
     {
         var initial = Compile(source, true).AddReferences(((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Where(p => Path.GetFileName(p) == "System.Collections.dll").Select(p => MetadataReference.CreateFromFile(p)));
@@ -66,8 +66,9 @@ public sealed partial class AnalyzerPackageHostTests
         var document = workspace.CurrentSolution.GetDocument(documentId)!;
         var ds = await ((await document.Project.GetCompilationAsync())!).WithAnalyzers(Packed.Value.Analyzers, document.Project.AnalyzerOptions).GetAnalyzerDiagnosticsAsync();
         Check(!ds.Any(d => d.Id == "AD0001"), "No analyzer crash");
-        var diagnostic = ds.Single(d => d.Id == "LSA1401");
-        return (workspace, document, diagnostic);
+        var recommendations = ds.Where(d => d.Id == "LSA1401").ToArray();
+        Check(recommendations.Length == expectedDiagnostics, "Expected actual literal recommendations");
+        return (workspace, document, recommendations[0]);
     }
     private static async Task<List<CodeAction>> Actions(Document document, Diagnostic diagnostic, CancellationToken cancellation = default)
     {
@@ -75,6 +76,49 @@ public sealed partial class AnalyzerPackageHostTests
         await Fixer.Value.RegisterCodeFixesAsync(new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), cancellation));
         return actions;
     }
+
+    private const string FixAllKey = "LSA1401.GeneratedPagePath";
+    private const string FixAllCalls = """
+
+        #nullable enable
+        public static class Calls {
+          public const string Ordinary = "/intro/";
+          public static string Events = "";
+          public static string Mark(string value) { Events += value; return ""; }
+          public static string M() => Mark("before")
+            + Guides.Manifest.GetUrl(/* first */ "/intro/" /* first tail */).Value
+            + Mark("between")
+            + Guides.Manifest.GetUrl(/* second */ "/intro/" /* second tail */).Value
+            + Mark("after");
+          public static string OutputPath() => Guides.Catalog.GetEntry(new LithoSharp.Content.ContentEntryId("intro")).Route.RelativeOutputPath;
+        }
+        """;
+
+    // The adapter runs the actual packed analyzer; extra diagnostics exercise the
+    // IDE boundary without replacing the generator, binding or proof machinery.
+    private sealed class FixAllDiagnostics(params Diagnostic[] extra) : FixAllContext.DiagnosticProvider
+    {
+        public int DocumentRequests { get; private set; }
+        public override async Task<IEnumerable<Diagnostic>> GetDocumentDiagnosticsAsync(Document document, CancellationToken cancellationToken)
+        {
+            DocumentRequests++;
+            var compilation = (await document.Project.GetCompilationAsync(cancellationToken))!;
+            var tree = await document.GetSyntaxTreeAsync(cancellationToken);
+            var diagnostics = await compilation.WithAnalyzers(Packed.Value.Analyzers, document.Project.AnalyzerOptions)
+                .GetAnalyzerDiagnosticsAsync(cancellationToken);
+            Check(!diagnostics.Any(d => d.Id is "AD0001" or "CS8032" or "CS9057"), "FixAll diagnostic retrieval cannot hide analyzer failures");
+            return diagnostics.Where(d => d.Location.SourceTree == tree).Concat(extra).ToArray();
+        }
+        public override Task<IEnumerable<Diagnostic>> GetProjectDiagnosticsAsync(Project project, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Document FixAll must not query project diagnostics");
+        public override Task<IEnumerable<Diagnostic>> GetAllDiagnosticsAsync(Project project, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Document FixAll must not query solution diagnostics");
+    }
+
+    private static Task<CodeAction?> FixAllAction(Document document, FixAllDiagnostics diagnostics,
+        FixAllScope scope = FixAllScope.Document, string key = FixAllKey, CancellationToken cancellation = default)
+        => Fixer.Value.GetFixAllProvider()!.GetFixAsync(new FixAllContext(document, Fixer.Value, scope, key,
+            ["LSA1401"], diagnostics, cancellation));
 
     [Test]
     public async Task CodeFixPackedHostAppliesOneEquivalentArgumentWithTriviaAndKeepsTheLookup()
@@ -93,7 +137,8 @@ public sealed partial class AnalyzerPackageHostTests
             var originalNode = (await document.GetSyntaxRootAsync())!.DescendantNodes().OfType<InvocationExpressionSyntax>().Single();
             var originalSymbol = original.GetSemanticModel(originalNode.SyntaxTree).GetSymbolInfo(originalNode).Symbol;
             var actions = await Actions(document, diagnostic);
-            Check(actions.Count == 1 && Fixer.Value.GetFixAllProvider() is null, "One proved fix; no guessed FixAll");
+            Check(actions.Count == 1 && actions[0].EquivalenceKey == FixAllKey
+                && Fixer.Value.GetFixAllProvider() is not null, "One proved fix and the matching document FixAll provider");
             var operation = (await actions[0].GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
             var changed = operation.ChangedSolution.GetDocument(document.Id)!;
             var text = (await changed.GetTextAsync()).ToString();
@@ -109,6 +154,131 @@ public sealed partial class AnalyzerPackageHostTests
             File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), "codefix-fixed.cs"), text);
             foreach (var doc in document.Project.Documents.Where(d => d.Id != document.Id))
                 File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), Path.GetFileName(doc.FilePath!)), (await doc.GetTextAsync()).ToString());
+        }
+    }
+
+    [Test]
+    public async Task CodeFixDocumentFixAllUsesOneOriginalSnapshotAndPreservesBothLookupsAndSequence()
+    {
+        var source = ManifestModel + FixAllCalls;
+        var (workspace, document, diagnostic) = await FixWorkspace(source, expectedDiagnostics: 2);
+        using (workspace)
+        {
+            var provider = Fixer.Value.GetFixAllProvider();
+            Check(provider is not null && provider.GetSupportedFixAllScopes().SequenceEqual([FixAllScope.Document]), "FixAll advertises document scope only");
+            var original = (await document.Project.GetCompilationAsync())!;
+            Check(!original.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Original two-lookup consumer compiles");
+            var originalRoot = (await document.GetSyntaxRootAsync())!;
+            var originalLookups = originalRoot.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Where(node => node.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "GetUrl" }).ToArray();
+            var originalMethods = originalLookups.Select(node => (IMethodSymbol)original.GetSemanticModel(node.SyntaxTree).GetSymbolInfo(node).Symbol!).ToArray();
+            var diagnostics = new FixAllDiagnostics(diagnostic); // Duplicate an actual span; it must be edited once.
+            var action = await FixAllAction(document, diagnostics);
+            Check(action is not null && action.EquivalenceKey == FixAllKey, "All original literal occurrences have one atomic action");
+            var operation = (await action!.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
+            Check(diagnostics.DocumentRequests == 1, "FixAll obtains the original actual diagnostics once, including during application");
+            var changed = operation.ChangedSolution.GetDocument(document.Id)!;
+            var text = (await changed.GetTextAsync()).ToString();
+            var expected = source.Replace("/* first */ \"/intro/\"", "/* first */ global::Guides.Pages.Intro.Route.PublicPath", StringComparison.Ordinal)
+                .Replace("/* second */ \"/intro/\"", "/* second */ global::Guides.Pages.Intro.Route.PublicPath", StringComparison.Ordinal);
+            Check(text == expected, "Only both original arguments change; comments, lookup receivers and before/between/after sentinels remain byte-for-byte");
+            var compiled = (await changed.Project.GetCompilationAsync())!;
+            Check(!compiled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error || d.Id.StartsWith("CS86", StringComparison.Ordinal)), "Atomic replacements preserve compilation and nullable contracts");
+            var changedLookups = (await changed.GetSyntaxRootAsync())!.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Where(node => node.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "GetUrl" }).ToArray();
+            Check(changedLookups.Length == originalMethods.Length && changedLookups.Length == 2, "Both runtime lookups remain");
+            for (var i = 0; i < changedLookups.Length; i++)
+            {
+                var method = (IMethodSymbol)compiled.GetSemanticModel(changedLookups[i].SyntaxTree).GetSymbolInfo(changedLookups[i]).Symbol!;
+                Check(method.ToDisplayString() == originalMethods[i].ToDisplayString()
+                    && method.ReturnNullableAnnotation == originalMethods[i].ReturnNullableAnnotation
+                    && method.Parameters[0].NullableAnnotation == originalMethods[i].Parameters[0].NullableAnnotation,
+                    "Original lookup overload, return type and nullability are retained");
+            }
+            Check(!(await compiled.WithAnalyzers(Packed.Value.Analyzers, changed.Project.AnalyzerOptions).GetAnalyzerDiagnosticsAsync()).Any(d => d.Id == "LSA1401"), "Both recommendations disappear together");
+            Check(workspace.TryApplyChanges(operation.ChangedSolution), "Atomic document change applies");
+            Check(await FixAllAction(workspace.CurrentSolution.GetDocument(document.Id)!, new FixAllDiagnostics()) is null, "Second document request has no action");
+            File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), "codefix-fixall-original.cs"), source);
+            File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), "codefix-fixall-fixed.cs"), text);
+            foreach (var generated in document.Project.Documents.Where(d => d.Id != document.Id))
+                File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), Path.GetFileName(generated.FilePath!)), (await generated.GetTextAsync()).ToString());
+        }
+    }
+
+    [Test]
+    public async Task CodeFixDocumentFixAllRejectsUnsupportedRequestsAndOneUnprovenTargetAtomically()
+    {
+        var source = ManifestModel + FixAllCalls;
+        var (workspace, document, diagnostic) = await FixWorkspace(source, expectedDiagnostics: 2);
+        using (workspace)
+        {
+            foreach (var scope in new[] { FixAllScope.Project, FixAllScope.Solution })
+                Check(await FixAllAction(document, new FixAllDiagnostics(), scope) is null, "No broader scope action: " + scope);
+            Check(await FixAllAction(document, new FixAllDiagnostics(), key: "Other.Action") is null, "Unrelated equivalence key is not handled");
+            var tree = (await document.GetSyntaxTreeAsync())!;
+            var ordinary = (await document.GetSyntaxRootAsync())!.DescendantNodes().OfType<VariableDeclaratorSyntax>()
+                .Single(node => node.Identifier.ValueText == "Ordinary").Initializer!.Value;
+            foreach (var badLocation in new[]
+            {
+                ordinary.GetLocation(),
+                Location.Create(tree, new TextSpan(diagnostic.Location.SourceSpan.Start + 1, diagnostic.Location.SourceSpan.Length - 1)),
+                Location.Create(CSharpSyntaxTree.ParseText(source, path: tree.FilePath), diagnostic.Location.SourceSpan)
+            })
+            {
+                var unexpected = Diagnostic.Create(diagnostic.Descriptor, badLocation);
+                Check(await FixAllAction(document, new FixAllDiagnostics(unexpected)) is null, "One unproven literal, partial span or foreign tree refuses the entire action");
+                Check((await workspace.CurrentSolution.GetDocument(document.Id)!.GetTextAsync()).ToString() == source, "No valid subset is applied after a rejected target");
+            }
+            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            var threw = false;
+            try { await FixAllAction(document, new FixAllDiagnostics(), cancellation: cancelled.Token); }
+            catch (OperationCanceledException) { threw = true; }
+            Check(threw, "Cancellation cannot produce a document action");
+        }
+    }
+
+    [Test]
+    public async Task CodeFixDocumentFixAllPreservesConcurrentSourceAdditionalConfigAndProjectEdits()
+    {
+        var source = ManifestModel + FixAllCalls;
+        var (workspace, document, _) = await FixWorkspace(source, expectedDiagnostics: 2);
+        using (workspace)
+        {
+            var additional = document.Project.AdditionalDocuments.Single();
+            var config = document.Project.AnalyzerConfigDocuments.Single();
+            var additionalText = (await additional.GetTextAsync()).ToString();
+            var configText = (await config.GetTextAsync()).ToString();
+            var parseOptions = document.Project.ParseOptions!;
+            Solution RestoredInputs() => workspace.CurrentSolution
+                .WithDocumentText(document.Id, SourceText.From(source))
+                .WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText))
+                .WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText))
+                .WithProjectParseOptions(document.Project.Id, parseOptions);
+            foreach (var input in new[] { "source", "additional", "config", "project" })
+            {
+                Check(workspace.TryApplyChanges(RestoredInputs()), "Restore inputs from the current solution before independent stale action: " + input);
+                var currentDocument = workspace.CurrentSolution.GetDocument(document.Id)!;
+                var registered = await FixAllAction(currentDocument, new FixAllDiagnostics());
+                Check(registered is not null, "Fresh two-target action registers before edit: " + input);
+                var edited = input switch
+                {
+                    "source" => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source + "\n// concurrent source edit")),
+                    "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nChanged body")),
+                    "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
+                    _ => workspace.CurrentSolution.WithProjectParseOptions(document.Project.Id, ((CSharpParseOptions)document.Project.ParseOptions!).WithLanguageVersion(LanguageVersion.CSharp12))
+                };
+                Check(workspace.TryApplyChanges(edited), "Concurrent input edit applies: " + input);
+                var current = workspace.CurrentSolution;
+                var operation = (await registered!.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
+                Check(operation.ChangedSolution == current, "Stale action preserves the exact current solution and every edit: " + input);
+                Check(await FixAllAction(currentDocument, new FixAllDiagnostics()) is null, "Obsolete document snapshot offers no action: " + input);
+            }
+            Check(workspace.TryApplyChanges(RestoredInputs()), "Restore current inputs before application cancellation");
+            var action = await FixAllAction(workspace.CurrentSolution.GetDocument(document.Id)!, new FixAllDiagnostics());
+            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            var threw = false;
+            try { await action!.GetOperationsAsync(cancelled.Token); } catch (OperationCanceledException) { threw = true; }
+            Check(threw && (await workspace.CurrentSolution.GetDocument(document.Id)!.GetTextAsync()).ToString() == source, "Cancelled application cannot leave one target replaced");
         }
     }
 
