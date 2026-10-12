@@ -225,11 +225,119 @@ public sealed class HtmlTreeBuilderTests
     }
 
     [Test]
+    public async Task LegacyDoctypeModes_KeepMissingEmptyAndNonemptySystemsDistinct()
+    {
+        // WHATWG initial insertion mode, 2026-10-12: an empty HTML 4.01 system is quirks too.
+        foreach (var family in new[] { "Frameset", "Transitional" })
+            foreach (var (system, expected) in new[]
+            {
+                ("", HtmlDocumentMode.Quirks),
+                (" ''", HtmlDocumentMode.Quirks),
+                (" 'legacy.dtd'", HtmlDocumentMode.LimitedQuirks),
+                (" ' '", HtmlDocumentMode.LimitedQuirks)
+            })
+            {
+                var tree = Parse($"<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 {family}//EN'{system}><p>X");
+                await Assert.That(tree.DocumentMode).IsEqualTo(expected);
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(tree.Diagnostics.Any(d => d.IncompleteCoverage)).IsFalse();
+            }
+
+        foreach (var (raw, expected) in new[]
+        {
+            ("<!doctype hTmL>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html SYSTEM 'about:legacy-compat'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC ''>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC '-//Example//DTD Unlisted//EN'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01//EN'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC '-//W3C//DTD XHTML 1.0 Frameset//EN'>", HtmlDocumentMode.LimitedQuirks),
+            ("<!doctype svg PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'legacy.dtd'>", HtmlDocumentMode.Quirks),
+            ("<!doctype html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN>", HtmlDocumentMode.Quirks)
+        })
+        {
+            var tree = Parse(raw + "<p>X");
+            await Assert.That(tree.DocumentMode).IsEqualTo(expected);
+            await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+        }
+    }
+
+    [Test]
+    public async Task LegacyDoctypeMatching_UsesAsciiCaseAndRespectsExactVersusPrefixRules()
+    {
+        foreach (var (doctype, expected) in new[]
+        {
+            ("<!doctype html PUBLIC 'hTmL'>", HtmlDocumentMode.Quirks),
+            ("<!doctype html PUBLIC 'HTMLx'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC '-//w3c//dtd html 3.2//custom'>", HtmlDocumentMode.Quirks),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 3.2/'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC ' -//W3C//DTD HTML 3.2//EN'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html PUBLIC '-//w3c//dtd xhtml 1.0 transitional//custom'>", HtmlDocumentMode.LimitedQuirks),
+            ("<!doctype html PUBLIC '-//W3C//DTD XHTML 1.0 Tranſitional//EN'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html SYSTEM 'HTTP://WWW.IBM.COM/DATA/DTD/V11/IBMXHTML1-TRANSITIONAL.DTD'>", HtmlDocumentMode.Quirks),
+            ("<!doctype html SYSTEM 'http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd?x'>", HtmlDocumentMode.NoQuirks),
+            ("<!doctype html SYSTEM 'http://www.ibm.com/data/dtd/v11/ibmxhtml1-tranſitional.dtd'>", HtmlDocumentMode.NoQuirks)
+        })
+        {
+            var tree = Parse(doctype + "<p>X");
+            await Assert.That(tree.DocumentMode).IsEqualTo(expected);
+            await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+        }
+    }
+
+    [Test]
+    public async Task LegacyDoctypeModes_ChangeWhetherTableClosesTheOpenParagraph()
+    {
+        const string body = "<p id=p>A<table id=t><tr><td>B</td></tr></table>";
+        foreach (var (doctype, expected, parentName, paragraphText) in new[]
+        {
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' ''>", HtmlDocumentMode.Quirks, "p", "AB"),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' 'legacy.dtd'>", HtmlDocumentMode.LimitedQuirks, "body", "A"),
+            ("<!doctype html>", HtmlDocumentMode.NoQuirks, "body", "A")
+        })
+        {
+            var raw = doctype + body;
+            var tree = Parse(raw);
+            var table = ById(tree, "t");
+            await Assert.That(tree.DocumentMode).IsEqualTo(expected);
+            await Assert.That(tree.Nodes[table.Parent!.Value].Name).IsEqualTo(parentName);
+            await Assert.That(tree.TextContent(ById(tree, "p").Id)).IsEqualTo(paragraphText);
+            await Assert.That(tree.TextContent(table.Id)).IsEqualTo("B");
+            await Assert.That(table.Source!.Value.Start).IsEqualTo(raw.IndexOf("<table", StringComparison.Ordinal));
+            await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+            await CheckLinksAndSpans(tree, raw.Length);
+        }
+    }
+
+    [Test]
+    public async Task LateAndFragmentDoctypes_DoNotReplaceTheAlreadyEstablishedMode()
+    {
+        const string legacy = "<!doctype html PUBLIC 'HTML'>";
+        foreach (var (raw, expected, doctypes) in new[]
+        {
+            ("<!doctype html>" + legacy + "<p>X", HtmlDocumentMode.NoQuirks, 1),
+            ("<!doctype html><head>" + legacy + "</head><body><p>X", HtmlDocumentMode.NoQuirks, 1),
+            ("<!doctype html><body>" + legacy + "<p>X", HtmlDocumentMode.NoQuirks, 1),
+            ("<body><!doctype html><p>X", HtmlDocumentMode.Quirks, 0)
+        })
+        {
+            var tree = Parse(raw);
+            await Assert.That(tree.DocumentMode).IsEqualTo(expected);
+            await Assert.That(tree.Nodes.Count(node => node.Kind == HtmlTreeNodeKind.Doctype)).IsEqualTo(doctypes);
+            await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+        }
+        var fragment = Parse(legacy + "<p id=p>A<table id=t><tr><td>B</td></tr></table>", new(Fragment: new("body")));
+        await Assert.That(fragment.DocumentMode).IsEqualTo(HtmlDocumentMode.NoQuirks);
+        await Assert.That(fragment.Nodes.Any(node => node.Kind == HtmlTreeNodeKind.Doctype)).IsFalse();
+        await Assert.That(ById(fragment, "t").Parent).IsEqualTo((int?)fragment.Root);
+        await Assert.That(fragment.TextContent(ById(fragment, "p").Id)).IsEqualTo("A");
+        await Assert.That(fragment.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+    }
+
+    [Test]
     public async Task UnsupportedBranches_ReportPartialCoverageInsteadOfComplete()
     {
         foreach (var (raw, options, code) in new[]
         {
-            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN'><p>X", new HtmlTreeOptions(), "unsupported-legacy-doctype-mode"),
             ("<template shadowrootmode='open'><p>X</p></template>", new HtmlTreeOptions(), "unsupported-declarative-shadow-root"),
             ("<p>X", new HtmlTreeOptions(Fragment: new("svg", HtmlNamespaces.Svg)), "unsupported-foreign-fragment-breakout")
         })

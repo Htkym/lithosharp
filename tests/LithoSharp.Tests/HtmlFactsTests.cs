@@ -97,9 +97,12 @@ public sealed class HtmlFactsTests
     [Test]
     public async Task IncompleteFacts_AreRejectedBeforeIndexingAndCancellationPropagates()
     {
+        var legacySections = SiteGenerator.ExtractSearchSections(
+            "<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN'><h2 id=legacy>Legacy</h2><p>X");
+        await Assert.That(legacySections.Single().Anchor).IsEqualTo("legacy");
+        await Assert.That(legacySections.Single().Body).IsEqualTo("X");
         foreach (var html in new[]
         {
-            "<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN'><p>X",
             "<template shadowrootmode=open><p>X</p></template>"
         })
         {

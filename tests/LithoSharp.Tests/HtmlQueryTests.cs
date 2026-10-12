@@ -125,10 +125,20 @@ public sealed class HtmlQueryTests
         await Assert.That(document.Snapshot.Query("svg[viewBox]")?.NamespaceUri).IsEqualTo("http://www.w3.org/2000/svg");
         await Assert.That(document.Snapshot.Query("svg[viewbox]")).IsNull();
         await Assert.That(document.Snapshot.Query("foreignObject p")?.GetAttribute("id")).IsEqualTo("inside");
-        using var quirks = SiteTestDocument.Parse("<p id=Mixed class=Mixed>X</p>");
-        await Assert.That(quirks.Snapshot.Query("#mixed.mixed")?.TextContent).IsEqualTo("X");
-        using var standards = SiteTestDocument.Parse("<!doctype html><p id=Mixed class=Mixed>X</p>");
-        await Assert.That(standards.Snapshot.Query("#mixed.mixed")).IsNull();
+        foreach (var (doctype, foldsAsciiCase) in new[]
+        {
+            ("", true),
+            ("<!doctype html>", false),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN'>", true),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' ''>", true),
+            ("<!doctype html PUBLIC '-//W3C//DTD HTML 4.01 Transitional//EN' 'legacy.dtd'>", false),
+        })
+        {
+            using var caseRules = SiteTestDocument.Parse(doctype + "<p id=Mixed class=Mixed>X</p>");
+            await Assert.That(caseRules.Snapshot.Query("#Mixed.Mixed")?.TextContent).IsEqualTo("X");
+            await Assert.That(caseRules.Snapshot.Query("#mixed.mixed")?.TextContent)
+                .IsEqualTo(foldsAsciiCase ? "X" : null);
+        }
     }
 
     [Test]

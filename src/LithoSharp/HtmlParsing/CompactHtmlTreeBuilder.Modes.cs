@@ -22,9 +22,10 @@ internal sealed partial class CompactHtmlTreeBuilder
                 if (token.Kind == HtmlTokenKind.Doctype)
                 {
                     InsertOther(HtmlTreeNodeKind.Doctype, root);
-                    documentMode = token.ForceQuirks || Name != "html" ? HtmlDocumentMode.Quirks : HtmlDocumentMode.NoQuirks;
-                    if (token.PublicIdentifier is not null || token.SystemIdentifier is not null && token.SystemIdentifier.Value != "about:legacy-compat")
-                        Error("unsupported-legacy-doctype-mode", true);
+                    documentMode = ClassifyDoctype(token);
+                    if (Name != "html" || token.PublicIdentifier is not null ||
+                        token.SystemIdentifier is not null && token.SystemIdentifier.Value != "about:legacy-compat")
+                        Error("nonconforming-doctype");
                     mode = Mode.BeforeHtml; return false;
                 }
                 DropLeadingSpaces(); documentMode = HtmlDocumentMode.Quirks; mode = Mode.BeforeHtml; return true;
