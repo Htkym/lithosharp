@@ -207,7 +207,9 @@ function Read-WatchLifecycleSidecar([string] $Path) {
     } finally { if ($null -ne $stream) { $stream.Dispose() } }
     if ($count -gt 131072) { $result.byteLimitReached = $true; $result.incomplete = $true; $count = 131072 }
     $utf8 = [Text.UTF8Encoding]::new($false, $true)
-    $keys = @('schemaVersion','utcUnixMilliseconds','writerId','hostId','workerId','event','reason','generation','restartReasons','exitCode','droppedBefore')
+    $legacyKeys = @('schemaVersion','utcUnixMilliseconds','writerId','hostId','workerId','event','reason','generation','restartReasons','exitCode','droppedBefore')
+    $errorKeys = @('watcherErrorType','watcherHResult','watcherNativeErrorCode')
+    $errorTypes = @('InternalBufferOverflowException','IOException','Win32Exception','UnauthorizedAccessException','Other')
     $eventNames = @('RestartRequested','RestartConsumed','HostStarted','HostBuildRequested','HostBuildReturned','HostStopRequested','HostExited','WorkerStarted','WorkerStopRequested','WorkerExited')
     $reasonNames = @('None','InitialBuild','FirstRequest','Recompile','BuildFailure','HostAlreadyExited','Cancellation','Timeout','ProtocolOrIoFailure','Dispose','GracefulClose','ForcedAfterTimeout','AlreadyExited')
     $start = 0; $lines = 0
@@ -219,10 +221,12 @@ function Read-WatchLifecycleSidecar([string] $Path) {
             if ($length -eq 0 -or $length -gt 1024) { throw 'Unknown bounded lifecycle line.' }
             $line = $utf8.GetString($buffer, $start, $length)
             $row = ConvertFrom-Json -InputObject $line -AsHashtable -NoEnumerate -Depth 8 -ErrorAction Stop
-            if ($row -isnot [Collections.IDictionary] -or $row.Count -ne $keys.Count) { throw 'Unknown lifecycle schema.' }
+            if ($row -isnot [Collections.IDictionary] -or
+                ($row.schemaVersion -isnot [int] -and $row.schemaVersion -isnot [long]) -or $row.schemaVersion -notin @(1,2)) { throw 'Unknown lifecycle schema.' }
+            $keys = if ($row.schemaVersion -eq 1) { $legacyKeys } else { $legacyKeys + $errorKeys }
+            if ($row.Count -ne $keys.Count) { throw 'Unknown lifecycle schema.' }
             foreach ($key in $row.Keys) { if ($key -cnotin $keys) { throw 'Unknown lifecycle field.' } }
-            if (($row.schemaVersion -isnot [int] -and $row.schemaVersion -isnot [long]) -or $row.schemaVersion -ne 1 -or
-                $row.event -isnot [string] -or $row.event -cnotin $eventNames -or
+            if ($row.event -isnot [string] -or $row.event -cnotin $eventNames -or
                 $row.reason -isnot [string] -or $row.reason -cnotin $reasonNames) { throw 'Unknown lifecycle enum.' }
             foreach ($key in @('writerId','hostId')) {
                 if ($row[$key] -isnot [string] -or $row[$key] -cnotmatch '^[0-9a-f]{32}$') { throw 'Unknown lifecycle identifier.' }
@@ -234,6 +238,16 @@ function Read-WatchLifecycleSidecar([string] $Path) {
             if ($row.utcUnixMilliseconds -gt 253402300799999L -or $row.restartReasons -gt 511 -or $row.droppedBefore -gt [int]::MaxValue -or
                 ($null -ne $row.exitCode -and (($row.exitCode -isnot [int] -and $row.exitCode -isnot [long]) -or
                     $row.exitCode -lt [int]::MinValue -or $row.exitCode -gt [int]::MaxValue))) { throw 'Unknown lifecycle scalar.' }
+            if ($row.schemaVersion -eq 2 -and ($null -ne $row.watcherErrorType -or $null -ne $row.watcherHResult -or $null -ne $row.watcherNativeErrorCode)) {
+                if ($row.event -cne 'RestartRequested' -or ($row.restartReasons -band 16) -eq 0 -or
+                    $row.watcherErrorType -isnot [string] -or $row.watcherErrorType -cnotin $errorTypes -or
+                    ($row.watcherHResult -isnot [int] -and $row.watcherHResult -isnot [long]) -or
+                    $row.watcherHResult -lt [int]::MinValue -or $row.watcherHResult -gt [int]::MaxValue) { throw 'Unknown watcher error.' }
+                if (($row.watcherErrorType -ceq 'Win32Exception' -and $null -eq $row.watcherNativeErrorCode) -or
+                    ($null -ne $row.watcherNativeErrorCode -and ($row.watcherErrorType -cne 'Win32Exception' -or
+                    ($row.watcherNativeErrorCode -isnot [int] -and $row.watcherNativeErrorCode -isnot [long]) -or
+                    $row.watcherNativeErrorCode -lt [int]::MinValue -or $row.watcherNativeErrorCode -gt [int]::MaxValue))) { throw 'Unknown watcher native code.' }
+            }
             # Reconstruct the fixed scalar schema instead of exporting parsed JSON.
             $safe = [ordered]@{}; foreach ($key in $keys) { $safe[$key] = $row[$key] }
             $events.Add($safe)

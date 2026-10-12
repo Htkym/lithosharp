@@ -57,7 +57,7 @@ internal static class DevServer
         // must not disappear while the first build is in progress.
         var state = new ServerState(new HostResponse { OutputDirectory = Path.GetDirectoryName(project)! });
         using var watcher = CreateWatcher(Path.GetDirectoryName(project)!, () => state.IgnoredPaths,
-            (path, changeType) => {
+            (path, changeType, watcherError) => {
                 // Directory LastWrite notifications can accompany a child edit on Windows.
                 // File and structural changes still request recompilation when needed.
                 var directoryMetadata = changeType == WatcherChangeTypes.Changed && Directory.Exists(path);
@@ -67,7 +67,7 @@ internal static class DevServer
                     var reason = (changeType == WatcherChangeTypes.All ? WatchRestartReason.WatcherError : (WatchRestartReason)(int)changeType)
                         | (extension == ".cs" ? WatchRestartReason.CSharp : extension is ".csproj" or ".props" or ".targets" ? WatchRestartReason.Project : WatchRestartReason.Other);
                     Interlocked.Or(ref state.Restart, (int)reason);
-                    lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason);
+                    lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason, watcherError: watcherError);
                 }
                 changes.Writer.TryWrite(true);
             });
@@ -527,7 +527,7 @@ internal static class DevServer
     }
 
     private static FileSystemWatcher CreateWatcher(
-        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string, WatcherChangeTypes> changed)
+        string root, Func<IReadOnlyList<string>> ignoredPaths, Action<string, WatcherChangeTypes, Exception?> changed)
     {
         var watcher = new FileSystemWatcher(root)
         {
@@ -535,11 +535,11 @@ internal static class DevServer
             InternalBufferSize = 64 * 1024,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath, eventArgs.ChangeType); };
+        FileSystemEventHandler onChange = (_, eventArgs) => { if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)) changed(eventArgs.FullPath, eventArgs.ChangeType, null); };
         RenamedEventHandler onRename = (_, eventArgs) =>
         {
             if (ShouldWatch(root, ignoredPaths(), eventArgs.FullPath)
-                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath, WatcherChangeTypes.Renamed); changed(eventArgs.OldFullPath, WatcherChangeTypes.Renamed); }
+                || ShouldWatch(root, ignoredPaths(), eventArgs.OldFullPath)) { changed(eventArgs.FullPath, WatcherChangeTypes.Renamed, null); changed(eventArgs.OldFullPath, WatcherChangeTypes.Renamed, null); }
         };
         watcher.Changed += onChange;
         watcher.Created += onChange;
@@ -547,8 +547,9 @@ internal static class DevServer
         watcher.Renamed += onRename;
         watcher.Error += (_, eventArgs) =>
         {
-            Console.Error.WriteLine($"File watching lost changes: {eventArgs.GetException().Message} Rebuilding the site.");
-            changed(root, WatcherChangeTypes.All);
+            var error = eventArgs.GetException();
+            Console.Error.WriteLine($"File watching lost changes: {error.Message} Rebuilding the site.");
+            changed(root, WatcherChangeTypes.All, error);
         };
         watcher.EnableRaisingEvents = true;
         return watcher;

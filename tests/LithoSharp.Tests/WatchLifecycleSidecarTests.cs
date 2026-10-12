@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Diagnostics;
+using System.ComponentModel;
 using LithoSharp.Internal;
 
 namespace LithoSharp.Tests;
@@ -157,13 +158,53 @@ public sealed class WatchLifecycleSidecarTests
         var host = Guid.NewGuid(); var worker = Guid.NewGuid();
         var sidecar = new WatchLifecycleSidecar(file, DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds(), host);
         sidecar.Write(WatchLifecycleEvent.WorkerExited, WatchLifecycleReason.ProtocolOrIoFailure, 3, 0, workerId: worker, exitCode: 1);
+        var errors = new (Exception Error, string Type, int? Native)[]
+        {
+            (new InternalBufferOverflowException("PRIVATE_MESSAGE_SENTINEL"), "InternalBufferOverflowException", null),
+            (new IOException("PRIVATE_MESSAGE_SENTINEL", unchecked((int)0x80070020)), "IOException", null),
+            (new Win32Exception(5, "PRIVATE_MESSAGE_SENTINEL"), "Win32Exception", 5),
+            (new UnauthorizedAccessException("PRIVATE_MESSAGE_SENTINEL"), "UnauthorizedAccessException", null),
+            (new InvalidOperationException("PRIVATE_MESSAGE_SENTINEL", new Exception("PRIVATE_INNER_SENTINEL")), "Other", null),
+            (new PrivateWatcherException(), "Other", null)
+        };
+        foreach (var (error, _, _) in errors)
+        {
+            error.Source = "PRIVATE_SOURCE_SENTINEL";
+            error.Data["PRIVATE_DATA_KEY_SENTINEL"] = "PRIVATE_DATA_VALUE_SENTINEL";
+            sidecar.Write(WatchLifecycleEvent.RestartRequested, generation: 3, restartReasons: 144, watcherError: error);
+            sidecar.Write(WatchLifecycleEvent.RestartConsumed, generation: 3, restartReasons: 144);
+        }
         var text = await File.ReadAllTextAsync(file);
-        using var record = JsonDocument.Parse(text);
-        var row = record.RootElement;
+        var rows = (await File.ReadAllLinesAsync(file)).Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+        var row = rows[0];
         await Assert.That(string.Join(",", row.EnumerateObject().Select(item => item.Name))).IsEqualTo(
-            "schemaVersion,utcUnixMilliseconds,writerId,hostId,workerId,event,reason,generation,restartReasons,exitCode,droppedBefore");
+            "schemaVersion,utcUnixMilliseconds,writerId,hostId,workerId,event,reason,generation,restartReasons,exitCode,droppedBefore,watcherErrorType,watcherHResult,watcherNativeErrorCode");
+        await Assert.That(rows.Length).IsEqualTo(1 + errors.Length * 2);
+        await Assert.That(rows.All(item => item.GetProperty("schemaVersion").GetInt32() == 2)).IsTrue();
         await Assert.That(row.GetProperty("hostId").GetString()).IsEqualTo(host.ToString("N"));
         await Assert.That(row.GetProperty("workerId").GetString()).IsEqualTo(worker.ToString("N"));
-        await Assert.That(text).DoesNotContain("PRIVATE_PATH_SENTINEL");
+        foreach (var key in new[] { "watcherErrorType", "watcherHResult", "watcherNativeErrorCode" })
+            await Assert.That(row.GetProperty(key).ValueKind).IsEqualTo(JsonValueKind.Null);
+        for (var i = 0; i < errors.Length; i++)
+        {
+            var requested = rows[1 + i * 2]; var consumed = rows[2 + i * 2];
+            await Assert.That(requested.GetProperty("event").GetString()).IsEqualTo("RestartRequested");
+            await Assert.That(consumed.GetProperty("event").GetString()).IsEqualTo("RestartConsumed");
+            await Assert.That(requested.GetProperty("watcherErrorType").GetString()).IsEqualTo(errors[i].Type);
+            await Assert.That(requested.GetProperty("watcherHResult").GetInt32()).IsEqualTo(errors[i].Error.HResult);
+            await Assert.That(requested.GetProperty("watcherNativeErrorCode").ValueKind).IsEqualTo(errors[i].Native is null ? JsonValueKind.Null : JsonValueKind.Number);
+            if (errors[i].Native is int native)
+                await Assert.That(requested.GetProperty("watcherNativeErrorCode").GetInt32()).IsEqualTo(native);
+            foreach (var key in new[] { "writerId", "hostId", "generation", "restartReasons" })
+                await Assert.That(requested.GetProperty(key).ToString()).IsEqualTo(consumed.GetProperty(key).ToString());
+            await Assert.That(requested.GetProperty("restartReasons").GetInt32()).IsEqualTo(144);
+            await Assert.That(requested.GetProperty("utcUnixMilliseconds").GetInt64()).IsLessThanOrEqualTo(consumed.GetProperty("utcUnixMilliseconds").GetInt64());
+            foreach (var key in new[] { "watcherErrorType", "watcherHResult", "watcherNativeErrorCode" })
+                await Assert.That(consumed.GetProperty(key).ValueKind).IsEqualTo(JsonValueKind.Null);
+        }
+        await Assert.That(text).DoesNotContain("PRIVATE");
+        await Assert.That(text).DoesNotContain(nameof(PrivateWatcherException));
     }
+
+    private sealed class PrivateWatcherException() : IOException("PRIVATE_MESSAGE_SENTINEL", new Exception("PRIVATE_INNER_SENTINEL")) { }
 }

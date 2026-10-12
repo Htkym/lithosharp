@@ -35,7 +35,8 @@ internal sealed class WatchLifecycleSidecar
     }
 
     internal void Write(WatchLifecycleEvent kind, WatchLifecycleReason reason = WatchLifecycleReason.None,
-        long generation = 0, int restartReasons = 0, Guid? hostId = null, Guid? workerId = null, int? exitCode = null)
+        long generation = 0, int restartReasons = 0, Guid? hostId = null, Guid? workerId = null, int? exitCode = null,
+        Exception? watcherError = null)
     {
         if (path is null || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until) return;
         lock (gate)
@@ -49,10 +50,15 @@ internal sealed class WatchLifecycleSidecar
                 if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until) return;
                 var record = JsonSerializer.Serialize(new
                 {
-                    schemaVersion = 1, utcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    schemaVersion = 2, utcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     writerId = writer.ToString("N"), hostId = (hostId ?? HostId).ToString("N"),
                     workerId = workerId?.ToString("N"), @event = kind.ToString(), reason = reason.ToString(),
                     generation, restartReasons, exitCode, droppedBefore = dropped,
+                    // Never serialize exception names from user types, messages,
+                    // paths, stacks, Data or inner exceptions into the sidecar.
+                    watcherErrorType = KnownWatcherErrorType(watcherError), watcherHResult = watcherError?.HResult,
+                    watcherNativeErrorCode = watcherError?.GetType() == typeof(System.ComponentModel.Win32Exception)
+                        ? (int?)((System.ComponentModel.Win32Exception)watcherError).NativeErrorCode : null,
                 });
                 var bytes = Encoding.UTF8.GetBytes(record + "\n");
                 if (stream.Length > MaximumBytes - bytes.Length) return;
@@ -65,6 +71,16 @@ internal sealed class WatchLifecycleSidecar
                 if (dropped < int.MaxValue) dropped++;
             }
         }
+    }
+
+    private static string? KnownWatcherErrorType(Exception? error)
+    {
+        if (error is null) return null;
+        var type = error.GetType();
+        return type == typeof(InternalBufferOverflowException) ? nameof(InternalBufferOverflowException)
+            : type == typeof(IOException) ? nameof(IOException)
+            : type == typeof(System.ComponentModel.Win32Exception) ? nameof(System.ComponentModel.Win32Exception)
+            : type == typeof(UnauthorizedAccessException) ? nameof(UnauthorizedAccessException) : "Other";
     }
 }
 

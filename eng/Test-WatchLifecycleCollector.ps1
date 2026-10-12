@@ -20,10 +20,32 @@ $lifecyclePath = Join-Path $EvidenceDirectory 'capture.jsonl'
 $row = [ordered]@{ schemaVersion=1;utcUnixMilliseconds=1791573849654L;writerId=('a'*32);hostId=('b'*32);workerId=$null
     event='HostExited';reason='GracefulClose';generation=3;restartReasons=0;exitCode=-1;droppedBefore=0 }
 $valid = $row | ConvertTo-Json -Compress
+$errorRow = [ordered]@{}; foreach ($key in $row.Keys) { $errorRow[$key]=$row[$key] }
+$errorRow.schemaVersion=2; $errorRow.event='RestartRequested'; $errorRow.reason='None'; $errorRow.restartReasons=144; $errorRow.exitCode=$null
+$errorRow.watcherErrorType='Win32Exception'; $errorRow.watcherHResult=-2147467259; $errorRow.watcherNativeErrorCode=5
+$errorValid = $errorRow | ConvertTo-Json -Compress
+$consumedRow = [ordered]@{}; foreach ($key in $errorRow.Keys) { $consumedRow[$key]=$errorRow[$key] }
+$consumedRow.event='RestartConsumed'; $consumedRow.utcUnixMilliseconds++
+$consumedRow.watcherErrorType=$null; $consumedRow.watcherHResult=$null; $consumedRow.watcherNativeErrorCode=$null
+$consumedValid = $consumedRow | ConvertTo-Json -Compress
+$ioRow = [ordered]@{}; foreach ($key in $errorRow.Keys) { $ioRow[$key]=$errorRow[$key] }
+$ioRow.watcherErrorType='IOException'; $ioRow.watcherHResult=[int]::MinValue; $ioRow.watcherNativeErrorCode=$null
+$ioValid = $ioRow | ConvertTo-Json -Compress
+$otherRow = [ordered]@{}; foreach ($key in $ioRow.Keys) { $otherRow[$key]=$ioRow[$key] }
+$otherRow.watcherErrorType='Other'; $otherRow.watcherHResult=[int]::MaxValue
+$otherValid = $otherRow | ConvertTo-Json -Compress
+$mixedValid = $valid + "`n" + $errorValid + "`n" + $consumedValid + "`n" + $ioValid + "`n" + $otherValid
 $cases = [Collections.Generic.List[string]]::new()
-[IO.File]::WriteAllText($lifecyclePath, $valid + "`n" + '{"event":"PRIVATE_PARTIAL_BODY', $utf8)
+[IO.File]::WriteAllText($lifecyclePath, $mixedValid + "`n" + '{"event":"PRIVATE_PARTIAL_BODY', $utf8)
 $partial = Read-WatchLifecycleSidecar $lifecyclePath
-Check ($partial.events.Count -eq 1 -and $partial.discardedLines -eq 1 -and $partial.incomplete) 'Partial final line must preserve prior complete record.'
+Check ($partial.events.Count -eq 5 -and $partial.discardedLines -eq 1 -and $partial.incomplete) 'Partial final line must preserve mixed legacy and v2 complete records.'
+Check ($partial.events[0].schemaVersion -eq 1 -and $partial.events[0].Count -eq 11 -and $partial.events[1].Count -eq 14 -and $partial.events[2].Count -eq 14) 'Collector retains each strict version schema.'
+Check ($partial.events[1].watcherErrorType -ceq 'Win32Exception' -and $partial.events[1].watcherHResult -eq -2147467259 -and $partial.events[1].watcherNativeErrorCode -eq 5) 'Approved watcher error scalars survive ingress.'
+Check ($partial.events[2].event -ceq 'RestartConsumed' -and $partial.events[2].restartReasons -eq 144 -and
+    $partial.events[1].writerId -ceq $partial.events[2].writerId -and $partial.events[1].hostId -ceq $partial.events[2].hostId -and
+    $null -eq $partial.events[2].watcherErrorType -and $null -eq $partial.events[2].watcherHResult -and $null -eq $partial.events[2].watcherNativeErrorCode) 'Restart consumption links opaque IDs and reasons without copying error data.'
+Check ($partial.events[3].watcherErrorType -ceq 'IOException' -and $partial.events[3].watcherHResult -eq [int]::MinValue -and $null -eq $partial.events[3].watcherNativeErrorCode -and
+    $partial.events[4].watcherErrorType -ceq 'Other' -and $partial.events[4].watcherHResult -eq [int]::MaxValue -and $null -eq $partial.events[4].watcherNativeErrorCode) 'Non-native error kinds retain signed int32 endpoints.'
 $cases.Add('partial-final-line')
 
 $bad = [Collections.Generic.List[string]]::new()
@@ -34,14 +56,30 @@ foreach ($mutation in @(@{event='PRIVATE_EVENT_BODY'}, @{reason='PRIVATE_REASON_
     foreach ($key in $mutation.Keys) { $copy[$key]=$mutation[$key] }
     $bad.Add(($copy | ConvertTo-Json -Compress -Depth 5))
 }
+foreach ($mutation in @(@{source='PRIVATE_UNKNOWN_BODY'}, @{watcherErrorType='System.IO.IOException'}, @{watcherErrorType='win32exception'},
+    @{watcherErrorType='PRIVATE_TYPE_BODY'}, @{watcherErrorType=$null}, @{watcherHResult=$null}, @{watcherHResult='PRIVATE_BODY'},
+    @{watcherHResult=2147483648L}, @{watcherHResult=-2147483649L}, @{watcherHResult=1.5}, @{watcherNativeErrorCode=$null},
+    @{watcherNativeErrorCode=2147483648L}, @{watcherNativeErrorCode=-2147483649L}, @{watcherNativeErrorCode=1.5},
+    @{watcherNativeErrorCode='PRIVATE_BODY'}, @{watcherErrorType='IOException'}, @{event='RestartConsumed'},
+    @{event='HostExited'}, @{restartReasons=128})) {
+    $copy = [ordered]@{}; foreach ($key in $errorRow.Keys) { $copy[$key]=$errorRow[$key] }
+    foreach ($key in $mutation.Keys) { $copy[$key]=$mutation[$key] }
+    $bad.Add(($copy | ConvertTo-Json -Compress -Depth 5))
+}
+# Error type/HResult must be present together even when no native code is involved.
+$incoherent = [ordered]@{}; foreach ($key in $consumedRow.Keys) { $incoherent[$key]=$consumedRow[$key] }
+$incoherent.event='RestartRequested'; $incoherent.watcherHResult=-2146232800
+$bad.Add(($incoherent | ConvertTo-Json -Compress))
+$incoherent.watcherHResult=$null; $incoherent.watcherErrorType='Other'
+$bad.Add(($incoherent | ConvertTo-Json -Compress))
 $bad.Add('{broken-json'); $bad.Add(('PRIVATE_OVERSIZED_BODY'*80))
 $bytes = [Collections.Generic.List[byte]]::new()
 $bytes.AddRange($utf8.GetBytes(($bad -join "`n") + "`n"))
 $bytes.AddRange([byte[]]@(0xc3,0x0a)) # Invalid complete UTF-8 line.
-$bytes.AddRange($utf8.GetBytes($valid + "`n"))
+$bytes.AddRange($utf8.GetBytes($mixedValid + "`n"))
 [IO.File]::WriteAllBytes($lifecyclePath, $bytes.ToArray())
 $filtered = Read-WatchLifecycleSidecar $lifecyclePath
-Check ($filtered.events.Count -eq 1 -and $filtered.discardedLines -eq $bad.Count+1 -and $filtered.incomplete) 'Malformed/unlisted rows must be discarded independently.'
+Check ($filtered.events.Count -eq 5 -and $filtered.discardedLines -eq $bad.Count+1 -and $filtered.incomplete) 'Malformed/unlisted and incoherent watcher rows must be discarded independently.'
 Check (($filtered | ConvertTo-Json -Depth 8) -notmatch 'PRIVATE') 'Ingress must not export unknown JSON or bodies.'
 $cases.Add('schema-enum-guid-scalar-allowlist-and-invalid-utf8')
 
