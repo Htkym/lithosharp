@@ -101,6 +101,27 @@ public sealed partial class AnalyzerPackageHostTests
         return actions;
     }
 
+    // Keep actual AdditionalDocument content intact. Arm only after generation and
+    // packed diagnostics, so the callback occurs in the provider's new proof read.
+    private sealed class ProofReadText(SourceText original) : SourceText
+    {
+        private Action? afterRead;
+        public int Callbacks { get; private set; }
+        public override System.Text.Encoding? Encoding => original.Encoding;
+        public override int Length => original.Length;
+        public override char this[int position] => original[position];
+        public override void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
+            => original.CopyTo(sourceIndex, destination, destinationIndex, count);
+        public void Arm(Action callback) => Check(Interlocked.CompareExchange(ref afterRead, callback, null) is null, "Only one proof callback is armed");
+        public override string ToString()
+        {
+            var content = original.ToString();
+            var callback = Interlocked.Exchange(ref afterRead, null);
+            if (callback is not null) { Callbacks++; callback(); }
+            return content;
+        }
+    }
+
     private const string FixAllKey = "LSA1401.GeneratedPagePath";
     private const string ClosedFixProbe = "\nclass ClosedProbe { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }";
     private const string ScopedFixCalls = """
@@ -186,7 +207,7 @@ public sealed partial class AnalyzerPackageHostTests
               public LithoSharp.SiteUrl M() => @event.Manifest.GetUrl(/* keep */ "/intro/" /* tail */);
             }
             """;
-        var (workspace, document, diagnostic) = await FixWorkspace(source);
+        var (workspace, document, diagnostic) = await FixWorkspace(source, otherSources: [ClosedFixProbe.Replace("Guides", "@event", StringComparison.Ordinal)]);
         using (workspace)
         {
             Check(diagnostic.Severity == DiagnosticSeverity.Info, "Default recommendation is Info");
@@ -204,9 +225,11 @@ public sealed partial class AnalyzerPackageHostTests
             Check(!compiled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Changed document compiles: " + string.Join("\n", compiled.GetDiagnostics()));
             var changedNode = (await changed.GetSyntaxRootAsync())!.DescendantNodes().OfType<InvocationExpressionSyntax>().Single();
             Check(compiled.GetSemanticModel(changedNode.SyntaxTree).GetSymbolInfo(changedNode).Symbol!.ToDisplayString() == originalSymbol!.ToDisplayString(), "Same lookup overload and return type");
-            Check(!(await compiled.WithAnalyzers(Packed.Value.Analyzers, changed.Project.AnalyzerOptions).GetAnalyzerDiagnosticsAsync()).Any(d => d.Id == "LSA1401"), "Recommendation disappears, action is idempotent");
-            Check(workspace.TryApplyChanges(operation.ChangedSolution)
-                && workspace.TryApplyChanges(workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source))), "Workspace apply and restoration retain original text");
+            Check(workspace.TryApplyChanges(operation.ChangedSolution), "Single replacement applies to the actual workspace");
+            await GenerateFixProject(workspace, document.Project.Id);
+            await AssertFreshClosedFixProject(workspace.CurrentSolution.GetProject(document.Project.Id)!, expectedRecommendations: 0);
+            Check((await Actions(workspace.CurrentSolution.GetDocument(document.Id)!, diagnostic)).Count == 0, "Regenerated fresh single fix is idempotent");
+            Check(workspace.TryApplyChanges(workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source))), "Workspace restoration retains original text");
             File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), "codefix-original.cs"), source);
             File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), "codefix-fixed.cs"), text);
             foreach (var doc in document.Project.Documents.Where(d => d.Id != document.Id))
@@ -576,13 +599,33 @@ public sealed partial class AnalyzerPackageHostTests
         var (workspace, document, diagnostic) = await FixWorkspace(source);
         using (workspace)
         {
-            var registered = (await Actions(document, diagnostic)).Single();
-            var edited = document.Project.Solution.WithDocumentText(document.Id, SourceText.From(source + "\n// edit"));
-            Check(workspace.TryApplyChanges(edited), "Concurrent source edit applies");
-            var staleOperation = (await registered.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
-            Check((await staleOperation.ChangedSolution.GetDocument(document.Id)!.GetTextAsync()).ToString() == source + "\n// edit", "Stale action preserves the concurrent edit");
-            Check((await Actions(workspace.CurrentSolution.GetDocument(document.Id)!, diagnostic)).Count == 0, "Changed current compiler fingerprint offers no fix");
-            Check(workspace.TryApplyChanges(workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source))), "Restore original for independent cases");
+            var additional = document.Project.AdditionalDocuments.Single();
+            var config = document.Project.AnalyzerConfigDocuments.Single();
+            var additionalText = await additional.GetTextAsync();
+            var configText = await config.GetTextAsync();
+            var parseOptions = document.Project.ParseOptions!;
+            Solution RestoredInputs() => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source))
+                .WithAdditionalDocumentText(additional.Id, additionalText).WithAnalyzerConfigDocumentText(config.Id, configText)
+                .WithProjectParseOptions(document.Project.Id, parseOptions);
+            foreach (var input in new[] { "source", "additional", "config", "project" })
+            {
+                Check(workspace.TryApplyChanges(RestoredInputs()), "Restore actual inputs before independent single stale case: " + input);
+                var currentDocument = workspace.CurrentSolution.GetDocument(document.Id)!;
+                var registered = (await Actions(currentDocument, diagnostic)).Single();
+                var edited = input switch {
+                    "source" => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source + "\n// concurrent source edit")),
+                    "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nChanged body")),
+                    "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.ToString().Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
+                    _ => workspace.CurrentSolution.WithProjectParseOptions(document.Project.Id, ((CSharpParseOptions)parseOptions).WithLanguageVersion(LanguageVersion.CSharp12))
+                };
+                Check(workspace.TryApplyChanges(edited), "Concurrent single-fix input edit applies: " + input);
+                var current = workspace.CurrentSolution;
+                var staleOperation = (await registered.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
+                Check(staleOperation.ChangedSolution == current, "Stale single action returns exact current solution and every edit: " + input);
+                Check((await Actions(currentDocument, diagnostic)).Count == 0, "Obsolete solution cannot register another single action: " + input);
+                Check((await Actions(current.GetDocument(document.Id)!, diagnostic)).Count == 0, "Changed actual fingerprint offers no fix: " + input);
+            }
+            Check(workspace.TryApplyChanges(RestoredInputs()), "Restore original for independent ambiguity cases");
             var generated = document.Project.Documents.Single(d => d.Id != document.Id);
             var generatedText = (await generated.GetTextAsync()).ToString();
             foreach (var (name, replacement) in new[] {
@@ -601,6 +644,85 @@ public sealed partial class AnalyzerPackageHostTests
             var threw = false;
             try { await Actions(document, diagnostic, cancelled.Token); } catch (OperationCanceledException) { threw = true; }
             Check(threw, "Cancellation never offers an action");
+        }
+    }
+
+    [Test]
+    public Task CodeFixSingleRegistrationProofReadRejectsConcurrentWorkspaceEditsAndCancellation()
+        => SingleProofReadRejectsConcurrentWorkspaceEditsAndCancellation("registration");
+
+    [Test]
+    public Task CodeFixSingleActionProofReadRejectsConcurrentWorkspaceEditsAndCancellation()
+        => SingleProofReadRejectsConcurrentWorkspaceEditsAndCancellation("action");
+
+    private async Task SingleProofReadRejectsConcurrentWorkspaceEditsAndCancellation(string stage)
+    {
+        var source = ManifestModel + "\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/intro/\"); } }";
+        var (workspace, document, _) = await FixWorkspace(source, otherSources: [ClosedFixProbe]);
+        using (workspace)
+        {
+            var additional = document.Project.AdditionalDocuments.Single();
+            var config = document.Project.AnalyzerConfigDocuments.Single();
+            var additionalText = await additional.GetTextAsync();
+            var configText = await config.GetTextAsync();
+            var parseOptions = document.Project.ParseOptions!;
+            async Task<(Document Document, Diagnostic Diagnostic, ProofReadText Text)> PrepareProofRead()
+            {
+                var text = new ProofReadText(additionalText);
+                var restored = workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source))
+                    .WithAdditionalDocumentText(additional.Id, text, PreservationMode.PreserveIdentity)
+                    .WithAnalyzerConfigDocumentText(config.Id, configText).WithProjectParseOptions(document.Project.Id, parseOptions);
+                Check(workspace.TryApplyChanges(restored), "Same actual inputs with an unarmed proof reader apply");
+                var current = workspace.CurrentSolution.GetDocument(document.Id)!;
+                Check(ReferenceEquals(await current.Project.GetAdditionalDocument(additional.Id)!.GetTextAsync(), text), "Workspace preserves the real AdditionalDocument reader identity");
+                var ds = await FixProjectDiagnostics(current.Project);
+                var diagnostic = ds.Single(d => d.Id == "LSA1401");
+                Check(!ds.Any(d => d.Id == "LSA1205") && diagnostic.Properties["coverage"] == "Closed"
+                    && diagnostic.Properties["currentFingerprint"] == diagnostic.Properties["expectedFingerprint"],
+                    "Unchanged forwarded content retains actual packed Closed proof before arming");
+                return (current, diagnostic, text);
+            }
+            Solution Edited(string input) => input switch {
+                "source" => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source + "\n// edit during single proof")),
+                "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nEdited during proof")),
+                "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.ToString().Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
+                _ => workspace.CurrentSolution.WithProjectParseOptions(document.Project.Id, ((CSharpParseOptions)parseOptions).WithLanguageVersion(LanguageVersion.CSharp12))
+            };
+            foreach (var input in new[] { "source", "additional", "config", "project" })
+            {
+                var prepared = await PrepareProofRead();
+                var action = stage == "action" ? (await Actions(prepared.Document, prepared.Diagnostic)).Single() : null;
+                Solution? interrupted = null;
+                prepared.Text.Arm(() => {
+                    Check(workspace.TryApplyChanges(Edited(input)), "Actual input edit applies during " + stage + " proof: " + input);
+                    interrupted = workspace.CurrentSolution;
+                });
+                List<CodeAction>? registrations = null;
+                ApplyChangesOperation? operation = null;
+                if (action is null) registrations = await Actions(prepared.Document, prepared.Diagnostic);
+                else operation = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
+                Check(prepared.Text.Callbacks == 1 && interrupted is not null && workspace.CurrentSolution == interrupted,
+                    "One actual proof read reaches the callback and preserves all concurrent edits: " + stage + "/" + input);
+                if (registrations is not null)
+                    Check(registrations.Count == 0, "Proof begun on a stale registration snapshot offers no action: " + input);
+                else
+                    Check(operation!.ChangedSolution == interrupted,
+                        "Edit during action proof returns exact current solution rather than an old replacement: " + input);
+            }
+            var cancelling = await PrepareProofRead();
+            var registered = stage == "action" ? (await Actions(cancelling.Document, cancelling.Diagnostic)).Single() : null;
+            var beforeCancellation = workspace.CurrentSolution;
+            using var cancellation = new CancellationTokenSource();
+            cancelling.Text.Arm(cancellation.Cancel);
+            var threw = false;
+            try
+            {
+                if (registered is null) await Actions(cancelling.Document, cancelling.Diagnostic, cancellation.Token);
+                else await registered.GetOperationsAsync(cancellation.Token);
+            }
+            catch (OperationCanceledException) { threw = true; }
+            Check(threw && cancelling.Text.Callbacks == 1 && workspace.CurrentSolution == beforeCancellation,
+                "Cancellation during actual " + stage + " proof throws without edits or a successful action");
         }
     }
 }

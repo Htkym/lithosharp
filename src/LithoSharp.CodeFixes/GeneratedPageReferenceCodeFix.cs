@@ -23,22 +23,38 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
     public override FixAllProvider GetFixAllProvider() => PageReferenceFixAll.Instance;
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
+        context.CancellationToken.ThrowIfCancellationRequested();
+        var solution = context.Document.Project.Solution;
+        if (solution.Workspace.CurrentSolution != solution) return;
         var version = await context.Document.GetTextVersionAsync(context.CancellationToken).ConfigureAwait(false);
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+        context.CancellationToken.ThrowIfCancellationRequested();
+        if (solution.Workspace.CurrentSolution != solution) return;
         var literal = root?.FindNode(context.Span, getInnermostNodeForTie: true) as LiteralExpressionSyntax;
-        if (literal is null || await Replacement(context.Document, literal, context.CancellationToken).ConfigureAwait(false) is null) return;
+        if (literal is null) return;
+        var offered = await Replacement(context.Document, literal, context.CancellationToken).ConfigureAwait(false);
+        context.CancellationToken.ThrowIfCancellationRequested();
+        if (offered is null || solution.Workspace.CurrentSolution != solution) return;
         context.RegisterCodeFix(CodeAction.Create("Use the generated page reference path", async cancellation =>
         {
             // Standard workspace actions use the original solution. Reject stale actions
             // rather than silently applying a span to another document version.
-            var current = context.Document.Project.Solution.Workspace.CurrentSolution.GetDocument(context.Document.Id);
-            if (current is null || current.Project.Solution != context.Document.Project.Solution
-                || await current.GetTextVersionAsync(cancellation).ConfigureAwait(false) != version) return context.Document.Project.Solution.Workspace.CurrentSolution;
+            cancellation.ThrowIfCancellationRequested();
+            var current = solution.Workspace.CurrentSolution.GetDocument(context.Document.Id);
+            if (current is null || current.Project.Solution != solution) return solution.Workspace.CurrentSolution;
+            var currentVersion = await current.GetTextVersionAsync(cancellation).ConfigureAwait(false);
+            cancellation.ThrowIfCancellationRequested();
+            if (currentVersion != version || solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
             var replacement = await Replacement(current, literal, cancellation).ConfigureAwait(false);
-            if (replacement is null) return current.Project.Solution;
+            cancellation.ThrowIfCancellationRequested();
+            if (replacement is null || solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
             var editor = await DocumentEditor.CreateAsync(current, cancellation).ConfigureAwait(false);
+            cancellation.ThrowIfCancellationRequested();
+            if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
             editor.ReplaceNode(literal, SyntaxFactory.ParseExpression(replacement).WithTriviaFrom(literal));
-            return editor.GetChangedDocument().Project.Solution;
+            cancellation.ThrowIfCancellationRequested();
+            var changed = editor.GetChangedDocument().Project.Solution;
+            return solution.Workspace.CurrentSolution == solution ? changed : solution.Workspace.CurrentSolution;
         }, "LSA1401.GeneratedPagePath"), context.Diagnostics);
     }
     private static async Task<string?> Replacement(Document document, LiteralExpressionSyntax literal, CancellationToken cancellation)
