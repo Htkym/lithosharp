@@ -3,6 +3,7 @@ using LithoSharp.Diagnostics;
 using LithoSharp.HtmlParsing;
 using LithoSharp.Quality;
 using LithoSharp.Routing;
+using System.Text.Json;
 
 namespace LithoSharp.Tests;
 
@@ -143,6 +144,35 @@ public sealed class SiteQualityTests
     }
 
     [Test]
+    public async Task SrcsetCandidatesFollowSpecificationFixturesAndKeepQualityResolutionAndLocations()
+    {
+        using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "SrcsetUrlCases.json")));
+        foreach (var row in corpus.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            var expected = row.GetProperty("urls").EnumerateArray().Select(value => value.GetString()!).ToArray();
+            await Assert.That(SrcsetUrlScanner.Read(row.GetProperty("input").GetString()!, default).ToArray())
+                .IsEquivalentTo(expected);
+        }
+
+        var files = new Dictionary<string, string>
+        {
+            ["index.html"] = Page("", "Home", "<base href='/sub/gallery/'>\r\n"
+                + "<img srcset='data:image/png;base64,AAAA 1x, ../images/p.png?tag=a&amp;b=b .5x, "
+                + "../images/orphan.png 1x 2x, phantom-missing.png future(nested-missing.png 1x, leaked-missing.png 2x), "
+                + "../images/missing.png 640w 480h'>")
+        };
+        var report = await Validate(files, ["images/p.png", "images/orphan.png"]);
+        var missing = report.Diagnostics.Single(diagnostic => diagnostic.Id == "LSQ001");
+        await Assert.That(missing.Message).Contains("../images/missing.png");
+        await Assert.That(missing.Location!.FilePath).IsEqualTo("index.html");
+        await Assert.That(missing.Location.Line).IsEqualTo(2);
+        await Assert.That(missing.Location.Column).IsEqualTo(1);
+        await Assert.That(report.Diagnostics.Where(diagnostic => diagnostic.Id == "LSQ008")
+            .Select(diagnostic => diagnostic.Location!.FilePath)).IsEquivalentTo(["images/orphan.png"]);
+    }
+
+    [Test]
     public async Task QualityFailureAndWarningThresholdPreservePreviousOutput()
     {
         using var workspace = new TemporaryWorkspace();
@@ -151,15 +181,19 @@ public sealed class SiteQualityTests
         var settings = new SiteSettings { BaseUrl = BaseUrl };
         await generator.GenerateWithOptionsAsync(settings, [], output, true, new SiteCustomization { Template = new TextTemplate(Page("", "Home", "")) },
             new SiteGenerationOptions { Quality = new() }, default);
-        var original = await File.ReadAllTextAsync(Path.Combine(output, "index.html"));
+        var original = await File.ReadAllBytesAsync(Path.Combine(output, "index.html"));
         await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, true, new SiteCustomization { Template = new TextTemplate(Page("", "Home", "<a href='missing'>broken</a>")) },
             new SiteGenerationOptions { Quality = new() }, default))
             .Throws<SiteQualityValidationException>();
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo(original);
+        await Assert.That((await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).SequenceEqual(original)).IsTrue();
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, true,
+            new SiteCustomization { Template = new TextTemplate(Page("", "Home", "<img srcset='ignored-missing.png 1x 2x, real-missing.png 2x'>")) },
+            new SiteGenerationOptions { Quality = new() }, default)).Throws<SiteQualityValidationException>();
+        await Assert.That((await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).SequenceEqual(original)).IsTrue();
         await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, true, new SiteCustomization { Template = new TextTemplate("<link rel='canonical' href='" + BaseUrl + "'>") },
             new SiteGenerationOptions { Quality = new(SiteDiagnosticSeverity.Warning) }, default))
             .Throws<SiteQualityValidationException>();
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo(original);
+        await Assert.That((await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).SequenceEqual(original)).IsTrue();
         var result = await generator.GenerateWithOptionsAsync(settings, [], output, true, new SiteCustomization { Template = new TextTemplate("<link rel='canonical' href='" + BaseUrl + "'>") },
             new SiteGenerationOptions { Quality = new() }, default);
         await Assert.That(result.QualityReport.Diagnostics.Any(d => d.Id == "LSQ010")).IsTrue();

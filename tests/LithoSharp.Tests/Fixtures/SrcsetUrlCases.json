@@ -1,0 +1,47 @@
+{
+  "source": "https://html.spec.whatwg.org/multipage/images.html#parse-a-srcset-attribute",
+  "numberSyntax": "https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number",
+  "scope": "Candidate URL parsing and recovery only; no image selection, sizes, DPR or full author conformance.",
+  "cases": [
+    {
+      "name": "data-comma-and-trailing-comma-recovery",
+      "input": " ,\tdata:image/svg+xml,%3Csvg%3E,%3C/svg%3E 1x, plain.png,,, \nwide.png 320w",
+      "urls": ["data:image/svg+xml,%3Csvg%3E,%3C/svg%3E", "plain.png", "wide.png"]
+    },
+    {
+      "name": "density-syntax-zero-and-default",
+      "input": "zero.png 0x, negative-zero.png -0x, half.png .5x, exponent.png 1e+2x, small.png 1E-2x, default.png",
+      "urls": ["zero.png", "negative-zero.png", "half.png", "exponent.png", "small.png", "default.png"]
+    },
+    {
+      "name": "positive-width-and-future-height",
+      "input": "wide.png 320w 240h, height-first.png 240h 320w, huge.png 999999999999999999999999999999w, lone-height-missing.png 240h, zero-width-missing.png 0w, zero-height-missing.png 320w 0h, kept.png",
+      "urls": ["wide.png", "height-first.png", "huge.png", "kept.png"]
+    },
+    {
+      "name": "duplicate-and-mixed-descriptors-discard-candidate",
+      "input": "duplicate-width-missing.png 320w 640w, duplicate-density-missing.png 1x 2x, duplicate-height-missing.png 320w 240h 480h, mixed-missing.png 320w 2x, mixed-height-missing.png 2x 240h, kept.png 2x",
+      "urls": ["kept.png"]
+    },
+    {
+      "name": "invalid-numeric-spellings-and-nonfinite-density",
+      "input": "plus-missing.png +1x, dot-missing.png 1.x, exponent-missing.png 1e+x, negative-missing.png -1x, nan-missing.png NaNx, overflow-missing.png 1e9999x, kept.png 1.5x",
+      "urls": ["kept.png"]
+    },
+    {
+      "name": "parenthesized-descriptor-comma-is-not-a-candidate",
+      "input": "discarded.png future(inner-missing.png 1x, phantom-missing.png 2x), kept.png 2x",
+      "urls": ["kept.png"]
+    },
+    {
+      "name": "only-ascii-whitespace-separates-url-and-descriptors",
+      "input": "tab.png\t1x,\r\nff.png\f2x, unicode.png\u00a01x, discarded.png 1x\u00a0, vt.png\u000b1x, kept.png",
+      "urls": ["tab.png", "ff.png", "unicode.png\u00a01x", "vt.png\u000b1x", "kept.png"]
+    },
+    {
+      "name": "unterminated-parenthesized-descriptor-reaches-eof",
+      "input": "discarded.png future(inner-missing.png 1x, swallowed-missing.png 2x",
+      "urls": []
+    }
+  ]
+}

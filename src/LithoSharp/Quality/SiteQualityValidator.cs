@@ -91,7 +91,7 @@ internal static class SiteQualityValidator
                 if (element.Name == "object" && QualityHtmlFacts.Attribute(element, "data") is { } data) Check(data, false, true, element);
                 if (element.Name == "form" && QualityHtmlFacts.Attribute(element, "action") is { } action) Check(action, true, false, element);
                 if (QualityHtmlFacts.Attribute(element, "srcset") is { } srcset)
-                    foreach (var candidate in SrcsetUrls(srcset)) Check(candidate, false, true, element);
+                    foreach (var candidate in SrcsetUrlScanner.Read(srcset, cancellationToken)) Check(candidate, false, true, element);
                 if (string.Equals(QualityHtmlFacts.Attribute(element, "property"), "og:image", StringComparison.OrdinalIgnoreCase))
                     Check(QualityHtmlFacts.Attribute(element, "content") ?? string.Empty, false, true, element);
             }
@@ -236,21 +236,6 @@ internal static class SiteQualityValidator
 
     private static bool HasRel(QualityHtmlElement element, string value) => (QualityHtmlFacts.Attribute(element, "rel") ?? string.Empty)
         .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Contains(value, StringComparer.OrdinalIgnoreCase);
-
-    private static IEnumerable<string> SrcsetUrls(string value)
-    {
-        var index = 0;
-        while (index < value.Length)
-        {
-            while (index < value.Length && (char.IsWhiteSpace(value[index]) || value[index] == ',')) index++;
-            var start = index;
-            while (index < value.Length && !char.IsWhiteSpace(value[index])) index++;
-            var url = value[start..index];
-            if (url.EndsWith(',')) { yield return url.TrimEnd(','); continue; }
-            if (url.Length != 0) yield return url;
-            while (index < value.Length && value[index] != ',') index++;
-        }
-    }
 
     private sealed record ParsedPage(SiteRoute Route, Uri ResolutionBase, HashSet<string> Anchors, string? Title, QualityHtmlFacts Facts);
 }
