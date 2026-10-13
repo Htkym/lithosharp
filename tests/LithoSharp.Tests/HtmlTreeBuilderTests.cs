@@ -416,6 +416,33 @@ public sealed class HtmlTreeBuilderTests
     }
 
     [Test]
+    public async Task FragmentOwnerDocumentMode_ControlsTableRecoveryAndSurvivesIgnoredDoctypes()
+    {
+        foreach (var ownerMode in new[] { HtmlDocumentMode.NoQuirks, HtmlDocumentMode.LimitedQuirks, HtmlDocumentMode.Quirks })
+            foreach (var chunk in new[] { 4096, 1 })
+            {
+                const string raw = "<!doctype html><p id='p'>Before<table id='t'><tr><td>X</td></tr></table>After";
+                var tree = Parse(raw, new(Fragment: new("body", OwnerDocumentMode: ownerMode)), chunk);
+                var p = ById(tree, "p");
+                var table = ById(tree, "t");
+                await Assert.That(tree.DocumentMode).IsEqualTo(ownerMode);
+                await Assert.That(table.Parent).IsEqualTo((int?)(ownerMode == HtmlDocumentMode.Quirks ? p.Id : tree.Root));
+                await Assert.That(tree.TextContent(p.Id)).IsEqualTo(ownerMode == HtmlDocumentMode.Quirks ? "BeforeXAfter" : "Before");
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(tree.Diagnostics.Any(d => d.Code == "unexpected-doctype")).IsTrue();
+                await Assert.That(tree.Nodes.Any(n => n.Kind == HtmlTreeNodeKind.Doctype)).IsFalse();
+                await CheckLinksAndSpans(tree, raw.Length);
+            }
+        var foreign = Parse("<p id='p'>Before<table id='t'><tr><td>X</td></tr></table>",
+            new(Fragment: new("svg", HtmlNamespaces.Svg, OwnerDocumentMode: HtmlDocumentMode.Quirks)));
+        await Assert.That(foreign.DocumentMode).IsEqualTo(HtmlDocumentMode.Quirks);
+        await Assert.That(ById(foreign, "t").Parent).IsEqualTo((int?)ById(foreign, "p").Id);
+        await Assert.That(foreign.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+        await Assert.That(() => CompactHtmlTreeBuilder.Parse("X", new(Fragment: new("body", OwnerDocumentMode: (HtmlDocumentMode)99))))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
     public async Task TreeAndTokenizerBudgets_PropagateIncompleteCoverageAndCancellation()
     {
         foreach (var (raw, limits, code) in new[]

@@ -48,6 +48,8 @@ internal sealed partial class CompactHtmlTreeBuilder
             if (string.IsNullOrWhiteSpace(context.Name) || context.Namespace is not
                 (HtmlNamespaces.Html or HtmlNamespaces.Svg or HtmlNamespaces.MathMl))
                 throw new ArgumentException("A fragment requires an element name and a supported namespace.", nameof(options));
+            if (!Enum.IsDefined(typeof(HtmlDocumentMode), context.OwnerDocumentMode))
+                throw new ArgumentException("A fragment requires a defined owner-document mode.", nameof(options));
             var name = context.Namespace == HtmlNamespaces.Html ? AsciiLower(context.Name) : context.Name;
             if (context.Namespace == HtmlNamespaces.Html)
                 root = NewNode(HtmlTreeNodeKind.Element, name, context.Namespace, null);
@@ -74,6 +76,7 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             if (options.Fragment is { } context)
             {
+                documentMode = context.OwnerDocumentMode;
                 if (context.Namespace != HtmlNamespaces.Html)
                     foreignFragmentContext = NewNode(HtmlTreeNodeKind.Element, context.Name, context.Namespace, null);
                 CopyAttributes(foreignFragmentContext ?? root, context.Attributes ?? [], context.Namespace);
