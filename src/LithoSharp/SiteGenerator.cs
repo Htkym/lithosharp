@@ -288,6 +288,23 @@ public sealed partial class SiteGenerator
         var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
         if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
+        var template = customization.Template
+            ?? throw new InvalidOperationException("Site customization must specify a template.");
+        var pageRouteTable = new SiteRouteTable();
+        var unpublishedPages = new List<string>();
+        var publishedMarkdownClaims = AdaptPublishedMarkdownPages(
+            posts, site.BaseUrl, buildTimestamp, options.EnvironmentName, pageRouteTable, unpublishedPages);
+        var publishedExtraPageClaims = FilterPublished(
+            AdaptExtraPages(customization.ExtraPages, site.BaseUrl, pageRouteTable), buildTimestamp, options.EnvironmentName);
+        var contentPages = AdaptContentCollections(
+            options.ContentCollections, site.BaseUrl, buildTimestamp, options.EnvironmentName,
+            pageRouteTable, unpublishedPages, cancellationToken).ToList();
+        var builtInTemplate = template is DocsSiteTemplate or BlogSiteTemplate;
+        RegisterPageRoutes(pageRouteTable, publishedMarkdownClaims, builtInTemplate);
+        RegisterPageRoutes(pageRouteTable, publishedExtraPageClaims, builtInTemplate);
+        // Keep this actual core catalog for rendering; do not re-run route callbacks.
+        // Known errors must stop before an extension can perform SSR or bundling.
+        pageRouteTable.ValidateOrThrow();
         var extensionDiagnostics = new List<SiteDiagnostic>();
         foreach (var extension in options.Extensions)
         {
@@ -306,39 +323,18 @@ public sealed partial class SiteGenerator
                 ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
                 GeneratedAssets = [.. options.GeneratedAssets, .. contribution.Assets],
             };
+            ValidateContentCollectionIds(options.ContentCollections);
+            contentPages.AddRange(AdaptContentCollections(
+                contribution.ContentCollections, site.BaseUrl, buildTimestamp, options.EnvironmentName,
+                pageRouteTable, unpublishedPages, cancellationToken));
+            pageRouteTable.ValidateOrThrow();
         }
+        // Match the original global collection ordering, preserving each collection's
+        // own page ordering after the batches were admitted at different phases.
+        contentPages = contentPages.OrderBy(page => page.CollectionId.Value, StringComparer.Ordinal).ToList();
         var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
             options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
             .WithGenerated(options.GeneratedAssets, site.BaseUrl);
-        var template = customization.Template
-            ?? throw new InvalidOperationException("Site customization must specify a template.");
-        var pageRouteTable = new SiteRouteTable();
-        var unpublishedPages = new List<string>();
-        var publishedMarkdownClaims = AdaptPublishedMarkdownPages(
-            posts,
-            site.BaseUrl,
-            buildTimestamp,
-            options.EnvironmentName,
-            pageRouteTable,
-            unpublishedPages);
-        var extraPageClaims = AdaptExtraPages(customization.ExtraPages, site.BaseUrl, pageRouteTable);
-        var publishedExtraPageClaims = FilterPublished(
-            extraPageClaims,
-            buildTimestamp,
-            options.EnvironmentName);
-        var contentPages = AdaptContentCollections(
-            options.ContentCollections,
-            site.BaseUrl,
-            buildTimestamp,
-            options.EnvironmentName,
-            pageRouteTable,
-            unpublishedPages,
-            cancellationToken);
-        var builtInTemplate = template is DocsSiteTemplate or BlogSiteTemplate;
-        RegisterPageRoutes(pageRouteTable, publishedMarkdownClaims, builtInTemplate);
-        RegisterPageRoutes(pageRouteTable, publishedExtraPageClaims, builtInTemplate);
-        pageRouteTable.ValidateOrThrow();
-
         var publishedPosts = publishedMarkdownClaims
             .Select(claim => claim.Page.Content)
             .ToArray();

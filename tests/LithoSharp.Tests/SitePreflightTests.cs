@@ -88,14 +88,47 @@ public sealed class SitePreflightTests
         Directory.CreateDirectory(output);
         var sentinel = Path.Combine(output, "published.txt");
         await File.WriteAllTextAsync(sentinel, "keep");
-        var counters = new Counters();
-        var definition = Definition(workspace.Root, counters, extensions: [new ErrorExtension(counters)]);
-        await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(definition.Site, definition.Posts,
-            output, true, definition.Customization, definition.Options, CancellationToken.None)).Throws<SiteQualityValidationException>();
-        await Assert.That(counters.Prepares).IsEqualTo(1);
-        await Assert.That(counters.Routes + counters.Renders).IsEqualTo(0);
-        await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("keep");
-        await Assert.That(Directory.GetFiles(output).Length).IsEqualTo(1);
+        foreach (var collision in new[] { true, false })
+        {
+            var counters = new Counters();
+            var definition = Definition(workspace.Root, counters, collision, [new ErrorExtension(counters)]);
+            async Task Generate() => await new SiteGenerator().GenerateWithOptionsAsync(definition.Site, definition.Posts,
+                output, true, definition.Customization, definition.Options, CancellationToken.None);
+            if (collision) await Assert.That(Generate).Throws<SiteRouteValidationException>();
+            else await Assert.That(Generate).Throws<SiteQualityValidationException>();
+            await Assert.That(counters.Prepares).IsEqualTo(collision ? 0 : 1);
+            await Assert.That(counters.Routes).IsEqualTo(2);
+            await Assert.That(counters.Renders).IsEqualTo(0);
+            await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("keep");
+            await Assert.That(Directory.GetFiles(output).Length).IsEqualTo(1);
+        }
+        foreach (var duplicateId in new[] { true, false })
+        {
+            var counters = new Counters();
+            var contribution = Definition(workspace.Root, counters, collectionId: duplicateId ? "pages" : "aaa", routePrefix: "extension/");
+            var definition = Definition(workspace.Root, counters,
+                extensions: [new CollectionExtension(counters, contribution.Options.ContentCollections)]) with
+            { Customization = new() { Template = new OrderingTemplate(counters) } };
+            async Task Generate() => await new SiteGenerator().GenerateWithOptionsAsync(definition.Site, definition.Posts,
+                output, true, definition.Customization, definition.Options, CancellationToken.None);
+            if (duplicateId)
+            {
+                await Assert.That(Generate).Throws<ArgumentException>();
+                await Assert.That(counters.Routes).IsEqualTo(2);
+                await Assert.That(counters.Renders).IsEqualTo(0);
+                await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("keep");
+                await Assert.That(Directory.GetFiles(output).Length).IsEqualTo(1);
+            }
+            else
+            {
+                await Generate();
+                await Assert.That(counters.Routes).IsEqualTo(4);
+                await Assert.That(counters.Renders).IsEqualTo(4);
+                await Assert.That(string.Join(",", counters.RenderedRoutes)).IsEqualTo(
+                    "extension/one/index.html,extension/two/index.html,one/index.html,two/index.html");
+            }
+            await Assert.That(counters.Prepares).IsEqualTo(1);
+        }
     }
 
     [Test]
@@ -128,14 +161,15 @@ public sealed class SitePreflightTests
         await Assert.That(counters.Renders).IsEqualTo(0);
         await Assert.That(File.Exists(marker)).IsFalse();
     }
-    private static SiteDefinition Definition(string root, Counters? counters = null, bool collision = false, IReadOnlyList<ISiteBuildExtension>? extensions = null)
+    private static SiteDefinition Definition(string root, Counters? counters = null, bool collision = false, IReadOnlyList<ISiteBuildExtension>? extensions = null,
+        string collectionId = "pages", string routePrefix = "")
     {
         var registrations = new List<SiteContentCollection>();
         if (counters is not null)
         {
             var entries = new[] { "one", "two" }.Select(id => new ContentEntry<Front, string>(new(id), id + ".md", "source:" + id, new() { Title = id }, "body")).ToArray();
-            var collection = new ContentCollection<Front, string>(new("pages"), root, entries,
-                entry => { counters.Routes++; return SiteRoute.ForDirectoryIndex(collision ? "same/" : entry.Id.Value + "/"); },
+            var collection = new ContentCollection<Front, string>(new(collectionId), root, entries,
+                entry => { counters.Routes++; return SiteRoute.ForDirectoryIndex(routePrefix + (collision ? "same/" : entry.Id.Value + "/")); },
                 entry => new PageMetadata(entry.FrontMatter.Title));
             registrations.Add(new SiteContentCollection<Front, string>(collection, (_, _) => { counters.Renders++; return "rendered"; }));
         }
@@ -149,7 +183,20 @@ public sealed class SitePreflightTests
         return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository worker was not found."), "src", "LithoSharp.Mdx", "worker");
     }
     public sealed class Front { public string Title { get; set; } = ""; }
-    private sealed class Counters { public int Constructors; public int Factories; public int Routes; public int Renders; public int Prepares; }
+    private sealed class Counters { public int Constructors; public int Factories; public int Routes; public int Renders; public int Prepares; public string[] RenderedRoutes = []; }
+    private sealed class OrderingTemplate(Counters counters) : ISiteTemplate
+    {
+        public Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default)
+        {
+            counters.RenderedRoutes = context.ContentPages.Select(page => page.Route.RelativeOutputPath).ToArray();
+            return Task.FromResult(new SiteTemplateResult([]));
+        }
+    }
+    private sealed class CollectionExtension(Counters counters, IReadOnlyList<SiteContentCollection> collections) : ISiteBuildExtension
+    {
+        public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+        { counters.Prepares++; return Task.FromResult(new SiteBuildContribution { ContentCollections = collections }); }
+    }
     private sealed class CountingFactory : ISiteFactory
     {
         private readonly Counters counters; private readonly SiteDefinition definition;
