@@ -153,7 +153,8 @@ internal sealed partial class CompactHtmlTreeBuilder
                 case "template":
                     var template = Insert(); CreateTemplateContent(template); formatting.Add(null); framesetOk = false;
                     templateModes.Add(Mode.InTemplate); mode = Mode.InTemplate;
-                    if (token.Attributes?.Any(a => a.Name.Value == "shadowrootmode") == true) Error("unsupported-declarative-shadow-root", true);
+                    if (token.Attributes?.Any(a => a.Name.Value == "shadowrootmode" && AsciiLower(a.Value.Value) is "open" or "closed") == true)
+                        Error("unsupported-declarative-shadow-root", true);
                     return false;
                 case "head": Error("duplicate-head"); return false;
             }

@@ -351,6 +351,46 @@ public sealed class HtmlTreeBuilderTests
     }
 
     [Test]
+    public async Task OrdinaryTemplateModeValues_StayInertWithoutUnsupportedShadowCoverage()
+    {
+        foreach (var attributes in new[]
+        {
+            "shadowrootmode", "shadowrootmode=''", "shadowrootmode='unknown'",
+            "shadowrootmode=' open '", "shadowrootmode='cloſed'",
+            "shadowrootmode='unknown' shadowrootmode='open'"
+        })
+            foreach (var chunk in new[] { 4096, 1 })
+            {
+                var raw = $"<!doctype html><a href='active&amp;value'>A</a><template id='inert' {attributes}><a href='hidden'>H</a></template>";
+                var tree = Parse(raw, chunk: chunk);
+                var template = ById(tree, "inert");
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(tree.Diagnostics.Any(d => d.IncompleteCoverage)).IsFalse();
+                await Assert.That(template.Children.Count).IsEqualTo(0);
+                await Assert.That(tree.TextContent(template.Id)).IsEqualTo("");
+                await Assert.That(tree.TextContent(template.TemplateContent!.Value)).IsEqualTo("H");
+                await Assert.That(tree.Elements().Count(n => n.Name == "a")).IsEqualTo(1);
+                var facts = HtmlLiteralFacts.Parse(raw, limits: new() { Tokenizer = new() { MaxTextChunkChars = chunk } });
+                await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(facts.Urls.Count).IsEqualTo(1);
+                await Assert.That(facts.Urls[0].RawValue).IsEqualTo("active&amp;value");
+                await Assert.That(facts.Urls[0].Value.Value).IsEqualTo("active&value");
+                await Assert.That(raw.Substring(facts.Urls[0].Value.Source.Start, facts.Urls[0].Value.Source.Length)).IsEqualTo("active&amp;value");
+                await CheckLinksAndSpans(tree, raw.Length);
+            }
+        foreach (var modeValue in new[] { "open", "closed", "OPEN", "ClOsEd" })
+        {
+            var raw = $"<div><a href='active'>A</a><template shadowrootmode='{modeValue}'><a href='hidden'>H</a></template></div>";
+            var tree = Parse(raw);
+            await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Partial);
+            await Assert.That(tree.Diagnostics.Any(d => d.Code == "unsupported-declarative-shadow-root" && d.IncompleteCoverage)).IsTrue();
+            var facts = HtmlLiteralFacts.Parse(raw);
+            await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Partial);
+            await Assert.That(facts.Urls.Count).IsEqualTo(0);
+        }
+    }
+
+    [Test]
     public async Task ForeignFragments_BreakOutToHtmlWithoutLosingTheAdjustedContext()
     {
         foreach (var (contextName, ns, foreignName) in new[]
