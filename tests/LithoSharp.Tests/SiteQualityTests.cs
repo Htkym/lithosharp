@@ -1,4 +1,5 @@
 using LithoSharp.Configuration;
+using LithoSharp.Build;
 using LithoSharp.Diagnostics;
 using LithoSharp.HtmlParsing;
 using LithoSharp.Quality;
@@ -293,6 +294,91 @@ public sealed class SiteQualityTests
         await Assert.That(urls.Current).IsEqualTo("first.png");
         cancellation.Cancel();
         await Assert.That(() => urls.MoveNext()).Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task LiteralCssImportStringsFollowStylesheetTokensWithoutLeakingFromDeclarations()
+    {
+        const string css = """
+            /* @import "comment.css"; */
+            @IMPORT/**/'css/\61.css';
+            @\69mport "css/b.css" layer(theme) screen;
+            @import url("css/c.css");
+            .x { content: "@import 'string.css'"; background: url(image.png); @import "nested.css"; }
+            func(@import "function.css");
+            [attr=@import "selector.css"] {}
+            @imported "other-rule.css";
+            """;
+        await Assert.That(CssUrlScanner.Read(css, default, includeImports: true).SequenceEqual(
+            ["css/a.css", "css/b.css", "css/c.css", "image.png"])).IsTrue();
+        await Assert.That(CssUrlScanner.Read(css, default).SequenceEqual(["css/c.css", "image.png"])).IsTrue();
+        await Assert.That(CssUrlScanner.Read("@import \"bad\nstring.css\";", default, includeImports: true).Any()).IsFalse();
+        await Assert.That(CssUrlScanner.Read(
+            "@unknown @import \"ghost.css\" url(kept.png); @import \"real.css\";", default, includeImports: true)
+            .SequenceEqual(["kept.png", "real.css"])).IsTrue();
+        await Assert.That(CssUrlScanner.Read(
+            ".fake ; @import \"ghost.css\" url(kept.png) {} @import \"real.css\";", default, includeImports: true)
+            .SequenceEqual(["kept.png", "real.css"])).IsTrue();
+    }
+
+    [Test]
+    public async Task LiteralCssImportsJoinDeclaredClosureWithoutOrphanStylesheetsMaskingTheirAssets()
+    {
+        var files = new Dictionary<string, string>
+        {
+            // A generated stylesheet need not itself be a registered asset to root its references.
+            ["index.html"] = Page("", "Home", "<link rel='stylesheet' href='css/main.css'>"),
+            ["css/main.css"] = "@import 'sub/child.css';",
+            ["css/sub/child.css"] = "@import '../main.css';",
+            ["css/generated.css"] = "body { background: url('../images/declared.png'); }",
+            ["css/orphan.css"] = "body { background: url('../images/orphan.png'); }"
+        };
+        string[] assets = ["css/sub/child.css", "css/generated.css", "css/orphan.css", "images/declared.png", "images/orphan.png"];
+        var routes = files.Keys.Concat(assets).Distinct(StringComparer.Ordinal).ToDictionary(path => path,
+            path => path == "index.html" ? SiteRoute.ForDirectoryIndex("", BaseUrl) : SiteRoute.ForFile(path, BaseUrl));
+        var child = new BuildNodeId("imported-css");
+        var bridge = new BuildNodeId("no-artifact-dependency");
+        var generated = new BuildNodeId("declared-css");
+        BuildNode[] nodes =
+        [
+            new(child, dependencies: [bridge], artifacts: [new(new BuildArtifactId("imported-css"), child, "css/sub/child.css")]),
+            new(bridge, dependencies: [generated]),
+            new(generated, artifacts: [new(new BuildArtifactId("declared-css"), generated, "css/generated.css")])
+        ];
+        var report = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(),
+            (path, token) => Task.FromResult(files[path]), routes, assets.ToHashSet(StringComparer.Ordinal),
+            new Dictionary<string, SiteRoute>(), new(), default, assetNodes: nodes);
+        await Assert.That(report.Diagnostics.Any(diagnostic => diagnostic.Id == "LSQ001")).IsFalse();
+        await Assert.That(report.Diagnostics.Where(diagnostic => diagnostic.Id == "LSQ008")
+            .Select(diagnostic => diagnostic.Location!.FilePath).Order(StringComparer.Ordinal).SequenceEqual(
+                ["css/orphan.css", "images/orphan.png"])).IsTrue();
+
+        // Even an unreachable stylesheet is validated; closure does not suppress missing targets.
+        files["css/orphan.css"] = "@import 'missing.css'; " + files["css/orphan.css"];
+        var missing = await SiteQualityValidator.ValidateAsync(BaseUrl, files.Keys.ToArray(),
+            (path, token) => Task.FromResult(files[path]), routes, assets.ToHashSet(StringComparer.Ordinal),
+            new Dictionary<string, SiteRoute>(), new(), default, assetNodes: nodes);
+        await Assert.That(missing.Diagnostics.Single(diagnostic => diagnostic.Id == "LSQ001").Location!.FilePath)
+            .IsEqualTo("css/orphan.css");
+
+        // The same closure works without declared nodes: style is a root, style attributes are declarations.
+        var inlineFiles = new Dictionary<string, string>
+        {
+            ["index.html"] = Page("", "Home", "<style>@import 'css/main.css';</style>"
+                + "<div style=\"@import 'css/attribute-only.css';\">Body</div>"),
+            ["css/main.css"] = "@import 'sub/child.css';",
+            ["css/sub/child.css"] = "@import '../main.css'; body { background: url('../../images/inline.png'); }",
+            ["css/attribute-only.css"] = ""
+        };
+        string[] inlineAssets = ["css/main.css", "css/sub/child.css", "css/attribute-only.css", "images/inline.png"];
+        var inlineRoutes = inlineFiles.Keys.Concat(inlineAssets).Distinct(StringComparer.Ordinal).ToDictionary(path => path,
+            path => path == "index.html" ? SiteRoute.ForDirectoryIndex("", BaseUrl) : SiteRoute.ForFile(path, BaseUrl));
+        var inlineReport = await SiteQualityValidator.ValidateAsync(BaseUrl, inlineFiles.Keys.ToArray(),
+            (path, token) => Task.FromResult(inlineFiles[path]), inlineRoutes, inlineAssets.ToHashSet(StringComparer.Ordinal),
+            new Dictionary<string, SiteRoute>(), new(), default);
+        await Assert.That(inlineReport.Diagnostics.Any(diagnostic => diagnostic.Id == "LSQ001")).IsFalse();
+        await Assert.That(inlineReport.Diagnostics.Where(diagnostic => diagnostic.Id == "LSQ008")
+            .Select(diagnostic => diagnostic.Location!.FilePath).SequenceEqual(["css/attribute-only.css"])).IsTrue();
     }
 
     [Test]

@@ -27,6 +27,8 @@ internal static class SiteQualityValidator
         var cssFiles = new Dictionary<string, string>(StringComparer.Ordinal);
         var diagnostics = new List<SiteDiagnostic>();
         var referencedAssets = new HashSet<string>(StringComparer.Ordinal);
+        var resourceRoots = new HashSet<string>(StringComparer.Ordinal);
+        var cssReferences = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var links = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var externalLinks = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
         var parseCount = 0;
@@ -96,7 +98,8 @@ internal static class SiteQualityValidator
                     Check(QualityHtmlFacts.Attribute(element, "content") ?? string.Empty, false, true, element);
             }
             foreach (var element in facts.Elements.Where(element => element.Name == "style" || QualityHtmlFacts.Attribute(element, "style") is not null))
-                CheckCss(element.Name == "style" ? element.StyleText! : QualityHtmlFacts.Attribute(element, "style")!, page.ResolutionBase, path, element);
+                CheckCss(element.Name == "style" ? element.StyleText! : QualityHtmlFacts.Attribute(element, "style")!,
+                    page.ResolutionBase, path, element, includeImports: element.Name == "style");
 
             void AddMissing(string name) => Add("LSQ010", SiteDiagnosticSeverity.Warning, $"SEO field '{name}' is missing or empty.", path);
             void Check(string value, bool navigation, bool resource, QualityHtmlElement element) =>
@@ -104,7 +107,7 @@ internal static class SiteQualityValidator
         }
 
         foreach (var path in textFilePaths.Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal))
-            CheckCss(cssFiles[path], new Uri(origin + artifactRoutes[path].PublicPath), path, null);
+            CheckCss(cssFiles[path], new Uri(origin + artifactRoutes[path].PublicPath), path, null, includeImports: true);
 
         foreach (var group in pages.Where(pair => !redirects.ContainsKey(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value.Title))
                 .GroupBy(pair => Regex.Replace(pair.Value.Title!.Trim(), "\\s+", " "), StringComparer.OrdinalIgnoreCase)
@@ -113,18 +116,34 @@ internal static class SiteQualityValidator
 
         if (options.CheckOrphans)
         {
-            if (assetNodes is not null)
+            var byId = assetNodes?.ToDictionary(node => node.Id);
+            var owners = assetNodes?.SelectMany(node => node.Artifacts.Select(artifact => (artifact.RelativeOutputPath, Node: node)))
+                .ToDictionary(pair => pair.RelativeOutputPath, pair => pair.Node, StringComparer.Ordinal);
+            var visitedNodes = new HashSet<LithoSharp.Build.BuildNodeId>();
+            var assetQueue = new Queue<LithoSharp.Build.BuildNode>();
+            var resources = new Queue<string>(resourceRoots);
+            while (resources.Count != 0 || assetQueue.Count != 0)
             {
-                var byId = assetNodes.ToDictionary(node => node.Id);
-                var owners = assetNodes.SelectMany(node => node.Artifacts.Select(artifact => (artifact.RelativeOutputPath, Node: node))).ToDictionary(pair => pair.RelativeOutputPath, pair => pair.Node, StringComparer.Ordinal);
-                var visited = new HashSet<LithoSharp.Build.BuildNodeId>();
-                var assets = new Queue<LithoSharp.Build.BuildNode>(referencedAssets.Where(owners.ContainsKey).Select(path => owners[path]));
-                while (assets.TryDequeue(out var node))
+                while (resources.TryDequeue(out var resource))
                 {
-                    if (!visited.Add(node.Id)) continue;
-                    foreach (var artifact in node.Artifacts) referencedAssets.Add(artifact.RelativeOutputPath);
-                    foreach (var dependency in node.Dependencies) if (byId.TryGetValue(dependency, out var target)) assets.Enqueue(target);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (registeredAssets.Contains(resource)) referencedAssets.Add(resource);
+                    if (cssReferences.TryGetValue(resource, out var references))
+                        foreach (var reference in references) Reach(reference);
+                    if (owners is not null && owners.TryGetValue(resource, out var owner)) assetQueue.Enqueue(owner);
                 }
+                while (assetQueue.TryDequeue(out var node))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!visitedNodes.Add(node.Id)) continue;
+                    foreach (var artifact in node.Artifacts) Reach(artifact.RelativeOutputPath);
+                    foreach (var dependency in node.Dependencies)
+                        if (byId!.TryGetValue(dependency, out var target)) assetQueue.Enqueue(target);
+                }
+            }
+            void Reach(string path)
+            {
+                if (resourceRoots.Add(path)) resources.Enqueue(path);
             }
             var reachable = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<string>();
@@ -137,7 +156,7 @@ internal static class SiteQualityValidator
             foreach (var path in pages.Keys.Where(path => !reachable.Contains(path) && !redirects.ContainsKey(path)))
                 Add("LSQ007", SiteDiagnosticSeverity.Warning, "Page is not reachable from the site's home page.", path);
             foreach (var path in registeredAssets.Where(path => !referencedAssets.Contains(path)))
-                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset has no HTML, CSS or declared transitive reference.", path);
+                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset is not reachable through HTML, CSS or declared transitive references.", path);
         }
         if (options.ExternalLinks is not null)
             diagnostics.AddRange(await ExternalLinkChecker.CheckAsync(externalLinks, options.ExternalLinks, cancellationToken).ConfigureAwait(false));
@@ -148,10 +167,10 @@ internal static class SiteQualityValidator
             HtmlFactsCacheHitCount = factsCache?.HitCount ?? 0,
         };
 
-        void CheckCss(string css, Uri address, string path, QualityHtmlElement? element)
+        void CheckCss(string css, Uri address, string path, QualityHtmlElement? element, bool includeImports)
         {
-            // ponytail: inspect literal CSS url() values; generated dynamic assets must declare their dependency.
-            foreach (var value in CssUrlScanner.Read(css, cancellationToken))
+            // Literal stylesheet references feed closure; dynamic assets still declare dependencies.
+            foreach (var value in CssUrlScanner.Read(css, cancellationToken, includeImports))
                 CheckReference(value, address, path, false, true, element);
         }
 
@@ -181,7 +200,13 @@ internal static class SiteQualityValidator
                 Add("LSQ001", SiteDiagnosticSeverity.Error, $"Internal target '{value}' does not exist in this site.", path, element);
                 return;
             }
-            if (registeredAssets.Contains(targetPath)) referencedAssets.Add(targetPath);
+            if (cssFiles.ContainsKey(path))
+            {
+                if (!cssReferences.TryGetValue(path, out var references))
+                    cssReferences.Add(path, references = new HashSet<string>(StringComparer.Ordinal));
+                references.Add(targetPath);
+            }
+            else resourceRoots.Add(targetPath);
             if (navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets)) targets.Add(targetPath);
             if (address.Fragment.Length > 1 && pages.TryGetValue(targetPath, out var targetPage))
             {

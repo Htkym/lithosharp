@@ -2,22 +2,47 @@ using System.Text;
 
 namespace LithoSharp.Quality;
 
-// Extract literal CSS URLs, not layout, variables, URL modifiers or import closure.
+// Extract literal CSS URLs and, for stylesheets, top-level @import strings.
+// This observes references, not cascade ordering, conditions, layout or variables.
 // CSS Syntax 3 token boundaries/escapes apply; comments inside an unquoted URL
 // are URL characters, while comments and ordinary strings outside it are skipped.
 internal static class CssUrlScanner
 {
-    internal static IEnumerable<string> Read(string css, CancellationToken cancellationToken)
+    internal static IEnumerable<string> Read(string css, CancellationToken cancellationToken, bool includeImports = false)
     {
         var index = 0;
+        var blockDepth = 0;
+        var functionDepth = 0;
+        var bracketDepth = 0;
+        var rule = RuleKind.None;
         while (index < css.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (SkipComment()) continue;
-            if (css[index] is '\'' or '"') { ReadQuoted(); continue; }
-            if (css[index] is '#' or '@') { index++; ReadName(); continue; }
+            if (IsWhitespace(css[index])) { index++; continue; }
+            if (css[index] is '\'' or '"') { StartQualifiedRule(); ReadQuoted(); continue; }
+            if (css[index] == '@')
+            {
+                var startsRule = TopLevel() && rule == RuleKind.None;
+                index++;
+                var name = ReadName();
+                if (startsRule) rule = RuleKind.AtRule;
+                if (includeImports && startsRule
+                    && name.Equals("import", StringComparison.OrdinalIgnoreCase))
+                {
+                    do { SkipWhitespace(); } while (SkipComment());
+                    if (index < css.Length && css[index] is '\'' or '"')
+                    {
+                        var value = ReadQuoted();
+                        if (value is not null) yield return value;
+                    }
+                }
+                continue;
+            }
+            if (css[index] == '#') { StartQualifiedRule(); index++; ReadName(); continue; }
             if (IsName(css[index]) || ValidEscape())
             {
+                StartQualifiedRule();
                 var name = ReadName();
                 if (name.Equals("url", StringComparison.OrdinalIgnoreCase) && index < css.Length && css[index] == '(')
                 {
@@ -27,7 +52,26 @@ internal static class CssUrlScanner
                 }
                 continue;
             }
-            index++;
+            StartQualifiedRule();
+            switch (css[index++])
+            {
+                case '{': blockDepth++; break;
+                case '}':
+                    if (blockDepth > 0 && --blockDepth == 0 && TopLevel()) rule = RuleKind.None;
+                    break;
+                // A semicolon ends an at-rule, but remains part of a qualified-rule prelude.
+                case ';': if (TopLevel() && rule == RuleKind.AtRule) rule = RuleKind.None; break;
+                case '(': functionDepth++; break;
+                case ')': if (functionDepth > 0) functionDepth--; break;
+                case '[': bracketDepth++; break;
+                case ']': if (bracketDepth > 0) bracketDepth--; break;
+            }
+        }
+
+        bool TopLevel() => blockDepth == 0 && functionDepth == 0 && bracketDepth == 0;
+        void StartQualifiedRule()
+        {
+            if (TopLevel() && rule == RuleKind.None) rule = RuleKind.QualifiedRule;
         }
 
         string ReadName()
@@ -202,6 +246,7 @@ internal static class CssUrlScanner
     }
 
     private static bool IsName(char c) => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '\0' || c >= 0x80;
+    private enum RuleKind { None, AtRule, QualifiedRule }
     private static bool IsNewline(char c) => c is '\r' or '\n' or '\f';
     private static bool IsWhitespace(char c) => c is ' ' or '\t' || IsNewline(c);
     private static bool IsNonPrintable(char c) => c is >= '\u0001' and <= '\u0008' or '\u000B'
