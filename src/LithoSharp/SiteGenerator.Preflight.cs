@@ -7,6 +7,53 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
+    private static async Task<(IReadOnlyList<SiteCatalogPreparation?> Catalogs, SitePreflightReport Report)>
+        InspectGenerationCatalogsAsync(SiteBuildContext context, SiteRouteTable routes, CancellationToken cancellationToken)
+    {
+        // Inspection owner IDs belong to the declared catalog. A third-party
+        // inspector need not use Core's internal prepared-content identity.
+        routes = routes.Copy();
+        var catalogs = new List<SiteCatalogPreparation?>();
+        var diagnostics = new List<SiteDiagnostic>();
+        var deferred = new List<string> { "The catalog phase does not inspect final HTML, template-owned output or compiled assets." };
+        var collections = context.Options.ContentCollections.ToList();
+        foreach (var extension in context.Options.Extensions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ArgumentNullException.ThrowIfNull(extension);
+            SiteCatalogPreparation? snapshot = null;
+            SiteCatalogPreflightContribution? contribution = null;
+            if (extension is ISiteCatalogPreparationExtension participant)
+            {
+                snapshot = await participant.InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("A catalog inspector returned no snapshot.");
+                contribution = snapshot.Contribution;
+                deferred.AddRange(snapshot.DeferredReasons);
+                collections.AddRange(snapshot.ContentCollections);
+                ValidateContentCollectionIds(collections);
+            }
+            else if (extension is ISiteCatalogPreflightExtension inspector)
+            {
+                contribution = await inspector.InspectCatalogAsync(context, cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("A catalog inspector returned no contribution.");
+                deferred.Add($"Extension '{extension.GetType().FullName}' has no catalog snapshot handoff; its preparation is checked again after acquisition.");
+            }
+            else deferred.Add($"Extension '{extension.GetType().FullName}' has no nonrendering catalog inspector; its preparation remains Deferred.");
+            catalogs.Add(snapshot);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (contribution is null) continue;
+            diagnostics.AddRange(contribution.Diagnostics);
+            new SitePreflightReport("trusted-catalog", "catalog", diagnostics, deferred).ThrowIfFailed();
+            foreach (var claim in contribution.Routes) routes.Register(claim.Route, claim.OwnerId, claim.Location);
+            routes.ValidateOrThrow();
+        }
+        // Detect changes caused by a later inspector before *any* prepare hook.
+        foreach (var snapshot in catalogs)
+            if (snapshot is not null) await snapshot.ValidateInputsAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return (catalogs, new("trusted-catalog", "catalog", diagnostics, deferred));
+    }
+
     /// <summary>Stops source Error before invoking the factory, then inspects its actual catalog without rendering.</summary>
     /// <remarks>The factory owns disposal of its definition's extensions. This method neither renders nor publishes.</remarks>
     public async Task<SitePreflightReport> PreflightFactoryAsync(
@@ -54,13 +101,21 @@ public sealed partial class SiteGenerator
             foreach (var extension in options.Extensions)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (extension is not ISiteCatalogPreflightExtension inspector)
+                SiteCatalogPreflightContribution contribution;
+                if (extension is ISiteCatalogPreparationExtension participant)
+                {
+                    var snapshot = await participant.InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false);
+                    contribution = snapshot.Contribution;
+                    deferred.AddRange(snapshot.DeferredReasons);
+                }
+                else if (extension is ISiteCatalogPreflightExtension inspector)
+                    contribution = await inspector.InspectCatalogAsync(context, cancellationToken).ConfigureAwait(false)
+                        ?? throw new InvalidOperationException("A catalog inspector returned no contribution.");
+                else
                 {
                     deferred.Add($"Extension '{extension.GetType().FullName}' has no nonrendering catalog inspector.");
                     continue;
                 }
-                var contribution = await inspector.InspectCatalogAsync(context, cancellationToken).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("A catalog inspector returned no contribution.");
                 diagnostics.AddRange(contribution.Diagnostics);
                 foreach (var claim in contribution.Routes)
                 {

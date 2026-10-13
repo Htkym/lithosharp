@@ -288,6 +288,14 @@ public sealed partial class SiteGenerator
         var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
         if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
+        ArgumentNullException.ThrowIfNull(options.Extensions);
+        ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        options = options with
+        {
+            Extensions = options.Extensions.ToArray(),
+            ContentCollections = options.ContentCollections.ToArray(),
+            GeneratedAssets = options.GeneratedAssets.ToArray(),
+        };
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
         var pageRouteTable = new SiteRouteTable();
@@ -305,12 +313,21 @@ public sealed partial class SiteGenerator
         // Keep this actual core catalog for rendering; do not re-run route callbacks.
         // Known errors must stop before an extension can perform SSR or bundling.
         pageRouteTable.ValidateOrThrow();
-        var extensionDiagnostics = new List<SiteDiagnostic>();
-        foreach (var extension in options.Extensions)
+        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp);
+        var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
+            catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
+        var extensionDiagnostics = preflight.Diagnostics.ToList();
+        extensionDiagnostics.AddRange(preflight.DeferredReasons.Where(reason => reason.StartsWith("Extension '", StringComparison.Ordinal)).Select(reason => new SiteDiagnostic(
+            "LSPREFLIGHT001", SiteDiagnosticSeverity.Info, reason, null, "Preflight", null)));
+        for (var extensionIndex = 0; extensionIndex < options.Extensions.Count; extensionIndex++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var extension = options.Extensions[extensionIndex];
             ArgumentNullException.ThrowIfNull(extension);
-            var contribution = await extension.PrepareAsync(
-                new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp), cancellationToken).ConfigureAwait(false)
+            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp);
+            var contribution = await (catalogs[extensionIndex] is { } catalog
+                ? catalog.PrepareAsync(prepareContext, cancellationToken)
+                : extension.PrepareAsync(prepareContext, cancellationToken)).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("A build extension returned no contribution.");
             ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
             ArgumentNullException.ThrowIfNull(contribution.Assets);
@@ -812,6 +829,7 @@ public sealed partial class SiteGenerator
                 .ToArray();
         var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
+            Preflight = preflight,
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,

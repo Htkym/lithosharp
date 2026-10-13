@@ -48,7 +48,7 @@ public static class SitePreflight
 }
 
 /// <summary>An extension's actual declared routes before rendering, bundling or publishing.</summary>
-/// <remarks>Implementations run only in explicitly trusted catalog mode. They must not invoke render or prepare hooks.</remarks>
+/// <remarks>Implementations are trusted catalog code, used by explicit catalog inspection and trusted generation. They must not invoke render or prepare hooks.</remarks>
 public interface ISiteCatalogPreflightExtension : ISiteBuildExtension
 {
     /// <summary>Acquires a catalog and analyzes source without invoking SSR.</summary>

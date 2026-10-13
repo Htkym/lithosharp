@@ -229,6 +229,8 @@ internal static class FactoryHost
                 result.BuildReport.StaleRemovedArtifacts.ToArray(), result.BuildReport.TransactionOutcome,
                 result.BuildReport.RetainedRecoveryState,
                 result.BuildReport.Nodes.Select(node => new HostReportNode(node.NodeId, node.OwnedArtifacts.ToArray(), node.CacheHit, node.CacheMissReason)).ToArray()),
+            Preflight = result.Preflight is { } preflight
+                ? new(preflight.Mode, preflight.Stage, preflight.DeferredReasons.ToArray()) : null,
             BuildPlan = result.BuildPlan.Nodes.Select(node => new HostBuildNode(node.Id.Value,
                 node.Inputs.Select(input => new HostBuildInput(input.Kind.ToString(), input.Key, input.Value)).ToArray(),
                 node.Dependencies.Select(id => id.Value).ToArray(),

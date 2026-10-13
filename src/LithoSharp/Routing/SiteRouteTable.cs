@@ -14,6 +14,15 @@ public sealed class SiteRouteTable
     {
     }
 
+    internal SiteRouteTable Copy()
+    {
+        var copy = new SiteRouteTable();
+        copy._routes.AddRange(_routes);
+        copy._reservations.AddRange(_reservations);
+        copy._diagnostics.AddRange(_diagnostics);
+        return copy;
+    }
+
     /// <summary>正規化済みサイトルートを所有者とともに登録します。</summary>
     /// <param name="route">登録するサイトルート。</param>
     /// <param name="ownerId">ルートを生成する要素の安定した識別子。</param>

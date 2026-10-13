@@ -15,7 +15,7 @@ namespace LithoSharp.Mdx;
 
 /// <summary>Compiles all registered MDX collections with one shared React graph and persistent worker.</summary>
 /// <remarks>Dispose after the final build or watch session. MDX is trusted build code, not a sandbox.</remarks>
-public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtension, IAsyncDisposable
+public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtension, ISiteCatalogPreparationExtension, IAsyncDisposable
 {
     private readonly MdxOptions options;
     private readonly MdxWorker worker;
@@ -61,18 +61,24 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             if (!loaded.IsSuccess) throw new SiteBuildExtensionException(loaded.Diagnostics);
             var loadDiagnostics = loaded.Diagnostics;
             var collection = loaded.Collection!;
+            var metadata = collection.Entries.ToDictionary(entry => entry.Id, entry => collection.PublicationMapper(entry));
             var published = collection.Entries.Where(entry => PagePublicationPolicy.ShouldPublish(
-                collection.PublicationMapper(entry), context.BuildTimestamp, context.Options.EnvironmentName)).ToArray();
-            var pages = published.Select(entry => {
-                SiteRoute? route = null;
-                return new Page(
+                metadata[entry.Id], context.BuildTimestamp, context.Options.EnvironmentName)).ToArray();
+            var routes = published.ToDictionary(entry => entry.Id,
+                entry => collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl));
+            var pages = published.Select(entry => new Page(
                 "mdx-" + Hash(Encoding.UTF8.GetBytes(ContentPageIdentity.Create(collection.Id, entry.Id)))[..24],
                 RelativeSource(Path.Combine(collection.InputRoot, entry.SourcePath)), entry.Body.CompilerSource,
-                (route = collection.RouteConvention(entry).WithBaseUrl(context.Site.BaseUrl)).PublicPath,
-                collection.PublicationMapper(entry).Title ?? string.Empty,
-                collection.PublicationMapper(entry).Description,
-                (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, collection.PublicationMapper(entry).Language ?? context.Site.Language,
-                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs) { Route = route! }; }).ToArray();
+                routes[entry.Id].PublicPath, metadata[entry.Id].Title ?? string.Empty, metadata[entry.Id].Description,
+                (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, metadata[entry.Id].Language ?? context.Site.Language,
+                entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs)
+                { Route = routes[entry.Id] }).ToArray();
+            ContentCollection<TFrontMatter, MdxDocument> Pinned(IEnumerable<ContentEntry<TFrontMatter, MdxDocument>> entries) =>
+                new(collection.Id, collection.InputRoot, entries, entry => routes[entry.Id], entry => metadata[entry.Id],
+                    collection.LayoutId, collection.OrderingComparer, collection.DeclaredDependencies,
+                    collection.TransformationId, collection.IsCacheable);
+            var catalog = new SiteContentCollection<TFrontMatter, MdxDocument>(Pinned(published),
+                renderer ?? ((entry, rendering) => rendering.RenderDocument(entry.Body.ToHtmlString())));
             return new Loaded(pages, results =>
             {
                 var entries = published.Select((entry, index) =>
@@ -102,18 +108,22 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                     return new ContentEntry<TFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint,
                         entry.FrontMatter, body, entry.SourceLocation) { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces, CapturedInputs = entry.CapturedInputs };
                 });
-                var prepared = new ContentCollection<TFrontMatter, MdxDocument>(collection.Id, collection.InputRoot, entries,
-                    collection.RouteConvention, collection.PublicationMapper, collection.LayoutId, collection.OrderingComparer,
-                    collection.DeclaredDependencies, collection.TransformationId, collection.IsCacheable);
+                var prepared = Pinned(entries);
                 return new SiteContentCollection<TFrontMatter, MdxDocument>(prepared,
                     renderer ?? ((entry, rendering) => rendering.RenderDocument(entry.Body.ToHtmlString())))
                 { RendererFingerprint = options.Cacheable ? "mdx-v1" : null, IsThreadSafe = renderer is null };
-            }, loadDiagnostics);
+            }, loadDiagnostics, catalog);
         });
     }
 
     /// <summary>Loads actual MDX catalog inputs and analyzes their syntax without running modules, plugins, SSR or bundling.</summary>
-    public async Task<SiteCatalogPreflightContribution> InspectCatalogAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+    public async Task<SiteCatalogPreflightContribution> InspectCatalogAsync(SiteBuildContext context, CancellationToken cancellationToken = default) =>
+        (await InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false)).Contribution;
+
+    Task<SiteCatalogPreparation> ISiteCatalogPreparationExtension.InspectForGenerationAsync(
+        SiteBuildContext context, CancellationToken cancellationToken) => InspectForGenerationAsync(context, cancellationToken);
+
+    internal async Task<SiteCatalogPreparation> InspectForGenerationAsync(SiteBuildContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -122,22 +132,44 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             ObjectDisposedException.ThrowIf(disposed, this);
             var loaded = new List<Loaded>();
             foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
-            var pages = loaded.SelectMany(value => value.Pages).ToArray();
             var diagnostics = loaded.SelectMany(value => value.Diagnostics).ToList();
             await using var analysis = new MdxInspectionSession(options);
-            foreach (var page in pages)
+            foreach (var page in loaded.SelectMany(value => value.Pages))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var result = await analysis.AnalyzeAsync(page.Source, page.Code, cancellationToken: cancellationToken).ConfigureAwait(false);
                 diagnostics.AddRange(result.Diagnostics);
             }
-            return new(pages.Select(page => new SitePreflightRoute(page.Route, page.Id, new SiteSourceLocation(page.Source))), diagnostics);
+            var inputs = CaptureInputs(loaded);
+            return SiteCatalogPreparation.FromCollections(loaded.Select(value => value.Catalog).ToArray(), diagnostics, context,
+                (prepareContext, token) => PrepareLoadedAsync(loaded, prepareContext, token),
+                token => ValidateCapturedInputsAsync(inputs, token), cancellationToken,
+                ["MDX catalog analysis does not execute or certify imported modules, JavaScript configuration or plugins."]);
         }
         finally { gate.Release(); }
     }
 
+    private Dictionary<string, string> CaptureInputs(IReadOnlyList<Loaded> loaded)
+    {
+        var inputs = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        foreach (var input in loaded.SelectMany(value => value.Pages).SelectMany(page => page.CapturedInputs))
+            AddCapturedInput(inputs, input.File, input.Hash);
+        return inputs;
+    }
+
+    private async Task ValidateCapturedInputsAsync(Dictionary<string, string> inputs, CancellationToken cancellationToken)
+    {
+        if (!await CapturedInputsMatchAsync(inputs, cancellationToken).ConfigureAwait(false))
+            throw MdxWorker.Failure("LSMDX005", "An MDX input changed after catalog inspection; retry the build.");
+    }
+
     /// <inheritdoc />
-    public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+    public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default) =>
+        await (await InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false))
+            .PrepareAsync(context, cancellationToken).ConfigureAwait(false);
+
+    private async Task<SiteBuildContribution> PrepareLoadedAsync(IReadOnlyList<Loaded> loaded,
+        SiteBuildContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -147,8 +179,7 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             Metrics = new();
-            var loaded = new List<Loaded>();
-            foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
+            await ValidateCapturedInputsAsync(CaptureInputs(loaded), cancellationToken).ConfigureAwait(false);
             var pages = loaded.SelectMany(value => value.Pages).ToArray();
             var loadDiagnostics = loaded.SelectMany(value => value.Diagnostics).ToArray();
             if (pages.Length == 0) return new() { Diagnostics = loadDiagnostics };
@@ -657,5 +688,5 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         [System.Text.Json.Serialization.JsonIgnore]
         public SiteRoute Route { get; init; } = null!;
     }
-    private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics);
+    private sealed record Loaded(Page[] Pages, Func<Dictionary<string, JsonElement>, SiteContentCollection> Create, IReadOnlyList<SiteDiagnostic> Diagnostics, SiteContentCollection Catalog);
 }
