@@ -292,7 +292,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                     throw MdxWorker.Failure("LSMDX005", "Blog registration changed after documentation inspection; retry the build.");
                 await ValidateDocumentationInputsAsync(inputs, manifests, token).ConfigureAwait(false);
                 await mdxSnapshot.ValidateInputsAsync(token).ConfigureAwait(false);
-            }, cancellationToken, mdxSnapshot.DeferredReasons);
+            }, cancellationToken, mdxSnapshot.DeferredReasons, mdxSnapshot.SourceErrorDiagnostics);
     }
 
     private async Task<SiteBuildContribution> PrepareDocumentationAsync(

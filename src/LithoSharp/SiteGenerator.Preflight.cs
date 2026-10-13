@@ -42,6 +42,7 @@ public sealed partial class SiteGenerator
             catalogs.Add(snapshot);
             cancellationToken.ThrowIfCancellationRequested();
             if (contribution is null) continue;
+            snapshot?.ThrowIfSourceFailed();
             diagnostics.AddRange(contribution.Diagnostics);
             new SitePreflightReport("trusted-catalog", "catalog", diagnostics, deferred).ThrowIfFailed();
             foreach (var claim in contribution.Routes) routes.Register(claim.Route, claim.OwnerId, claim.Location);

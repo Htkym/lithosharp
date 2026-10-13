@@ -144,7 +144,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             return SiteCatalogPreparation.FromCollections(loaded.Select(value => value.Catalog).ToArray(), diagnostics, context,
                 (prepareContext, token) => PrepareLoadedAsync(loaded, prepareContext, token),
                 token => ValidateCapturedInputsAsync(inputs, token), cancellationToken,
-                ["MDX catalog analysis does not execute or certify imported modules, JavaScript configuration or plugins."]);
+                ["MDX catalog analysis does not execute or certify imported modules, JavaScript configuration or plugins."],
+                diagnostics.Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error));
         }
         finally { gate.Release(); }
     }

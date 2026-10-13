@@ -104,7 +104,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
                 if (configuration != CaptureConfiguration())
                     throw MdxWorker.Failure("LSMDX005", "Blog registration changed after catalog inspection; retry the build.");
                 await snapshot.ValidateInputsAsync(token).ConfigureAwait(false);
-            }, cancellationToken, snapshot.DeferredReasons);
+            }, cancellationToken, snapshot.DeferredReasons, snapshot.SourceErrorDiagnostics);
     }
 
     internal string CaptureConfiguration() => JsonSerializer.Serialize(blogs);

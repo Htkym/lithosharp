@@ -22,12 +22,21 @@ internal sealed class SiteCatalogPreparation(
     internal SiteCatalogPreflightContribution Contribution { get; } = contribution;
     internal IReadOnlyList<SiteContentCollection> ContentCollections { get; } = contentCollections;
     internal IReadOnlyList<string> DeferredReasons { get; init; } = [];
+    // Preserve the build extension's existing source-error exception contract;
+    // report-only catalog inspection still returns the diagnostics unchanged.
+    internal IReadOnlyList<SiteDiagnostic> SourceErrorDiagnostics { get; init; } = [];
+    internal void ThrowIfSourceFailed()
+    {
+        if (SourceErrorDiagnostics.Count != 0)
+            throw new SiteBuildExtensionException(SourceErrorDiagnostics);
+    }
     internal Task ValidateInputsAsync(CancellationToken cancellationToken) => validate(cancellationToken);
 
     internal async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref consumed, 1) != 0)
             throw new InvalidOperationException("A catalog snapshot may only be prepared once.");
+        ThrowIfSourceFailed();
         new SitePreflightReport("trusted-catalog", "catalog", Contribution.Diagnostics, []).ThrowIfFailed();
         var routes = new SiteRouteTable();
         foreach (var claim in Contribution.Routes) routes.Register(claim.Route, claim.OwnerId, claim.Location);
@@ -41,14 +50,14 @@ internal sealed class SiteCatalogPreparation(
         IReadOnlyList<SiteContentCollection> collections, IEnumerable<SiteDiagnostic> diagnostics,
         SiteBuildContext context, Func<SiteBuildContext, CancellationToken, Task<SiteBuildContribution>> prepare,
         Func<CancellationToken, Task> validate, CancellationToken cancellationToken = default,
-        IEnumerable<string>? deferredReasons = null) =>
-        FromContribution(new() { ContentCollections = collections, Diagnostics = diagnostics.ToArray() }, context, prepare, validate, cancellationToken, deferredReasons);
+        IEnumerable<string>? deferredReasons = null, IEnumerable<SiteDiagnostic>? sourceErrorDiagnostics = null) =>
+        FromContribution(new() { ContentCollections = collections, Diagnostics = diagnostics.ToArray() }, context, prepare, validate, cancellationToken, deferredReasons, sourceErrorDiagnostics);
 
     internal static SiteCatalogPreparation FromContribution(
         SiteBuildContribution catalog, SiteBuildContext context,
         Func<SiteBuildContext, CancellationToken, Task<SiteBuildContribution>> prepare,
         Func<CancellationToken, Task> validate, CancellationToken cancellationToken = default,
-        IEnumerable<string>? deferredReasons = null)
+        IEnumerable<string>? deferredReasons = null, IEnumerable<SiteDiagnostic>? sourceErrorDiagnostics = null)
     {
         var collections = catalog.ContentCollections.ToArray();
         var table = new SiteRouteTable();
@@ -61,6 +70,9 @@ internal sealed class SiteCatalogPreparation(
                 SiteRoute.ForFile(asset.RelativeOutputPath, context.Site.BaseUrl), "asset:" + asset.Id)))
             .ToArray();
         return new(new(routes, catalog.Diagnostics.Concat(table.Validate().Diagnostics)), collections, prepare, validate)
-        { DeferredReasons = Array.AsReadOnly((deferredReasons ?? []).ToArray()) };
+        {
+            DeferredReasons = Array.AsReadOnly((deferredReasons ?? []).ToArray()),
+            SourceErrorDiagnostics = Array.AsReadOnly((sourceErrorDiagnostics ?? []).ToArray()),
+        };
     }
 }

@@ -61,7 +61,13 @@ public sealed class MdxWorkMetricsTests
           serverBundleMilliseconds:2*n,browserBundleMilliseconds:3*n,liveRuntimeMilliseconds:n,pluginBundleMilliseconds:n,renderMilliseconds:n});
         let round=0;
         for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
-          const request=JSON.parse(line), first=++round===1, mode=process.env.LITHOSHARP_TEST_WORK_REPORT;
+          const request=JSON.parse(line);
+          // Analysis must not consume a compile round or enter its fault injection.
+          if(request.type==='analyze'){
+            console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,
+              result:{headings:[],links:[],islands:[],text:'',imports:[],diagnostics:[]}}));continue;
+          }
+          const first=++round===1, mode=process.env.LITHOSHARP_TEST_WORK_REPORT;
           if(mode==='primary'){
             console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:false,requiredSources:[],
               workMetrics:{schema:1,complete:false,compiledModules:'malformed'},diagnostics:[{id:'LSMDX001',message:'OriginalPrimaryWorkerFailure'}]}));

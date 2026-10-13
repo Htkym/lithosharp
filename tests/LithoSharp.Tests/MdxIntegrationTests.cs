@@ -518,7 +518,13 @@ public sealed class MdxIntegrationTests
             import path from 'node:path';
             console.log(JSON.stringify({protocol:1,type:'ready',node:'24.13.0',mdx:'3.1.1',react:'19.2.4',esbuild:'0.28.2'}));
             for await(const line of createInterface({input:process.stdin,crlfDelay:Infinity})){
-              const request=JSON.parse(line),page=request.pages[0],corruption=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION,badEncoding=corruption==='invalid-base64';
+              const request=JSON.parse(line);
+              // Valid source acknowledgement; corruption below targets compilation only.
+              if(request.type==='analyze'){
+                console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,
+                  result:{headings:[],links:[],islands:[],text:'',imports:[],diagnostics:[]}}));continue;
+              }
+              const page=request.pages[0],corruption=process.env.LITHOSHARP_TEST_ASSET_CORRUPTION,badEncoding=corruption==='invalid-base64';
               const assets=[{path:'asset.txt',bytes:badEncoding?'!':'',hash:corruption==='inner-hash-mismatch'?'0'.repeat(64):createHash('sha256').update('').digest('hex'),imports:corruption==='unresolved-import'?['__missing__.js']:[]}];
               if(corruption==='duplicate-asset-path') assets.push({...assets[0]});
               const resultPages=[{id:page.id,html:'<h1>UntrustedLiveAsset</h1>',text:'Page',entry:null,css:[],headings:[],links:[],islands:[],hydration:'selective',fallback:null}];
