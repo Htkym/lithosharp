@@ -33,9 +33,9 @@ internal sealed class HtmlFacts
 
     internal CompactHtmlTree Tree => tree;
 
-    public static HtmlFacts Parse(string source, CancellationToken cancellationToken = default)
+    public static HtmlFacts Parse(string source, CancellationToken cancellationToken = default, HtmlTreeOptions? options = null)
     {
-        var tree = CompactHtmlTreeBuilder.Parse(source, cancellationToken: cancellationToken);
+        var tree = CompactHtmlTreeBuilder.Parse(source, options, cancellationToken: cancellationToken);
         if (tree.Status != HtmlTokenizationStatus.Complete) throw new HtmlFactsIncompleteException(tree);
         return new(source, tree, cancellationToken);
     }

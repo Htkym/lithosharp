@@ -13,9 +13,10 @@ internal sealed class SiteHtmlFactsCache : IDisposable
     internal const int MaxRecordBytes = 1024 * 1024;
     internal const int MaxRecords = 128;
     internal const int MaxBytes = 32 * 1024 * 1024;
-    internal static string Schema => "quality-facts/1;tree/1;document;scripting=false;projection/1;"
+    internal static string Schema => "quality-facts/2;raw-utf16;tree/1;document;scripting=false;projection/1;"
         + typeof(SiteHtmlFactsCache).Module.ModuleVersionId;
     private readonly string directory;
+    private readonly BuildHtmlFacts? sharedFacts;
     private readonly Dictionary<string, byte[]> pending = new(StringComparer.Ordinal);
     private int pendingBytes;
     private bool disposed;
@@ -23,13 +24,18 @@ internal sealed class SiteHtmlFactsCache : IDisposable
     internal int HitCount { get; private set; }
     internal int PendingBytes => pendingBytes;
 
-    internal SiteHtmlFactsCache(string partition) => directory = Path.Combine(partition, "html-facts");
+    internal SiteHtmlFactsCache(string partition, BuildHtmlFacts? sharedFacts = null)
+    {
+        directory = Path.Combine(partition, "html-facts");
+        this.sharedFacts = sharedFacts;
+    }
 
     internal async Task<QualityHtmlFacts> GetAsync(string content, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        var contentHash = Hash(Encoding.UTF8.GetBytes(content));
+        // Preserve lone surrogate identity; Encoding.UTF8 replacement is not injective.
+        var contentHash = Convert.ToHexStringLower(SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(content.AsSpan())));
         var key = Hash(Encoding.UTF8.GetBytes(Schema + "\n" + contentHash));
         var path = Path.Combine(directory, key + ".json");
         try
@@ -65,8 +71,14 @@ internal sealed class SiteHtmlFactsCache : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
         }
-        ParseCount++;
-        var facts = QualityHtmlFacts.Parse(content, cancellationToken);
+        QualityHtmlFacts facts;
+        if (sharedFacts is not null)
+        {
+            var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
+            facts = shared.Facts;
+            if (shared.NewParse) ParseCount++;
+        }
+        else { ParseCount++; facts = QualityHtmlFacts.Parse(content, cancellationToken); }
         if (facts.MaximumSerializedBytes > MaxRecordBytes || pending.Count >= MaxRecords)
             return facts;
         var value = new Record(Schema, contentHash, facts, null);

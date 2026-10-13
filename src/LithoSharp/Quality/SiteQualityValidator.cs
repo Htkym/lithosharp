@@ -17,7 +17,8 @@ internal static class SiteQualityValidator
         SiteQualityOptions options,
         CancellationToken cancellationToken,
         IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null,
-        LithoSharp.Build.SiteHtmlFactsCache? factsCache = null)
+        LithoSharp.Build.SiteHtmlFactsCache? factsCache = null,
+        LithoSharp.Build.BuildHtmlFacts? sharedFacts = null)
     {
         ArgumentNullException.ThrowIfNull(textFilePaths);
         ArgumentNullException.ThrowIfNull(readText);
@@ -39,9 +40,15 @@ internal static class SiteQualityValidator
             if (path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)) cssFiles[path] = content;
             if (!IsHtml(path, content)) continue;
             var route = artifactRoutes[path];
-            var facts = factsCache is null ? QualityHtmlFacts.Parse(content, cancellationToken)
-                : await factsCache.GetAsync(content, cancellationToken).ConfigureAwait(false);
-            if (factsCache is null) parseCount++;
+            QualityHtmlFacts facts;
+            if (factsCache is not null) facts = await factsCache.GetAsync(content, cancellationToken).ConfigureAwait(false);
+            else if (sharedFacts is not null)
+            {
+                var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
+                facts = shared.Facts;
+                if (shared.NewParse) parseCount++;
+            }
+            else { facts = QualityHtmlFacts.Parse(content, cancellationToken); parseCount++; }
             var pageUri = new Uri(origin + route.PublicPath);
             var resolutionBase = pageUri;
             var baseHref = facts.BaseHref;

@@ -18,6 +18,7 @@ public sealed record SiteGenerationResult(
     // Consumed by the existing Tool host and diagnostics report, without adding
     // a new public generation API or authorizing any later build.
     internal Inspection.SitePreflightReport? Preflight { get; init; }
+    internal (int ParseCount, int ReuseCount, long RetainedBytes, int EntryCount) HtmlFactsSharing { get; init; }
 
     /// <summary>この生成で検証した不変のビルド計画です。</summary>
     public SiteBuildPlan BuildPlan { get; init; } = SiteBuildPlan.Create([]);

@@ -8,8 +8,11 @@ internal sealed record QualityHtmlFacts(string Title, string? BaseHref, string[]
     QualityHtmlElement[] Elements)
 {
     internal static QualityHtmlFacts Parse(string source, CancellationToken cancellationToken)
+        => From(HtmlFacts.Parse(source, cancellationToken), cancellationToken);
+
+    // These mutable arrays are a consumer-owned projection, never stored in the shared tree owner.
+    internal static QualityHtmlFacts From(HtmlFacts facts, CancellationToken cancellationToken)
     {
-        var facts = HtmlFacts.Parse(source, cancellationToken);
         var elements = new List<QualityHtmlElement>();
         foreach (var element in facts.Elements)
         {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LithoSharp.Configuration;
+using LithoSharp.Build;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Mdx;
 
@@ -146,10 +147,21 @@ public sealed class MdxSemanticsTests
         };
         docs.AddCollection(new("guide", [new("current", "en", source, "guide")]) { UseMdx = true });
         var output = Path.Combine(workspace.Root, "out");
-        await new SiteGenerator().GenerateWithOptionsAsync(
+        var observer = new FactsLifetimeObserver();
+        var options = new SiteGenerationOptions
+        {
+            Extensions = [observer, docs], BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Quality = new(checkOrphans: false)
+        };
+        var generator = new SiteGenerator();
+        var first = await generator.GenerateWithOptionsAsync(
             new SiteSettings { BaseUrl = "https://example.test/" }, [], output, clean: true,
-            new() { Template = new DocsSiteTemplate() },
-            new() { Extensions = [docs], BuildTimestamp = DateTimeOffset.UnixEpoch }, CancellationToken.None);
+            new() { Template = new DocsSiteTemplate { EnableSearch = true } },
+            options, CancellationToken.None);
+        await Assert.That(first.HtmlFactsSharing.ParseCount).IsEqualTo(first.QualityReport.HtmlParseCount + 1);
+        await Assert.That(first.HtmlFactsSharing.ReuseCount > 0).IsTrue(); // MDX article -> Core search; final layout is a distinct input.
+        await Assert.That(first.HtmlFactsSharing.EntryCount + first.HtmlFactsSharing.RetainedBytes).IsEqualTo(0); // Released before result/hooks, not only at Dispose.
+        await Assert.That(observer.Owner!.Counters.EntryCount).IsEqualTo(0); // Actual Generate return has awaited owner disposal.
 
         var page = Directory.EnumerateFiles(Path.Combine(output, "guide"), "*.html", SearchOption.AllDirectories)
             .Select(path => File.ReadAllText(path)).Single(text => text.Contains("Static text here."));
@@ -169,6 +181,24 @@ public sealed class MdxSemanticsTests
         await Assert.That(section.GetProperty("body").GetString()).Contains("Static text here.");
         await Assert.That(section.GetProperty("body").GetString()).Contains("Count 0");
         await Assert.That(page).Contains("id=\"" + section.GetProperty("anchor").GetString() + "\"");
+        var coreBefore = await File.ReadAllBytesAsync(Path.Combine(output, "search-index.json"));
+        var docsBefore = await File.ReadAllBytesAsync(Path.Combine(output, "guide", "_search.json"));
+        using var coreIndex = JsonDocument.Parse(coreBefore);
+        var coreDocument = coreIndex.RootElement.GetProperty("documents").EnumerateArray()
+            .Single(document => document.TryGetProperty("collection", out var collection) && collection.GetString() == "guide");
+        await Assert.That(coreDocument.GetProperty("body").GetString()!).Contains("Count 0");
+        var coreSection = coreDocument.GetProperty("sections").EnumerateArray().Single();
+        foreach (var field in new[] { "title", "anchor", "body" })
+            await Assert.That(coreSection.GetProperty(field).GetString()).IsEqualTo(section.GetProperty(field).GetString());
+        var second = await generator.GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.test/" }, [], output, clean: false,
+            new() { Template = new DocsSiteTemplate { EnableSearch = true } }, options, CancellationToken.None);
+        await Assert.That(second.QualityReport.HtmlParseCount).IsEqualTo(0);
+        await Assert.That(second.QualityReport.HtmlFactsCacheHitCount > 0).IsTrue();
+        await Assert.That(second.HtmlFactsSharing.ParseCount).IsEqualTo(1);
+        await Assert.That(observer.Owner!.Counters.RetainedBytes).IsEqualTo(0);
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "search-index.json"))).IsEquivalentTo(coreBefore);
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "guide", "_search.json"))).IsEquivalentTo(docsBefore);
     }
 
     [Test]
@@ -205,9 +235,20 @@ public sealed class MdxSemanticsTests
         await Assert.That(body).Contains("Shared body text.");
     }
 
-    private static string WorkerDirectory()
+    private sealed class FactsLifetimeObserver : ISiteBuildExtension
     {
-        for (var path = new DirectoryInfo(AppContext.BaseDirectory); path is not null; path = path.Parent)
+        internal BuildHtmlFacts? Owner { get; private set; }
+        public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+        {
+            Owner = context.HtmlFacts;
+            return Task.FromResult(new SiteBuildContribution());
+        }
+    }
+
+    private static string WorkerDirectory([System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
+    {
+        foreach (var start in new[] { Path.GetDirectoryName(sourcePath)!, AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
+        for (var path = new DirectoryInfo(start); path is not null; path = path.Parent)
         {
             if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
             {

@@ -319,7 +319,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                     // from rendered HTML: React-generated content cannot be inferred.
                     var semantics = registration.Options.UseMdx ? entry.Body.Semantics : null;
                     var html = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
-                    var facts = HtmlFacts.Parse(html, cancellationToken);
+                    var facts = context.HtmlFacts?.Get(html, cancellationToken) ?? HtmlConsumerFacts.Parse(html, cancellationToken);
                     var text = semantics?.PlainText ?? facts.BodyText;
 
                     return new LithoSharp.Search.SearchDocument(entry.FrontMatter.Title, entry.FrontMatter.Description ?? "", entry.FrontMatter.Tags,

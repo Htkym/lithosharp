@@ -119,6 +119,7 @@ public sealed partial class SiteGenerator
 
         /// <summary>Build cancellation, honored by post analysis and parse-cache IO.</summary>
         public CancellationToken Cancellation { get; init; }
+        internal BuildHtmlFacts? HtmlFacts { get; init; }
     }
 
     private sealed record PageClaim<TContent>(
@@ -313,7 +314,8 @@ public sealed partial class SiteGenerator
         // Keep this actual core catalog for rendering; do not re-run route callbacks.
         // Known errors must stop before an extension can perform SSR or bundling.
         pageRouteTable.ValidateOrThrow();
-        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp);
+        await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null);
+        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
         var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
             catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
         var extensionDiagnostics = preflight.Diagnostics.ToList();
@@ -324,7 +326,7 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             var extension = options.Extensions[extensionIndex];
             ArgumentNullException.ThrowIfNull(extension);
-            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp);
+            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
             var contribution = await (catalogs[extensionIndex] is { } catalog
                 ? catalog.PrepareAsync(prepareContext, cancellationToken)
                 : extension.PrepareAsync(prepareContext, cancellationToken)).ConfigureAwait(false)
@@ -388,6 +390,7 @@ public sealed partial class SiteGenerator
             routes)
         {
             Cancellation = cancellationToken,
+            HtmlFacts = sharedHtmlFacts,
         };
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
@@ -607,7 +610,7 @@ public sealed partial class SiteGenerator
             .ConfigureAwait(false);
         timing.MarkTransaction();
         using var htmlFactsCache = options.Quality is not null && options.HtmlFactsCacheEnabled
-            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity)) : null;
+            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity), sharedHtmlFacts) : null;
         var generatedInStaging = new List<string>();
         var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
@@ -754,6 +757,7 @@ public sealed partial class SiteGenerator
 
             if (options.Quality is { } qualityOptions)
             {
+                await sharedHtmlFacts.BeginQualityAsync().ConfigureAwait(false);
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
                     .Select(file => file.RelativePath).Concat(qualityPlan.Artifacts
                         .Where(artifact => artifact.RelativeOutputPath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
@@ -768,11 +772,12 @@ public sealed partial class SiteGenerator
                     (path, token) => ReadQualityTextAsync(ValidationRootFor(path), path, inspectedQualityOutput, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
-                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache).ConfigureAwait(false);
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache, sharedHtmlFacts).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
             }
 
+            await sharedHtmlFacts.ReleaseAsync().ConfigureAwait(false);
             timing.MarkQuality();
             cancellationToken.ThrowIfCancellationRequested();
             if (execution?.PublishedOutputRetained != true)
@@ -833,6 +838,7 @@ public sealed partial class SiteGenerator
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            HtmlFactsSharing = sharedHtmlFacts.Counters,
             Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
@@ -2122,7 +2128,8 @@ public sealed partial class SiteGenerator
         {
             configuration.Cancellation.ThrowIfCancellationRequested();
             var derivedContent = page.DerivedContent ?? string.Empty;
-            var facts = HtmlFacts.Parse(derivedContent, configuration.Cancellation);
+            var facts = configuration.HtmlFacts?.Get(derivedContent, configuration.Cancellation)
+                ?? HtmlConsumerFacts.Parse(derivedContent, configuration.Cancellation);
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
