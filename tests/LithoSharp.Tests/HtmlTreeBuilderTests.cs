@@ -443,6 +443,59 @@ public sealed class HtmlTreeBuilderTests
     }
 
     [Test]
+    public async Task FragmentFormAncestry_SuppliesOnlyThePointerAndPreservesInsertionParents()
+    {
+        const string raw = "<form id='first'><div id='holder'><input id='before'></form><form id='later'><input id='after'></form></div>";
+        foreach (var context in new[]
+        {
+            new HtmlFragmentContext("body"),
+            new HtmlFragmentContext("div", HasExternalFormAncestor: true),
+            new HtmlFragmentContext("form"),
+            new HtmlFragmentContext("form", HasExternalFormAncestor: true)
+        })
+            foreach (var chunk in new[] { 4096, 1 })
+            {
+                var tree = Parse(raw, new(Fragment: context), chunk);
+                var inheritedForm = context.HasExternalFormAncestor || context.Name == "form";
+                var holder = ById(tree, "holder");
+                var later = ById(tree, "later");
+                await Assert.That(tree.Elements().Any(n => n.Attributes.Any(a => a.Name == "id" && a.Value.Value == "first"))).IsEqualTo(!inheritedForm);
+                await Assert.That(holder.Parent).IsEqualTo((int?)(inheritedForm ? tree.Root : ById(tree, "first").Id));
+                await Assert.That(ById(tree, "before").Parent).IsEqualTo((int?)holder.Id);
+                await Assert.That(later.Parent).IsEqualTo((int?)holder.Id);
+                await Assert.That(ById(tree, "after").Parent).IsEqualTo((int?)later.Id);
+                await Assert.That(later.Source!.Value.Start).IsEqualTo(raw.IndexOf("<form id='later'", StringComparison.Ordinal));
+                await Assert.That(tree.Diagnostics.Any(d => d.Code == "nested-form")).IsEqualTo(inheritedForm);
+                await Assert.That(tree.Diagnostics.Any(d => d.Code == "form-not-in-scope")).IsEqualTo(inheritedForm);
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await CheckLinksAndSpans(tree, raw.Length);
+            }
+        const string tableRaw = "<form id='table-form'><tr><td><input id='cell'></td></tr></form>";
+        foreach (var hasAncestor in new[] { false, true })
+        {
+            var table = Parse(tableRaw, new(Fragment: new("table", HasExternalFormAncestor: hasAncestor)));
+            await Assert.That(table.Elements().Count(n => n.Name == "form")).IsEqualTo(hasAncestor ? 0 : 1);
+            await Assert.That(table.Nodes[ById(table, "cell").Parent!.Value].Name).IsEqualTo("td");
+            await Assert.That(table.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+            await CheckLinksAndSpans(table, tableRaw.Length);
+        }
+        const string templateRaw = "<template id='template'><form id='inside'><input id='control'></form></template><form id='ignored'>X</form><form id='later'>Y</form>";
+        var template = Parse(templateRaw, new(Fragment: new("div", HasExternalFormAncestor: true)));
+        var content = ById(template, "template").TemplateContent!.Value;
+        var inside = template.Elements(content).Single(n => n.Name == "form");
+        await Assert.That(inside.Parent).IsEqualTo((int?)content);
+        await Assert.That(template.Elements(content).Single(n => n.Name == "input").Parent).IsEqualTo((int?)inside.Id);
+        await Assert.That(template.Elements().Count(n => n.Name == "form")).IsEqualTo(1);
+        await Assert.That(ById(template, "later").Parent).IsEqualTo((int?)template.Root);
+        await Assert.That(template.Diagnostics.Count(d => d.Code == "nested-form")).IsEqualTo(1);
+        await Assert.That(template.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+        await CheckLinksAndSpans(template, templateRaw.Length);
+        var empty = CompactHtmlTreeBuilder.Parse("", new(Fragment: new("div", HasExternalFormAncestor: true)), new() { MaxNodes = 1 });
+        await Assert.That(empty.Nodes.Count).IsEqualTo(1);
+        await Assert.That(empty.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+    }
+
+    [Test]
     public async Task TreeAndTokenizerBudgets_PropagateIncompleteCoverageAndCancellation()
     {
         foreach (var (raw, limits, code) in new[]

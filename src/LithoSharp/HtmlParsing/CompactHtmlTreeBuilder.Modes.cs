@@ -206,7 +206,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             }
             if (name == "form")
             {
-                if (form is not null && Find("template") < 0) { Error("nested-form"); return false; }
+                if (HasFormPointer && Find("template") < 0) { Error("nested-form"); return false; }
                 if (Scope("p", "button")) CloseP();
                 var id = Insert(); if (Find("template") < 0) form = id; return false;
             }
@@ -289,8 +289,8 @@ internal sealed partial class CompactHtmlTreeBuilder
             }
             if (name == "form" && Find("template") < 0)
             {
-                var formId = form; form = null;
-                if (formId is not int id || !Scope("form")) { Error("form-not-in-scope"); return false; }
+                var formId = form; form = null; externalForm = false;
+                if (formId is not int id || !Scope("form", target: id)) { Error("form-not-in-scope"); return false; }
                 Implied(); open.Remove(id); return false;
             }
             if (IsFormatting(name)) { Adoption(name); return false; }

@@ -30,6 +30,8 @@ internal sealed partial class CompactHtmlTreeBuilder
     private int? foreignFragmentContext;
     private long operations;
     private int? head, body, form;
+    private bool externalForm;
+    private bool HasFormPointer => form is not null || externalForm;
     private Mode mode, originalMode;
     private bool textModeActive, cdataAllowed, foster, framesetOk = true, ignoreNextLf;
     private HtmlTokenizationStatus status = HtmlTokenizationStatus.Complete;
@@ -82,6 +84,9 @@ internal sealed partial class CompactHtmlTreeBuilder
                 CopyAttributes(foreignFragmentContext ?? root, context.Attributes ?? [], context.Namespace);
                 open.Add(root);
                 if (IsHtml(root, "form")) form = root;
+                // External ancestry supplies a pointer, never an inserted node or
+                // an open element. The context itself is the nearer form, if any.
+                else externalForm = context.HasExternalFormAncestor;
                 if (IsHtml(root, "template")) templateModes.Add(Mode.InTemplate);
                 ResetMode();
                 if (tokenizer.Status == HtmlTokenizationStatus.Complete && context.Namespace == HtmlNamespaces.Html && TextMode(nodes[root].Name!) is { } text)
@@ -299,14 +304,14 @@ internal sealed partial class CompactHtmlTreeBuilder
         for (var i = open.Count - 1; i >= (options.Fragment is null ? 0 : 1); i--) { Check(); if (IsHtml(open[i], name)) return i; }
         return -1;
     }
-    private bool Scope(string name, string kind = "general")
+    private bool Scope(string name, string kind = "general", int? target = null)
     {
         for (var i = open.Count - 1; i >= 0; i--)
         {
             Check();
             var node = nodes[open[i]];
             if (i == 0 && options.Fragment is not null) return false;
-            if (node.Namespace == HtmlNamespaces.Html && node.Name == name) return true;
+            if (node.Namespace == HtmlNamespaces.Html && node.Name == name && (target is null || node.Id == target)) return true;
             if (kind == "select") { if (node.Name is not ("option" or "optgroup")) return false; continue; }
             if (node.Namespace == HtmlNamespaces.Html && (node.Name is "html" or "table" or "template" ||
                 kind != "table" && node.Name is "applet" or "caption" or "td" or "th" or "marquee" or "object" ||

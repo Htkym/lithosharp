@@ -15,7 +15,8 @@ internal static class HtmlNamespaces
 internal enum HtmlTreeNodeKind { Document, Fragment, Element, Text, Comment, Doctype, ProcessingInstruction }
 internal enum HtmlDocumentMode { NoQuirks, LimitedQuirks, Quirks }
 internal sealed record HtmlFragmentContext(string Name, string Namespace = HtmlNamespaces.Html,
-    IReadOnlyList<HtmlAttribute>? Attributes = null, HtmlDocumentMode OwnerDocumentMode = HtmlDocumentMode.NoQuirks);
+    IReadOnlyList<HtmlAttribute>? Attributes = null, HtmlDocumentMode OwnerDocumentMode = HtmlDocumentMode.NoQuirks,
+    bool HasExternalFormAncestor = false);
 internal sealed record HtmlTreeOptions(bool Scripting = false, HtmlFragmentContext? Fragment = null);
 internal sealed record HtmlTreeAttribute(string Name, string? Namespace, string? Prefix, HtmlText RawName, HtmlText Value);
 internal sealed record HtmlTreeDiagnostic(string Code, HtmlSpan Source, bool IncompleteCoverage = false);
