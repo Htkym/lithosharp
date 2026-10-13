@@ -490,6 +490,25 @@ public sealed class HtmlTreeBuilderTests
         await Assert.That(template.Diagnostics.Count(d => d.Code == "nested-form")).IsEqualTo(1);
         await Assert.That(template.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
         await CheckLinksAndSpans(template, templateRaw.Length);
+        const string fragmentRaw = "<form id='f'><input id='i'></form>";
+        foreach (var chunk in new[] { 4096, 1 })
+        {
+            var fragment = Parse(fragmentRaw, new(Fragment: new("template", HasExternalFormAncestor: true)), chunk);
+            var fragmentForm = ById(fragment, "f");
+            await Assert.That(fragmentForm.Parent).IsEqualTo((int?)fragment.Root);
+            await Assert.That(ById(fragment, "i").Parent).IsEqualTo((int?)fragmentForm.Id);
+            await Assert.That(fragment.Diagnostics.Any(d => d.Code is "nested-form" or "form-not-in-scope")).IsFalse();
+            await Assert.That(fragment.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+            await CheckLinksAndSpans(fragment, fragmentRaw.Length);
+            const string templateTableRaw = "<table id='table'><form id='table-form'></form><tr><td><input id='cell'></td></tr></table><form id='later'></form>";
+            var templateTable = Parse(templateTableRaw, new(Fragment: new("template", HasExternalFormAncestor: true)), chunk);
+            await Assert.That(ById(templateTable, "table-form").Parent).IsEqualTo((int?)ById(templateTable, "table").Id);
+            await Assert.That(templateTable.Nodes[ById(templateTable, "cell").Parent!.Value].Name).IsEqualTo("td");
+            await Assert.That(ById(templateTable, "later").Parent).IsEqualTo((int?)templateTable.Root);
+            await Assert.That(templateTable.Diagnostics.Any(d => d.Code is "nested-form" or "form-not-in-scope")).IsFalse();
+            await Assert.That(templateTable.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+            await CheckLinksAndSpans(templateTable, templateTableRaw.Length);
+        }
         var empty = CompactHtmlTreeBuilder.Parse("", new(Fragment: new("div", HasExternalFormAncestor: true)), new() { MaxNodes = 1 });
         await Assert.That(empty.Nodes.Count).IsEqualTo(1);
         await Assert.That(empty.Status).IsEqualTo(HtmlTokenizationStatus.Complete);

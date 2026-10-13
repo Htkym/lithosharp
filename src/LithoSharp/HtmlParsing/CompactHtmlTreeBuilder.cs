@@ -32,6 +32,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     private int? head, body, form;
     private bool externalForm;
     private bool HasFormPointer => form is not null || externalForm;
+    private bool ParsingTemplateContents => Find("template") >= 0 || options.Fragment is not null && IsHtml(root, "template");
     private Mode mode, originalMode;
     private bool textModeActive, cdataAllowed, foster, framesetOk = true, ignoreNextLf;
     private HtmlTokenizationStatus status = HtmlTokenizationStatus.Complete;

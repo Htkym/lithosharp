@@ -30,7 +30,7 @@ internal static class HtmlBridgeObservations
             new HtmlBridgeInput("legacy-unicode-public", "<!doctype html PUBLIC '-//W3C//DTD XHTML 1.0 Tranſitional//EN'><a href='unicode'>A</a>"),
             new HtmlBridgeInput("legacy-fragment-ignored", "<!doctype html PUBLIC 'HTML'><p id=p>A<table id=t><tr><td><a href='fragment'>B</a></td></tr></table>", ContextName: "body"),
             new HtmlBridgeInput("unsupported-shadow", "<a href='before'>x</a><template shadowrootmode='open'><a href='hidden'>x</a></template>"),
-            new HtmlBridgeInput("unsupported-foreign", "<p><a href='x'>X</a>", ContextName: "svg", ContextNamespace: "http://www.w3.org/2000/svg"),
+            new HtmlBridgeInput("foreign-fragment-breakout", "<p><a HREF='before&amp;after'>X</a></p><lineargradient xlink:href='svg&amp;url'/>", ContextName: "svg", ContextNamespace: "http://www.w3.org/2000/svg"),
             new HtmlBridgeInput("failed-input-budget", "<a href='x'>X</a>", MaxInputChars: 3),
             new HtmlBridgeInput("partial-node-budget", "<a href='x'>X</a>", MaxNodes: 2)
         });
@@ -40,8 +40,26 @@ internal static class HtmlBridgeObservations
     internal static object Parse(Assembly assembly, HtmlBridgeInput input, CancellationToken cancellation = default)
     {
         Type Type(string name) => assembly.GetType("LithoSharp.HtmlParsing." + name, throwOnError: true)!;
-        object? fragment = input.ContextName is null ? null : Activator.CreateInstance(Type("HtmlFragmentContext"),
-            input.ContextName, input.ContextNamespace ?? "http://www.w3.org/1999/xhtml", null);
+        // Shared hosts may add optional internal context parameters. Bind their
+        // declared defaults while continuing to load the actual assembly type.
+        object? fragment = null;
+        if (input.ContextName is not null)
+        {
+            var constructor = Type("HtmlFragmentContext").GetConstructors().Single(c =>
+            {
+                var parameters = c.GetParameters();
+                return parameters.Length >= 3 && parameters[0].Name == "Name" && parameters[1].Name == "Namespace"
+                    && parameters[2].Name == "Attributes" && parameters.Skip(3).All(p => p.HasDefaultValue);
+            });
+            var arguments = constructor.GetParameters().Select((p, index) => index switch
+            {
+                0 => (object?)input.ContextName,
+                1 => input.ContextNamespace ?? "http://www.w3.org/1999/xhtml",
+                2 => null,
+                _ => p.DefaultValue
+            }).ToArray();
+            fragment = constructor.Invoke(arguments);
+        }
         var options = Activator.CreateInstance(Type("HtmlTreeOptions"), input.Scripting, fragment);
         var limits = Activator.CreateInstance(Type("HtmlTreeLimits"))!;
         if (input.MaxNodes is int nodes) limits.GetType().GetProperty("MaxNodes")!.SetValue(limits, nodes);

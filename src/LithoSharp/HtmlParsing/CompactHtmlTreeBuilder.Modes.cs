@@ -206,9 +206,9 @@ internal sealed partial class CompactHtmlTreeBuilder
             }
             if (name == "form")
             {
-                if (HasFormPointer && Find("template") < 0) { Error("nested-form"); return false; }
+                if (HasFormPointer && !ParsingTemplateContents) { Error("nested-form"); return false; }
                 if (Scope("p", "button")) CloseP();
-                var id = Insert(); if (Find("template") < 0) form = id; return false;
+                var id = Insert(); if (!ParsingTemplateContents) form = id; return false;
             }
             if (name is "li" or "dd" or "dt")
             {
@@ -287,7 +287,7 @@ internal sealed partial class CompactHtmlTreeBuilder
                 if (!Scope("p", "button")) { Error("p-not-in-scope"); Insert("p", synthetic: true); }
                 CloseP(); return false;
             }
-            if (name == "form" && Find("template") < 0)
+            if (name == "form" && !ParsingTemplateContents)
             {
                 var formId = form; form = null; externalForm = false;
                 if (formId is not int id || !Scope("form", target: id)) { Error("form-not-in-scope"); return false; }

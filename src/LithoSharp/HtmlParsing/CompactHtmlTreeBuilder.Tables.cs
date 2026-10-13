@@ -102,8 +102,10 @@ internal sealed partial class CompactHtmlTreeBuilder
                     Error("hidden-input-in-table"); Insert(push: false); return false;
                 case "form":
                     Error("form-in-table");
-                    if (HasFormPointer || Find("template") >= 0) return false;
-                    form = Insert(push: false); return false;
+                    if (HasFormPointer && !ParsingTemplateContents) return false;
+                    var tableForm = Insert(push: false);
+                    if (!ParsingTemplateContents) form = tableForm;
+                    return false;
             }
         }
         if (End("table"))

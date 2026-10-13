@@ -59,6 +59,34 @@ public sealed class HtmlPortableBridgeTests
                 await Assert.That(string.Join(",", facts.Urls.Select(u => u.Value.Value))).IsEqualTo(input.Scripting ? "active" : "fallback,active");
             if (input.Id == "url-attributes")
                 await Assert.That(string.Join(",", facts.Urls.Select(u => u.AttributeName))).IsEqualTo("href,action,formaction,poster,src,data,srcset");
+            if (input.Id == "foreign-fragment-breakout")
+            {
+                // This branch is now covered; retain positive URL/namespace/raw
+                // mapping evidence instead of treating an empty result as success.
+                await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(facts.Diagnostics.Any(d => d.IncompleteCoverage)).IsFalse();
+                await Assert.That(facts.Urls.Count).IsEqualTo(2);
+                var html = facts.Urls[0];
+                var svg = facts.Urls[1];
+                await Assert.That(html.ElementName).IsEqualTo("a");
+                await Assert.That(html.ElementNamespace).IsEqualTo(HtmlNamespaces.Html);
+                await Assert.That(html.AttributeNamespace).IsNull();
+                await Assert.That(html.RawValue).IsEqualTo("before&amp;after");
+                await Assert.That(html.Value.Value).IsEqualTo("before&after");
+                await Assert.That(svg.ElementName).IsEqualTo("linearGradient");
+                await Assert.That(svg.ElementNamespace).IsEqualTo(HtmlNamespaces.Svg);
+                await Assert.That(svg.AttributeNamespace).IsEqualTo(HtmlNamespaces.XLink);
+                await Assert.That(svg.AttributePrefix).IsEqualTo("xlink");
+                await Assert.That(svg.RawValue).IsEqualTo("svg&amp;url");
+                await Assert.That(svg.Value.Value).IsEqualTo("svg&url");
+                foreach (var url in facts.Urls)
+                {
+                    await Assert.That(input.Html.Substring(url.Value.Source.Start, url.Value.Source.Length)).IsEqualTo(url.RawValue);
+                    var entity = url.Value.Segments.Single(s => input.Html.Substring(s.Source.Start, s.Source.Length) == "&amp;");
+                    await Assert.That(entity.ValueLength).IsEqualTo(1);
+                    await Assert.That(entity.Source.Length).IsEqualTo(5);
+                }
+            }
             observations.Add(new { input.Id, facts = JsonSerializer.SerializeToElement(facts) });
         }
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
