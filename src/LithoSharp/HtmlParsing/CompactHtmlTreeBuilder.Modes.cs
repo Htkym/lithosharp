@@ -387,7 +387,7 @@ internal sealed partial class CompactHtmlTreeBuilder
         for (var i = open.Count - 1; i >= 0; i--)
         {
             Check();
-            var node = nodes[open[i]];
+            var node = nodes[i == 0 && foreignFragmentContext is int context ? context : open[i]];
             if (node.Namespace != HtmlNamespaces.Html) continue;
             var selected = node.Name switch
             {

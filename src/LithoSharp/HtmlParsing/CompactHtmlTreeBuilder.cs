@@ -27,6 +27,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     private readonly List<HtmlTreeDiagnostic> diagnostics = [];
     private readonly List<HtmlText> tableText = [];
     private readonly int root;
+    private int? foreignFragmentContext;
     private long operations;
     private int? head, body, form;
     private Mode mode, originalMode;
@@ -48,7 +49,14 @@ internal sealed partial class CompactHtmlTreeBuilder
                 (HtmlNamespaces.Html or HtmlNamespaces.Svg or HtmlNamespaces.MathMl))
                 throw new ArgumentException("A fragment requires an element name and a supported namespace.", nameof(options));
             var name = context.Namespace == HtmlNamespaces.Html ? AsciiLower(context.Name) : context.Name;
-            root = NewNode(HtmlTreeNodeKind.Element, name, context.Namespace, null);
+            if (context.Namespace == HtmlNamespaces.Html)
+                root = NewNode(HtmlTreeNodeKind.Element, name, context.Namespace, null);
+            else
+            {
+                // The context selects foreign rules but is not on the open-element
+                // stack. Its synthetic HTML root is where returned nodes attach.
+                root = NewNode(HtmlTreeNodeKind.Element, "html", HtmlNamespaces.Html, null);
+            }
         }
         else root = NewNode(HtmlTreeNodeKind.Document, null, null, null);
     }
@@ -66,7 +74,9 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             if (options.Fragment is { } context)
             {
-                CopyAttributes(root, context.Attributes ?? [], context.Namespace);
+                if (context.Namespace != HtmlNamespaces.Html)
+                    foreignFragmentContext = NewNode(HtmlTreeNodeKind.Element, context.Name, context.Namespace, null);
+                CopyAttributes(foreignFragmentContext ?? root, context.Attributes ?? [], context.Namespace);
                 open.Add(root);
                 if (IsHtml(root, "form")) form = root;
                 if (IsHtml(root, "template")) templateModes.Add(Mode.InTemplate);
@@ -80,7 +90,7 @@ internal sealed partial class CompactHtmlTreeBuilder
             {
                 Check();
                 // SetContext resets script state: never call it while a text element emits chunks.
-                var foreign = open.Count > 0 && nodes[Current].Namespace != HtmlNamespaces.Html;
+                var foreign = open.Count > 0 && nodes[AdjustedCurrent].Namespace != HtmlNamespaces.Html;
                 if (!textModeActive && foreign != cdataAllowed)
                 {
                     tokenizer.SetContext(HtmlTextMode.Data, allowCdata: foreign);
@@ -115,6 +125,7 @@ internal sealed partial class CompactHtmlTreeBuilder
     }
 
     private int Current => open.Count > 0 ? open[open.Count - 1] : root;
+    private int AdjustedCurrent => open.Count == 1 && foreignFragmentContext is int context ? context : Current;
     private string Name => token.Name?.Value ?? "";
     private bool Start(string name) => token.Kind == HtmlTokenKind.StartTag && Name == name;
     private bool End(string name) => token.Kind == HtmlTokenKind.EndTag && Name == name;

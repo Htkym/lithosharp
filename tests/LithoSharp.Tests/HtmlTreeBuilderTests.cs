@@ -338,8 +338,7 @@ public sealed class HtmlTreeBuilderTests
     {
         foreach (var (raw, options, code) in new[]
         {
-            ("<template shadowrootmode='open'><p>X</p></template>", new HtmlTreeOptions(), "unsupported-declarative-shadow-root"),
-            ("<p>X", new HtmlTreeOptions(Fragment: new("svg", HtmlNamespaces.Svg)), "unsupported-foreign-fragment-breakout")
+            ("<template shadowrootmode='open'><p>X</p></template>", new HtmlTreeOptions(), "unsupported-declarative-shadow-root")
         })
         {
             var tree = Parse(raw, options);
@@ -349,6 +348,71 @@ public sealed class HtmlTreeBuilderTests
         var custom = Parse("<my-element><p>X</p></my-element>");
         await Assert.That(custom.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
         await Assert.That(custom.Elements().Any(n => n.Name == "my-element")).IsTrue();
+    }
+
+    [Test]
+    public async Task ForeignFragments_BreakOutToHtmlWithoutLosingTheAdjustedContext()
+    {
+        foreach (var (contextName, ns, foreignName) in new[]
+        {
+            ("svg", HtmlNamespaces.Svg, "g"),
+            ("math", HtmlNamespaces.MathMl, "mrow")
+        })
+            foreach (var chunk in new[] { 4096, 1, 2, 7 })
+            {
+                var raw = $"<{foreignName} id='before'><p id='html'>H</p><{foreignName} id='after'/>";
+                var tree = Parse(raw, new(Fragment: new(contextName, ns)), chunk);
+                var before = ById(tree, "before");
+                var html = ById(tree, "html");
+                var after = ById(tree, "after");
+                await Assert.That(before.Namespace).IsEqualTo(ns);
+                await Assert.That(html.Namespace).IsEqualTo(HtmlNamespaces.Html);
+                await Assert.That(after.Namespace).IsEqualTo(ns);
+                foreach (var node in new[] { before, html, after })
+                    await Assert.That(node.Parent).IsEqualTo((int?)tree.Root);
+                await Assert.That(tree.TextContent(html.Id)).IsEqualTo("H");
+                await Assert.That(tree.Nodes[before.Id].Children.Count).IsEqualTo(0);
+                await Assert.That(tree.Diagnostics.Any(d => d.Code == "html-token-in-foreign-content")).IsTrue();
+                await Assert.That(tree.Diagnostics.Any(d => d.IncompleteCoverage)).IsFalse();
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await CheckLinksAndSpans(tree, raw.Length);
+            }
+    }
+
+    [Test]
+    public async Task ForeignFragmentContexts_ApplyIntegrationPointsAndForeignTokenAdjustments()
+    {
+        var encoding = new HtmlTokenizer("<x encoding='TEXT/HTML'>").NextToken().Attributes!;
+        foreach (var (context, raw, htmlId, foreignId, foreignName, ns) in new[]
+        {
+            (new HtmlFragmentContext("foreignObject", HtmlNamespaces.Svg), "<p id='html'>H</p><svg><lineargradient id='foreign'/></svg>", "html", "foreign", "linearGradient", HtmlNamespaces.Svg),
+            (new HtmlFragmentContext("desc", HtmlNamespaces.Svg), "<p id='html'>H</p><svg><lineargradient id='foreign'/></svg>", "html", "foreign", "linearGradient", HtmlNamespaces.Svg),
+            (new HtmlFragmentContext("title", HtmlNamespaces.Svg), "<p id='html'>H</p><svg><lineargradient id='foreign'/></svg>", "html", "foreign", "linearGradient", HtmlNamespaces.Svg),
+            (new HtmlFragmentContext("mi", HtmlNamespaces.MathMl), "<mglyph id='foreign'/><b id='html'>H</b>", "html", "foreign", "mglyph", HtmlNamespaces.MathMl),
+            (new HtmlFragmentContext("annotation-xml", HtmlNamespaces.MathMl, encoding), "<p id='html'>H</p><svg><lineargradient id='foreign'/></svg>", "html", "foreign", "linearGradient", HtmlNamespaces.Svg),
+            (new HtmlFragmentContext("svg", HtmlNamespaces.Svg), "<![CDATA[A&<B>]]><lineargradient id='foreign' viewbox='0 0 1 1' xlink:href='#x'/><p id='html'>H</p>", "html", "foreign", "linearGradient", HtmlNamespaces.Svg)
+        })
+            foreach (var chunk in new[] { 4096, 1 })
+            {
+                var tree = Parse(raw, new(Fragment: context), chunk);
+                await Assert.That(ById(tree, htmlId).Namespace).IsEqualTo(HtmlNamespaces.Html);
+                var foreign = ById(tree, foreignId);
+                await Assert.That(foreign.Namespace).IsEqualTo(ns);
+                await Assert.That(foreign.Name).IsEqualTo(foreignName);
+                await Assert.That(tree.Nodes[tree.Root].Attributes.Count).IsEqualTo(0);
+                await Assert.That(tree.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+                await Assert.That(tree.Diagnostics.Any(d => d.IncompleteCoverage)).IsFalse();
+                if (raw.StartsWith("<![CDATA[", StringComparison.Ordinal))
+                {
+                    await Assert.That(tree.TextContent(tree.Root)).IsEqualTo("A&<B>H");
+                    await Assert.That(foreign.Attributes.Any(a => a.Name == "viewBox")).IsTrue();
+                    await Assert.That(foreign.Attributes.Single(a => a.Name == "href").Namespace).IsEqualTo(HtmlNamespaces.XLink);
+                }
+                await CheckLinksAndSpans(tree, raw.Length);
+            }
+        var budgeted = CompactHtmlTreeBuilder.Parse("<p>X", new(Fragment: new("svg", HtmlNamespaces.Svg)), new() { MaxNodes = 1 });
+        await Assert.That(budgeted.Status).IsEqualTo(HtmlTokenizationStatus.Partial);
+        await Assert.That(budgeted.Diagnostics.Any(d => d.Code == "tree-node-budget" && d.IncompleteCoverage)).IsTrue();
     }
 
     [Test]

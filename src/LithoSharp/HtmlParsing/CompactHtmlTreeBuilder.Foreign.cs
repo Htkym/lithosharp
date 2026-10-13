@@ -48,10 +48,11 @@ internal sealed partial class CompactHtmlTreeBuilder
     }
     private bool UseForeignRules()
     {
-        if (open.Count == 0 || nodes[Current].Namespace == HtmlNamespaces.Html || token.Kind == HtmlTokenKind.EndOfFile) return false;
-        if (MathTextPoint(Current) && (token.Kind == HtmlTokenKind.Text || token.Kind == HtmlTokenKind.StartTag && Name is not ("mglyph" or "malignmark"))) return false;
-        if (nodes[Current].Namespace == HtmlNamespaces.MathMl && nodes[Current].Name == "annotation-xml" && Start("svg")) return false;
-        return !(HtmlPoint(Current) && token.Kind is HtmlTokenKind.Text or HtmlTokenKind.StartTag);
+        var adjusted = AdjustedCurrent;
+        if (open.Count == 0 || nodes[adjusted].Namespace == HtmlNamespaces.Html || token.Kind == HtmlTokenKind.EndOfFile) return false;
+        if (MathTextPoint(adjusted) && (token.Kind == HtmlTokenKind.Text || token.Kind == HtmlTokenKind.StartTag && Name is not ("mglyph" or "malignmark"))) return false;
+        if (nodes[adjusted].Namespace == HtmlNamespaces.MathMl && nodes[adjusted].Name == "annotation-xml" && Start("svg")) return false;
+        return !(HtmlPoint(adjusted) && token.Kind is HtmlTokenKind.Text or HtmlTokenKind.StartTag);
     }
     private bool ProcessForeign()
     {
@@ -66,13 +67,11 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             Error("html-token-in-foreign-content");
             while (open.Count > 1 && nodes[Current].Namespace != HtmlNamespaces.Html && !MathTextPoint(Current) && !HtmlPoint(Current)) { Check(); Pop(); }
-            if (nodes[Current].Namespace != HtmlNamespaces.Html && !MathTextPoint(Current) && !HtmlPoint(Current))
-                Error("unsupported-foreign-fragment-breakout", true);
             return ProcessHtmlAfterForeign();
         }
         if (token.Kind == HtmlTokenKind.StartTag)
         {
-            var ns = nodes[Current].Namespace!;
+            var ns = nodes[AdjustedCurrent].Namespace!;
             var name = ns == HtmlNamespaces.Svg && SvgNames.TryGetValue(Name, out var adjusted) ? adjusted : Name;
             Insert(name, ns, push: !token.SelfClosing);
             return false;
