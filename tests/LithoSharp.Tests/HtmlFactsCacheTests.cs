@@ -137,25 +137,112 @@ public sealed class HtmlFactsCacheTests
     {
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
-        var files = new Dictionary<string, string> { ["index.html"] = Page("", "Home", "<h2 id=old>Heading</h2><img src='pixel.png'>") };
+        var files = new Dictionary<string, string>
+        {
+            ["index.html"] = Page("", "Home", "<a href='../b.html#%6Fld'>Target</a><img src='../b.html#old'><img src='/sub/pixel.png'>")
+                .Replace("</head>", "<base href='https://example.test/sub/nested/'></head>", StringComparison.Ordinal),
+            ["b.html"] = Page("b.html", "Target", "<h2 id='o&#108;d'>Target</h2><span id=extra>Extra</span>"),
+            ["c.html"] = Page("c.html", "Unrelated", "<h2 id=other>Unrelated</h2>"),
+        };
         var customization = new SiteCustomization { Template = new FilesTemplate(files) };
         var options = Options with { GeneratedAssets = [new("pixel", "pixel.png", new byte[] { 1 })] };
         var first = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, true, customization, options, default);
+        await Assert.That(first.QualityReport.HtmlParseCount).IsEqualTo(3);
+        var warm = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+            options with { PreviousBuildPlan = first.BuildPlan }, default);
+        await Assert.That(warm.QualityReport.HtmlParseCount).IsEqualTo(0);
+        await Assert.That(AnchorInvalidations(warm.BuildPlan, first.BuildPlan)).IsEmpty();
+        await Assert.That(warm.BuildReport.Invalidations.Any(value => value.NodeId == "template:legacy-opaque")).IsTrue();
+        await Assert.That(warm.BuildReport.Nodes.Any(node => IsAnchorObservation(node.NodeId))).IsFalse();
+        var referrer = warm.BuildPlan.Nodes.Single(node => node.Id.Equals(QualityAnchorBuildPlan.References("index.html")));
+        await Assert.That(referrer.Dependencies.Select(id => id.Value)).IsEquivalentTo(["quality:anchors:b.html"]);
+        await Assert.That(warm.BuildPlan.Nodes.Where(QualityAnchorBuildPlan.IsObservation).Select(node => node.Id.Value))
+            .IsEquivalentTo(["quality:anchors:index.html", "quality:anchors:b.html", "quality:anchors:c.html",
+                "quality:anchor-references:index.html", "quality:anchor-references:b.html", "quality:anchor-references:c.html"]);
         options = options with { GeneratedAssets = [new("pixel", "pixel.png", new byte[] { 2 })] };
         var changed = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
-            options with { PreviousBuildPlan = first.BuildPlan }, default);
+            options with { PreviousBuildPlan = warm.BuildPlan }, default);
         await Assert.That(changed.BuildReport.Invalidations.Any(value => value.NodeId == "asset:pixel")).IsTrue();
         await Assert.That(changed.QualityReport.HtmlParseCount).IsEqualTo(0);
-        files["index.html"] = files["index.html"].Replace("id=old", "id=new", StringComparison.Ordinal);
-        var anchor = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+        await Assert.That(AnchorInvalidations(changed.BuildPlan, warm.BuildPlan)).IsEmpty();
+        files["b.html"] = Page("b.html", "Target", "<span id=extra>Extra</span><h2 id=old>Target</h2><span id='o&#108;d'>Duplicate</span>");
+        var reordered = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
             options with { PreviousBuildPlan = changed.BuildPlan }, default);
-        await Assert.That(anchor.BuildReport.Invalidations.Count > 0).IsTrue();
+        await Assert.That(reordered.QualityReport.HtmlParseCount).IsEqualTo(1);
+        await Assert.That(AnchorInvalidations(reordered.BuildPlan, changed.BuildPlan)).IsEmpty();
+        files["b.html"] = files["b.html"].Replace("</body>", "<span id=new>New</span></body>", StringComparison.Ordinal);
+        var anchor = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+            options with { PreviousBuildPlan = reordered.BuildPlan }, default);
+        await Assert.That(AnchorInvalidations(anchor.BuildPlan, reordered.BuildPlan))
+            .IsEquivalentTo(["quality:anchors:b.html", "quality:anchor-references:index.html"]);
         await Assert.That(anchor.QualityReport.HtmlParseCount).IsEqualTo(1);
-        Console.WriteLine("HT06_INVALIDATION " + System.Text.Json.JsonSerializer.Serialize(new
+        var original = Snapshot(output);
+        var records = CacheSnapshot(workspace.Root);
+        files["b.html"] = Page("b.html", "Target", "<span id=extra>Extra</span><span id=new>New</span>");
+        var missingAnchor = await Rejected("LSQ002");
+        var missingLink = missingAnchor.Diagnostics.Single(value => value.Id == "LSQ002"
+            && value.Location!.Column == files["index.html"].IndexOf("<a href=", StringComparison.Ordinal) + 1);
+        await Assert.That(missingLink.Location!.FilePath).IsEqualTo("index.html");
+        await Assert.That(missingLink.Location!.Line).IsEqualTo(1);
+        await Assert.That(missingLink.Message).IsEqualTo("Anchor 'old' does not exist in 'b.html'.");
+        await Assert.That(missingAnchor.Report.HtmlParseCount).IsEqualTo(1);
+        var rejectedPlan = QualityAnchorBuildPlan.Attach(anchor.BuildPlan, missingAnchor.Report, default);
+        await Assert.That(AnchorInvalidations(rejectedPlan, anchor.BuildPlan))
+            .IsEquivalentTo(["quality:anchors:b.html", "quality:anchor-references:index.html"]);
+
+        files.Remove("b.html");
+        var missingRoute = await Rejected("LSQ001");
+        var deletedPlan = QualityAnchorBuildPlan.Attach(anchor.BuildPlan, missingRoute.Report, default);
+        await Assert.That(AnchorInvalidations(deletedPlan, anchor.BuildPlan))
+            .IsEquivalentTo(["quality:anchor-references:index.html"]);
+        var deletedReferrer = deletedPlan.GetInvalidatedNodes(anchor.BuildPlan)
+            .Single(value => value.NodeId.Equals(QualityAnchorBuildPlan.References("index.html")));
+        await Assert.That(deletedReferrer.Reasons).Contains("依存ノード 'quality:anchors:b.html' が無効化されました。");
+        await Assert.That(deletedPlan.Nodes.Any(node => node.Id.Equals(QualityAnchorBuildPlan.Anchors("b.html")))).IsFalse();
+
+        files["renamed.html"] = Page("renamed.html", "Target", "<h2 id=old>Target</h2><span id=extra>Extra</span><span id=new>New</span>");
+        files["index.html"] = files["index.html"].Replace("b.html", "renamed.html", StringComparison.Ordinal);
+        var renamed = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+            options with { PreviousBuildPlan = anchor.BuildPlan }, default);
+        await Assert.That(AnchorInvalidations(renamed.BuildPlan, anchor.BuildPlan)).IsEquivalentTo(
+            ["quality:anchors:renamed.html", "quality:anchor-references:renamed.html", "quality:anchor-references:index.html"]);
+        var renamedReferrer = renamed.BuildPlan.GetInvalidatedNodes(anchor.BuildPlan)
+            .Single(value => value.NodeId.Equals(QualityAnchorBuildPlan.References("index.html")));
+        await Assert.That(renamedReferrer.Reasons).Contains("依存ノード 'quality:anchors:b.html' が無効化されました。");
+        await Assert.That(renamed.BuildPlan.Nodes.Single(node => node.Id.Equals(QualityAnchorBuildPlan.References("index.html")))
+            .Dependencies.Select(id => id.Value)).IsEquivalentTo(["quality:anchors:renamed.html"]);
+        await Assert.That(renamed.QualityReport.HtmlParseCount).IsEqualTo(2);
+        await Assert.That(renamed.QualityReport.HtmlFactsCacheHitCount).IsEqualTo(1);
+        Console.WriteLine("HT06_ANCHOR_OBSERVATIONS " + System.Text.Json.JsonSerializer.Serialize(new
         {
-            asset = changed.BuildReport.Invalidations, anchor = anchor.BuildReport.Invalidations,
-            assetParse = changed.QualityReport.HtmlParseCount, anchorParse = anchor.QualityReport.HtmlParseCount,
+            coldParse = first.QualityReport.HtmlParseCount, warmParse = warm.QualityReport.HtmlParseCount,
+            assetParse = changed.QualityReport.HtmlParseCount, reorderedParse = reordered.QualityReport.HtmlParseCount,
+            anchorParse = anchor.QualityReport.HtmlParseCount, failedAnchorParse = missingAnchor.Report.HtmlParseCount,
+            renameParse = renamed.QualityReport.HtmlParseCount,
+            observations = anchor.BuildPlan.Nodes.Where(QualityAnchorBuildPlan.IsObservation),
+            anchor = anchor.BuildPlan.GetInvalidatedNodes(reordered.BuildPlan),
+            deleted = deletedPlan.GetInvalidatedNodes(anchor.BuildPlan), renamed = renamed.BuildPlan.GetInvalidatedNodes(anchor.BuildPlan),
+            failureLocations = missingAnchor.Diagnostics.Where(value => value.Id == "LSQ002"),
+            originalOutputHashes = original, successfulCacheHashes = records,
+            rejectedOutputAndCacheUnchanged = true, opaqueFallbackPreserved = true,
         }));
+
+        async Task<SiteQualityValidationException> Rejected(string diagnostic)
+        {
+            SiteQualityValidationException? failure = null;
+            try { await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+                options with { PreviousBuildPlan = anchor.BuildPlan }, default); }
+            catch (SiteQualityValidationException exception) { failure = exception; }
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(failure!.Diagnostics.Any(value => value.Id == diagnostic)).IsTrue();
+            await Assert.That(Snapshot(output)).IsEquivalentTo(original);
+            await Assert.That(CacheSnapshot(workspace.Root)).IsEquivalentTo(records);
+            return failure!;
+        }
+        static bool IsAnchorObservation(string id) => id.StartsWith("quality:anchors:", StringComparison.Ordinal)
+            || id.StartsWith("quality:anchor-references:", StringComparison.Ordinal);
+        static string[] AnchorInvalidations(SiteBuildPlan plan, SiteBuildPlan previous) => plan.GetInvalidatedNodes(previous)
+            .Select(value => value.NodeId.Value).Where(IsAnchorObservation).ToArray();
     }
 
     [Test]

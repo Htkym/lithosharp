@@ -150,13 +150,17 @@ public sealed class SiteBuildPlan
             }
         }
 
-        var dependentsByNode = Nodes
-            .SelectMany(node => node.Dependencies.Select(dependency => (Dependency: dependency, Node: node)))
+        // Removed nodes still invalidate surviving dependents through the last successful edges.
+        var currentIds = Nodes.Select(node => node.Id).ToHashSet();
+        foreach (var removed in previousNodes.Keys.Where(id => !currentIds.Contains(id)))
+            reasonsByNode.Add(removed, new SortedSet<string>(StringComparer.Ordinal) { "ノードが削除されました。" });
+        var dependentsByNode = Nodes.Concat(previousPlan.Nodes)
+            .SelectMany(node => node.Dependencies.Select(dependency => (Dependency: dependency, Node: node.Id)))
             .GroupBy(pair => pair.Dependency)
             .ToDictionary(
                 group => group.Key,
-                group => group.Select(pair => pair.Node)
-                    .OrderBy(node => node.Id.Value, StringComparer.Ordinal)
+                group => group.Select(pair => pair.Node).Distinct()
+                    .OrderBy(node => node.Value, StringComparer.Ordinal)
                     .ToArray());
         var pending = new SortedSet<BuildNodeId>(
             reasonsByNode.Keys,
@@ -173,17 +177,17 @@ public sealed class SiteBuildPlan
 
             foreach (var node in dependents)
             {
-                var wasInvalid = reasonsByNode.TryGetValue(node.Id, out var reasons);
+                var wasInvalid = reasonsByNode.TryGetValue(node, out var reasons);
                 if (!wasInvalid)
                 {
                     reasons = new SortedSet<string>(StringComparer.Ordinal);
-                    reasonsByNode.Add(node.Id, reasons);
+                    reasonsByNode.Add(node, reasons);
                 }
 
                 reasons!.Add($"依存ノード '{dependency}' が無効化されました。");
                 if (!wasInvalid)
                 {
-                    pending.Add(node.Id);
+                    pending.Add(node);
                 }
             }
         }

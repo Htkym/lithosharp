@@ -33,6 +33,7 @@ internal static class SiteQualityValidator
         var cssReferences = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var links = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var externalLinks = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+        var anchorReferences = new List<HtmlAnchorReference>();
         var parseCount = 0;
         foreach (var path in textFilePaths.Order(StringComparer.Ordinal))
         {
@@ -176,6 +177,7 @@ internal static class SiteQualityValidator
             HtmlFactsCacheHitCount = factsCache?.HitCount ?? 0,
             HtmlReferences = Array.AsReadOnly(pages.Values.Select(page => page.Snapshot).ToArray()),
             CssReferences = Array.AsReadOnly(cssFiles.Values.ToArray()),
+            AnchorReferences = Array.AsReadOnly(anchorReferences.ToArray()),
         };
 
         void CheckReference(HtmlReference reference, string path, HtmlSnapshotPosition? element)
@@ -217,6 +219,7 @@ internal static class SiteQualityValidator
             if (address.Fragment.Length > 1 && pages.TryGetValue(targetPath, out var targetPage))
             {
                 var fragment = Uri.UnescapeDataString(address.Fragment[1..]);
+                anchorReferences.Add(new(path, targetPath, fragment));
                 if (!targetPage.Anchors.Contains(fragment))
                     Add("LSQ002", SiteDiagnosticSeverity.Error, $"Anchor '{fragment}' does not exist in '{targetPath}'.", path, element);
             }

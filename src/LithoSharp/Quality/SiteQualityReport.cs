@@ -52,6 +52,7 @@ public sealed class SiteQualityReport
 
     internal IReadOnlyList<HtmlReferenceSnapshot> HtmlReferences { get; init; } = [];
     internal IReadOnlyList<CssReferenceSnapshot> CssReferences { get; init; } = [];
+    internal IReadOnlyList<HtmlAnchorReference> AnchorReferences { get; init; } = [];
 
     /// <summary>指定形式で診断を出力します。</summary>
     /// <param name="format">テキスト、JSON、またはSARIF形式。</param>
@@ -197,3 +198,6 @@ public sealed class SiteQualityValidationException : InvalidOperationException
     /// <summary>レポートの診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics => Report.Diagnostics;
 }
+
+// Captured at the existing LSQ002 decision, including non-navigation and CSS references.
+internal sealed record HtmlAnchorReference(string SourcePath, string TargetPath, string Fragment);

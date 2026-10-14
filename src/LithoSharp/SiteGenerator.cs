@@ -787,6 +787,7 @@ public sealed partial class SiteGenerator
                     referenceIdentities).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
+                buildPlan = QualityAnchorBuildPlan.Attach(buildPlan, qualityReport, cancellationToken);
             }
 
             await sharedHtmlFacts.ReleaseAsync().ConfigureAwait(false);
@@ -944,7 +945,7 @@ public sealed partial class SiteGenerator
             buildTimestamp,
             environmentName,
             template.GetType().FullName ?? template.GetType().Name,
-            execution?.Nodes ?? plan.Nodes.Select(node => new SiteBuildReportNode(
+            execution?.Nodes ?? plan.Nodes.Where(node => !QualityAnchorBuildPlan.IsObservation(node)).Select(node => new SiteBuildReportNode(
                 node.Id.Value,
                 node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray())),
             invalidations,
