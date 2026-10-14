@@ -17,10 +17,13 @@
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/LegacyTestingDomContract.cs" Link="Shared/LegacyTestingDomContract.cs" />
     <Compile Include="../Shared/WatchLifecycleSidecar.cs" Link="WatchLifecycleSidecar.cs" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <ProjectReference Include="..\LithoSharp\LithoSharp.csproj" />
     <ProjectReference Include="..\LithoSharp.Mdx\LithoSharp.Mdx.csproj" />
+    <ProjectReference Include="..\LithoSharp.Testing\LithoSharp.Testing.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>

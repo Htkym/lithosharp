@@ -333,6 +333,8 @@ internal static class FactoryHost
 internal sealed record HostResponse
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public HostTestingMigrationReport? Migration { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public HostPreflightReport? Preflight { get; init; }
     public string SchemaVersion { get; init; } = MachineOutput.SchemaVersion;
     public bool Success { get; init; }

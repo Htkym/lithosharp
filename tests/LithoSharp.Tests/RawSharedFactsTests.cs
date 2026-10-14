@@ -48,7 +48,9 @@ public sealed class RawSharedFactsTests
         await owner.BeginQualityAsync();
         await owner.GetQualityAsync(html, default);
         var qualityRaw = await owner.GetQualityRawAsync(html, default);
-        await Assert.That(ReferenceEquals(qualityRaw, materials[0])).IsTrue();
+        await Assert.That(qualityRaw.Elements.SequenceEqual(materials[0].Elements)).IsTrue();
+        await Assert.That(qualityRaw.Materials!.Search is null).IsTrue();
+        await Assert.That(materials[0].Materials!.Search is not null).IsTrue();
         await Assert.That(owner.Counters.ParseCount).IsEqualTo(5);
         await owner.ReleaseAsync();
         await Assert.That(owner.Counters.EntryCount).IsEqualTo(0);

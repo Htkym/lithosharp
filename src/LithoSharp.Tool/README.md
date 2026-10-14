@@ -39,5 +39,13 @@ for build graph and cache information, and `clean` to remove unchanged owned fil
 `build --clean` performs a full output replacement. Sites export one public
 parameterless `ISiteFactory`; ordinary library callers can use the same definition.
 
+Testing migration is a static report over explicit source and isolated legacy metadata:
+
+```sh
+lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1/LithoSharp.Testing.dll --reference /isolated/1.1/AngleSharp.dll --format json
+```
+
+The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/feature/2.0.0/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
+
 See the [CLI guide](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md) for
 factory examples, output behavior, development server limitations and deployment support.

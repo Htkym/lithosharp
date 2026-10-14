@@ -61,6 +61,20 @@ Malformed selectors throw HtmlSelectorSyntaxException. Recognized unsupported fe
 
 DOM syntax exceptions become HtmlSelectorSyntaxException; unsupported features use HtmlSelectorUnsupportedException. First-match and tree-order behavior is retained for supported queries. Neither old source nor old binary DOM consumers can be migrated by a blind rename. User-owned dependencies are not removed.
 
+The CLI can report legacy metadata-bound reads before you edit them:
+
+```sh
+lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1/LithoSharp.Testing.dll --reference /isolated/1.1/AngleSharp.dll --format json
+```
+
+Inputs are explicit UTF-8 C# files and metadata references. No project, build target, source generator, script, factory, getter or user assembly is executed. The old assemblies are read as PE metadata; they are not loaded into the CLI runtime or added to the v2 dependency graph. Source files and dependencies are never edited.
+
+The existing JSON envelope includes `migration.sources` and `migration.references` with SHA256 of the exact input bytes, plus `findings`. Each finding contains the original UTF-16 `start`/`length`, one-based line/column, containing expression, classification, reason and optional preview. Positions include an original UTF-8 BOM character; hashes include BOM and CRLF bytes. `ReadCandidate` previews rename supported direct reads; they are suggestions requiring review of return type, null, ordering, exceptions and owner lifetime. `Manual` covers mutation, casts, aliases/escaping DOM, custom uses and unsupported selectors. `Unknown` covers missing binding or nonconstant selectors and has no guessed replacement. The actual v2 query grammar checks constant selectors.
+
+LSA1501 remains a Warning for the exact bound legacy getter, including normal pragma/generated-code policy. CLI findings independently inspect bound symbols in every explicit input, including suppressed and generated code; a finding's `diagnosticId` associates the migration rule without asserting that a Warning was emitted. Lookalike user APIs and already-v2 snapshots are excluded. A removed v2 `Document` access remains a compiler error with Unknown binding, not a legacy Warning. Indexed DOM uses retain their outer expression and require manual review, including mutation and casts through an indexer. Exit 0 means static analysis finished without compiler errors; exit 1 reports compiler/input failure; exit 2 is invalid usage. `migration.coverage` remains Partial because this explicit-source report does not prove automatic conversion or follow DOM aliases. No apply or project option is available.
+
+`ReadCandidate` requires a supported read chain used directly as an ordinary local variable initializer. Unrecognized surrounding operators, calls or other contexts are `Manual` with `outer_use_not_supported`; an inner read does not make an outer expression a candidate.
+
 For a previous SetAttribute/TextContent mutation, change the input or template explicitly:
 
 ```csharp
