@@ -274,7 +274,6 @@ public sealed class SiteQualityTests
             /* url(comment-missing.png) */
             body::before { content: "url(string-missing.png)"; --ignored: myurl(name-missing.png) }
             body { background: u\72l('images/\71 uoted.svg'/* trailing comment */); mask: url(images/un\quoted.svg) }
-            .bad { background: url(bad value\) url(remnant-missing.png)); mask: url(images/unquoted.svg) }
             """;
         await File.WriteAllTextAsync(source, valid);
         var result = await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default);
@@ -282,6 +281,12 @@ public sealed class SiteQualityTests
         var originalHtml = await File.ReadAllBytesAsync(Path.Combine(output, "index.html"));
         var publishedCss = Directory.EnumerateFiles(output, "custom*.css").Single();
         var originalCss = await File.ReadAllBytesAsync(publishedCss);
+        await File.WriteAllTextAsync(source, valid + "\n.bad { background: url(bad value\\) url(remnant-missing.png)); mask: url(images/unquoted.svg) }");
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default))
+            .Throws<HtmlQualitySnapshotIncompleteException>();
+        await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).IsEquivalentTo(originalHtml);
+        await Assert.That(await File.ReadAllBytesAsync(publishedCss)).IsEquivalentTo(originalCss);
+        await Assert.That(Directory.EnumerateFiles(output, "custom*.css").Single()).IsEqualTo(publishedCss);
         await File.WriteAllTextAsync(source, valid + "\n.missing { background: url(real-missing.svg) }");
         failure = null;
         try { await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default); }
