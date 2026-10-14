@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using LithoSharp.HtmlParsing;
 using LithoSharp.Internal;
@@ -9,6 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 
 namespace LithoSharp.Analyzers;
 
@@ -22,6 +25,8 @@ internal static class HtmlLiteralAnalysis
     internal const int MaxNodes = 8192;
     internal const int MaxDepth = 128;
     internal const int MaxOperations = 262144;
+    internal const int MaxLiteralCount = 64;
+    internal const int MaxExpressionDepth = 64;
 
     internal static HtmlLiteralFacts Parse(string html, CancellationToken cancellation) => HtmlLiteralFacts.Parse(html,
         limits: new HtmlTreeLimits
@@ -36,13 +41,9 @@ internal static class HtmlLiteralAnalysis
     // Called only after the exact metadata UnsafeRaw(string) sink has bound successfully.
     internal static void Analyze(OperationBlockAnalysisContext context, IOperation argument)
     {
-        var syntax = argument.Syntax;
-        while (syntax is ParenthesizedExpressionSyntax parentheses) syntax = parentheses.Expression;
-        if (syntax is not LiteralExpressionSyntax literal || argument.Type?.SpecialType != SpecialType.System_String
-            || literal.Token.ValueText.Length > MaxInputLength || literal.Token.Span.Length > MaxSourceLength) return;
-        var map = CSharpLiteralMap.Create(literal.Token);
-        if (map is null) return;
-        var facts = Parse(literal.Token.ValueText, context.CancellationToken);
+        var input = Extract(argument, context.CancellationToken);
+        if (input is null) return;
+        var facts = Parse(input.Value, context.CancellationToken);
         if (facts.Status != HtmlTokenizationStatus.Complete || facts.Diagnostics.Any(d => d.IncompleteCoverage)) return;
         var remainingMappingOperations = MaxOperations;
         foreach (var url in facts.Urls)
@@ -56,7 +57,7 @@ internal static class HtmlLiteralAnalysis
                 var segmentIndex = 0;
                 foreach (var candidate in SrcsetUrlScanner.ReadCandidates(url.Value.Value, context.CancellationToken))
                 {
-                    var candidateSource = MapCandidate(url.Value, candidate.Source, literal.Token.ValueText.Length,
+                    var candidateSource = MapCandidate(url.Value, candidate.Source, input.Value.Length,
                         context.CancellationToken, ref segmentIndex, ref remainingMappingOperations);
                     if (candidateSource is not { } source) continue;
                     Report(candidate.Value, true, source);
@@ -78,14 +79,98 @@ internal static class HtmlLiteralAnalysis
             {
                 var issue = SiteQualityUrlRules.IndependentIssue(value, isResource);
                 if (issue == SiteQualityUrlIssue.None) return;
-                var span = map.Map(source.Start, source.Length);
+                var span = input.Map(source);
                 if (span is null) return;
                 var properties = ImmutableDictionary<string, string?>.Empty.Add("staticState", "Known")
                     .Add("parserStatus", "Complete").Add("runtimeRule", "LSQ001")
                     .Add("origin", "original-literal-url-utf16-span").Add("reason", issue.ToString());
-                context.ReportDiagnostic(Diagnostic.Create(Rule, Location.Create(literal.SyntaxTree, span.Value),
+                context.ReportDiagnostic(Diagnostic.Create(Rule, Location.Create(argument.Syntax.SyntaxTree, span.Value),
                     properties, url.AttributeName, issue.ToString()));
             }
+        }
+    }
+
+    private sealed record LiteralPiece(int Start, int Length, CSharpLiteralMap Map);
+
+    private sealed record LiteralInput(string Value, IReadOnlyList<LiteralPiece> Pieces)
+    {
+        internal TextSpan? Map(HtmlSpan source)
+        {
+            if (source.Start < 0 || source.Length < 0 || source.Start > Value.Length
+                || source.Length > Value.Length - source.Start) return null;
+            // A zero-length origin at a concatenation boundary has more than one possible token.
+            if (source.Length == 0 && Pieces.Count > 1
+                && Pieces.Any(piece => source.Start == piece.Start || source.Start == piece.Start + piece.Length)) return null;
+            foreach (var piece in Pieces)
+                if (source.Start >= piece.Start && source.End <= piece.Start + piece.Length)
+                    return piece.Map.Map(source.Start - piece.Start, source.Length);
+            return null;
+        }
+    }
+
+    private static LiteralInput? Extract(IOperation argument, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        var syntax = argument.Syntax;
+        var wrappingDepth = 0;
+        while (syntax.Parent is ParenthesizedExpressionSyntax parent)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (++wrappingDepth >= MaxExpressionDepth) return null;
+            syntax = parent;
+            if (syntax.Span.Length > MaxSourceLength) return null;
+        }
+        if (argument.Type?.SpecialType != SpecialType.System_String || syntax.Span.Length > MaxSourceLength
+            || !argument.ConstantValue.HasValue || argument.ConstantValue.Value is not string constant) return null;
+        var syntaxLeaves = 0;
+        if (!WithinSyntaxBudget(syntax, 0)) return null;
+        var pieces = new List<LiteralPiece>();
+        var value = new StringBuilder();
+        if (!Visit(argument, 0)) return null;
+        var decoded = value.ToString();
+        return decoded == constant ? new LiteralInput(decoded, pieces.AsReadOnly()) : null;
+
+        // C# parentheses can be absent from IOperation. Bound the original syntax as well.
+        bool WithinSyntaxBudget(SyntaxNode node, int depth)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (depth >= MaxExpressionDepth) return false;
+            if (node is ParenthesizedExpressionSyntax parentheses) return WithinSyntaxBudget(parentheses.Expression, depth + 1);
+            if (node is BinaryExpressionSyntax binary)
+                return WithinSyntaxBudget(binary.Left, depth + 1) && WithinSyntaxBudget(binary.Right, depth + 1);
+            return node is LiteralExpressionSyntax && ++syntaxLeaves <= MaxLiteralCount;
+        }
+
+        bool Visit(IOperation operation, int depth)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (depth >= MaxExpressionDepth || operation.Type?.SpecialType != SpecialType.System_String) return false;
+            if (operation is IParenthesizedOperation parentheses) return Visit(parentheses.Operand, depth + 1);
+            if (operation is IConversionOperation conversion)
+                return conversion.IsImplicit && conversion.Conversion.IsIdentity && !conversion.Conversion.IsUserDefined
+                    && Visit(conversion.Operand, depth + 1);
+            if (operation is IBinaryOperation binary)
+                return binary.OperatorKind == BinaryOperatorKind.Add && binary.OperatorMethod is null && !binary.IsLifted
+                    && binary.LeftOperand.Type?.SpecialType == SpecialType.System_String
+                    && binary.RightOperand.Type?.SpecialType == SpecialType.System_String
+                    && Visit(binary.LeftOperand, depth + 1) && Visit(binary.RightOperand, depth + 1);
+            if (operation is not ILiteralOperation) return false;
+            var syntax = operation.Syntax;
+            while (syntax is ParenthesizedExpressionSyntax parenthesized)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (++depth >= MaxExpressionDepth) return false;
+                syntax = parenthesized.Expression;
+            }
+            if (syntax is not LiteralExpressionSyntax literal || literal.ContainsDiagnostics
+                || !operation.ConstantValue.HasValue || operation.ConstantValue.Value is not string text
+                || text != literal.Token.ValueText || pieces.Count >= MaxLiteralCount
+                || text.Length > MaxInputLength - value.Length) return false;
+            var map = CSharpLiteralMap.Create(literal.Token);
+            if (map is null) return false;
+            pieces.Add(new LiteralPiece(value.Length, text.Length, map));
+            value.Append(text); // Decode each token first; never reinterpret escapes across token boundaries.
+            return true;
         }
     }
 

@@ -62,10 +62,23 @@ cross-compilation state or user-code execution is used.
 ## Direct literal URL contract (RA-04B / LSA1105)
 
 The same UnsafeRaw(string) metadata sink accepts direct normal, verbatim and raw
-string literals for URL analysis. Parentheses are permitted. This first scope does
-not infer HTML from arbitrary strings, const/flow variables, concatenations or
-interpolations, including constant holes. Those composite inputs remain Deferred
-for LSA1105, even if another bounded static-value rule knows their resulting text.
+string literals and bounded built-in string additions composed only of those
+literal leaves. Parentheses and implicit identity conversions are permitted.
+Normal binding, string operand types, Add with no OperatorMethod, literal leaves
+and equality of joined decoded values with compiler ConstantValue are all required.
+ConstantValue alone never admits arbitrary expressions. Nonliteral leaves,
+const/flow variables, calls/getters, null/numeric operands, explicit casts,
+user operators/conversions and interpolations (including constant holes) remain
+Deferred. Extraction limits are 64 literal leaves and 64 operation/syntax levels,
+with the existing decoded and total expression source-size limits below.
+
+Each C# token is decoded separately before its ValueText is joined. Token.Text
+concatenation or reinterpretation of escapes across tokens is forbidden. The joined
+HTML is parsed once. An original HTML URL/entity range must fit wholly in one leaf
+to use that leaf's CSharpLiteralMap; cross-leaf origins and empty origins at a leaf
+boundary are candidate-local Deferred, never an expression-wide/attribute-wide
+span substitute. Cancellation propagates from extraction and parsing; interrupted
+analysis is not promoted to Complete.
 
 The existing host-safe HtmlLiteralFacts bridge supplies the actual repaired tree's
 URL attributes, decoded entity values, raw source ranges and rel metadata. Parsing

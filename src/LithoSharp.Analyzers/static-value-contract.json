@@ -39,14 +39,15 @@
   },
   "literalHtml": {
     "task": "RA-04B", "id": "LSA1105", "severity": "Error",
-    "sink": "exact Html.UnsafeRaw(string) metadata overload; direct normal/verbatim/raw string literal only",
+    "sink": "exact Html.UnsafeRaw(string) metadata overload; direct normal/verbatim/raw string literals or bounded built-in string Add composed only of literal leaves",
     "bridge": "HtmlLiteralFacts/CompactHtmlTreeBuilder compiled privately from the same portable source",
     "runtimeRule": "LSQ001/SiteQualityUrlRules base-independent projection",
     "budgets": { "decodedUtf16Length": 65536, "sourceUtf16Length": 655360, "nodes": 8192, "depth": 128, "operations": 262144 },
     "errorPolicy": "complete tree without incomplete-coverage diagnostics; exact verified source map; empty resource or explicit absolute-scheme malformed/unsupported/credential URL",
     "origin": "original attribute value URL UTF16 range through validated C# escape/verbatim/raw-indent map; srcset candidates first map through the same attribute HtmlText.Segments; no fabricated substring",
+    "concatenation": { "literalCount": 64, "expressionDepth": 64, "proof": "normal binding; built-in string Add with no OperatorMethod, string operands and literal leaves; joined decoded ValueText must match compiler ConstantValue", "decode": "each token decoded separately before joining; no token.Text concatenation or cross-token escape reinterpretation", "origin": "entire original HTML URL/entity range must fit one leaf; cross-leaf or ambiguous empty origins are candidate-local Deferred", "cancellation": "propagates from extraction and parser; no partial analysis promoted to Complete" },
     "srcset": { "scanner": "explicit private inclusion of the same runtime SrcsetUrlScanner source", "selection": "accepted candidate URLs only; discarded descriptors and empty lists add no URL Error", "mapping": "decoded candidate range -> contiguous original HTML segments -> original C# literal; no attribute-wide fallback", "mappingOperations": 262144, "scope": "base-independent LSQ001 only; no image selection, sizes or author conformance" },
-    "deferred": ["Partial/Failed tree", "unknown or unmappable source", "missing/discontinuous/unsafely split srcset mapping", "dynamic/constant interpolation", "concatenation", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "CSS URL splitting", "unregistered formaction", "budgets"]
+    "deferred": ["Partial/Failed tree", "unknown or unmappable source", "missing/discontinuous/unsafely split srcset mapping", "dynamic/constant interpolation", "nonliteral or user-defined concatenation", "cross-leaf URL/entity or ambiguous empty origin", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "CSS URL splitting", "unregistered formaction", "budgets"]
   },
   "routeManifest": {
     "task": "RA-05", "contract": "explicit-manifest-route-lookup/1",
