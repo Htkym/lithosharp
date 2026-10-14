@@ -1,10 +1,11 @@
 using System.Text;
 using LithoSharp.Search;
+using ParsedHtmlText = global::LithoSharp.HtmlParsing.HtmlText;
 
 namespace LithoSharp.HtmlParsing;
 
 // One immutable, bounded tree per HTML input. No selector, mutation or cross-build cache contract.
-internal sealed class HtmlFacts
+internal sealed partial class HtmlFacts
 {
     private readonly CompactHtmlTree tree;
     private readonly int[] lineStarts;
@@ -72,33 +73,43 @@ internal sealed class HtmlFacts
     public string TextContent(int root, bool search = false, bool separateElements = false)
     {
         var text = new StringBuilder();
+        foreach (var chunk in TextContentChunks(root, search, separateElements)) text.Append(chunk?.Value ?? " ");
+        return text.ToString();
+    }
+
+    private IEnumerable<ParsedHtmlText?> TextContentChunks(int root, bool search, bool separateElements)
+    {
         var pending = new Stack<(int Id, bool Closing)>();
         pending.Push((root, false));
         while (pending.TryPop(out var item))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (item.Closing) { text.Append(' '); continue; }
+            if (item.Closing) { yield return null; continue; }
             var node = tree.Nodes[item.Id];
             if (search && ExcludedFromSearch(node))
             {
-                if (separateElements) text.Append(' ');
+                if (separateElements) yield return null;
                 continue;
             }
             if (separateElements && node.Kind is HtmlTreeNodeKind.Comment or HtmlTreeNodeKind.ProcessingInstruction)
-                text.Append(' ');
+                yield return null;
             if (node.Kind == HtmlTreeNodeKind.Text)
-                foreach (var chunk in node.TextChunks) text.Append(chunk.Value);
+                foreach (var chunk in node.TextChunks) yield return chunk;
             if (separateElements && node.Kind == HtmlTreeNodeKind.Element)
             {
-                text.Append(' ');
+                yield return null;
                 pending.Push((node.Id, true));
             }
             for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push((node.Children[i], false));
         }
-        return text.ToString();
     }
 
     public IReadOnlyList<SearchSection> SearchSections()
+        => Array.AsReadOnly(SectionRoots().Select(section => new SearchSection(TextContent(section.Heading.Id, search: true),
+            Attribute(section.Heading, "id")!, SiteGenerator.NormalizeForIndex(string.Concat(section.Body
+                .Select(root => TextContent(root, search: true) + " "))))).ToArray());
+
+    private IEnumerable<(HtmlTreeNode Heading, int[] Body)> SectionRoots()
     {
         // Each child's position is indexed once, so adjacent headings do not
         // repeatedly scan their parent's preceding siblings.
@@ -112,11 +123,10 @@ internal sealed class HtmlFacts
                 siblingPositions[parent.Children[i]] = i;
             }
         }
-        var sections = new List<SearchSection>();
         foreach (var heading in SearchElements())
         {
-            if (heading.Name is not ("h1" or "h2" or "h3" or "h4" or "h5" or "h6") || Attribute(heading, "id") is not { } anchor) continue;
-            var body = new StringBuilder();
+            if (heading.Name is not ("h1" or "h2" or "h3" or "h4" or "h5" or "h6") || Attribute(heading, "id") is null) continue;
+            var body = new List<int>();
             var siblings = tree.Nodes[heading.Parent!.Value].Children;
             for (var i = siblingPositions[heading.Id] + 1; i < siblings.Count; i++)
             {
@@ -125,11 +135,10 @@ internal sealed class HtmlFacts
                 if (sibling.Kind != HtmlTreeNodeKind.Element || ExcludedFromSearch(sibling)) continue;
                 // Preserve the old sibling stop rule, including h0/h7..h9.
                 if (sibling.Name is { Length: 2 } name && name[0] == 'h' && char.IsDigit(name[1])) break;
-                body.Append(TextContent(sibling.Id, search: true)).Append(' ');
+                body.Add(sibling.Id);
             }
-            sections.Add(new(TextContent(heading.Id, search: true), anchor, SiteGenerator.NormalizeForIndex(body.ToString())));
+            yield return (heading, body.ToArray());
         }
-        return sections.AsReadOnly();
     }
 
     private IEnumerable<HtmlTreeNode> SearchElements()

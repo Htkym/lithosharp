@@ -1,11 +1,16 @@
 using System.Globalization;
+using LithoSharp.HtmlParsing;
 
 namespace LithoSharp.Quality;
 
 internal static class SrcsetUrlScanner
 {
+    internal sealed record Candidate(string Value, HtmlSpan Source);
     // Extract accepted srcset candidate URLs; image selection and sizes are separate concerns.
     internal static IEnumerable<string> Read(string value, CancellationToken cancellationToken)
+        => ReadCandidates(value, cancellationToken).Select(candidate => candidate.Value);
+
+    internal static IEnumerable<Candidate> ReadCandidates(string value, CancellationToken cancellationToken)
     {
         var index = 0;
         while (index < value.Length)
@@ -30,7 +35,7 @@ internal static class SrcsetUrlScanner
                     cancellationToken.ThrowIfCancellationRequested();
                     urlEnd--;
                 }
-                yield return value[urlStart..urlEnd];
+                yield return new(value[urlStart..urlEnd], new(urlStart, urlEnd - urlStart));
                 continue;
             }
 
@@ -68,7 +73,7 @@ internal static class SrcsetUrlScanner
                     ref width, ref density, ref height, cancellationToken);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (valid && (!height || width)) yield return value[urlStart..urlEnd];
+            if (valid && (!height || width)) yield return new(value[urlStart..urlEnd], new(urlStart, urlEnd - urlStart));
         }
     }
 

@@ -314,7 +314,8 @@ public sealed partial class SiteGenerator
         // Keep this actual core catalog for rendering; do not re-run route callbacks.
         // Known errors must stop before an extension can perform SSR or bundling.
         pageRouteTable.ValidateOrThrow();
-        await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null);
+        await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null,
+            rawDemand: options.RawHtmlFactsDemand);
         var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
         var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
             catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
@@ -768,11 +769,22 @@ public sealed partial class SiteGenerator
                 string ValidationRootFor(string path) => execution?.PublishedOutputRetained == true
                     ? outputRoot
                     : outputTransaction.StagingRoot;
+                var referenceIdentities = new Dictionary<string, HtmlPageIdentity>(StringComparer.Ordinal);
+                foreach (var claim in publishedMarkdownClaims)
+                    referenceIdentities.Add(claim.Page.Route.RelativeOutputPath, new(claim.Page.Route.RelativeOutputPath,
+                        claim.Page.Route.PublicPath, claim.Page.Id.Value, claim.Page.Metadata.Document));
+                foreach (var claim in publishedExtraPageClaims)
+                    referenceIdentities.Add(claim.Page.Route.RelativeOutputPath, new(claim.Page.Route.RelativeOutputPath,
+                        claim.Page.Route.PublicPath, claim.Page.Id.Value, claim.Page.Metadata.Document));
+                foreach (var page in contentPages)
+                    referenceIdentities.Add(page.Route.RelativeOutputPath, new(page.Route.RelativeOutputPath,
+                        page.Route.PublicPath, page.PageId.Value, page.Metadata.Document));
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
                     (path, token) => ReadQualityTextAsync(ValidationRootFor(path), path, inspectedQualityOutput, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
-                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache, sharedHtmlFacts).ConfigureAwait(false);
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache, sharedHtmlFacts,
+                    referenceIdentities).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
             }

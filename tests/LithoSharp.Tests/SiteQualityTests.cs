@@ -142,6 +142,20 @@ public sealed class SiteQualityTests
             await Assert.That(report.Diagnostics.Any(d => d.Id == id)).IsTrue();
         await Assert.That(report.Diagnostics.First(d => d.Id == "LSQ001").Location!.Line).IsNotNull();
         await Assert.That(report.Diagnostics.Any(d => d.Id == "LSQ007" && d.Location!.FilePath == "other.html")).IsFalse();
+        (string Id, SiteDiagnosticSeverity Severity, string Message, string? Path, int? Line, int? Column)[] expected =
+        [
+            ("LSQ003", SiteDiagnosticSeverity.Error, "The canonical URL must identify this page's public route.", "index.html", 1, 47),
+            ("LSQ003", SiteDiagnosticSeverity.Error, "A page must declare exactly one canonical URL.", "orphan.html", null, null),
+            ("LSQ009", SiteDiagnosticSeverity.Warning, "Page title 'Same' is duplicated.", "index.html", null, null),
+            ("LSQ009", SiteDiagnosticSeverity.Warning, "Page title 'Same' is duplicated.", "other.html", null, null),
+            ("LSQ010", SiteDiagnosticSeverity.Warning, "SEO field 'description' is missing or empty.", "orphan.html", null, null),
+            ("LSQ010", SiteDiagnosticSeverity.Warning, "SEO field 'og:description' is missing or empty.", "orphan.html", null, null),
+            ("LSQ010", SiteDiagnosticSeverity.Warning, "SEO field 'og:title' is missing or empty.", "orphan.html", null, null),
+            ("LSQ010", SiteDiagnosticSeverity.Warning, "SEO field 'og:url' is missing or empty.", "orphan.html", null, null),
+        ];
+        var actual = report.Diagnostics.Where(d => d.Id is "LSQ003" or "LSQ009" or "LSQ010")
+            .Select(d => (d.Id, d.Severity, d.Message, d.Location?.FilePath, d.Location?.Line, d.Location?.Column));
+        await Assert.That(actual.SequenceEqual(expected)).IsTrue();
     }
 
     [Test]

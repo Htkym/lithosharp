@@ -1,4 +1,5 @@
 using System.Text;
+using LithoSharp.HtmlParsing;
 
 namespace LithoSharp.Quality;
 
@@ -8,18 +9,46 @@ namespace LithoSharp.Quality;
 // are URL characters, while comments and ordinary strings outside it are skipped.
 internal static class CssUrlScanner
 {
+    internal sealed record Candidate(string Value, HtmlSpan Source, IReadOnlyList<HtmlTextSegment> Mapping);
     internal static IEnumerable<string> Read(string css, CancellationToken cancellationToken, bool includeImports = false)
+        => ReadCore(css, cancellationToken, includeImports, null).Select(candidate => candidate.Value);
+
+    internal static (IReadOnlyList<string> Values, HtmlFactsProjectionCoverage Coverage) Collect(
+        string css, CancellationToken cancellationToken, bool includeImports = false)
+    {
+        var collected = CollectCandidates(css, cancellationToken, includeImports);
+        return (Array.AsReadOnly(collected.Candidates.Select(candidate => candidate.Value).ToArray()), collected.Coverage);
+    }
+
+    internal static (IReadOnlyList<Candidate> Candidates, HtmlFactsProjectionCoverage Coverage) CollectCandidates(
+        string css, CancellationToken cancellationToken, bool includeImports = false)
+    {
+        var reasons = new List<HtmlFactsCoverageReason>();
+        var values = ReadCore(css, cancellationToken, includeImports, reasons).ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
+        return (Array.AsReadOnly(values), new(HtmlFactsProjection.InlineCss,
+            reasons.Count == 0 ? HtmlFactsCoverageStatus.Complete : HtmlFactsCoverageStatus.Partial, reasons));
+    }
+
+    private static IEnumerable<Candidate> ReadCore(string css, CancellationToken cancellationToken, bool includeImports,
+        List<HtmlFactsCoverageReason>? reasons)
     {
         var index = 0;
         var blockDepth = 0;
         var functionDepth = 0;
         var bracketDepth = 0;
         var rule = RuleKind.None;
+        var pendingImport = false;
         while (index < css.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (SkipComment()) continue;
             if (IsWhitespace(css[index])) { index++; continue; }
+            if (pendingImport && css[index] is '@' or '#')
+            {
+                reasons?.Add(new("css_import_unresolved", null));
+                pendingImport = false;
+            }
             if (css[index] is '\'' or '"') { StartQualifiedRule(); ReadQuoted(); continue; }
             if (css[index] == '@')
             {
@@ -35,7 +64,9 @@ internal static class CssUrlScanner
                     {
                         var value = ReadQuoted();
                         if (value is not null) yield return value;
+                        else reasons?.Add(new("css_import_unresolved", null));
                     }
+                    else pendingImport = true;
                 }
                 continue;
             }
@@ -44,15 +75,23 @@ internal static class CssUrlScanner
             {
                 StartQualifiedRule();
                 var name = ReadName();
+                if (pendingImport)
+                {
+                    if (!name.Equals("url", StringComparison.OrdinalIgnoreCase) || index == css.Length || css[index] != '(')
+                        reasons?.Add(new("css_import_unresolved", null));
+                    pendingImport = false;
+                }
                 if (name.Equals("url", StringComparison.OrdinalIgnoreCase) && index < css.Length && css[index] == '(')
                 {
                     index++;
                     var value = ReadUrl();
                     if (value is not null) yield return value;
+                    else reasons?.Add(new("css_url_unresolved", null));
                 }
                 continue;
             }
             StartQualifiedRule();
+            if (pendingImport) { reasons?.Add(new("css_import_unresolved", null)); pendingImport = false; }
             switch (css[index++])
             {
                 case '{': blockDepth++; break;
@@ -67,6 +106,8 @@ internal static class CssUrlScanner
                 case ']': if (bracketDepth > 0) bracketDepth--; break;
             }
         }
+
+        if (pendingImport) reasons?.Add(new("css_import_unresolved", null));
 
         bool TopLevel() => blockDepth == 0 && functionDepth == 0 && bracketDepth == 0;
         void StartQualifiedRule()
@@ -87,7 +128,7 @@ internal static class CssUrlScanner
             return value.ToString();
         }
 
-        string? ReadUrl()
+        Candidate? ReadUrl()
         {
             SkipWhitespace();
             if (index < css.Length && css[index] is '\'' or '"')
@@ -108,30 +149,33 @@ internal static class CssUrlScanner
                 SkipFunction();
                 return null;
             }
+            var start = index;
             var value = new StringBuilder();
+            var mapping = new List<HtmlTextSegment>();
             while (index < css.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var c = css[index];
-                if (c == ')') { index++; return value.ToString(); }
+                if (c == ')') { var end = index++; return MakeCandidate(value, start, end, mapping); }
                 if (IsWhitespace(c))
                 {
+                    var end = index;
                     SkipWhitespace();
-                    if (index == css.Length) return value.ToString();
-                    if (css[index] == ')') { index++; return value.ToString(); }
+                    if (index == css.Length) return MakeCandidate(value, start, end, mapping);
+                    if (css[index] == ')') { index++; return MakeCandidate(value, start, end, mapping); }
                     break;
                 }
                 if (c is '\'' or '"' or '(' || IsNonPrintable(c)) break;
                 if (c == '\\')
                 {
                     if (!ValidEscape()) break;
-                    index++;
-                    AppendEscape(value);
+                    var escapeStart = index++;
+                    AppendEscape(value, mapping, escapeStart);
                 }
-                else AppendCurrent(value);
+                else AppendCurrent(value, mapping);
             }
             // CSS recovers a URL token at EOF, retaining its decoded value.
-            if (index == css.Length) return value.ToString();
+            if (index == css.Length) return MakeCandidate(value, start, index, mapping);
             while (index < css.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -142,31 +186,34 @@ internal static class CssUrlScanner
             return null;
         }
 
-        string? ReadQuoted()
+        Candidate? ReadQuoted()
         {
+            var start = index + 1;
             var quote = css[index++];
             var value = new StringBuilder();
+            var mapping = new List<HtmlTextSegment>();
             while (index < css.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (css[index] == quote) { index++; return value.ToString(); }
+                if (css[index] == quote) { var end = index++; return MakeCandidate(value, start, end, mapping); }
                 if (IsNewline(css[index])) return null; // Bad string; leave newline for recovery.
                 if (css[index] == '\\')
                 {
-                    index++;
+                    var escapeStart = index++;
                     if (index == css.Length) break; // String escape at EOF adds nothing.
                     if (IsNewline(css[index])) SkipNewline();
-                    else AppendEscape(value);
+                    else AppendEscape(value, mapping, escapeStart);
                 }
-                else AppendCurrent(value);
+                else AppendCurrent(value, mapping);
             }
-            return value.ToString(); // CSS string/function EOF recovery.
+            return MakeCandidate(value, start, index, mapping); // CSS string/function EOF recovery.
         }
 
-        void AppendEscape(StringBuilder? value)
+        void AppendEscape(StringBuilder? value, List<HtmlTextSegment>? mapping = null, int sourceStart = -1)
         {
-            if (index == css.Length) { value?.Append('\uFFFD'); return; }
-            if (char.IsAsciiHexDigit(css[index]))
+            var before = value?.Length ?? 0;
+            if (index == css.Length) value?.Append('\uFFFD');
+            else if (char.IsAsciiHexDigit(css[index]))
             {
                 var codePoint = 0;
                 for (var count = 0; count < 6 && index < css.Length && char.IsAsciiHexDigit(css[index]); count++, index++)
@@ -184,10 +231,13 @@ internal static class CssUrlScanner
                 else value?.Append(char.ConvertFromUtf32(codePoint));
             }
             else AppendCurrent(value);
+            AddMapping(mapping, before, (value?.Length ?? 0) - before, new(sourceStart, index - sourceStart));
         }
 
-        void AppendCurrent(StringBuilder? value)
+        void AppendCurrent(StringBuilder? value, List<HtmlTextSegment>? mapping = null)
         {
+            var start = index;
+            var before = value?.Length ?? 0;
             var c = css[index++];
             if (c == '\0') value?.Append('\uFFFD');
             else if (char.IsHighSurrogate(c) && index < css.Length && char.IsLowSurrogate(css[index]))
@@ -196,6 +246,20 @@ internal static class CssUrlScanner
                 index++;
             }
             else value?.Append(char.IsSurrogate(c) ? '\uFFFD' : c);
+            AddMapping(mapping, before, (value?.Length ?? 0) - before, new(start, index - start));
+        }
+
+        Candidate MakeCandidate(StringBuilder value, int start, int end, List<HtmlTextSegment> mapping) =>
+            new(value.ToString(), new(start, end - start), Array.AsReadOnly(mapping.ToArray()));
+
+        void AddMapping(List<HtmlTextSegment>? mapping, int start, int length, HtmlSpan source)
+        {
+            if (mapping is null || length == 0) return;
+            if (mapping.Count > 0 && mapping[^1] is { } previous && previous.ValueLength == previous.Source.Length
+                && length == source.Length && previous.Source.End == source.Start)
+                mapping[^1] = previous with { ValueLength = previous.ValueLength + length,
+                    Source = new(previous.Source.Start, previous.Source.Length + source.Length) };
+            else mapping.Add(new(start, length, source));
         }
 
         bool SkipComment()

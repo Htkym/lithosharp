@@ -50,6 +50,9 @@ public sealed class SiteQualityReport
     /// <summary>今回の品質検査で内容と実装版が一致する局所 facts を再利用したファイルの件数を取得します。参照先と規則は再検査します。</summary>
     public int HtmlFactsCacheHitCount { get; internal init; }
 
+    internal IReadOnlyList<HtmlReferenceSnapshot> HtmlReferences { get; init; } = [];
+    internal IReadOnlyList<CssReferenceSnapshot> CssReferences { get; init; } = [];
+
     /// <summary>指定形式で診断を出力します。</summary>
     /// <param name="format">テキスト、JSON、またはSARIF形式。</param>
     /// <returns>整列済み診断の文字列表現。</returns>

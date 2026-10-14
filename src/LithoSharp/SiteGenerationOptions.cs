@@ -63,6 +63,9 @@ public sealed record SiteGenerationOptions
     /// <summary>最終 HTML の局所 facts を出力別の有限 cache で再利用するかどうかを取得または設定します。品質検査が有効な場合だけ使用し、参照先と品質規則は毎回検査します。既定値は true です。</summary>
     public bool HtmlFactsCacheEnabled { get; init; } = true;
 
+    // Internal consumer plan, frozen when the owner is created; no public API or late mutation.
+    internal LithoSharp.Build.HtmlRawFactsDemand RawHtmlFactsDemand { get; init; }
+
     /// <summary>
     /// 段階タイミングを <see cref="SiteGenerationResult.Timings"/> へ記録するかどうかを取得または設定します。
     /// 既定は無効で、無効時は結果が <see langword="null"/> になります。

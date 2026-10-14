@@ -38,6 +38,8 @@ internal sealed class SiteHtmlFactsCache : IDisposable
         var contentHash = Convert.ToHexStringLower(SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(content.AsSpan())));
         var key = Hash(Encoding.UTF8.GetBytes(Schema + "\n" + contentHash));
         var path = Path.Combine(directory, key + ".json");
+        // Decoded-only durable records cannot supply raw/span; required raw uses the one-parse owner.
+        if (sharedFacts?.RequiresQualityRaw == true) return await GetParsedAsync().ConfigureAwait(false);
         try
         {
             EnsureSafe(path);
@@ -71,26 +73,31 @@ internal sealed class SiteHtmlFactsCache : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
         }
-        QualityHtmlFacts facts;
-        if (sharedFacts is not null)
+        return await GetParsedAsync().ConfigureAwait(false);
+
+        async Task<QualityHtmlFacts> GetParsedAsync()
         {
-            var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
-            facts = shared.Facts;
-            if (shared.NewParse) ParseCount++;
-        }
-        else { ParseCount++; facts = QualityHtmlFacts.Parse(content, cancellationToken); }
-        if (facts.MaximumSerializedBytes > MaxRecordBytes || pending.Count >= MaxRecords)
+            QualityHtmlFacts facts;
+            if (sharedFacts is not null)
+            {
+                var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
+                facts = shared.Facts;
+                if (shared.NewParse) ParseCount++;
+            }
+            else { ParseCount++; facts = QualityHtmlFacts.Parse(content, cancellationToken); }
+            if (facts.MaximumSerializedBytes > MaxRecordBytes || pending.Count >= MaxRecords)
+                return facts;
+            var value = new Record(Schema, contentHash, facts, null);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(value with { Integrity = Integrity(value) });
+            cancellationToken.ThrowIfCancellationRequested();
+            if (bytes.Length <= MaxRecordBytes && !pending.ContainsKey(key)
+                && pending.Count < MaxRecords && pendingBytes + bytes.Length <= MaxBytes)
+            {
+                pending.Add(key, bytes);
+                pendingBytes += bytes.Length;
+            }
             return facts;
-        var value = new Record(Schema, contentHash, facts, null);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(value with { Integrity = Integrity(value) });
-        cancellationToken.ThrowIfCancellationRequested();
-        if (bytes.Length <= MaxRecordBytes && !pending.ContainsKey(key)
-            && pending.Count < MaxRecords && pendingBytes + bytes.Length <= MaxBytes)
-        {
-            pending.Add(key, bytes);
-            pendingBytes += bytes.Length;
         }
-        return facts;
     }
 
     // Publication has passed its cancellation boundary. Optional cache I/O cannot fail it.
