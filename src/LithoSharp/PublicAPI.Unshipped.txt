@@ -653,3 +653,5 @@ LithoSharp.SiteGenerator.PreflightCatalogAsync(LithoSharp.SiteDefinition! defini
 LithoSharp.SiteGenerator.PreflightFactoryAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<LithoSharp.SiteDefinition!>!>! createDefinition, LithoSharp.Inspection.SitePreflightReport! sourceReport, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SitePreflightReport!>!
 static LithoSharp.Inspection.SitePreflight.FromDiagnostics(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> LithoSharp.Inspection.SitePreflightReport!
 static LithoSharp.Inspection.SitePreflight.InspectMarkdown(string! sourcePath, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.SitePreflightReport!
+LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.ISiteBuildExtension!>!
+LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.init -> void

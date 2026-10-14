@@ -59,7 +59,33 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403", "LSA9001", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403 beyond explicit producer selection", "LSA9001", "whole-site publication coverage", "anchors/assets"]
+  },
+  "producerRouteGuarantee": {
+    "task": "RA-05",
+    "id": "LSA1403",
+    "severity": "Info",
+    "enabledByDefault": true,
+    "contract": "explicit-producer-route-scope/1",
+    "selection": "Core SiteDefinition.Options direct explicit lists, same unchanged registered instance; deduplicate selected instances",
+    "recognizedDeferred": "metadata DocumentationSite with same-instance prior direct AddCollection(new DocumentationCollection); route contribution not statically enumerable",
+    "knownEmpty": "source PrepareAsync returns BCL Task.FromResult(new Core SiteBuildContribution with default/explicit empty ContentCollections)",
+    "unavailable": [
+      "nonregistered or unbound selector",
+      "unsupported producer contract",
+      "getter/factory selector",
+      "control-flow ambiguity",
+      "budget exceeded",
+      "missing compiler provenance"
+    ],
+    "unknownIsNotProducerProof": true,
+    "missingInfoIsNotClosed": true,
+    "producerListLimit": 64,
+    "countUnit": "unique selected documentation contributions, not pages/routes",
+    "origin": "original selection primary, producer creation related",
+    "runtime": "selection only; no registration or Prepare added",
+    "ownership": "existing scalar flow/LSA1002 and LSG unchanged",
+    "codeFix": false
   },
   "typedContentReference": {
     "task": "RA-05", "id": "LSA1402", "severity": "Error", "enabledByDefault": true,
@@ -86,7 +112,7 @@
     },
     "suppression": "standard Roslyn per-ID severity, editorconfig, NoWarn and original-source pragma; suppression does not remove runtime guards",
     "noFix": ["Open/Stale/Unavailable", "ambiguous generated page references", "unverified handwritten initializers", "arbitrary expressions or flow-derived values", "user-defined conversions", "getters or side effects", "explicit static constructors or reentrant user initialization", "stale workspace snapshots"],
-    "notImplemented": ["LSA1402 CodeFix", "LSA1403", "other CodeFix actions", "native IDE UI/undo certification"]
+    "notImplemented": ["LSA1402 CodeFix", "LSA1403 CodeFix", "other CodeFix actions", "native IDE UI/undo certification"]
   },
-  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "LSA1402 beyond the selected-catalog ContentRef subset", "LSA1403", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "LSA1402 beyond the selected-catalog ContentRef subset", "LSA1403 beyond explicit producer selection", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }

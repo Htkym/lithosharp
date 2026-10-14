@@ -4,6 +4,7 @@ Rule ID | Category | Severity | Notes
 --------|----------|----------|------
 LSA1401 | LithoSharp | Info | Unique equivalent generated PageRef path for a direct literal in a fresh immutable manifest.
 LSA1402 | LithoSharp | Error | Existing entry ID and valid route contradict the same uniquely selected fresh Closed generated catalog.
+LSA1403 | LithoSharp | Info | Explicitly selected registered documentation producer route contributions cannot be enumerated statically; count unique selected instances only.
 LSA1001 | LithoSharp | Error | All known values violate SiteUrl.FromAbsolute runtime guard.
 LSA1002 | LithoSharp | Error | All known values violate a registered SiteRoute/SiteUrl route argument guard.
 LSA1003 | LithoSharp | Error | All known values violate SiteAssetOutput relative output path guard.

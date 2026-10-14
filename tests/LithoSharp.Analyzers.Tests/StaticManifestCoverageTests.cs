@@ -145,6 +145,96 @@ public sealed partial class AnalyzerPackageHostTests
         typedCases.Add(new { name = "same-id-other-site", diagnostics = scopedDiagnostics.Select(ManifestDiagnostic).ToArray() });
         Check(!AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetName().Name!).Any(Forbidden), "Typed pair checks never CLR-load Core or execute user getters");
         ManifestEvidence("typed-contentref-pairs", typedCases);
+
+        // The existing packed host also checks explicit producer selection. No producer is executed.
+        const string producerModel = """
+            using System;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using LithoSharp;
+            using LithoSharp.Build;
+            using LithoSharp.Configuration;
+            using LithoSharp.Documentation;
+            using LithoSharp.Mdx;
+            sealed class EmptyProducer : ISiteBuildExtension {
+                public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+                    => Task.FromResult(new SiteBuildContribution());
+            }
+            static class ProducerScopes {
+                static ISiteBuildExtension Getter => throw new Exception("getter must not execute");
+                static ISiteBuildExtension Factory() => throw new Exception("factory must not execute");
+                static SiteDefinition Definition() {
+                    string knownPath = "intro/";
+                    var knownRoute = LithoSharp.Routing.SiteRoute.ForDirectoryIndex(knownPath);
+                    var empty = new EmptyProducer();
+                    var docs = new DocumentationSite(new MdxOptions("D:/site", "D:/worker"));
+                    docs.AddCollection(new DocumentationCollection("guide", [new DocumentVariant("current", "en", "D:/content", "guide")]));
+                    // 😀 selected original UTF16 position
+                    return new SiteDefinition(new SiteSettings { Title = "Docs", BaseUrl = "https://example.test/" }, []) {
+                        Options = new SiteGenerationOptions {
+                            Extensions = [empty, docs],
+                            StaticRouteGuaranteeProducers = [empty, docs, docs]
+                        }
+                    };
+                }
+            }
+            """;
+        var producerCases = new List<object>();
+        CSharpCompilation ProducerCompilation(string code)
+        {
+            var compilation = Compile(code, true);
+            var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+                .Where(path => new[] { "System.Collections.dll", "System.Threading.dll", "System.Threading.Tasks.dll", "System.Text.Json.dll" }.Contains(Path.GetFileName(path)))
+                .Select(path => MetadataReference.CreateFromFile(path));
+            return compilation.AddReferences(references).AddReferences(MetadataReference.CreateFromFile(Required("RA05_MDX_METADATA")));
+        }
+        async Task<ImmutableArray<Diagnostic>> ProducerCase(string name, string code, int expectedInfo, int expectedRoute = 0,
+            ReportDiagnostic? policy = null)
+        {
+            var compilation = ProducerCompilation(code);
+            Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Producer fixture binds actual Core/MDX metadata: " + name
+                + "\n" + string.Join("\n", compilation.GetDiagnostics()));
+            if (policy is { } specific) compilation = compilation.WithOptions(compilation.Options.WithSpecificDiagnosticOptions(
+                new Dictionary<string, ReportDiagnostic> { ["LSA1403"] = specific }));
+            var observations = await ManifestAnalyze(compilation, []);
+            Check(observations.Count(d => d.Id == "LSA1403") == expectedInfo && observations.Count(d => d.Id == "LSA1002") == expectedRoute
+                && observations.Length == expectedInfo + expectedRoute, "Producer selection owns only proven Deferred contributions: " + name + "\n" + string.Join("\n", observations));
+            producerCases.Add(new { name, diagnostics = observations.Select(ManifestDiagnostic).ToArray() });
+            return observations;
+        }
+        var producerDiagnostic = (await ProducerCase("selected-registered-docs-duplicate-once", producerModel, 1)).Single();
+        Check(producerDiagnostic.Severity == DiagnosticSeverity.Info && producerDiagnostic.Properties["deferredProducerCount"] == "1"
+            && producerDiagnostic.Properties["scopeState"] == "Deferred" && producerDiagnostic.Properties["contract"] == "explicit-producer-route-scope/1"
+            && producerDiagnostic.Properties["currentFingerprint"] is { Length: 64 } && !producerDiagnostic.Properties.ContainsKey("coverage"), "Selected scope provenance never rewrites site/catalog coverage");
+        var selectionStart = producerModel.IndexOf("[empty, docs, docs]", StringComparison.Ordinal);
+        var producerStart = producerModel.IndexOf("new DocumentationSite", StringComparison.Ordinal);
+        Check(producerDiagnostic.Location.SourceSpan == new TextSpan(selectionStart, "[empty, docs, docs]".Length)
+            && producerDiagnostic.AdditionalLocations.Count == 1 && producerDiagnostic.AdditionalLocations[0].SourceSpan.Start == producerStart,
+            "Original selected list and unique producer origin positions");
+        await ProducerCase("constant-empty-and-known-local-route", producerModel.Replace("[empty, docs, docs]", "[empty]", StringComparison.Ordinal), 0);
+        await ProducerCase("no-selection", producerModel.Replace("StaticRouteGuaranteeProducers = [empty, docs, docs]", "StaticRouteGuaranteeProducers = []", StringComparison.Ordinal), 0);
+        await ProducerCase("nonregistered-instance", producerModel.Replace("[empty, docs, docs]", "[new EmptyProducer()]", StringComparison.Ordinal), 0);
+        const string replacedProducer = """
+                    var registered = docs;
+                    var replacement = new DocumentationSite(new MdxOptions("D:/replacement", "D:/worker"));
+            """;
+        await ProducerCase("deconstruction-reassignment-unavailable", producerModel
+            .Replace("// 😀 selected original UTF16 position", replacedProducer + "\nvar other = docs;\n(docs, other) = (replacement, other);", StringComparison.Ordinal)
+            .Replace("Extensions = [empty, docs]", "Extensions = [empty, registered]", StringComparison.Ordinal), 0);
+        await ProducerCase("ref-local-escape-unavailable", producerModel
+            .Replace("// 😀 selected original UTF16 position", replacedProducer + "\nref var alias = ref docs;\nalias = replacement;", StringComparison.Ordinal)
+            .Replace("Extensions = [empty, docs]", "Extensions = [empty, registered]", StringComparison.Ordinal), 0);
+        await ProducerCase("getter-selection-unavailable", producerModel.Replace("[empty, docs, docs]", "[Getter]", StringComparison.Ordinal), 0);
+        await ProducerCase("factory-selection-unavailable", producerModel.Replace("[empty, docs, docs]", "[Factory()]", StringComparison.Ordinal), 0);
+        await ProducerCase("budget-not-dynamic", producerModel.Replace("[empty, docs, docs]", "[" + string.Join(",", Enumerable.Repeat("docs", 65)) + "]", StringComparison.Ordinal), 0);
+        await ProducerCase("route-error-not-deferred", producerModel.Replace("\"intro/\"", "\"../bad/\"", StringComparison.Ordinal)
+            .Replace("[empty, docs, docs]", "[empty]", StringComparison.Ordinal), 0, 1);
+        await ProducerCase("pragma", "#pragma warning disable LSA1403\n" + producerModel, 0);
+        var warning = (await ProducerCase("severity-override", producerModel, 1, policy: ReportDiagnostic.Warn)).Single();
+        Check(warning.Severity == DiagnosticSeverity.Warning, "Standard producer rule severity override");
+        Check(!AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetName().Name!).Any(name => Forbidden(name) || name == "LithoSharp.Mdx"),
+            "Producer proof uses Core/MDX metadata only; no CLR load, constructor/getter/factory/Prepare execution");
+        ManifestEvidence("producer-route-guarantee", producerCases);
     }
 
     [Test]

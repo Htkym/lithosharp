@@ -15,6 +15,10 @@ public sealed record SiteGenerationOptions
     /// <summary>Opt-in trusted build preparation. Ordinary sites do not run external processors.</summary>
     public IReadOnlyList<LithoSharp.Build.ISiteBuildExtension> Extensions { get; init; } = [];
 
+    /// <summary>Selects registered producer instances whose route contributions should be inspected statically.</summary>
+    /// <remarks>This selection does not register or prepare producers. Missing diagnostics do not certify complete coverage.</remarks>
+    public IReadOnlyList<LithoSharp.Build.ISiteBuildExtension> StaticRouteGuaranteeProducers { get; init; } = [];
+
     /// <summary>Prepared assets whose paths are preserved, for example bundled JavaScript chunks.</summary>
     public IReadOnlyList<SiteGeneratedAsset> GeneratedAssets { get; init; } = [];
 
