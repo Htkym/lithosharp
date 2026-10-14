@@ -59,7 +59,17 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1402/1403", "LSA9001", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403", "LSA9001", "whole-site publication coverage", "anchors/assets"]
+  },
+  "typedContentReference": {
+    "task": "RA-05", "id": "LSA1402", "severity": "Error", "enabledByDefault": true,
+    "sink": "exact Core ContentRef<T> constructor; collection/id/route parameter ordinals 0/1/2",
+    "scope": "direct generated Catalog.CollectionId selector and exactly one fresh Closed manifest proved to use that identical catalog property",
+    "values": "existing compiler-constant ContentEntryId and valid constant SiteRoute.ForFile/ForDirectoryIndex route; known null base requires ConstantValue.HasValue",
+    "comparison": "runtime ContentEntryId NFC normalization and shared SiteRoute canonical PublicPath; Ordinal comparison",
+    "origin": "original route expression UTF16 primary location; original entry ID constant related location; shared compiler provenance",
+    "deferred": ["missing/unknown ID", "Open/Stale/Unavailable", "ambiguous catalog", "manual origin", "aliases/user conversions/getters/factories", "unknown or non-null base", "unknown/invalid route", "opaque PageRef IDs"],
+    "owner": "LSA1002 retains invalid route syntax; LSG004/005/006 retain generator errors; no new duplicate diagnostic or CodeFix"
   },
   "generatedPageReference": {
     "task": "RA-06", "id": "LSA1401", "severity": "Info", "enabledByDefault": true,
@@ -71,11 +81,12 @@
       "package": "LithoSharp.CodeFixes, separate Roslyn 4.14 IDE Workspaces assembly",
       "replacement": "fully qualified generated PageRef.Route.PublicPath replaces only the literal; preserves trivia, original receiver, GetUrl(string) overload and runtime guard",
       "revalidation": "current compiler inputs at registration and application; stale solution/document snapshots return the current solution without applying the edit",
-      "fixAll": false
+      "fixAll": true,
+      "fixAllScopes": ["Document", "Project", "Solution"]
     },
     "suppression": "standard Roslyn per-ID severity, editorconfig, NoWarn and original-source pragma; suppression does not remove runtime guards",
     "noFix": ["Open/Stale/Unavailable", "ambiguous generated page references", "unverified handwritten initializers", "arbitrary expressions or flow-derived values", "user-defined conversions", "getters or side effects", "explicit static constructors or reentrant user initialization", "stale workspace snapshots"],
-    "notImplemented": ["FixAll", "LSA1402", "LSA1403", "other CodeFix actions", "native IDE UI/undo certification"]
+    "notImplemented": ["LSA1402 CodeFix", "LSA1403", "other CodeFix actions", "native IDE UI/undo certification"]
   },
-  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "FixAll", "LSA1402/1403", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "LSA1402 beyond the selected-catalog ContentRef subset", "LSA1403", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
 }

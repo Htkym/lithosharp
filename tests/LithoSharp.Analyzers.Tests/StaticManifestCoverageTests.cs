@@ -39,6 +39,112 @@ public sealed partial class AnalyzerPackageHostTests
         Check(first.Location.SourceSpan.Length == "\"/missing/\"".Length && first.Properties["coverage"] == "Closed"
             && first.Properties["currentFingerprint"] == first.Properties["expectedFingerprint"] && first.Properties["candidateCount"] == "1", "Original span and freshness provenance");
         ManifestEvidence("manifest-closed-open", ds.Select(ManifestDiagnostic));
+
+        // Reuse the actual packed Generator/Analyzer fixture for the finite typed pair rule.
+        var typedSource = ManifestModel + """
+
+            // 😀 original UTF16 positions
+            public static class TypedCalls {
+                public static StaticContentCatalog UnknownCatalog => throw new System.Exception("getter must not execute");
+                public static string UnknownCatalogBase => throw new System.Exception("base getter must not execute");
+                public static void M(string unknown) {
+                    var good = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("intro", baseUrl: null));
+                    var bad = new ContentRef<string>(route: LithoSharp.Routing.SiteRoute.ForDirectoryIndex("Intro/", baseUrl: null),
+                        collectionId: Guides.Catalog.CollectionId, id: new ContentEntryId("intro"));
+                    var missing = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("missing"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var unknownId = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId(unknown),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var unknownBase = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/", baseUrl: unknown));
+                    var nonnullBase = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/", baseUrl: "https://example.test/"));
+                    var unselected = new ContentRef<string>(new ContentCollectionId("guides"), new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var alias = Guides.Catalog;
+                    var aliased = new ContentRef<string>(alias.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var manual = new ContentRef<string>(UnknownCatalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var lookalike = new Demo.ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+                    var invalid = new ContentRef<string>(Guides.Catalog.CollectionId, new ContentEntryId("intro"),
+                        LithoSharp.Routing.SiteRoute.ForDirectoryIndex("../bad/"));
+                    Guides.Manifest.GetUrl("/missing/");
+                    Guides.Manifest.GetUrl("/intro/");
+                }
+            }
+            namespace Demo {
+                public sealed class ContentRef<T> {
+                    public ContentRef(ContentCollectionId collectionId, ContentEntryId id, LithoSharp.Routing.SiteRoute route) { }
+                }
+            }
+            """;
+        var typed = ManifestGenerate(typedSource);
+        Check(!typed.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error)
+            && !typed.Compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Typed pairs bind real Core constructors");
+        var typedDiagnostics = await ManifestAnalyze(typed.Compilation);
+        Check(typedDiagnostics.Length == 4 && typedDiagnostics.Count(d => d.Id == "LSA1402") == 1
+            && typedDiagnostics.Count(d => d.Id == "LSA1201") == 1 && typedDiagnostics.Count(d => d.Id == "LSA1401") == 1
+            && typedDiagnostics.Count(d => d.Id == "LSA1002") == 1, "One proven contradiction; existing owners retain their diagnostics: " + string.Join("\n", typedDiagnostics));
+        var mismatch = typedDiagnostics.Single(d => d.Id == "LSA1402");
+        const string routeExpression = "LithoSharp.Routing.SiteRoute.ForDirectoryIndex(\"Intro/\", baseUrl: null)";
+        var routeStart = typedSource.IndexOf(routeExpression, StringComparison.Ordinal);
+        var idStart = typedSource.IndexOf("\"intro\"", routeStart, StringComparison.Ordinal);
+        Check(mismatch.Severity == DiagnosticSeverity.Error && mismatch.Location.SourceSpan == new TextSpan(routeStart, routeExpression.Length)
+            && mismatch.AdditionalLocations.Count == 1 && mismatch.AdditionalLocations[0].SourceSpan == new TextSpan(idStart, "\"intro\"".Length), "Named ordinals preserve original route/related ID UTF16 locations");
+        Check(mismatch.Properties["coverage"] == "Closed" && mismatch.Properties["site"] == "docs" && mismatch.Properties["variant"] == "ja"
+            && mismatch.Properties["entryId"] == "intro" && mismatch.Properties["expectedPublicPath"] == "/intro/"
+            && mismatch.Properties["actualPublicPath"] == "/Intro/" && mismatch.Properties["currentFingerprint"] == mismatch.Properties["expectedFingerprint"], "Selected catalog Ordinal mismatch and current provenance");
+        var typedCases = new List<object> { new { name = "fresh-pairs", diagnostics = typedDiagnostics.Select(ManifestDiagnostic).ToArray(),
+            relatedLocations = mismatch.AdditionalLocations.Select(location => new { location.SourceSpan.Start, location.SourceSpan.Length }).ToArray() } };
+        async Task NoMismatch(string name, CSharpCompilation compilation, ManifestInput[]? inputs = null)
+        {
+            var observations = await ManifestAnalyze(compilation, inputs);
+            Check(!observations.Any(d => d.Id == "LSA1402"), "No typed contradiction Error without unique fresh Closed proof: " + name);
+            Check(observations.Count(d => d.Id == "LSA1002") == 1, "Invalid route remains owned once: " + name);
+            typedCases.Add(new { name, diagnostics = observations.Select(ManifestDiagnostic).ToArray() });
+        }
+        await NoMismatch("stale-input", typed.Compilation, [new(Content: "changed")]);
+        var openInputs = new ManifestInput[] { new(Content: "---\ntitle: Hello\ncount: wrong\n---\nBody") };
+        var open = ManifestGenerate(typedSource, openInputs);
+        Check(open.Diagnostics.Count(d => d.Id == "LSG006") == 1,
+            "Generator retains scalar conversion error ownership: " + string.Join("\n", open.Diagnostics));
+        await NoMismatch("open-generator-error", open.Compilation, openInputs);
+        var unproved = ManifestGenerate(typedSource.Replace(", EmitStaticSiteManifest = true", "", StringComparison.Ordinal)
+            .Replace("Guides.Manifest.GetUrl", "StaticSiteManifest.Create(Guides.Catalog, new string('a', 64)).GetUrl", StringComparison.Ordinal));
+        await NoMismatch("no-generated-manifest", unproved.Compilation);
+        var generatedTree = typed.Compilation.SyntaxTrees.Single(tree => tree.FilePath != "canary.cs");
+        var unknownCatalogBase = generatedTree.ToString().Replace("SiteRoute.ForDirectoryIndex(\"intro/\")",
+            "SiteRoute.ForDirectoryIndex(\"intro/\", global::TypedCalls.UnknownCatalogBase)", StringComparison.Ordinal);
+        Check(unknownCatalogBase != generatedTree.ToString(), "Actual catalog route received an unknown base operand");
+        await NoMismatch("unknown-catalog-base", typed.Compilation.ReplaceSyntaxTree(generatedTree,
+            CSharpSyntaxTree.ParseText(unknownCatalogBase, (CSharpParseOptions)generatedTree.Options, generatedTree.FilePath)));
+        var generatedLines = generatedTree.ToString().Split('\n');
+        var manifestLine = Array.FindIndex(generatedLines, line => line.Contains("StaticSiteManifest Manifest {", StringComparison.Ordinal));
+        Check(manifestLine > 0 && generatedLines[manifestLine - 1].Contains("StaticSiteManifestSource", StringComparison.Ordinal), "Actual generator manifest declaration and its provenance");
+        var aliasDeclaration = generatedLines[manifestLine - 1] + "\n" + generatedLines[manifestLine].Replace("Manifest {", "SecondManifest {", StringComparison.Ordinal);
+        var ambiguousText = generatedTree.ToString().Replace(generatedLines[manifestLine], generatedLines[manifestLine] + "\n" + aliasDeclaration, StringComparison.Ordinal);
+        await NoMismatch("two-proved-manifests", typed.Compilation.ReplaceSyntaxTree(generatedTree,
+            CSharpSyntaxTree.ParseText(ambiguousText, (CSharpParseOptions)generatedTree.Options, generatedTree.FilePath)));
+        var scopeSource = typedSource + """
+
+            [StaticContentCollection(typeof(Front), typeof(string), "guides", Site="other", Variant="ja", EmitStaticSiteManifest=true)]
+            public static partial class Other { }
+            class ScopedCalls { void M() {
+                var correct = new ContentRef<string>(Other.Catalog.CollectionId, new ContentEntryId("intro"),
+                    LithoSharp.Routing.SiteRoute.ForDirectoryIndex("other/"));
+            } }
+            """;
+        ManifestInput[] scopeInputs = [new(), new(Path: "D:/site/other.md", Route: "other/", Site: "other")];
+        var scopedTyped = ManifestGenerate(scopeSource, scopeInputs);
+        var scopedDiagnostics = await ManifestAnalyze(scopedTyped.Compilation, scopeInputs);
+        Check(scopedTyped.Diagnostics.Length == 0 && scopedDiagnostics.Count(d => d.Id == "LSA1402") == 1
+            && scopedDiagnostics.Single(d => d.Id == "LSA1402").Properties["site"] == "docs", "Same collection ID in another site does not change the selected catalog proof");
+        typedCases.Add(new { name = "same-id-other-site", diagnostics = scopedDiagnostics.Select(ManifestDiagnostic).ToArray() });
+        Check(!AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetName().Name!).Any(Forbidden), "Typed pair checks never CLR-load Core or execute user getters");
+        ManifestEvidence("typed-contentref-pairs", typedCases);
     }
 
     [Test]

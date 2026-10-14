@@ -25,9 +25,13 @@ internal sealed class StaticManifestAnalysis
     internal static readonly DiagnosticDescriptor TypedReference = new("LSA1401", "Use a generated page reference",
         "This literal route has one equivalent generated page reference", "LithoSharp", DiagnosticSeverity.Info, true,
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1401");
-    internal static ImmutableArray<DiagnosticDescriptor> Rules => ImmutableArray.Create(Missing, Stale, TypedReference);
+    internal static readonly DiagnosticDescriptor TypedMismatch = new("LSA1402", "Typed reference contradicts a fresh closed catalog",
+        "Entry '{0}' in catalog '{1}/{2}' has public path '{3}', not '{4}'", "LithoSharp", DiagnosticSeverity.Error, true,
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1402");
+    internal static ImmutableArray<DiagnosticDescriptor> Rules => ImmutableArray.Create(Missing, Stale, TypedReference, TypedMismatch);
     private readonly Compilation compilation;
     private readonly IMethodSymbol lookup;
+    private readonly IMethodSymbol? contentReference;
     private readonly Lazy<string?> fingerprint;
     private readonly ImmutableArray<AdditionalText> files;
     private readonly AnalyzerConfigOptionsProvider options;
@@ -36,6 +40,13 @@ internal sealed class StaticManifestAnalysis
     {
         this.compilation = compilation;
         this.lookup = lookup;
+        var reference = compilation.GetTypeByMetadataName("LithoSharp.Content.ContentRef`1");
+        if (Core(reference)) contentReference = reference!.InstanceConstructors.SingleOrDefault(method =>
+            method.DeclaredAccessibility == Accessibility.Public && method.Parameters.Length == 3
+            && method.Parameters.All(parameter => parameter.RefKind == RefKind.None)
+            && Named(method.Parameters[0].Type, "LithoSharp.Content.ContentCollectionId")
+            && Named(method.Parameters[1].Type, "LithoSharp.Content.ContentEntryId")
+            && Named(method.Parameters[2].Type, "LithoSharp.Routing.SiteRoute"));
         files = analyzerOptions.AdditionalFiles;
         options = analyzerOptions.AnalyzerConfigOptionsProvider;
         fingerprint = new(() => StaticManifestFingerprint.Create(compilation, files, options, cancellation));
@@ -50,6 +61,11 @@ internal sealed class StaticManifestAnalysis
     }
     internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate)
     {
+        if (operation is IObjectCreationOperation creation)
+        {
+            AnalyzeContentReference(context, creation);
+            return;
+        }
         if (operation is not IInvocationOperation call || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup)
             || StaticValueFlow.HasBindingError(call)) return;
         var property = Unwrap(call.Instance) as IPropertyReferenceOperation;
@@ -73,6 +89,67 @@ internal sealed class StaticManifestAnalysis
         if (values.Values is null || values.Values.Length == 0 || !values.Values.All(v => v is string path && !scope.Paths.Contains(path))) return;
         context.ReportDiagnostic(Diagnostic.Create(Missing, argument.Value.Syntax.GetLocation(), Properties(scope)
             .Add("candidateCount", values.Values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)), scope.Site, scope.Variant));
+    }
+    private void AnalyzeContentReference(OperationBlockAnalysisContext context, IObjectCreationOperation creation)
+    {
+        if (contentReference is null || !SymbolEqualityComparer.Default.Equals(creation.Constructor?.OriginalDefinition, contentReference)) return;
+        // Read the original operation: CFG may capture named arguments in source order.
+        // This subset proves direct constants/selectors only, without following captured aliases.
+        if (compilation.GetSemanticModel(creation.Syntax.SyntaxTree).GetOperation(creation.Syntax, context.CancellationToken)
+            is not IObjectCreationOperation original || StaticValueFlow.HasBindingError(original)
+            || !SymbolEqualityComparer.Default.Equals(original.Constructor?.OriginalDefinition, contentReference)
+            || original.Initializer is not null || original.Arguments.Length != 3) return;
+        var collection = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0);
+        var entry = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1);
+        var route = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 2);
+        if (collection is null || entry is null || route is null
+            || Unwrap(collection.Value) is not IPropertyReferenceOperation collectionId
+            || collectionId.Property.Name != "CollectionId" || collectionId.Property.IsStatic
+            || !Named(collectionId.Property.ContainingType, "LithoSharp.Content.StaticContentCatalog")
+            || Unwrap(collectionId.Instance) is not IPropertyReferenceOperation selected
+            || !selected.Property.IsStatic || !Named(selected.Property.Type, "LithoSharp.Content.StaticContentCatalog")
+            || Unwrap(entry.Value) is not IObjectCreationOperation id || id.Initializer is not null
+            || !Named(id.Type, "LithoSharp.Content.ContentEntryId") || id.Constructor is not { Parameters.Length: 1 } idConstructor
+            || idConstructor.Parameters[0].Type.SpecialType != SpecialType.System_String
+            || idConstructor.Parameters[0].RefKind != RefKind.None
+            || Unwrap(route.Value) is not IInvocationOperation address || !address.TargetMethod.IsStatic
+            || !Named(address.TargetMethod.ContainingType, "LithoSharp.Routing.SiteRoute")
+            || address.TargetMethod.Name is not ("ForFile" or "ForDirectoryIndex") || address.TargetMethod.Arity != 0
+            || address.TargetMethod.Parameters.Length != 2
+            || address.TargetMethod.Parameters.Any(parameter => parameter.Type.SpecialType != SpecialType.System_String || parameter.RefKind != RefKind.None)
+            || !SymbolEqualityComparer.Default.Equals(address.TargetMethod.ReturnType, address.TargetMethod.ContainingType)) return;
+        var key = id.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
+        var path = address.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
+        var basis = address.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
+        // Unknown has Value=null too; HasValue is mandatory before treating base as known null.
+        if (key is null || path is null || basis is null || !basis.ConstantValue.HasValue || basis.ConstantValue.Value is not null
+            || !key.ConstantValue.HasValue || !path.ConstantValue.HasValue) return;
+        if (key.ConstantValue.Value is not string entryId || path.ConstantValue.Value is not string routeText
+            || entryId.Length > StaticValueFlow.MaxStringLength || routeText.Length > StaticValueFlow.MaxStringLength) return;
+        Facts? scope = null;
+        foreach (var property in selected.Property.ContainingType.GetMembers().OfType<IPropertySymbol>()
+            .Where(property => property.IsStatic && Named(property.Type, "LithoSharp.Content.StaticSiteManifest")))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var candidate = facts.GetOrAdd(property, p => Read(p, context.CancellationToken));
+            if (candidate.State != "Closed" || !SymbolEqualityComparer.Default.Equals(candidate.Catalog, selected.Property)) continue;
+            if (scope is not null) return; // More than one proved manifest is ambiguous.
+            scope = candidate;
+        }
+        if (scope?.Entries is null) return;
+        string actual;
+        try
+        {
+            if (entryId.Length == 0 || entryId != entryId.Trim() || entryId.Any(char.IsControl)) return;
+            entryId = entryId.Normalize(System.Text.NormalizationForm.FormC);
+            actual = address.TargetMethod.Name == "ForFile" ? SiteRoute.ForFile(routeText).PublicPath : SiteRoute.ForDirectoryIndex(routeText).PublicPath;
+        }
+        catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return; }
+        if (!scope.Entries.TryGetValue(entryId, out var expected) || StringComparer.Ordinal.Equals(expected, actual)) return;
+        context.ReportDiagnostic(Diagnostic.Create(TypedMismatch, route.Value.Syntax.GetLocation(),
+            additionalLocations: new[] { key.Syntax.GetLocation() },
+            properties: Properties(scope).Add("entryId", entryId).Add("expectedPublicPath", expected).Add("actualPublicPath", actual),
+            messageArgs: new object[] { entryId, scope.Site, scope.Variant, expected, actual }));
     }
     // Shared by the diagnostic and IDE action. Every use revalidates current compiler
     // inputs and the complete Pages initializer; diagnostic properties are not proof.
@@ -222,7 +299,8 @@ internal sealed class StaticManifestAnalysis
                 || Unwrap(entry.Arguments[2].Value) is not IInvocationOperation route
                 || !Named(route.TargetMethod.ContainingType, "LithoSharp.Routing.SiteRoute")
                 || route.Arguments[0].Value.ConstantValue.Value is not string path
-                || route.Arguments.Any(a => a.Parameter?.Ordinal == 1 && a.Value.ConstantValue.Value is not null)) return unavailable;
+                || route.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value is not { } catalogBase
+                || !catalogBase.ConstantValue.HasValue || catalogBase.ConstantValue.Value is not null) return unavailable;
             if (Unwrap(entry.Arguments[0].Value) is not IObjectCreationOperation entryId || !Named(entryId.Type, "LithoSharp.Content.ContentEntryId")
                 || entryId.Arguments.Length != 1 || entryId.Arguments[0].Value.ConstantValue.Value is not string key) return unavailable;
             try
