@@ -86,7 +86,23 @@ Deferred. There is no invented origin/base used to prove a compiler Error.
 The projection covers href (resource except a/area), src, poster, object data and
 form action, with unnamespaced attributes. It excludes base and every element whose
 rel tokens contain canonical, matching the runtime's policy,
-because their site policy differs. Namespaced xlink, srcset/CSS splitting, formaction,
+because their site policy differs. Namespaced xlink, CSS splitting, formaction,
 site membership/anchors and canonical-route correctness remain outside this scope.
 Inert template content and script fake tags follow the actual bridge tree, not a
 substring scan. The rule does not certify runtime URL validity or security.
+
+Unnamespaced srcset candidate URLs use an explicit private inclusion of the same
+runtime SrcsetUrlScanner source. Descriptor rejection, data URL commas, decoded
+candidate ranges and cancellation retain that scanner's contract. Empty lists and
+discarded candidates add no URL Error; image selection, sizes and author
+conformance are outside this scope. Each accepted candidate is a resource URL for
+the same base-independent LSQ001 checks.
+
+Candidate ranges are in the decoded attribute. They map through that same
+HtmlText.Segments to a contiguous original HTML range, then CSharpLiteralMap maps
+the range to original C# UTF-16. Equal-length segments can be sliced; transformed
+segments must be consumed whole. Missing ranges, gaps, unsafe cuts or exhausted
+mapping budget leave the candidate Deferred, without an attribute-wide fallback.
+One forward segment cursor per attribute and a shared limit of 262,144 mapping
+operations per literal bound this additional phase. Partial/Failed trees and
+composite/dynamic input remain outside definite Error conditions.

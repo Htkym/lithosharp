@@ -44,8 +44,9 @@
     "runtimeRule": "LSQ001/SiteQualityUrlRules base-independent projection",
     "budgets": { "decodedUtf16Length": 65536, "sourceUtf16Length": 655360, "nodes": 8192, "depth": 128, "operations": 262144 },
     "errorPolicy": "complete tree without incomplete-coverage diagnostics; exact verified source map; empty resource or explicit absolute-scheme malformed/unsupported/credential URL",
-    "origin": "original attribute value URL UTF16 range through validated C# escape/verbatim/raw-indent map; no fabricated substring",
-    "deferred": ["Partial/Failed tree", "unknown or unmappable source", "dynamic/constant interpolation", "concatenation", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "srcset/CSS URL splitting", "unregistered formaction", "budgets"]
+    "origin": "original attribute value URL UTF16 range through validated C# escape/verbatim/raw-indent map; srcset candidates first map through the same attribute HtmlText.Segments; no fabricated substring",
+    "srcset": { "scanner": "explicit private inclusion of the same runtime SrcsetUrlScanner source", "selection": "accepted candidate URLs only; discarded descriptors and empty lists add no URL Error", "mapping": "decoded candidate range -> contiguous original HTML segments -> original C# literal; no attribute-wide fallback", "mappingOperations": 262144, "scope": "base-independent LSQ001 only; no image selection, sizes or author conformance" },
+    "deferred": ["Partial/Failed tree", "unknown or unmappable source", "missing/discontinuous/unsafely split srcset mapping", "dynamic/constant interpolation", "concatenation", "const/local/flow arguments", "relative/protocol-relative URLs", "site membership/anchors", "canonical/base policy", "CSS URL splitting", "unregistered formaction", "budgets"]
   },
   "routeManifest": {
     "task": "RA-05", "contract": "explicit-manifest-route-lookup/1",

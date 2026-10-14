@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.Threading;
 using LithoSharp.HtmlParsing;
 
 namespace LithoSharp.Quality;
@@ -35,7 +39,7 @@ internal static class SrcsetUrlScanner
                     cancellationToken.ThrowIfCancellationRequested();
                     urlEnd--;
                 }
-                yield return new(value[urlStart..urlEnd], new(urlStart, urlEnd - urlStart));
+                yield return new(value.Substring(urlStart, urlEnd - urlStart), new(urlStart, urlEnd - urlStart));
                 continue;
             }
 
@@ -69,19 +73,19 @@ internal static class SrcsetUrlScanner
                     }
                     index++;
                 }
-                valid &= AcceptDescriptor(value.AsSpan(descriptorStart, index - descriptorStart),
+                valid &= AcceptDescriptor(value.Substring(descriptorStart, index - descriptorStart),
                     ref width, ref density, ref height, cancellationToken);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (valid && (!height || width)) yield return new(value[urlStart..urlEnd], new(urlStart, urlEnd - urlStart));
+            if (valid && (!height || width)) yield return new(value.Substring(urlStart, urlEnd - urlStart), new(urlStart, urlEnd - urlStart));
         }
     }
 
-    private static bool AcceptDescriptor(ReadOnlySpan<char> descriptor, ref bool width, ref bool density,
+    private static bool AcceptDescriptor(string descriptor, ref bool width, ref bool density,
         ref bool height, CancellationToken cancellationToken)
     {
-        var number = descriptor[..^1];
-        switch (descriptor[^1])
+        var number = descriptor.Substring(0, descriptor.Length - 1);
+        switch (descriptor[descriptor.Length - 1])
         {
             case 'w' when !width && !density && IsPositiveInteger(number, cancellationToken):
                 width = true;
@@ -97,7 +101,7 @@ internal static class SrcsetUrlScanner
         }
     }
 
-    private static bool IsPositiveInteger(ReadOnlySpan<char> value, CancellationToken cancellationToken)
+    private static bool IsPositiveInteger(string value, CancellationToken cancellationToken)
     {
         var positive = false;
         foreach (var character in value)
@@ -109,7 +113,7 @@ internal static class SrcsetUrlScanner
         return positive;
     }
 
-    private static bool IsDensity(ReadOnlySpan<char> value, CancellationToken cancellationToken)
+    private static bool IsDensity(string value, CancellationToken cancellationToken)
     {
         var index = 0;
         if (index < value.Length && value[index] == '-') index++;
@@ -129,12 +133,12 @@ internal static class SrcsetUrlScanner
         if (index != value.Length) return false;
         cancellationToken.ThrowIfCancellationRequested();
         var accepted = double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var density)
-            && double.IsFinite(density) && density >= 0;
+            && !double.IsNaN(density) && !double.IsInfinity(density) && density >= 0;
         cancellationToken.ThrowIfCancellationRequested();
         return accepted;
     }
 
-    private static bool ReadDigits(ReadOnlySpan<char> value, ref int index, CancellationToken cancellationToken)
+    private static bool ReadDigits(string value, ref int index, CancellationToken cancellationToken)
     {
         var start = index;
         while (index < value.Length && value[index] is >= '0' and <= '9')

@@ -22,7 +22,7 @@
   { "name": "entity-scheme", "html": "<a href='java&#x73;cript:alert(1)'>X</a>", "analyzerError": true, "runtimeLsq001": true },
   { "name": "inert-template", "html": "<template><img src='javascript:alert(1)'></template>", "analyzerError": false, "runtimeLsq001": false },
   { "name": "script-fake-tag", "html": "<script>let x=\"<img src='javascript:alert(1)'>\";</script>", "analyzerError": false, "runtimeLsq001": false },
-  { "name": "srcset-deferred", "html": "<img srcset='javascript:alert(1) 1x'>", "analyzerError": false, "runtimeLsq001": true },
+  { "name": "srcset-literal", "html": "<img srcset='javascript:alert(1) 1x'>", "analyzerError": true, "runtimeLsq001": true },
   { "name": "formaction-unregistered", "html": "<button formaction='javascript:alert(1)'>X</button>", "analyzerError": false, "runtimeLsq001": false },
   { "name": "object-data", "html": "<object data='javascript:alert(1)'></object>", "analyzerError": true, "runtimeLsq001": true }
 ]

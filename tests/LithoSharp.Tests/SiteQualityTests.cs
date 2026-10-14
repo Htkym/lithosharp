@@ -166,9 +166,21 @@ public sealed class SiteQualityTests
         foreach (var row in corpus.RootElement.GetProperty("cases").EnumerateArray())
         {
             var expected = row.GetProperty("urls").EnumerateArray().Select(value => value.GetString()!).ToArray();
-            await Assert.That(SrcsetUrlScanner.Read(row.GetProperty("input").GetString()!, default).ToArray())
-                .IsEquivalentTo(expected);
+            var input = row.GetProperty("input").GetString()!;
+            var candidates = SrcsetUrlScanner.ReadCandidates(input, default).ToArray();
+            await Assert.That(candidates.Select(candidate => candidate.Value).SequenceEqual(expected)).IsTrue();
+            var from = 0;
+            foreach (var candidate in candidates)
+            {
+                var start = input.IndexOf(candidate.Value, from, StringComparison.Ordinal);
+                await Assert.That(candidate.Source).IsEqualTo(new HtmlSpan(start, candidate.Value.Length));
+                from = candidate.Source.End;
+            }
         }
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.That(() => SrcsetUrlScanner.ReadCandidates("x.png 1x", cancellation.Token).ToArray())
+            .Throws<OperationCanceledException>();
 
         var files = new Dictionary<string, string>
         {
