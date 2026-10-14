@@ -12,9 +12,11 @@ namespace LithoSharp.Analyzers;
 // Unknown absorbs joins. Never evaluate user getters, calls, ToString or initializers.
 internal sealed class StaticValue
 {
-    private StaticValue(object?[]? values, string? reason) { Values = values; Reason = reason; }
+    private StaticValue(object?[]? values, string? reason, HtmlStringOrigins? origins = null) { Values = values; Reason = reason; Origins = origins; }
     internal object?[]? Values { get; }
     internal string? Reason { get; }
+    internal HtmlStringOrigins? Origins { get; }
+    internal StaticValue WithOrigins(HtmlStringOrigins? origins) => new(Values, Reason, origins);
     internal static StaticValue Unknown(string reason) => new(null, reason);
     internal static StaticValue Known(object? value) => value is string s && s.Length > StaticValueFlow.MaxStringLength
         ? Unknown("string-budget") : new(new[] { value }, null);
@@ -23,7 +25,7 @@ internal sealed class StaticValue
         if (Values is null) return this;
         if (other.Values is null) return other;
         var values = Values.Concat(other.Values).Distinct().Take(StaticValueFlow.MaxCandidates + 1).ToArray();
-        return values.Length > StaticValueFlow.MaxCandidates ? Unknown("candidate-budget") : new(values, null);
+        return values.Length > StaticValueFlow.MaxCandidates ? Unknown("candidate-budget") : new(values, null, HtmlStringOrigins.Join(Origins, other.Origins));
     }
 }
 
@@ -41,6 +43,7 @@ internal static class StaticValueFlow
 
     internal static void Analyze(OperationBlockAnalysisContext context, Action<IOperation, Func<IOperation, StaticValue>> sink)
     {
+        var origins = new HtmlOriginProvider(context.Compilation, context.CancellationToken);
         foreach (var root in context.OperationBlocks)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -82,6 +85,11 @@ internal static class StaticValueFlow
                         depths[operation] = expressionDepth;
                         snapshots[operation] = expressionDepth > MaxDepth && !operation.ConstantValue.HasValue
                             ? StaticValue.Unknown("depth-budget") : Evaluate(operation, state, 0, snapshots);
+                        var scalar = snapshots[operation];
+                        snapshots[operation] = scalar.WithOrigins(origins.Evaluate(operation, scalar,
+                            value => snapshots.TryGetValue(value, out var prior) ? prior : StaticValue.Unknown("missing-evaluation-snapshot"),
+                            local => state.Locals.TryGetValue(local, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop"),
+                            capture => state.Captures.TryGetValue(capture, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop")));
                         sink(operation, value => snapshots.TryGetValue(value, out var snapshot)
                             ? snapshot : StaticValue.Unknown("missing-evaluation-snapshot"));
                         if (!deferredFlow && operation is ISimpleAssignmentOperation assignment && assignment.Target is ILocalReferenceOperation local)
@@ -101,6 +109,13 @@ internal static class StaticValueFlow
                             state.Locals[changed.Local] = StaticValue.Unknown("mutation");
                         if (operation is ICompoundAssignmentOperation compound && compound.Target is ILocalReferenceOperation target)
                             state.Locals[target.Local] = StaticValue.Unknown("mutation");
+                        // These can invalidate an origin even when legacy scalar facts remain Known.
+                        if (operation is IDeconstructionAssignmentOperation
+                            || operation is ISimpleAssignmentOperation { IsRef: true }
+                            || operation is IVariableDeclaratorOperation declarator && declarator.Symbol.RefKind != RefKind.None
+                            || operation is IArgumentOperation reference && reference.Parameter?.RefKind is RefKind.Ref or RefKind.Out or RefKind.In
+                            || operation is ILocalReferenceOperation referenceLocal && referenceLocal.Syntax.Ancestors().Any(node => node is Microsoft.CodeAnalysis.CSharp.Syntax.RefExpressionSyntax))
+                            state.InvalidateOrigins();
                     }
                     void Visit(IOperation operation)
                     {
@@ -239,6 +254,11 @@ internal static class StaticValueFlow
         {
             foreach (var key in Locals.Keys.ToArray()) Locals[key] = StaticValue.Unknown(reason);
             foreach (var key in Captures.Keys.ToArray()) Captures[key] = StaticValue.Unknown(reason);
+        }
+        internal void InvalidateOrigins()
+        {
+            foreach (var key in Locals.Keys.ToArray()) Locals[key] = Locals[key].WithOrigins(null);
+            foreach (var key in Captures.Keys.ToArray()) Captures[key] = Captures[key].WithOrigins(null);
         }
         internal static State Merge(State[] inputs)
         {

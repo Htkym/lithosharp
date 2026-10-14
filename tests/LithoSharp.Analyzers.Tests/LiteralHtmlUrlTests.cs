@@ -94,8 +94,8 @@ public sealed partial class AnalyzerPackageHostTests
     public async Task DynamicCompositeUnknownAndIncompleteHtmlNeverBecomeLiteralErrors()
     {
         var expressions = new[] { "unknown", "$\"<a href='{unknown}'>X</a>\"", "$\"{unknown}<a href='javascript:alert(1)'>X</a>\"",
-            "\"<a href='\" + unknown + \"'>X</a>\"", "known", "\"<a href='java\" + \"script:alert(1)'>X</a>\"",
-            "$\"<a href='{\"javascript:alert(1)\"}'>X</a>\"", "Getter" };
+            "\"<a href='\" + unknown + \"'>X</a>\"", "unknown + known", "\"<a href='java\" + \"script:alert(1)'>X</a>\"",
+            "$\"<a href='{unknown}'>X</a>\" + known", "Getter" };
         foreach (var expression in expressions)
         {
             var source = "class C { static string Getter => throw new System.Exception(\"GETTER_SENTINEL\"); void M(string unknown) { const string known=\"<a href='javascript:alert(1)'>X</a>\"; LithoSharp.Html.UnsafeRaw(" + expression + "); } }";
@@ -206,7 +206,7 @@ public sealed partial class AnalyzerPackageHostTests
     public async Task LiteralSrcsetUnknownPartialAndUnmappableCandidatesStayDeferred()
     {
         var expressions = new[] { "unknown", "$\"<img srcset='{unknown}'>\"", "\"<img srcset='\" + unknown + \"'>\"",
-            "known", "\"<img srcset='java\" + \"script:bad 1x'>\"", "Getter" };
+            "unknown + known", "\"<img srcset='java\" + \"script:bad 1x'>\"", "Getter" };
         foreach (var expression in expressions)
         {
             var source = "class C { static string Getter => throw new System.Exception(\"GETTER_SENTINEL\"); "
@@ -360,13 +360,13 @@ public sealed partial class AnalyzerPackageHostTests
             ("cross-entity", "\"<a href='java&#x7\" + \"3;cript:bad'>X</a>\""),
             ("empty-at-join", "\"<img src='\" + \"'>\""),
             ("unknown", "\"<a href='\" + unknown + \"'>X</a>\""),
-            ("constant-leaf", "\"\" + known"),
+            ("constant-leaf-with-unknown", "unknown + known"),
             ("field-leaf", "\"\" + Field"),
             ("getter", "\"\" + Getter"),
             ("call", "\"\" + Get()"),
             ("null-leaf", "\"<a href='javascript:bad'>X</a>\" + null"),
             ("numeric-leaf", "\"<a href='javascript:bad'>X</a>\" + 1"),
-            ("constant-interpolation", "\"\" + $\"<a href='{ \"javascript:bad\" }'>X</a>\""),
+            ("interpolation-with-unknown", "\"\" + $\"<a href='{ unknown }'>X</a>\""),
             ("explicit-cast", "\"\" + (string)\"<a href='javascript:bad'>X</a>\""),
             ("decoded-budget", "\"<a href='javascript:bad'>X</a>\" + \"" + new string('x', 65536) + "\""),
             ("source-budget", "\"<a href='javascript:bad'>X</a>\"" + new string(' ', 655360) + "+ \"\""),

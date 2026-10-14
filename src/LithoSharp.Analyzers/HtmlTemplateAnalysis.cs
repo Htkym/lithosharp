@@ -53,7 +53,7 @@ internal sealed class HtmlTemplateAnalysis
             ? new HtmlTemplateAnalysis(raw, encode, text, attribute) : null;
     }
 
-    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate)
+    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate, HtmlFlowUrlAnalysis urls)
     {
         if (operation is not IInvocationOperation call || !Same(call.TargetMethod, raw)
             || call.Arguments.Length != 1 || StaticValueFlow.HasBindingError(call)) return;
@@ -65,7 +65,7 @@ internal sealed class HtmlTemplateAnalysis
         if (value.Values is null)
             Report(Raw, argument.Syntax.GetLocation(), value.Reason?.EndsWith("-budget", StringComparison.Ordinal) == true ? "Deferred" : "Unknown",
                 value.Reason ?? "unverified-raw", value.Reason ?? "unverified-raw");
-        HtmlLiteralAnalysis.Analyze(context, argument);
+        HtmlLiteralAnalysis.Analyze(context, argument, value, urls);
         var syntax = argument.Syntax;
         while (syntax is ParenthesizedExpressionSyntax parenthesized) syntax = parenthesized.Expression;
         if (syntax is not InterpolatedStringExpressionSyntax template || template.Span.Length > MaxTemplateLength

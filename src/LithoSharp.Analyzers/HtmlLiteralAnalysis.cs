@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,7 +10,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
-using Microsoft.CodeAnalysis.Text;
 
 namespace LithoSharp.Analyzers;
 
@@ -19,7 +17,8 @@ internal static class HtmlLiteralAnalysis
 {
     internal static readonly DiagnosticDescriptor Rule = new("LSA1105", "Invalid URL in literal HTML",
         "Literal HTML '{0}' URL violates the LSQ001 contract ({1})", "LithoSharp", DiagnosticSeverity.Error,
-        isEnabledByDefault: true, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1105");
+        isEnabledByDefault: true, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1105",
+        customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
     internal const int MaxInputLength = 65536;
     internal const int MaxSourceLength = 655360;
     internal const int MaxNodes = 8192;
@@ -39,26 +38,30 @@ internal static class HtmlLiteralAnalysis
         cancellationToken: cancellation);
 
     // Called only after the exact metadata UnsafeRaw(string) sink has bound successfully.
-    internal static void Analyze(OperationBlockAnalysisContext context, IOperation argument)
+    internal static void Analyze(OperationBlockAnalysisContext context, IOperation argument, StaticValue scalar, HtmlFlowUrlAnalysis collector)
     {
         var input = Extract(argument, context.CancellationToken);
-        if (input is null) return;
-        var facts = Parse(input.Value, context.CancellationToken);
-        if (facts.Status != HtmlTokenizationStatus.Complete || facts.Diagnostics.Any(d => d.IncompleteCoverage)) return;
-        var remainingMappingOperations = MaxOperations;
+        var origins = input?.Origins(argument.Syntax.SyntaxTree) ?? scalar.Origins;
+        collector.Analyze(context, origins, argument.Syntax.GetLocation());
+    }
+
+    internal static IReadOnlyList<HtmlUrlViolation> Violations(HtmlLiteralFacts facts, int sourceLength,
+        Func<HtmlSpan, Location?> map, CancellationToken cancellation, ref int remainingMappingOperations)
+    {
+        var result = new List<HtmlUrlViolation>();
         foreach (var url in facts.Urls)
         {
-            context.CancellationToken.ThrowIfCancellationRequested();
+            cancellation.ThrowIfCancellationRequested();
             if (url.AttributeNamespace is not null || url.ElementName == "base"
                 || (url.Rel ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
                     .Contains("canonical", StringComparer.OrdinalIgnoreCase)) continue;
             if (url.AttributeName == "srcset")
             {
                 var segmentIndex = 0;
-                foreach (var candidate in SrcsetUrlScanner.ReadCandidates(url.Value.Value, context.CancellationToken))
+                foreach (var candidate in SrcsetUrlScanner.ReadCandidates(url.Value.Value, cancellation))
                 {
-                    var candidateSource = MapCandidate(url.Value, candidate.Source, input.Value.Length,
-                        context.CancellationToken, ref segmentIndex, ref remainingMappingOperations);
+                    var candidateSource = MapCandidate(url.Value, candidate.Source, sourceLength,
+                        cancellation, ref segmentIndex, ref remainingMappingOperations);
                     if (candidateSource is not { } source) continue;
                     Report(candidate.Value, true, source);
                 }
@@ -79,33 +82,20 @@ internal static class HtmlLiteralAnalysis
             {
                 var issue = SiteQualityUrlRules.IndependentIssue(value, isResource);
                 if (issue == SiteQualityUrlIssue.None) return;
-                var span = input.Map(source);
-                if (span is null) return;
-                var properties = ImmutableDictionary<string, string?>.Empty.Add("staticState", "Known")
-                    .Add("parserStatus", "Complete").Add("runtimeRule", "LSQ001")
-                    .Add("origin", "original-literal-url-utf16-span").Add("reason", issue.ToString());
-                context.ReportDiagnostic(Diagnostic.Create(Rule, Location.Create(argument.Syntax.SyntaxTree, span.Value),
-                    properties, url.AttributeName, issue.ToString()));
+                var location = map(source);
+                if (location is null) return;
+                result.Add(new HtmlUrlViolation(location, url.AttributeName, isResource, value, issue));
             }
         }
+        return result;
     }
 
     private sealed record LiteralPiece(int Start, int Length, CSharpLiteralMap Map);
 
     private sealed record LiteralInput(string Value, IReadOnlyList<LiteralPiece> Pieces)
     {
-        internal TextSpan? Map(HtmlSpan source)
-        {
-            if (source.Start < 0 || source.Length < 0 || source.Start > Value.Length
-                || source.Length > Value.Length - source.Start) return null;
-            // A zero-length origin at a concatenation boundary has more than one possible token.
-            if (source.Length == 0 && Pieces.Count > 1
-                && Pieces.Any(piece => source.Start == piece.Start || source.Start == piece.Start + piece.Length)) return null;
-            foreach (var piece in Pieces)
-                if (source.Start >= piece.Start && source.End <= piece.Start + piece.Length)
-                    return piece.Map.Map(source.Start - piece.Start, source.Length);
-            return null;
-        }
+        internal HtmlStringOrigins? Origins(SyntaxTree tree) => HtmlStringOrigins.Create(new[] { new HtmlOriginAlternative(Value,
+            Pieces.Select(piece => new HtmlOriginPiece(Value.Substring(piece.Start, piece.Length), tree, piece.Map, piece.Map.TokenSpan)).ToArray()) });
     }
 
     private static LiteralInput? Extract(IOperation argument, CancellationToken cancellation)

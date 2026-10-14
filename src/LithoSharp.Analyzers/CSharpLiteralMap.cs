@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace LithoSharp.Analyzers;
@@ -12,7 +14,20 @@ internal sealed class CSharpLiteralMap
 {
     private readonly List<TextSpan> characters = new();
     private readonly SyntaxToken token;
-    private CSharpLiteralMap(SyntaxToken token) => this.token = token;
+    private readonly string expected;
+    internal TextSpan TokenSpan => token.Span;
+    private CSharpLiteralMap(SyntaxToken token, string? expected = null) { this.token = token; this.expected = expected ?? token.ValueText; }
+
+    internal static CSharpLiteralMap? CreateInterpolated(InterpolatedStringTextSyntax part, string expected)
+    {
+        if (part.Parent is not InterpolatedStringExpressionSyntax expression || expression.ContainsDiagnostics) return null;
+        var map = new CSharpLiteralMap(part.TextToken, expected);
+        var start = expression.StringStartToken.Text;
+        var success = start.Contains("\"\"\"") ? map.InterpolatedRaw(part, expression)
+            : start.Contains("@") ? map.InterpolatedVerbatim(part.TextToken.Text)
+            : map.NormalBody(part.TextToken.Text, 0, part.TextToken.Text.Length, true);
+        return success && map.characters.Count == expected.Length ? map : null;
+    }
 
     internal static CSharpLiteralMap? Create(SyntaxToken token)
     {
@@ -39,10 +54,10 @@ internal sealed class CSharpLiteralMap
 
     private bool Append(string value, int start, int length)
     {
-        if (value.Length > token.ValueText.Length - characters.Count) return false;
+        if (value.Length > expected.Length - characters.Count) return false;
         foreach (var c in value)
         {
-            if (token.ValueText[characters.Count] != c) return false;
+            if (expected[characters.Count] != c) return false;
             characters.Add(new TextSpan(token.SpanStart + start, length));
         }
         return true;
@@ -51,19 +66,26 @@ internal sealed class CSharpLiteralMap
     private bool Normal(string text)
     {
         if (text.Length < 2 || text[0] != '"' || text[text.Length - 1] != '"') return false;
-        for (var i = 1; i < text.Length - 1;)
+        return NormalBody(text, 1, text.Length - 1, false);
+    }
+
+    private bool NormalBody(string text, int begin, int end, bool braces)
+    {
+        for (var i = begin; i < end;)
         {
             var start = i;
             var c = text[i++];
+            if (braces && c is '{' or '}')
+            { if (i >= end || text[i++] != c || !Append(c.ToString(), start, 2)) return false; continue; }
             if (c != '\\') { if (!Append(c.ToString(), start, 1)) return false; continue; }
-            if (i >= text.Length - 1) return false;
+            if (i >= end) return false;
             var escape = text[i++];
             if (escape is 'x' or 'u' or 'U')
             {
                 var max = escape == 'U' ? 8 : 4;
                 var count = 0;
                 uint scalar = 0;
-                while (count < max && i < text.Length - 1 && Hex(text[i]) >= 0)
+                while (count < max && i < end && Hex(text[i]) >= 0)
                 { scalar = scalar * 16 + (uint)Hex(text[i++]); count++; }
                 if (count == 0 || escape != 'x' && count != max || scalar > 0x10ffff) return false;
                 var decoded = escape == 'U' && scalar > 0xffff ? char.ConvertFromUtf32((int)scalar) : ((char)scalar).ToString();
@@ -88,6 +110,58 @@ internal sealed class CSharpLiteralMap
                 };
                 if (decoded == 0xffff || !Append(decoded.ToString(), start, i - start)) return false;
             }
+        }
+        return true;
+    }
+
+    private bool InterpolatedVerbatim(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c is '"' or '{' or '}')
+            { if (i + 1 >= text.Length || text[i + 1] != c || !Append(c.ToString(), i, 2)) return false; i++; }
+            else if (!Append(c.ToString(), i, 1)) return false;
+        }
+        return true;
+    }
+
+    private bool InterpolatedRaw(InterpolatedStringTextSyntax part, InterpolatedStringExpressionSyntax expression)
+    {
+        var source = expression.SyntaxTree.GetText();
+        var position = expression.SpanStart;
+        while (position < expression.Span.End && source[position] == '$') position++;
+        var quotes = 0;
+        while (position < expression.Span.End && source[position] == '"') { position++; quotes++; }
+        if (quotes < 3) return false;
+        var openingLine = source.Lines.GetLineFromPosition(position);
+        var probe = position;
+        while (probe < openingLine.End && source[probe] is ' ' or '\t') probe++;
+        var multiline = probe == openingLine.End && openingLine.EndIncludingLineBreak > openingLine.End;
+        var contentStart = multiline ? openingLine.EndIncludingLineBreak : position;
+        // A multi-line end token includes its leading newline/indent, not just the quotes.
+        var closing = expression.Span.End - quotes;
+        if (closing < contentStart || source.ToString(new TextSpan(closing, quotes)) != new string('"', quotes)) return false;
+        var closingLine = source.Lines.GetLineFromPosition(closing);
+        var indent = multiline ? source.ToString(TextSpan.FromBounds(closingLine.Start, closing)) : "";
+        if (indent.Any(c => c is not (' ' or '\t'))) return false;
+        var contentEnd = multiline ? closingLine.Start : closing;
+        if (multiline && contentEnd > contentStart && source[contentEnd - 1] == '\n')
+        { contentEnd--; if (contentEnd > contentStart && source[contentEnd - 1] == '\r') contentEnd--; }
+        else if (multiline && contentEnd > contentStart && source[contentEnd - 1] == '\r') contentEnd--;
+        for (var absolute = part.TextToken.SpanStart; absolute < part.TextToken.Span.End; absolute++)
+        {
+            if (absolute < contentStart || absolute >= contentEnd) continue;
+            var line = source.Lines.GetLineFromPosition(absolute);
+            if (multiline && absolute == line.Start)
+            {
+                var removed = 0;
+                while (removed < indent.Length && absolute + removed < line.End && source[absolute + removed] == indent[removed]) removed++;
+                if (removed != indent.Length && absolute + removed != line.End) return false;
+                absolute += removed;
+                if (absolute >= part.TextToken.Span.End || absolute >= contentEnd) break;
+            }
+            if (!Append(source[absolute].ToString(), absolute - part.TextToken.SpanStart, 1)) return false;
         }
         return true;
     }

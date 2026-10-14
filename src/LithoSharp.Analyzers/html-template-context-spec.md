@@ -80,6 +80,40 @@ boundary are candidate-local Deferred, never an expression-wide/attribute-wide
 span substitute. Cancellation propagates from extraction and parsing; interrupted
 analysis is not promoted to Complete.
 
+## Shared static HTML inputs
+
+Source string const declarations, known local/capture assignments and aliases,
+finite branch composition and string-only interpolation without alignment/format
+use the existing scalar CFG and evaluation-time snapshots. Optional immutable
+original pieces accompany string values. Compiler ConstantValue's scalar early
+return, Known/Unknown, value Distinct and evaluation order remain unchanged.
+Origin failure never turns an existing scalar Known value into Unknown. Source
+const lookup reads current Compilation declarations only, with bounded cycle/depth
+checks; metadata-only constants retain unmapped proof pieces. No initializer,
+getter, call, operator, formatter, I/O or Core runtime is executed.
+
+Normal/verbatim/raw text is mapped only when decoded characters match compiler
+values exactly. String holes carry their evaluated pieces. A URL/entity source
+range must fit wholly into a mapped piece; unknown/cross-piece/ambiguous empty
+origins stay Deferred. Equal values retain all different origin alternatives;
+missing origins and alternative overflow cannot be dropped to establish proof.
+Deconstruction/ref escape invalidates origins of locals/captures even where legacy
+scalar values remain Known. Existing call/getter/ref/mutation/loop/exception scalar
+invalidation is preserved. Cancellation propagates through extraction and parsing.
+
+Each sink proves the intersection of identical source tree/span, decoded URL,
+attribute role and LSQ001 issue across all values and origin alternatives. Every
+distinct value must parse Complete. A mixed/Unknown branch or different invalid
+origins does not prove a common Error. Compilation aggregation unions independently
+proven sinks, rather than intersecting separate uses. It emits one original primary
+URL location with at most 16 deterministically ordered related use locations.
+Normal suppression and pragma apply at the primary source definition.
+
+Origin limits are 64 pieces per alternative, 64 alternatives, eight distinct parsed
+values and 65,536 total decoded units per sink; existing CFG/depth/source/tree and
+262,144 mapping limits remain. This contract proves local URL misuse and never
+certifies whole-HTML/whole-site coverage or absence of Error in later execution.
+
 The existing host-safe HtmlLiteralFacts bridge supplies the actual repaired tree's
 URL attributes, decoded entity values, raw source ranges and rel metadata. Parsing
 must finish Complete with no incomplete-coverage diagnostic. Partial/Failed trees

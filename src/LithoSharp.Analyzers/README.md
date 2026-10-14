@@ -75,6 +75,10 @@ Direct normal/verbatim/raw HTML literals and bounded built-in string additions m
 
 このpreviewは未公開の開発候補です。全SDK/VS/C#拡張の認定やCodeFix出荷を示しません。
 
+Source string constants, known locals/captures, aliases, finite branches and string-only interpolation also use the existing scalar evaluation snapshots with optional original-source pieces. Unknown values stay Unknown; origin loss or origin-budget overflow does not change scalar facts. Equal values retain all origin alternatives, including metadata-only or unmappable pieces. Deconstruction/ref escape invalidates local/capture origins even when legacy scalar values remain Known.
+
+For each sink, LSA1105 requires the same original URL span, decoded URL, attribute role and LSQ001 issue in every known value and every origin alternative, with Complete HTML parses. Different-origin or mixed/Unknown branches, cross-piece origins and ambiguous empty origins are Deferred. Proven sinks are then unioned within the Compilation; they never intersect across uses. The primary location is the original definition URL and respects its pragma; up to 16 related use locations are ordered deterministically. No user getter/call/operator/formatter or Core runtime code is executed. This is a local URL proof, not whole-HTML or whole-site coverage.
+
 ### LSA1201
 
 Error applies only to `Guides.Manifest.GetUrl(path)` when `Guides` explicitly opts into `EmitStaticSiteManifest = true`, the generated property is verified against its runtime catalog initializer and current AdditionalFiles routes, and its compiler fingerprint is fresh. Every bounded known candidate must be absent from that exact immutable lookup. Mixed present/missing candidates, unknown arguments, receiver aliases, custom factories, metadata-only manifests and ordinary catalogs are Deferred. This lookup uses ordinal exact public paths; queries, fragments and URL resolution are outside its contract. A collection catalog does not establish site publication coverage. Anchors and assets remain Open.
