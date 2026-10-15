@@ -91,14 +91,19 @@ internal sealed class StaticManifestAnalysis
         }
         if (scope.State != "Closed") return;
         var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
-        if (argument is null || argument.IsImplicit) { Proof("Unavailable", "manifest-argument-unavailable"); return; }
+        // Null-forgiving syntax can make an explicit CFG argument IsImplicit.
+        if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit) { Proof("Unavailable", "manifest-argument-unavailable"); return; }
         if (argument.Value.Syntax is LiteralExpressionSyntax literal && TryGetTypedReference(literal, context.CancellationToken) is not null)
             context.ReportDiagnostic(Diagnostic.Create(TypedReference, literal.GetLocation(), Properties(scope)));
         var values = evaluate(argument.Value);
         if (values.Values is { Length: > 0 } && values.Values.All(v => v is string)) Proof("Complete", "fresh-closed-known-values");
         else Proof(values.Values is null ? "Unknown" : "Unavailable", values.Reason ?? "unsupported-route-value");
         if (values.Values is null || values.Values.Length == 0 || !values.Values.All(v => v is string path && !scope.Paths.Contains(path))) return;
-        context.ReportDiagnostic(Diagnostic.Create(Missing, argument.Value.Syntax.GetLocation(), Properties(scope)
+        var sourceArgument = argument.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
+        var sourceOwner = sourceArgument?.Parent?.Parent;
+        var expression = sourceOwner is not null && sourceOwner.SyntaxTree == call.Syntax.SyntaxTree && sourceOwner.Span == call.Syntax.Span
+            ? sourceArgument!.Expression : argument.Value.Syntax;
+        context.ReportDiagnostic(Diagnostic.Create(Missing, expression.GetLocation(), Properties(scope)
             .Add("candidateCount", values.Values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)), scope.Site, scope.Variant));
     }
     private void AnalyzeContentReference(OperationBlockAnalysisContext context, IObjectCreationOperation creation)

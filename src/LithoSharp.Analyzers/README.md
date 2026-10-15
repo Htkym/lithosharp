@@ -91,6 +91,8 @@ Inline CSS in surviving unnamespaced `style` attributes and active `style` eleme
 
 ### LSA1201
 
+Explicit arguments, including null-forgiving `!`, use the existing evaluation snapshot after generated-origin, fingerprint and Closed-scope validation. `!` does not prove an Unknown value. Absence diagnostics cover the original argument expression, including `!` and parentheses, in UTF-16 positions. A known missing path reports LSA1201 without an LSA9001 coverage failure; known present or mixed present/missing strings also retain Complete coverage. LSA1401 and its CodeFix remain limited to a direct string literal.
+
 Error applies only to `Guides.Manifest.GetUrl(path)` when `Guides` explicitly opts into `EmitStaticSiteManifest = true`, the generated property is verified against its runtime catalog initializer and current AdditionalFiles routes, and its compiler fingerprint is fresh. Every bounded known candidate must be absent from that exact immutable lookup. Mixed present/missing candidates, unknown arguments, receiver aliases, custom factories, metadata-only manifests and ordinary catalogs are Deferred. This lookup uses ordinal exact public paths; queries, fragments and URL resolution are outside its contract. A collection catalog does not establish site publication coverage. Anchors and assets remain Open.
 
 ### LSA1203

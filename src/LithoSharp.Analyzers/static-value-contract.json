@@ -68,6 +68,7 @@
     "owners": { "routeCollision": "LSG004", "yamlShape": "LSG005", "yamlUnknown": "LSG006" },
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
+    "argumentHandoff": "after generated getter/current fingerprint/fresh Closed proof, select Explicit ArgumentKind even when ! sets IsImplicit; evaluate only the existing snapshot; recover the entire original argument including !/parentheses from the same call owner for absence location only; coverage key/location remains the original call; no syntax-based Known promotion or direct-literal LSA1401/CodeFix expansion",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
     "notImplemented": ["LSA1202/1204", "LSA1203 beyond explicit transform inputs/outputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
   },
