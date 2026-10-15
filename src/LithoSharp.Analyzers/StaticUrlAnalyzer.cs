@@ -111,6 +111,24 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                 new Sink(0, Route, v => Reject(() => SiteRoute.ForDirectoryIndex((string)v!))),
                 new Sink(1, Route, v => Reject(() => SiteRoute.ForDirectoryIndex("", (string?)v))));
         }
+        // This instance wrapper returns SiteUrl, not its own generic containing type.
+        // Keep the static/self-return registration contract above unchanged.
+        var contentRef = compilation.GetTypeByMetadataName("LithoSharp.Content.ContentRef`1")?.OriginalDefinition;
+        var siteUrl = compilation.GetTypeByMetadataName("LithoSharp.SiteUrl")?.OriginalDefinition;
+        if (contentRef is { Arity: 1, IsSealed: true } && siteUrl is not null
+            && contentRef.ContainingAssembly.Identity.Name == "LithoSharp"
+            && SymbolEqualityComparer.Default.Equals(contentRef.ContainingAssembly, siteUrl.ContainingAssembly)
+            && !contentRef.Locations.Any(l => l.IsInSource) && !siteUrl.Locations.Any(l => l.IsInSource))
+        {
+            foreach (var method in contentRef.GetMembers("GetUrl").OfType<IMethodSymbol>().Where(m =>
+                m.MethodKind == MethodKind.Ordinary && !m.IsStatic && m.Arity == 0 && m.DeclaredAccessibility == Accessibility.Public
+                && !m.ReturnsByRef && !m.ReturnsByRefReadonly && SymbolEqualityComparer.Default.Equals(m.ReturnType, siteUrl)
+                && m.Parameters.Length == 1 && m.Parameters[0].RefKind == RefKind.None
+                && m.Parameters[0].Type.SpecialType == SpecialType.System_String && m.Parameters[0].IsOptional
+                && m.Parameters[0].HasExplicitDefaultValue && m.Parameters[0].ExplicitDefaultValue is null))
+                result.Add(method.OriginalDefinition, new List<Sink>
+                { new Sink(0, Route, v => Reject(() => SiteRoute.ForFile("valid.html", (string?)v))) });
+        }
         Register("LithoSharp.SiteAssetOutput", ".ctor", new[] { "string", "string" },
             new Sink(1, Path, v => Reject(() => SiteRoute.NormalizeRelativeOutputPath((string)v!))));
         Register("LithoSharp.SiteAsset", ".ctor", new[] { "string", "string", "string", "string" },
