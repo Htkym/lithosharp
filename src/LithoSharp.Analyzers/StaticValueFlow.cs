@@ -51,7 +51,7 @@ internal static class StaticValueFlow
         || o.Type?.TypeKind == TypeKind.Error || o is IConversionOperation c && (!c.Conversion.Exists || c.OperatorMethod is not null));
 
     internal static void Analyze(OperationBlockAnalysisContext context, Action<IOperation, Func<IOperation, StaticValue>> sink,
-        HtmlTemplateAnalysis? html = null)
+        HtmlTemplateAnalysis? html = null, Action<IOperation, string>? interrupted = null)
     {
         var origins = new HtmlOriginProvider(context.Compilation, context.CancellationToken);
         var timeSpan = context.Compilation.GetSpecialType(SpecialType.System_Int64).ContainingAssembly.GetTypeByMetadataName("System.TimeSpan");
@@ -60,10 +60,10 @@ internal static class StaticValueFlow
             context.CancellationToken.ThrowIfCancellationRequested();
             var model = context.Compilation.GetSemanticModel(root.Syntax.SyntaxTree);
             var outer = ControlFlowGraph.Create(root.Parent?.Syntax ?? root.Syntax, model, context.CancellationToken);
-            if (outer is null) continue;
-            foreach (var graph in NestedGraphs(outer, context.CancellationToken))
+            if (outer is null) { interrupted?.Invoke(root, "flow-unavailable"); continue; }
+            foreach (var graph in NestedGraphs(outer, context.CancellationToken, () => interrupted?.Invoke(root, "nested-graph-budget")))
             {
-                if (graph.Blocks.Length > MaxBlocks) continue;
+                if (graph.Blocks.Length > MaxBlocks) { interrupted?.Invoke(root, "block-budget"); continue; }
                 var operationCount = 0;
                 foreach (var operation in graph.Blocks.SelectMany(b => b.Operations.Concat(b.BranchValue is null
                     ? Enumerable.Empty<IOperation>() : new[] { b.BranchValue })).SelectMany(Walk))
@@ -71,7 +71,7 @@ internal static class StaticValueFlow
                     context.CancellationToken.ThrowIfCancellationRequested();
                     if (++operationCount > MaxOperations) break;
                 }
-                if (operationCount > MaxOperations) continue;
+                if (operationCount > MaxOperations) { interrupted?.Invoke(root, "operation-budget"); continue; }
                 // Exceptional edges/finally execution are not ordinary CFG predecessor joins.
                 // Defer their local facts, as well as loops, rather than assume ordinal flow.
                 var deferredFlow = graph.Blocks.Any(b => b.Predecessors.Any(p => p.Source.Ordinal >= b.Ordinal))
@@ -173,7 +173,7 @@ internal static class StaticValueFlow
         }
     }
 
-    private static IEnumerable<ControlFlowGraph> NestedGraphs(ControlFlowGraph outer, CancellationToken cancellation)
+    private static IEnumerable<ControlFlowGraph> NestedGraphs(ControlFlowGraph outer, CancellationToken cancellation, Action exhausted)
     {
         var pending = new Stack<ControlFlowGraph>();
         pending.Push(outer);
@@ -189,6 +189,7 @@ internal static class StaticValueFlow
                 ? Enumerable.Empty<IOperation>() : new[] { b.BranchValue })).SelectMany(Walk).OfType<IFlowAnonymousFunctionOperation>())
                 pending.Push(graph.GetAnonymousFunctionControlFlowGraph(anonymous, cancellation));
         }
+        if (pending.Count != 0) exhausted();
     }
 
     private static StaticValue Evaluate(IOperation operation, State state, int depth,

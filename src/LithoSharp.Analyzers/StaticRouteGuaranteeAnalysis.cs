@@ -53,7 +53,22 @@ internal sealed class StaticRouteGuaranteeAnalysis
             || !SymbolEqualityComparer.Default.Equals(owner.Type, options)) return null;
         return new(compilation, inputs, token, options, definition, extension!, contribution!, registered, selected, owner);
     }
-    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation)
+    private const string CoverageScope = "selected-producer-route-contributions";
+    internal void DiscoverCoverage(IOperation operation, StaticCoveragePolicy coverage)
+    {
+        if (operation is ISimpleAssignmentOperation assignment && assignment.Target is IPropertyReferenceOperation property
+            && SymbolEqualityComparer.Default.Equals(property.Property, selected))
+            coverage.Discover(assignment, assignment.Value.Syntax.GetLocation(), CoverageScope, EmptySelection(assignment.Value));
+    }
+    private static bool EmptySelection(IOperation value)
+    {
+        value = Unwrap(value);
+        if (value is ICollectionExpressionOperation collection) return collection.Elements.Length == 0;
+        if (value is not IArrayCreationOperation array) return false;
+        return array.Initializer is { } initializer ? initializer.ElementValues.Length == 0
+            : array.DimensionSizes.Length == 1 && array.DimensionSizes[0].ConstantValue is { HasValue: true, Value: 0 };
+    }
+    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, StaticCoveragePolicy coverage)
     {
         if (operation is not IObjectCreationOperation cfg || !SymbolEqualityComparer.Default.Equals(cfg.Type, options)) return;
         var model = compilation.GetSemanticModel(cfg.Syntax.SyntaxTree);
@@ -61,18 +76,31 @@ internal sealed class StaticRouteGuaranteeAnalysis
             || original.Initializer is null || original.Constructor?.Parameters.Length != 0 || StaticValueFlow.HasBindingError(original)) return;
         var selection = Assignment(original, selected);
         if (selection is null) return;
+        void Proof(string state, string reason) => coverage.Record(original, selection.Value.Syntax.GetLocation(), CoverageScope, state, reason);
+        if (EmptySelection(selection.Value))
+        {
+            coverage.Discover(original, selection.Value.Syntax.GetLocation(), CoverageScope, empty: true);
+            return;
+        }
         var ownerSyntax = cfg.Syntax.Ancestors().OfType<BaseObjectCreationExpressionSyntax>().FirstOrDefault(node =>
             model.GetOperation(node, context.CancellationToken) is IObjectCreationOperation creation
             && SymbolEqualityComparer.Default.Equals(creation.Type, definition));
         if (ownerSyntax is null || model.GetOperation(ownerSyntax, context.CancellationToken) is not IObjectCreationOperation owner
-            || Assignment(owner, definitionOptions)?.Value.Syntax.Span != original.Syntax.Span) return;
+            || Assignment(owner, definitionOptions)?.Value.Syntax.Span != original.Syntax.Span)
+        { Proof("Unavailable", "producer-owner-unavailable"); return; }
         var block = ownerSyntax.Ancestors().OfType<BlockSyntax>().FirstOrDefault();
-        if (block is null || block.DescendantNodes().Take(StaticValueFlow.MaxOperations + 1).Count() > StaticValueFlow.MaxOperations
-            || block.DescendantNodes().Any(node => node is IfStatementSyntax or SwitchStatementSyntax or ForStatementSyntax
-                or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax or TryStatementSyntax or GotoStatementSyntax)) return;
+        if (block is null) { Proof("Unavailable", "producer-owner-unavailable"); return; }
+        if (block.DescendantNodes().Take(StaticValueFlow.MaxOperations + 1).Count() > StaticValueFlow.MaxOperations)
+        { Proof("Unavailable", "producer-syntax-budget"); return; }
+        if (block.DescendantNodes().Any(node => node is IfStatementSyntax or SwitchStatementSyntax or ForStatementSyntax
+            or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax or TryStatementSyntax or GotoStatementSyntax))
+        { Proof("Unavailable", "producer-control-flow-unavailable"); return; }
         var registration = Assignment(original, registered);
-        if (registration is null || !Elements(registration.Value, out var registrations) || !Elements(selection.Value, out var selections)
-            || selections.Length == 0 || registrations.Length > MaxProducers || selections.Length > MaxProducers) return;
+        if (!Elements(selection.Value, out var selections)) { Proof("Unavailable", "opaque-producer-selection"); return; }
+        if (registration is null || !Elements(registration.Value, out var registrations))
+        { Proof("Unavailable", "producer-registration-unavailable"); return; }
+        if (registrations.Length > MaxProducers || selections.Length > MaxProducers)
+        { Proof("Unavailable", "producer-budget"); return; }
         var registeredInstances = new Dictionary<(SyntaxTree Tree, int Start), IObjectCreationOperation>();
         foreach (var item in registrations)
         {
@@ -87,16 +115,19 @@ internal sealed class StaticRouteGuaranteeAnalysis
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             var identity = Instance(item, model, block, context.CancellationToken, 0);
-            if (identity is null) return;
+            if (identity is null) { Proof("Unavailable", "producer-identity-unavailable"); return; }
             var key = (identity.Syntax.SyntaxTree, identity.Syntax.SpanStart);
-            if (!registeredInstances.ContainsKey(key)) return; // A nonregistered selection never closes this scope.
+            if (!registeredInstances.ContainsKey(key)) { Proof("Unavailable", "producer-not-registered"); return; }
             if (!unique.Add(key)) continue;
             if (KnownEmpty(identity, context.CancellationToken)) continue;
-            if (!DocumentationRegistration(identity, model, block, ownerSyntax.SpanStart, context.CancellationToken)) return;
+            if (!DocumentationRegistration(identity, model, block, ownerSyntax.SpanStart, context.CancellationToken))
+            { Proof("Unavailable", "producer-contract-unavailable"); return; }
             deferred.Add(identity.Syntax.GetLocation());
         }
+        if (deferred.Count == 0) { Proof("Complete", "known-empty-producer-contributions"); return; }
         var current = fingerprint.Value;
-        if (deferred.Count == 0 || current is null) return;
+        if (current is null) { Proof("Unavailable", "fingerprint-unavailable"); return; }
+        Proof("Deferred", "registered-documentation-routes-not-statically-enumerable");
         var properties = ImmutableDictionary<string, string?>.Empty
             .Add("contract", "explicit-producer-route-scope/1").Add("scope", "selected-producer-route-contributions")
             .Add("scopeState", "Deferred").Add("deferredProducerCount", deferred.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))

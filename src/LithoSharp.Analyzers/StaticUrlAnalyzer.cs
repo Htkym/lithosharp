@@ -25,7 +25,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -42,6 +42,14 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             var guarantee = StaticRouteGuaranteeAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             if (sinks.Count == 0 && html is null && manifest is null && guarantee is null) return;
+            var coverage = new StaticCoveragePolicy(start.Compilation);
+            start.RegisterOperationAction(operation =>
+            {
+                operation.CancellationToken.ThrowIfCancellationRequested();
+                manifest?.DiscoverCoverage(operation.Operation, coverage);
+                guarantee?.DiscoverCoverage(operation.Operation, coverage);
+            }, OperationKind.Invocation, OperationKind.SimpleAssignment);
+            start.RegisterCompilationEndAction(coverage.Report);
             if (html is not null)
             {
                 start.RegisterCompilationEndAction(htmlUrls.Report);
@@ -51,8 +59,8 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             {
                 block.CancellationToken.ThrowIfCancellationRequested();
                 html?.Analyze(block, operation, evaluate, htmlUrls);
-                manifest?.Analyze(block, operation, evaluate);
-                guarantee?.Analyze(block, operation);
+                manifest?.Analyze(block, operation, evaluate, coverage);
+                guarantee?.Analyze(block, operation, coverage);
                 var method = operation is IInvocationOperation call ? call.TargetMethod
                     : (operation as IObjectCreationOperation)?.Constructor;
                 if (method is null || !sinks.TryGetValue(method.OriginalDefinition, out var rules)) return;
@@ -71,7 +79,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                     block.ReportDiagnostic(Diagnostic.Create(rule.Descriptor, argument.Value.Syntax.GetLocation(),
                         properties, argument.Parameter!.Name, method.ContainingType.Name + "." + method.Name));
                 }
-            }, html));
+            }, html, coverage.Interrupt));
         });
     }
 

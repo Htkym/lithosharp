@@ -59,22 +59,31 @@ internal sealed class StaticManifestAnalysis
             && m.Parameters.Length == 1 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
         return method is null ? null : new(compilation, options, cancellation, method);
     }
-    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate)
+    private const string CoverageScope = "manifest-route-lookup";
+    internal void DiscoverCoverage(IOperation operation, StaticCoveragePolicy coverage)
+    {
+        if (operation is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup))
+            coverage.Discover(call, call.Syntax.GetLocation(), CoverageScope);
+    }
+    internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate,
+        StaticCoveragePolicy coverage)
     {
         if (operation is IObjectCreationOperation creation)
         {
             AnalyzeContentReference(context, creation);
             return;
         }
-        if (operation is not IInvocationOperation call || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup)
-            || StaticValueFlow.HasBindingError(call)) return;
+        if (operation is not IInvocationOperation call || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup)) return;
+        void Proof(string state, string reason) => coverage.Record(call, call.Syntax.GetLocation(), CoverageScope, state, reason);
+        if (StaticValueFlow.HasBindingError(call)) { Proof("Unavailable", "unsupported-binding-or-conversion"); return; }
         var property = Unwrap(call.Instance) as IPropertyReferenceOperation;
         // CFG captures the receiver before evaluating a conditional argument. Recover only the
         // original direct property expression; Read still verifies an immutable generated getter.
         if (property is null && call.Syntax is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access })
             property = compilation.GetSemanticModel(access.SyntaxTree).GetOperation(access.Expression, context.CancellationToken) as IPropertyReferenceOperation;
-        if (property is null || !property.Property.IsStatic) return;
+        if (property is null || !property.Property.IsStatic) { Proof("Unavailable", "manifest-receiver-unavailable"); return; }
         var scope = facts.GetOrAdd(property.Property, p => Read(p, context.CancellationToken));
+        if (scope.State != "Closed") Proof(scope.State, "manifest-" + scope.State.ToLowerInvariant());
         if (scope.State == "Stale")
         {
             context.ReportDiagnostic(Diagnostic.Create(Stale, property.Syntax.GetLocation(), Properties(scope)));
@@ -82,10 +91,12 @@ internal sealed class StaticManifestAnalysis
         }
         if (scope.State != "Closed") return;
         var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
-        if (argument is null || argument.IsImplicit) return;
+        if (argument is null || argument.IsImplicit) { Proof("Unavailable", "manifest-argument-unavailable"); return; }
         if (argument.Value.Syntax is LiteralExpressionSyntax literal && TryGetTypedReference(literal, context.CancellationToken) is not null)
             context.ReportDiagnostic(Diagnostic.Create(TypedReference, literal.GetLocation(), Properties(scope)));
         var values = evaluate(argument.Value);
+        if (values.Values is { Length: > 0 } && values.Values.All(v => v is string)) Proof("Complete", "fresh-closed-known-values");
+        else Proof(values.Values is null ? "Unknown" : "Unavailable", values.Reason ?? "unsupported-route-value");
         if (values.Values is null || values.Values.Length == 0 || !values.Values.All(v => v is string path && !scope.Paths.Contains(path))) return;
         context.ReportDiagnostic(Diagnostic.Create(Missing, argument.Value.Syntax.GetLocation(), Properties(scope)
             .Add("candidateCount", values.Values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)), scope.Site, scope.Variant));

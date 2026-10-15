@@ -66,7 +66,18 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403 beyond explicit producer selection", "LSA9001", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
+  },
+  "staticCoveragePolicy": {
+    "id": "LSA9001", "policy": "RequireStaticCoverage", "enabledByDefault": false, "defaultSeverityWhenEnabled": "Error",
+    "optIn": "standard Roslyn per-ID severity/editor configuration; no independent severity override or public runtime setting",
+    "scopes": ["exact metadata StaticSiteManifest.GetUrl", "explicit metadata StaticRouteGuaranteeProducers assignments"],
+    "proof": "reuse scalar snapshots, manifest provenance and selected producer proof; actual incomplete visits absorb complete visits",
+    "complete": ["fresh Closed lookup with known string candidates", "source-proven empty producer selection before registration/fingerprint/CFG", "registered known-empty producer contributions"],
+    "unverified": ["Open", "Stale", "Unavailable receiver/selection/registration/identity", "Unknown values", "proof budgets"],
+    "discovery": "original Roslyn operation callbacks independent of CFG sink callbacks; block/operation/nested-graph interruptions retain reason",
+    "origin": "original lookup call or producer selection expression UTF16 span", "suppression": "ordinary Roslyn severity, NoWarn and primary-side pragma; generated-code exclusion",
+    "notAssertions": ["missing reference", "opaque producer is dynamic", "whole-site Closed", "anchor/asset completeness"]
   },
   "producerRouteGuarantee": {
     "task": "RA-05",

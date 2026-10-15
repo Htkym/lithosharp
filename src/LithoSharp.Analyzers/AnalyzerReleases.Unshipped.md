@@ -2,6 +2,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|------
+LSA9001 | LithoSharp | Disabled | Explicit opt-in static coverage policy; Error when enabled, with ordinary Roslyn severity and suppression.
 LSA1401 | LithoSharp | Info | Unique equivalent generated PageRef path for a direct literal in a fresh immutable manifest.
 LSA1402 | LithoSharp | Error | Existing entry ID and valid route contradict the same uniquely selected fresh Closed generated catalog.
 LSA1403 | LithoSharp | Info | Explicitly selected registered documentation producer route contributions cannot be enumerated statically; count unique selected instances only.
