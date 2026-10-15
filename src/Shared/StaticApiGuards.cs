@@ -22,4 +22,24 @@ internal static class StaticApiGuards
         if (!Enum.IsDefined(typeof(SiteDiagnosticSeverity), failureThreshold))
             throw new ArgumentOutOfRangeException(nameof(failureThreshold));
     }
+
+    internal const long MaximumTimerTicks = 42949672940000L;
+
+    internal static void ValidateExternalCacheFilePath(string cacheFilePath)
+    {
+        if (cacheFilePath is null) throw new ArgumentNullException(nameof(cacheFilePath));
+        if (string.IsNullOrWhiteSpace(cacheFilePath))
+            throw new ArgumentException("A cache file path must not be empty.", nameof(cacheFilePath));
+    }
+
+    internal static void ValidateExternalCacheDuration(long ticks)
+    {
+        if (ticks < 0) throw new ArgumentOutOfRangeException("cacheDuration");
+    }
+
+    internal static void ValidateExternalTimerDuration(long ticks, string name, bool allowZero)
+    {
+        if ((!allowZero && ticks <= 0) || (allowZero && ticks < 0) || ticks > MaximumTimerTicks)
+            throw new ArgumentOutOfRangeException(name);
+    }
 }

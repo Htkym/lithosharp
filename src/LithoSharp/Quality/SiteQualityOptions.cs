@@ -46,15 +46,14 @@ public sealed record ExternalLinkCheckOptions
         TimeSpan? minimumRequestInterval = null,
         TimeSpan? requestTimeout = null)
     {
-        ArgumentNullException.ThrowIfNull(cacheFilePath);
-        if (string.IsNullOrWhiteSpace(cacheFilePath)) throw new ArgumentException("A cache file path must not be empty.", nameof(cacheFilePath));
+        Internal.StaticApiGuards.ValidateExternalCacheFilePath(cacheFilePath);
         CacheFilePath = cacheFilePath;
         CacheDuration = cacheDuration ?? TimeSpan.FromHours(24);
         MinimumRequestInterval = minimumRequestInterval ?? TimeSpan.FromMilliseconds(500);
         RequestTimeout = requestTimeout ?? TimeSpan.FromSeconds(10);
-        if (CacheDuration < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(cacheDuration));
-        ValidateDuration(MinimumRequestInterval, nameof(minimumRequestInterval), allowZero: true);
-        ValidateDuration(RequestTimeout, nameof(requestTimeout), allowZero: false);
+        Internal.StaticApiGuards.ValidateExternalCacheDuration(CacheDuration.Ticks);
+        Internal.StaticApiGuards.ValidateExternalTimerDuration(MinimumRequestInterval.Ticks, nameof(minimumRequestInterval), allowZero: true);
+        Internal.StaticApiGuards.ValidateExternalTimerDuration(RequestTimeout.Ticks, nameof(requestTimeout), allowZero: false);
     }
 
     /// <summary>リンクキャッシュのファイルパスを取得します。</summary>
@@ -66,10 +65,4 @@ public sealed record ExternalLinkCheckOptions
     /// <summary>リクエストのタイムアウトを取得します。</summary>
     public TimeSpan RequestTimeout { get; }
 
-    private static void ValidateDuration(TimeSpan value, string name, bool allowZero)
-    {
-        var maximum = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
-        if ((!allowZero && value <= TimeSpan.Zero) || (allowZero && value < TimeSpan.Zero) || value > maximum)
-            throw new ArgumentOutOfRangeException(name);
-    }
 }

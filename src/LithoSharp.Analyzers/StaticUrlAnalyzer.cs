@@ -102,6 +102,12 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         Register("LithoSharp.Quality.SiteQualityOptions", ".ctor",
             new[] { "LithoSharp.Diagnostics.SiteDiagnosticSeverity", "bool", "LithoSharp.Quality.ExternalLinkCheckOptions?" },
             new Sink(0, Option, v => v is int severity && Reject(() => StaticApiGuards.ValidateFailureThreshold(severity))));
+        Register("LithoSharp.Quality.ExternalLinkCheckOptions", ".ctor",
+            new[] { "string", "System.TimeSpan?", "System.TimeSpan?", "System.TimeSpan?" },
+            new Sink(0, Option, v => v is null || v is string && Reject(() => StaticApiGuards.ValidateExternalCacheFilePath((string)v))),
+            new Sink(1, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalCacheDuration(duration.Ticks))),
+            new Sink(2, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalTimerDuration(duration.Ticks, "minimumRequestInterval", true))),
+            new Sink(3, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalTimerDuration(duration.Ticks, "requestTimeout", false))));
         return result;
     }
 

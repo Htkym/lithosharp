@@ -44,6 +44,7 @@ internal static class StaticValueFlow
     internal static void Analyze(OperationBlockAnalysisContext context, Action<IOperation, Func<IOperation, StaticValue>> sink)
     {
         var origins = new HtmlOriginProvider(context.Compilation, context.CancellationToken);
+        var timeSpan = context.Compilation.GetSpecialType(SpecialType.System_Int64).ContainingAssembly.GetTypeByMetadataName("System.TimeSpan");
         foreach (var root in context.OperationBlocks)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -84,7 +85,7 @@ internal static class StaticValueFlow
                         var expressionDepth = 1 + operation.ChildOperations.Select(child => depths[child]).DefaultIfEmpty(0).Max();
                         depths[operation] = expressionDepth;
                         snapshots[operation] = expressionDepth > MaxDepth && !operation.ConstantValue.HasValue
-                            ? StaticValue.Unknown("depth-budget") : Evaluate(operation, state, 0, snapshots);
+                            ? StaticValue.Unknown("depth-budget") : Evaluate(operation, state, 0, snapshots, timeSpan);
                         var scalar = snapshots[operation];
                         snapshots[operation] = scalar.WithOrigins(origins.Evaluate(operation, scalar,
                             value => snapshots.TryGetValue(value, out var prior) ? prior : StaticValue.Unknown("missing-evaluation-snapshot"),
@@ -95,10 +96,10 @@ internal static class StaticValueFlow
                         if (!deferredFlow && operation is ISimpleAssignmentOperation assignment && assignment.Target is ILocalReferenceOperation local)
                         {
                             if (assignment.IsRef || local.Local.RefKind != RefKind.None) state.Invalidate("ref-alias");
-                            else state.Locals[local.Local] = Evaluate(assignment.Value, state, 0, snapshots);
+                            else state.Locals[local.Local] = Evaluate(assignment.Value, state, 0, snapshots, timeSpan);
                         }
                         else if (!deferredFlow && operation is IFlowCaptureOperation capture)
-                            state.Captures[capture.Id] = Evaluate(capture.Value, state, 0, snapshots);
+                            state.Captures[capture.Id] = Evaluate(capture.Value, state, 0, snapshots, timeSpan);
                         // Calls/getters can mutate captured locals even with no explicit argument.
                         if (operation is IInvocationOperation or IObjectCreationOperation or IPropertyReferenceOperation
                             or IDynamicInvocationOperation or IAwaitOperation or IAddressOfOperation)
@@ -109,9 +110,9 @@ internal static class StaticValueFlow
                             state.Locals[changed.Local] = StaticValue.Unknown("mutation");
                         if (operation is ICompoundAssignmentOperation compound && compound.Target is ILocalReferenceOperation target)
                             state.Locals[target.Local] = StaticValue.Unknown("mutation");
+                        if (operation is IDeconstructionAssignmentOperation) state.Invalidate("deconstruction");
                         // These can invalidate an origin even when legacy scalar facts remain Known.
-                        if (operation is IDeconstructionAssignmentOperation
-                            || operation is ISimpleAssignmentOperation { IsRef: true }
+                        if (operation is ISimpleAssignmentOperation { IsRef: true }
                             || operation is IVariableDeclaratorOperation declarator && declarator.Symbol.RefKind != RefKind.None
                             || operation is IArgumentOperation reference && reference.Parameter?.RefKind is RefKind.Ref or RefKind.Out or RefKind.In
                             || operation is ILocalReferenceOperation referenceLocal && referenceLocal.Syntax.Ancestors().Any(node => node is Microsoft.CodeAnalysis.CSharp.Syntax.RefExpressionSyntax))
@@ -173,13 +174,15 @@ internal static class StaticValueFlow
     }
 
     private static StaticValue Evaluate(IOperation operation, State state, int depth,
-        IReadOnlyDictionary<IOperation, StaticValue> snapshots)
+        IReadOnlyDictionary<IOperation, StaticValue> snapshots, INamedTypeSymbol? timeSpan)
     {
         if (snapshots.TryGetValue(operation, out var snapshot)) return snapshot;
         if (depth >= MaxDepth) return StaticValue.Unknown("depth-budget");
         if (operation.Kind == OperationKind.Invalid || operation.Type?.TypeKind == TypeKind.Error)
             return StaticValue.Unknown("binding-error");
         if (operation.ConstantValue.HasValue) return StaticValue.Known(operation.ConstantValue.Value);
+        var duration = StaticDuration.Evaluate(operation, timeSpan, child => Evaluate(child, state, depth + 1, snapshots, timeSpan));
+        if (duration is not null) return duration;
         switch (operation)
         {
             case ILocalReferenceOperation local when local.Local.RefKind == RefKind.None:
@@ -188,32 +191,32 @@ internal static class StaticValueFlow
                 return state.Captures.TryGetValue(capture.Id, out var captured) ? captured : StaticValue.Unknown("unassigned-or-loop");
             case ISimpleAssignmentOperation assignment when !assignment.IsRef
                 && assignment.Target is ILocalReferenceOperation local && local.Local.RefKind == RefKind.None:
-                return Evaluate(assignment.Value, state, depth + 1, snapshots);
+                return Evaluate(assignment.Value, state, depth + 1, snapshots, timeSpan);
             case IConversionOperation conversion when conversion.Conversion.Exists && conversion.OperatorMethod is null
                 && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference):
-                return Evaluate(conversion.Operand, state, depth + 1, snapshots);
+                return Evaluate(conversion.Operand, state, depth + 1, snapshots, timeSpan);
             case IBinaryOperation binary when binary.OperatorKind == BinaryOperatorKind.Add
                 && binary.Type?.SpecialType == SpecialType.System_String && binary.OperatorMethod is null:
-                return Concat(Evaluate(binary.LeftOperand, state, depth + 1, snapshots), Evaluate(binary.RightOperand, state, depth + 1, snapshots));
+                return Concat(Evaluate(binary.LeftOperand, state, depth + 1, snapshots, timeSpan), Evaluate(binary.RightOperand, state, depth + 1, snapshots, timeSpan));
             case IInterpolatedStringOperation interpolated:
                 var text = StaticValue.Known("");
                 foreach (var part in interpolated.Parts)
                 {
                     if (part is IInterpolatedStringTextOperation literal)
-                        text = Concat(text, Evaluate(literal.Text, state, depth + 1, snapshots));
+                        text = Concat(text, Evaluate(literal.Text, state, depth + 1, snapshots, timeSpan));
                     else if (part is IInterpolationOperation hole && hole.Alignment is null && hole.FormatString is null
                         && hole.Expression.Type?.SpecialType == SpecialType.System_String)
-                        text = Concat(text, Evaluate(hole.Expression, state, depth + 1, snapshots));
+                        text = Concat(text, Evaluate(hole.Expression, state, depth + 1, snapshots, timeSpan));
                     else return StaticValue.Unknown("interpolation-user-code");
                 }
                 return text;
             case IConditionalOperation conditional:
-                var condition = Evaluate(conditional.Condition, state, depth + 1, snapshots);
+                var condition = Evaluate(conditional.Condition, state, depth + 1, snapshots, timeSpan);
                 if (condition.Values is { Length: 1 } && condition.Values[0] is bool choice)
                     return conditional.WhenFalse is null ? StaticValue.Unknown("missing-branch")
-                        : Evaluate(choice ? conditional.WhenTrue : conditional.WhenFalse, state, depth + 1, snapshots);
+                        : Evaluate(choice ? conditional.WhenTrue : conditional.WhenFalse, state, depth + 1, snapshots, timeSpan);
                 return conditional.WhenFalse is null ? StaticValue.Unknown("missing-branch")
-                    : Evaluate(conditional.WhenTrue, state, depth + 1, snapshots).Join(Evaluate(conditional.WhenFalse, state, depth + 1, snapshots));
+                    : Evaluate(conditional.WhenTrue, state, depth + 1, snapshots, timeSpan).Join(Evaluate(conditional.WhenFalse, state, depth + 1, snapshots, timeSpan));
             default: return StaticValue.Unknown("nonconstant-user-code");
         }
     }
