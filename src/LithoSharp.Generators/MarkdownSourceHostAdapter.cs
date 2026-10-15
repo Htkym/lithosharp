@@ -11,6 +11,10 @@ namespace LithoSharp.Generators;
 // No current checkout parser Compile links or public runtime facade references are used.
 internal static class MarkdownSourceHostAdapter
 {
+    // The immutable component pair selected by Directory.Build.props, not a runtime facade.
+    internal const string ExpectedParserVersion = "1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051";
+    private const string ContractVersion = "1.0";
+    private const string ProfileId = "lithosharp-markdown/1";
     internal static void Verify(string expectedParserVersion, string contractVersion, string profileId,
         string yamlPackage, string yamlAssembly, string yamlInformation)
     {
@@ -29,12 +33,19 @@ internal static class MarkdownSourceHostAdapter
     }
 
 #if SYNTAMARK_SOURCE
+    internal static MdDocumentFacts ParseForCompiler(string raw, string scopeId, string sourceId, CancellationToken cancellationToken)
+        => Parse(raw, scopeId, sourceId, null, new MdOptions(profileId: ProfileId),
+            ExpectedParserVersion, ContractVersion, ProfileId, MarkdownYamlIdentity.PackageVersion,
+            MarkdownYamlIdentity.AssemblyIdentity, MarkdownYamlIdentity.InformationalVersion, cancellationToken);
+
     internal static MdDocumentFacts Parse(string raw, string scopeId, string sourceId, string? sourceVersion,
         MdOptions options, string expectedParserVersion, string contractVersion, string profileId,
         string yamlPackage, string yamlAssembly, string yamlInformation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Verify(expectedParserVersion, contractVersion, profileId, yamlPackage, yamlAssembly, yamlInformation);
+        if (options.ProfileId != profileId)
+            throw new InvalidOperationException("Markdown options differ from the verified profile.");
         return MdParser.Parse(raw, scopeId, sourceId, sourceVersion, options, cancellationToken);
     }
 #endif

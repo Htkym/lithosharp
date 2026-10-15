@@ -156,8 +156,12 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                 continue;
             }
             routes.Add((collection.Site, collection.Variant, route));
-            StaticYamlValidation.Validate(input.Path, input.Text.ToString(), collection.Front, diagnostic =>
-            { if (diagnostic.Severity == DiagnosticSeverity.Error) complete = false; output.ReportDiagnostic(diagnostic); });
+            var markdown = MarkdownSourceHostAdapter.ParseForCompiler(input.Text.ToString(),
+                collection.Site + "|" + collection.Variant + "|" + collection.Id, input.Path, output.CancellationToken);
+            if (!StaticYamlValidation.Validate(input.Path, markdown, collection.Front, diagnostic =>
+                { if (diagnostic.Severity == DiagnosticSeverity.Error) complete = false; output.ReportDiagnostic(diagnostic); }, output.CancellationToken))
+                Fail(MissingInput, input.Location, "Markdown front matter could not be verified ("
+                    + string.Join(", ", markdown.Coverage.Reasons) + ").");
             collection.Entries.Add(new Entry(name, entryId, sourcePath, input.Route, route.PublicPath.EndsWith("/", StringComparison.Ordinal)));
         }
         foreach (var collection in collections)

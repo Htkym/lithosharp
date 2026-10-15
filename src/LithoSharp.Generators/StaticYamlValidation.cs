@@ -5,6 +5,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using Syntamark.Compilation;
+using SourceText = Microsoft.CodeAnalysis.Text.SourceText;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.CSharp;
@@ -21,54 +24,69 @@ internal static class StaticYamlValidation
     private static readonly DiagnosticDescriptor StrictYaml = new("LSG005", "Invalid static content YAML", "{0}", "LithoSharp", DiagnosticSeverity.Error, true);
     private static readonly DiagnosticDescriptor Conversion = new("LSG006", "Invalid static content value", "{0}", "LithoSharp", DiagnosticSeverity.Error, true);
 
-    internal static void Validate(string path, string markdown, INamedTypeSymbol frontMatter, Action<Diagnostic> report)
+    // false means the frontmatter evidence is unavailable, not successful validation.
+    // Known schema errors still report their original LSG005/006 diagnostics.
+    internal static bool Validate(string path, MdDocumentFacts document, INamedTypeSymbol frontMatter, Action<Diagnostic> report,
+        CancellationToken cancellationToken)
     {
-        var start = FindFrontMatter(markdown);
-        if (start is null)
+        cancellationToken.ThrowIfCancellationRequested();
+        var markdown = document.RawText;
+        var envelope = document.FrontMatter;
+        if (envelope.State == MdFrontMatterState.Unknown) return false;
+        if (envelope.State == MdFrontMatterState.Absent)
         {
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, 0, Math.Min(3, markdown.Length)), "Markdown front matter is required."));
-            return;
+            return true;
         }
-        if (!start.Value.Valid)
+        if (envelope.State == MdFrontMatterState.Unterminated)
         {
-            report(Diagnostic.Create(StrictYaml, Location(path, markdown, start.Value.Offset, 3), "Front matter is not closed."));
-            return;
+            var start = envelope.OpeningSpan?.End == markdown.Length ? 0 : envelope.YamlSpan?.Start ?? 0;
+            report(Diagnostic.Create(StrictYaml, Location(path, markdown, start, 3), "Front matter is not closed."));
+            return true;
         }
+        if (envelope.YamlSpan is not { } yamlSpan || envelope.OpeningSpan is null || envelope.ClosingSpan is null) return false;
+        // YamlSpan excludes both delimiter lines and is already in the full original UTF-16 buffer.
+        // Body Partial/Unsupported is unrelated to this bounded schema projection.
+        var yaml = markdown.Substring(yamlSpan.Start, yamlSpan.Length);
+        var offset = yamlSpan.Start;
         try
         {
-            var parser = new Parser(new StringReader(start.Value.Yaml));
+            var parser = new Parser(new StringReader(yaml));
             var depth = 0;
             while (parser.MoveNext())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (parser.Current is AnchorAlias || parser.Current is NodeEvent nodeEvent && !nodeEvent.Anchor.IsEmpty)
                 {
-                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, start.Value.Offset, 1), "YAML aliases and anchors are not supported."));
-                    return;
+                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "YAML aliases and anchors are not supported."));
+                    return true;
                 }
                 if (parser.Current is MappingStart or SequenceStart && ++depth > 64)
                 {
-                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, start.Value.Offset, 1), "YAML nesting is too deep."));
-                    return;
+                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "YAML nesting is too deep."));
+                    return true;
                 }
                 if (parser.Current is MappingEnd or SequenceEnd) depth--;
             }
             var stream = new YamlStream();
-            stream.Load(new StringReader(start.Value.Yaml));
+            stream.Load(new StringReader(yaml));
+            cancellationToken.ThrowIfCancellationRequested();
             if (stream.Documents.Count != 1)
             {
-                report(Diagnostic.Create(StrictYaml, Location(path, markdown, start.Value.Offset, 1), "Front matter must contain exactly one YAML document."));
-                return;
+                report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "Front matter must contain exactly one YAML document."));
+                return true;
             }
-            ValidateNode(path, markdown, start.Value.Offset, stream.Documents[0].RootNode, frontMatter, report, string.Empty);
+            ValidateNode(path, markdown, offset, stream.Documents[0].RootNode, frontMatter, report, string.Empty);
         }
         catch (NotSupportedException error)
         {
-            report(Diagnostic.Create(StaticContentGenerator.InvalidDeclaration, Location(path, markdown, start.Value.Offset, 1), error.Message));
+            report(Diagnostic.Create(StaticContentGenerator.InvalidDeclaration, Location(path, markdown, offset, 1), error.Message));
         }
         catch (Exception error) when (error is YamlException or ArgumentException)
         {
-            report(Diagnostic.Create(StrictYaml, Location(path, markdown, start.Value.Offset, 1), error.Message));
+            report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), error.Message));
         }
+        return true;
     }
 
     private static void ValidateNode(string path, string source, int offset, YamlNode node, ITypeSymbol type, Action<Diagnostic> report, string field)
@@ -236,25 +254,6 @@ internal static class StaticYamlValidation
 
     private static void Invalid(string path, string source, int offset, YamlNode node, Action<Diagnostic> report, string field, string message) =>
         report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, node), $"{field}: {message}"));
-
-    private static (string Yaml, int Offset, bool Valid)? FindFrontMatter(string markdown)
-    {
-        var openingStart = markdown.Length > 0 && markdown[0] == '\uFEFF' ? 1 : 0;
-        var firstEnd = markdown.IndexOf('\n');
-        if (firstEnd < 0) firstEnd = markdown.Length;
-        if (markdown.Substring(openingStart, firstEnd - openingStart).TrimEnd('\r') != "---") return null;
-        if (firstEnd == markdown.Length) return (string.Empty, 0, false);
-        var bodyStart = firstEnd + 1;
-        for (var lineStart = bodyStart; lineStart < markdown.Length;)
-        {
-            var lineEnd = markdown.IndexOf('\n', lineStart);
-            if (lineEnd < 0) lineEnd = markdown.Length;
-            if (markdown.Substring(lineStart, lineEnd - lineStart).TrimEnd('\r') == "---")
-                return (markdown.Substring(bodyStart, lineStart - bodyStart), bodyStart, true);
-            lineStart = lineEnd + 1;
-        }
-        return (markdown.Substring(bodyStart), bodyStart, false);
-    }
 
     private static Location NodeLocation(string path, string source, int offset, YamlNode node)
     {
