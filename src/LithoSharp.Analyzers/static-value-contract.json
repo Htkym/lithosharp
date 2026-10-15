@@ -75,6 +75,8 @@
   },
   "assetTransformInputs": {
     "id": "LSA1203", "contract": "explicit-transform-inputs/1", "scope": "asset-transform-inputs",
+    "explicitArguments": "select Explicit ArgumentKind even when ! sets IsImplicit; only SuppressNullableWarningExpression bypasses unary rejection, followed by every existing whole-owner mutation/ref/out/closure/escape check; same alias initializer forms and SafeContext, no ctx! receiver proof; preserve entire original sink argument including !/parentheses and related declaration span",
+    "argumentBinding": "if suppressed ArgumentSyntax has no operation, recover only the matching Explicit argument in its actual invocation by source tree/span, then apply unchanged permitted-call/receiver/handler checks; never infer identity/value from syntax",
     "sinks": ["exact SiteAssetTransformContext.GetUrl(SiteAsset)", "exact SiteAssetTransformContext.OpenRead(SiteAsset)"],
     "declaration": "exact SiteAssetTransform constructor, direct inline array/collection and inline handler; named arguments bound by parameter ordinal",
     "snapshot": "constructor body after all arguments; shared/local arrays and assignment expressions never close the set",
@@ -90,6 +92,7 @@
   },
   "assetTransformOutputs": {
     "id": "LSA1203", "contract": "explicit-transform-outputs/1", "scope": "asset-transform-outputs",
+    "explicitArguments": "same Explicit selection and suppression-only non-mutation classification as inputs; unchanged bounded instance identities, alias forms, whole-owner escape checks and SafeContext; entire original argument/related declaration locations and input/output proof independence retained",
     "sink": "exact metadata SiteAssetTransformContext.WriteAsync(SiteAssetOutput, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken)",
     "declaration": "exact SiteAssetTransform outputs ordinal3 and inline handler ordinal4; WriteAsync output ordinal0",
     "snapshot": "constructor body after all arguments; shared/local arrays, aliases and assignment expressions never close the set",

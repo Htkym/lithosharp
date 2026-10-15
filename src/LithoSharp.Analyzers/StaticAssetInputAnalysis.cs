@@ -85,14 +85,18 @@ internal sealed class StaticAssetInputAnalysis
                 if (!InHandler(syntax) || model.GetOperation(syntax, analysis.CancellationToken) is not IInvocationOperation call
                     || !AssetCall(call, outputScope) || !OwnReceiver(call) || StaticValueFlow.HasBindingError(call)) continue;
                 var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
-                if (argument is null || argument.IsImplicit) continue;
+                if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit) continue;
                 var identities = Identities(argument.Value, 0, outputScope);
                 if (identities is null || identities.Length == 0 || identities.Any(declared.Contains)) continue;
                 var properties = ImmutableDictionary<string, string?>.Empty.Add("contract", "explicit-transform-" + name + "/1")
                     .Add("scope", "asset-transform-" + name).Add("scopeState", "Closed").Add("staticState", "Known")
                     .Add("reason", "all-known-" + (outputScope ? "output" : "input") + "-instances-absent").Add("origin", "original-argument-utf16-span")
                     .Add("candidateCount", identities.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                analysis.ReportDiagnostic(Diagnostic.Create(Rule, argument.Value.Syntax.GetLocation(),
+                var sourceArgument = argument.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
+                var sourceOwner = sourceArgument?.Parent?.Parent;
+                var expression = sourceOwner is not null && sourceOwner.SyntaxTree == call.Syntax.SyntaxTree && sourceOwner.Span == call.Syntax.Span
+                    ? sourceArgument!.Expression : argument.Value.Syntax;
+                analysis.ReportDiagnostic(Diagnostic.Create(Rule, expression.GetLocation(),
                     new[] { declaration.Value.Syntax.GetLocation() }, properties, name));
             }
         }
@@ -153,14 +157,24 @@ internal sealed class StaticAssetInputAnalysis
                 // Check the whole owner, including after construction and deferred/nested bodies.
                 if (reference.Ancestors().Any(n => n is AssignmentExpressionSyntax assignment && assignment.Left.Span.Contains(reference.Span)
                     || n is RefExpressionSyntax || n is ArgumentSyntax a && a.RefKindKeyword.RawKind != 0)
-                    || reference.Parent is PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax) return null;
+                    || reference.Parent is PrefixUnaryExpressionSyntax
+                    || reference.Parent is PostfixUnaryExpressionSyntax postfix
+                        && postfix.RawKind != (int)Microsoft.CodeAnalysis.CSharp.SyntaxKind.SuppressNullableWarningExpression) return null;
                 var closure = reference.Ancestors().FirstOrDefault(n => n is AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax);
                 if (closure is not null && !SameSyntax(closure, handler.Syntax)) return null;
                 var alias = reference.Ancestors().OfType<EqualsValueClauseSyntax>().FirstOrDefault();
                 if (alias?.Parent is VariableDeclaratorSyntax declaration && IdentityExpression(alias.Value)
                     && model.GetDeclaredSymbol(declaration, analysis.CancellationToken) is ILocalSymbol) continue;
                 var argument = reference.Ancestors().OfType<ArgumentSyntax>().FirstOrDefault();
-                if (argument is null || model.GetOperation(argument, analysis.CancellationToken) is not IArgumentOperation bound) return null;
+                if (argument is null) return null;
+                var bound = model.GetOperation(argument, analysis.CancellationToken) as IArgumentOperation;
+                // Suppression can leave no operation on ArgumentSyntax itself. Recover only
+                // that same source argument, then retain the permitted-call/owner checks below.
+                if (bound is null && argument.Parent?.Parent is InvocationExpressionSyntax sourceCall
+                    && model.GetOperation(sourceCall, analysis.CancellationToken) is IInvocationOperation originalCall)
+                    bound = originalCall.Arguments.SingleOrDefault(a => a.ArgumentKind == ArgumentKind.Explicit
+                        && SameSyntax(a.Syntax.FirstAncestorOrSelf<ArgumentSyntax>(), argument));
+                if (bound is null) return null;
                 if (bound.Parent is IObjectCreationOperation owner && SameSyntax(owner.Syntax, creation.Syntax) && bound.Parameter?.Ordinal == (outputScope ? 3 : 2)) continue;
                 if (bound.Parent is IInvocationOperation use && AssetCall(use, outputScope) && OwnReceiver(use) && InHandler(reference)) continue;
                 return null;
