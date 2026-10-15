@@ -137,15 +137,7 @@ internal static class PreflightCommand
     };
     private static int Print(HostResponse response, string format)
     {
-        if (format == "json") Console.WriteLine(JsonSerializer.Serialize(response, JsonOptions));
-        else if (format == "sarif")
-        {
-            var diagnostics = response.Diagnostics.Select(d => new SiteDiagnostic(d.Id, Enum.Parse<SiteDiagnosticSeverity>(d.Severity), d.Message,
-                d.File is null ? null : new SiteSourceLocation(d.File, d.Line, d.Column, d.EndLine, d.EndColumn)));
-            var sarif = JsonNode.Parse(new SiteQualityReport(diagnostics).Format(SiteDiagnosticFormat.Sarif))!;
-            sarif["runs"]![0]!["properties"] = JsonSerializer.SerializeToNode(response.Preflight, JsonOptions);
-            Console.WriteLine(sarif.ToJsonString(JsonOptions));
-        }
+        if (format is "json" or "sarif") Console.WriteLine(FormatMachineOutput(response, format));
         else
         {
             Console.WriteLine($"Preflight {response.Preflight?.Mode}/{response.Preflight?.Stage}: {(response.Success ? "no Error" : "failed")}");
@@ -154,6 +146,18 @@ internal static class PreflightCommand
             if (response.Error is not null) Console.Error.WriteLine(response.Error);
         }
         return response.ExitCode;
+    }
+
+    internal static string FormatMachineOutput(HostResponse response, string format)
+    {
+        if (format == "json") return JsonSerializer.Serialize(response, JsonOptions);
+        if (format != "sarif") throw new ArgumentOutOfRangeException(nameof(format));
+        var diagnostics = response.Diagnostics.Select(d => new SiteDiagnostic(d.Id, Enum.Parse<SiteDiagnosticSeverity>(d.Severity), d.Message,
+            d.File is null ? null : new SiteSourceLocation(d.File, d.Line, d.Column, d.EndLine, d.EndColumn), d.Category,
+            (d.RelatedLocations ?? []).Select(r => new SiteSourceLocation(r.File, r.Line, r.Column, r.EndLine, r.EndColumn))));
+        var sarif = JsonNode.Parse(new SiteQualityReport(diagnostics).Format(SiteDiagnosticFormat.Sarif))!;
+        sarif["runs"]![0]!["properties"] = JsonSerializer.SerializeToNode(response.Preflight, JsonOptions);
+        return sarif.ToJsonString(JsonOptions);
     }
 }
 

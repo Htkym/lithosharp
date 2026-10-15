@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Reflection;
-using System.Text.Json;
 using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Tool;
@@ -29,22 +28,23 @@ internal static class ProjectCompiler
     internal static async Task<string> BuildAsync(
         string project, string configuration, CancellationToken cancellationToken, bool logToStandardError = false, string? compilerErrorLog = null)
     {
+        var workingDirectory = Directory.GetCurrentDirectory();
         var arguments = new List<string> { "build", project, "--nologo", "-c", configuration };
         if (compilerErrorLog is not null) arguments.Add("-p:ErrorLog=" + compilerErrorLog.Replace("%", "%25").Replace(",", "%2C")
             .Replace(";", "%3B").Replace("$", "%24") + "%2Cversion=2.1");
-        var build = await RunDotNetAsync(arguments, cancellationToken);
+        var build = await RunDotNetAsync(arguments, cancellationToken, workingDirectory);
         if (build.ExitCode != 0)
         {
             if (compilerErrorLog is not null) WriteProcessOutput(build, allToStandardError: true);
             throw new ProjectCompilationException(
                 $"LSC7002: Project build failed with exit code {build.ExitCode}."
                 + (compilerErrorLog is null ? Environment.NewLine + build.StandardOutput + build.StandardError : ""),
-                ReadCompilerDiagnostics(compilerErrorLog, build.ExitCode));
+                CompilerDiagnosticReader.Read(compilerErrorLog, build.ExitCode, workingDirectory));
         }
         WriteProcessOutput(build, logToStandardError);
         var query = await RunDotNetAsync([
             "msbuild", project, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetPath"
-        ], cancellationToken);
+        ], cancellationToken, workingDirectory);
         if (query.ExitCode != 0) throw new InvalidOperationException(query.StandardError.Trim());
         var target = query.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(static line => line.Trim()).LastOrDefault(static line => line.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
@@ -54,40 +54,10 @@ internal static class ProjectCompiler
         return target;
     }
 
-    private static IReadOnlyList<SiteDiagnostic> ReadCompilerDiagnostics(string? path, int exitCode)
-    {
-        var diagnostics = new List<SiteDiagnostic>();
-        if (path is not null && File.Exists(path))
-        {
-            using var json = JsonDocument.Parse(File.ReadAllBytes(path));
-            foreach (var run in json.RootElement.GetProperty("runs").EnumerateArray())
-            foreach (var result in run.GetProperty("results").EnumerateArray())
-            {
-                if (result.TryGetProperty("suppressions", out var suppressions) && suppressions.EnumerateArray()
-                    .Any(s => s.TryGetProperty("status", out var status) && status.GetString() == "accepted")) continue;
-                var severity = result.GetProperty("level").GetString() switch
-                { "error" => SiteDiagnosticSeverity.Error, "warning" => SiteDiagnosticSeverity.Warning, _ => SiteDiagnosticSeverity.Info };
-                SiteSourceLocation? location = null;
-                if (result.TryGetProperty("locations", out var locations) && locations.GetArrayLength() > 0)
-                {
-                    var physical = locations[0].GetProperty("physicalLocation");
-                    var file = physical.GetProperty("artifactLocation").GetProperty("uri").GetString()!;
-                    if (Uri.TryCreate(file, UriKind.Absolute, out var uri) && uri.IsFile) file = uri.LocalPath;
-                    var region = physical.GetProperty("region");
-                    int? Position(string key) => region.TryGetProperty(key, out var value) ? value.GetInt32() : null;
-                    location = new(file, Position("startLine"), Position("startColumn"), Position("endLine"), Position("endColumn"));
-                }
-                diagnostics.Add(new(result.GetProperty("ruleId").GetString()!, severity, result.GetProperty("message").GetProperty("text").GetString()!, location));
-            }
-        }
-        if (!diagnostics.Any(d => d.Severity == SiteDiagnosticSeverity.Error))
-            diagnostics.Add(new("LSC7002", SiteDiagnosticSeverity.Error, $"Project compilation failed with exit code {exitCode}; no complete compiler Error snapshot is available."));
-        return diagnostics;
-    }
-
-    internal static async Task<ProcessResult> RunDotNetAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    internal static async Task<ProcessResult> RunDotNetAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken, string? workingDirectory = null)
     {
         var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        if (workingDirectory is not null) start.WorkingDirectory = workingDirectory;
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Unable to start dotnet.");
         var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
