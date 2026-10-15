@@ -32,6 +32,7 @@ internal sealed class WatchEventQueue : IAsyncDisposable
                 await foreach (var item in events.Reader.ReadAllAsync())
                 {
                     ReportLoss();
+                    if (item.Barrier is not null) { item.Barrier.TrySetResult(); continue; }
                     if (item.Path is null) continue; // Loss wake, not a path event.
                     Dispatch(item.Path, item.Kind, item.Error);
                     if (item.OldPath is not null)
@@ -50,6 +51,23 @@ internal sealed class WatchEventQueue : IAsyncDisposable
     }
 
     internal Task Completion => consumer;
+
+    // Unlike native callbacks, an explicit owner barrier may wait for queue capacity.
+    internal async Task FlushAsync(CancellationToken token)
+    {
+        var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var admission = CancellationTokenSource.CreateLinkedTokenSource(token);
+        try
+        {
+            var write = events.Writer.WriteAsync(new(null, null, default, null, barrier), admission.Token).AsTask();
+            await (await Task.WhenAny(write, consumer).WaitAsync(token).ConfigureAwait(false)).ConfigureAwait(false);
+            await write.ConfigureAwait(false);
+            var finished = await Task.WhenAny(barrier.Task, consumer).WaitAsync(token).ConfigureAwait(false);
+            await finished.ConfigureAwait(false);
+            if (!barrier.Task.IsCompleted) throw new IOException("Watch input consumer ended before the barrier.");
+        }
+        finally { admission.Cancel(); }
+    }
 
     internal void Enqueue(string path, WatcherChangeTypes kind, string? oldPath = null, Exception? error = null)
     {
@@ -94,5 +112,6 @@ internal sealed class WatchEventQueue : IAsyncDisposable
 
     public ValueTask DisposeAsync() => CompleteAsync();
 
-    private readonly record struct WatchEvent(string? Path, string? OldPath, WatcherChangeTypes Kind, Exception? Error);
+    private readonly record struct WatchEvent(string? Path, string? OldPath, WatcherChangeTypes Kind, Exception? Error,
+        TaskCompletionSource? Barrier = null);
 }

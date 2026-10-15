@@ -86,6 +86,15 @@ on disk unchanged. `/_lithosharp/diagnostics` exposes the current build status, 
 browser overlay shows failed builds. The previous committed output remains available
 when a rebuild fails. Changes outside the watched project directory require a restart.
 
+  In JSON mode, `POST /_lithosharp/watch-barrier` waits up to 60 seconds for already
+  admitted watch inputs and their builds to finish. It returns a fixed generation,
+  owner and host identity. It does not promise that future native events cannot arrive.
+  Rebuild terminals include a `watch` witness with the consumed restart reasons,
+  input revision and previous/current host. The component-edit check fixes its baseline
+  before editing and requires zero worker starts and the same host across every normal
+  terminal. Watcher recovery is recorded separately; it does not prove ordinary reuse
+  or turn the check green. Best-effort lifecycle sidecars remain diagnostic evidence.
+
 `SiteGenerator.CleanAsync(outputDirectory, cancellationToken)` returns removed
 relative paths. Modified and unowned files remain. Ownership metadata is required;
 an output manifest alone cannot authorize deletion. Filesystem roots and unsafe

@@ -56,6 +56,7 @@ internal static class DevServer
         // output paths can cause one conservative rebuild; queued source edits
         // must not disappear while the first build is in progress.
         var state = new ServerState(new HostResponse { OutputDirectory = Path.GetDirectoryName(project)! });
+            var progress = new WatchBuildProgress();
         await using var watchEvents = new WatchEventQueue(Path.GetDirectoryName(project)!,
             (path, changeType, watcherError) => {
                 if (stopping.IsCancellationRequested) return;
@@ -68,8 +69,8 @@ internal static class DevServer
                 {
                     reason = (changeType == WatcherChangeTypes.All ? WatchRestartReason.WatcherError : (WatchRestartReason)(int)changeType)
                         | (extension == ".cs" ? WatchRestartReason.CSharp : extension is ".csproj" or ".props" or ".targets" ? WatchRestartReason.Project : WatchRestartReason.Other);
-                    Interlocked.Or(ref state.Restart, (int)reason);
                 }
+                    progress.Invalidate((int)reason);
                 changes.Writer.TryWrite(true);
                 if (reason != 0)
                     lifecycle.Write(WatchLifecycleEvent.RestartRequested, restartReasons: (int)reason, watcherError: watcherError);
@@ -120,6 +121,8 @@ internal static class DevServer
         state.OutputRoot = outputRoot;
         state.IgnoredPaths = latest.IgnoredPaths;
         controller.Generation = initialGeneration;
+            var initialWatch = progress.Witness(new(0, 0), session.HostId, null);
+            progress.Complete(new(0, 0), initialGeneration, initialWatch, latest.Success);
         var builder = WebApplication.CreateSlimBuilder();
         // Machine mode keeps stdout as pure JSON Lines, so ASP.NET logs must not pollute it.
         if (machine) builder.Logging.ClearProviders();
@@ -131,6 +134,15 @@ internal static class DevServer
             context.Response.ContentType = "application/json; charset=utf-8";
             await JsonSerializer.SerializeAsync(context.Response.Body, state.Latest,
                 new JsonSerializerOptions(JsonSerializerDefaults.Web), context.RequestAborted);
+            });
+            if (machine) app.MapPost("/_lithosharp/watch-barrier", async context =>
+            {
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, stopping.Token);
+                deadline.CancelAfter(TimeSpan.FromSeconds(60));
+                await watchEvents.FlushAsync(deadline.Token);
+                var barrier = await progress.BarrierAsync(deadline.Token);
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await JsonSerializer.SerializeAsync(context.Response.Body, barrier, MachineOptions, deadline.Token);
         });
         app.MapFallback("/{**path}", context => ServeFileAsync(context, state.OutputRoot));
 
@@ -191,6 +203,7 @@ internal static class DevServer
                 BasePath = "/",
                 SiteBasePath = state.Latest.SiteBasePath,
                 Generation = initialGeneration,
+                    Watch = initialWatch,
                 Routes = state.Latest.BuildPlan
                     .SelectMany(node => node.Artifacts)
                     .Select(artifact => new { Path = artifact.Path, PublicPath = artifact.PublicPath })
@@ -201,7 +214,7 @@ internal static class DevServer
         {
             Console.WriteLine($"Serving {outputRoot} at {actualUrl}");
         }
-        rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, lifecycle, stopping.Token);
+            rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, lifecycle, progress, stopping.Token);
         if (options.Has("open")) OpenBrowser(actualUrl);
         try { await app.WaitForShutdownAsync(stopping.Token); }
         finally
@@ -240,16 +253,18 @@ internal static class DevServer
     private static async Task RebuildLoopAsync(
         ChannelReader<bool> changes, string project, string configuration, CommandOptions options,
         ServerState state, ReloadHub hub, WatchHostSession session, string assembly, bool machine,
-        ServeController controller, WatchLifecycleSidecar lifecycle, CancellationToken cancellationToken)
+        ServeController controller, WatchLifecycleSidecar lifecycle, WatchBuildProgress progress, CancellationToken cancellationToken)
     {
         await foreach (var ignored in changes.ReadAllAsync(cancellationToken))
         {
             await Task.Delay(150, cancellationToken);
             while (changes.TryRead(out _)) { }
+            var batch = progress.BeginBuild();
+            var previousHost = session.HostId;
             if (machine) WriteMachine(new { SchemaVersion = MachineOutput.SchemaVersion, Event = "rebuild-started" });
             try
             {
-                var restartReasons = Interlocked.Exchange(ref state.Restart, 0);
+                var restartReasons = batch.RestartReasons;
                 lifecycle.Write(WatchLifecycleEvent.RestartConsumed, generation: controller.Generation + 1,
                     restartReasons: restartReasons, hostId: session.HostId);
                 if (restartReasons != 0)
@@ -260,6 +275,7 @@ internal static class DevServer
                 var response = await session.BuildAsync(assembly, project, options, cancellationToken, controller.Generation + 1);
                 controller.Generation++;
                 state.Latest = response with { Generation = controller.Generation };
+                var watch = progress.Witness(batch, session.HostId, previousHost);
                 if (response.Success && response.OutputDirectory is not null)
                 {
                     state.OutputRoot = Path.GetFullPath(response.OutputDirectory);
@@ -280,6 +296,7 @@ internal static class DevServer
                         Generation = controller.Generation,
                         RouteCount = response.BuildPlan.SelectMany(node => node.Artifacts).Count(),
                         MdxWork = ReadMachineMdxWork(response),
+                        Watch = watch,
                     });
                     else WriteMachine(new
                     {
@@ -290,18 +307,21 @@ internal static class DevServer
                         response.Error,
                         OutputDirectory = state.OutputRoot,
                         Generation = controller.Generation,
+                        Watch = watch,
                     });
                 }
                 hub.Publish(response.Success ? "reload" : "error");
+                progress.Complete(batch, controller.Generation, watch, response.Success);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception exception)
             {
-                Interlocked.Or(ref state.Restart, (int)WatchRestartReason.RebuildFailure);
+                progress.RememberRestart((int)WatchRestartReason.RebuildFailure);
                 lifecycle.Write(WatchLifecycleEvent.RestartRequested, WatchLifecycleReason.BuildFailure,
                     generation: controller.Generation + 1, restartReasons: (int)WatchRestartReason.RebuildFailure, hostId: session.HostId);
                 controller.Generation++;
                 state.Latest = new HostResponse { ExitCode = 1, Error = exception.Message, Generation = controller.Generation };
+                var watch = progress.Witness(batch, session.HostId, previousHost);
                 Console.Error.WriteLine(exception.Message);
                 if (machine) WriteMachine(new
                 {
@@ -312,8 +332,10 @@ internal static class DevServer
                     Error = exception.Message,
                     OutputDirectory = state.OutputRoot,
                     Generation = controller.Generation,
+                    Watch = watch,
                 });
                 hub.Publish("error");
+                progress.Complete(batch, controller.Generation, watch, false);
             }
         }
     }
@@ -632,7 +654,6 @@ internal static class DevServer
     private sealed class ServerState(HostResponse latest)
     {
         private IReadOnlyList<string> ignoredPaths = latest.IgnoredPaths;
-        public int Restart;
         public HostResponse Latest { get; set; } = latest;
         public string OutputRoot { get; set; } = Path.GetFullPath(latest.OutputDirectory!);
         public IReadOnlyList<string> IgnoredPaths

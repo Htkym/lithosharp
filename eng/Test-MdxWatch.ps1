@@ -4,6 +4,7 @@ param([ValidateRange(30, 600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(0, 120)] [int] $SoakMinutes = 0)
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+. (Join-Path $PSScriptRoot 'WatchImportedWindow.ps1')
 $fixture = Join-Path $repo ('.tmp/mdx-watch-' + [Guid]::NewGuid().ToString('N'))
 $project = Join-Path $fixture 'site'
 $content = Join-Path $project 'content'
@@ -53,6 +54,8 @@ $pollPage = $null; $pollState = $null; $activeFailure = $null; $cleanupFailure =
 $liveTerminalEvents = [Collections.Generic.List[object]]::new()
 $liveLastGeneration = $null; $livePendingBuild = $false; $liveStartupSeen = $false; $liveShutdownSeen = $false; $liveDroppedTerminals = 0
 $script:watchEvidence.importedEditWitness = $null
+$script:watchEvidence.importedEditBarrier = $null
+$script:watchEvidence.importedEditClassification = $null
 function Record-WatchCleanupFailure([string] $Stage, [Management.Automation.ErrorRecord] $Failure) {
     if ($null -eq $script:cleanupFailure) { $script:cleanupFailure = $Failure }
     if ($script:watchEvidence.cleanupFailures.Count -lt 16) { $script:watchEvidence.cleanupFailures.Add($Stage) }
@@ -121,7 +124,10 @@ function Receive-WatchMachineEvents {
         # property access remains safe under the caller's StrictMode Latest.
         $workProperty = $record.PSObject.Properties['mdxWork']
         $terminalWork = if ($record.event -ceq 'rebuild-succeeded' -and $null -ne $workProperty) { Get-WatchMachineWork $workProperty.Value } else { $null }
-        $script:liveTerminalEvents.Add([ordered]@{ event = $record.event; generation = $generation; success = $success; exitCode = $exitCode; mdxWork = $terminalWork })
+        # Old bounded-drain fixtures may lack this additive field; they cannot prove imported reuse.
+        $watch = $null
+        if ($null -ne $record.PSObject.Properties['watch']) { $watch = ConvertTo-WatchWitness $record.watch }
+        $script:liveTerminalEvents.Add([ordered]@{ event = $record.event; generation = $generation; success = $success; exitCode = $exitCode; mdxWork = $terminalWork; watch = $watch })
         $script:liveLastGeneration = $generation; $script:livePendingBuild = $false
     }
 }
@@ -140,33 +146,23 @@ function Test-WatchImportedGeneration {
     if ($script:livePendingBuild -or $script:liveLastGeneration -ne $generation) { return $false }
     $window = @($script:liveTerminalEvents | Where-Object { $_.generation -gt $baseline -and $_.generation -le $generation })
     if ($window.Count -ne $generation - $baseline) { throw 'Imported generation terminal witness window has a gap or overflow.' }
-    $witness = $null; $successors = [Collections.Generic.List[long]]::new()
-    for ($i = 0; $i -lt $window.Count; $i++) {
-        $event = $window[$i]; $work = $event.mdxWork
-        if ($event.generation -ne $baseline + $i + 1 -or $event.event -cne 'rebuild-succeeded' -or $event.success -ne $true -or
-            $event.exitCode -ne 0 -or $null -eq $work) { throw 'Imported generation has failed or unknown terminal work.' }
-        if ($work.workerStarts -ne 0) {
-            $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
-            throw 'A completed component-edit window restarted the worker.'
-        }
-        if ($work.renderedPages -ge 1 -and $work.compiledModules -ge 0 -and $work.cacheHit -eq $false) {
-            $witness = $event; $successors.Clear()
-        } elseif ($work.cacheHit -eq $true -and $work.renderedPages -eq 0 -and $work.compiledModules -eq 0) {
-            if ($null -ne $witness) { $successors.Add($event.generation) }
-        } else { throw 'Imported generation has unknown noop or inconsistent work.' }
-    }
-    if ($null -eq $witness) { return $false }
     $latest = $window[-1].mdxWork
     foreach ($key in @('workerStarts', 'renderedPages', 'compiledModules', 'cacheHit')) {
         if ($null -eq $before[$key] -or $null -eq $after[$key] -or $before[$key] -cne $latest[$key] -or $after[$key] -cne $latest[$key]) { return $false }
     }
-    $script:watchEvidence.importedEditWitness = [ordered]@{
-        baselineGeneration = $baseline; witnessGeneration = $witness.generation; observedGeneration = $generation
-        beforeGeneration = $before.generation; afterGeneration = $after.generation; stateMatched = $true; contentCount2 = $true
-        workerStarts = $witness.mdxWork.workerStarts; renderedPages = $witness.mdxWork.renderedPages; compiledModules = $witness.mdxWork.compiledModules; cacheHit = $witness.mdxWork.cacheHit
-        followingCacheHitGenerations = @($successors.ToArray()); terminalWindow = $window
+    $classification = Get-WatchImportedWindow $script:watchEvidence.importedEditBarrier $window $generation $true $true
+    $script:watchEvidence.importedEditClassification = $classification
+    if ($classification.status -ceq 'PENDING') { return $false }
+    if ($classification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN') {
+        $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
+        throw 'Watcher recovery completed with Count2; ordinary component reuse remains unproven.'
     }
-    return $true
+    if ($classification.status -cne 'REUSE_PROVEN') {
+        $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
+        throw 'Component-edit window has an unknown restart, host change or invalid witness.'
+    }
+    $script:watchEvidence.importedEditWitness = $classification
+    return $classification.normalReuseProven
 }
 function Summarize-MachineOutput([string] $Text) {
     $events = [Collections.Generic.List[object]]::new(); $invalid = 0; $dropped = 0
@@ -265,10 +261,12 @@ function Read-WatchLifecycleSidecar([string] $Path) {
 function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
     $document = [ordered]@{
         schemaVersion = 1; outcome = $script:watchEvidence.outcome; failureCategory = $script:watchEvidence.failureCategory
-        timeoutSeconds = $TimeoutSeconds; strictImportedReuse = 'Count2_AND_workerStarts0'
+        timeoutSeconds = $TimeoutSeconds; strictImportedReuse = 'Count2_AND_allTerminalsStarts0_sameHost_ownerBarrier'
         warmupBaselineGeneration = $script:watchEvidence.warmupBaselineGeneration; warmupCompletedGeneration = $script:watchEvidence.warmupCompletedGeneration
         importedEditBaselineGeneration = $script:watchEvidence.importedEditBaselineGeneration
         importedEditWitness = $script:watchEvidence.importedEditWitness
+        importedEditBarrier = $script:watchEvidence.importedEditBarrier
+        importedEditClassification = $script:watchEvidence.importedEditClassification
         lifecycle = Read-WatchLifecycleSidecar $lifecyclePath
         liveMachine = [ordered]@{ terminalLimit = 4096; ingressLineLimit = 256; lineLimitCharacters = 65536; droppedTerminals = $script:liveDroppedTerminals; pendingBuild = $script:livePendingBuild; shutdownSeen = $script:liveShutdownSeen; lastGeneration = $script:liveLastGeneration; events = @($script:liveTerminalEvents.ToArray()) }
         errorRecovery = @($script:watchEvidence.errorRecovery.ToArray())
@@ -462,7 +460,13 @@ namespace LithoSharp.WatchR7 {
         if ($completed) { $script:watchEvidence.warmupCompletedGeneration = $generation }
         return $completed
     } 'completed MDX warmup'
-    $script:watchEvidence.importedEditBaselineGeneration = $script:watchEvidence.warmupCompletedGeneration
+    # Freeze this owner-acknowledged boundary before any component write. Never rebase after the edit.
+    $barrier = Invoke-RestMethod "$origin/_lithosharp/watch-barrier" -Method Post -NoProxy -TimeoutSec 60
+    if ($barrier.success -isnot [bool] -or !$barrier.success -or $null -eq (ConvertTo-WatchWitness $barrier.watch) -or
+        $barrier.schemaVersion -cne '1.0' -or $barrier.scope -cne 'admitted-inputs-only' -or
+        $null -eq (Known-Count $barrier.generation) -or $barrier.generation -lt $script:watchEvidence.warmupCompletedGeneration) { throw 'Owner edit barrier is invalid.' }
+    $script:watchEvidence.importedEditBarrier = $barrier
+    $script:watchEvidence.importedEditBaselineGeneration = $barrier.generation
     # Windows can report a directory LastWrite notification alongside a child edit.
     # Exercise that real notification without allowing it to restart the persistent host.
     if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }

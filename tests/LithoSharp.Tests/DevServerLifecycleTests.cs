@@ -11,6 +11,33 @@ namespace LithoSharp.Tests;
 public sealed class DevServerLifecycleTests
 {
     [Test]
+    public async Task OwnerBarrierPinsACompletedMachineGenerationWithoutEditingTheSite()
+    {
+        using var fixture = await Fixture.CreateAsync(null);
+        await using var serve = ServeProcess.Start(fixture);
+        var startup = await serve.WaitForEventAsync(value => IsEvent(value, "startup"));
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(65) };
+        using var response = await client.PostAsync(startup.GetProperty("url").GetString() + "/_lithosharp/watch-barrier", null);
+        response.EnsureSuccessStatusCode();
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var barrier = json.RootElement;
+        await Assert.That(barrier.GetProperty("success").GetBoolean()).IsTrue();
+        await Assert.That(barrier.GetProperty("scope").GetString()).IsEqualTo("admitted-inputs-only");
+        var generation = barrier.GetProperty("generation").GetInt64();
+        await Assert.That(generation >= startup.GetProperty("generation").GetInt64()).IsTrue();
+        var terminal = generation == startup.GetProperty("generation").GetInt64() ? startup
+            : await serve.WaitForEventAsync(value => IsEvent(value, "rebuild-succeeded") && value.GetProperty("generation").GetInt64() == generation);
+        await Assert.That(barrier.GetProperty("watch").GetProperty("ownerId").GetString())
+            .IsEqualTo(startup.GetProperty("watch").GetProperty("ownerId").GetString());
+        await Assert.That(barrier.GetProperty("watch").GetProperty("hostId").GetString())
+            .IsEqualTo(terminal.GetProperty("watch").GetProperty("hostId").GetString());
+        Console.WriteLine("Owner barrier witness: " + barrier.GetRawText());
+        await serve.ShutdownAsync("owner-barrier-complete");
+        await serve.WaitForExitAsync();
+        await Assert.That(serve.ExitCode).IsEqualTo(0);
+    }
+
+    [Test]
     public Task StdinShutdownCancelsBlockedInitialProjectCompilation() => AssertStartupCancellation("compile");
 
     [Test]

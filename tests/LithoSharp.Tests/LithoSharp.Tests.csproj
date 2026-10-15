@@ -30,6 +30,7 @@
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../LithoSharp.Html.Portability/HtmlBridgeObservations.cs" Link="HtmlPortability/HtmlBridgeObservations.cs" />
     <Compile Include="../../src/LithoSharp.Tool/WatchEventQueue.cs" Link="Tool/WatchEventQueue.cs" />
+    <Compile Include="../../src/LithoSharp.Tool/WatchBuildProgress.cs" Link="Tool/WatchBuildProgress.cs" />
   </ItemGroup>
 
 </Project>
