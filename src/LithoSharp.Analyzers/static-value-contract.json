@@ -66,7 +66,7 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1204", "LSA1203 beyond explicit transform inputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1204", "LSA1203 beyond explicit transform inputs/outputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
   },
   "assetTransformInputs": {
     "id": "LSA1203", "contract": "explicit-transform-inputs/1", "scope": "asset-transform-inputs",
@@ -80,7 +80,23 @@
     "freshness": "current Compilation buffers; no proof cached across Compilations",
     "origin": "original input argument UTF16 span, declaration related location; standard severity/NoWarn/pragma",
     "deferred": ["shared array or alias and later argument mutation", "reassignment/deconstruction/ref/out/escape/other closure", "loops/statement control flow", "opaque inputs/handlers", "unknown or mixed present/missing values", "foreign or nested context", "binding failure/budget/cancellation"],
-    "outside": ["SiteAssetOutput and output writes", "arbitrary page/layout AssetRegistry", "generated/import assets and PublicDirectory", "HTML/Markdown asset URLs", "site coverage", "LSA9001 scope expansion", "CodeFix", "runtime or user execution/file IO"]
+    "independence": "Unavailable inputs do not discard an available output proof; the reverse also holds",
+    "outside": ["arbitrary page/layout AssetRegistry", "generated/import assets and PublicDirectory", "HTML/Markdown asset URLs", "site coverage", "LSA9001 scope expansion", "CodeFix", "runtime or user execution/file IO"]
+  },
+  "assetTransformOutputs": {
+    "id": "LSA1203", "contract": "explicit-transform-outputs/1", "scope": "asset-transform-outputs",
+    "sink": "exact metadata SiteAssetTransformContext.WriteAsync(SiteAssetOutput, System.ReadOnlyMemory<byte>, System.Threading.CancellationToken)",
+    "declaration": "exact SiteAssetTransform outputs ordinal3 and inline handler ordinal4; WriteAsync output ordinal0",
+    "snapshot": "constructor body after all arguments; shared/local arrays, aliases and assignment expressions never close the set",
+    "identity": "direct SiteAssetOutput new or source local/simple alias unchanged across the whole method, including delayed bodies; equal IDs/paths do not imply instance equality",
+    "absence": "Error only when every bounded known candidate is outside the same copied output set",
+    "independence": "Unavailable outputs do not discard an available input proof, and unavailable inputs do not discard outputs; per-scope early returns only",
+    "budgets": { "candidates": 8, "identityDepth": 64, "ownerSyntaxNodes": 4096 },
+    "context": "same inline handler parameter only; no scope propagation into nested handlers/local functions or foreign context",
+    "origin": "original output argument UTF16 span and declaration related location; standard severity/NoWarn/pragma",
+    "freshness": "current Compilation buffers, no cross-Compilation proof cache",
+    "deferred": ["unknown/mixed candidates", "shared array mutation before constructor or in later arguments", "capture reassignment/other closure/ref/out/deconstruction/loop/escape", "opaque handler/declaration", "foreign/nested context", "binding/budget/cancellation"],
+    "outside": ["duplicate/unwritten outputs and write execution inference", "site output collisions/LSA1204", "registry/HTML/Markdown/generated/import asset completeness", "public API/runtime changes", "LSA9001 scope expansion", "CodeFix", "runtime/user execution/file IO"]
   },
   "staticCoveragePolicy": {
     "id": "LSA9001", "policy": "RequireStaticCoverage", "enabledByDefault": false, "defaultSeverityWhenEnabled": "Error",

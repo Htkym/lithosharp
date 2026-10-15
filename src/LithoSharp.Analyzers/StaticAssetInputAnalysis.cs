@@ -9,24 +9,26 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace LithoSharp.Analyzers;
 
-// Only a transform's own copied inputs are closed. No site, file or asset producer is executed.
+// Only a transform's own copied declarations are closed. Input/output proofs are independent.
 internal sealed class StaticAssetInputAnalysis
 {
-    internal static readonly DiagnosticDescriptor Rule = new("LSA1203", "Asset is absent from the transform inputs",
-        "Every known asset instance is absent from this transform's declared inputs", "LithoSharp", DiagnosticSeverity.Error, true,
+    internal static readonly DiagnosticDescriptor Rule = new("LSA1203", "Asset is absent from the transform declarations",
+        "Every known asset instance is absent from this transform's declared {0}", "LithoSharp", DiagnosticSeverity.Error, true,
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1203");
     private readonly INamedTypeSymbol transform;
     private readonly INamedTypeSymbol asset;
+    private readonly INamedTypeSymbol? output;
     private readonly INamedTypeSymbol context;
-    private StaticAssetInputAnalysis(INamedTypeSymbol transform, INamedTypeSymbol asset, INamedTypeSymbol context)
-    { this.transform = transform; this.asset = asset; this.context = context; }
+    private StaticAssetInputAnalysis(INamedTypeSymbol transform, INamedTypeSymbol asset, INamedTypeSymbol context, INamedTypeSymbol? output)
+    { this.transform = transform; this.asset = asset; this.context = context; this.output = output; }
 
     internal static StaticAssetInputAnalysis? Create(Compilation compilation)
     {
         var transform = compilation.GetTypeByMetadataName("LithoSharp.SiteAssetTransform");
         var asset = compilation.GetTypeByMetadataName("LithoSharp.SiteAsset");
         var context = compilation.GetTypeByMetadataName("LithoSharp.SiteAssetTransformContext");
-        return Core(transform) && Core(asset) && Core(context) ? new(transform!, asset!, context!) : null;
+        var output = compilation.GetTypeByMetadataName("LithoSharp.SiteAssetOutput");
+        return Core(transform) && Core(asset) && Core(context) ? new(transform!, asset!, context!, Core(output) ? output : null) : null;
     }
     private static bool Core(INamedTypeSymbol? type) => type is { IsReferenceType: true }
         && type.ContainingAssembly.Identity.Name == "LithoSharp" && !type.Locations.Any(l => l.IsInSource);
@@ -37,11 +39,10 @@ internal sealed class StaticAssetInputAnalysis
         if (analysis.Operation is not IObjectCreationOperation creation || !Same(creation.Type, transform)
             || creation.Constructor is not { DeclaredAccessibility: Accessibility.Public, Parameters.Length: 6 }
             || StaticValueFlow.HasBindingError(creation)) return;
-        var inputs = creation.Arguments.SingleOrDefault(a => a.Parameter is { Ordinal: 2, Name: "inputs" });
         var handlerArgument = creation.Arguments.SingleOrDefault(a => a.Parameter is { Ordinal: 4, Name: "handler" });
         var handlerValue = handlerArgument is null ? null : Unwrap(handlerArgument.Value);
         if (handlerValue is IDelegateCreationOperation delegateCreation) handlerValue = Unwrap(delegateCreation.Target);
-        if (inputs is null || handlerValue is not IAnonymousFunctionOperation handler || handler.Symbol.Parameters.Length != 2
+        if (handlerValue is not IAnonymousFunctionOperation handler || handler.Symbol.Parameters.Length != 2
             || !Same(handler.Symbol.Parameters[0].Type, context)) return;
         var root = creation.Syntax.Ancestors().OfType<BaseMethodDeclarationSyntax>().FirstOrDefault();
         if (root is null) return;
@@ -53,49 +54,66 @@ internal sealed class StaticAssetInputAnalysis
         var parameter = handler.Symbol.Parameters[0];
         if (!SafeContext()) return;
 
-        // Do not follow local arrays or aliases: later constructor arguments can change them
-        // before the constructor body copies inputs. Inline lists have no shared array identity.
-        var value = Unwrap(inputs.Value);
-        IOperation[] elements;
-        if (value is IArrayCreationOperation { Initializer: { } initializer }) elements = initializer.ElementValues.ToArray();
-        else if (value is IArrayCreationOperation { Initializer: null, DimensionSizes.Length: 1 } empty
-            && empty.DimensionSizes[0].ConstantValue is { HasValue: true, Value: 0 }) elements = Array.Empty<IOperation>();
-        else if (value is ICollectionExpressionOperation expression && value.Syntax is CollectionExpressionSyntax syntax
-            && syntax.Elements.All(e => e is ExpressionElementSyntax)) elements = expression.Elements.ToArray();
-        else return;
-        if (elements.Length > StaticValueFlow.MaxCandidates) return;
-        var declared = new HashSet<(SyntaxTree, int)>();
-        foreach (var element in elements)
+        AnalyzeDeclarations(2, "inputs", outputScope: false);
+        if (output is not null) AnalyzeDeclarations(3, "outputs", outputScope: true);
+
+        void AnalyzeDeclarations(int ordinal, string name, bool outputScope)
         {
-            var identities = Identities(element, 0);
-            if (identities is null || identities.Length != 1) return;
-            declared.Add(identities[0]);
-        }
-        foreach (var syntax in handler.Syntax.DescendantNodes().OfType<InvocationExpressionSyntax>())
-        {
-            analysis.CancellationToken.ThrowIfCancellationRequested();
-            if (!InHandler(syntax) || model.GetOperation(syntax, analysis.CancellationToken) is not IInvocationOperation call
-                || !InputCall(call) || !OwnReceiver(call) || StaticValueFlow.HasBindingError(call)) continue;
-            var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
-            if (argument is null || argument.IsImplicit) continue;
-            var identities = Identities(argument.Value, 0);
-            if (identities is null || identities.Length == 0 || identities.Any(declared.Contains)) continue;
-            var properties = ImmutableDictionary<string, string?>.Empty.Add("contract", "explicit-transform-inputs/1")
-                .Add("scope", "asset-transform-inputs").Add("scopeState", "Closed").Add("staticState", "Known")
-                .Add("reason", "all-known-input-instances-absent").Add("origin", "original-argument-utf16-span")
-                .Add("candidateCount", identities.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            analysis.ReportDiagnostic(Diagnostic.Create(Rule, argument.Value.Syntax.GetLocation(),
-                new[] { inputs.Value.Syntax.GetLocation() }, properties));
+            var declaration = creation.Arguments.SingleOrDefault(a => a.Parameter is { } p && p.Ordinal == ordinal && p.Name == name);
+            if (declaration is null) return;
+            // Snapshot occurs in the constructor body, after all arguments. Shared/local
+            // arrays are unsupported; failure closes neither this scope nor the other one.
+            var value = Unwrap(declaration.Value);
+            IOperation[] elements;
+            if (value is IArrayCreationOperation { Initializer: { } initializer }) elements = initializer.ElementValues.ToArray();
+            else if (value is IArrayCreationOperation { Initializer: null, DimensionSizes.Length: 1 } empty
+                && empty.DimensionSizes[0].ConstantValue is { HasValue: true, Value: 0 }) elements = Array.Empty<IOperation>();
+            else if (value is ICollectionExpressionOperation expression && value.Syntax is CollectionExpressionSyntax syntax
+                && syntax.Elements.All(e => e is ExpressionElementSyntax)) elements = expression.Elements.ToArray();
+            else return;
+            if (elements.Length > StaticValueFlow.MaxCandidates) return;
+            var declared = new HashSet<(SyntaxTree, int)>();
+            foreach (var element in elements)
+            {
+                var identities = Identities(element, 0, outputScope);
+                if (identities is null || identities.Length != 1) return;
+                declared.Add(identities[0]);
+            }
+            foreach (var syntax in handler.Syntax.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                analysis.CancellationToken.ThrowIfCancellationRequested();
+                if (!InHandler(syntax) || model.GetOperation(syntax, analysis.CancellationToken) is not IInvocationOperation call
+                    || !AssetCall(call, outputScope) || !OwnReceiver(call) || StaticValueFlow.HasBindingError(call)) continue;
+                var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
+                if (argument is null || argument.IsImplicit) continue;
+                var identities = Identities(argument.Value, 0, outputScope);
+                if (identities is null || identities.Length == 0 || identities.Any(declared.Contains)) continue;
+                var properties = ImmutableDictionary<string, string?>.Empty.Add("contract", "explicit-transform-" + name + "/1")
+                    .Add("scope", "asset-transform-" + name).Add("scopeState", "Closed").Add("staticState", "Known")
+                    .Add("reason", "all-known-" + (outputScope ? "output" : "input") + "-instances-absent").Add("origin", "original-argument-utf16-span")
+                    .Add("candidateCount", identities.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                analysis.ReportDiagnostic(Diagnostic.Create(Rule, argument.Value.Syntax.GetLocation(),
+                    new[] { declaration.Value.Syntax.GetLocation() }, properties, name));
+            }
         }
 
         bool InHandler(SyntaxNode node) => SameSyntax(node.Ancestors().FirstOrDefault(n => n is AnonymousFunctionExpressionSyntax
             or LocalFunctionStatementSyntax), handler.Syntax);
         bool OwnReceiver(IInvocationOperation call) => call.Instance is not null
             && Unwrap(call.Instance) is IParameterReferenceOperation receiver && Same(receiver.Parameter, parameter);
-        bool InputCall(IInvocationOperation call) => Same(call.TargetMethod.ContainingType, context)
-            && !call.TargetMethod.IsStatic && call.TargetMethod.Parameters.Length == 1
-            && call.TargetMethod.Parameters[0].RefKind == RefKind.None && Same(call.TargetMethod.Parameters[0].Type, asset)
-            && call.TargetMethod.Name is "GetUrl" or "OpenRead";
+        bool AssetCall(IInvocationOperation call, bool outputScope)
+        {
+            var method = call.TargetMethod;
+            if (!Same(method.ContainingType, context) || method.IsStatic || method.Arity != 0
+                || method.Parameters.Any(p => p.RefKind != RefKind.None)) return false;
+            return outputScope ? method.Name == "WriteAsync" && method.Parameters.Length == 3
+                && Same(method.Parameters[0].Type, output)
+                && method.Parameters[1].Type.ToDisplayString() == "System.ReadOnlyMemory<byte>"
+                && method.Parameters[2].Type.ToDisplayString() == "System.Threading.CancellationToken"
+                && method.ReturnType.ToDisplayString() == "System.Threading.Tasks.Task"
+                : method.Parameters.Length == 1 && Same(method.Parameters[0].Type, asset)
+                    && method.Name is "GetUrl" or "OpenRead";
+        }
         bool SafeContext()
         {
             foreach (var reference in handler.Syntax.DescendantNodes().OfType<IdentifierNameSyntax>())
@@ -110,16 +128,16 @@ internal sealed class StaticAssetInputAnalysis
             }
             return true;
         }
-        (SyntaxTree, int)[]? Identities(IOperation operation, int depth)
+        (SyntaxTree, int)[]? Identities(IOperation operation, int depth, bool outputScope)
         {
             analysis.CancellationToken.ThrowIfCancellationRequested();
             if (depth >= StaticValueFlow.MaxDepth || StaticValueFlow.HasBindingError(operation)) return null;
             operation = Unwrap(operation);
-            if (operation is IObjectCreationOperation instance && Same(instance.Type, asset))
+            if (operation is IObjectCreationOperation instance && Same(instance.Type, outputScope ? output : asset))
                 return new[] { (instance.Syntax.SyntaxTree, instance.Syntax.SpanStart) };
             if (operation is IConditionalOperation { WhenFalse: { } other } condition)
             {
-                var left = Identities(condition.WhenTrue, depth + 1); var right = Identities(other, depth + 1);
+                var left = Identities(condition.WhenTrue, depth + 1, outputScope); var right = Identities(other, depth + 1, outputScope);
                 if (left is null || right is null) return null;
                 var all = left.Concat(right).Distinct().Take(StaticValueFlow.MaxCandidates + 1).ToArray();
                 return all.Length <= StaticValueFlow.MaxCandidates ? all : null;
@@ -143,12 +161,12 @@ internal sealed class StaticAssetInputAnalysis
                     && model.GetDeclaredSymbol(declaration, analysis.CancellationToken) is ILocalSymbol) continue;
                 var argument = reference.Ancestors().OfType<ArgumentSyntax>().FirstOrDefault();
                 if (argument is null || model.GetOperation(argument, analysis.CancellationToken) is not IArgumentOperation bound) return null;
-                if (bound.Parent is IObjectCreationOperation owner && SameSyntax(owner.Syntax, creation.Syntax) && bound.Parameter?.Ordinal == 2) continue;
-                if (bound.Parent is IInvocationOperation use && InputCall(use) && OwnReceiver(use) && InHandler(reference)) continue;
+                if (bound.Parent is IObjectCreationOperation owner && SameSyntax(owner.Syntax, creation.Syntax) && bound.Parameter?.Ordinal == (outputScope ? 3 : 2)) continue;
+                if (bound.Parent is IInvocationOperation use && AssetCall(use, outputScope) && OwnReceiver(use) && InHandler(reference)) continue;
                 return null;
             }
             var initial = model.GetOperation(init.Value, analysis.CancellationToken);
-            return initial is null ? null : Identities(initial, depth + 1);
+            return initial is null ? null : Identities(initial, depth + 1, outputScope);
         }
     }
     private static bool IdentityExpression(ExpressionSyntax expression) => expression is IdentifierNameSyntax

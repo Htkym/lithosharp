@@ -16,6 +16,6 @@ LSA1103 | LithoSharp | Error | Interpolation in a known tag name, attribute name
 LSA1104 | LithoSharp | Warning | HTML encoded interpolation in a known script, style or event handler context.
 LSA1105 | LithoSharp | Error | Complete direct literal HTML has a base-independent URL violation of shared LSQ001 rules.
 LSA1201 | LithoSharp | Error | Every known public path is absent from a fresh Closed explicit manifest route lookup.
-LSA1203 | LithoSharp | Error | Every known asset instance is absent from the same inline transform handler's copied input declarations.
+LSA1203 | LithoSharp | Error | Every known asset/output instance is absent from the same inline transform handler's independently copied input/output declarations.
 LSA1205 | LithoSharp | Info | Generated manifest provenance differs from current compiler inputs; route absence is Deferred.
 LSA1501 | Migration | Warning | Bound legacy Testing Document DOM getter requires manual migration to the v2 snapshot API.
