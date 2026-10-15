@@ -5,6 +5,7 @@ using System.Linq;
 using LithoSharp.Internal;
 using LithoSharp.Routing;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -72,13 +73,18 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                 foreach (var rule in rules)
                 {
                     var argument = arguments.FirstOrDefault(a => a.Parameter?.Ordinal == rule.Ordinal);
-                    if (argument is null || argument.IsImplicit) continue;
+                    // Null-forgiving syntax can make an explicit CFG argument IsImplicit.
+                    if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit) continue;
                     var values = evaluate(argument.Value);
-                    if (values.Values is null || !values.Values.All(rule.Invalid)) continue;
+                    if (values.Values is null || values.Values.Length == 0 || !values.Values.All(rule.Invalid)) continue;
                     var properties = ImmutableDictionary<string, string?>.Empty
                         .Add("staticState", "Known").Add("candidateCount", values.Values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
                         .Add("origin", "original-argument-utf16-span");
-                    block.ReportDiagnostic(Diagnostic.Create(rule.Descriptor, argument.Value.Syntax.GetLocation(),
+                    var sourceArgument = argument.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
+                    var sourceOwner = sourceArgument?.Parent?.Parent;
+                    var expression = sourceOwner is not null && sourceOwner.SyntaxTree == operation.Syntax.SyntaxTree && sourceOwner.Span == operation.Syntax.Span
+                        ? sourceArgument!.Expression : argument.Value.Syntax;
+                    block.ReportDiagnostic(Diagnostic.Create(rule.Descriptor, expression.GetLocation(),
                         properties, argument.Parameter!.Name, method.ContainingType.Name + "." + method.Name));
                 }
             }, html, coverage.Interrupt));
@@ -115,6 +121,20 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         // Keep the static/self-return registration contract above unchanged.
         var contentRef = compilation.GetTypeByMetadataName("LithoSharp.Content.ContentRef`1")?.OriginalDefinition;
         var siteUrl = compilation.GetTypeByMetadataName("LithoSharp.SiteUrl")?.OriginalDefinition;
+        var siteRoute = compilation.GetTypeByMetadataName("LithoSharp.Routing.SiteRoute")?.OriginalDefinition;
+        if (siteUrl is { Arity: 0, IsSealed: true } && siteRoute is { Arity: 0, IsSealed: true }
+            && siteUrl.ContainingAssembly.Identity.Name == "LithoSharp"
+            && SymbolEqualityComparer.Default.Equals(siteUrl.ContainingAssembly, siteRoute.ContainingAssembly)
+            && !siteUrl.Locations.Any(l => l.IsInSource) && !siteRoute.Locations.Any(l => l.IsInSource))
+        {
+            foreach (var method in siteUrl.GetMembers("FromRoute").OfType<IMethodSymbol>().Where(m =>
+                m.MethodKind == MethodKind.Ordinary && m.IsStatic && m.Arity == 0 && m.DeclaredAccessibility == Accessibility.Public
+                && !m.ReturnsByRef && !m.ReturnsByRefReadonly && SymbolEqualityComparer.Default.Equals(m.ReturnType, siteUrl)
+                && m.Parameters.Length == 1 && m.Parameters[0].RefKind == RefKind.None
+                && SymbolEqualityComparer.Default.Equals(m.Parameters[0].Type, siteRoute)))
+                // Mirrors FromRoute's initial ThrowIfNull without evaluating a route or its PublicPath.
+                result.Add(method.OriginalDefinition, new List<Sink> { new Sink(0, Route, v => v is null) });
+        }
         if (contentRef is { Arity: 1, IsSealed: true } && siteUrl is not null
             && contentRef.ContainingAssembly.Identity.Name == "LithoSharp"
             && SymbolEqualityComparer.Default.Equals(contentRef.ContainingAssembly, siteUrl.ContainingAssembly)
