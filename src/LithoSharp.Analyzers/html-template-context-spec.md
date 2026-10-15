@@ -1,5 +1,9 @@
 # HTML interpolation context contract
 
+Inline CSS URL projection uses the same private source/tree parse and runtime CssUrlScanner source. Surviving style attributes use decoded HTML attribute text; style elements use the active tree's text chunks (HTML raw text and foreign entity decoding retain their parser semantics). Template content and removed duplicate attributes are not reconstructed. Stylesheets include the existing top-level import strings; attributes do not.
+
+LSA1105 requires Complete HTML and Complete CSS for the relevant input, a base-independent LSQ001 resource violation and the existing all-value/all-origin common proof. The candidate's raw CSS token range maps through HTML segments to one original C# piece. A zero-length URL requires touching segments to agree on one raw boundary and that point must not be an ambiguous piece boundary. CSS Partial or sink work/mapping exhaustion defers CSS without removing independent href/src/srcset diagnostics. The CSS projection shares a 262144-step budget across sink origin alternatives, independent of the existing HTML candidate mapping budget; it never publishes a truncated CSS prefix. No new user-code evaluation or external stylesheet resolution occurs.
+
 The only registered template sink is the public metadata-defined
 `LithoSharp.Html.UnsafeRaw(string)` returning `LithoSharp.IHtmlContent` from
 assembly `LithoSharp`. There is no interpolated string handler API in this runtime.
@@ -133,7 +137,7 @@ Deferred. There is no invented origin/base used to prove a compiler Error.
 The projection covers href (resource except a/area), src, poster, object data and
 form action, with unnamespaced attributes. It excludes base and every element whose
 rel tokens contain canonical, matching the runtime's policy,
-because their site policy differs. Namespaced xlink, CSS splitting, formaction,
+because their site policy differs. Namespaced xlink, external CSS/base resolution, formaction,
 site membership/anchors and canonical-route correctness remain outside this scope.
 Inert template content and script fake tags follow the actual bridge tree, not a
 substring scan. The rule does not certify runtime URL validity or security.

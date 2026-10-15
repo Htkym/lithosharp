@@ -35,11 +35,12 @@ internal sealed class HtmlFlowUrlAnalysis(Compilation compilation)
             facts.Add(value, parsed);
         }
         var remaining = HtmlLiteralAnalysis.MaxOperations;
+        var cssBudget = new LithoSharp.Quality.CssUrlScanner.Budget(HtmlLiteralAnalysis.MaxOperations);
         Dictionary<HtmlViolationKey, HtmlUrlViolation>? common = null;
         foreach (var alternative in origins.Alternatives)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            var violations = HtmlLiteralAnalysis.Violations(facts[alternative.Value], alternative.Value.Length, alternative.Map, context.CancellationToken, ref remaining)
+            var violations = HtmlLiteralAnalysis.Violations(facts[alternative.Value], alternative.Value.Length, alternative.Map, context.CancellationToken, ref remaining, cssBudget)
                 .GroupBy(v => new HtmlViolationKey(v.Location.SourceTree!, v.Location.SourceSpan, v.Attribute, v.Resource, v.Value, v.Issue))
                 .ToDictionary(group => group.Key, group => group.First());
             if (common is null) common = violations;

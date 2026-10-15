@@ -46,7 +46,7 @@ internal static class HtmlLiteralAnalysis
     }
 
     internal static IReadOnlyList<HtmlUrlViolation> Violations(HtmlLiteralFacts facts, int sourceLength,
-        Func<HtmlSpan, Location?> map, CancellationToken cancellation, ref int remainingMappingOperations)
+        Func<HtmlSpan, Location?> map, CancellationToken cancellation, ref int remainingMappingOperations, CssUrlScanner.Budget cssBudget)
     {
         var result = new List<HtmlUrlViolation>();
         foreach (var url in facts.Urls)
@@ -74,7 +74,7 @@ internal static class HtmlLiteralAnalysis
                 case "src": case "poster": resource = true; break;
                 case "data" when url.ElementName == "object": resource = true; break;
                 case "action" when url.ElementName == "form": resource = false; break;
-                default: continue; // CSS splitting and formaction are not this runtime LSQ001 projection.
+                default: continue; // formaction is not this runtime LSQ001 projection.
             }
             Report(url.Value.Value, resource, url.Value.Source);
 
@@ -87,7 +87,50 @@ internal static class HtmlLiteralAnalysis
                 result.Add(new HtmlUrlViolation(location, url.AttributeName, isResource, value, issue));
             }
         }
+        // CSS has its own finite projection budget, so its Partial/budget cannot erase href/src/srcset proof.
+        var cssResult = new List<HtmlUrlViolation>();
+        foreach (var input in facts.CssInputs)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var scanned = CssUrlScanner.CollectCandidates(input.Input.Value, cancellation, input.IncludeImports, cssBudget);
+            if (scanned.Coverage.Status != HtmlFactsCoverageStatus.Complete) continue;
+            var cursor = 0;
+            foreach (var candidate in scanned.Candidates)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var issue = SiteQualityUrlRules.IndependentIssue(candidate.Value, true);
+                if (issue == SiteQualityUrlIssue.None) continue;
+                var source = MapCssCandidate(input.Input, candidate.Source, sourceLength, cancellation, ref cursor, ref cssBudget.Remaining);
+                if (source is not { } range || map(range) is not { } location) continue;
+                cssResult.Add(new(location, input.IncludeImports ? "#style" : "style", true, candidate.Value, issue));
+            }
+        }
+        // No candidate prefix is complete after CSS work/mapping exhaustion.
+        if (cssBudget.Remaining >= 0) result.AddRange(cssResult);
         return result;
+    }
+
+    internal static HtmlSpan? MapCssCandidate(HtmlText value, HtmlSpan candidate, int sourceLength,
+        CancellationToken cancellation, ref int segmentIndex, ref int remainingOperations)
+    {
+        if (candidate.Length != 0) return MapCandidate(value, candidate, sourceLength, cancellation, ref segmentIndex, ref remainingOperations);
+        if (candidate.Start < 0 || candidate.Start > value.Value.Length) return null;
+        int? boundary = null;
+        // An empty CSS token is exact only if every touching decoded segment agrees on the raw boundary.
+        foreach (var segment in value.Segments)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (remainingOperations-- <= 0) return null;
+            if (candidate.Start < segment.ValueStart || candidate.Start > segment.ValueStart + segment.ValueLength) continue;
+            int mapped;
+            if (segment.ValueLength == segment.Source.Length) mapped = segment.Source.Start + candidate.Start - segment.ValueStart;
+            else if (candidate.Start == segment.ValueStart) mapped = segment.Source.Start;
+            else if (candidate.Start == segment.ValueStart + segment.ValueLength) mapped = segment.Source.End;
+            else return null;
+            if (mapped < value.Source.Start || mapped > value.Source.End || mapped > sourceLength || boundary is { } prior && prior != mapped) return null;
+            boundary = mapped;
+        }
+        return boundary is { } position ? new HtmlSpan(position, 0) : null;
     }
 
     private sealed record LiteralPiece(int Start, int Length, CSharpLiteralMap Map);

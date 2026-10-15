@@ -108,6 +108,25 @@ public sealed class MaterialPositionTests
         await Assert.That(urls.All(r => r.Candidate!.Raw == escaped)).IsTrue();
         await Assert.That(urls[0].Candidate!.Segments.Any(segment => segment.ValueLength == 1 && segment.Source?.Length == 4)).IsTrue();
         await Assert.That(owner.Counters.ParseCount).IsEqualTo(1);
+
+        // Share runtime observations with the packed compiler host, including active-tree/namespace decisions.
+        using var corpus = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+            Environment.GetEnvironmentVariable("INLINE_CSS_CORPUS") ?? Path.Combine(AppContext.BaseDirectory, "Fixtures", "InlineCssUrlCases.json")));
+        var observations = new List<object>();
+        foreach (var row in corpus.RootElement.EnumerateArray())
+        {
+            var input = row.GetProperty("html").GetString()!;
+            var snapshot = await owner.GetQualitySnapshotAsync(input, new("case.html", "/case.html", null, null),
+                new("https://example.test/case.html"), default);
+            var references = snapshot.Snapshot.CssReferences;
+            var values = references.Select(reference => reference.UnresolvedValue).ToArray();
+            await Assert.That(values).IsEquivalentTo(row.GetProperty("values").EnumerateArray().Select(value => value.GetString()).ToArray());
+            observations.Add(new { name = row.GetProperty("name").GetString(), values,
+                positions = references.Select(reference => new { reference.CandidateSource, raw = reference.Candidate?.Raw }).ToArray() });
+        }
+        if (Environment.GetEnvironmentVariable("RA04B_EVIDENCE_DIR") is { Length: > 0 } directory)
+            File.WriteAllText(Path.Combine(directory, "inline-css-runtime.json"), System.Text.Json.JsonSerializer.Serialize(
+                new { status = "PASS", cases = observations }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]

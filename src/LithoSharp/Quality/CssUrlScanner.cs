@@ -9,9 +9,16 @@ namespace LithoSharp.Quality;
 // are URL characters, while comments and ordinary strings outside it are skipped.
 internal static class CssUrlScanner
 {
+    // Optional compiler-host work budget; runtime callers retain the existing unlimited scan.
+    internal sealed class Budget(int remaining)
+    {
+        internal int Remaining = remaining;
+        internal void Step() { if (Remaining-- <= 0) throw new BudgetExceededException(); }
+    }
+    private sealed class BudgetExceededException : Exception { }
     internal sealed record Candidate(string Value, HtmlSpan Source, IReadOnlyList<HtmlTextSegment> Mapping);
     internal static IEnumerable<string> Read(string css, CancellationToken cancellationToken, bool includeImports = false)
-        => ReadCore(css, cancellationToken, includeImports, null).Select(candidate => candidate.Value);
+        => ReadCore(css, cancellationToken, includeImports, null, null).Select(candidate => candidate.Value);
 
     internal static (IReadOnlyList<string> Values, HtmlFactsProjectionCoverage Coverage) Collect(
         string css, CancellationToken cancellationToken, bool includeImports = false)
@@ -21,17 +28,24 @@ internal static class CssUrlScanner
     }
 
     internal static (IReadOnlyList<Candidate> Candidates, HtmlFactsProjectionCoverage Coverage) CollectCandidates(
-        string css, CancellationToken cancellationToken, bool includeImports = false)
+        string css, CancellationToken cancellationToken, bool includeImports = false, Budget? budget = null)
     {
         var reasons = new List<HtmlFactsCoverageReason>();
-        var values = ReadCore(css, cancellationToken, includeImports, reasons).ToArray();
+        Candidate[] values;
+        try { values = ReadCore(css, cancellationToken, includeImports, reasons, budget).ToArray(); }
+        catch (BudgetExceededException)
+        {
+            // Never expose a successful prefix after the bounded scan was interrupted.
+            values = Array.Empty<Candidate>();
+            reasons.Add(new("css_work_budget", null));
+        }
         cancellationToken.ThrowIfCancellationRequested();
         return (Array.AsReadOnly(values), new(HtmlFactsProjection.InlineCss,
             reasons.Count == 0 ? HtmlFactsCoverageStatus.Complete : HtmlFactsCoverageStatus.Partial, reasons));
     }
 
     private static IEnumerable<Candidate> ReadCore(string css, CancellationToken cancellationToken, bool includeImports,
-        List<HtmlFactsCoverageReason>? reasons)
+        List<HtmlFactsCoverageReason>? reasons, Budget? budget)
     {
         var index = 0;
         var blockDepth = 0;
@@ -41,7 +55,7 @@ internal static class CssUrlScanner
         var pendingImport = false;
         while (index < css.Length)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            Step();
             if (SkipComment()) continue;
             if (IsWhitespace(css[index])) { index++; continue; }
             if (pendingImport && css[index] is '@' or '#')
@@ -109,6 +123,8 @@ internal static class CssUrlScanner
 
         if (pendingImport) reasons?.Add(new("css_import_unresolved", null));
 
+        void Step() { cancellationToken.ThrowIfCancellationRequested(); budget?.Step(); }
+
         bool TopLevel() => blockDepth == 0 && functionDepth == 0 && bracketDepth == 0;
         void StartQualifiedRule()
         {
@@ -120,7 +136,7 @@ internal static class CssUrlScanner
             var value = new StringBuilder();
             while (index < css.Length)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 if (IsName(css[index])) AppendCurrent(value);
                 else if (ValidEscape()) { index++; AppendEscape(value); }
                 else break;
@@ -154,7 +170,7 @@ internal static class CssUrlScanner
             var mapping = new List<HtmlTextSegment>();
             while (index < css.Length)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 var c = css[index];
                 if (c == ')') { var end = index++; return MakeCandidate(value, start, end, mapping); }
                 if (IsWhitespace(c))
@@ -178,7 +194,7 @@ internal static class CssUrlScanner
             if (index == css.Length) return MakeCandidate(value, start, index, mapping);
             while (index < css.Length)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 if (css[index] == ')') { index++; break; }
                 if (ValidEscape()) { index++; AppendEscape(null); }
                 else index++;
@@ -194,7 +210,7 @@ internal static class CssUrlScanner
             var mapping = new List<HtmlTextSegment>();
             while (index < css.Length)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 if (css[index] == quote) { var end = index++; return MakeCandidate(value, start, end, mapping); }
                 if (IsNewline(css[index])) return null; // Bad string; leave newline for recovery.
                 if (css[index] == '\\')
@@ -213,10 +229,10 @@ internal static class CssUrlScanner
         {
             var before = value?.Length ?? 0;
             if (index == css.Length) value?.Append('\uFFFD');
-            else if (char.IsAsciiHexDigit(css[index]))
+            else if (IsHex(css[index]))
             {
                 var codePoint = 0;
-                for (var count = 0; count < 6 && index < css.Length && char.IsAsciiHexDigit(css[index]); count++, index++)
+                for (var count = 0; count < 6 && index < css.Length && IsHex(css[index]); count++, index++)
                 {
                     var c = css[index];
                     codePoint = codePoint * 16 + (c <= '9' ? c - '0' : (c | 32) - 'a' + 10);
@@ -255,9 +271,9 @@ internal static class CssUrlScanner
         void AddMapping(List<HtmlTextSegment>? mapping, int start, int length, HtmlSpan source)
         {
             if (mapping is null || length == 0) return;
-            if (mapping.Count > 0 && mapping[^1] is { } previous && previous.ValueLength == previous.Source.Length
+            if (mapping.Count > 0 && mapping[mapping.Count - 1] is { } previous && previous.ValueLength == previous.Source.Length
                 && length == source.Length && previous.Source.End == source.Start)
-                mapping[^1] = previous with { ValueLength = previous.ValueLength + length,
+                mapping[mapping.Count - 1] = previous with { ValueLength = previous.ValueLength + length,
                     Source = new(previous.Source.Start, previous.Source.Length + source.Length) };
             else mapping.Add(new(start, length, source));
         }
@@ -268,7 +284,7 @@ internal static class CssUrlScanner
             index += 2;
             while (index + 1 < css.Length)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 if (css[index] == '*' && css[index + 1] == '/') { index += 2; return true; }
                 index++;
             }
@@ -281,7 +297,7 @@ internal static class CssUrlScanner
             var depth = 1;
             while (index < css.Length && depth != 0)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 if (SkipComment()) continue;
                 if (css[index] is '\'' or '"') { ReadQuoted(); continue; }
                 if (ValidEscape()) { index++; AppendEscape(null); continue; }
@@ -295,7 +311,7 @@ internal static class CssUrlScanner
         {
             while (index < css.Length && IsWhitespace(css[index]))
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Step();
                 index++;
             }
         }
@@ -309,7 +325,8 @@ internal static class CssUrlScanner
             && (index + 1 == css.Length || !IsNewline(css[index + 1]));
     }
 
-    private static bool IsName(char c) => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '\0' || c >= 0x80;
+    private static bool IsHex(char c) => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+    private static bool IsName(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '-' or '_' or '\0' || c >= 0x80;
     private enum RuleKind { None, AtRule, QualifiedRule }
     private static bool IsNewline(char c) => c is '\r' or '\n' or '\f';
     private static bool IsWhitespace(char c) => c is ' ' or '\t' || IsNewline(c);
