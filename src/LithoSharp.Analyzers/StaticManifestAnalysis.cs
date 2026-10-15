@@ -162,8 +162,15 @@ internal sealed class StaticManifestAnalysis
         }
         catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return; }
         if (!scope.Entries.TryGetValue(entryId, out var expected) || StringComparer.Ordinal.Equals(expected, actual)) return;
-        context.ReportDiagnostic(Diagnostic.Create(TypedMismatch, route.Value.Syntax.GetLocation(),
-            additionalLocations: new[] { key.Syntax.GetLocation() },
+        static Location ArgumentLocation(IOperation value, SyntaxNode owner)
+        {
+            var argument = value.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
+            var sourceOwner = argument?.Parent?.Parent;
+            return sourceOwner is not null && sourceOwner.SyntaxTree == owner.SyntaxTree && sourceOwner.Span == owner.Span
+                ? argument!.Expression.GetLocation() : value.Syntax.GetLocation();
+        }
+        context.ReportDiagnostic(Diagnostic.Create(TypedMismatch, ArgumentLocation(route.Value, original.Syntax),
+            additionalLocations: new[] { ArgumentLocation(key, id.Syntax) },
             properties: Properties(scope).Add("entryId", entryId).Add("expectedPublicPath", expected).Add("actualPublicPath", actual),
             messageArgs: new object[] { entryId, scope.Site, scope.Variant, expected, actual }));
     }

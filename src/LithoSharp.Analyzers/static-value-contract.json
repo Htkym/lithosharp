@@ -149,7 +149,7 @@
     "scope": "direct generated Catalog.CollectionId selector and exactly one fresh Closed manifest proved to use that identical catalog property",
     "values": "existing compiler-constant ContentEntryId and valid constant SiteRoute.ForFile/ForDirectoryIndex route; known null base requires ConstantValue.HasValue",
     "comparison": "runtime ContentEntryId NFC normalization and shared SiteRoute canonical PublicPath; Ordinal comparison",
-    "origin": "original route expression UTF16 primary location; original entry ID constant related location; shared compiler provenance",
+    "origin": "entire original route argument ordinal2 under outer ContentRef creation for UTF16 primary; entire ID constant argument ordinal0 under inner ContentEntryId creation for related location, never the outer entry argument; include !/parentheses only after matching each source tree/span owner; otherwise retain existing operation location; location-only mapping, same compiler provenance and primary pragma",
     "deferred": ["missing/unknown ID", "Open/Stale/Unavailable", "ambiguous catalog", "manual origin", "aliases/user conversions/getters/factories", "unknown or non-null base", "unknown/invalid route", "opaque PageRef IDs"],
     "owner": "LSA1002 retains invalid route syntax; LSG004/005/006 retain generator errors; no new duplicate diagnostic or CodeFix"
   },
