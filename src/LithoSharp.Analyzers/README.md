@@ -20,7 +20,7 @@ The registered sinks below use metadata symbols from the LithoSharp assembly, ex
 
 ### LSA1003
 
-`SiteAssetOutput(string id, string relativeOutputPath)` validates only `relativeOutputPath` with the runtime relative output path guard. These are filesystem names: percent text is literal, unlike route URI segments. Containment can be proven for invalid static relative paths without filesystem access. Artifact ownership, registry membership and other output APIs remain outside this registered scope.
+`SiteAssetOutput(string id, string relativeOutputPath)` validates `relativeOutputPath`. `SiteAsset(string id, string inputRoot, string relativeInputPath, string relativeOutputPath)` also validates its relative input and output paths independently, at parameter ordinals 2 and 3. Both use the same pure `SiteRoute.NormalizeRelativeOutputPath` source as the runtime. These are filesystem names: percent text is literal, unlike route URI segments. Invalid static relative paths can be rejected without filesystem access. Input root absolutization, file existence, artifact ownership and registry completeness remain outside this registered scope. Unknown or mixed valid/invalid candidates do not produce an Error; named arguments retain their parameter identity and original evaluation-time snapshots.
 
 ### LSA1004
 

@@ -113,6 +113,9 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         }
         Register("LithoSharp.SiteAssetOutput", ".ctor", new[] { "string", "string" },
             new Sink(1, Path, v => Reject(() => SiteRoute.NormalizeRelativeOutputPath((string)v!))));
+        Register("LithoSharp.SiteAsset", ".ctor", new[] { "string", "string", "string", "string" },
+            new Sink(2, Path, v => Reject(() => SiteRoute.NormalizeRelativeOutputPath((string)v!))),
+            new Sink(3, Path, v => Reject(() => SiteRoute.NormalizeRelativeOutputPath((string)v!))));
         Register("LithoSharp.Quality.SiteQualityOptions", ".ctor",
             new[] { "LithoSharp.Diagnostics.SiteDiagnosticSeverity", "bool", "LithoSharp.Quality.ExternalLinkCheckOptions?" },
             new Sink(0, Option, v => v is int severity && Reject(() => StaticApiGuards.ValidateFailureThreshold(severity))));

@@ -8,7 +8,7 @@ LSA1402 | LithoSharp | Error | Existing entry ID and valid route contradict the 
 LSA1403 | LithoSharp | Info | Explicitly selected registered documentation producer route contributions cannot be enumerated statically; count unique selected instances only.
 LSA1001 | LithoSharp | Error | All known values violate SiteUrl.FromAbsolute runtime guard.
 LSA1002 | LithoSharp | Error | All known values violate a registered SiteRoute/SiteUrl route argument guard.
-LSA1003 | LithoSharp | Error | All known values violate SiteAssetOutput relative output path guard.
+LSA1003 | LithoSharp | Error | All known values violate a SiteAsset relative input/output or SiteAssetOutput relative output path guard.
 LSA1004 | LithoSharp | Error | All known values violate SiteQualityOptions failureThreshold guard.
 LSA1101 | LithoSharp | Info | Unverified contents passed to the exact Html.UnsafeRaw(string) sink.
 LSA1102 | LithoSharp | Error | Proven raw HTML fragment in a known quoted attribute interpolation.
