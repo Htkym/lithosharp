@@ -66,7 +66,21 @@
     "deferred": ["Open/dynamic", "Stale", "Unavailable", "unknown or mixed present/missing values", "receiver aliases/custom factories", "unverified handwritten origin", "metadata-only manifests", "unreadable or budget inputs", "HTML route/anchor/asset references"],
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1203/1204", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1202/1204", "LSA1203 beyond explicit transform inputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
+  },
+  "assetTransformInputs": {
+    "id": "LSA1203", "contract": "explicit-transform-inputs/1", "scope": "asset-transform-inputs",
+    "sinks": ["exact SiteAssetTransformContext.GetUrl(SiteAsset)", "exact SiteAssetTransformContext.OpenRead(SiteAsset)"],
+    "declaration": "exact SiteAssetTransform constructor, direct inline array/collection and inline handler; named arguments bound by parameter ordinal",
+    "snapshot": "constructor body after all arguments; shared/local arrays and assignment expressions never close the set",
+    "identity": "direct SiteAsset new or source local/simple alias unchanged across the whole method, including delayed bodies; IDs/paths are not instance equality",
+    "absence": "Error only when every bounded known candidate is outside the same copied input set",
+    "budgets": { "candidates": 8, "identityDepth": 64, "ownerSyntaxNodes": 4096 },
+    "context": "only the same inline handler parameter; no propagation into nested handlers or local functions",
+    "freshness": "current Compilation buffers; no proof cached across Compilations",
+    "origin": "original input argument UTF16 span, declaration related location; standard severity/NoWarn/pragma",
+    "deferred": ["shared array or alias and later argument mutation", "reassignment/deconstruction/ref/out/escape/other closure", "loops/statement control flow", "opaque inputs/handlers", "unknown or mixed present/missing values", "foreign or nested context", "binding failure/budget/cancellation"],
+    "outside": ["SiteAssetOutput and output writes", "arbitrary page/layout AssetRegistry", "generated/import assets and PublicDirectory", "HTML/Markdown asset URLs", "site coverage", "LSA9001 scope expansion", "CodeFix", "runtime or user execution/file IO"]
   },
   "staticCoveragePolicy": {
     "id": "LSA9001", "policy": "RequireStaticCoverage", "enabledByDefault": false, "defaultSeverityWhenEnabled": "Error",
