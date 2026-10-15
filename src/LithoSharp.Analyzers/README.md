@@ -61,6 +61,12 @@ third-party casts/extensions and unsupported selectors require manual changes.
 There is no automatic CodeFix or blind rename. Normal diagnostic suppression and
 generated-code exclusion apply; runtime snapshot ownership remains unchanged.
 
+### LSA1005
+
+Error reports a `MaxDegreeOfParallelism` initializer only when all values in its assignment-time snapshot are integers less than one. The exact Core metadata instance `SiteGenerator.GenerateWithOptionsAsync` must receive a directly constructed `SiteGenerationOptions` as argument 5. Zero and negative values violate its runtime guard after the options null check; one, `int.MaxValue` and the omitted default do not. This does not prove call reachability or validity of other arguments.
+
+Earlier calls/getters/constructors keep the existing local invalidation rules. Later initializers and named arguments cannot rewrite an already captured initializer value. Unknown or missing CFG snapshots, mixed valid/invalid values, source lookalikes, other overloads, options aliases and `with` expressions remain unproven. No getter or user code executes. The original initializer value owns the UTF-16 diagnostic span and ordinary Roslyn severity/suppression. LSA1004 remains the separate quality-options rule.
+
 ### LSA1101
 
 `Html.UnsafeRaw(string)` receives Info when its contents are Unknown to the bounded static flow. This reports unverified raw output without claiming a vulnerability. A known literal or supported known local is not reported. Ordinary strings and lookalike user APIs are excluded.

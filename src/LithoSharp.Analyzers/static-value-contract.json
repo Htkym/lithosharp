@@ -30,6 +30,18 @@
     { "id": "LSA1004", "type": "LithoSharp.Quality.ExternalLinkCheckOptions", "member": ".ctor", "parameters": ["string", "System.TimeSpan?", "System.TimeSpan?", "System.TimeSpan?"], "validated": ["cacheFilePath", "cacheDuration", "minimumRequestInterval", "requestTimeout"], "runtimeGuard": "StaticApiGuards.ValidateExternalCacheFilePath/ValidateExternalCacheDuration/ValidateExternalTimerDuration" }
   ],
   "externalLinkOptions": { "maximumTimerTicks": 42949672940000, "nullable": "Known null keeps runtime defaults; Unknown stays Unknown", "durationSymbol": "TimeSpan from the same compiler core-library assembly as Int64, never a source lookalike", "durationValues": "checked exact integral ticks; supported BCL fields/ticks constructor/unit and integer-component factories", "unsupported": ["fractional/nonfinite", "overflow", "uncertain binary64 product", "user factory/getter/operator", "other overloads"], "deconstruction": "existing State invalidates Values and Origins", "networkFilesystem": false },
+  "generationOptions": {
+    "rule": "LSA1005", "severity": "Error",
+    "sink": "exact Core metadata SiteGenerator public ordinary non-generic instance GenerateWithOptionsAsync(SiteSettings,IReadOnlyList<MarkdownPost>,string,bool,SiteCustomization,SiteGenerationOptions,CancellationToken) -> Task<SiteGenerationResult>",
+    "argumentOrdinal": 5, "options": "direct exact Core SiteGenerationOptions parameterless construction only",
+    "property": "exact public instance Int32 MaxDegreeOfParallelism with public getter and init setter",
+    "runtimeGuard": "after options null guard, MaxDegreeOfParallelism < 1; independent option violation only, not reachability or other argument validity",
+    "value": "nonempty assignment-time CFG snapshot, all candidates Int32 and < 1; never evaluate final call state or recover Known from syntax",
+    "origin": "original initializer value UTF16 span",
+    "unproven": ["Unknown or missing capture", "mixed valid-invalid", "source lookalike", "other overload", "options alias", "with expression", "user conversion"],
+    "nonExecution": ["getters", "calls", "constructors", "Core runtime", "filesystem"],
+    "unchanged": ["existing local/capture invalidation", "flow budgets", "LSA1004", "producer ownership", "route coverage"]
+  },
   "schemaOwnersPreserved": ["LSG001", "LSG002", "LSG003", "LSG004", "LSG005", "LSG006"],
   "htmlTemplates": {
     "task": "RA-04",

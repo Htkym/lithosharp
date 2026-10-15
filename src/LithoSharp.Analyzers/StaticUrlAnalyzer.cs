@@ -26,7 +26,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule).Add(StaticAssetInputAnalysis.Rule);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, GenerationOptionsAnalysis.Rule, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule).Add(StaticAssetInputAnalysis.Rule);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -40,11 +40,12 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             var assetInputs = StaticAssetInputAnalysis.Create(start.Compilation);
             if (assetInputs is not null) start.RegisterOperationAction(assetInputs.Analyze, OperationKind.ObjectCreation);
             var sinks = RegisterSinks(start.Compilation);
+            var generationOptions = GenerationOptionsAnalysis.Create(start.Compilation);
             var html = HtmlTemplateAnalysis.Create(start.Compilation);
             var htmlUrls = new HtmlFlowUrlAnalysis(start.Compilation);
             var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             var guarantee = StaticRouteGuaranteeAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
-            if (sinks.Count == 0 && html is null && manifest is null && guarantee is null) return;
+            if (sinks.Count == 0 && html is null && manifest is null && guarantee is null && generationOptions is null) return;
             var coverage = new StaticCoveragePolicy(start.Compilation);
             start.RegisterOperationAction(operation =>
             {
@@ -61,6 +62,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             start.RegisterOperationBlockAction(block => StaticValueFlow.Analyze(block, (operation, evaluate) =>
             {
                 block.CancellationToken.ThrowIfCancellationRequested();
+                generationOptions?.Analyze(block, operation, evaluate);
                 html?.Analyze(block, operation, evaluate, htmlUrls);
                 manifest?.Analyze(block, operation, evaluate, coverage);
                 guarantee?.Analyze(block, operation, coverage);
