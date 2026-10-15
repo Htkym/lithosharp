@@ -122,6 +122,20 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         var contentRef = compilation.GetTypeByMetadataName("LithoSharp.Content.ContentRef`1")?.OriginalDefinition;
         var siteUrl = compilation.GetTypeByMetadataName("LithoSharp.SiteUrl")?.OriginalDefinition;
         var siteRoute = compilation.GetTypeByMetadataName("LithoSharp.Routing.SiteRoute")?.OriginalDefinition;
+        var manifest = compilation.GetTypeByMetadataName("LithoSharp.Content.StaticSiteManifest");
+        if (manifest is { Arity: 0, IsSealed: true } && siteUrl is { Arity: 0, IsSealed: true }
+            && manifest.ContainingAssembly.Identity.Name == "LithoSharp"
+            && SymbolEqualityComparer.Default.Equals(manifest.ContainingAssembly, siteUrl.ContainingAssembly)
+            && !manifest.Locations.Any(l => l.IsInSource) && !siteUrl.Locations.Any(l => l.IsInSource))
+        {
+            foreach (var method in manifest.GetMembers("GetUrl").OfType<IMethodSymbol>().Where(m =>
+                m.MethodKind == MethodKind.Ordinary && !m.IsStatic && m.Arity == 0 && m.DeclaredAccessibility == Accessibility.Public
+                && !m.ReturnsByRef && !m.ReturnsByRefReadonly && SymbolEqualityComparer.Default.Equals(m.ReturnType, siteUrl)
+                && m.Parameters.Length == 1 && m.Parameters[0].RefKind == RefKind.None && !m.Parameters[0].IsOptional
+                && m.Parameters[0].Type.SpecialType == SpecialType.System_String))
+                // GetUrl rejects null before membership or an open resolver is consulted.
+                result.Add(method.OriginalDefinition, new List<Sink> { new Sink(0, Route, v => v is null) });
+        }
         if (siteUrl is { Arity: 0, IsSealed: true } && siteRoute is { Arity: 0, IsSealed: true }
             && siteUrl.ContainingAssembly.Identity.Name == "LithoSharp"
             && SymbolEqualityComparer.Default.Equals(siteUrl.ContainingAssembly, siteRoute.ContainingAssembly)
