@@ -163,6 +163,25 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                 result.Add(method.OriginalDefinition, new List<Sink>
                 { new Sink(0, Route, v => Reject(() => SiteRoute.ForFile("valid.html", (string?)v))) });
         }
+        if (contentRef is { Arity: 1, IsSealed: true }
+            && contentRef.ContainingAssembly.Identity.Name == "LithoSharp"
+            && !contentRef.Locations.Any(l => l.IsInSource))
+        {
+            var parameterTypes = new[] { compilation.GetTypeByMetadataName("LithoSharp.Content.ContentCollectionId"),
+                compilation.GetTypeByMetadataName("LithoSharp.Content.ContentEntryId"), siteRoute };
+            if (parameterTypes.All(type => type is { Arity: 0, IsSealed: true }
+                && SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, contentRef.ContainingAssembly)
+                && !type.Locations.Any(l => l.IsInSource)))
+            {
+                foreach (var constructor in contentRef.InstanceConstructors.Where(m =>
+                    m.MethodKind == MethodKind.Constructor && !m.IsStatic && m.Arity == 0
+                    && m.DeclaredAccessibility == Accessibility.Public && m.Parameters.Length == 3
+                    && m.Parameters.All(p => p.RefKind == RefKind.None && !p.IsOptional)
+                    && m.Parameters.Select((p, i) => SymbolEqualityComparer.Default.Equals(p.Type, parameterTypes[i])).All(same => same)))
+                    // Each sink reads the route's evaluation snapshot, even before later argument effects.
+                    result.Add(constructor.OriginalDefinition, new List<Sink> { new Sink(2, Route, v => v is null) });
+            }
+        }
         Register("LithoSharp.SiteAssetOutput", ".ctor", new[] { "string", "string" },
             new Sink(1, Path, v => Reject(() => SiteRoute.NormalizeRelativeOutputPath((string)v!))));
         Register("LithoSharp.SiteAsset", ".ctor", new[] { "string", "string", "string", "string" },
