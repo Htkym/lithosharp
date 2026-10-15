@@ -59,7 +59,7 @@ generated-code exclusion apply; runtime snapshot ownership remains unchanged.
 
 ### LSA1102
 
-A direct interpolated UnsafeRaw argument produces Error when a proven raw fragment is placed in a known quoted attribute. An arbitrary IHtmlContent variable is not proven to be a raw fragment. The sealed HtmlText and HtmlAttributeValue wrappers use the runtime's HTML encoding and are permitted in that context.
+An interpolated UnsafeRaw argument produces Error when explicit ToHtmlString output of a proven raw fragment is placed in a known quoted attribute. Direct raw-object interpolation emits its type name and no longer proves a fragment for this rule. An arbitrary IHtmlContent variable is not proven to be a raw fragment. The sealed HtmlText and HtmlAttributeValue wrappers use the runtime's HTML encoding and are permitted in that context.
 
 ### LSA1103
 
@@ -69,7 +69,9 @@ Interpolation in a known tag name, attribute name or unquoted attribute value pr
 
 HTML encoding in a known script/style body, quoted event handler or style attribute produces Warning. Html.Encode and the two sealed encoded wrappers do not establish JavaScript/CSS safety. Choose appropriate serialization manually.
 
-The exact template scope, supported output symbols, budgets, original source spans and unsupported/Deferred cases are recorded in `html-template-context-spec.md`. Suppress individual rules using normal compiler/editor configuration or a documented pragma after reviewing the output contract. Arbitrary/concatenated templates remain outside the registered interpolation context scope.
+Local/capture aliases, built-in string concatenation and finite branches carry optional literal/typed-hole shapes on the existing evaluation snapshots. Scalar Unknown remains Unknown even when a shape is proven. Each sink requires the same original hole, rule and context across every alternative; independently proven sinks are unioned, with at most 16 deterministic related use locations. Missing shapes, escapes and budget exhaustion cannot leave a successful prefix. Deconstruction invalidates values and all optional proofs; ref/call/getter/loop/exception boundaries also drop the applicable shape and output-kind witnesses.
+
+The exact template scope, supported output symbols, independent eight-alternative/513-piece budget, original source spans and Deferred cases are recorded in `html-template-context-spec.md`. Direct templates retain their 256-hole limit. Format/alignment now defer definite context diagnostics even at forbidden positions; no formatter is modeled. Suppress individual rules using normal compiler/editor configuration or a documented pragma after reviewing the output contract.
 
 ### LSA1105
 

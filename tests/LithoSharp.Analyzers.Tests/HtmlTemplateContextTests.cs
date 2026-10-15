@@ -18,7 +18,7 @@ public sealed partial class AnalyzerPackageHostTests
             ("encoded-attribute", "$\"<p title=\\\"{Html.Encode(unknown)}\\\">ok</p>\"", ["LSA1101"]),
             ("attribute-wrapper", "$\"<p title=\\\"{new HtmlAttributeValue(unknown)}\\\">ok</p>\"", ["LSA1101"]),
             ("text-wrapper", "$\"<p title=\\\"{new HtmlText(unknown)}\\\">ok</p>\"", ["LSA1101"]),
-            ("fragment-attribute", "$\"<p title=\\\"{Html.UnsafeRaw(\"<b/>\")}\\\">ok</p>\"", ["LSA1101", "LSA1102"]),
+            ("raw-object-type-name-attribute", "$\"<p title=\\\"{Html.UnsafeRaw(\"<b/>\")}\\\">ok</p>\"", ["LSA1101"]),
             ("fragment-string-attribute", "$\"<p title=\\\"{Html.UnsafeRaw(\"<b/>\").ToHtmlString()}\\\">ok</p>\"", ["LSA1101", "LSA1102"]),
             ("interface-unknown", "$\"<p title=\\\"{content}\\\">ok</p>\"", ["LSA1101"]),
             ("tag-name", "$\"<{unknown}>\"", ["LSA1101", "LSA1103"]),
@@ -91,7 +91,7 @@ public sealed partial class AnalyzerPackageHostTests
     {
         var proof = new List<object>();
         foreach (var (id, prefix, value, suffix) in new[] {
-            ("LSA1102", "<p title=\"", "Html.UnsafeRaw(\"<b/>\")", "\">"),
+            ("LSA1102", "<p title=\"", "Html.UnsafeRaw(\"<b/>\").ToHtmlString()", "\">"),
             ("LSA1103", "<p ", "unknown", ">"),
             ("LSA1104", "<script>", "Html.Encode(unknown)", "</script>") })
         {

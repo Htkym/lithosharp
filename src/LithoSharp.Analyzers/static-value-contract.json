@@ -29,14 +29,16 @@
   "htmlTemplates": {
     "task": "RA-04",
     "sink": "LithoSharp.Html.UnsafeRaw(string) -> LithoSharp.IHtmlContent, exact public metadata overload",
-    "budgets": { "sourceUtf16Length": 65536, "decodedUtf16Length": 65536, "holes": 256, "nameLength": 128 },
+    "budgets": { "sourceUtf16Length": 65536, "decodedUtf16Length": 65536, "holes": 256, "nameLength": 128, "shapeAlternatives": 8, "shapePieces": 513, "relatedLocations": 16 },
     "rules": { "LSA1101": "Info/unknown raw argument contents", "LSA1102": "Error/proven fragment in known quoted attribute", "LSA1103": "Error/hole at known tag/attribute name or unquoted value", "LSA1104": "Warning/HTML encoding in known script/style/event context" },
     "origin": "original sink argument for Info; original hole expression for context rules",
     "knownEncoded": ["Html.Encode(string?)", "sealed HtmlText", "sealed HtmlAttributeValue"],
-    "knownFragment": ["exact Html.UnsafeRaw result", "exact result.ToHtmlString()"],
+    "knownFragment": ["explicit ToHtmlString() on the flow-proven exact Html.UnsafeRaw result"],
+    "rawObject": "direct raw-object interpolation emits a type name, not the fragment string",
+    "shapeFlow": { "source": "same scalar CFG State/evaluation snapshots", "inputs": ["local/capture aliases", "built-in string concatenation", "finite branches"], "scalar": "Unknown and shape proof are independent; missing shape alternatives cannot be dropped", "proof": "per-sink intersection of original hole tree/span, rule and context; union across independently proven sinks", "invalidation": "deconstruction clears Values and all optional proofs; additional ref escape clears all optional proofs; existing calls/getters/loops/exceptions drop shapes and output-kind witnesses" },
     "unknownInterface": "IHtmlContent alone does not prove a raw fragment",
     "unknownHolePolicy": "invalidate subsequent context; encoded holes also invalidate pending raw-text closing-tag prefixes; never substitute holes into a document parser",
-    "deferred": ["concatenated/flow-derived templates", "format/alignment type classification", "unknown prior holes", "ambiguous/malformed HTML", "declarations", "foreign/RCDATA/special HTML modes", "script escaped states", "comment holes", "template budgets"],
+    "deferred": ["missing/different shape origins or contexts", "format/alignment definite context and subsequent context", "unknown prior holes", "ambiguous/malformed HTML", "declarations", "foreign/RCDATA/special HTML modes", "script escaped states", "comment holes", "template budgets"],
     "notImplemented": ["CodeFix", "full HTML conformance", "arbitrary template handlers"]
   },
   "literalHtml": {

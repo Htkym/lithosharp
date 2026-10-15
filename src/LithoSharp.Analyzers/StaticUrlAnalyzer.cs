@@ -42,7 +42,11 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             var guarantee = StaticRouteGuaranteeAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             if (sinks.Count == 0 && html is null && manifest is null && guarantee is null) return;
-            if (html is not null) start.RegisterCompilationEndAction(htmlUrls.Report);
+            if (html is not null)
+            {
+                start.RegisterCompilationEndAction(htmlUrls.Report);
+                start.RegisterCompilationEndAction(html.Report);
+            }
             start.RegisterOperationBlockAction(block => StaticValueFlow.Analyze(block, (operation, evaluate) =>
             {
                 block.CancellationToken.ThrowIfCancellationRequested();
@@ -67,7 +71,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                     block.ReportDiagnostic(Diagnostic.Create(rule.Descriptor, argument.Value.Syntax.GetLocation(),
                         properties, argument.Parameter!.Name, method.ContainingType.Name + "." + method.Name));
                 }
-            }));
+            }, html));
         });
     }
 

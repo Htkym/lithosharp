@@ -7,14 +7,16 @@ LSA1105 requires Complete HTML and Complete CSS for the relevant input, a base-i
 The only registered template sink is the public metadata-defined
 `LithoSharp.Html.UnsafeRaw(string)` returning `LithoSharp.IHtmlContent` from
 assembly `LithoSharp`. There is no interpolated string handler API in this runtime.
-Direct C# interpolated string arguments (including parentheses) are analyzed as
-separate decoded literal tokens and original typed holes. Ordinary string variables
-are not assumed to be HTML. Runtime APIs and rendering are unchanged.
+Direct and flow-composed C# interpolated strings are analyzed as separate decoded
+literal tokens and original typed holes when they reach this sink. Local/capture
+assignments, aliases, built-in string addition and finite branches use optional
+immutable shape proofs on the existing CFG evaluation snapshots. Runtime APIs and
+rendering are unchanged.
 
 | Rule | Severity | Proven condition | Location |
 | --- | --- | --- | --- |
 | LSA1101 | Info | The existing bounded static flow cannot determine all raw argument contents | Original argument expression |
-| LSA1102 | Error | Exact UnsafeRaw result, directly or through IHtmlContent.ToHtmlString(), in a known quoted attribute | Original hole expression |
+| LSA1102 | Error | Explicit IHtmlContent.ToHtmlString() output of an exact UnsafeRaw result in a known quoted attribute | Original hole expression |
 | LSA1103 | Error | Hole in a known tag name, attribute name or unquoted attribute value | Original hole expression |
 | LSA1104 | Warning | Exact Html.Encode, sealed HtmlText or HtmlAttributeValue output in known script/style text or quoted on* / style attribute | Original hole expression |
 
@@ -24,15 +26,15 @@ one of the encoded wrappers. HtmlText and HtmlAttributeValue encode using the
 runtime's Html.Encode and override ToString; their quoted attribute / element text
 use does not produce LSA1102. Html.Encode does not prove JavaScript or CSS safety.
 RawHtmlContent does not override ToString: direct interpolation currently emits
-its type name, while ToHtmlString explicitly renders its raw contents. LSA1102
-identifies the proven fragment/context type mismatch in both forms; it does not
-claim that direct interpolation emits the raw fragment or establishes an exploit.
+its type name, while ToHtmlString explicitly renders its raw contents. Only the
+explicit rendered string proves a fragment for LSA1102. This corrects the former
+direct-object classification; it does not establish an exploit.
 No getters, constructors, user methods, ToString or ToHtmlString are executed.
 
 The cursor consumes literal characters and holes separately; holes are never
 replaced by empty strings, sentinel tags or fabricated text for a document parser.
-Unknown raw holes invalidate all subsequent contexts. Only compile-time string
-hole constants have contents that can advance the cursor. Exact encoded outputs
+Unknown raw holes invalidate all subsequent contexts. Known string hole values
+from the same evaluation snapshot can advance the cursor. Exact encoded outputs
 preserve element text, quotes and script/style raw-text HTML structure, but do not
 certify name, unquoted value or comment contexts. A forbidden hole itself has a
 known position even when its contents are Unknown; it receives LSA1103 and makes
@@ -45,15 +47,25 @@ establish it. Encoded holes with no pending raw-text prefix preserve that contex
 Malformed prefixes, declarations, foreign SVG/MathML,
 RCDATA/other special modes, and script escaped/double-escaped states are unsupported
 and invalidate later context diagnostics. Comment holes also invalidate context.
-Alignment and format clauses are unsupported for typed output classification.
+Alignment and format clauses defer that hole's definite context diagnostic and
+invalidate subsequent context. The previous direct path reported LSA1103 for
+`Html.UnsafeRaw($"<{x:tag}>")`, `Html.UnsafeRaw($"<p {x,10}='v'>")` and
+`Html.UnsafeRaw($"<p a={x:value}>")` despite unsupported formatting. These now keep
+the scalar LSA1101 Info without LSA1103, consistently with shared templates: no
+formatter or alignment output is modeled as a proven typed hole.
 
 The direct-template budget is 65,536 source and total decoded UTF-16 units (including
 constant string holes), 256 holes and 128 characters
 per tag/attribute name, in addition
 to the static flow's existing graph/operation/depth budgets. Excess work is Deferred
-without an added definite context Error. Concatenated/flow-derived templates, finite
-sets of template prefixes, arbitrary formatting and arbitrary interface dispatch
-are Deferred for interpolation context rules; static raw-content Info may still apply.
+without publishing a successful prefix. Shape limits are independently eight
+alternatives and 513 pieces per alternative, with adjacent literals merged. They
+do not reuse the URL proof's 64-piece limit. All alternatives must prove the same
+original hole, rule and context at each sink. Compilation aggregation unions
+independently proven sinks, with at most 16 deterministic related use locations.
+Unknown scalar contents remain Unknown even if the shape is known. A missing
+shape alternative is never discarded. Arbitrary formatting and interface dispatch
+remain Deferred; static raw-content Info still applies independently.
 LSA1105 now uses the separate direct-literal contract below. CodeFix and complete
 HTML conformance remain separate. Raw-text fake tags do not switch the cursor into an attribute context.
 
@@ -101,9 +113,10 @@ values exactly. String holes carry their evaluated pieces. A URL/entity source
 range must fit wholly into a mapped piece; unknown/cross-piece/ambiguous empty
 origins stay Deferred. Equal values retain all different origin alternatives;
 missing origins and alternative overflow cannot be dropped to establish proof.
-Deconstruction/ref escape invalidates origins of locals/captures even where legacy
-scalar values remain Known. Existing call/getter/ref/mutation/loop/exception scalar
-invalidation is preserved. Cancellation propagates through extraction and parsing.
+Deconstruction invalidates scalar values and all optional proofs. Additional ref
+escape clears all optional proofs even where scalar facts remain Known. Existing
+call/getter/ref/mutation/loop/exception invalidation also drops template shapes and
+output-kind witnesses. Cancellation propagates through extraction and parsing.
 
 Each sink proves the intersection of identical source tree/span, decoded URL,
 attribute role and LSQ001 issue across all values and origin alternatives. Every

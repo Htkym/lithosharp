@@ -12,20 +12,29 @@ namespace LithoSharp.Analyzers;
 // Unknown absorbs joins. Never evaluate user getters, calls, ToString or initializers.
 internal sealed class StaticValue
 {
-    private StaticValue(object?[]? values, string? reason, HtmlStringOrigins? origins = null) { Values = values; Reason = reason; Origins = origins; }
+    private StaticValue(object?[]? values, string? reason, HtmlStringOrigins? origins = null,
+        HtmlTemplateProof? template = null, HtmlHoleKind outputKind = HtmlHoleKind.Unknown)
+    { Values = values; Reason = reason; Origins = origins; Template = template; OutputKind = outputKind; }
     internal object?[]? Values { get; }
     internal string? Reason { get; }
     internal HtmlStringOrigins? Origins { get; }
-    internal StaticValue WithOrigins(HtmlStringOrigins? origins) => new(Values, Reason, origins);
+    internal HtmlTemplateProof? Template { get; }
+    internal HtmlHoleKind OutputKind { get; }
+    internal StaticValue WithOrigins(HtmlStringOrigins? origins) => new(Values, Reason, origins, Template, OutputKind);
+    internal StaticValue WithTemplate(HtmlTemplateProof? template, HtmlHoleKind kind) => new(Values, Reason, Origins, template, kind);
+    internal StaticValue WithoutProofs() => new(Values, Reason);
     internal static StaticValue Unknown(string reason) => new(null, reason);
     internal static StaticValue Known(object? value) => value is string s && s.Length > StaticValueFlow.MaxStringLength
         ? Unknown("string-budget") : new(new[] { value }, null);
     internal StaticValue Join(StaticValue other)
     {
-        if (Values is null) return this;
-        if (other.Values is null) return other;
+        var template = HtmlTemplateProof.Join(Template, other.Template);
+        var kind = OutputKind == other.OutputKind ? OutputKind : HtmlHoleKind.Unknown;
+        if (Values is null) return new(null, Reason, template: template, outputKind: kind);
+        if (other.Values is null) return new(null, other.Reason, template: template, outputKind: kind);
         var values = Values.Concat(other.Values).Distinct().Take(StaticValueFlow.MaxCandidates + 1).ToArray();
-        return values.Length > StaticValueFlow.MaxCandidates ? Unknown("candidate-budget") : new(values, null, HtmlStringOrigins.Join(Origins, other.Origins));
+        return values.Length > StaticValueFlow.MaxCandidates ? Unknown("candidate-budget")
+            : new(values, null, HtmlStringOrigins.Join(Origins, other.Origins), template, kind);
     }
 }
 
@@ -41,7 +50,8 @@ internal static class StaticValueFlow
     internal static bool HasBindingError(IOperation operation) => Walk(operation).Any(o => o.Kind == OperationKind.Invalid
         || o.Type?.TypeKind == TypeKind.Error || o is IConversionOperation c && (!c.Conversion.Exists || c.OperatorMethod is not null));
 
-    internal static void Analyze(OperationBlockAnalysisContext context, Action<IOperation, Func<IOperation, StaticValue>> sink)
+    internal static void Analyze(OperationBlockAnalysisContext context, Action<IOperation, Func<IOperation, StaticValue>> sink,
+        HtmlTemplateAnalysis? html = null)
     {
         var origins = new HtmlOriginProvider(context.Compilation, context.CancellationToken);
         var timeSpan = context.Compilation.GetSpecialType(SpecialType.System_Int64).ContainingAssembly.GetTypeByMetadataName("System.TimeSpan");
@@ -91,6 +101,14 @@ internal static class StaticValueFlow
                             value => snapshots.TryGetValue(value, out var prior) ? prior : StaticValue.Unknown("missing-evaluation-snapshot"),
                             local => state.Locals.TryGetValue(local, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop"),
                             capture => state.Captures.TryGetValue(capture, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop")));
+                        if (html is not null && expressionDepth <= MaxDepth && scalar.Reason?.EndsWith("-budget", StringComparison.Ordinal) != true)
+                        {
+                            StaticValue Snapshot(IOperation child) => snapshots.TryGetValue(child, out var prior) ? prior : StaticValue.Unknown("missing-evaluation-snapshot");
+                            StaticValue Local(ILocalSymbol symbol) => state.Locals.TryGetValue(symbol, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop");
+                            StaticValue Capture(CaptureId id) => state.Captures.TryGetValue(id, out var prior) ? prior : StaticValue.Unknown("unassigned-or-loop");
+                            snapshots[operation] = snapshots[operation].WithTemplate(
+                                HtmlTemplateProof.Evaluate(operation, Snapshot, Local, Capture), html.Classify(operation, Snapshot, Local, Capture));
+                        }
                         sink(operation, value => snapshots.TryGetValue(value, out var snapshot)
                             ? snapshot : StaticValue.Unknown("missing-evaluation-snapshot"));
                         if (!deferredFlow && operation is ISimpleAssignmentOperation assignment && assignment.Target is ILocalReferenceOperation local)
@@ -260,8 +278,8 @@ internal static class StaticValueFlow
         }
         internal void InvalidateOrigins()
         {
-            foreach (var key in Locals.Keys.ToArray()) Locals[key] = Locals[key].WithOrigins(null);
-            foreach (var key in Captures.Keys.ToArray()) Captures[key] = Captures[key].WithOrigins(null);
+            foreach (var key in Locals.Keys.ToArray()) Locals[key] = Locals[key].WithoutProofs();
+            foreach (var key in Captures.Keys.ToArray()) Captures[key] = Captures[key].WithoutProofs();
         }
         internal static State Merge(State[] inputs)
         {

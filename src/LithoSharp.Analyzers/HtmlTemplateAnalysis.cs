@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.FlowAnalysis;
+using Microsoft.CodeAnalysis.Text;
 
 namespace LithoSharp.Analyzers;
 
@@ -14,7 +18,8 @@ internal sealed class HtmlTemplateAnalysis
 {
     private static DiagnosticDescriptor Rule(string id, string title, string message, DiagnosticSeverity severity) =>
         new(id, title, message, "LithoSharp", severity, isEnabledByDefault: true,
-            helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
+            helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant(),
+            customTags: id == "LSA1101" ? Array.Empty<string>() : new[] { WellKnownDiagnosticTags.CompilationEnd });
     private static readonly DiagnosticDescriptor Raw = Rule("LSA1101", "Unverified raw HTML",
         "Raw HTML contents cannot be statically verified ({0})", DiagnosticSeverity.Info);
     private static readonly DiagnosticDescriptor Fragment = Rule("LSA1102", "HTML fragment in a quoted attribute",
@@ -30,9 +35,15 @@ internal sealed class HtmlTemplateAnalysis
     private readonly IMethodSymbol encode;
     private readonly INamedTypeSymbol text;
     private readonly INamedTypeSymbol attribute;
+    private readonly Dictionary<SyntaxTree, int> treeOrder;
+    private readonly ConcurrentDictionary<ContextKey, ConcurrentDictionary<(SyntaxTree Tree, TextSpan Span), Location>> proven = new();
+    private sealed record ContextKey(SyntaxTree Tree, TextSpan Span, string Id, string Context);
 
-    private HtmlTemplateAnalysis(IMethodSymbol raw, IMethodSymbol encode, INamedTypeSymbol text, INamedTypeSymbol attribute)
-    { this.raw = raw; this.encode = encode; this.text = text; this.attribute = attribute; }
+    private HtmlTemplateAnalysis(Compilation compilation, IMethodSymbol raw, IMethodSymbol encode, INamedTypeSymbol text, INamedTypeSymbol attribute)
+    {
+        this.raw = raw; this.encode = encode; this.text = text; this.attribute = attribute;
+        treeOrder = compilation.SyntaxTrees.Select((tree, index) => (tree, index)).ToDictionary(p => p.tree, p => p.index);
+    }
 
     internal static HtmlTemplateAnalysis? Create(Compilation compilation)
     {
@@ -50,7 +61,7 @@ internal sealed class HtmlTemplateAnalysis
         var raw = Method("UnsafeRaw"); var encode = Method("Encode");
         return raw is not null && encode?.ReturnType.SpecialType == SpecialType.System_String
             && SymbolEqualityComparer.Default.Equals(raw.ReturnType, content)
-            ? new HtmlTemplateAnalysis(raw, encode, text, attribute) : null;
+            ? new HtmlTemplateAnalysis(compilation, raw, encode, text, attribute) : null;
     }
 
     internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate, HtmlFlowUrlAnalysis urls)
@@ -66,68 +77,102 @@ internal sealed class HtmlTemplateAnalysis
             Report(Raw, argument.Syntax.GetLocation(), value.Reason?.EndsWith("-budget", StringComparison.Ordinal) == true ? "Deferred" : "Unknown",
                 value.Reason ?? "unverified-raw", value.Reason ?? "unverified-raw");
         HtmlLiteralAnalysis.Analyze(context, argument, value, urls);
-        var syntax = argument.Syntax;
-        while (syntax is ParenthesizedExpressionSyntax parenthesized) syntax = parenthesized.Expression;
-        if (syntax is not InterpolatedStringExpressionSyntax template || template.Span.Length > MaxTemplateLength
-            || template.Contents.OfType<InterpolationSyntax>().Count() > MaxHoles) return;
-        var model = context.Compilation.GetSemanticModel(syntax.SyntaxTree);
-        var cursor = new HtmlContextCursor();
-        var consumed = 0;
-        void Feed(string contents)
-        {
-            if (contents.Length > MaxTemplateLength - consumed) { cursor.Invalidate(); return; }
-            consumed += contents.Length;
-            cursor.Feed(contents);
-        }
-        foreach (var part in template.Contents)
+        if (value.Template is null) return;
+        HashSet<ContextKey>? common = null;
+        foreach (var alternative in value.Template.Alternatives)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            if (part is InterpolatedStringTextSyntax literal)
-            { Feed(literal.TextToken.ValueText); continue; }
-            var hole = (InterpolationSyntax)part;
-            var expression = model.GetOperation(hole.Expression, context.CancellationToken);
-            if (expression is null || StaticValueFlow.HasBindingError(expression)) { cursor.Invalidate(); continue; }
-            var kind = Classify(expression);
-            if (hole.AlignmentClause is not null || hole.FormatClause is not null) kind = HoleKind.Unknown;
-            var position = cursor.ForbiddenPosition;
-            if (cursor.Known && position is not null)
-                Report(Position, hole.Expression.GetLocation(), "Known", "forbidden-position", position);
-            else if (cursor.Quoted && kind == HoleKind.Fragment)
-                Report(Fragment, hole.Expression.GetLocation(), "Known", "fragment-in-quoted-attribute");
-            else if (cursor.SpecialContext is { } special && kind == HoleKind.Encoded)
-                Report(Encoding, hole.Expression.GetLocation(), "Known", "html-encoding-in-special-context", special);
-            // Constant string holes have actual contents; all other raw holes can alter subsequent
-            // HTML structure. The two sealed wrappers and exact Encode API preserve text/quotes,
-            // but neither guarantees comment, name, unquoted, JavaScript or CSS contracts.
-            var constant = expression.ConstantValue;
-            if (hole.AlignmentClause is null && hole.FormatClause is null && expression.Type?.SpecialType == SpecialType.System_String
-                && constant.HasValue && constant.Value is string known) Feed(known);
-            else if (kind != HoleKind.Encoded || !cursor.AcceptsEncoded) cursor.Invalidate();
+            var cursor = new HtmlContextCursor();
+            var violations = new HashSet<ContextKey>();
+            foreach (var piece in alternative)
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+                if (piece.Literal is { } literal) { cursor.Feed(literal); continue; }
+                if (piece.Deferred) { cursor.Invalidate(); continue; }
+                string? id = null; string detail = "";
+                if (cursor.Known && cursor.ForbiddenPosition is { } position) { id = Position.Id; detail = position; }
+                else if (cursor.Quoted && piece.Kind == HtmlHoleKind.Fragment) id = Fragment.Id;
+                else if (cursor.SpecialContext is { } special && piece.Kind == HtmlHoleKind.Encoded) { id = Encoding.Id; detail = special; }
+                if (id is not null && piece.Origin?.SourceTree is { } tree)
+                    violations.Add(new(tree, piece.Origin.SourceSpan, id, detail));
+                if (piece.KnownText is { } known) cursor.Feed(known);
+                else if (piece.Kind != HtmlHoleKind.Encoded || !cursor.AcceptsEncoded) cursor.Invalidate();
+            }
+            if (common is null) common = violations;
+            else common.IntersectWith(violations);
+            if (common.Count == 0) return;
+        }
+        if (common is null) return;
+        foreach (var key in common)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var locations = proven.GetOrAdd(key, _ => new());
+            var use = argument.Syntax.GetLocation();
+            locations.TryAdd((use.SourceTree!, use.SourceSpan), use);
+            lock (locations)
+                foreach (var excess in Order(locations.Values).Skip(HtmlFlowUrlAnalysis.MaxRelatedLocations).ToArray())
+                    locations.TryRemove((excess.SourceTree!, excess.SourceSpan), out _);
+        }
+    }
+
+    private IOrderedEnumerable<Location> Order(IEnumerable<Location> locations) => locations
+        .OrderBy(l => l.SourceTree!.FilePath, StringComparer.Ordinal).ThenBy(l => treeOrder[l.SourceTree!])
+        .ThenBy(l => l.SourceSpan.Start).ThenBy(l => l.SourceSpan.Length);
+
+    internal void Report(CompilationAnalysisContext context)
+    {
+        foreach (var item in proven.OrderBy(p => p.Key.Tree.FilePath, StringComparer.Ordinal).ThenBy(p => treeOrder[p.Key.Tree])
+            .ThenBy(p => p.Key.Span.Start).ThenBy(p => p.Key.Span.Length).ThenBy(p => p.Key.Id, StringComparer.Ordinal)
+            .ThenBy(p => p.Key.Context, StringComparer.Ordinal))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var rule = item.Key.Id == Position.Id ? Position : item.Key.Id == Fragment.Id ? Fragment : Encoding;
+            var reason = rule == Position ? "forbidden-position" : rule == Fragment ? "fragment-in-quoted-attribute" : "html-encoding-in-special-context";
+            var properties = ImmutableDictionary<string, string?>.Empty.Add("staticState", "Known").Add("reason", reason)
+                .Add("origin", "original-expression-utf16-span").Add("flowProof", "per-sink-all-shape-alternatives");
+            context.ReportDiagnostic(Diagnostic.Create(rule, Location.Create(item.Key.Tree, item.Key.Span),
+                Order(item.Value.Values).ToArray(), properties, item.Key.Context));
         }
     }
 
     private static bool Same(IMethodSymbol method, IMethodSymbol expected) => SymbolEqualityComparer.Default.Equals(method.OriginalDefinition, expected);
-    private HoleKind Classify(IOperation operation)
+    internal HtmlHoleKind Classify(IOperation operation, Func<IOperation, StaticValue> snapshot,
+        Func<ILocalSymbol, StaticValue> local, Func<CaptureId, StaticValue> capture)
     {
-        while (operation is IConversionOperation conversion && conversion.OperatorMethod is null) operation = conversion.Operand;
+        if (StaticValueFlow.HasBindingError(operation)) return HtmlHoleKind.Unknown;
+        if (SymbolEqualityComparer.Default.Equals(operation.Type, text) || SymbolEqualityComparer.Default.Equals(operation.Type, attribute))
+            return HtmlHoleKind.Encoded;
+        if (operation is ILocalReferenceOperation reference) return local(reference.Local).OutputKind;
+        if (operation is IFlowCaptureReferenceOperation captured) return capture(captured.Id).OutputKind;
+        if (operation is IFlowCaptureOperation flow) return snapshot(flow.Value).OutputKind;
+        if (operation is ISimpleAssignmentOperation assignment && !assignment.IsRef) return snapshot(assignment.Value).OutputKind;
+        if (operation is IConditionalOperation conditional && conditional.WhenFalse is not null)
+        {
+            var condition = snapshot(conditional.Condition).Values;
+            if (condition is { Length: 1 } && condition[0] is bool known)
+                return snapshot(known ? conditional.WhenTrue : conditional.WhenFalse).OutputKind;
+            var left = snapshot(conditional.WhenTrue).OutputKind;
+            return left == snapshot(conditional.WhenFalse).OutputKind ? left : HtmlHoleKind.Unknown;
+        }
+        if (operation is IConversionOperation conversion && conversion.OperatorMethod is null
+            && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference)) return snapshot(conversion.Operand).OutputKind;
         if (operation is IInvocationOperation call)
         {
-            if (Same(call.TargetMethod, encode)) return HoleKind.Encoded;
-            if (Same(call.TargetMethod, raw)) return HoleKind.Fragment;
+            if (Same(call.TargetMethod, encode)) return HtmlHoleKind.Encoded;
+            if (Same(call.TargetMethod, raw)) return HtmlHoleKind.RawObject;
             if (call.Arguments.Length == 0 && call.TargetMethod.Name == "ToHtmlString"
                 && call.TargetMethod.ContainingType.ToDisplayString() == "LithoSharp.IHtmlContent"
                 && call.TargetMethod.ContainingAssembly.Identity.Name == "LithoSharp"
-                && call.Instance is IInvocationOperation receiver && Same(receiver.TargetMethod, raw)) return HoleKind.Fragment;
+                && call.Instance is not null && snapshot(call.Instance).OutputKind == HtmlHoleKind.RawObject) return HtmlHoleKind.Fragment;
             // Interface dispatch is safe only for the two sealed, metadata-defined wrappers.
             if (call.Arguments.Length == 0 && call.TargetMethod.Name is "ToHtmlString" or "ToString"
                 && (SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, text)
                     || SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, attribute)))
-                return HoleKind.Encoded;
+                return HtmlHoleKind.Encoded;
         }
         return SymbolEqualityComparer.Default.Equals(operation.Type, text) || SymbolEqualityComparer.Default.Equals(operation.Type, attribute)
-            ? HoleKind.Encoded : HoleKind.Unknown;
+            ? HtmlHoleKind.Encoded : HtmlHoleKind.Unknown;
     }
-    private enum HoleKind { Unknown, Encoded, Fragment }
 }
 
 // A bounded lexical context cursor, not a replacement HTML parser. Ambiguous/malformed/foreign
