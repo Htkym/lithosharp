@@ -126,8 +126,47 @@ function Wait-Until([scriptblock] $Condition, [string] $Description) {
     throw "Timed out waiting for $Description. Logs: $logs"
 }
 
-function Get-Http([string] $Url) {
-    return Invoke-WebRequest -Uri $Url -NoProxy -SkipHttpErrorCheck -TimeoutSec 5
+function Get-Http([string] $Url, [string] $Method = 'Get') {
+    return Invoke-WebRequest -Uri $Url -Method $Method -NoProxy -SkipHttpErrorCheck -TimeoutSec 5
+}
+
+function Test-CompletedContentGeneration($Baseline, $Before, $State, [string] $Html, $After, [string] $ExpectedContent) {
+    # The barriers fence the entire HTTP sample. They certify admitted inputs only,
+    # not future native notifications; a build during the sample changes the witness.
+    foreach ($barrier in @($Baseline, $Before, $After)) {
+        if ($null -eq $barrier) { return $false }
+        foreach ($name in @('schemaVersion', 'success', 'generation', 'scope', 'watch')) {
+            if ($null -eq $barrier.PSObject.Properties[$name]) { return $false }
+        }
+        if ($barrier.schemaVersion -cne '1.0' -or $barrier.scope -cne 'admitted-inputs-only' -or
+            $barrier.success -isnot [bool] -or !$barrier.success -or
+            ($barrier.generation -isnot [long] -and $barrier.generation -isnot [int]) -or $barrier.generation -lt 1 -or
+            $null -eq $barrier.watch) { return $false }
+        foreach ($name in @('ownerId', 'hostId', 'inputRevision')) {
+            if ($null -eq $barrier.watch.PSObject.Properties[$name]) { return $false }
+        }
+        if ($barrier.watch.ownerId -isnot [string] -or [string]::IsNullOrWhiteSpace($barrier.watch.ownerId) -or
+            $barrier.watch.hostId -isnot [string] -or [string]::IsNullOrWhiteSpace($barrier.watch.hostId) -or
+            ($barrier.watch.inputRevision -isnot [long] -and $barrier.watch.inputRevision -isnot [int]) -or
+            $barrier.watch.inputRevision -lt 0) { return $false }
+    }
+    if ($null -eq $State) { return $false }
+    foreach ($name in @('schemaVersion', 'success', 'generation', 'buildReport')) {
+        if ($null -eq $State.PSObject.Properties[$name]) { return $false }
+    }
+    if ($State.schemaVersion -cne '1.0' -or $State.success -isnot [bool] -or !$State.success -or
+        ($State.generation -isnot [long] -and $State.generation -isnot [int]) -or
+        $null -eq $State.buildReport) { return $false }
+    foreach ($name in @('cacheHitCount', 'cacheMissCount')) {
+        if ($null -eq $State.buildReport.PSObject.Properties[$name]) { return $false }
+        $count = $State.buildReport.$name
+        if (($count -isnot [long] -and $count -isnot [int]) -or $count -lt 0) { return $false }
+    }
+    return $Before.generation -gt $Baseline.generation -and
+        $Before.generation -eq $State.generation -and $State.generation -eq $After.generation -and
+        $Before.watch.ownerId -ceq $Baseline.watch.ownerId -and $Before.watch.ownerId -ceq $After.watch.ownerId -and
+        $Before.watch.hostId -ceq $After.watch.hostId -and $Before.watch.inputRevision -eq $After.watch.inputRevision -and
+        $Before.watch.inputRevision -gt $Baseline.watch.inputRevision -and $Html.Contains($ExpectedContent)
 }
 
 function Wait-Sse([string] $Event) {
@@ -475,7 +514,7 @@ finally {
     $serverPidPath = Join-Path $fixture 'server.pid'
     $pwsh = (Get-Process -Id $PID).Path
     $server = Start-TestProcess $pwsh @('-NoProfile', '-File', $controllerPath, '-Mode', 'serve', '-Tool', $ToolPath,
-        '-Project', $project, '-Output', $serverOutput, '-PidFile', $serverPidPath, '-Port', $port.ToString()) 'serve'
+        '-Project', $project, '-Output', $serverOutput, '-PidFile', $serverPidPath, '-Port', $port.ToString(), '-Format', 'json') 'serve'
     Wait-Until {
         if ($server.Process.HasExited) { throw "Serve exited before listening: $($server.Error.GetAwaiter().GetResult())" }
         try { return (Get-Http "$url/typed/one/").StatusCode -eq 200 } catch { return $false }
@@ -494,10 +533,28 @@ finally {
     $sseResponse = $connect.GetAwaiter().GetResult()
     Assert-True ([int]$sseResponse.StatusCode -eq 200) 'SSE connection failed.'
     $sseReader = [IO.StreamReader]::new($sseResponse.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+    $beforeContentEdit = $null
+    Wait-Until {
+        try {
+            $script:beforeContentEdit = (Get-Http "$url/_lithosharp/watch-barrier" -Method 'Post').Content | ConvertFrom-Json
+            return $beforeContentEdit.success
+        } catch { return $false }
+    } 'completed generation before content edit'
     [IO.File]::WriteAllText((Join-Path $site 'one.txt'), 'content-v2')
     Wait-Sse 'reload'
-    Wait-Until { (Get-Http "$url/typed/one/").Content.Contains('content-v2') } 'content rebuild'
-    $state = (Get-Http "$url/_lithosharp/diagnostics").Content | ConvertFrom-Json
+    $completedContentState = $null
+    Wait-Until {
+        try {
+            $before = (Get-Http "$url/_lithosharp/watch-barrier" -Method 'Post').Content | ConvertFrom-Json
+            $observed = (Get-Http "$url/_lithosharp/diagnostics").Content | ConvertFrom-Json
+            $observedHtml = (Get-Http "$url/typed/one/").Content
+            $after = (Get-Http "$url/_lithosharp/watch-barrier" -Method 'Post').Content | ConvertFrom-Json
+        } catch { return $false }
+        if (!(Test-CompletedContentGeneration $beforeContentEdit $before $observed $observedHtml $after 'content-v2')) { return $false }
+        $script:completedContentState = $observed
+        return $true
+    } 'content HTML and counts from the same completed generation'
+    $state = $completedContentState
     Assert-True ($state.success -and $state.buildReport.cacheHitCount -gt 0 -and $state.buildReport.cacheMissCount -gt 0) 'Content rebuild did not expose incremental hit/miss counts.'
 
     $source = $source.Replace('layout-v1', 'layout-v2')
