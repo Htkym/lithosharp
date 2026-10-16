@@ -124,7 +124,18 @@ jobs:
       - name: Test
         env:
           LITHOSHARP_T06_OUTPUT: ${{ github.workspace }}/artifacts/test-diagnostics/workspace-resource-series.json
+          LITHOSHARP_CACHE_WAIT_OBSERVATIONS: ${{ github.workspace }}/artifacts/test-diagnostics/cache-wait
         run: dotnet test --solution LithoSharp.slnx --no-build --configuration Release --verbosity minimal --report-trx --results-directory artifacts/test-diagnostics/solution-trx
+
+      - name: Preserve cache wait diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cache-wait-${{ matrix.os }}
+          path: |
+            artifacts/test-diagnostics/cache-wait/*.json
+            artifacts/test-diagnostics/cache-wait/*.json.started
+          if-no-files-found: ignore
 
       - name: Preserve workspace resource diagnostics
         if: always()

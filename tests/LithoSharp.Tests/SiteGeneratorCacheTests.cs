@@ -92,7 +92,7 @@ public sealed class SiteGeneratorCacheTests
     [Test]
     public async Task ClearCacheWaitsForAnActiveBuildOfTheSameOutput()
     {
-        using var workspace = new TemporaryWorkspace();
+        using var workspace = new CacheWaitObservation(nameof(ClearCacheWaitsForAnActiveBuildOfTheSameOutput), "same-output");
         var output = Path.Combine(workspace.Root, "out");
         var settings = new SiteSettings { BaseUrl = "https://example.test/" };
         var firstCollection = CacheCollection("first", (entry, context) => context.RenderDocument(entry.Body));
@@ -105,6 +105,7 @@ public sealed class SiteGeneratorCacheTests
         using var release = new ManualResetEventSlim();
         var changedCollection = CacheCollection("second", (entry, context) =>
         {
+            workspace.RendererEntered();
             entered.TrySetResult();
             release.Wait();
             return context.RenderDocument(entry.Body);
@@ -121,27 +122,43 @@ public sealed class SiteGeneratorCacheTests
         var clearStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<LithoSharp.Build.SiteBuildCacheUsage>? clearing = null;
         Exception? failure = null;
+        var phase = "renderer-entry";
         try
         {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            try { await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (TimeoutException exception) { workspace.Snapshot("entered-timeout", building, failure: exception); throw; }
             // ClearCache blocks synchronously; its startup must not compete with
             // the blocked renderer and other parallel tests for a pool worker.
+            phase = "clear-start";
             clearing = Task.Factory.StartNew(() =>
             {
                 clearStarted.TrySetResult();
                 return SiteGenerator.ClearCache(output);
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             await clearStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            phase = "clear-pending-assert";
             await Task.Delay(100);
             await Assert.That(clearing.IsCompleted).IsFalse();
         }
-        catch (Exception exception) { failure = exception; }
+        catch (Exception exception)
+        {
+            failure = exception;
+            workspace.Snapshot(phase + "-failed", building, clearing, exception);
+        }
         finally
         {
+            workspace.Snapshot("before-release", building, clearing);
             release.Set();
-            try { await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5)); }
+            workspace.Snapshot("after-release", building, clearing);
+            try
+            {
+                await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5));
+                workspace.BuildResult(building);
+                workspace.Snapshot("join-completed", building, clearing);
+            }
             catch (Exception cleanup)
             {
+                workspace.Snapshot(cleanup is TimeoutException ? "join-timeout" : "join-fault", building, clearing, cleanup);
                 if (failure is not null) throw new AggregateException("Assertion and owned fixture cleanup failed.", failure, cleanup);
                 throw;
             }
@@ -939,7 +956,8 @@ public sealed class SiteGeneratorCacheTests
     public async Task ClearCacheWaitsForActiveBuildThroughOppositeWindowsNamespace(bool extendedBuild)
     {
         if (!OperatingSystem.IsWindows()) return;
-        using var workspace = new TemporaryWorkspace();
+        using var workspace = new CacheWaitObservation(nameof(ClearCacheWaitsForActiveBuildThroughOppositeWindowsNamespace),
+            extendedBuild ? "extended-build" : "ordinary-build", observeDisposal: true);
         var output = Path.Combine(workspace.Root, "out");
         var buildOutput = extendedBuild ? ExtendedCacheFixturePath(output) : output;
         var clearOutput = extendedBuild ? output : ExtendedCacheFixturePath(output);
@@ -957,7 +975,10 @@ public sealed class SiteGeneratorCacheTests
         var clearStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var changedCollection = CacheCollection("namespace second", (entry, context) =>
         {
-            entered.TrySetResult(); release.Wait(); return context.RenderDocument(entry.Body);
+            workspace.RendererEntered();
+            entered.TrySetResult();
+            try { release.Wait(); return context.RenderDocument(entry.Body); }
+            finally { workspace.RendererExited(); }
         });
         var building = new SiteGenerator().GenerateWithOptionsAsync(settings, [], buildOutput, clean: false,
             new SiteCustomization { Template = new BlogSiteTemplate() },
@@ -979,10 +1000,17 @@ public sealed class SiteGeneratorCacheTests
         catch (Exception exception) { failure = exception; }
         finally
         {
+            workspace.Snapshot("before-release", building, clearing);
             release.Set();
-            try { await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5)); }
+            workspace.Snapshot("after-release", building, clearing);
+            try
+            {
+                await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5));
+                workspace.Snapshot("join-completed", building, clearing);
+            }
             catch (Exception cleanup)
             {
+                workspace.Snapshot(cleanup is TimeoutException ? "join-timeout" : "join-fault", building, clearing, cleanup);
                 if (failure is not null) throw new AggregateException("Assertion and owned fixture cleanup failed.", failure, cleanup);
                 throw;
             }

@@ -131,6 +131,43 @@ function Receive-WatchMachineEvents {
         $script:liveLastGeneration = $generation; $script:livePendingBuild = $false
     }
 }
+function Write-ImportedEditFailureDiagnostic($Classification, $Barrier, [object[]] $Window, [long] $ObservedGeneration) {
+    function Watch-Fields($Value) {
+        $row = [ordered]@{ valid = $null -ne (ConvertTo-WatchWitness $Value) }
+        foreach ($key in @('ownerId', 'hostId', 'previousHostId')) {
+            $fieldValue = Get-WatchField $Value $key
+            $row[$key] = if (Test-WatchId $fieldValue) { $fieldValue } else { $null }
+        }
+        $row.inputRevision = Known-Count (Get-WatchField $Value 'inputRevision')
+        $row.restartReasons = Known-Count (Get-WatchField $Value 'restartReasons')
+        return $row
+    }
+    $status = Get-WatchField $Classification 'status'
+    $reason = Get-WatchField $Classification 'reason'
+    $rows = @($Window | Select-Object -Last 4 | ForEach-Object {
+        $work = Get-WatchField $_ 'mdxWork'
+        $eventName = Get-WatchField $_ 'event'
+        [ordered]@{
+            generation = Known-Count (Get-WatchField $_ 'generation')
+            event = if ($eventName -cin @('rebuild-succeeded', 'rebuild-failed')) { $eventName } else { 'unknown' }
+            success = Known-Bool (Get-WatchField $_ 'success'); exitCode = Known-Count (Get-WatchField $_ 'exitCode')
+            watch = Watch-Fields (Get-WatchField $_ 'watch')
+            workerStarts = Known-Count (Get-WatchField $work 'workerStarts')
+            renderedPages = Known-Count (Get-WatchField $work 'renderedPages')
+            compiledModules = Known-Count (Get-WatchField $work 'compiledModules')
+            cacheHit = Known-Bool (Get-WatchField $work 'cacheHit')
+        }
+    })
+    $diagnostic = [ordered]@{
+        schema = 'mdx-imported-edit-failure/1'
+        status = if ($status -cin @('INVALID', 'RECOVERY_OBSERVED_REUSE_UNPROVEN')) { $status } else { 'unknown' }
+        reason = if ($reason -is [string] -and $reason -cmatch '^[A-Z0-9_]{1,64}$') { $reason } else { 'UNKNOWN' }
+        baselineGeneration = Known-Count (Get-WatchField $Barrier 'generation'); observedGeneration = $ObservedGeneration
+        barrierWatch = Watch-Fields (Get-WatchField $Barrier 'watch')
+        terminalCount = $Window.Count; omittedTerminals = [Math]::Max(0, $Window.Count - 4); terminals = $rows
+    }
+    Write-Host ('MDX_IMPORTED_EDIT_FAILURE ' + ($diagnostic | ConvertTo-Json -Depth 6 -Compress))
+}
 function Test-WatchImportedGeneration {
     Receive-WatchMachineEvents
     $beforeState = State; $before = $script:pollState
@@ -155,10 +192,12 @@ function Test-WatchImportedGeneration {
     if ($classification.status -ceq 'PENDING') { return $false }
     if ($classification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN') {
         $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
+        Write-ImportedEditFailureDiagnostic $classification $script:watchEvidence.importedEditBarrier $window $generation
         throw 'Watcher recovery completed with Count2; ordinary component reuse remains unproven.'
     }
     if ($classification.status -cne 'REUSE_PROVEN') {
         $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
+        Write-ImportedEditFailureDiagnostic $classification $script:watchEvidence.importedEditBarrier $window $generation
         throw 'Component-edit window has an unknown restart, host change or invalid witness.'
     }
     $script:watchEvidence.importedEditWitness = $classification
