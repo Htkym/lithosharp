@@ -1,5 +1,7 @@
 # Testing sites
 
+This page describes the unreleased 2.0 candidate snapshot API. When updating from the published 1.1.0 `Document` getter, also read the [2.0 migration notes](migration-2.0.md).
+
 `LithoSharp.Testing` provides framework independent assertions and read-only HTML snapshots. It parses HTML without launching a browser, executing scripts, or making network requests. See [the v2 snapshot/query contract and migration examples](Testing-v2-api.md) for the declared selector grammar.
 
 ```csharp

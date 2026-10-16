@@ -15,6 +15,10 @@ The template package is separate from the tool. Its short names are
 `lithosharp-docs`, `lithosharp-blog`, `lithosharp-empty`, and `lithosharp-mdx`; they also work directly
 with `dotnet new`. The empty template demonstrates a custom C# layout.
 
+## Inspection and migration in the 2.0 candidate
+
+The installation example above is for published 1.1.0. The candidate `preflight` and `migrate testing --dry-run` commands require an exact candidate Tool version. The [2.0 migration notes](migration-2.0.md) cover candidate dependencies, static versus trusted project inspection, and Testing updates.
+
 ## One definition for both hosts
 
 A site assembly exports exactly one nonabstract `ISiteFactory` class with a public

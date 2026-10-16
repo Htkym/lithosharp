@@ -16,6 +16,10 @@ dotnet new install LithoSharp.ProjectTemplates::1.1.0
 `dotnet new lithosharp-blog`、`dotnet new lithosharp-empty`、`dotnet new lithosharp-mdx` でも作成できます。
 空サイトのテンプレートには、独自の C# レイアウトを含めています。
 
+## 2.0候補の検査と移行
+
+上記の導入例は公開済み1.1.0向けです。2.0候補の`preflight`と`migrate testing --dry-run`には、固定版の候補Toolが必要です。[2.0への移行案内](migration-2.0.ja.md)に、候補の依存関係、静的検査と信頼するproject検査の違い、Testingの更新手順をまとめています。
+
 ## CLI とライブラリで同じ定義を使う
 
 サイトには、公開された引数なしコンストラクターを持つ `ISiteFactory` の具象クラスを
