@@ -3,7 +3,6 @@ namespace LithoSharp;
 /// <summary>Represents HTML that has already been assigned an output context.</summary>
 public interface IHtmlContent
 {
-    /// <summary>Gets the HTML representation.</summary>
     string ToHtmlString();
 }
 

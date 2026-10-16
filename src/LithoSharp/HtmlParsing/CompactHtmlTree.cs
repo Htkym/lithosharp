@@ -49,7 +49,6 @@ internal sealed record CompactHtmlTree(int Root, bool IsFragment, IReadOnlyList<
     HtmlTokenizationStatus Status, HtmlDocumentMode DocumentMode,
     IReadOnlyList<HtmlTreeDiagnostic> Diagnostics, IReadOnlyList<HtmlTokenizationDiagnostic> TokenizerDiagnostics)
 {
-    // Internal traversal only. Public selector/query contracts belong to HT-05.
     public IEnumerable<HtmlTreeNode> Elements(int? root = null)
     {
         var pending = new Stack<int>(Nodes[root ?? Root].Children.Reverse());

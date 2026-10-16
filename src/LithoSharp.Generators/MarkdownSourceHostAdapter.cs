@@ -7,11 +7,9 @@ using Syntamark.Compilation;
 
 namespace LithoSharp.Generators;
 
-// Prepared consumer adapter. MD-05's exact source package defines SYNTAMARK_SOURCE.
-// No current checkout parser Compile links or public runtime facade references are used.
+// SYNTAMARK_SOURCE comes from the pinned source package, not checkout Compile links.
 internal static class MarkdownSourceHostAdapter
 {
-    // The immutable component pair selected by Directory.Build.props, not a runtime facade.
     internal const string ExpectedParserVersion = "1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051";
     private const string ContractVersion = "1.0";
     private const string ProfileId = "lithosharp-markdown/1";

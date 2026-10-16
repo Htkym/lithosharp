@@ -29,7 +29,7 @@ internal sealed record HtmlToken(
 
 internal sealed record HtmlTokenizationDiagnostic(string Code, HtmlSpan Source, int Line, int Column);
 
-// lithosharp-html-tokenizer/1. Tree depth and selector budgets belong to HT-03/HT-05.
+// Tree depth and selector budgets are enforced outside the tokenizer.
 internal sealed record HtmlTokenizerLimits
 {
     public int MaxInputChars { get; init; } = 4 * 1024 * 1024;
