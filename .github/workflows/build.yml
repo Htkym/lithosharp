@@ -190,6 +190,18 @@ jobs:
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.ProjectTemplates
           ./eng/Test-Templates.ps1 -PackageDirectory artifacts/packages -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
 
+      - name: Preserve package template serve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-template-serve-${{ matrix.os }}
+          path: |
+            .tmp/template-package-test-*/serve-*/stdout.jsonl
+            .tmp/template-package-test-*/serve-*/stderr.log
+            .tmp/template-package-test-*/serve-*/result.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+
       - name: Pack and validate images
         shell: pwsh
         run: |
