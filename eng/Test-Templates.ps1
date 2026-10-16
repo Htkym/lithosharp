@@ -1,12 +1,19 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $PackageDirectory,
-    [ValidateNotNullOrEmpty()] [string] $CandidateVersion = '1.1.0'
+    [ValidateNotNullOrEmpty()] [string] $CandidateVersion
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+[xml] $templatePackage = Get-Content -LiteralPath (Join-Path $repo 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj') -Raw
+$templateVersionProperties = @($templatePackage.SelectNodes('/Project/PropertyGroup/Version'))
+if ($templateVersionProperties.Count -ne 1 -or [string]::IsNullOrWhiteSpace($templateVersionProperties[0].InnerText)) {
+    throw 'The template package must declare exactly one base Version.'
+}
+$templateBaseVersion = $templateVersionProperties[0].InnerText
+if (!$PSBoundParameters.ContainsKey('CandidateVersion')) { $CandidateVersion = $templateBaseVersion }
 $markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $packages = [IO.Path]::GetFullPath($PackageDirectory)
 foreach ($id in @('LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')) {
@@ -83,8 +90,8 @@ try {
         $siteProject = Join-Path $project "Test$kind.csproj"
         $siteXml = [xml][IO.File]::ReadAllText($siteProject)
         $versionProperty = $siteXml.SelectSingleNode('/Project/PropertyGroup/LithoSharpVersion')
-        if ($null -eq $versionProperty -or $versionProperty.InnerText -ne '1.1.0' -or $versionProperty.Condition -ne "'`$(LithoSharpVersion)' == ''") {
-            throw "$kind template does not declare the overridable stable version 1.1.0."
+        if ($null -eq $versionProperty -or $versionProperty.InnerText -cne $templateBaseVersion -or $versionProperty.Condition -cne "'`$(LithoSharpVersion)' == ''") {
+            throw "$kind template does not declare the overridable package base version $templateBaseVersion."
         }
         $required = @('LithoSharp')
         if ($kind -eq 'mdx') { $required += 'LithoSharp.Mdx' }
