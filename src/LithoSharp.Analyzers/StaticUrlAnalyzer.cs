@@ -26,7 +26,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, GenerationOptionsAnalysis.Rule, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule).Add(StaticAssetInputAnalysis.Rule);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, GenerationOptionsAnalysis.Rule, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule).Add(StaticAssetInputAnalysis.Rule).Add(FixedHtmlAnchorAnalysis.Rule);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -37,6 +37,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         {
             // Legacy Testing consumers may have no registered Core URL/HTML/manifest sinks.
             TestingDomMigrationAnalysis.Register(start);
+            start.RegisterCompilationEndAction(FixedHtmlAnchorAnalysis.Analyze);
             var assetInputs = StaticAssetInputAnalysis.Create(start.Compilation);
             if (assetInputs is not null) start.RegisterOperationAction(assetInputs.Analyze, OperationKind.ObjectCreation);
             var sinks = RegisterSinks(start.Compilation);

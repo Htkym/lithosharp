@@ -1,4 +1,5 @@
 using System;
+using LithoSharp.Routing;
 
 namespace LithoSharp.Internal;
 
@@ -8,6 +9,26 @@ internal enum SiteQualityUrlIssue { None, EmptyResource, InvalidReference, Unsup
 
 internal static class SiteQualityUrlRules
 {
+    internal static string DecodedFragment(Uri address) => Uri.UnescapeDataString(address.Fragment.Substring(1));
+
+    internal static bool TryInternalOutputPath(Uri address, string origin, string rootPath, out string path)
+    {
+        path = string.Empty;
+        if (!address.IsAbsoluteUri || address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0
+            || !string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase)) return false;
+        var publicPath = address.AbsolutePath;
+        if (publicPath == rootPath.TrimEnd('/')) publicPath += "/";
+        if (!publicPath.StartsWith(rootPath, StringComparison.Ordinal)) return false;
+        var relative = publicPath.Substring(rootPath.Length);
+        try
+        {
+            path = (relative.Length == 0 || relative.EndsWith("/", StringComparison.Ordinal)
+                ? SiteRoute.ForDirectoryIndex(relative) : SiteRoute.ForFile(relative)).RelativeOutputPath;
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return false; }
+    }
+
     internal static SiteQualityUrlIssue Resolve(string value, bool resource, Uri resolutionBase, out Uri address)
     {
         address = null!;

@@ -22,6 +22,7 @@
   <ItemGroup>
     <Compile Include="../Shared/LegacyTestingDomContract.cs" Link="Shared/LegacyTestingDomContract.cs" />
     <Compile Include="../Shared/StaticManifestFingerprint.cs" Link="Shared/StaticManifestFingerprint.cs" />
+    <Compile Include="../Shared/FixedHtmlPlanModel.cs" Link="Shared/FixedHtmlPlanModel.cs" />
     <None Include="buildTransitive/LithoSharp.Analyzers.props" Pack="true" PackagePath="buildTransitive" />
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Shared/StaticApiGuards.cs" />
     <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Shared/SiteQualityUrlRules.cs" />

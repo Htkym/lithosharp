@@ -2,6 +2,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|------
+LSA1202 | LithoSharp | Error | Missing fragment in a fresh Closed compiler-owned fixed full HTML plan; dynamic, incomplete and stale pages remain Deferred.
 LSA9001 | LithoSharp | Disabled | Explicit opt-in static coverage policy; Error when enabled, with ordinary Roslyn severity and suppression.
 LSA1401 | LithoSharp | Info | Unique equivalent generated PageRef path for a direct literal in a fresh immutable manifest.
 LSA1402 | LithoSharp | Error | Existing entry ID and valid route contradict the same uniquely selected fresh Closed generated catalog.

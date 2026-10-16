@@ -81,3 +81,7 @@ source-treeからビルドする場合、Directory.Build.propsが固定版を選
 通常のStaticContentGenerator経路も、同じAdditionalText原文をMarkdownSourceHostAdapterへ渡します。固定parser identity・profileと実MdOptionsを照合し、元のUTF-16区間を保つfrontmatter factsを既存LSG005/006検査に使います。YamlSpanは区切り行を含まず、YAML node位置の基準はその開始offsetです。BOM・CRLFを取り除いた別bufferへ位置を付け替えず、独自のfrontmatter境界抽出は行いません。
 
 frontmatterのUnknownや区間欠落は検証成功とせず、LSG002を報告して生成lookupをOpenにします。既知のAbsent・未閉鎖・YAML/schemaエラーは従来のLSG005/006へ渡します。本文のUnsupported/Partialだけを理由にfrontmatter失敗とはしません。既定MdOptionsの入力上限1048576 UTF-16などの有限budgetを使い、取消は伝播します。原入力から作るfingerprintの対象・方式、公開API、runtime/MDX経路、固定pairのbytesは変更しません。
+
+## Fixed full HTML plans
+
+`FixedHtmlSiteAttribute` and `FixedHtmlPageAttribute` opt a static partial class into the limited fixed-file owner. The generated `FixedHtmlPlan` calls only the declared page methods, snapshots their HTML as strict UTF8 generated assets, and publishes through `FixedHtmlSitePlan.GenerateAsync`. Invalid declaration shapes and duplicate output files are LSG001 errors. Dynamic page methods are valid runtime content but are not Closed compiler evidence. No site-wide anchor manifest or closure for arbitrary factories, layouts, extensions or Markdown headings is emitted. See the [LSA1202 subset and example](../LithoSharp.Analyzers/README.md#lsa1202).

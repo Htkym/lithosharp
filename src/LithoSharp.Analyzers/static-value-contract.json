@@ -84,7 +84,7 @@
     "origin": "original lookup argument UTF16 span for absence; original property receiver for stale",
     "argumentHandoff": "after generated getter/current fingerprint/fresh Closed proof, select Explicit ArgumentKind even when ! sets IsImplicit; evaluate only the existing snapshot; recover the entire original argument including !/parentheses from the same call owner for absence location only; coverage key/location remains the original call; no syntax-based Known promotion or direct-literal LSA1401/CodeFix expansion",
     "originConvention": "known StaticContentGenerator path plus verified runtime initializer/current route metadata; no explicit static constructor on the collection; not a security attestation",
-    "notImplemented": ["LSA1202/1204", "LSA1203 beyond explicit transform inputs/outputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
+    "notImplemented": ["LSA1204", "LSA1203 beyond explicit transform inputs/outputs", "LSA130x", "LSA1403 beyond explicit producer selection", "whole-site publication coverage", "anchors/assets"]
   },
   "assetTransformInputs": {
     "id": "LSA1203", "contract": "explicit-transform-inputs/1", "scope": "asset-transform-inputs",
@@ -194,5 +194,29 @@
     "noFix": ["Open/Stale/Unavailable", "ambiguous generated page references", "unverified handwritten initializers", "arbitrary expressions or flow-derived values", "user-defined conversions", "getters or side effects", "explicit static constructors or reentrant user initialization", "stale workspace snapshots"],
     "notImplemented": ["LSA1402 CodeFix", "LSA1403 CodeFix", "other CodeFix actions", "native IDE UI/undo certification"]
   },
-  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "LSA1402 beyond the selected-catalog ContentRef subset", "LSA1403 beyond explicit producer selection", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"]
+  "notImplemented": ["CodeFix other than the limited LSA1401 generated page reference action", "LSA1402 beyond the selected-catalog ContentRef subset", "LSA1403 beyond explicit producer selection", "whole-site Closed publication coverage", "artifact ownership", "other option ranges", "all SDK/IDE/legacy CLR certification"],
+  "fixedHtmlAnchors": {
+    "rule": "LSA1202",
+    "severity": "Error",
+    "contract": "fixed-full-html-plan/2;decoded-anchors/1",
+    "scope": "same compiler-owned FixedHtmlSite class; generated immutable FixedHtmlPlan artifact owner; default variant only",
+    "sink": "direct Core Html.UnsafeRaw(string) complete literal page bodies; namespace-free a/area href root path + nonempty fragment, no query",
+    "proof": "fresh full compiler inputs + exact regenerated owner shape + actual Core metadata + same-source complete decoded anchor projection",
+    "deferred": [
+      "unknown/dynamic body",
+      "static constructor",
+      "missing/changed/stale generated owner or inputs",
+      "incomplete parser/mapping/budget",
+      "script/iframe/srcdoc/custom/foreign/base markup",
+      "target page outside same plan",
+      "relative/external/fragment-only/query URL"
+    ],
+    "budgets": {
+      "pagesPerPlan": 64,
+      "literalLimits": "literalHtml.budgets",
+      "fingerprintLimits": "routeManifest.budgets"
+    },
+    "runtime": "strict UTF8 snapshots as SiteGeneratedAsset; common collision checks and publication transaction; no caller template/extension/post-build hook",
+    "policy": "normal per-ID severity/NoWarn/pragma; no CodeFix; no expansion of LSA9001 or StaticSiteManifest.AnchorCoverage"
+  }
 }

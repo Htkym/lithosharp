@@ -125,7 +125,7 @@ Collections with an explicit static constructor are Unavailable, including an em
 
 Info identifies a generated Closed lookup whose fingerprint differs from current compiler inputs. Route absence is then Deferred. Fingerprints use original C# buffers and parse symbols, AdditionalText buffers and collection/id/route/site/variant metadata, project root/target framework/configuration/profile, and assembly identities/MVIDs/reference aliases. No disk scanning, network access or user code runs. Unreadable inputs, unsupported references or budgets (8,192 source/additional inputs; 8,388,608 framed text units) are Unavailable and defer absence. Other generators' source additions can conservatively make a lookup Stale. The known StaticContentGenerator output path is excluded from its own fingerprint; its marker is an origin convention, not a security attestation.
 
-Normal Roslyn per-ID severity, editor configuration and original-source pragmas apply. LSG004 owns route collisions; LSG005/006 own YAML/schema diagnostics. These errors cause emitted lookup coverage to be Open and are not repeated as LSA1204/1301/1302. LSA1401 and its separate LithoSharp.CodeFixes action have the limited contract above. LSA1202/1204, LSA1203 beyond explicit transform inputs/outputs, LSA130x, whole-site publication coverage and other CodeFix actions remain unimplemented. LSA1403 has the selected producer subset below.
+Normal Roslyn per-ID severity, editor configuration and original-source pragmas apply. LSG004 owns route collisions; LSG005/006 own YAML/schema diagnostics. These errors cause emitted lookup coverage to be Open and are not repeated as LSA1204/1301/1302. LSA1401 and its separate LithoSharp.CodeFixes action have the limited contract above. LSA1204, LSA1203 beyond explicit transform inputs/outputs, LSA130x, whole-site publication coverage and other CodeFix actions remain unimplemented. LSA1403 has the selected producer subset below.
 
 ### LSA9001
 
@@ -150,3 +150,29 @@ Correct pairs, missing/unknown IDs, ambiguous scopes, Open/Stale/Unavailable man
 The initial recognized Deferred producer is the metadata `LithoSharp.Mdx.DocumentationSite` with a preceding, directly bound `AddCollection(new DocumentationCollection(...))` registration on that same instance. Its route contribution requires runtime preparation and is not enumerated from compiler inputs. Runtime value variation is not asserted. A source producer whose exact `PrepareAsync` returns `Task.FromResult(new SiteBuildContribution(...))` with a provably empty `ContentCollections` contributes no Deferred item. Other producer contracts/bodies are unsupported and are not converted from analysis Unknown into dynamic producer evidence.
 
 One default Info reports the number of distinct selected, registered documentation contribution items. The original selection is primary, producer creation locations are related, and the current compiler-input fingerprint records provenance. It does not count runtime pages/routes or mark a Catalog/site Open. Missing Info does not imply Closed coverage, including for unsupported, unregistered or budget-limited selections. The lists are bounded to 64 items and identity/source inspection uses existing depth/operation budgets. No user getter/factory/constructor, producer, filesystem or runtime assembly is executed by the Analyzer. Existing scalar flow still handles Known locals and owns LSA1002 route errors; those calls are not producer evidence or Deferred items. Standard severity/NoWarn/pragma applies; there is no CodeFix. Anchors/assets/final HTML, nonselected producers, Posts/ExtraPages and whole-site coverage are outside this scope.
+
+### LSA1202
+
+The opt-in fixed HTML subset uses `[FixedHtmlSite("https://example.com/sub/")]` on a top-level static partial class and `[FixedHtmlPage("target.html")]` on its parameterless static `IHtmlContent` methods. The Generator emits `FixedHtmlPlan`, an immutable Core plan. Its `GenerateAsync(outputDirectory)` snapshots the methods into generated assets and uses the common ownership checks and output transaction. No caller template, extension, transform or post-build hook can rewrite those files through this entry point. Built-in support pages are still generated; their output names, including `index.html`, must not collide with the declared files.
+
+LSA1202 Error applies only when both the source and target are in that same plan and each body is a direct Core `Html.UnsafeRaw(string)` call with a fully mapped literal expression. The complete current source and input fingerprint, separate anchor/owner contract, generated owner body and actual Core metadata must match. The full HTML is parsed once through the existing source-only literal projection; no independent source/tree arguments or retained tree are introduced. Static constructors, unknown bodies, stale inputs, missing or changed generated owner, incomplete parsing, scripts, iframe/srcdoc, custom/foreign markup and base-dependent pages remain Deferred. Other pages and variants are not inferred Closed, and `StaticSiteManifest.AnchorCoverage` remains Open.
+
+The initial links are namespace-free `a`/`area` hrefs with a site-root path, no query, and a nonempty fragment. Resolution and the one percent-decoding step are shared with runtime quality checks. Decoded `id`/`a name` values use Ordinal comparison; plus signs are not spaces. Missing target pages, external/relative/fragment-only URLs and unmappable positions are Deferred. A definite missing fragment reports its original C# UTF16 URL span with the target definition as a related location. Ordinary severity, NoWarn and original-source pragma apply; no CodeFix or extension to LSA9001 is provided. The subset admits at most 64 declared pages, existing literal parse/mapping limits and the existing 8,192-input/8,388,608-unit fingerprint limits.
+
+```csharp
+using LithoSharp;
+using LithoSharp.Content;
+
+[FixedHtmlSite("https://example.com/")]
+public static partial class Pages
+{
+    [FixedHtmlPage("source.html")]
+    private static IHtmlContent Source() => Html.UnsafeRaw("<a href='/target.html#intro'>Intro</a>");
+
+    [FixedHtmlPage("target.html")]
+    private static IHtmlContent Target() => Html.UnsafeRaw("<h1 id='intro'>Intro</h1>");
+}
+// await Pages.FixedHtmlPlan.GenerateAsync("dist");
+```
+
+Encoding and snapshot construction occur inside the actual Core assembly. Generated code passes built-in string arrays to the verified Core constructor and contains no consumer-bound System.Text.UTF8Encoding or System.Array factory calls. iframe/srcdoc pages remain Deferred even when an encoded embedded script is absent from the outer parse tree; this is a conservative fixed-page boundary, not certification of arbitrary executable HTML. Qualified type identities retain namespace separators in generated hint names.

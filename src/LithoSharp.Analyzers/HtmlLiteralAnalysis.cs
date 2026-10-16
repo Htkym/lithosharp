@@ -38,6 +38,9 @@ internal static class HtmlLiteralAnalysis
         cancellationToken: cancellation);
 
     // Called only after the exact metadata UnsafeRaw(string) sink has bound successfully.
+    internal static HtmlStringOrigins? LiteralOrigins(IOperation argument, CancellationToken cancellation) =>
+        Extract(argument, cancellation)?.Origins(argument.Syntax.SyntaxTree);
+
     internal static void Analyze(OperationBlockAnalysisContext context, IOperation argument, StaticValue scalar, HtmlFlowUrlAnalysis collector)
     {
         var input = Extract(argument, context.CancellationToken);

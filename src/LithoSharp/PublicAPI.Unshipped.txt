@@ -1,4 +1,14 @@
 #nullable enable
+LithoSharp.Content.FixedHtmlSiteAttribute
+LithoSharp.Content.FixedHtmlSiteAttribute.FixedHtmlSiteAttribute(string! baseUrl) -> void
+LithoSharp.Content.FixedHtmlSiteAttribute.BaseUrl.get -> string!
+LithoSharp.Content.FixedHtmlPageAttribute
+LithoSharp.Content.FixedHtmlPageAttribute.FixedHtmlPageAttribute(string! relativeOutputPath) -> void
+LithoSharp.Content.FixedHtmlPageAttribute.RelativeOutputPath.get -> string!
+LithoSharp.Content.FixedHtmlSitePlan
+LithoSharp.Content.FixedHtmlSitePlan.FixedHtmlSitePlan(string! baseUrl, string![]! relativeOutputPaths, string![]! html) -> void
+LithoSharp.Content.FixedHtmlSitePlan.FixedHtmlSitePlan(string! baseUrl, System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>! pages) -> void
+LithoSharp.Content.FixedHtmlSitePlan.GenerateAsync(string! outputDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteGenerationResult!>!
 LithoSharp.Content.StaticContentCatalog
 LithoSharp.Content.StaticContentCatalog.StaticContentCatalog(LithoSharp.Content.ContentCollectionId! collectionId, System.Collections.Generic.IEnumerable<LithoSharp.Content.StaticContentCatalogEntry!>! entries, string! site = "", string! variant = "") -> void
 LithoSharp.Content.StaticContentCatalog.CollectionId.get -> LithoSharp.Content.ContentCollectionId!

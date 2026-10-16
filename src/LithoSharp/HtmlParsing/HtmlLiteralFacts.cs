@@ -6,12 +6,16 @@ internal sealed record HtmlLiteralFacts(HtmlTokenizationStatus Status,
     IReadOnlyList<HtmlLiteralUrl> Urls, IReadOnlyList<HtmlTreeDiagnostic> Diagnostics,
     IReadOnlyList<HtmlTokenizationDiagnostic> TokenizerDiagnostics, IReadOnlyList<HtmlLiteralCss> CssInputs)
 {
+    internal IReadOnlyList<string> Anchors { get; init; } = Array.Empty<string>();
+    internal bool AllowsClosedAnchors { get; init; }
     internal static HtmlLiteralFacts Parse(string source, HtmlTreeOptions? options = null,
         HtmlTreeLimits? limits = null, CancellationToken cancellationToken = default)
     {
         var tree = CompactHtmlTreeBuilder.Parse(source, options, limits, cancellationToken);
         var urls = new List<HtmlLiteralUrl>();
         var css = new List<HtmlLiteralCss>();
+        var anchors = new List<string>();
+        var staticMarkup = true;
         var cssWork = limits?.MaxOperations ?? 4_000_000;
         var cssComplete = true;
         if (tree.Status == HtmlTokenizationStatus.Complete)
@@ -31,6 +35,13 @@ internal sealed record HtmlLiteralFacts(HtmlTokenizationStatus Status,
             foreach (var element in tree.Elements())
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                // Same decoded id/a-name projection as runtime. Executable/custom markup is Open.
+                if (element.Namespace != HtmlNamespaces.Html || element.Name is "script" or "base" or "iframe"
+                    || element.Attributes.Any(a => a.Namespace is null && a.Name == "srcdoc")
+                    || (element.Name ?? "").IndexOf('-') >= 0 || element.Attributes.Any(a => a.Name.StartsWith("on", StringComparison.OrdinalIgnoreCase))) staticMarkup = false;
+                foreach (var anchor in element.Attributes.Where(a => a.Namespace is null
+                    && (a.Name == "id" || (element.Name == "a" && a.Name == "name"))))
+                    if (anchor.Value.Value.Length != 0) anchors.Add(anchor.Value.Value);
                 // Runtime selects style-element text in preference to its style attribute.
                 if (cssComplete && element.Name == "style")
                 {
@@ -59,7 +70,9 @@ internal sealed record HtmlLiteralFacts(HtmlTokenizationStatus Status,
                 }
             }
         }
-        return new(tree.Status, urls.AsReadOnly(), tree.Diagnostics, tree.TokenizerDiagnostics, css.AsReadOnly());
+        return new(tree.Status, urls.AsReadOnly(), tree.Diagnostics, tree.TokenizerDiagnostics, css.AsReadOnly())
+        { Anchors = anchors.AsReadOnly(), AllowsClosedAnchors = staticMarkup && tree.Status == HtmlTokenizationStatus.Complete
+            && !tree.Diagnostics.Any(d => d.IncompleteCoverage) };
 
         // Same active-tree text traversal as runtime, from this private parse only.
         HtmlText? CssText(int root)

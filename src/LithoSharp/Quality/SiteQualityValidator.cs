@@ -218,7 +218,7 @@ internal static class SiteQualityValidator
             if (reference.Navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets)) targets.Add(targetPath);
             if (address.Fragment.Length > 1 && pages.TryGetValue(targetPath, out var targetPage))
             {
-                var fragment = Uri.UnescapeDataString(address.Fragment[1..]);
+                var fragment = SiteQualityUrlRules.DecodedFragment(address);
                 anchorReferences.Add(new(path, targetPath, fragment));
                 if (!targetPage.Anchors.Contains(fragment))
                     Add("LSQ002", SiteDiagnosticSeverity.Error, $"Anchor '{fragment}' does not exist in '{targetPath}'.", path, element);
@@ -226,22 +226,7 @@ internal static class SiteQualityValidator
         }
 
         bool TryInternalPath(Uri address, out string path)
-        {
-            path = string.Empty;
-            if (!address.IsAbsoluteUri || address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0
-                || !string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase)) return false;
-            var publicPath = address.AbsolutePath;
-            if (publicPath == root.PublicPath.TrimEnd('/')) publicPath += "/";
-            if (!publicPath.StartsWith(root.PublicPath, StringComparison.Ordinal)) return false;
-            var relative = publicPath[root.PublicPath.Length..];
-            try
-            {
-                path = (relative.Length == 0 || relative.EndsWith('/')
-                    ? SiteRoute.ForDirectoryIndex(relative) : SiteRoute.ForFile(relative)).RelativeOutputPath;
-                return true;
-            }
-            catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return false; }
-        }
+            => SiteQualityUrlRules.TryInternalOutputPath(address, origin, root.PublicPath, out path);
 
         void Add(string id, SiteDiagnosticSeverity severity, string message, string path, HtmlSnapshotPosition? element = null) =>
             diagnostics.Add(new SiteDiagnostic(id, severity, message, Location(path, element)));

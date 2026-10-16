@@ -26,6 +26,20 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        var fixedSites = context.SyntaxProvider.ForAttributeWithMetadataName("LithoSharp.Content.FixedHtmlSiteAttribute",
+            static (node, _) => node is ClassDeclarationSyntax, static (attribute, _) => (INamedTypeSymbol)attribute.TargetSymbol);
+        context.RegisterSourceOutput(fixedSites.Combine(context.CompilationProvider).Combine(context.AdditionalTextsProvider.Collect())
+            .Combine(context.AnalyzerConfigOptionsProvider), static (output, input) =>
+        {
+            var model = FixedHtmlPlanModel.Read(input.Left.Left.Left, output.CancellationToken);
+            if (model is null || model.Symbol.GetMembers("FixedHtmlPlan").Length != 0)
+            {
+                Report(output, InvalidDeclaration, input.Left.Left.Left.Locations.First(), "Invalid fixed HTML site or FixedHtmlPlan member collision.");
+                return;
+            }
+            var fingerprint = FixedHtmlPlanModel.Fingerprint(input.Left.Left.Right, input.Left.Right, input.Right, output.CancellationToken);
+            output.AddSource(model.Hint, SourceText.From(model.Emit(fingerprint ?? "Unavailable"), Encoding.UTF8));
+        });
         var declarations = context.SyntaxProvider.ForAttributeWithMetadataName(
             "LithoSharp.Content.StaticContentCollectionAttribute", static (node, _) => node is ClassDeclarationSyntax,
             static (attribute, _) => attribute);

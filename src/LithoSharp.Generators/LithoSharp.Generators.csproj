@@ -21,6 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../Shared/StaticManifestFingerprint.cs" Link="Shared/StaticManifestFingerprint.cs" />
+    <Compile Include="../Shared/FixedHtmlPlanModel.cs" Link="Shared/FixedHtmlPlanModel.cs" />
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
     <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
     <Compile Include="..\LithoSharp\Routing\SiteRoute.cs" Link="Shared\SiteRoute.cs" />
