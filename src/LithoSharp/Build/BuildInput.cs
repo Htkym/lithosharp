@@ -32,7 +32,6 @@ public sealed class BuildInput
     public static BuildInput FromValue(string key, string value) =>
         new(BuildInputKind.Value, NormalizeKey(key), PreserveValue(value));
 
-    /// <summary>Requires a nonempty deterministic fingerprint for the entire collection.</summary>
     public static BuildInput FromCollection(string collectionId) =>
         new(BuildInputKind.Collection, NormalizeKey(collectionId), value: null);
 
