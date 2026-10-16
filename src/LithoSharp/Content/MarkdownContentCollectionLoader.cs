@@ -6,52 +6,31 @@ using YamlDotNet.Core.Events;
 
 namespace LithoSharp.Content;
 
-/// <summary>Markdown コレクションの読み込み診断識別子を提供します。</summary>
 public static class MarkdownContentDiagnosticIds
 {
-    /// <summary>文書の先頭に YAML フロントマターがありません。</summary>
     public const string MissingFrontMatter = "LSM001";
 
-    /// <summary>YAML フロントマターの終了マーカーがありません。</summary>
     public const string UnterminatedFrontMatter = "LSM002";
 
-    /// <summary>YAML フロントマターが空です。</summary>
     public const string EmptyFrontMatter = "LSM003";
 
-    /// <summary>YAML の構文が不正です。</summary>
     public const string InvalidYaml = "LSM004";
 
-    /// <summary>YAML マッピングに重複したキーがあります。</summary>
     public const string DuplicateKey = "LSM005";
 
-    /// <summary>YAML のアンカーまたはエイリアスは許可されていません。</summary>
     public const string AliasNotAllowed = "LSM006";
 
-    /// <summary>YAML のマッピングキーが文字列ではありません。</summary>
     public const string InvalidMappingKey = "LSM007";
 
-    /// <summary>YAML フロントマターのルートがマッピングではありません。</summary>
     public const string InvalidFrontMatterRoot = "LSM008";
 
-    /// <summary>Markdown ファイルが有効な UTF-8 ではありません。</summary>
     public const string InvalidUtf8 = "LSM009";
 
-    /// <summary>正規化後の Markdown エントリ識別子が重複しています。</summary>
     public const string DuplicateEntryId = "LSM010";
 }
 
-/// <summary>
-/// Markdown ファイルを再帰的に検出し、型付きフロントマターと生の Markdown 本文を読み込みます。
-/// </summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <remarks>
-/// ファイルは NFC 正規化した相対パスの序数順で読み込みます。YAML の未知フィールドは
-/// 既定のバインダーではエラーになり、重複キー、アンカー、エイリアスも拒否されます。
-/// シンボリックリンク、ジャンクション、リパースポイント、および正規化後に衝突する
-/// 入力パスは診断として拒否されます。
-/// 本文は終了マーカー直後からファイル末尾までの文字列を改変せずに保持し、
-/// ソース指紋は BOM を含むファイルの正確なバイト列から SHA-256 で生成します。
-/// </remarks>
+/// <summary>Reads files in NFC-normalized ordinal relative-path order. Rejects links/reparse points, normalized path collisions, unknown YAML fields, anchors, aliases and duplicate keys.</summary>
+/// <remarks>Preserves the body after the front-matter terminator verbatim; SourceFingerprint hashes exact file bytes, including the BOM.</remarks>
 public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     : IContentCollectionLoader<TFrontMatter, string>
     where TFrontMatter : notnull
@@ -71,24 +50,6 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     private readonly ContentTransformationId? _transformationId;
     private readonly bool _isCacheable;
 
-    /// <summary>Markdown コレクションローダーを作成します。</summary>
-    /// <param name="id">ビルド間で安定したコレクション識別子。</param>
-    /// <param name="inputRoot">Markdown ファイルを再帰的に検索する入力ルート。</param>
-    /// <param name="routeConvention">各エントリの公開ルートを決定する規約。</param>
-    /// <param name="publicationMapper">各エントリの公開情報と公開条件を作成する変換。</param>
-    /// <param name="frontMatterBinder">
-    /// YAML のキーと値を型付き値へ変換するバインダー。指定しない場合は未知フィールドを拒否する
-    /// <see cref="ReflectionContentFrontMatterBinder{TFrontMatter}"/> を使用します。
-    /// </param>
-    /// <param name="layoutId">使用するレイアウトの識別子。指定しない場合は <see langword="null"/>。</param>
-    /// <param name="orderingComparer">最終的なエントリ順を決める比較方法。</param>
-    /// <param name="declaredDependencies">コレクションが参照する宣言済み外部依存。</param>
-    /// <param name="transformationId">変換規則の安定した識別子。</param>
-    /// <param name="isCacheable">将来のキャッシュ対象にできる場合は <see langword="true"/>。</param>
-    /// <exception cref="ArgumentNullException">必須引数が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException">
-    /// 入力ルートが空か、キャッシュ可能なコレクションに変換規則の識別子がありません。
-    /// </exception>
     public MarkdownContentCollectionLoader(
         ContentCollectionId id,
         string inputRoot,

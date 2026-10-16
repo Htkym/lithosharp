@@ -6,13 +6,7 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content;
 
-/// <summary>JSON ファイルから型付きコンテンツコレクションを読み込むローダーです。</summary>
-/// <typeparam name="TFrontMatter">バインドする型。</typeparam>
-/// <typeparam name="TBody">各エントリの本文型。</typeparam>
-/// <remarks>
-/// シンボリックリンク、ジャンクション、リパースポイント、および正規化後に衝突する
-/// 入力パスは診断として拒否されます。
-/// </remarks>
+/// <summary>Rejects links/reparse points and normalized input-path collisions.</summary>
 public sealed class JsonContentCollectionLoader<TFrontMatter, TBody>
     : IContentCollectionLoader<TFrontMatter, TBody>
     where TFrontMatter : notnull
@@ -26,7 +20,6 @@ public sealed class JsonContentCollectionLoader<TFrontMatter, TBody>
     private readonly ContentPublicationMapper<TFrontMatter, TBody> publicationMapper;
     private readonly ContentLayoutId? layoutId;
 
-    /// <summary>JSON ローダーを作成します。</summary>
     public JsonContentCollectionLoader(
         string inputRoot,
         ContentCollectionId collectionId,
@@ -45,9 +38,7 @@ public sealed class JsonContentCollectionLoader<TFrontMatter, TBody>
         this.layoutId = layoutId;
     }
 
-    /// <summary>JSON ファイルを読み込みます。ルートはオブジェクトまたはオブジェクト配列です。</summary>
-    /// <param name="cancellationToken">読み込みを取り消すトークン。</param>
-    /// <returns>読み込んだコレクション、または入力診断。</returns>
+    /// <summary>JSON roots must be an object or an array of objects.</summary>
     public async ValueTask<ContentLoadResult<TFrontMatter, TBody>> LoadAsync(
         CancellationToken cancellationToken = default)
     {
@@ -207,13 +198,7 @@ public sealed class JsonContentCollectionLoader<TFrontMatter, TBody>
     }
 }
 
-/// <summary>RFC 4180 の基本規則に対応した CSV ファイルローダーです。</summary>
-/// <typeparam name="TFrontMatter">バインドする型。</typeparam>
-/// <typeparam name="TBody">各エントリの本文型。</typeparam>
-/// <remarks>
-/// シンボリックリンク、ジャンクション、リパースポイント、および正規化後に衝突する
-/// 入力パスは診断として拒否されます。
-/// </remarks>
+/// <summary>Uses basic RFC 4180 CSV rules; rejects links/reparse points and normalized input-path collisions.</summary>
 public sealed class CsvContentCollectionLoader<TFrontMatter, TBody>
     : IContentCollectionLoader<TFrontMatter, TBody>
     where TFrontMatter : notnull
@@ -227,7 +212,6 @@ public sealed class CsvContentCollectionLoader<TFrontMatter, TBody>
     private readonly ContentPublicationMapper<TFrontMatter, TBody> publicationMapper;
     private readonly ContentLayoutId? layoutId;
 
-    /// <summary>CSV ローダーを作成します。</summary>
     public CsvContentCollectionLoader(
         string inputRoot,
         ContentCollectionId collectionId,
@@ -246,9 +230,6 @@ public sealed class CsvContentCollectionLoader<TFrontMatter, TBody>
         this.layoutId = layoutId;
     }
 
-    /// <summary>CSV ファイルを読み込みます。先頭行をヘッダーとして扱います。</summary>
-    /// <param name="cancellationToken">読み込みを取り消すトークン。</param>
-    /// <returns>読み込んだコレクション、または入力診断。</returns>
     public async ValueTask<ContentLoadResult<TFrontMatter, TBody>> LoadAsync(
         CancellationToken cancellationToken = default)
     {

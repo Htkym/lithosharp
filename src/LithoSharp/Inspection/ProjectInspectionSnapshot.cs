@@ -3,11 +3,9 @@ using LithoSharp.Documentation;
 
 namespace LithoSharp.Inspection;
 
-/// <summary>project context内のsource→route候補の1件を表します。</summary>
-/// <remarks>同sourceが複数公開routeを持つ場合は複数候補として返し、勝手に一件を選びません。</remarks>
+/// <summary>Multiple routes for the same source remain separate candidates; no route is guessed.</summary>
 public sealed class ProjectRouteCandidate
 {
-    /// <summary>候補を作成します。</summary>
     public ProjectRouteCandidate(
         string sourcePath,
         string publicPath,
@@ -33,48 +31,35 @@ public sealed class ProjectRouteCandidate
         Publication = publication;
     }
 
-    /// <summary>variant入力内の相対source pathを取得します。</summary>
     public string SourcePath { get; }
 
-    /// <summary>公開URLのpath部分を取得します。</summary>
     public string PublicPath { get; }
 
-    /// <summary>project識別子を取得します。</summary>
     public string ProjectId { get; }
 
-    /// <summary>collectionを取得します。</summary>
     public string Collection { get; }
 
-    /// <summary>versionを取得します。</summary>
     public string Version { get; }
 
-    /// <summary>localeを取得します。</summary>
     public string Locale { get; }
 
-    /// <summary>公開状態を取得します。</summary>
     public DocumentPublicationState Publication { get; }
 }
 
-/// <summary>project context付き検査のroute解決状態を表します。</summary>
 public enum DocumentProjectStatus
 {
-    /// <summary>contextなしの構文解析のみ。Routeは呼び出し側の指定をそのまま返します。</summary>
+    /// <summary>Syntax-only; Route retains the caller-supplied value.</summary>
     NoContext = 0,
-    /// <summary>候補が1件に定まりました。</summary>
     Resolved = 1,
-    /// <summary>候補が複数あり、一件に定めません。Routeは <see langword="null"/> です。</summary>
+    /// <summary>Multiple candidates; Route is null.</summary>
     Ambiguous = 2,
-    /// <summary>context内に候補がありません。Routeは <see langword="null"/> です。</summary>
+    /// <summary>No candidate in the context; Route is null.</summary>
     Unresolved = 3,
-    /// <summary>front matterがdraftのため公開されません。Routeは <see langword="null"/> です。</summary>
+    /// <summary>Draft content is unpublished; Route is null.</summary>
     Draft = 4,
 }
 
-/// <summary>明示操作で取得したproject contextの不変snapshotを表します。</summary>
-/// <remarks>
-/// 実projectの評価（factory実行やMSBuild）はこの型を作りません。取得済みの結果だけを保持し、
-/// 未保存解析へ入力として渡します。contextがなければ構文解析のみとし、不足を成功として隠しません。
-/// </remarks>
+/// <summary>Stores explicitly acquired results; construction does not run MSBuild or a factory.</summary>
 public sealed class ProjectInspectionSnapshot
 {
     internal ProjectInspectionSnapshot(
@@ -104,37 +89,26 @@ public sealed class ProjectInspectionSnapshot
         AcquiredAt = acquiredAt;
     }
 
-    /// <summary>project識別子を取得します。</summary>
     public string ProjectId { get; }
 
-    /// <summary>project generationを取得します。</summary>
     public long ProjectGeneration { get; }
 
-    /// <summary>snapshot取得時のCore versionを取得します。</summary>
     public string CoreVersion { get; }
 
-    /// <summary>対象のcollectionを取得します。</summary>
     public string Collection { get; }
 
-    /// <summary>対象の言語（markdown等）を取得します。</summary>
     public string Language { get; }
 
-    /// <summary>front matter schema名を取得します。組み込みは document/post、利用者定義は型名です。</summary>
     public string SchemaName { get; }
 
-    /// <summary>対象のversionを取得します。</summary>
     public string Version { get; }
 
-    /// <summary>対象のlocaleを取得します。</summary>
     public string Locale { get; }
 
-    /// <summary>公開route候補を取得します。下書き・未buildは含みません。</summary>
     public IReadOnlyList<ProjectRouteCandidate> Routes { get; }
 
-    /// <summary>取得時点を取得します。</summary>
     public DateTimeOffset AcquiredAt { get; }
 
-    /// <summary>snapshotを作成します。</summary>
     public static ProjectInspectionSnapshot Create(
         string projectId,
         long projectGeneration,
@@ -174,7 +148,6 @@ public sealed class ProjectInspectionSnapshot
         WriteIndented = true,
     };
 
-    /// <summary>snapshotをJSONにします。未解決fieldはnullで表します。</summary>
     public string ToJson() => JsonSerializer.Serialize(new
     {
         schemaVersion = ToolingContracts.CurrentSchemaVersion,
@@ -199,8 +172,6 @@ public sealed class ProjectInspectionSnapshot
         }).ToArray(),
     }, JsonOptions);
 
-    /// <summary>JSONからsnapshotを復元します。</summary>
-    /// <exception cref="ArgumentException">JSONがsnapshotの形ではありません。</exception>
     public static ProjectInspectionSnapshot ParseJson(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);

@@ -60,7 +60,7 @@ test('split multibyte frames reassemble', async () => {
   const characterStart = framed.indexOf(Buffer.from('日', 'utf8'));
   assert.ok(characterStart >= 0);
   const split = characterStart + 1;
-  // Both seams split the three UTF-8 bytes of 日.
+  // Both seams split the three UTF-8 bytes of U+65E5.
   child.emit(framed.subarray(0, split));
   child.emit(framed.subarray(split, split + 1));
   child.emit(framed.subarray(split + 1));

@@ -66,7 +66,6 @@ public sealed class SiteTemplateContext
     /// <summary>Additional pages.</summary>
     public IReadOnlyList<SiteExtraPage> ExtraPages { get; }
 
-    /// <summary>型付きコンテンツコレクションから描画され、公開条件を満たしたページです。</summary>
     public IReadOnlyList<RenderedPage> ContentPages { get; }
 
     /// <summary>Documentation pages in navigation order.</summary>
@@ -78,7 +77,6 @@ public sealed class SiteTemplateContext
     internal SiteGenerator.RenderContext Configuration { get; }
     internal string EnvironmentName => _environmentName;
 
-    /// <summary>このビルドで登録された資産を取得します。</summary>
     public AssetRegistry Assets { get; }
 
     internal SiteTemplateResult RenderDocsTemplate(bool enableSearch = false) => _generator.RenderDocsTemplate(this, enableSearch);

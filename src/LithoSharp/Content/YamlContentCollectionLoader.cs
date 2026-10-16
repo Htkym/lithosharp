@@ -4,43 +4,26 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content;
 
-/// <summary>YAML コレクションの読み込み診断識別子を提供します。</summary>
 public static class YamlContentDiagnosticIds
 {
-    /// <summary>YAML ソースが有効な UTF-8 ではありません。</summary>
     public const string InvalidUtf8 = "LSY001";
 
-    /// <summary>YAML ソースを読み取れません。</summary>
     public const string ReadFailure = "LSY002";
 
-    /// <summary>YAML エントリの識別子が重複しています。</summary>
     public const string DuplicateEntryId = "LSY003";
 
-    /// <summary>厳格 YAML パーサーが報告する構文診断です。</summary>
     public const string InvalidYaml = MarkdownContentDiagnosticIds.InvalidYaml;
 
-    /// <summary>YAML のキーが重複しています。</summary>
     public const string DuplicateKey = MarkdownContentDiagnosticIds.DuplicateKey;
 
-    /// <summary>YAML のアンカーまたはエイリアスは許可されていません。</summary>
     public const string AliasNotAllowed = MarkdownContentDiagnosticIds.AliasNotAllowed;
 
-    /// <summary>YAML のマッピングキーが文字列ではありません。</summary>
     public const string InvalidMappingKey = MarkdownContentDiagnosticIds.InvalidMappingKey;
 
-    /// <summary>YAML のルートがオブジェクトまたはオブジェクト配列ではありません。</summary>
     public const string InvalidRoot = MarkdownContentDiagnosticIds.InvalidFrontMatterRoot;
 }
 
-/// <summary>YAML ファイルから型付きコンテンツコレクションを読み込むローダーです。</summary>
-/// <typeparam name="TFrontMatter">バインドする型。</typeparam>
-/// <typeparam name="TBody">各エントリの本文型。</typeparam>
-/// <remarks>
-/// ルートにはオブジェクト、またはオブジェクトの配列を指定できます。YAML のアンカー、
-/// エイリアス、重複キー、非文字列キーは拒否されます。
-/// シンボリックリンク、ジャンクション、リパースポイント、および正規化後に衝突する
-/// 入力パスも診断として拒否されます。
-/// </remarks>
+/// <summary>Accepts an object or array of objects. Rejects YAML anchors, aliases, duplicate/non-string keys, links/reparse points and normalized path collisions.</summary>
 public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
     : IContentCollectionLoader<TFrontMatter, TBody>
     where TFrontMatter : notnull
@@ -59,18 +42,6 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
     private readonly ContentTransformationId? transformationId;
     private readonly bool isCacheable;
 
-    /// <summary>YAML コレクションローダーを作成します。</summary>
-    /// <param name="inputRoot">YAML ファイルを再帰的に検索する入力ルート。</param>
-    /// <param name="collectionId">コレクション識別子。</param>
-    /// <param name="binder">YAML マッピングを型へ変換するバインダー。</param>
-    /// <param name="bodyFactory">YAML マッピングから本文を作成する処理。</param>
-    /// <param name="routeConvention">公開ルートを決定する規約。</param>
-    /// <param name="publicationMapper">公開情報を作成する変換。</param>
-    /// <param name="layoutId">使用するレイアウト。</param>
-    /// <param name="orderingComparer">エントリ順を決める比較方法。</param>
-    /// <param name="declaredDependencies">宣言済み外部依存。</param>
-    /// <param name="transformationId">変換規則の安定した識別子。</param>
-    /// <param name="isCacheable">キャッシュ可能かどうか。</param>
     public YamlContentCollectionLoader(
         string inputRoot,
         ContentCollectionId collectionId,

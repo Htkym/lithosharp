@@ -9,76 +9,45 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.Content;
 
-/// <summary>公開対象のコンテンツエントリから生成ページのグループキーを選択する処理を表します。</summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <typeparam name="TBody">本文の型。</typeparam>
-/// <param name="entry">公開条件を満たしたエントリ。</param>
-/// <returns>エントリが属するグループキー。キーを返さない場合は空の列挙。</returns>
 public delegate IEnumerable<string> ContentPageGroupSelector<TFrontMatter, TBody>(
     ContentEntry<TFrontMatter, TBody> entry)
     where TFrontMatter : notnull
     where TBody : notnull;
 
-/// <summary>正規化済みグループと公開エントリから型付きページを作成する処理を表します。</summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <typeparam name="TBody">本文の型。</typeparam>
-/// <typeparam name="TPageContent">生成ページが保持する型付きコンテンツの型。</typeparam>
-/// <param name="group">正規化済みキーと決定的に並べられた公開エントリ。</param>
-/// <returns>安定した識別子、ルート、メタデータ、型付きコンテンツを持つページ。</returns>
 public delegate SitePage<TPageContent> GeneratedPageFactory<TFrontMatter, TBody, TPageContent>(
     ContentPageGroup<TFrontMatter, TBody> group)
     where TFrontMatter : notnull
     where TBody : notnull
     where TPageContent : notnull;
 
-/// <summary>型付き生成ページを出力文字列へ描画する処理を表します。</summary>
-/// <typeparam name="TPageContent">生成ページが保持する型付きコンテンツの型。</typeparam>
-/// <param name="page">描画する型付き生成ページ。</param>
-/// <param name="context">ルート、メタデータ、レイアウト、および描画ヘルパーを持つコンテキスト。</param>
-/// <returns>出力ファイルへ書き込む文字列。</returns>
 public delegate string GeneratedPageRenderer<TPageContent>(
     SitePage<TPageContent> page,
     ContentPageRenderingContext context)
     where TPageContent : notnull;
 
-/// <summary>生成した集約ページを含める派生出力を指定します。</summary>
 [Flags]
 public enum GeneratedPageDerivedSurfaces
 {
-    /// <summary>派生出力へ含めません。</summary>
     None = 0,
 
-    /// <summary>サイト全体のナビゲーションへ含めます。</summary>
     Navigation = 1 << 0,
 
-    /// <summary>検索インデックスへ含めます。</summary>
     Search = 1 << 1,
 
-    /// <summary>RSS フィードへ含めます。</summary>
     Rss = 1 << 2,
 
-    /// <summary>サイトマップへ含めます。</summary>
     Sitemap = 1 << 3,
 
-    /// <summary>ページ別ソーシャル画像を生成します。</summary>
     SocialImage = 1 << 4,
 
-    /// <summary><c>llms.txt</c> へ含めます。</summary>
     LlmsTxt = 1 << 5,
 
-    /// <summary>
-    /// 互換性を保つ検索、サイトマップ、ページ別ソーシャル画像、<c>llms.txt</c> を含む既定値です。
-    /// RSS とサイト全体のナビゲーションには、集約ページを明示的に追加した場合だけ含めます。
-    /// </summary>
     Default = 58,
 
-    /// <summary>対応するすべての派生出力へ含めます。</summary>
     All = 63,
 }
 
-/// <summary>同じ正規化済みキーに属する公開コンテンツエントリの不変スナップショットを表します。</summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <typeparam name="TBody">本文の型。</typeparam>
+/// <summary>Published entries retain source ordering; keys are NFC-normalized and case-sensitive.</summary>
 public sealed class ContentPageGroup<TFrontMatter, TBody>
     where TFrontMatter : notnull
     where TBody : notnull
@@ -91,20 +60,15 @@ public sealed class ContentPageGroup<TFrontMatter, TBody>
         Entries = new ReadOnlyCollection<ContentEntry<TFrontMatter, TBody>>(entries.ToArray());
     }
 
-    /// <summary>Unicode 正規化形式 C で正規化された、大文字と小文字を区別するグループキーを取得します。</summary>
     public string Key { get; }
 
-    /// <summary>ソースコレクションの決定的な順序を保つ、公開済みエントリを取得します。</summary>
     public IReadOnlyList<ContentEntry<TFrontMatter, TBody>> Entries { get; }
 }
 
-/// <summary>生成ページの検証で使用する安定した診断識別子を提供します。</summary>
 public static class GeneratedPageDiagnosticIds
 {
-    /// <summary>グループセレクターまたは空グループ宣言が無効なキーを返しました。</summary>
     public const string InvalidGroupKey = "LSG001";
 
-    /// <summary>同じ生成ページ集合でページ識別子が重複しています。</summary>
     public const string DuplicatePageId = "LSG002";
 }
 

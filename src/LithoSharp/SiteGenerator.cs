@@ -137,27 +137,8 @@ public sealed partial class SiteGenerator
         IReadOnlyList<GeneratedArtifactState> Artifacts);
 
 
-    /// <summary>Generates a static site from the site settings and posts.</summary>
-    /// <param name="site">Site settings.</param>
-    /// <param name="posts">Posts to render.</param>
-    /// <param name="outputDirectory">Output directory.</param>
-    /// <param name="clean">Whether to delete the output directory before generating.</param>
-    /// <param name="customization">Text, theme, extra pages, and other overrides. Defaults to English when omitted.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The generation result.</returns>
-    /// <remarks>
-    /// Cooperating processes are serialized by a Unicode-normalized, case-folded output identity.
-    /// Transaction metadata is owner-only where supported. Symbolic links and name-surrogate
-    /// reparse points are rejected. Because .NET has no portable handle-relative no-follow directory
-    /// traversal, hostile same-user mutation outside this lock protocol is unsupported.
-    /// Generator ownership and content fingerprints are kept in an owner-restricted sibling sidecar.
-    /// The manifest published inside the output tree is informational and is never used for deletion.
-    /// With <paramref name="clean"/> set to <see langword="false"/>, timestamps, file attributes,
-    /// Windows owner/group/DACL data, and Unix permission modes are preserved. Unix ownership,
-    /// ACLs, extended attributes, and other platform metadata are not promised.
-    /// If cleanup after promotion fails, generation still succeeds, a trace warning is emitted,
-    /// and the owned backup is retained for cleanup by a later generation.
-    /// </remarks>
+    /// <inheritdoc cref="GenerateWithOptionsAsync" />
+    /// <remarks>Uses default generation options; omitted customization uses English text.</remarks>
     public Task<SiteGenerationResult> GenerateAsync(
         SiteSettings site,
         IReadOnlyList<MarkdownPost> posts,
@@ -174,29 +155,8 @@ public sealed partial class SiteGenerator
             new SiteGenerationOptions(),
             cancellationToken);
 
-    /// <summary>生成オプションを指定して静的サイトを生成します。</summary>
-    /// <param name="site">サイト設定。</param>
-    /// <param name="posts">描画する投稿。</param>
-    /// <param name="outputDirectory">出力ディレクトリ。</param>
-    /// <param name="clean">生成前に出力ディレクトリを削除するかどうか。</param>
-    /// <param name="customization">文言、テーマ、追加ページなどのカスタマイズ。</param>
-    /// <param name="options">今回の生成に適用するオプション。</param>
-    /// <param name="cancellationToken">キャンセルトークン。</param>
-    /// <returns>生成結果。</returns>
-    /// <remarks>
-    /// Unicode 正規化と大文字化を適用した出力識別子ごとに、協調するプロセス間の生成を直列化します。
-    /// 対応する環境ではトランザクション用メタデータを所有者専用にします。
-    /// シンボリックリンクと名前を置き換える再解析ポイントは拒否します。
-    /// 生成物の所有情報と内容フィンガープリントは、所有者専用の隣接サイドカーに保持します。
-    /// 出力ツリー内に公開するマニフェストは情報提供専用であり、削除判断には使用しません。
-    /// .NET には移植可能なハンドル相対の no-follow ディレクトリ走査がないため、
-    /// この排他制御を使わずに同じユーザーの外部プロセスが生成中のツリーを変更する敵対的操作はサポートしません。
-    /// <paramref name="clean"/> が <see langword="false"/> の場合は、タイムスタンプ、ファイル属性、
-    /// Windows の所有者、グループ、DACL、および Unix のパーミッションモードを保持します。
-    /// Unix の所有者、ACL、拡張属性などのメタデータ保持は保証しません。
-    /// 昇格後のバックアップ削除に失敗した場合も生成は成功として扱い、トレース警告を出力して、
-    /// 所有するバックアップを次回の生成で再度削除するために保持します。
-    /// </remarks>
+    /// <summary>Serializes cooperating processes by normalized output identity. Private sidecars, not the public manifest, authorize stale removal. Links and name-surrogate reparse points are rejected.</summary>
+    /// <remarks>Uncooperative same-user tree mutation is unsupported because portable handle-relative no-follow traversal is unavailable. With clean=false, preserves timestamps, attributes, Windows owner/group/DACL and Unix mode; Unix ownership, ACLs and extended attributes are not guaranteed. A promoted build remains successful if backup cleanup fails; a trace warning is emitted and the owned backup is retained for a later generation.</remarks>
     public async Task<SiteGenerationResult> GenerateWithOptionsAsync(
         SiteSettings site,
         IReadOnlyList<MarkdownPost> posts,
@@ -888,7 +848,7 @@ public sealed partial class SiteGenerator
             var ownerId = $"page:markdown:{index:D8}";
             var location = new SiteSourceLocation(post.FilePath);
             var metadata = LegacyPageAdapters.ToPageMetadata(post);
-            // 公開対象外のページはルートを所有しませんが、公開メタデータ自体は常に検証します。
+            // Unpublished pages own no routes, but their publication metadata must still be validated.
             if (!PagePublicationPolicy.ShouldPublish(metadata, buildTimestamp, environmentName))
             {
                 unpublishedPages?.Add(LegacyPageAdapters.CreateMarkdownPageId(post).Value);

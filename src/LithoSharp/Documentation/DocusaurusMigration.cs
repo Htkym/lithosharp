@@ -87,7 +87,7 @@ public sealed record DocusaurusMigrationOptions(
     string DocsRoutePrefix = "docs",
     string BlogRoutePrefix = "blog")
 {
-    /// <summary>明示的に正規化を要求し、文書routeのpage setを別比較します。</summary>
+    /// <summary>Explicitly enables normalization and a separate document-route page-set comparison.</summary>
     public bool CompareNormalizedPageSet { get; init; }
 }
 

@@ -6,24 +6,10 @@ using LithoSharp.Documentation;
 
 namespace LithoSharp.Inspection;
 
-/// <summary>文書検査の入口を表します。</summary>
 public static class DocumentInspection
 {
-    /// <summary>未保存を含むMarkdown文書を一度だけ解析し、文書情報を返します。</summary>
-    /// <param name="sourcePath">文書のsource path。位置情報の識別に使います。</param>
-    /// <param name="text">文書全体のテキスト。front matterを含む形式です。</param>
-    /// <param name="options">routeやversionなどの追加情報。ない場合は <see langword="null"/>。</param>
-    /// <param name="cancellationToken">取消token。</param>
-    /// <returns>解析結果の不変snapshot。未完成の構文でも取得できた情報を返します。</returns>
-    /// <exception cref="ArgumentException"><paramref name="sourcePath"/> が空白です。</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="text"/> が <see langword="null"/> です。</exception>
-    /// <remarks>
-    /// 検査は公開出力を更新しません。contextなしではYAML構文解析と本文解析のみを行い、
-    /// 実buildのfront matter bindingやroute解決と同等とは扱いません。
-    /// 実projectの評価は呼び出し側が明示操作で取得した
-    /// <see cref="DocumentInspectionOptions.Project"/> からのみ受け取ります。
-    /// 起動直後やキー入力ごとのMSBuild・factory実行は行いません。
-    /// </remarks>
+    /// <summary>Inspects unsaved text without publishing. Without explicit project context, syntax inspection does not establish build-equivalent binding or route resolution.</summary>
+    /// <remarks>Does not run MSBuild or a factory on startup or keystrokes.</remarks>
     public static DocumentInfo Inspect(string sourcePath, string text, DocumentInspectionOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
