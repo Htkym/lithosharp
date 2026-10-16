@@ -10,12 +10,17 @@ public sealed partial class SiteGenerator
     private static async Task<(IReadOnlyList<SiteCatalogPreparation?> Catalogs, SitePreflightReport Report)>
         InspectGenerationCatalogsAsync(SiteBuildContext context, SiteRouteTable routes, CancellationToken cancellationToken)
     {
-        // Inspection owner IDs belong to the declared catalog. A third-party
-        // inspector need not use Core's internal prepared-content identity.
-        routes = routes.Copy();
         var catalogs = new List<SiteCatalogPreparation?>();
         var diagnostics = new List<SiteDiagnostic>();
         var deferred = new List<string> { "The catalog phase does not inspect final HTML, template-owned output or compiled assets." };
+        if (context.Options.Extensions.Count == 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return (catalogs, new("trusted-catalog", "catalog", diagnostics, deferred));
+        }
+        // Inspection owner IDs belong to the declared catalog. A third-party
+        // inspector need not use Core's internal prepared-content identity.
+        routes = routes.Copy();
         var collections = context.Options.ContentCollections.ToList();
         foreach (var extension in context.Options.Extensions)
         {
