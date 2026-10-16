@@ -29,7 +29,7 @@ public static class MarkdownContentDiagnosticIds
     public const string DuplicateEntryId = "LSM010";
 }
 
-/// <summary>Reads files in NFC-normalized ordinal relative-path order. Rejects links/reparse points, normalized path collisions, unknown YAML fields, anchors, aliases and duplicate keys.</summary>
+/// <summary>Reads files in NFC-normalized ordinal relative-path order. Rejects links/reparse points, normalized path collisions, YAML anchors, aliases and duplicate keys.</summary>
 /// <remarks>Preserves the body after the front-matter terminator verbatim; SourceFingerprint hashes exact file bytes, including the BOM.</remarks>
 public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     : IContentCollectionLoader<TFrontMatter, string>
