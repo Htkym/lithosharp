@@ -2,7 +2,7 @@
   "name": "lithosharp",
   "displayName": "LithoSharp for VS Code",
   "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "htkym",
   "repository": {
     "type": "git",

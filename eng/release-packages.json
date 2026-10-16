@@ -1,0 +1,38 @@
+[
+  {
+    "id": "LithoSharp",
+    "project": "src/LithoSharp/LithoSharp.csproj"
+  },
+  {
+    "id": "LithoSharp.Generators",
+    "project": "src/LithoSharp.Generators/LithoSharp.Generators.csproj"
+  },
+  {
+    "id": "LithoSharp.Images",
+    "project": "src/LithoSharp.Images/LithoSharp.Images.csproj"
+  },
+  {
+    "id": "LithoSharp.Tool",
+    "project": "src/LithoSharp.Tool/LithoSharp.Tool.csproj"
+  },
+  {
+    "id": "LithoSharp.Testing",
+    "project": "src/LithoSharp.Testing/LithoSharp.Testing.csproj"
+  },
+  {
+    "id": "LithoSharp.Mdx",
+    "project": "src/LithoSharp.Mdx/LithoSharp.Mdx.csproj"
+  },
+  {
+    "id": "LithoSharp.ProjectTemplates",
+    "project": "templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj"
+  },
+  {
+    "id": "LithoSharp.Analyzers",
+    "project": "src/LithoSharp.Analyzers/LithoSharp.Analyzers.csproj"
+  },
+  {
+    "id": "LithoSharp.CodeFixes",
+    "project": "src/LithoSharp.CodeFixes/LithoSharp.CodeFixes.csproj"
+  }
+]

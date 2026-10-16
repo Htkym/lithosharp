@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.Analyzers', 'Syntamark', 'Syntamark.Source')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.Analyzers', 'LithoSharp.CodeFixes', 'Syntamark', 'Syntamark.Source')]
     [string] $PackageId = 'LithoSharp',
     [string] $ExpectedVersion
 )
@@ -189,6 +189,14 @@ if ($PackageId -eq 'LithoSharp.Analyzers') {
         throw 'Analyzer package contains a runtime dependency or unexpected assembly payload.'
     }
     Write-Host "Validated analyzer package contents: $($package.Name)"
+    return
+}
+if ($PackageId -eq 'LithoSharp.CodeFixes') {
+    if ($packageEntries -notcontains 'analyzers/dotnet/cs/LithoSharp.CodeFixes.dll' -or
+        $nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -match '^lib/' -or ($_ -like '*.dll' -and $_ -cne 'analyzers/dotnet/cs/LithoSharp.CodeFixes.dll') }).Count -ne 0) {
+        throw 'CodeFix package must contain only its IDE assembly and no runtime dependencies.'
+    }
+    Write-Host "Validated CodeFix package contents: $($package.Name)"
     return
 }
 if ($PackageId -eq 'LithoSharp.Tool') {

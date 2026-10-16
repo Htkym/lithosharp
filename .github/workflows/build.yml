@@ -37,8 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # The v2 feature candidate must not advertise the removed Testing API as 1.x.
-      LITHOSHARP_CANDIDATE_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && '2.0.0-preview.1' || '1.1.0' }}
-      LITHOSHARP_BASELINE_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && '1.1.0' || '1.0.0' }}
+      LITHOSHARP_CANDIDATE_VERSION: ${{ format('2.0.0-ci.{0}', github.run_id) }}
+      LITHOSHARP_BASELINE_VERSION: '1.1.0'
 
     steps:
       - name: Checkout
@@ -120,6 +120,15 @@ jobs:
           dotnet pack src/LithoSharp.Generators/LithoSharp.Generators.csproj --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Generators
+
+      - name: Pack and validate compiler packages
+        shell: pwsh
+        run: |
+          foreach ($id in @('LithoSharp.Analyzers', 'LithoSharp.CodeFixes')) {
+            dotnet pack "src/$id/$id.csproj" --configuration Release --output artifacts/packages -p:Version=${{ env.LITHOSHARP_CANDIDATE_VERSION }} -p:RestoreLockedMode=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $env:LITHOSHARP_CANDIDATE_VERSION
+          }
 
       - name: Test
         env:

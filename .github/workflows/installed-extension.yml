@@ -13,7 +13,7 @@ permissions:
 
 env:
   # Keep the release line aligned with build.yml; the RC suffix isolates this run's feed.
-  LITHOSHARP_RC_VERSION: ${{ (github.ref_name == 'feature/2.0.0' || github.head_ref == 'feature/2.0.0') && format('2.0.0-rc.{0}', github.run_id) || format('1.1.0-rc.{0}', github.run_id) }}
+  LITHOSHARP_RC_VERSION: ${{ format('2.0.0-rc.{0}', github.run_id) }}
 
 jobs:
   package:
@@ -59,7 +59,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Test-VsixContents.ps1 -Output artifacts/vsix-validation -VsceCli eng/vsix-packager/node_modules/@vscode/vsce/vsce
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Create isolated seven-package RC feed
+      - name: Create isolated nine-package RC feed
         shell: pwsh
         run: |
           ./eng/Test-PackageDistribution.ps1 -Output artifacts/candidate-distribution -CandidatePackageVersion $env:LITHOSHARP_RC_VERSION
@@ -79,7 +79,7 @@ jobs:
           const report = JSON.parse(await fs.readFile(path.join(artifacts, 'candidate-distribution/package-distribution.json'), 'utf8'));
           const bytes = await fs.readFile(path.join(artifacts, 'vsix-validation', vsix.vsix));
           const sha256 = createHash('sha256').update(bytes).digest('hex');
-          if (sha256 !== vsix.sha256 || report.packageCount !== 7 || !/^\d+\.\d+\.\d+-rc\./.test(report.version)) throw Error('Invalid validated producer receipts.');
+          if (sha256 !== vsix.sha256 || report.packageCount !== JSON.parse(await fs.readFile('../../eng/release-packages.json', 'utf8')).length || !/^\d+\.\d+\.\d+-rc\./.test(report.version)) throw Error('Invalid validated producer receipts.');
           if (report.version !== process.env.LITHOSHARP_RC_VERSION) throw Error('Producer package version differs from the selected RC candidate.');
           const archive = await JSZip.loadAsync(bytes);
           const payloadHashes = {};

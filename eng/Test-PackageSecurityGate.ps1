@@ -10,14 +10,13 @@ Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.IO.Compression
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $feed = [IO.Path]::GetFullPath($PackageDirectory)
-$ids = @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool',
-    'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.ProjectTemplates')
+$ids = @((Get-Content -LiteralPath (Join-Path $repo 'eng/release-packages.json') -Raw | ConvertFrom-Json).id)
 $expected = @($ids | ForEach-Object { "$_.$ExpectedVersion.nupkg" }) + "LithoSharp.$ExpectedVersion.snupkg"
 $actual = @(Get-ChildItem -LiteralPath $feed -File | Where-Object {
     $_.Extension -in @('.nupkg', '.snupkg')
 } | ForEach-Object Name)
 if (@(Compare-Object $expected $actual -CaseSensitive).Count -ne 0) {
-    throw 'Security gate requires exactly the seven candidate packages and matching Core symbols archive.'
+    throw 'Security gate requires exactly the nine candidate packages and matching Core symbols archive.'
 }
 if (!$Output) { $Output = Join-Path $repo ('.tmp/package-security-' + [Guid]::NewGuid().ToString('N')) }
 $Output = [IO.Path]::GetFullPath($Output)
@@ -153,7 +152,7 @@ foreach ($name in $expected) {
 $report = @{ schemaVersion = '1.0'; candidateVersion = $ExpectedVersion; archiveCount = $expected.Count;
     sourceArchiveHashes = $before; passed = $results.Count; failed = 0; results = @($results) }
 [IO.File]::WriteAllText((Join-Path $Output 'package-security.json'), ($report | ConvertTo-Json -Depth 7))
-Write-Host "Package security gate passed: $($ids.Count) actual package validators (8 archives), $($results.Count - $ids.Count) negative cases; source hashes unchanged. Evidence: $Output"
+Write-Host "Package security gate passed: $($ids.Count) actual package validators ($($expected.Count) archives), $($results.Count - $ids.Count) negative cases; source hashes unchanged. Evidence: $Output"
 
 # Expected negative child exits must not become the successful gate exit code.
 exit 0

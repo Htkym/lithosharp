@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 (Unreleased)
+## 0.2.0 (Unreleased)
 
 - Display the extension as **LithoSharp for VS Code** and use the shared LithoSharp icon.
 - Rewrite the English and Japanese guides around installation, commands, settings, requirements and troubleshooting.

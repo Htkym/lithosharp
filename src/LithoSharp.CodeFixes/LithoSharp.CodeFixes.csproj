@@ -7,15 +7,17 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <PackageId>LithoSharp.CodeFixes</PackageId>
-    <Version>2.0.0-preview.1</Version>
+    <Version>2.0.0</Version>
     <Description>Conservative IDE fixes for generated LithoSharp page references. Requires the matching LithoSharp.Analyzers package.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="[4.14.0]" PrivateAssets="all" />
     <ProjectReference Include="../LithoSharp.Analyzers/LithoSharp.Analyzers.csproj" PrivateAssets="all" />
     <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

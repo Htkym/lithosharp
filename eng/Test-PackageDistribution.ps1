@@ -13,15 +13,7 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!$Output) { $Output = Join-Path $repo '.tmp/package-distribution' }
 $Output = [IO.Path]::GetFullPath($Output)
 
-$packages = @(
-    @{ id = 'LithoSharp'; project = 'src/LithoSharp/LithoSharp.csproj' },
-    @{ id = 'LithoSharp.Generators'; project = 'src/LithoSharp.Generators/LithoSharp.Generators.csproj' },
-    @{ id = 'LithoSharp.Images'; project = 'src/LithoSharp.Images/LithoSharp.Images.csproj' },
-    @{ id = 'LithoSharp.Tool'; project = 'src/LithoSharp.Tool/LithoSharp.Tool.csproj' },
-    @{ id = 'LithoSharp.Testing'; project = 'src/LithoSharp.Testing/LithoSharp.Testing.csproj' },
-    @{ id = 'LithoSharp.Mdx'; project = 'src/LithoSharp.Mdx/LithoSharp.Mdx.csproj' },
-    @{ id = 'LithoSharp.ProjectTemplates'; project = 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj' }
-)
+$packages = @(Get-Content -LiteralPath (Join-Path $repo 'eng/release-packages.json') -Raw | ConvertFrom-Json)
 
 function Invoke-Dotnet([string[]] $Arguments, [string] $WorkingDirectory, [hashtable] $Environment) {
     $info = [Diagnostics.ProcessStartInfo]::new('dotnet')
@@ -81,11 +73,11 @@ if (!$SkipPack) {
     }
 }
 
-# Exactly seven candidate artifacts: no missing package, other version, or fixture extension.
+# Exactly nine candidate artifacts: no missing package, other version, or fixture extension.
 $expected = @($packages | ForEach-Object { "$($_.id).$version.nupkg" })
 $actual = @(Get-ChildItem -LiteralPath $feed -Filter '*.nupkg' | ForEach-Object Name)
 if ($actual.Count -ne $expected.Count -or @(Compare-Object $expected $actual).Count -ne 0) {
-    Fail "feed must contain exactly the seven candidate packages at $version; found: $($actual -join ', ')."
+    Fail "feed must contain exactly the nine candidate packages at $version; found: $($actual -join ', ')."
 }
 foreach ($package in $packages) {
     # Validate both newly packed and -SkipPack inputs before installation.
@@ -175,7 +167,7 @@ $report = [ordered]@{
     tool = Join-Path $toolPath $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     site = $site
     isolatedCaches = $work
-    validationScope = 'seven package contents; isolated tool/template install and docs build'
+    validationScope = 'nine package contents; isolated tool/template install and docs build'
 }
 [IO.File]::WriteAllText((Join-Path $Output 'package-distribution.json'), (($report | ConvertTo-Json -Depth 6)))
-Write-Host "Package distribution passed: 7 packages at $version validated; tool/template installed and docs built from the isolated feed."
+Write-Host "Package distribution passed: 9 packages at $version validated; tool/template installed and docs built from the isolated feed."

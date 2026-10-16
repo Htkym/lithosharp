@@ -19,7 +19,7 @@ const installed = args[0] === '--installed-vsix';
 const options = new Map();
 if (installed) {
   const names = ['--installed-vsix', '--sha256', '--artifact-manifest', '--rc-feed', '--package-report'];
-  assert.equal(args.length, names.length * 2, 'Installed mode requires the VSIX, producer SHA/manifest, and exact seven-package RC feed/report.');
+  assert.equal(args.length, names.length * 2, 'Installed mode requires the VSIX, producer SHA/manifest, and exact nine-package RC feed/report.');
   for (let i = 0; i < args.length; i += 2) {
     assert.ok(names.includes(args[i]), 'Unknown installed-mode option.');
     assert.ok(!options.has(args[i]) && args[i + 1], 'Missing or duplicate option.');
@@ -196,10 +196,11 @@ if (installed) {
   const report = JSON.parse(await fs.readFile(options.get('--package-report'), 'utf8'));
   packageVersion = report.version;
   assert.match(packageVersion, /^\d+\.\d+\.\d+-rc\.[0-9A-Za-z.-]+$/, 'Only the local validation RC feed is accepted.');
-  assert.equal(report.packageCount, 7);
+  const releasePackages = JSON.parse(await fs.readFile(path.join(root, '../../eng/release-packages.json'), 'utf8'));
+  assert.equal(report.packageCount, releasePackages.length);
   assert.equal(manifest.packageVersion, packageVersion);
   assert.deepEqual(report.packages, manifest.packages, 'Package receipt differs from immutable producer receipt.');
-  const ids = ['LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.ProjectTemplates'];
+  const ids = releasePackages.map(item => item.id);
   assert.deepEqual(report.packages.map(item => item.id).sort(), [...ids].sort());
   const names = report.packages.map(item => {
     assert.equal(item.version, packageVersion);
@@ -207,7 +208,7 @@ if (installed) {
     assert.match(item.sha256, /^[a-f0-9]{64}$/i);
     return item.file;
   });
-  assert.deepEqual((await fs.readdir(feed)).filter(name => name.endsWith('.nupkg')).sort(), [...names].sort(), 'Feed must contain exactly seven candidate nupkgs.');
+  assert.deepEqual((await fs.readdir(feed)).filter(name => name.endsWith('.nupkg')).sort(), [...names].sort(), 'Feed must contain exactly nine candidate nupkgs.');
   const packageHashes = {};
   let toolZip;
   for (const item of report.packages) {
