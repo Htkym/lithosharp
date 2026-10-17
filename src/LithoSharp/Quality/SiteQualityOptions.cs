@@ -35,7 +35,7 @@ public sealed record ExternalLinkCheckOptions
         RequestTimeout = requestTimeout ?? TimeSpan.FromSeconds(10);
         Internal.StaticApiGuards.ValidateExternalCacheDuration(CacheDuration.Ticks);
         Internal.StaticApiGuards.ValidateExternalTimerDuration(MinimumRequestInterval.Ticks, nameof(minimumRequestInterval), allowZero: true);
-        Internal.StaticApiGuards.ValidateExternalTimerDuration(RequestTimeout.Ticks, nameof(requestTimeout), allowZero: false);
+        Internal.StaticApiGuards.ValidateExternalRequestTimeout(RequestTimeout.Ticks);
     }
 
     public string CacheFilePath { get; }

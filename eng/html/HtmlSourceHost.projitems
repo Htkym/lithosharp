@@ -5,6 +5,7 @@
              Exclude="$(MSBuildThisFileDirectory)../../src/LithoSharp/HtmlParsing/HtmlFacts*.cs;$(MSBuildThisFileDirectory)../../src/LithoSharp/HtmlParsing/HtmlRawAttributeFacts.cs;$(MSBuildThisFileDirectory)../../src/LithoSharp/HtmlParsing/HtmlSourceMap.cs"
              Link="HtmlParsing/%(Filename)%(Extension)" />
     <Compile Include="$(MSBuildThisFileDirectory)IsExternalInit.cs" Link="HtmlParsing/IsExternalInit.cs" />
+    <None Include="$(MSBuildThisFileDirectory)../../licenses/WHATWG.HTML.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />
     <Using Include="System.Linq" />

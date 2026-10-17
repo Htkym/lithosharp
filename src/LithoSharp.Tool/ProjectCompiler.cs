@@ -30,8 +30,9 @@ internal static class ProjectCompiler
     {
         var workingDirectory = Directory.GetCurrentDirectory();
         var arguments = new List<string> { "build", project, "--nologo", "-c", configuration };
-        if (compilerErrorLog is not null) arguments.Add("-p:ErrorLog=" + compilerErrorLog.Replace("%", "%25").Replace(",", "%2C")
-            .Replace(";", "%3B").Replace("$", "%24") + "%2Cversion=2.1");
+        using var capture = compilerErrorLog is null ? null : await CompilerDiagnosticCapture.CreateAsync(
+            project, configuration, compilerErrorLog, workingDirectory, cancellationToken);
+        if (capture is not null) arguments.Add("-p:LithoSharpCompilerDiagnosticSession=" + capture.Session);
         var build = await RunDotNetAsync(arguments, cancellationToken, workingDirectory);
         if (build.ExitCode != 0)
         {
@@ -39,7 +40,8 @@ internal static class ProjectCompiler
             throw new ProjectCompilationException(
                 $"LSC7002: Project build failed with exit code {build.ExitCode}."
                 + (compilerErrorLog is null ? Environment.NewLine + build.StandardOutput + build.StandardError : ""),
-                CompilerDiagnosticReader.Read(compilerErrorLog, build.ExitCode, workingDirectory));
+                capture is null ? CompilerDiagnosticReader.Read(null, build.ExitCode, workingDirectory)
+                    : CompilerDiagnosticReader.ReadMany(capture.Reports(), build.ExitCode));
         }
         WriteProcessOutput(build, logToStandardError);
         var query = await RunDotNetAsync([

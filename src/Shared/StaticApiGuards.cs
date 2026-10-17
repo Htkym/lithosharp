@@ -24,6 +24,7 @@ internal static class StaticApiGuards
     }
 
     internal const long MaximumTimerTicks = 42949672940000L;
+    internal const long MaximumRequestTimeoutTicks = (long)int.MaxValue * TimeSpan.TicksPerMillisecond;
 
     internal static void ValidateExternalCacheFilePath(string cacheFilePath)
     {
@@ -41,5 +42,11 @@ internal static class StaticApiGuards
     {
         if ((!allowZero && ticks <= 0) || (allowZero && ticks < 0) || ticks > MaximumTimerTicks)
             throw new ArgumentOutOfRangeException(name);
+    }
+
+    internal static void ValidateExternalRequestTimeout(long ticks)
+    {
+        if (ticks <= 0 || ticks > MaximumRequestTimeoutTicks)
+            throw new ArgumentOutOfRangeException("requestTimeout");
     }
 }

@@ -161,6 +161,48 @@ public sealed class CompilerDiagnosticPreflightTests
         File.WriteAllText(Path.Combine(evidence,"result.json"),JsonSerializer.Serialize(new{status="PASS",consumerCompileInvocations=1,exitCode=process.ExitCode,factoryConstructed=false,factoryInvoked=false,oldOutputUnchanged=true,sameSnapshotFormats=true,sourcePath,sourceSha256=Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(sourcePath)))},Web));
     }
 
+    [Test]
+    public async Task ReferencedMultiTargetCompilersKeepSeparateSnapshotsAndUserHooks()
+    {
+        var root = Path.Combine(Required("COMPILER_DIAGNOSTIC_EVIDENCE"), "graph");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "Directory.Build.props"), """
+            <Project><PropertyGroup><CustomAfterMicrosoftCommonTargets>$(MSBuildThisFileDirectory)custom.targets</CustomAfterMicrosoftCommonTargets></PropertyGroup></Project>
+            """);
+        File.WriteAllText(Path.Combine(root, "custom.targets"), """
+            <Project><Target Name="ExistingUserHook" BeforeTargets="CoreCompile"><WriteLinesToFile File="$(MSBuildProjectDirectory)/custom-$(TargetFramework).txt" Lines="retained" Overwrite="true" /></Target></Project>
+            """);
+        foreach (var leaf in new[] { "LeafA", "LeafB" })
+        {
+            Directory.CreateDirectory(Path.Combine(root, leaf));
+            File.WriteAllText(Path.Combine(root, leaf, leaf + ".csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks></PropertyGroup></Project>
+                """);
+            File.WriteAllText(Path.Combine(root, leaf, "Input.cs"), "#error " + leaf);
+        }
+        var project = Path.Combine(root, "Root.csproj");
+        File.WriteAllText(project, """
+            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup><ProjectReference Include="LeafA/LeafA.csproj" /><ProjectReference Include="LeafB/LeafB.csproj" /></ItemGroup></Project>
+            """);
+        var build = (Task<string>)Tool.Value.GetType("LithoSharp.Tool.ProjectCompiler")!
+            .GetMethod("BuildAsync", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [project, "Release", CancellationToken.None, true, Path.Combine(root, "compiler.sarif")])!;
+        Exception? failure = null;
+        try { await build; } catch (Exception error) { failure = error; }
+        Check(failure?.GetType().Name == "ProjectCompilationException", "Build retains a compiler failure");
+        var diagnostics = (IReadOnlyList<SiteDiagnostic>)failure!.GetType()
+            .GetProperty("Diagnostics", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(failure)!;
+        foreach (var leaf in new[] { "LeafA", "LeafB" })
+        {
+            Check(diagnostics.Count(d => d.Id == "CS1029" && d.Location?.FilePath == Path.Combine(root, leaf, "Input.cs")) == 2,
+                "Both target frameworks retain the referenced compiler diagnostic: " + leaf);
+            foreach (var framework in new[] { "net10.0", "netstandard2.0" })
+                Check(File.ReadAllText(Path.Combine(root, leaf, "custom-" + framework + ".txt")).Trim() == "retained", "User hook remains active");
+        }
+        Check(!diagnostics.Any(d => d.Id == "LSC7002"), "Complete snapshots need no generic fallback");
+        Check(!Directory.EnumerateFiles(root, "*.lithosharp-*.targets", SearchOption.AllDirectories).Any(), "Owned compiler hooks are removed");
+    }
+
     private static IReadOnlyList<SiteDiagnostic> Read(string? path,string cwd)=>(IReadOnlyList<SiteDiagnostic>)Tool.Value.GetType("LithoSharp.Tool.CompilerDiagnosticReader")!.GetMethod("Read",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,[path,1,cwd])!;
     private static object Response(IReadOnlyList<SiteDiagnostic> diagnostics)
     {

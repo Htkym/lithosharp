@@ -104,25 +104,25 @@
   {
     "name": "timeout-before-max",
     "slot": 3,
-    "expression": "System.TimeSpan.FromTicks(42949672939999L)",
+    "expression": "System.TimeSpan.FromTicks(21474836469999L)",
     "factory": "ticks",
-    "value": "42949672939999",
+    "value": "21474836469999",
     "rejected": false
   },
   {
     "name": "timeout-at-max",
     "slot": 3,
-    "expression": "System.TimeSpan.FromTicks(42949672940000L)",
+    "expression": "System.TimeSpan.FromTicks(21474836470000L)",
     "factory": "ticks",
-    "value": "42949672940000",
+    "value": "21474836470000",
     "rejected": false
   },
   {
     "name": "timeout-over-max",
     "slot": 3,
-    "expression": "System.TimeSpan.FromTicks(42949672940001L)",
+    "expression": "System.TimeSpan.FromTicks(21474836470001L)",
     "factory": "ticks",
-    "value": "42949672940001",
+    "value": "21474836470001",
     "rejected": true
   },
   {
@@ -204,5 +204,13 @@
     "factory": "null",
     "value": "0",
     "rejected": false
+  },
+  {
+    "name": "timeout-over-http-limit-within-timer-limit",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(42949672940000L)",
+    "factory": "ticks",
+    "value": "42949672940000",
+    "rejected": true
   }
 ]

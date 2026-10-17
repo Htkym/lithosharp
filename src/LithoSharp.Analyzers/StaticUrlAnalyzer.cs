@@ -198,7 +198,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             new Sink(0, Option, v => v is null || v is string && Reject(() => StaticApiGuards.ValidateExternalCacheFilePath((string)v))),
             new Sink(1, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalCacheDuration(duration.Ticks))),
             new Sink(2, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalTimerDuration(duration.Ticks, "minimumRequestInterval", true))),
-            new Sink(3, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalTimerDuration(duration.Ticks, "requestTimeout", false))));
+            new Sink(3, Option, v => v is StaticDuration duration && Reject(() => StaticApiGuards.ValidateExternalRequestTimeout(duration.Ticks))));
         return result;
     }
 

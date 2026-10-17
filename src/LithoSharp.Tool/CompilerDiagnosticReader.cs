@@ -7,6 +7,17 @@ namespace LithoSharp.Tool;
 internal static class CompilerDiagnosticReader
 {
     internal static IReadOnlyList<SiteDiagnostic> Read(string? path, int exitCode, string compilerWorkingDirectory)
+        => ReadMany(path is null ? [] : [(path, compilerWorkingDirectory)], exitCode);
+
+    internal static IReadOnlyList<SiteDiagnostic> ReadMany(IEnumerable<(string Path, string WorkingDirectory)> reports, int exitCode)
+    {
+        var diagnostics = reports.SelectMany(report => ReadFile(report.Path, report.WorkingDirectory)).ToList();
+        if (!diagnostics.Any(d => d.Severity == SiteDiagnosticSeverity.Error))
+            diagnostics.Add(new("LSC7002", SiteDiagnosticSeverity.Error, $"Project compilation failed with exit code {exitCode}; no complete compiler Error snapshot is available."));
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<SiteDiagnostic> ReadFile(string path, string compilerWorkingDirectory)
     {
         var diagnostics = new List<SiteDiagnostic>();
         if (path is not null && File.Exists(path))
@@ -35,8 +46,6 @@ internal static class CompilerDiagnosticReader
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
-        if (!diagnostics.Any(d => d.Severity == SiteDiagnosticSeverity.Error))
-            diagnostics.Add(new("LSC7002", SiteDiagnosticSeverity.Error, $"Project compilation failed with exit code {exitCode}; no complete compiler Error snapshot is available."));
         return diagnostics;
     }
 

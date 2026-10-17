@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net.Http;
 using LithoSharp.Quality;
 
 namespace LithoSharp.Tests;
@@ -35,6 +36,10 @@ public sealed class ExternalLinkOptionsTests
             await Assert.That(failure is not null).IsEqualTo(row.GetProperty("rejected").GetBoolean());
             var parameter = new[] { "cacheFilePath", "cacheDuration", "minimumRequestInterval", "requestTimeout" }[slot];
             if (failure is not null) await Assert.That(failure.ParamName).IsEqualTo(parameter);
+            if (options is not null)
+            {
+                using var client = new HttpClient { Timeout = options.RequestTimeout };
+            }
             if (options is not null && duration is null)
             {
                 await Assert.That(options.CacheDuration.Ticks).IsEqualTo(TimeSpan.FromHours(24).Ticks);
