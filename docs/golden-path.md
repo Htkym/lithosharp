@@ -4,13 +4,13 @@
 
 Five supported routes from install to serving. Each step states where
 dependencies are restored and where builds run; nothing hidden happens.
-Versions below follow [1.1 features](history/release-1.1.md) and use NuGet 1.1.0.
+The commands below use NuGet 2.0.0. For existing sites, follow the [2.0 upgrade guide](migration-2.0.md).
 
 ## 1. Markdown-only site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.0
+dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -57,7 +57,7 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 code --install-extension htkym.lithosharp
 ```
 
-Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 1.1.0 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
+Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 2.0.0 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
 
 ## 5. Multi-root workspace
 
