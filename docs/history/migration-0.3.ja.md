@@ -10,7 +10,7 @@ releaseでは公開APIが変わる可能性があります。公開済みの0.2.
 パッチ版0.3.1ではDocs・Blogの標準テーマが変わるため、再生成後に独自CSSの表示を確認してください。
 テーマ切り替えは既定で有効です。ライト固定にする場合は `SiteCustomization` に
 `Theme = new SiteThemeOptions { EnableThemeSwitching = false }` を設定します。
-ダーク固定とブラウザー要件は[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
+ダーク固定とブラウザー要件は[テーマの設定](../layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
 URLと既存の公開署名は維持します。
 
 更新前:
@@ -69,8 +69,8 @@ Unicodeを含む階層route、追加ページ、CSS、JavaScript、search、RSS�
 安全性検証の強化により、以前は通った危険な入力が拒否される場合があります。検証した`ftp:`の
 base URLは0.2.0で通り、0.3.0で拒否されました。routeは出力配下に
 収め、予約名、曖昧なencoding、大文字小文字だけの衝突、fileとdirectoryの衝突を避けます。
-入力、公開asset、cacheを出力と重ねることもできません。[route契約](compatibility-contract.ja.md)と
-[assetの規則](assets-and-images.ja.md)に従って入力を修正してください。こうした入力に依存している
+入力、公開asset、cacheを出力と重ねることもできません。[route契約](../compatibility-contract.ja.md)と
+[assetの規則](../assets-and-images.ja.md)に従って入力を修正してください。こうした入力に依存している
 場合は、挙動上のbreaking changeとして扱います。大文字小文字だけの出力衝突は旧版も拒否していましたが、
 例外は構造化された`SiteRouteValidationException`になります。`InvalidOperationException`の派生型です。
 例外の厳密な型や旧messageを比較しているコードは見直してください。
@@ -84,9 +84,9 @@ base URLは0.2.0で通り、0.3.0で拒否されました。routeは出力配下
 初回の比較には新しい出力先を使ってください。`clean: false`では、無関係なファイルやownershipが
 確認できない旧出力を保持します。更新だけで0.2.0の古い成果物がすべて消えるとは限りません。
 通常の増分生成では、ownership sidecarを対応するローカル出力と一緒に保持します。
-cacheは再生成でき、ownershipの証拠には使いません。詳細は[増分ビルド](incremental-builds.ja.md)を参照してください。
+cacheは再生成でき、ownershipの証拠には使いません。詳細は[増分ビルド](../incremental-builds.ja.md)を参照してください。
 
-既存themeのCSSとsemantic landmarkには[layout契約](layout-css-contract.md)が適用されます。
+既存themeのCSSとsemantic landmarkには[layout契約](../layout-css-contract.md)が適用されます。
 独自selectorとsnapshotは、HTMLのバイト一致ではなく意味を比較してください。search、versioned
 Docs、locale variantは明示設定です。既存サイトの更新だけで有効化されたり、`.html` URLが変わったりはしません。
 
@@ -96,11 +96,11 @@ package IDであり、0.2.0のCore consumerに追加必須ではありません�
 生成コードは`AdditionalFiles`から再生成します。generatorには`PrivateAssets="all"`を指定し、
 build診断を確認してください。
 
-CLIとtemplateは任意の新しい入口です。[Quick Start](quickstart.ja.md)を参照してください。
+CLIとtemplateは任意の新しい入口です。[Quick Start](../quickstart.ja.md)を参照してください。
 既存のconsole applicationも使えます。MDXに限りNode.js 24.13.0を用意し、
 `lithosharp restore-mdx`で同梱workerを明示的にrestoreします。lockfileはMDX 3.1.1、
 React 19.2.4、esbuild 0.25.12を固定しています。通常のサイト生成ではnpm packageをinstallしません。
-MDXは信頼するコードとして実行します。有効化の前に[既知の制約](known-limitations.ja.md)を確認してください。
+MDXは信頼するコードとして実行します。有効化の前に[既知の制約](../known-limitations.ja.md)を確認してください。
 
 ## 元に戻す場合
 

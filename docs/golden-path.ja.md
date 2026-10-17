@@ -3,7 +3,7 @@
 [English](golden-path.md)
 
 導入からserveまでの対応経路は5つである。各手順で依存restoreとbuildの実行
-境界を明示する。バージョンは[1.1の機能](release-1.1.ja.md)に従い、NuGet 1.1.0を使う。
+境界を明示する。バージョンは[1.1の機能](history/release-1.1.ja.md)に従い、NuGet 1.1.0を使う。
 
 ## 1. Markdown-onlyのsite
 

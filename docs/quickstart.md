@@ -2,16 +2,16 @@
 
 [日本語](quickstart.ja.md)
 
-Use the .NET 10 SDK (verified with 10.0.300). MDX additionally uses Node.js
+Use the .NET 10 SDK (minimum supported version: 10.0.300). MDX additionally uses Node.js
 24.13.0; Markdown-only sites do not use Node. The SDK supplies the ASP.NET Core
 shared framework used by `serve`. Work in a new directory. Commands below target
-the released NuGet version 1.1.0.
+the released NuGet version 2.0.0.
 
 ## Install and create Markdown Docs
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.0
+dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -120,5 +120,5 @@ older browser sessions when updating an existing deployment.
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template
-products. See [migration](migration-0.3.md), [testing](testing.md),
+products. See [upgrading to 2.0.0](migration-2.0.md), [testing](testing.md),
 [performance](performance.md) and [Known limitations](known-limitations.md).

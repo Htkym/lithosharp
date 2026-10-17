@@ -4,7 +4,7 @@
 
 Five supported routes from install to serving. Each step states where
 dependencies are restored and where builds run; nothing hidden happens.
-Versions below follow [1.1 features](release-1.1.md) and use NuGet 1.1.0.
+Versions below follow [1.1 features](history/release-1.1.md) and use NuGet 1.1.0.
 
 ## 1. Markdown-only site
 

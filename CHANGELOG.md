@@ -23,7 +23,7 @@
   Prettier/Jest/Docusaurus corpus reproduces conversion end to end.
 - No incompatible public signatures. Markdown compatibility stays limited to the
   [documented subset](docs/known-limitations.md#markdown-compatibility).
-  See the [1.1 features and upgrade notes](docs/release-1.1.md).
+  See the [1.1 features and upgrade notes](docs/history/release-1.1.md).
 
 ## 1.0.0
 
@@ -104,7 +104,7 @@ the actual NuGet 0.2.0. The isolated legacy consumer passed source and binary
 upgrade checks for Docs, Blog and custom templates. Behavioral changes affect
 previously ignored publication keys, unsafe base URLs and exact diagnostic text;
 serialized output bytes also change. Follow the
-[0.2.0 migration guide](docs/migration-0.3.md), including rollback instructions.
+[0.2.0 migration guide](docs/history/migration-0.3.md), including rollback instructions.
 
 0.3.0 targets .NET 10. MDX alone requires Node.js 24.13.0 and explicit restore;
 its lockfile pins MDX 3.1.1, React 19.2.4 and esbuild 0.25.12. Future 0.x minor

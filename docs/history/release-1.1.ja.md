@@ -2,7 +2,7 @@
 
 [English](release-1.1.md)
 
-Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はMarketplaceで配布している。小さな編集でも出力全体のコピーが発生する点は、[性能上の制約](performance.ja.md#110の性能上の制約)として残る。
+Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はMarketplaceで配布している。小さな編集でも出力全体のコピーが発生する点は、[性能上の制約](../performance.ja.md#110の性能上の制約)として残る。
 
 ## 機能表
 
@@ -27,11 +27,11 @@ Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudi
 
 1. 7つのCoreパッケージとツールを同時に更新する。1.0と1.1は混在させない。同じ1.1.0版を使う。
 2. siteを再buildし、content警告・link・custom CSSを見直す。
-3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](known-limitations.ja.md#markdown-の互換性)参照）。
+3. Markdown compilerは1.0から不変である。footnote、definition list等のMarkdig拡張は非対応のままである（[既知の制限](../known-limitations.ja.md#markdown-の互換性)参照）。
 4. `markdown-compat --advisory on`と`--project`はEditor検査と同一解析であり、既定出力を変えない。
 
 SkiaSharpを4.153.1へ更新した。この版ではRAWとDNGを読み込めない。画像変換の入力や
-サイトのアイコンに使う前にPNGかJPEGへ変換する。詳しくは[資産と画像](assets-and-images.ja.md)を参照。
+サイトのアイコンに使う前にPNGかJPEGへ変換する。詳しくは[資産と画像](../assets-and-images.ja.md)を参照。
 YamlDotNet 18.1.0では、デシリアライザーの既定の再帰上限が130になった。
 `MarkdownFrontMatterYaml.Deserialize<T>`にも適用されるため、深い入力は上限を外さず構造を浅くする。
 型付きコンテンツのローダーは独自の厳格パーサーを使い、静的コンテンツ生成器の既存のネスト上限64は維持する。
@@ -48,14 +48,14 @@ hookが単にrootをdetachする場合まで、この受入差に含めるもの
 通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入らない。
 DOMの完全一致を主張するものではない。
 
-更新時の範囲は[既知の制約](known-limitations.ja.md)も参照。
+更新時の範囲は[既知の制約](../known-limitations.ja.md)も参照。
 
 ## APIとschemaの方針
 
 公開シグネチャは維持し、新規APIは1.x内で追加する。構造化CLI/serve出力は
 schema `"1.0"`を維持し、未知JSON fieldは無視する。それ以外は2.0待ちである。
-[互換性契約](compatibility-contract.ja.md)と
-[CLI互換性](cli.ja.md#構造化出力と-1x-の互換性)参照。
+[互換性契約](../compatibility-contract.ja.md)と
+[CLI互換性](../cli.ja.md#構造化出力と-1x-の互換性)参照。
 
 ## 必要条件とversion組合せ
 
