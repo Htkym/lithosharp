@@ -72,7 +72,30 @@ function Test-ExtensionTag {
     if ($extension -notmatch 'uses: \./\.github/workflows/installed-extension.yml' -or $extension -notmatch 'needs: \[preflight, validate\]') {
         Fail 'publication must depend on three-OS installed acceptance.'
     }
-    if ($extension -notmatch 'VSCE_PAT' -or $extension -notmatch "needs.preflight.outputs.publish == 'true'") { Fail 'publish request or credential gate missing.' }
+    if ($extension -notmatch "needs.preflight.outputs.publish == 'true'") { Fail 'publish request gate missing.' }
+    $publishJob = [regex]::Match($extension, '(?ms)^  publish:\r?\n.*\z').Value
+    if ([regex]::Matches($extension, 'id-token:').Count -ne 1 -or
+        $publishJob -notmatch '    permissions:\r?\n      contents: read\r?\n      actions: read\r?\n      id-token: write\r?\n') {
+        Fail 'Only the publish job may request an OIDC token, with contents read.'
+    }
+    if ($publishJob -notmatch 'uses: azure/login@[0-9a-f]{40}(?:\s|$)' -or
+        $publishJob -notmatch 'allow-no-subscriptions: true' -or
+        $publishJob -notmatch 'Check Marketplace federation configuration' -or
+        $publishJob -notmatch '\[guid\]::TryParse') {
+        Fail 'Marketplace publication requires pinned Azure login and fail-closed federation configuration.'
+    }
+    foreach ($name in @('CLIENT', 'TENANT')) {
+        $secret = '${{ secrets.MARKETPLACE_AZURE_' + $name + '_ID }}'
+        $inputName = $name.ToLowerInvariant() + '-id'
+        if (!$publishJob.Contains("AZURE_$($name)_ID: $secret") -or !$publishJob.Contains("${inputName}: $secret")) {
+            Fail 'Marketplace Azure client and tenant IDs must use the configured environment secrets.'
+        }
+    }
+    if ($publishJob -notmatch 'publish --packagePath \$env:VSIX_PATH --azure-credential' -or
+        $publishJob -notmatch "VSCE_PAT: ''" -or
+        $extension -match 'secrets\.VSCE_PAT|--pat\b|--oidc\b|client-secret:|\bcreds:') {
+        Fail 'Marketplace publication must use Azure credentials without PAT or client-secret fallback.'
+    }
     if ($extension -notmatch 'Test-ExtensionPublish.ps1 -Check Artifact' -or $extension -notmatch 'publish --packagePath') {
         Fail 'publication must verify and submit the certified artifact.'
     }

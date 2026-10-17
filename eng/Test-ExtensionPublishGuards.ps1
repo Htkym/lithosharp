@@ -71,4 +71,48 @@ Reject { Check-Artifact $hash } 'packaged extension identity'
 $hash = New-Artifact -XmlPublisher 'other'
 Reject { Check-Artifact $hash } 'VSIX Marketplace identity'
 Reject { & "$PSScriptRoot/Test-ReleasePipeline.ps1" -Check ExtensionTag -Tag 'extension/lithosharp-vscode/9.9.9' } 'does not match package version'
+
+$workflow = Get-Content -LiteralPath (Join-Path $repo '.github/workflows/publish-extension.yml') -Raw
+$pipelineFixture = Join-Path $fixture 'pipeline'
+foreach ($relative in @('eng/Test-ReleasePipeline.ps1', 'eng/Test-VsixContents.ps1', 'extensions/lithosharp-vscode/package.json')) {
+    $target = Join-Path $pipelineFixture $relative
+    $null = New-Item -ItemType Directory -Path (Split-Path $target) -Force
+    Copy-Item -LiteralPath (Join-Path $repo $relative) -Destination $target
+}
+$fixtureWorkflow = Join-Path $pipelineFixture '.github/workflows/publish-extension.yml'
+$null = New-Item -ItemType Directory -Path (Split-Path $fixtureWorkflow) -Force
+function Check-Workflow([string] $Text) {
+    $Text | Set-Content -LiteralPath $fixtureWorkflow -Encoding utf8
+    & (Join-Path $pipelineFixture 'eng/Test-ReleasePipeline.ps1') -Check ExtensionTag
+}
+Check-Workflow $workflow
+$passed++
+Reject { Check-Workflow ($workflow.Replace('--azure-credential', '')) } 'without PAT or client-secret fallback'
+Reject { Check-Workflow ($workflow.Replace("VSCE_PAT: ''", 'VSCE_PAT: ${{ secrets.VSCE_PAT }}')) } 'without PAT or client-secret fallback'
+Reject { Check-Workflow ($workflow -replace 'azure/login@[0-9a-f]{40}', 'azure/login@v3') } 'pinned Azure login'
+Reject { Check-Workflow ($workflow.Replace('allow-no-subscriptions: true', 'allow-no-subscriptions: false')) } 'pinned Azure login'
+Reject { Check-Workflow ($workflow.Replace('secrets.MARKETPLACE_AZURE_TENANT_ID', 'secrets.OTHER_TENANT_ID')) } 'configured environment secrets'
+Reject { Check-Workflow ($workflow.Replace('  actions: read', "  actions: read`n  id-token: write")) } 'Only the publish job'
+
+$configuration = [regex]::Match($workflow, '(?ms)^      - name: Check Marketplace federation configuration\r?\n        shell: pwsh\r?\n        run: \|\r?\n(.*?)(?=^      - )')
+if (!$configuration.Success) { throw 'Marketplace federation configuration step not found.' }
+$checkConfiguration = [scriptblock]::Create(($configuration.Groups[1].Value -replace '(?m)^          ', ''))
+$savedClient = $env:AZURE_CLIENT_ID
+$savedTenant = $env:AZURE_TENANT_ID
+try {
+    $env:AZURE_CLIENT_ID = '11111111-1111-1111-1111-111111111111'
+    $env:AZURE_TENANT_ID = '22222222-2222-2222-2222-222222222222'
+    & $checkConfiguration
+    $passed++
+    $env:AZURE_CLIENT_ID = ''
+    Reject { & $checkConfiguration } 'AZURE_CLIENT_ID must be configured'
+    $env:AZURE_CLIENT_ID = '11111111-1111-1111-1111-111111111111'
+    $env:AZURE_TENANT_ID = 'invalid'
+    Reject { & $checkConfiguration } 'AZURE_TENANT_ID must be configured'
+    $env:AZURE_TENANT_ID = [guid]::Empty.ToString()
+    Reject { & $checkConfiguration } 'AZURE_TENANT_ID must be configured'
+} finally {
+    $env:AZURE_CLIENT_ID = $savedClient
+    $env:AZURE_TENANT_ID = $savedTenant
+}
 Write-Host "Extension publication guards passed: $passed checks; benign fixtures retained at $fixture. No network or publication."

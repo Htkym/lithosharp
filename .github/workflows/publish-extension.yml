@@ -66,6 +66,14 @@ jobs:
     if: needs.preflight.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     environment: marketplace
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.MARKETPLACE_AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.MARKETPLACE_AZURE_TENANT_ID }}
+      AZURE_CORE_OUTPUT: none
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,16 +100,31 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24.13.0
+      - name: Check Marketplace federation configuration
+        shell: pwsh
+        run: |
+          foreach ($name in @('AZURE_CLIENT_ID', 'AZURE_TENANT_ID')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            $id = [guid]::Empty
+            if (![guid]::TryParse($value, [ref]$id) -or $id -eq [guid]::Empty) {
+              throw "$name must be configured with a valid Marketplace federation ID; no publication attempted."
+            }
+          }
+      - name: Sign in with GitHub OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
+        with:
+          client-id: ${{ secrets.MARKETPLACE_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.MARKETPLACE_AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
       - name: Publish the certified VSIX
         shell: pwsh
         env:
           VSIX_PATH: ${{ steps.artifact.outputs.vsix }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSCE_PAT: ''
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) { throw 'VSCE_PAT is not configured; no publication attempted.' }
           npm ci --prefix eng/vsix-packager --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node -e "if(require('./eng/vsix-packager/node_modules/@vscode/vsce/package.json').version !== '4.0.0') throw Error('Expected VSCE 4.0.0');"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath $env:VSIX_PATH
+          node eng/vsix-packager/node_modules/@vscode/vsce/vsce publish --packagePath $env:VSIX_PATH --azure-credential
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
