@@ -1,20 +1,25 @@
 name: publish-extension
 
-# An extension tag requests publication of the exact VSIX certified below.
+# Publication is dispatched from main with its existing matching extension tag.
 # Credentials and required marketplace reviewers must already be configured.
-# Branch dispatches default to validation only and cannot publish.
+# Dispatches default to validation only.
 on:
-  push:
-    tags:
-      - 'extension/lithosharp-vscode/*'
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Existing extension tag at current main; required for publication
+        required: false
+        type: string
       publish:
-        description: 'Publish from the matching extension tag after marketplace approval; false validates only.'
+        description: 'Publish from main with the matching extension tag after marketplace approval; false validates only.'
         required: false
         default: 'false'
         type: choice
         options: ['false', 'true']
+
+env:
+  RELEASE_TAG: ${{ inputs.release_tag }}
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 permissions:
   contents: read
@@ -40,13 +45,11 @@ jobs:
           INPUT_PUBLISH: ${{ inputs.publish }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $null }
+          $tag = $env:RELEASE_TAG
           ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $tag
-          $publish = $env:GITHUB_EVENT_NAME -eq 'push' -or $env:INPUT_PUBLISH -eq 'true'
+          $publish = $env:INPUT_PUBLISH -eq 'true'
           if ($publish) {
-            if (!$tag) { throw 'Marketplace publication requires an extension tag, not a branch dispatch.' }
-            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
-            if ($LASTEXITCODE -ne 0) { throw 'The tagged commit must already be on main.' }
+            ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $tag -RequireTag
             # An environment name alone would auto-create an unprotected environment.
             $policy = gh api "repos/$env:GITHUB_REPOSITORY/environments/marketplace"
             if ($LASTEXITCODE -ne 0) { throw 'Configure the marketplace environment with required reviewers before releasing.' }
@@ -66,6 +69,13 @@ jobs:
     environment: marketplace
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify current main, release tag, and normal CI
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:RELEASE_TAG -RequireTag
       - uses: actions/download-artifact@v8
         with:
           name: installed-extension-candidate-${{ github.sha }}
@@ -77,7 +87,7 @@ jobs:
         env:
           EXPECTED_VSIX_SHA256: ${{ needs.validate.outputs.vsix-sha256 }}
         run: |
-          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:GITHUB_REF_NAME
+          ./eng/Test-ReleasePipeline.ps1 -Check ExtensionTag -Tag $env:RELEASE_TAG
           $vsix = ./eng/Test-ExtensionPublish.ps1 -Check Artifact -Bundle artifacts/installed-bundle -ExpectedSHA256 $env:EXPECTED_VSIX_SHA256 -SourceCommit $env:GITHUB_SHA
           "vsix=$vsix" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-node@v7
