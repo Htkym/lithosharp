@@ -48,7 +48,7 @@ function checkLicenses(z,metadata){
 }
 function verifyFixedPackage(packagePath){
   const m=json(path.join(root,'eng/markdown/component-pair.json'));
-  assert(/^2\.0\.0-preview\.[1-9][0-9]*$/.test(m.componentVersion)&&/^[0-9a-f]{40}$/.test(m.sourceCommit),'Invalid fixed pair identity');
+  assert(/^(?:1\.0\.0|2\.0\.0-preview\.[1-9][0-9]*)$/.test(m.componentVersion)&&/^[0-9a-f]{40}$/.test(m.sourceCommit),'Invalid fixed pair identity');
   assert(m.parserVersion==='1/'+m.canonicalSourceHash,'Canonical parser identity mismatch');
   const kind=Object.keys(m.artifacts).find(k=>path.basename(packagePath)===m.artifacts[k].fileName);
   assert(kind,'Unexpected fixed component package');const a=m.artifacts[kind],bytes=fs.readFileSync(packagePath);
