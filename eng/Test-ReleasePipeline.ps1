@@ -25,10 +25,19 @@ function Test-StableComponentPair([string] $Version) {
     }
 }
 
+function Test-MainDispatch([string] $Workflow, [string] $Name) {
+    if ($Workflow -notmatch '(?m)^\s+workflow_dispatch:' -or $Workflow -notmatch '(?m)^\s+release_tag:') {
+        Fail "$Name requires a manual dispatch with an existing release tag."
+    }
+    if ($Workflow -match '(?m)^\s+tags:') { Fail "$Name must not publish from a tag push." }
+    if ($Workflow -notmatch 'Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag .* -RequireTag') {
+        Fail "$Name requires the exact current main/tag SHA and successful normal main CI."
+    }
+}
+
 function Test-CoreTag {
     $nuget = Get-Workflow 'publish-nuget.yml'
-    # Check the actual workflow trigger; fixed tag prefixes need no glob self-test.
-    if ($nuget -notmatch "(?m)^\s*-\s*'v\*'") { Fail 'publish-nuget.yml lost its v* tag trigger.' }
+    Test-MainDispatch $nuget 'publish-nuget.yml'
     $projects = @((Get-Content -LiteralPath (Join-Path $repo 'eng/release-packages.json') -Raw | ConvertFrom-Json).project)
     $versions = @{}
     foreach ($project in $projects) {
@@ -51,17 +60,16 @@ function Test-CoreTag {
     if ($nuget -notmatch 'does not match tag version') {
         Fail 'publish-nuget.yml lost its wrong-tag version guard.'
     }
-    Write-Host "Core tag series: v* triggers NuGet publish, 9 packages align at $($distinct[0])."
+    Write-Host "Core release: dispatch from main with v$($distinct[0]); 9 packages align."
 }
 
 function Test-ExtensionTag {
     $extension = Get-Workflow 'publish-extension.yml'
-    if ($extension -notmatch 'extension/lithosharp-vscode/\*') { Fail 'publish-extension.yml lost its extension tag filter.' }
+    Test-MainDispatch $extension 'publish-extension.yml'
     if ($extension -notmatch 'workflow_dispatch' -or $extension -notmatch "default: 'false'") { Fail 'manual dispatch must default to validation only.' }
     if ($extension -notmatch 'environment:\s*marketplace' -or $extension -notmatch 'Test-ExtensionPublish.ps1 -Check Environment') {
         Fail 'publish-extension.yml lost its configured required-reviewer gate.'
     }
-    if ($extension -notmatch 'merge-base --is-ancestor') { Fail 'publication requires the tagged commit on main.' }
     if ($extension -notmatch 'uses: \./\.github/workflows/installed-extension.yml' -or $extension -notmatch 'needs: \[preflight, validate\]') {
         Fail 'publication must depend on three-OS installed acceptance.'
     }
@@ -81,7 +89,7 @@ function Test-ExtensionTag {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw
         if ($text -match 'vsce publish|nuget push') { Fail "$script mixes packaging with publishing." }
     }
-    Write-Host "Extension tag series: $expectedTag requests certified-artifact publication from main after marketplace approval; dispatch defaults to validation only."
+    Write-Host "Extension release: dispatch from main with $expectedTag after marketplace approval; validation is the default."
 }
 
 if ($Check -in @('All', 'CoreTag')) { Test-CoreTag }
