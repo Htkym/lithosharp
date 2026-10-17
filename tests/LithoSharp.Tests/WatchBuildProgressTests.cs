@@ -49,16 +49,20 @@ public sealed class WatchBuildProgressTests
         {
             if (error is not null) Interlocked.Increment(ref errors);
             entered.TrySetResult();
-            if (!release.Wait(Timeout)) throw new TimeoutException();
+            release.Wait();
         }, () => { }))
         {
-            queue.Enqueue(root, WatcherChangeTypes.Changed);
-            await entered.Task.WaitAsync(Timeout);
-            for (var i = 0; i < WatchEventQueue.Capacity; i++) queue.Enqueue(root, WatcherChangeTypes.Changed);
-            queue.Enqueue(root, WatcherChangeTypes.All, error: new InternalBufferOverflowException("owned native loss"));
-            var fence = queue.FlushAsync(default);
-            await Assert.That(fence.IsCompleted).IsFalse();
-            release.Set();
+            Task fence;
+            try
+            {
+                queue.Enqueue(root, WatcherChangeTypes.Changed);
+                await entered.Task.WaitAsync(Timeout);
+                for (var i = 0; i < WatchEventQueue.Capacity; i++) queue.Enqueue(root, WatcherChangeTypes.Changed);
+                queue.Enqueue(root, WatcherChangeTypes.All, error: new InternalBufferOverflowException("owned native loss"));
+                fence = queue.FlushAsync(default);
+                await Assert.That(fence.IsCompleted).IsFalse();
+            }
+            finally { release.Set(); }
             await fence.WaitAsync(Timeout);
             await Assert.That(errors).IsEqualTo(2); // Native error and admitted-queue loss precede the fence.
         }
