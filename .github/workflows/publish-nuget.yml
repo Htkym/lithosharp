@@ -1,15 +1,11 @@
 name: publish-nuget
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Existing release tag pointing to the current reviewed main commit
-        required: true
-        type: string
+  push:
+    tags:
+      - 'v*'
 
 env:
-  RELEASE_TAG: ${{ inputs.release_tag }}
   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 permissions:
@@ -26,11 +22,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Verify current main, release tag, and normal CI
+      - name: Verify release tag equals current reviewed main
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:RELEASE_TAG -RequireTag
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -59,8 +55,8 @@ jobs:
       - name: Pack and validate all release packages
         shell: pwsh
         run: |
-          $version = $env:RELEASE_TAG -replace '^v', ''
-          ./eng/Test-ReleasePipeline.ps1 -Check CoreTag -Tag $env:RELEASE_TAG
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./eng/Test-ReleasePipeline.ps1 -Check CoreTag -Tag $env:GITHUB_REF_NAME
           foreach ($package in (Get-Content eng/release-packages.json -Raw | ConvertFrom-Json)) {
             $id = $package.id
             $project = $package.project
@@ -75,7 +71,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:RELEASE_TAG -RequireTag
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
 
       - name: NuGet login (OIDC)
         id: login
