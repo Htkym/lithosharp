@@ -46,7 +46,9 @@ function Get-WatchImportedWindow($Barrier, [object[]] $Terminals, [long] $Observ
         if ($null -eq $workers -or $null -eq $rendered -or $null -eq $compiled -or $hit -isnot [bool]) { return $result }
         if ($watch.restartReasons -eq 144) {
             # WatcherError|Other requires conservative host replacement, not ordinary component reuse.
-            if ($watch.hostId -ceq $hostId -or $workers -ne 1 -or $rendered -lt 1 -or $hit) { return $result }
+            $coldRecovery = !$hit -and $workers -eq 1 -and $rendered -ge 1
+            $cachedRecovery = $hit -and $workers -eq 0 -and $rendered -eq 0 -and $compiled -eq 0
+            if ($watch.hostId -ceq $hostId -or !($coldRecovery -or $cachedRecovery)) { return $result }
             $recovery = $true
         } elseif ($watch.restartReasons -ne 0 -or $watch.hostId -cne $hostId -or $workers -ne 0) {
             $result.reason = 'UNEXPLAINED_RESTART'; return $result

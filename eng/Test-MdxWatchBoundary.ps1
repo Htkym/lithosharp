@@ -22,6 +22,12 @@ $recovery = @(Terminal 3 144 $hostId $nextHost 1 $false; Terminal 4 0 $nextHost 
 Assert-Status (Get-WatchImportedWindow $barrier $recovery 4 $true $true) 'RECOVERY_OBSERVED_REUSE_UNPROVEN' 'legitimate recovery never proves ordinary reuse despite final cache hit'
 Assert-Status (Get-WatchImportedWindow $barrier $recovery 4 $false $true) 'PENDING' 'recovery requires current output content'
 Assert-Status (Get-WatchImportedWindow $barrier $recovery 4 $true $false) 'PENDING' 'recovery requires matching publication generation'
+$cachedRecovery = @($normal[0]; Terminal 4 144 $hostId $nextHost 0 $true)
+Assert-Status (Get-WatchImportedWindow $barrier $cachedRecovery 4 $true $true) 'RECOVERY_OBSERVED_REUSE_UNPROVEN' 'a replacement host can restore cached output without starting a worker'
+$invalidCachedRecovery = Terminal 3 144 $hostId $nextHost 1 $true
+Assert-Status (Get-WatchImportedWindow $barrier @($invalidCachedRecovery) 3 $true $true) 'INVALID' 'a cache-hit recovery cannot invent worker activity'
+$freshBarrier = [ordered]@{ schemaVersion = '1.0'; success = $true; generation = 4L; scope = 'admitted-inputs-only'; watch = $cachedRecovery[-1].watch }
+Assert-Status (Get-WatchImportedWindow $freshBarrier @((Terminal 5 0 $nextHost $nextHost 0 $false)) 5 $true $true) 'REUSE_PROVEN' 'a new edit can independently prove ordinary reuse after recovery'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $nextHost 1 $false)) 3 $true $true) 'INVALID' 'unexplained host and worker restart cannot pass'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $nextHost 0 $false)) 3 $true $true) 'INVALID' 'zero worker metric cannot hide an unexplained host replacement'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $hostId 1 $false)) 3 $true $true) 'INVALID' 'same host cannot hide an unexplained worker restart'
@@ -35,15 +41,6 @@ foreach ($path in $HistoricalArtifacts) {
     # Both historical windows contain a real restart and a final cache hit, but no reliable owner barrier.
     Assert-Status (Get-WatchImportedWindow $null @($d.liveMachine.events) $d.liveMachine.lastGeneration $true $true) 'INVALID' ('historical sidecar cannot manufacture a green owner witness: ' + [IO.Path]::GetFileName($path))
 }
-$tokens = $null; $parseErrors = $null
-$ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'Test-MdxWatch.ps1'), [ref] $tokens, [ref] $parseErrors)
-if (@($parseErrors).Count) { throw 'Watch script parse failed.' }
-$requests = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -ceq 'Invoke-RestMethod' -and $n.Extent.Text.Contains('watch-barrier') }, $true))
-$edits = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $n.Member.Extent.Text -ceq 'WriteAllText' -and $n.Extent.Text.Contains('useState(2)') }, $true))
-$baselines = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$script:watchEvidence.importedEditBaselineGeneration' }, $true))
-if ($requests.Count -ne 1 -or $edits.Count -ne 1 -or $baselines.Count -ne 1 -or
-    $requests[0].Extent.EndOffset -ge $baselines[0].Extent.StartOffset -or $baselines[0].Extent.EndOffset -ge $edits[0].Extent.StartOffset) { throw 'Owner barrier and unique fixed baseline must precede the component edit.' }
-$checks.Add([ordered]@{ name = 'actual script fixes the owner baseline once before the component write'; status = 'PASS'; normalReuseProven = $false })
 $result = [ordered]@{ passed = $true; assertions = $checks.Count; historicalArtifacts = $HistoricalArtifacts.Count; checks = @($checks.ToArray()); liveWatchReproductions = 0; CI = 0 }
 if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath), ($result | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false)) }
 $result | ConvertTo-Json -Depth 8

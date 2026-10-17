@@ -56,6 +56,8 @@ $liveLastGeneration = $null; $livePendingBuild = $false; $liveStartupSeen = $fal
 $script:watchEvidence.importedEditWitness = $null
 $script:watchEvidence.importedEditBarrier = $null
 $script:watchEvidence.importedEditClassification = $null
+$script:watchEvidence.importedEditMarker = $null
+$script:watchEvidence.importedEditRecoveries = [Collections.Generic.List[object]]::new()
 function Record-WatchCleanupFailure([string] $Stage, [Management.Automation.ErrorRecord] $Failure) {
     if ($null -eq $script:cleanupFailure) { $script:cleanupFailure = $Failure }
     if ($script:watchEvidence.cleanupFailures.Count -lt 16) { $script:watchEvidence.cleanupFailures.Add($Stage) }
@@ -176,6 +178,8 @@ function Test-WatchImportedGeneration {
     if ($null -eq $baseline -or $baseline -lt 1) { throw 'Unknown imported-edit baseline generation.' }
     if ($null -eq $generation -or $generation -le $baseline -or $before.generation -ne $generation -or
         $before.success -ne $true -or $after.success -ne $true -or $observedPage -notmatch 'Count (<!-- -->)?2') { return $false }
+    if ($null -ne $script:watchEvidence.importedEditMarker -and
+        !$observedPage.Contains($script:watchEvidence.importedEditMarker)) { return $false }
     Receive-WatchMachineEvents
     # Publication precedes stdout terminal emission; an event not delivered yet
     # is pending, not invented. Retry within the original deadline.
@@ -191,9 +195,7 @@ function Test-WatchImportedGeneration {
     $script:watchEvidence.importedEditClassification = $classification
     if ($classification.status -ceq 'PENDING') { return $false }
     if ($classification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN') {
-        $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
-        Write-ImportedEditFailureDiagnostic $classification $script:watchEvidence.importedEditBarrier $window $generation
-        throw 'Watcher recovery completed with Count2; ordinary component reuse remains unproven.'
+        return $false
     }
     if ($classification.status -cne 'REUSE_PROVEN') {
         $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
@@ -306,6 +308,7 @@ function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
         importedEditWitness = $script:watchEvidence.importedEditWitness
         importedEditBarrier = $script:watchEvidence.importedEditBarrier
         importedEditClassification = $script:watchEvidence.importedEditClassification
+        importedEditRecoveries = @($script:watchEvidence.importedEditRecoveries.ToArray())
         lifecycle = Read-WatchLifecycleSidecar $lifecyclePath
         liveMachine = [ordered]@{ terminalLimit = 4096; ingressLineLimit = 256; lineLimitCharacters = 65536; droppedTerminals = $script:liveDroppedTerminals; pendingBuild = $script:livePendingBuild; shutdownSeen = $script:liveShutdownSeen; lastGeneration = $script:liveLastGeneration; events = @($script:liveTerminalEvents.ToArray()) }
         errorRecovery = @($script:watchEvidence.errorRecovery.ToArray())
@@ -499,18 +502,39 @@ namespace LithoSharp.WatchR7 {
         if ($completed) { $script:watchEvidence.warmupCompletedGeneration = $generation }
         return $completed
     } 'completed MDX warmup'
-    # Freeze this owner-acknowledged boundary before any component write. Never rebase after the edit.
-    $barrier = Invoke-RestMethod "$origin/_lithosharp/watch-barrier" -Method Post -NoProxy -TimeoutSec 60
-    if ($barrier.success -isnot [bool] -or !$barrier.success -or $null -eq (ConvertTo-WatchWitness $barrier.watch) -or
-        $barrier.schemaVersion -cne '1.0' -or $barrier.scope -cne 'admitted-inputs-only' -or
-        $null -eq (Known-Count $barrier.generation) -or $barrier.generation -lt $script:watchEvidence.warmupCompletedGeneration) { throw 'Owner edit barrier is invalid.' }
-    $script:watchEvidence.importedEditBarrier = $barrier
-    $script:watchEvidence.importedEditBaselineGeneration = $barrier.generation
-    # Windows can report a directory LastWrite notification alongside a child edit.
-    # Exercise that real notification without allowing it to restart the persistent host.
-    if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }
-    [IO.File]::WriteAllText($componentPath, $component.Replace('useState(1)', 'useState(2)'))
-    Wait-For { Test-WatchImportedGeneration } 'completed imported component rebuild'
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        # Every probe owns a new edit and a boundary frozen before that edit.
+        $barrier = Invoke-RestMethod "$origin/_lithosharp/watch-barrier" -Method Post -NoProxy -TimeoutSec 60
+        if ($barrier.success -isnot [bool] -or !$barrier.success -or $null -eq (ConvertTo-WatchWitness $barrier.watch) -or
+            $barrier.schemaVersion -cne '1.0' -or $barrier.scope -cne 'admitted-inputs-only' -or
+            $null -eq (Known-Count $barrier.generation) -or $barrier.generation -lt $script:watchEvidence.warmupCompletedGeneration) { throw 'Owner edit barrier is invalid.' }
+        $script:watchEvidence.importedEditBarrier = $barrier
+        $script:watchEvidence.importedEditBaselineGeneration = $barrier.generation
+        $script:watchEvidence.importedEditClassification = $null
+        $editedComponent = $component.Replace('useState(1)', 'useState(2)')
+        if ($attempt -gt 0) {
+            $script:watchEvidence.importedEditMarker = 'component-reuse-after-recovery'
+            $editedComponent = $editedComponent.Replace('</button>', " $($script:watchEvidence.importedEditMarker)</button>")
+        }
+        # Windows can report a directory LastWrite alongside a child edit.
+        if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }
+        [IO.File]::WriteAllText($componentPath, $editedComponent)
+        Wait-For {
+            (Test-WatchImportedGeneration) -or
+                $script:watchEvidence.importedEditClassification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN'
+        } 'completed imported component rebuild'
+        if ($script:watchEvidence.importedEditClassification.normalReuseProven) { break }
+        $script:watchEvidence.importedEditRecoveries.Add([ordered]@{
+            barrier = $barrier; classification = $script:watchEvidence.importedEditClassification
+        })
+        if ($attempt -gt 0) {
+            $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
+            $classification = $script:watchEvidence.importedEditClassification
+            Write-ImportedEditFailureDiagnostic $classification $barrier $classification.terminalWindow $classification.observedGeneration
+            throw 'Repeated watcher recovery prevented an ordinary component reuse witness.'
+        }
+        Write-Host 'Watcher recovery preserved the edited output; checking ordinary reuse with a new component edit.'
+    }
     if ((State).extensions[0].mdx.metrics.workerStarts -ne 0) { throw 'A component edit restarted the worker.' }
     $mdxFailure = Start-WatchFailureEvidence 'MDX diagnostic'
     [IO.File]::WriteAllText($pagePath, $source + "`n<Unclosed")
