@@ -20,20 +20,27 @@ function ConvertTo-WatchWitness($Value) {
         ($null -ne $previous -and !(Test-WatchId $previous)) -or $null -eq $revision -or $null -eq $reasons -or $reasons -gt 511) { return $null }
     return [ordered]@{ ownerId = $owner; hostId = $hostId; previousHostId = $previous; inputRevision = $revision; restartReasons = $reasons }
 }
+function ConvertTo-WatchBarrier($Value) {
+    $generation = Get-WatchNonnegative (Get-WatchField $Value 'generation')
+    $watch = ConvertTo-WatchWitness (Get-WatchField $Value 'watch')
+    if ((Get-WatchField $Value 'schemaVersion') -cne '1.0' -or
+        (Get-WatchField $Value 'scope') -cne 'admitted-inputs-only' -or
+        (Get-WatchField $Value 'success') -isnot [bool] -or !(Get-WatchField $Value 'success') -or
+        $null -eq $generation -or $generation -lt 1 -or $null -eq $watch) { return $null }
+    return [ordered]@{ generation = $generation; watch = $watch }
+}
 function Get-WatchImportedWindow($Barrier, [object[]] $Terminals, [long] $ObservedGeneration,
-    [bool] $ContentMatched, [bool] $StateMatched) {
+    [bool] $ContentMatched, [bool] $StateMatched, [switch] $Warmup) {
     $result = [ordered]@{ status = 'INVALID'; reason = 'OWNER_BARRIER_MISSING'; normalReuseProven = $false }
-    $baseline = Get-WatchNonnegative (Get-WatchField $Barrier 'generation')
-    $baseWatch = ConvertTo-WatchWitness (Get-WatchField $Barrier 'watch')
-    if ((Get-WatchField $Barrier 'schemaVersion') -cne '1.0' -or
-        (Get-WatchField $Barrier 'scope') -cne 'admitted-inputs-only' -or
-        (Get-WatchField $Barrier 'success') -isnot [bool] -or !(Get-WatchField $Barrier 'success') -or
-        $null -eq $baseline -or $baseline -lt 1 -or $null -eq $baseWatch) { return $result }
+    $acknowledged = ConvertTo-WatchBarrier $Barrier
+    if ($null -eq $acknowledged) { return $result }
+    $baseline = $acknowledged.generation; $baseWatch = $acknowledged.watch
     $result.reason = 'TERMINAL_WINDOW_INVALID'
     if ($ObservedGeneration -le $baseline) { $result.status = 'PENDING'; return $result }
     $window = @($Terminals | Where-Object { $_.generation -gt $baseline -and $_.generation -le $ObservedGeneration })
     if ($window.Count -ne $ObservedGeneration - $baseline) { return $result }
     $hostId = $baseWatch.hostId; $revision = $baseWatch.inputRevision; $witness = $null; $recovery = $false
+    $workerStarted = $false
     for ($i = 0; $i -lt $window.Count; $i++) {
         $event = $window[$i]; $watch = ConvertTo-WatchWitness (Get-WatchField $event 'watch')
         $work = Get-WatchField $event 'mdxWork'
@@ -46,21 +53,44 @@ function Get-WatchImportedWindow($Barrier, [object[]] $Terminals, [long] $Observ
         if ($null -eq $workers -or $null -eq $rendered -or $null -eq $compiled -or $hit -isnot [bool]) { return $result }
         if ($watch.restartReasons -eq 144) {
             # WatcherError|Other requires conservative host replacement, not ordinary component reuse.
+            if ($recovery) { $result.reason = 'REPEATED_WATCHER_RECOVERY'; return $result }
             $coldRecovery = !$hit -and $workers -eq 1 -and $rendered -ge 1
             $cachedRecovery = $hit -and $workers -eq 0 -and $rendered -eq 0 -and $compiled -eq 0
             if ($watch.hostId -ceq $hostId -or !($coldRecovery -or $cachedRecovery)) { return $result }
             $recovery = $true
-        } elseif ($watch.restartReasons -ne 0 -or $watch.hostId -cne $hostId -or $workers -ne 0) {
-            $result.reason = 'UNEXPLAINED_RESTART'; return $result
-        } elseif ($rendered -ge 1 -and !$hit) { $witness = $event.generation }
-        elseif (!($hit -and $rendered -eq 0 -and $compiled -eq 0)) { return $result }
+            $workerStarted = $workers -eq 1; $witness = $null
+        } else {
+            $coldWarmup = $Warmup -and $recovery -and !$workerStarted -and $workers -eq 1 -and $rendered -ge 1 -and !$hit
+            if ($watch.restartReasons -ne 0 -or $watch.hostId -cne $hostId -or ($workers -ne 0 -and !$coldWarmup)) {
+                $result.reason = 'UNEXPLAINED_RESTART'; return $result
+            }
+            if ($rendered -ge 1 -and !$hit) { $witness = $event.generation; $workerStarted = $true }
+            elseif (!($hit -and $rendered -eq 0 -and $compiled -eq 0)) { return $result }
+        }
         $hostId = $watch.hostId; $revision = $watch.inputRevision
     }
     $result.baselineGeneration = $baseline; $result.observedGeneration = $ObservedGeneration
     $result.hostId = $hostId; $result.terminalWindow = $window; $result.witnessGeneration = $witness
     if (!$ContentMatched -or !$StateMatched) { $result.status = 'PENDING'; return $result }
-    if ($recovery) { $result.status = 'RECOVERY_OBSERVED_REUSE_UNPROVEN'; $result.reason = 'WATCHER_RECOVERY'; return $result }
+    if ($recovery) {
+        if ($Warmup -and $null -ne $witness) { $result.status = 'WARMUP_COMPLETE'; $result.reason = $null; return $result }
+        $result.status = 'RECOVERY_OBSERVED_REUSE_UNPROVEN'; $result.reason = 'WATCHER_RECOVERY'; return $result
+    }
     if ($null -eq $witness) { $result.status = 'PENDING'; return $result }
+    if ($Warmup) { $result.status = 'WARMUP_COMPLETE'; $result.reason = $null; return $result }
     $result.status = 'REUSE_PROVEN'; $result.reason = $null; $result.normalReuseProven = $true
+    return $result
+}
+function Get-WatchImportedHandoff($Barrier, [object[]] $Terminals, $RetryBarrier) {
+    $next = ConvertTo-WatchBarrier $RetryBarrier
+    if ($null -eq $next) { return [ordered]@{ status = 'INVALID'; reason = 'OWNER_BARRIER_MISSING'; normalReuseProven = $false } }
+    $result = Get-WatchImportedWindow $Barrier $Terminals $next.generation $true $true -Warmup
+    if ($result.status -cne 'WARMUP_COMPLETE') { return $result }
+    $last = ConvertTo-WatchWitness $result.terminalWindow[-1].watch
+    foreach ($key in @('ownerId', 'hostId', 'previousHostId', 'inputRevision', 'restartReasons')) {
+        if ($last[$key] -cne $next.watch[$key]) {
+            $result.status = 'INVALID'; $result.reason = 'HANDOFF_BARRIER_MISMATCH'; return $result
+        }
+    }
     return $result
 }

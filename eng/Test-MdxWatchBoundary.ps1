@@ -3,6 +3,7 @@ param([string[]] $HistoricalArtifacts = @(), [string] $ResultPath)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'WatchImportedWindow.ps1')
+. (Join-Path $PSScriptRoot 'WatchInput.ps1')
 $checks = [Collections.Generic.List[object]]::new()
 function Assert-Status($Value, [string] $Expected, [string] $Name) {
     if ($Value.status -cne $Expected) { throw "$Name expected $Expected, got $($Value.status): $($Value.reason)" }
@@ -26,8 +27,25 @@ $cachedRecovery = @($normal[0]; Terminal 4 144 $hostId $nextHost 0 $true)
 Assert-Status (Get-WatchImportedWindow $barrier $cachedRecovery 4 $true $true) 'RECOVERY_OBSERVED_REUSE_UNPROVEN' 'a replacement host can restore cached output without starting a worker'
 $invalidCachedRecovery = Terminal 3 144 $hostId $nextHost 1 $true
 Assert-Status (Get-WatchImportedWindow $barrier @($invalidCachedRecovery) 3 $true $true) 'INVALID' 'a cache-hit recovery cannot invent worker activity'
-$freshBarrier = [ordered]@{ schemaVersion = '1.0'; success = $true; generation = 4L; scope = 'admitted-inputs-only'; watch = $cachedRecovery[-1].watch }
-Assert-Status (Get-WatchImportedWindow $freshBarrier @((Terminal 5 0 $nextHost $nextHost 0 $false)) 5 $true $true) 'REUSE_PROVEN' 'a new edit can independently prove ordinary reuse after recovery'
+$warmup = @($cachedRecovery; Terminal 5 0 $nextHost $nextHost 1 $false)
+Assert-Status (Get-WatchImportedWindow $barrier $warmup 5 $true $true) 'INVALID' 'a cold replacement worker cannot masquerade as ordinary reuse'
+$warmed = Get-WatchImportedWindow $barrier $warmup 5 $true $true -Warmup
+Assert-Status $warmed 'WARMUP_COMPLETE' 'a cached replacement host explicitly warms its first worker without proving reuse'
+if ($warmed.normalReuseProven) { throw 'Recovery warmup must never prove ordinary reuse.' }
+$freshBarrier = [ordered]@{ schemaVersion = '1.0'; success = $true; generation = 5L; scope = 'admitted-inputs-only'; watch = $warmup[-1].watch }
+Assert-Status (Get-WatchImportedWindow $freshBarrier @((Terminal 6 0 $nextHost $nextHost 0 $false)) 6 $true $true) 'REUSE_PROVEN' 'a distinct post-warmup edit must independently prove zero-start reuse'
+$thirdHost = 'd' * 32
+$twice = @($cachedRecovery; Terminal 5 144 $nextHost $thirdHost 0 $true)
+Assert-Status (Get-WatchImportedWindow $barrier $twice 5 $true $true) 'INVALID' 'two recoveries in one window cannot be counted as one'
+$restartedWarmup = @($warmup; Terminal 6 0 $nextHost $nextHost 1 $false)
+Assert-Status (Get-WatchImportedWindow $barrier $restartedWarmup 6 $true $true -Warmup) 'INVALID' 'warmup cannot excuse another worker start on the same host'
+$advanced = @($warmup; Terminal 6 0 $nextHost $nextHost 0 $true)
+$advancedBarrier = [ordered]@{ schemaVersion = '1.0'; success = $true; generation = 6L; scope = 'admitted-inputs-only'; watch = $advanced[-1].watch }
+Assert-Status (Get-WatchImportedHandoff $barrier $advanced $advancedBarrier) 'WARMUP_COMPLETE' 'handoff validates intervening terminals through the acknowledged retry barrier'
+$secondRecovery = @($warmup; Terminal 6 144 $nextHost $thirdHost 0 $true)
+$secondBarrier = [ordered]@{ schemaVersion = '1.0'; success = $true; generation = 6L; scope = 'admitted-inputs-only'; watch = $secondRecovery[-1].watch }
+Assert-Status (Get-WatchImportedHandoff $barrier $secondRecovery $secondBarrier) 'INVALID' 'a second recovery before the retry barrier returns cannot disappear'
+Assert-Status (Get-WatchImportedHandoff $barrier $advanced $secondBarrier) 'INVALID' 'an owner barrier must agree with the last validated terminal'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $nextHost 1 $false)) 3 $true $true) 'INVALID' 'unexplained host and worker restart cannot pass'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $nextHost 0 $false)) 3 $true $true) 'INVALID' 'zero worker metric cannot hide an unexplained host replacement'
 Assert-Status (Get-WatchImportedWindow $barrier @((Terminal 3 0 $hostId $hostId 1 $false)) 3 $true $true) 'INVALID' 'same host cannot hide an unexplained worker restart'
@@ -40,6 +58,33 @@ foreach ($path in $HistoricalArtifacts) {
     $d = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
     # Both historical windows contain a real restart and a final cache hit, but no reliable owner barrier.
     Assert-Status (Get-WatchImportedWindow $null @($d.liveMachine.events) $d.liveMachine.lastGeneration $true $true) 'INVALID' ('historical sidecar cannot manufacture a green owner witness: ' + [IO.Path]::GetFileName($path))
+}
+if ($IsWindows) {
+    Add-Type @'
+using System.IO;
+using System.Threading.Tasks;
+public static class WatchInputReadLock {
+    public static async Task ReleaseAsync(FileStream stream) {
+        await Task.Delay(1000);
+        stream.Dispose();
+    }
+}
+'@
+    $directory = Join-Path $PSScriptRoot ("..\.tmp\watch-input-" + [Guid]::NewGuid().ToString('N'))
+    $null = [IO.Directory]::CreateDirectory($directory)
+    $inputPath = Join-Path $directory 'input.mdx'
+    [IO.File]::WriteAllText($inputPath, 'before')
+    $stream = [IO.File]::Open($inputPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $release = [WatchInputReadLock]::ReleaseAsync($stream)
+    try {
+        $retries = Invoke-WatchInputEdit { [IO.File]::WriteAllText($inputPath, 'after') }
+        if ($retries -lt 1 -or [IO.File]::ReadAllText($inputPath) -cne 'after') { throw 'An input edit must survive a real transient Windows read lock.' }
+        $checks.Add([ordered]@{ name = 'input edits wait for a real Windows reader without weakening its file sharing'; status = 'PASS'; normalReuseProven = $false })
+    } finally {
+        $stream.Dispose()
+        $null = $release.GetAwaiter().GetResult()
+        [IO.Directory]::Delete($directory, $true)
+    }
 }
 $result = [ordered]@{ passed = $true; assertions = $checks.Count; historicalArtifacts = $HistoricalArtifacts.Count; checks = @($checks.ToArray()); liveWatchReproductions = 0; CI = 0 }
 if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath), ($result | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false)) }
