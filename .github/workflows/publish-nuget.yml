@@ -67,6 +67,13 @@ jobs:
             ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $version
           }
 
+      - name: Preserve validated release packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: lithosharp-packages-${{ github.ref_name }}
+          path: artifacts/packages/*nupkg
+          if-no-files-found: error
+
       - name: Recheck main before publication
         shell: pwsh
         env:

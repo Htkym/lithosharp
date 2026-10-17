@@ -65,9 +65,10 @@ run the samples and compare routes, semantic HTML and artifacts against the
 
 Keep package versions, templates and lockfiles aligned. Move reviewed API and
 analyzer baselines into their shipped files for the release. Core package
-validation for 1.0.0 retains the published NuGet 0.2.0 baseline configured in
+validation for 2.0.0 uses the published NuGet 1.1.0 baseline configured in
 [`LithoSharp.csproj`](src/LithoSharp/LithoSharp.csproj). Run
-`eng/Validate-Package.ps1` for each of the seven shipping packages and
+`eng/Validate-Package.ps1` for each shipping package listed in
+[`eng/release-packages.json`](eng/release-packages.json) and
 `eng/Test-Templates.ps1` against an isolated package directory. The build workflow
 covers Windows, Linux and macOS; a configured workflow is not proof of a passed run.
 

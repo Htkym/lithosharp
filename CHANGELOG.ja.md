@@ -2,12 +2,12 @@
 
 [English](CHANGELOG.md)
 
-## 2.0.0 — 開発候補・未公開
+## 2.0.0
 
-- Markdownの共通基盤を独立したSyntamarkへ分離し、runtimeとcompiler用sourceを同じ固定pairから利用する。安定pairは未公開。
+- Markdownの共通基盤を独立したSyntamarkへ分離し、公開済みのSyntamark 1.0.0のruntimeとcompiler用sourceを同じ固定pairから利用する。
 - Testingの`Document` getterを削除し、LithoSharp所有の読み取り専用HTML snapshot/queryへ置き換えた。これはソース・バイナリの非互換変更である。
 - 登録済みAPIの確定した誤用、対応するHTML補間・URL、検証済みcatalogへの参照を検査する任意導入のAnalyzerを追加した。Unknownや未対応の範囲は完全な検証へ格上げしない。
-- Tool候補に静的入力／信頼するcatalogの`preflight`と、既存Testing利用箇所を報告する`migrate testing --dry-run`を追加した。実行範囲と移行例は[2.0への移行案内](docs/migration-2.0.ja.md)を参照。
+- Toolに静的入力／信頼するcatalogの`preflight`と、既存Testing利用箇所を報告する`migrate testing --dry-run`を追加した。実行範囲と移行例は[2.0への移行案内](docs/migration-2.0.ja.md)を参照。
 
 ## 1.1.0 — 2026-10-07
 
