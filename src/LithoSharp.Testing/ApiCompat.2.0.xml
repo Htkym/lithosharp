@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BRC-001 in docs/Testing-api-diff.json: deliberate source/binary break in v2. -->
+<Suppressions>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LithoSharp.Testing.SiteTestDocument.get_Document</Target>
+    <Left>lib/net10.0/LithoSharp.Testing.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Testing.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>

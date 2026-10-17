@@ -37,15 +37,7 @@ public sealed class SiteUrl
     /// <exception cref="UriFormatException">The value is not a safe absolute HTTP or HTTPS URL.</exception>
     public static SiteUrl FromAbsolute(string value)
     {
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.Any(char.IsControl) || value.Any(char.IsWhiteSpace) || value.Contains('\\')
-            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-            || !uri.IsWellFormedOriginalString())
-        {
-            throw new UriFormatException("The URL must be an absolute, well-formed HTTP or HTTPS URL.");
-        }
-
+        Internal.StaticApiGuards.ValidateAbsoluteUrl(value);
         return new SiteUrl(value);
     }
 

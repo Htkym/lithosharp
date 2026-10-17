@@ -8,7 +8,7 @@ public sealed partial class SiteGenerator
 
     /// <summary>
     /// Reports how many files and bytes the incremental cache holds for one output. The cache is
-    /// never cleaned automatically; use <see cref="ClearCache"/> to reclaim one output's
+    /// HTML facts are bounded and evicted automatically; use <see cref="ClearCache"/> to reclaim one output's
     /// partition. Cache operations share the output lock with builds.
     /// </summary>
     public static SiteBuildCacheUsage MeasureCache(string outputRoot, SiteGenerationOptions? options = null)

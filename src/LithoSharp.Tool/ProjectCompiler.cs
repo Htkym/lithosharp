@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Tool;
 
@@ -25,17 +26,27 @@ internal static class ProjectCompiler
     }
 
     internal static async Task<string> BuildAsync(
-        string project, string configuration, CancellationToken cancellationToken, bool logToStandardError = false)
+        string project, string configuration, CancellationToken cancellationToken, bool logToStandardError = false, string? compilerErrorLog = null)
     {
-        var build = await RunDotNetAsync(["build", project, "--nologo", "-c", configuration], cancellationToken);
+        var workingDirectory = Directory.GetCurrentDirectory();
+        var arguments = new List<string> { "build", project, "--nologo", "-c", configuration };
+        using var capture = compilerErrorLog is null ? null : await CompilerDiagnosticCapture.CreateAsync(
+            project, configuration, compilerErrorLog, workingDirectory, cancellationToken);
+        if (capture is not null) arguments.Add("-p:LithoSharpCompilerDiagnosticSession=" + capture.Session);
+        var build = await RunDotNetAsync(arguments, cancellationToken, workingDirectory);
         if (build.ExitCode != 0)
+        {
+            if (compilerErrorLog is not null) WriteProcessOutput(build, allToStandardError: true);
             throw new ProjectCompilationException(
                 $"LSC7002: Project build failed with exit code {build.ExitCode}."
-                + Environment.NewLine + build.StandardOutput + build.StandardError);
+                + (compilerErrorLog is null ? Environment.NewLine + build.StandardOutput + build.StandardError : ""),
+                capture is null ? CompilerDiagnosticReader.Read(null, build.ExitCode, workingDirectory)
+                    : CompilerDiagnosticReader.ReadMany(capture.Reports(), build.ExitCode));
+        }
         WriteProcessOutput(build, logToStandardError);
         var query = await RunDotNetAsync([
             "msbuild", project, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetPath"
-        ], cancellationToken);
+        ], cancellationToken, workingDirectory);
         if (query.ExitCode != 0) throw new InvalidOperationException(query.StandardError.Trim());
         var target = query.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(static line => line.Trim()).LastOrDefault(static line => line.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
@@ -45,9 +56,10 @@ internal static class ProjectCompiler
         return target;
     }
 
-    internal static async Task<ProcessResult> RunDotNetAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    internal static async Task<ProcessResult> RunDotNetAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken, string? workingDirectory = null)
     {
         var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        if (workingDirectory is not null) start.WorkingDirectory = workingDirectory;
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Unable to start dotnet.");
         var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
@@ -85,4 +97,7 @@ internal static class ProjectCompiler
 
 internal sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 
-internal sealed class ProjectCompilationException(string message) : Exception(message);
+internal sealed class ProjectCompilationException(string message, IReadOnlyList<SiteDiagnostic>? diagnostics = null) : Exception(message)
+{
+    internal IReadOnlyList<SiteDiagnostic> Diagnostics { get; } = diagnostics ?? [];
+}

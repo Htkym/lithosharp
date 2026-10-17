@@ -2,26 +2,25 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Routing;
 
-/// <summary>サイト全体のルートと生成成果物の所有権を収集し、一括して検証します。</summary>
 public sealed class SiteRouteTable
 {
     private readonly List<RouteRegistration> _routes = [];
     private readonly List<OutputReservation> _reservations = [];
     private readonly List<SiteDiagnostic> _diagnostics = [];
 
-    /// <summary>空のルート表を作成します。</summary>
     public SiteRouteTable()
     {
     }
 
-    /// <summary>正規化済みサイトルートを所有者とともに登録します。</summary>
-    /// <param name="route">登録するサイトルート。</param>
-    /// <param name="ownerId">ルートを生成する要素の安定した識別子。</param>
-    /// <param name="sourceLocation">ルートの定義元。特定できない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="route"/> または <paramref name="ownerId"/> が <see langword="null"/> です。
-    /// </exception>
-    /// <exception cref="ArgumentException"><paramref name="ownerId"/> が空白です。</exception>
+    internal SiteRouteTable Copy()
+    {
+        var copy = new SiteRouteTable();
+        copy._routes.AddRange(_routes);
+        copy._reservations.AddRange(_reservations);
+        copy._diagnostics.AddRange(_diagnostics);
+        return copy;
+    }
+
     public void Register(
         SiteRoute route,
         string ownerId,
@@ -61,18 +60,7 @@ public sealed class SiteRouteTable
         _diagnostics.Add(diagnostic);
     }
 
-    /// <summary>ジェネレーターまたはテンプレートが所有する共通成果物の出力パスを予約します。</summary>
-    /// <param name="relativeOutputPath"><c>/</c> 区切りの出力ルートからの相対ファイルパス。</param>
-    /// <param name="ownerId">成果物を生成する要素の安定した識別子。</param>
-    /// <param name="sourceLocation">予約の定義元。特定できない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="relativeOutputPath"/> または <paramref name="ownerId"/> が <see langword="null"/> です。
-    /// </exception>
-    /// <exception cref="ArgumentException"><paramref name="ownerId"/> が空白です。</exception>
-    /// <remarks>
-    /// 予約対象は呼び出し側が指定します。この表は特定のテンプレートや成果物名を組み込みません。
-    /// 不正な出力パスは登録時に外部へスローせず、<see cref="Validate"/> の診断として報告します。
-    /// </remarks>
+    /// <summary>Invalid paths are reported by Validate rather than thrown during registration.</summary>
     public void ReserveOutputPath(
         string relativeOutputPath,
         string ownerId,
@@ -102,8 +90,6 @@ public sealed class SiteRouteTable
         }
     }
 
-    /// <summary>登録済みのすべてのルートと予約を検証し、すべての診断を返します。</summary>
-    /// <returns>安定した順序に並べられた診断を含む検証結果。</returns>
     public SiteRouteValidationResult Validate()
     {
         var diagnostics = new List<SiteDiagnostic>(_diagnostics);
@@ -157,9 +143,6 @@ public sealed class SiteRouteTable
         return new SiteRouteValidationResult(orderedDiagnostics);
     }
 
-    /// <summary>登録済みのすべてのルートと予約を検証し、エラーがあれば例外をスローします。</summary>
-    /// <returns>エラーのない検証結果。</returns>
-    /// <exception cref="SiteRouteValidationException">1 件以上のエラー診断が見つかりました。</exception>
     public SiteRouteValidationResult ValidateOrThrow()
     {
         var result = Validate();

@@ -10,52 +10,30 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace LithoSharp.Content;
 
-/// <summary>フロントマターのバインド診断識別子を提供します。</summary>
 public static class ContentFrontMatterDiagnosticIds
 {
-    /// <summary>定義されていないフィールドです。</summary>
     public const string UnknownField = "LSC101";
 
-    /// <summary>非 nullable メンバーに YAML の null が指定されています。</summary>
     public const string NullNotAllowed = "LSC102";
 
-    /// <summary>入力値を対象の型へ変換できません。</summary>
     public const string InvalidValue = "LSC103";
 
-    /// <summary>既定値を持たない必須メンバーが指定されていません。</summary>
     public const string MissingRequiredField = "LSC104";
 }
 
-/// <summary>
-/// 公開プロパティと公開フィールドを使用して、キーと値を型付きフロントマターへ変換します。
-/// </summary>
-/// <typeparam name="TFrontMatter">変換後のフロントマターの型。</typeparam>
-/// <remarks>
-/// 対象型には公開された引数なしコンストラクターが必要です。メンバー名は既定で
-/// snake_case に変換され、<see cref="YamlMemberAttribute"/> の別名が優先されます。
-/// 入力にないメンバーはコンストラクターまたは初期化子が設定した値を保持します。
-/// </remarks>
+/// <summary>Requires a public parameterless constructor. Uses snake_case unless YamlMember supplies an alias; absent members keep constructor/initializer values.</summary>
 public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
     : IContentFrontMatterBinder<TFrontMatter>
     where TFrontMatter : notnull
 {
     private readonly ReflectionBindingPlan _plan;
 
-    /// <summary>リフレクションを使用するフロントマターバインダーを作成します。</summary>
-    /// <param name="rejectUnknownFields">
-    /// 定義されていない入力フィールドをエラーにする場合は <see langword="true"/>。
-    /// 既定値は <see langword="true"/> です。
-    /// </param>
-    /// <exception cref="InvalidOperationException">
-    /// 対象型を作成できないか、同じ YAML 名を持つメンバーが複数あります。
-    /// </exception>
     public ReflectionContentFrontMatterBinder(bool rejectUnknownFields = true)
     {
         RejectUnknownFields = rejectUnknownFields;
         _plan = ReflectionBindingPlan.Create(typeof(TFrontMatter));
     }
 
-    /// <summary>定義されていない入力フィールドをエラーにするかどうかを取得します。</summary>
     public bool RejectUnknownFields { get; }
 
     /// <inheritdoc />
@@ -72,11 +50,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
             : ContentParseResult<TFrontMatter>.Failure(diagnostics);
     }
 
-    /// <summary>このバインダーと同じ情報源からfront matter schemaを記述します。</summary>
-    /// <param name="name">schema名。組み込みは固定名、利用者定義は型名を使います。</param>
-    /// <param name="isBuiltIn">組み込みschemaの場合は <see langword="true"/>。</param>
-    /// <returns>キー、型、必須性、enum、非推奨、説明を持つ不変snapshot。</returns>
-    /// <remarks>YAML名・必須判定・型分類は検証時と同一の binding plan を使います。補完用の固定キー一覧は持ちません。</remarks>
+    /// <summary>Shares the validation binding plan; completion keys are not a separate hard-coded list.</summary>
     internal FrontMatterSchema DescribeSchema(string name, bool isBuiltIn) =>
         DescribeObject(typeof(TFrontMatter), name, isBuiltIn, _plan, RejectUnknownFields, new HashSet<Type>());
 

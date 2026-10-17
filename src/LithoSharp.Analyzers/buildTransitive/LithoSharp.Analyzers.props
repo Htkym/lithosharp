@@ -1,0 +1,13 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpCollection" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpId" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpRoute" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpSite" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="LithoSharpVariant" />
+    <CompilerVisibleProperty Include="MSBuildProjectDirectory" />
+    <CompilerVisibleProperty Include="TargetFramework" />
+    <CompilerVisibleProperty Include="Configuration" />
+    <CompilerVisibleProperty Include="LithoSharpAnalysisProfile" />
+  </ItemGroup>
+</Project>

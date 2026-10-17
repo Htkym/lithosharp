@@ -1,0 +1,216 @@
+[
+  {
+    "name": "null-path",
+    "slot": 0,
+    "path": null,
+    "rejected": true
+  },
+  {
+    "name": "empty-path",
+    "slot": 0,
+    "path": "",
+    "rejected": true
+  },
+  {
+    "name": "blank-path",
+    "slot": 0,
+    "path": " \t",
+    "rejected": true
+  },
+  {
+    "name": "absolute-path",
+    "slot": 0,
+    "path": "D:/abs/cache.json",
+    "rejected": false
+  },
+  {
+    "name": "relative-path",
+    "slot": 0,
+    "path": "cache.json",
+    "rejected": false
+  },
+  {
+    "name": "cache-zero",
+    "slot": 1,
+    "expression": "System.TimeSpan.Zero",
+    "factory": "zero",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "cache-negative",
+    "slot": 1,
+    "expression": "System.TimeSpan.FromTicks(-1L)",
+    "factory": "ticks",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "cache-max",
+    "slot": 1,
+    "expression": "System.TimeSpan.MaxValue",
+    "factory": "max",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "interval-negative",
+    "slot": 2,
+    "expression": "System.TimeSpan.MinValue",
+    "factory": "min",
+    "value": "0",
+    "rejected": true
+  },
+  {
+    "name": "interval-zero",
+    "slot": 2,
+    "expression": "System.TimeSpan.Zero",
+    "factory": "zero",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "timeout-zero",
+    "slot": 3,
+    "expression": "new System.TimeSpan(0L)",
+    "factory": "new",
+    "value": "0",
+    "rejected": true
+  },
+  {
+    "name": "timeout-one-tick",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(1L)",
+    "factory": "ticks",
+    "value": "1",
+    "rejected": false
+  },
+  {
+    "name": "interval-at-max",
+    "slot": 2,
+    "expression": "System.TimeSpan.FromTicks(42949672940000L)",
+    "factory": "ticks",
+    "value": "42949672940000",
+    "rejected": false
+  },
+  {
+    "name": "interval-over-max",
+    "slot": 2,
+    "expression": "System.TimeSpan.FromTicks(42949672940001L)",
+    "factory": "ticks",
+    "value": "42949672940001",
+    "rejected": true
+  },
+  {
+    "name": "timeout-before-max",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(21474836469999L)",
+    "factory": "ticks",
+    "value": "21474836469999",
+    "rejected": false
+  },
+  {
+    "name": "timeout-at-max",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(21474836470000L)",
+    "factory": "ticks",
+    "value": "21474836470000",
+    "rejected": false
+  },
+  {
+    "name": "timeout-over-max",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(21474836470001L)",
+    "factory": "ticks",
+    "value": "21474836470001",
+    "rejected": true
+  },
+  {
+    "name": "negative-ms",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromMilliseconds(-1L)",
+    "factory": "milliseconds",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "negative-seconds",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromSeconds(-1L)",
+    "factory": "seconds",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "negative-minutes",
+    "slot": 2,
+    "expression": "System.TimeSpan.FromMinutes(-1L)",
+    "factory": "minutes",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "negative-hours",
+    "slot": 1,
+    "expression": "System.TimeSpan.FromHours(-1)",
+    "factory": "hours",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "days-over-timer",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromDays(50)",
+    "factory": "days",
+    "value": "50",
+    "rejected": true
+  },
+  {
+    "name": "double-seconds",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromSeconds(-1d)",
+    "factory": "doubleSeconds",
+    "value": "-1",
+    "rejected": true
+  },
+  {
+    "name": "component-microsecond",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromSeconds(seconds:0L,milliseconds:0L,microseconds:1L)",
+    "factory": "components",
+    "value": "1",
+    "rejected": false
+  },
+  {
+    "name": "cache-null",
+    "slot": 1,
+    "expression": "(System.TimeSpan?)null",
+    "factory": "null",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "interval-null",
+    "slot": 2,
+    "expression": "(System.TimeSpan?)null",
+    "factory": "null",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "timeout-null",
+    "slot": 3,
+    "expression": "(System.TimeSpan?)null",
+    "factory": "null",
+    "value": "0",
+    "rejected": false
+  },
+  {
+    "name": "timeout-over-http-limit-within-timer-limit",
+    "slot": 3,
+    "expression": "System.TimeSpan.FromTicks(42949672940000L)",
+    "factory": "ticks",
+    "value": "42949672940000",
+    "rejected": true
+  }
+]

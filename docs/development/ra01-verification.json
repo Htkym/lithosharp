@@ -1,0 +1,140 @@
+{
+  "task": "RA-01",
+  "state": "LOCAL_VERIFIED_BOCCHI_FULL_REVIEW_REMOTE_CI_PENDING",
+  "baseSha": "15edc2765198e48ba9200bae8d3fd6d4ae127eb8",
+  "branch": "feature/2.0.0",
+  "selectedBecause": "IN01 unmet RA01; SD203 BocchiPASS all12 + user manual remote50728f0 + CI37786958899 success",
+  "targetFramework": "netstandard2.0",
+  "roslynPackage": "4.14.0",
+  "scope": "Analyzer package foundation plus narrow LSA1001 genuine compiler canary",
+  "sourceSelection": "Opt-in fixed source version prepared, not activated until IN01; shared existing Generator host adapter links only when selected",
+  "checks": {
+    "r1": {
+      "all7Passed": true,
+      "seconds": 15.767999999999999,
+      "analyzerBuildWarnings": 1
+    },
+    "final": {
+      "all5Passed": true,
+      "seconds": 8.786,
+      "analyzerBuildWarnings": 0,
+      "hostTestsBuildWarnings": 0,
+      "testCases": 4,
+      "testWarnings": 0
+    },
+    "selectionGuards": {
+      "floatingVersionRejected": true,
+      "sourceWithoutVersionRejected": true
+    },
+    "actualRoslyn": "Microsoft.CodeAnalysis.CSharp, Version=4.14.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35",
+    "actualCommon": "Microsoft.CodeAnalysis, Version=4.14.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35",
+    "targetFramework": ".NETStandard,Version=v2.0",
+    "defaultPackDependencies": "None; own DLL/XML only",
+    "forbiddenLoaded": [],
+    "coreMetadataSha256": "4fe30e5a423df43589cf286da7f035d2647d94a8f4f2422b7cf10171c75eb343",
+    "oneDiagnostic": {
+      "Id": "LSA1001",
+      "severity": "Error",
+      "start": 91,
+      "length": 21
+    },
+    "corrections": [
+      "RS1032 diagnostic message trailing period removed; final rebuild warning0",
+      "Explicit scheme prefix required; rooted path and leading whitespace negative checks added to existing fixture"
+    ],
+    "actualSourcePair": "NOT_RUN_IN01",
+    "SDK_VS_IDE": "NOT_RUN_IN03"
+  },
+  "testFramework": "Existing TUnit1.72.16/Microsoft.Testing.Platform maintained in standalone canary project",
+  "defaultSolution": "Analyzer project added; actual package host tests remain explicit opt-in until IN01",
+  "coreMetadata": "Existing development Core DLL used only as Roslyn metadata, not CLR-loaded; no full Core rebuild",
+  "limitations": [
+    "LSA1001 only original-leading explicit absolute non-HTTP(S) scheme constants, not general validation or flow",
+    "No CodeFix/workspaces",
+    "No full SDK/VS/CSharp extension certification",
+    "Source artifact pair and actual Generator/Analyzer source hosts: IN01",
+    "Full host/OS/stress/performance gates: later IN03/04"
+  ],
+  "MD06": "WAIT_IN01_PASS",
+  "publicationAuthorized": false,
+  "fastTier": false,
+  "evidenceDirectory": "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-ra01-20261008-1791467762490",
+  "muse": {
+    "actualModel": {
+      "id": "muse-spark-1.3-contributor",
+      "providerID": "opencode-go",
+      "variant": "default"
+    },
+    "actualAgent": "ra01-muse",
+    "sessionId": "ses_ee42c5f3effetdHxsGfA4zkGkQ",
+    "outcome": "succeeded",
+    "expectedCounts": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "toolEvents": 0,
+    "fastTier": false
+  },
+  "candidate": {
+    "packageId": "LithoSharp.Analyzers",
+    "version": "2.0.0-preview.1",
+    "byteLength": 26258,
+    "sha256": "1a53219ae5f7e9fe8cff896be621704932d81646692c5119d732c6f255d3698d",
+    "analyzerAssemblySha256": "5df4469d37bb3382fbaba39368718f3972af2c25a737e94113ba3a978db95717",
+    "publiclyPublished": false,
+    "immutable": true,
+    "sourceMode": "not-selected"
+  },
+  "copilot": {
+    "initialReview": {
+      "model": "claude-opus-5.5",
+      "effort": "high",
+      "modelMatch": true,
+      "importantFindings": 1
+    },
+    "fixReview": {
+      "model": "claude-opus-5.5",
+      "effort": "high",
+      "modelMatch": true,
+      "outcome": "PASS",
+      "remainingIssues": 0
+    },
+    "reportedRemainingBefore": 19080,
+    "reportedRemainingAfter": 19080,
+    "sessionCost": 30,
+    "costNote": "Quota snapshot unchanged; each session usage reports cost15. Do not infer zero consumption.",
+    "toolEvents": 0,
+    "permissionRequests": 0,
+    "fastTier": false
+  },
+  "agy": {
+    "freshModelList": "agy-models.txt",
+    "actualModel": "gemini-3.8-flash-high",
+    "conversationId": "1275b82b-25c9-4fb2-ac63-003732f10d43",
+    "status": "SUCCESS",
+    "numTurns": 1,
+    "yomiyasu": "Full SKILL.md supplied",
+    "acceptedSuggestions": [
+      1,
+      3
+    ],
+    "declinedSuggestion2Reason": "正本の意味を保持。参照元への変更では許容host adapter linkまで禁じる可能性がある。",
+    "observedSteps": "user_input/agent_response; backend-wide isolation not claimed",
+    "fastTier": false
+  },
+  "processOwnership": {
+    "recordedRoots": 18,
+    "activeOwnedCount": 0,
+    "recognizableOrphanCandidates": 0,
+    "unrelatedProcessesUntouched": true,
+    "scope": "Recorded roots guarded by PID+creation time, their live descendants and task-signature orphan candidates; not a global idle-host claim"
+  },
+  "bocchiReview": "PENDING_ALL12_FILES",
+  "remoteAndCi": "PENDING_TASK_COMMIT_PUSH_AND_EXACT_SHA_CI",
+  "futurePushApproval": "Not inferred from SD203 user manual push",
+  "nextTask": "IN01 only after RA01 Bocchi full review PASS plus remote and exactSHA CI"
+}

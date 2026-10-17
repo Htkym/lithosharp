@@ -20,6 +20,8 @@ export interface LspClientOptions {
   isTrusted: () => boolean;
   onLog?: (line: string) => void;
   onState?: (state: string) => void;
+  onCapabilities?: (result: unknown) => void;
+  onAnalysisStatus?: (uri: string, state: 'ready' | 'unavailable', message: string) => void;
 }
 
 /**
@@ -88,7 +90,7 @@ export class LspClient {
     );
     this.connection = connection;
     const id = this.nextId();
-    await connection.sendRequest<unknown>(id, 'initialize', {
+    const initialized = await connection.sendRequest<unknown>(id, 'initialize', {
       processId: null,
       capabilities: { textDocument: { publishDiagnostics: { versionSupport: true } } },
       initializationOptions: this.options.initializationOptions ?? {},
@@ -96,6 +98,7 @@ export class LspClient {
     if (this.child !== child || this.connection !== connection) {
       return;
     }
+    this.options.onCapabilities?.(initialized);
     connection.sendNotification('initialized', {});
     this.ready = true;
     for (const context of this.projectContexts.values()) {
@@ -303,6 +306,16 @@ export class LspClient {
   }
 
   private onNotification(method: string, params: unknown): void {
+    if (method === 'lithosharp/analysisStatus' && typeof params === 'object' && params !== null) {
+      const status = params as Record<string, unknown>;
+      const buffer = typeof status['uri'] === 'string' ? this.buffers.get(status['uri']) : undefined;
+      if (buffer && status['version'] === buffer.version && status['lithosharpOpenGeneration'] === buffer.generation &&
+          status['lithosharpContextGeneration'] === this.contextGeneration && status['language'] === 'mdx' &&
+          (status['state'] === 'ready' || status['state'] === 'unavailable') && typeof status['message'] === 'string') {
+        this.options.onAnalysisStatus?.(status['uri'] as string, status['state'], status['message']);
+      }
+      return;
+    }
     if (method !== 'textDocument/publishDiagnostics' || typeof params !== 'object' || params === null) {
       return;
     }

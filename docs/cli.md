@@ -15,6 +15,10 @@ The template package is separate from the tool. Its short names are
 `lithosharp-docs`, `lithosharp-blog`, `lithosharp-empty`, and `lithosharp-mdx`; they also work directly
 with `dotnet new`. The empty template demonstrates a custom C# layout.
 
+## Inspection and migration in the 2.0 candidate
+
+The installation example above is for published 1.1.0. The candidate `preflight` and `migrate testing --dry-run` commands require an exact candidate Tool version. The [2.0 migration notes](migration-2.0.md) cover candidate dependencies, static versus trusted project inspection, and Testing updates.
+
 ## One definition for both hosts
 
 A site assembly exports exactly one nonabstract `ISiteFactory` class with a public
@@ -85,6 +89,15 @@ recompile. The browser reload script is injected into HTTP responses, leaving fi
 on disk unchanged. `/_lithosharp/diagnostics` exposes the current build status, and a
 browser overlay shows failed builds. The previous committed output remains available
 when a rebuild fails. Changes outside the watched project directory require a restart.
+
+  In JSON mode, `POST /_lithosharp/watch-barrier` waits up to 60 seconds for already
+  admitted watch inputs and their builds to finish. It returns a fixed generation,
+  owner and host identity. It does not promise that future native events cannot arrive.
+  Rebuild terminals include a `watch` witness with the consumed restart reasons,
+  input revision and previous/current host. The component-edit check fixes its baseline
+  before editing and requires zero worker starts and the same host across every normal
+  terminal. Watcher recovery is recorded separately; it does not prove ordinary reuse
+  or turn the check green. Best-effort lifecycle sidecars remain diagnostic evidence.
 
 `SiteGenerator.CleanAsync(outputDirectory, cancellationToken)` returns removed
 relative paths. Modified and unowned files remain. Ownership metadata is required;

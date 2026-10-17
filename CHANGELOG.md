@@ -2,6 +2,13 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 2.0.0 — Unreleased development candidate
+
+- Separate the shared Markdown foundation into Syntamark, using runtime and compiler-source artifacts from one fixed pair. The stable pair is not published.
+- Replace the Testing `Document` getter with LithoSharp-owned read-only HTML snapshots and queries. This is a source and binary breaking change.
+- Add optional analyzers for definite misuse of registered APIs, supported HTML interpolation/URLs, and references to verified catalogs. Unknown and unsupported cases do not become complete proofs.
+- Add static-input and trusted-catalog `preflight`, plus the read-only `migrate testing --dry-run` report, to the Tool candidate. See the [2.0 migration notes](docs/migration-2.0.md) for execution boundaries and examples.
+
 ## 1.1.0 — 2026-10-07
 
 - Editor inspection shares one analysis with the CLI: opt-in Markdown

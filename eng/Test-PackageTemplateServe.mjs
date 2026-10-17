@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import net from 'node:net';
+import { fileURLToPath } from 'node:url';
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const markdownPair = JSON.parse(await fs.readFile(path.join(repo, 'eng/markdown/component-pair.json'), 'utf8'));
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -15,13 +18,19 @@ const projects = (await fs.readdir(project)).filter(name => name.endsWith('.cspr
 assert.equal(projects.length, 1);
 assert.doesNotMatch(await fs.readFile(path.join(project, projects[0]), 'utf8'), /<ProjectReference\b/i);
 for (const [name, library] of Object.entries(assets.libraries)) {
-  if (!/^LithoSharp(?:[./])/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
-  assert.equal(name.split('/')[1], version, `Unexpected package: ${name}`);
+  if (!/^(?:LithoSharp(?:[./])|Syntamark\/)/.test(name) || name.startsWith('LithoSharp.FixtureExtension/')) continue;
+  const [id, resolvedVersion] = name.split('/');
+  assert.equal(resolvedVersion, id === 'Syntamark' ? markdownPair.componentVersion : version, `Unexpected package: ${name}`);
   assert.equal(library.type, 'package', `Source project escape: ${name}`);
 }
 assert.ok(assets.libraries[`LithoSharp/${version}`], 'Candidate Core was not resolved');
+assert.ok(assets.libraries[`Syntamark/${markdownPair.componentVersion}`], 'Fixed Markdown runtime was not resolved');
 await fs.mkdir(evidence, { recursive: false });
 const events = [], owned = new Map();
+const startedAt = performance.now();
+let phase = 'capture-owned-processes', phaseStartedAt = startedAt, startupInfo;
+const initialHttp = { headersReceived: false, bodyReceived: false };
+function markPhase(value) { phase = value; phaseStartedAt = performance.now(); }
 let pending = '', stdout = '', stderr = '', invalidJson, inputError, exitResult;
 const child = spawn(tool, ['serve', project, '-c', 'Release', '--port', '0', '--format', 'json', '--control-stdin'], {
   cwd: project, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
@@ -99,57 +108,109 @@ async function portOpen(port) {
     socket.setTimeout(1000, () => done(false));
   });
 }
+function errorDetails(error, depth = 0) {
+  if (depth === 3) return { truncated: true };
+  try {
+    if (!error || typeof error !== 'object') return { message: String(error).slice(0, 2048) };
+    const text = value => typeof value === 'string' ? value.slice(0, 2048) : undefined;
+    return { name: text(error.name), message: text(error.message), code: typeof error.code === 'number' ? error.code : text(error.code),
+      ...(error.cause === undefined ? {} : { cause: errorDetails(error.cause, depth + 1) }) };
+  } catch { return { unavailable: true }; }
+}
+function processState() {
+  return { pid: child.pid ?? null, exitCode: child.exitCode, signalCode: child.signalCode, close: exitResult ?? null };
+}
+async function captureFailure(error, beforeCleanup) {
+  // No additional HTTP request. TCP is a separate, bounded failure observation.
+  try {
+    const failure = result.failure = { phase, elapsedMs: Math.round(performance.now() - startedAt),
+      phaseElapsedMs: Math.round(performance.now() - phaseStartedAt), beforeCleanup,
+      error: errorDetails(error), startup: startupInfo ?? { observed: false }, initialHttp: { ...initialHttp },
+      processAtFailure: processState() };
+    const port = startupInfo?.actualPort;
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+      const tcpStartedAt = performance.now();
+      try {
+        failure.tcp = { reachable: await withTimeout(portOpen(port), 1500, 'Failure TCP observation timed out'),
+          elapsedMs: Math.round(performance.now() - tcpStartedAt), maximumWaitMs: 1500 };
+      } catch (diagnosticError) { failure.tcp = { error: errorDetails(diagnosticError), maximumWaitMs: 1500 }; }
+    } else failure.tcp = { skipped: 'No valid startup port' };
+  } catch (diagnosticError) {
+    result.failureDiagnosticError = errorDetails(diagnosticError);
+  }
+}
 let result, primaryError, sourceMutation;
 try {
   await captureDescendants();
+  markPhase('startup');
   const startup = await waitFor(() => events.find(event => event.event === 'startup'), 'startup');
+  startupInfo = { observed: true, generation: Number.isSafeInteger(startup.generation) ? startup.generation : null,
+    actualPort: Number.isSafeInteger(startup.actualPort) ? startup.actualPort : null };
   assert.equal(startup.schemaVersion, '1.0'); assert.equal(startup.generation, 1);
   assert.equal(startup.requestedPort, 0); assert.ok(startup.actualPort > 0);
   assert.equal(startup.url, `http://127.0.0.1:${startup.actualPort}`);
+  markPhase('capture-started-processes');
   await captureDescendants();
+  markPhase('read-homepage');
   const disk = await fs.readFile(path.join(project, 'dist/index.html'), 'utf8');
   const main = disk.match(/<main\b[^>]*>[\s\S]*?<\/main>/i)?.[0];
   assert.ok(main, 'Generated homepage has no main content');
+  markPhase('initial-http-headers');
   const response = await fetch(new URL('/', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
-  assert.equal(response.status, 200); const html = await response.text();
+  initialHttp.headersReceived = true; initialHttp.status = response.status;
+  markPhase('initial-http-status');
+  assert.equal(response.status, 200);
+  markPhase('initial-http-body');
+  const html = await response.text();
+  initialHttp.bodyReceived = true;
+  markPhase('verify-homepage');
   assert.ok(html.includes(main), 'Served homepage differs from generated main content');
   assert.ok(html.includes("EventSource('/_lithosharp/reload')"), 'Live reload client missing');
   assert.ok(!disk.includes('EventSource('), 'Serve mutated the production output');
   if (path.basename(project) === 'mdx') {
+    markPhase('mdx-http');
     const external = await fetch(new URL('/external-extension.txt', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
     assert.equal(external.status, 200); assert.equal(await external.text(), 'external C# package');
     const react = await fetch(new URL('/guide/index/', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
     assert.equal(react.status, 200); assert.match(await react.text(), /External package (?:<!-- -->)?7/);
   }
+  markPhase('edit-source');
   const sourcePath = path.join(project, 'content', path.basename(project) === 'mdx' ? 'index.mdx' : 'index.md');
   const original = await fs.readFile(sourcePath, 'utf8');
   const marker = `Package template live edit ${process.pid} ${Date.now()}`;
   const modified = original + `\n\n${marker}\n`;
   sourceMutation = { sourcePath, original, modified };
   await fs.writeFile(sourcePath, modified);
+  markPhase('rebuild');
   const rebuilt = await waitFor(() => events.find(event => event.event === 'rebuild-succeeded' && event.generation > startup.generation), 'new output generation');
   assert.equal(rebuilt.success, true);
   let changedRoute;
+  markPhase('rebuilt-http');
   for (const route of startup.routes.filter(route => route.path.endsWith('.html'))) {
     const updated = await fetch(new URL(route.publicPath, startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
     assert.equal(updated.status, 200);
     if ((await updated.text()).includes(marker)) { changedRoute = route.publicPath; break; }
   }
   assert.ok(changedRoute, 'HTTP did not converge to the edited source at the new generation');
+  markPhase('shutdown-ack');
   await captureDescendants();
   child.stdin.write('{"schemaVersion":"1.0","command":"shutdown","requestId":"package-template-stop"}\n');
   const ack = await waitFor(() => events.find(event => event.event === 'control-ack' && event.requestId === 'package-template-stop'), 'shutdown acknowledgement');
   assert.equal(ack.success, true);
+  markPhase('shutdown-exit');
   const terminal = await withTimeout(exit, 30_000, 'Owned server did not exit after shutdown');
   assert.equal(terminal.code, 0); assert.equal(terminal.signal, null);
+  markPhase('shutdown-port');
   assert.equal(await portOpen(startup.actualPort), false, 'Owned TCP listener remained');
   assert.equal(events.filter(event => event.event === 'shutdown').length, 1);
+  markPhase('shutdown-processes');
   const alive = (await processRows()).filter(row => owned.get(row.pid) === row.birth);
   assert.deepEqual(alive, [], 'Owned server/worker process remained after shutdown');
   result = { passed: true, template: path.basename(project), candidateVersion: version, packageOnly: true, startup, rebuildGeneration: rebuilt.generation, changedRoute, marker, ownedPids: [...owned.keys()], exit: terminal, listenerClosed: true, ownedProcessesRemaining: 0 };
 } catch (error) {
   primaryError = error;
   result = { passed: false, template: path.basename(project), candidateVersion: version, error: String(error), exit: exitResult };
+  await captureFailure(error, true);
 } finally {
   // Capture only descendants of the handle we spawned while it is still alive.
   if (!exitResult) {
@@ -186,17 +247,32 @@ try {
     result.passed = false; result.error = String(primaryError);
   }
   if (sourceMutation) {
-    if (await fs.readFile(sourceMutation.sourcePath, 'utf8') === sourceMutation.modified) {
-      await fs.writeFile(sourceMutation.sourcePath, sourceMutation.original);
-      result.fixtureSourceRestored = true;
-    } else {
+    try {
+      if (await fs.readFile(sourceMutation.sourcePath, 'utf8') === sourceMutation.modified) {
+        await fs.writeFile(sourceMutation.sourcePath, sourceMutation.original);
+        result.fixtureSourceRestored = true;
+      } else {
+        result.fixtureSourceRestored = false;
+        if (!primaryError) { primaryError = Error('Fixture source changed unexpectedly; preserved it'); result.passed = false; result.error = String(primaryError); }
+      }
+    } catch (error) {
       result.fixtureSourceRestored = false;
-      if (!primaryError) { primaryError = Error('Fixture source changed unexpectedly; preserved it'); result.passed = false; result.error = String(primaryError); }
+      result.fixtureRestoreError = errorDetails(error);
+      if (!primaryError) { primaryError = error; result.passed = false; result.error = String(error); }
     }
   }
-  await fs.writeFile(path.join(evidence, 'stdout.jsonl'), stdout);
-  await fs.writeFile(path.join(evidence, 'stderr.log'), stderr);
-  await fs.writeFile(path.join(evidence, 'result.json'), JSON.stringify(result, null, 2) + '\n');
+  if (primaryError) {
+    if (!result.failure) { markPhase('cleanup'); await captureFailure(primaryError, false); }
+    if (result.failure) result.failure.processAfterCleanup = processState();
+    result.exit = exitResult ?? { code: child.exitCode, signal: child.signalCode, closeObserved: false };
+  }
+  for (const [name, text] of [['stdout.jsonl', stdout], ['stderr.log', stderr], ['result.json', JSON.stringify(result, null, 2) + '\n']]) {
+    try { await fs.writeFile(path.join(evidence, name), text); }
+    catch (error) {
+      if (!primaryError) throw error;
+      console.error('Could not write package serve failure evidence:', JSON.stringify(errorDetails(error)));
+    }
+  }
 }
 if (primaryError) throw primaryError;
 console.log(`Package-only ${path.basename(project)} serve passed: HTTP/content/generation/shutdown/owned processes.`);

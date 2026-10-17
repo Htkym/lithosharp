@@ -3,13 +3,11 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp;
 
-/// <summary>決定的なサイト生成の概要を表します。</summary>
+/// <summary>Generation report with UTC time and artifact paths relative to the output root.</summary>
 public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
 {
-    /// <summary>レポートのスキーマバージョン。</summary>
     public const int CurrentVersion = 1;
 
-    /// <summary>レポートを作成します。</summary>
     public SiteBuildReport(
         DateTimeOffset buildTimestamp,
         string environmentName,
@@ -84,38 +82,22 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
         RetainedRecoveryState = retainedRecoveryState;
     }
 
-    /// <summary>レポートのスキーマバージョンを取得します。</summary>
     public int Version { get; }
-    /// <summary>UTC に正規化したビルド時刻を取得します。</summary>
     public DateTimeOffset BuildTimestamp { get; }
-    /// <summary>ビルド環境名を取得します。</summary>
     public string EnvironmentName { get; }
-    /// <summary>テンプレートの安定した型名を取得します。</summary>
     public string TemplateIdentity { get; }
-    /// <summary>ノードと所有成果物を取得します。</summary>
     public IReadOnlyList<SiteBuildReportNode> Nodes { get; }
-    /// <summary>キャッシュから再利用したノード数を取得します。</summary>
     public int CacheHitCount => Nodes.Count(static node => node.CacheHit);
-    /// <summary>キャッシュから再利用しなかったノード数を取得します。</summary>
     public int CacheMissCount => Nodes.Count(static node => !node.CacheHit);
-    /// <summary>前回計画との差分による無効化を取得します。</summary>
     public IReadOnlyList<SiteBuildReportInvalidation> Invalidations { get; }
-    /// <summary>生成した相対成果物パスを取得します。</summary>
     public IReadOnlyList<string> GeneratedArtifacts { get; }
-    /// <summary>生成を省略した相対成果物パスを取得します。</summary>
     public IReadOnlyList<string> SkippedArtifacts { get; }
-    /// <summary>公開しなかったページ識別子を取得します。</summary>
     public IReadOnlyList<string> UnpublishedPages { get; }
-    /// <summary>所有情報に基づき削除した相対成果物パスを取得します。</summary>
     public IReadOnlyList<string> StaleRemovedArtifacts { get; }
-    /// <summary>生成中に収集した診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics { get; }
-    /// <summary>原子的な出力トランザクションの結果を取得します。</summary>
     public string TransactionOutcome { get; }
-    /// <summary>回復用状態が保持されているかどうかを取得します。</summary>
     public bool RetainedRecoveryState { get; }
 
-    /// <summary>レポートの内容が等しいかどうかを判定します。</summary>
     public bool Equals(SiteBuildReport? other) =>
         other is not null
         && Version == other.Version
@@ -201,30 +183,25 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
     }
 }
 
-/// <summary>レポートに含めるビルドノードと所有成果物です。</summary>
 public sealed record SiteBuildReportNode(string NodeId, IReadOnlyList<string> OwnedArtifacts)
 {
     private string nodeId = NodeId ?? throw new ArgumentNullException(nameof(NodeId));
     private IReadOnlyList<string> ownedArtifacts = Snapshot(OwnedArtifacts);
 
-    /// <summary>ビルドノード識別子を取得します。</summary>
     public string NodeId
     {
         get => nodeId;
         init => nodeId = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    /// <summary>ノードが所有する相対成果物パスを取得します。</summary>
     public IReadOnlyList<string> OwnedArtifacts
     {
         get => ownedArtifacts;
         init => ownedArtifacts = Snapshot(value);
     }
 
-    /// <summary>ノードの成果物をキャッシュから再利用したかどうかを取得します。</summary>
     public bool CacheHit { get; init; }
 
-    /// <summary>キャッシュを再利用しなかった理由を取得します。理由がない場合は <see langword="null"/> です。</summary>
     public string? CacheMissReason { get; init; }
 
     /// <inheritdoc />
@@ -246,20 +223,17 @@ public sealed record SiteBuildReportNode(string NodeId, IReadOnlyList<string> Ow
     }
 }
 
-/// <summary>レポートに含めるノード無効化理由です。</summary>
 public sealed record SiteBuildReportInvalidation(string NodeId, IReadOnlyList<string> Reasons)
 {
     private string nodeId = NodeId ?? throw new ArgumentNullException(nameof(NodeId));
     private IReadOnlyList<string> reasons = Snapshot(Reasons);
 
-    /// <summary>ビルドノード識別子を取得します。</summary>
     public string NodeId
     {
         get => nodeId;
         init => nodeId = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    /// <summary>ノードが無効になった理由を取得します。</summary>
     public IReadOnlyList<string> Reasons
     {
         get => reasons;

@@ -2,16 +2,20 @@
 param(
     [Parameter(Mandatory)]
     [string] $PackageDirectory,
-    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')]
+    [ValidateSet('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.Analyzers', 'LithoSharp.CodeFixes', 'Syntamark', 'Syntamark.Source')]
     [string] $PackageId = 'LithoSharp',
     [string] $ExpectedVersion
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
+$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
+$isMarkdownComponent = $PackageId -in @('Syntamark', 'Syntamark.Source')
 
 $matchingPackages = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter '*.nupkg' |
-    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' })
+    Where-Object { $_.Name -match ('^' + [regex]::Escape($PackageId) + '\.\d') -and $_.Name -notlike '*.symbols.nupkg' -and
+        (!$ExpectedVersion -or $_.Name -ceq "$PackageId.$ExpectedVersion.nupkg") })
 if ($matchingPackages.Count -ne 1) { throw "Expected exactly one $PackageId package in $PackageDirectory." }
 $package = $matchingPackages[0]
 $symbols = $null
@@ -89,15 +93,19 @@ function Read-Nuspec([string] $Path, [string] $Id) {
 
 $packageEntries = Get-ZipEntries $package.FullName
 $symbolsEntries = if ($symbols) { Get-ZipEntries $symbols.FullName } else { @() }
-foreach ($required in @('README.md', 'icon.png')) {
+& (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $package.FullName
+if ($symbols) { & (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $symbols.FullName }
+$requiredMetadata = if ($isMarkdownComponent) { @('README.md', 'LICENSE', 'markdown/manifest.json') } else { @('README.md', 'icon.png') }
+foreach ($required in $requiredMetadata) {
     if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
 }
 # Bundled third-party assemblies retain exact upstream redistribution notices.
-if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool')) {
+if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool') -or
+    ($PackageId -eq 'LithoSharp.Analyzers' -and $packageEntries -contains 'analyzers/dotnet/cs/YamlDotNet.dll')) {
     $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $prefix = if ($PackageId -eq 'LithoSharp.Tool') { 'tools/net10.0/any/licenses/' } else { 'licenses/' }
     $notices = if ($PackageId -eq 'LithoSharp.Tool') {
-        @('YamlDotNet.LICENSE.txt', 'AngleSharp.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
+        @('YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
     } else { @('YamlDotNet.LICENSE.txt') }
     $noticeArchive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
     try {
@@ -131,24 +139,65 @@ if ($symbols) {
         throw 'Core symbols nuspec identity or repository provenance differs from its package.'
     }
 }
-if ($metadata.license.type -ne 'expression' -or $metadata.license.'#text' -ne 'MIT' -or
-    $metadata.icon -ne 'icon.png' -or $metadata.readme -ne 'README.md' -or
-    $metadata.repository.type -ne 'git' -or $metadata.repository.url -ne 'https://github.com/Htkym/lithosharp') {
+$validLicense = if ($isMarkdownComponent) {
+    $metadata.license.type -eq 'file' -and $metadata.license.'#text' -eq 'LICENSE' -and
+        $metadata.version -ceq $markdownPair.componentVersion -and $metadata.repository.commit -ceq $markdownPair.sourceCommit
+} else { $metadata.license.type -eq 'expression' -and $metadata.license.'#text' -eq 'MIT' -and $metadata.icon -eq 'icon.png' }
+$validRepository = if ($isMarkdownComponent) {
+    $metadata.repository.type -ceq 'git' -and
+        $metadata.repository.url -ceq 'https://github.com/Htkym/syntamark' -and
+        $metadata.repository.url -ceq $markdownPair.sourceRepository.url -and
+        $metadata.repository.commit -ceq $markdownPair.sourceCommit
+} else { $metadata.repository.type -eq 'git' -and $metadata.repository.url -eq 'https://github.com/Htkym/lithosharp' }
+if (!$validLicense -or $metadata.readme -ne 'README.md' -or !$validRepository) {
     throw 'Package license, icon, README or repository metadata is incorrect.'
 }
 # Analyzer-only packages ship no dependency group; strict mode would throw on
 # the missing property, so the sweeps below run only when present.
 $nuspecDependencies = @()
 if ($null -ne $metadata.PSObject.Properties['dependencies']) {
-    $nuspecDependencies = @($metadata.dependencies.group.dependency)
+    $nuspecDependencies = @($metadata.SelectNodes('./*[local-name()="dependencies"]//*[local-name()="dependency"]'))
 }
 if ($nuspecDependencies.Count -gt 0 -and $nuspecDependencies.id -contains 'Markdig') {
     throw 'Package metadata must not reference Markdig.'
 }
+if ($isMarkdownComponent) {
+    & node (Join-Path $repo 'eng/markdown/Verify-FixedPair.mjs') verify-fixed-package $package.FullName
+    if ($LASTEXITCODE -ne 0) { throw 'Fixed Markdown artifact/source verification failed.' }
+    if ($PackageId -eq 'Syntamark') {
+        if ($nuspecDependencies.Count -ne 1 -or $nuspecDependencies[0].id -cne 'YamlDotNet' -or $nuspecDependencies[0].version -cne '[18.1.0]') {
+            throw 'Fixed Markdown runtime requires exactly YamlDotNet [18.1.0].'
+        }
+    } elseif ($nuspecDependencies.Count -ne 0) { throw 'Markdown source hosts must declare dependencies themselves.' }
+    Write-Host "Validated fixed Markdown component: $($package.Name)"
+    return
+}
 foreach ($dependency in $nuspecDependencies) {
+    if ($dependency.id -eq 'Syntamark') {
+        if ($dependency.version -cne "[$($markdownPair.componentVersion)]") { throw "Markdown runtime dependency must match the exact fixed pair: $($dependency.version)." }
+        continue
+    }
     if ($dependency.id -like 'LithoSharp*' -and $dependency.version -notin @($metadata.version, "[$($metadata.version), )")) {
         throw "Package dependency version is not aligned: $($dependency.id) $($dependency.version)."
     }
+}
+if ($PackageId -eq 'LithoSharp.Analyzers') {
+    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Analyzers.dll', 'analyzers/dotnet/cs/LithoSharp.Analyzers.xml')) {
+        if ($packageEntries -notcontains $required) { throw "Analyzer package is missing required entry: $required" }
+    }
+    if ($nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -match '^lib/' -or ($_ -like '*.dll' -and $_ -notin @('analyzers/dotnet/cs/LithoSharp.Analyzers.dll', 'analyzers/dotnet/cs/YamlDotNet.dll')) }).Count -ne 0) {
+        throw 'Analyzer package contains a runtime dependency or unexpected assembly payload.'
+    }
+    Write-Host "Validated analyzer package contents: $($package.Name)"
+    return
+}
+if ($PackageId -eq 'LithoSharp.CodeFixes') {
+    if ($packageEntries -notcontains 'analyzers/dotnet/cs/LithoSharp.CodeFixes.dll' -or
+        $nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -match '^lib/' -or ($_ -like '*.dll' -and $_ -cne 'analyzers/dotnet/cs/LithoSharp.CodeFixes.dll') }).Count -ne 0) {
+        throw 'CodeFix package must contain only its IDE assembly and no runtime dependencies.'
+    }
+    Write-Host "Validated CodeFix package contents: $($package.Name)"
+    return
 }
 if ($PackageId -eq 'LithoSharp.Tool') {
     foreach ($required in @('tools/net10.0/any/LithoSharp.Tool.dll', 'tools/net10.0/any/LithoSharp.Tool.runtimeconfig.json', 'tools/net10.0/any/DotnetToolSettings.xml', 'tools/net10.0/any/LithoSharp.dll', 'README.md')) {
@@ -206,7 +255,7 @@ if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('AngleSharp', 'SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet')) {
+foreach ($expected in @('SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'Syntamark')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

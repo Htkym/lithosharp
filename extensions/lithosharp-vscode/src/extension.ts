@@ -17,6 +17,7 @@ import { toVsDiagnostic } from './diagnostics.js';
 import { resolveWorker, restoreWorker, type WorkerDeps, type WorkerFileSystem } from './worker.js';
 import { PreviewManager } from './previewManager.js';
 import type { InspectedRoute } from './preview.js';
+import { preflightModes, serverCapabilityText } from './tooling.js';
 
 const execFile = promisify(execFileCallback);
 
@@ -185,6 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
   let projectContextEpoch = 0;
   const projectAcquisitions = new Map<string, number>();
   let disposed = false;
+  let capabilityProbe: AbortController | undefined;
   let lspGeneration = 0;
   let lsp: LspClient | undefined;
   let lspStarting: Promise<LspClient | undefined> | undefined;
@@ -225,6 +227,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // Settings/workspace changes withdraw acquired ownership immediately. A
     // build/inspect begun before this refresh cannot restore a stale context.
     projectContextEpoch++;
+    capabilityProbe?.abort();
+    capabilityProbe = undefined;
     for (const key of projectContexts.keys()) lsp?.sendProjectContext(key, [], null);
     projectContexts.clear();
     const folders = vscode.workspace.workspaceFolders ?? [];
@@ -305,10 +309,10 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!runner) {
       runner = new BuildRunner({
         isTrusted: () => vscode.workspace.isTrusted,
-        cli: (name) => {
+        cli: (name, args) => {
           const current = buildCliCommands.get(key) ?? cli;
           return {
-            command: [...current.command, name, selected.projectPath, '--format', 'json'],
+            command: [...current.command, name, ...(name === 'preflight' ? args : [selected.projectPath]), '--format', 'json'],
             cwd: current.cwd,
           };
         },
@@ -568,6 +572,79 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  const runPreflight = async (requestedMode?: unknown): Promise<void> => {
+    requireTrusted(vscode.workspace.isTrusted, 'run preflight');
+    const epoch = projectContextEpoch;
+    const selected = await currentSelection();
+    if (!selected) { output.appendLine('Preflight unavailable: select a project to resolve the CLI.'); return; }
+    const cli = await cliFor(selected);
+    requireTrusted(vscode.workspace.isTrusted, 'probe preflight capabilities');
+    if (disposed || epoch !== projectContextEpoch) return;
+    capabilityProbe?.abort();
+    const abort = new AbortController();
+    capabilityProbe = abort;
+    let advertised: Awaited<ReturnType<import('./buildRunner.js').RunProbe['run']>>;
+    try {
+      advertised = await realRunProbe().run([...cli.command, 'capabilities', '--format', 'json'], cli.cwd ?? selected.workspaceFolder, undefined, abort.signal);
+    } catch (error) {
+      if (!abort.signal.aborted && !disposed && epoch === projectContextEpoch) {
+        output.appendLine(`Preflight capability probe failed: ${String(error)}`);
+        output.show(true);
+      }
+      return;
+    } finally {
+      if (capabilityProbe === abort) capabilityProbe = undefined;
+    }
+    if (abort.signal.aborted || disposed || epoch !== projectContextEpoch) return;
+    requireTrusted(vscode.workspace.isTrusted, 'run preflight');
+    let report: unknown;
+    try { report = advertised.exit === 0 ? JSON.parse(advertised.stdout) : null; } catch { report = null; }
+    const modes = preflightModes(report);
+    if (modes.length === 0) {
+      output.appendLine('Preflight unavailable: the selected CLI/Core does not advertise compatible preflight capabilities. Existing Build, Inspect and live Markdown inspection remain unchanged. No project was evaluated by this capability probe.');
+      output.show(true);
+      return;
+    }
+    output.appendLine('Preflight capability comes from the selected Tool and its bundled Core; project Core support has not been acquired by the capability probe.');
+    const choices = modes.map(mode => ({ mode, label: mode === 'static' ? 'Static inputs' : 'Trusted project catalog',
+      description: mode === 'static' ? 'Inspect the saved active Markdown/MDX file without project evaluation.' : 'Compile the selected project and execute its trusted factory/catalog; do not render or publish.' }));
+    const chosen = requestedMode === undefined
+      ? await vscode.window.showQuickPick(choices, { placeHolder: 'Choose the explicit preflight operation' })
+      : choices.find(item => item.mode === requestedMode);
+    if (!chosen || disposed || epoch !== projectContextEpoch) return;
+    requireTrusted(vscode.workspace.isTrusted, 'run preflight');
+    const document = vscode.window.activeTextEditor?.document;
+    const supported = document && document.uri.scheme === 'file' && LspClient.isSupported(document.uri.toString(), document.languageId);
+    const version = document?.version;
+    if (chosen.mode === 'static' && !supported) { output.appendLine('Static preflight requires an active Markdown/MDX file.'); output.show(true); return; }
+    if (supported && document.isDirty) { output.appendLine('Save the active document before explicit preflight; live diagnostics continue to use the unsaved buffer.'); output.show(true); return; }
+    const args = [...(chosen.mode === 'trusted' ? [selected.projectPath] : []), '--mode', chosen.mode];
+    if (supported) args.push('--input', document.uri.fsPath);
+    if (supported && /\.mdx$/i.test(document.uri.fsPath)) {
+      const worker = await resolveWorker(workerDeps(context));
+      if (!worker.ready) { output.appendLine('MDX preflight unavailable: run LithoSharp: Restore MDX Worker first. Markdown diagnostics remain available.'); output.show(true); return; }
+      args.push('--worker-directory', worker.directory);
+      const nodeExecutable = vscode.workspace.getConfiguration('lithosharp').get<string>('nodeExecutable', '').trim();
+      if (nodeExecutable !== '') args.push('--node-executable', nodeExecutable);
+    }
+    requireTrusted(vscode.workspace.isTrusted, 'run preflight');
+    if (disposed || epoch !== projectContextEpoch) return;
+    if (supported && (document.isClosed || document.isDirty || document.version !== version)) {
+      output.appendLine('Preflight cancelled because the active buffer changed during preparation. Save it and run preflight again.'); return;
+    }
+    const result = await buildRunnerFor(selected, cli).run('preflight', args);
+    if (disposed || epoch !== projectContextEpoch || !vscode.workspace.isTrusted) return;
+    output.appendLine(`Preflight ${chosen.mode}: ${result.ok ? 'no Error in the reported phase' : 'failed'} (exit ${result.exitCode}). Validation only; no render or publication authorization.`);
+    if (result.ok) {
+      output.appendLine(JSON.stringify(result.raw, null, 2));
+    } else {
+      output.appendLine(result.error);
+      if (result.raw) output.appendLine(JSON.stringify(result.raw, null, 2));
+      if (result.diagnosticsText) output.appendLine(result.diagnosticsText);
+    }
+    output.show(true);
+  };
+
   const serverFor = (selected: ProjectCandidate, cli: { command: string[]; cwd: string | undefined }): ServeController => {
     const key = keyOf(selected);
     const existing = servers.get(key);
@@ -742,6 +819,8 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => { if (!disposed) output.appendLine(line); },
+        onCapabilities: (value) => { if (!disposed) output.appendLine(serverCapabilityText(value)); },
+        onAnalysisStatus: (uri, state, message) => { if (!disposed) output.appendLine(`MDX analysis ${state}: ${uri}. ${message}`); },
         onState: (name) => {
           if (!disposed) output.appendLine(`Language server: ${name}.`);
           // Reconnect on the next editing request, never in an exit-triggered loop.
@@ -848,7 +927,7 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   context.subscriptions.push(
-    { dispose: () => { disposed = true; lsp?.stop(); lsp = undefined; } },
+    { dispose: () => { disposed = true; capabilityProbe?.abort(); capabilityProbe = undefined; lsp?.stop(); lsp = undefined; } },
     output,
     status,
     diagnosticsCollection,
@@ -1000,6 +1079,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('lithosharp.build', () => runOneShot('build')),
     vscode.commands.registerCommand('lithosharp.inspectSite', () => runOneShot('inspect')),
+    vscode.commands.registerCommand('lithosharp.preflight', runPreflight),
     vscode.commands.registerCommand('lithosharp.startServer', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'start the server');
       const selected = await currentSelection();

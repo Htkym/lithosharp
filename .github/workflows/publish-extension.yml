@@ -16,6 +16,9 @@ on:
         type: choice
         options: ['false', 'true']
 
+env:
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
 permissions:
   contents: read
   actions: read
@@ -45,8 +48,7 @@ jobs:
           $publish = $env:GITHUB_EVENT_NAME -eq 'push' -or $env:INPUT_PUBLISH -eq 'true'
           if ($publish) {
             if (!$tag) { throw 'Marketplace publication requires an extension tag, not a branch dispatch.' }
-            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
-            if ($LASTEXITCODE -ne 0) { throw 'The tagged commit must already be on main.' }
+            ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $tag -RequireTag
             # An environment name alone would auto-create an unprotected environment.
             $policy = gh api "repos/$env:GITHUB_REPOSITORY/environments/marketplace"
             if ($LASTEXITCODE -ne 0) { throw 'Configure the marketplace environment with required reviewers before releasing.' }
@@ -66,6 +68,13 @@ jobs:
     environment: marketplace
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify release tag equals current reviewed main
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
       - uses: actions/download-artifact@v8
         with:
           name: installed-extension-candidate-${{ github.sha }}

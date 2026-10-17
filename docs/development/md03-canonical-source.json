@@ -1,0 +1,148 @@
+{
+  "task": "MD-03",
+  "state": "development source metadata; no packages packed",
+  "sourceCommit": null,
+  "reviewBaseSha": "eaacf27f0cbaa05d5ef62e32fda02890864412df",
+  "componentVersion": null,
+  "contractVersion": "1.0",
+  "profileId": "lithosharp-markdown/1",
+  "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "hashEncoding": "UTF8 path bytes ordered, uint64 BE path/content lengths, Git clean-filtered blob bytes",
+  "excludedGeneratedStamp": "src/LithoSharp.Markdown/Portable/MarkdownParserVersion.g.cs",
+  "runtimeOnlyMetadata": "Properties/AssemblyInfo.cs is not in the portable source-host payload",
+  "canonicalFiles": [
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-dependencies.json",
+      "byteLength": 83,
+      "sha256": "d26de340ae230a58fda4e89906ec284d16550a0ae3cfbd80387b1aec38a27643",
+      "gitBlob": "81dbc6a3468d524e446215830062ad136b1dcc61"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-options.json",
+      "byteLength": 405,
+      "sha256": "a4f217c45e933c8ce94080b79f0621fce7fa243d6794b07ccdeb245e9a17d718",
+      "gitBlob": "79bf3c6346dff067ef1ae8cafe7f984fd8906cf2"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Contracts/markdown-profile.json",
+      "byteLength": 487,
+      "sha256": "4cc7fcc4d7c091040f7439b6708cbdac53759e575f74d477d925cbb00e3dcd31",
+      "gitBlob": "10e367f8098c6251d6ab70821b1d8208357ad588"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/IndexRange.cs",
+      "byteLength": 1502,
+      "sha256": "8ff0c37c32c26d9e3324a67e784759e4d3e340e62928b1b54af013c9eb4addb5",
+      "gitBlob": "6e00070d6e80517e41c5dabcb1340021645b9e3c"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/IsExternalInit.cs",
+      "byteLength": 182,
+      "sha256": "58a23596a504a1cf073911fe514b1ce0bbf8e9e6dfda6c52c857ecc25a0c94f6",
+      "gitBlob": "2884568916ba24631866c2f93c79b969f5490804"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoBlockParser.cs",
+      "byteLength": 67978,
+      "sha256": "53620f7b751eef890b5d02c30d0fc62984e048af5edd0253753b165f6aac013a",
+      "gitBlob": "fcae7a815b2f843c5c6da8fb21a9291840f0a17c"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoCharacters.cs",
+      "byteLength": 372,
+      "sha256": "00ae41bfe92825d6bcf670cfcfa750b0d76f29eb883ca7885bd101de1997f102",
+      "gitBlob": "e01255a95a3181c358796df5d3153fcba3da2c60"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoDirectives.cs",
+      "byteLength": 1788,
+      "sha256": "f5a0e2637a043d6bfb8743a6178d9b6f23d9f81b3ac1e6e2846a917103f80b7a",
+      "gitBlob": "2e32fd4a4c392aa45dbdcc42d22874b2c1cffbe0"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoInlineParser.cs",
+      "byteLength": 41777,
+      "sha256": "69f90c32a08e7f395993be12cddb90ca889d416bcf7adf23473c5b695271e1c5",
+      "gitBlob": "91b774872d2c386830c95f7e917846fab7ea443d"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoLimits.cs",
+      "byteLength": 2192,
+      "sha256": "f6aff2003028aa3e2deccfbbbd6b79ff2ce22ccac66856edf8184791776ccff4",
+      "gitBlob": "720fe6565d2ba07eecd5536e793aa62377f3cac6"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoNodes.cs",
+      "byteLength": 8009,
+      "sha256": "e280278fffbaeeb867234cc93e7c370dbe4c0469522fe6cd46869ce8a39a0c0a",
+      "gitBlob": "ef1b43ac3d4f98ae248b2548fc7524c061fa5538"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/LithoSlug.cs",
+      "byteLength": 3438,
+      "sha256": "e6acf2ef9dee6b60c6217163318b78c4832c12b6d5eed6a96134784c846fc290",
+      "gitBlob": "ffeee2f066272dea60460d75d60a15add0571239"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFacts.cs",
+      "byteLength": 10269,
+      "sha256": "6e983f87469fa57eb08c64d2bee2bf7d58d2d6a5b87ff5cee3f2de8276208d7c",
+      "gitBlob": "32a08d4e7828567b5d6835708299693604a7c234"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFrontMatter.cs",
+      "byteLength": 8316,
+      "sha256": "32169ecdd51017050fd16a1c376a16934b7bd44942105dc02bbe8f22e2ea1c91",
+      "gitBlob": "c54cca38f8ac19dc9d376e066449a6fbe617292c"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownFrontMatterScan.cs",
+      "byteLength": 2607,
+      "sha256": "e532018cf91ca1ecda618c2afb2261589fda6427a2a5d93918efc56c1e08b057",
+      "gitBlob": "9004bedd3e6bbb2aabd61e0166ab9cc672a78ee8"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownOpaqueSyntax.cs",
+      "byteLength": 7881,
+      "sha256": "c0d81161187d48c9ac627023da5a329d228a17f6da546abfae17ba4b8f32b784",
+      "gitBlob": "115602239ad0707e5955a51dd7e659e4e87c7cf9"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownOptions.cs",
+      "byteLength": 4231,
+      "sha256": "3550b0eb2fc851d8735b4dd4d280e6d63e1c9ad1661f43767d8026d3c7b26e06",
+      "gitBlob": "54f90dab8099b1624a748a4320dd7620b159d39b"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownParser.cs",
+      "byteLength": 25009,
+      "sha256": "fcc1d16aae7fca25964fd24cc7c3e2eb27f6677ae7c4c64b829e2bfe273f2689",
+      "gitBlob": "cf4c47ecc4f846aaf1fe1d3bb16accb357bb0f80"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/MarkdownSourceMapping.cs",
+      "byteLength": 5531,
+      "sha256": "0eef70428300fe58989ea502b8b2992d73c98fcef34bb1ab83a15abc0d4c92b3",
+      "gitBlob": "ce6483f1a78c051a648533327dac73c756d2dee5"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/NetStandardCompatibility.cs",
+      "byteLength": 793,
+      "sha256": "9292e5b0ed0547fddceef6e22b5be527e2af1bd4d604a58c83deb8f278809537",
+      "gitBlob": "03bf0d00f7ee9365958768f161e7ff686ae9668a"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/SourceSpan.cs",
+      "byteLength": 2360,
+      "sha256": "9943609f7c8ec19630d641531faa29a668c3884dc11c537a42f64539218fe0a9",
+      "gitBlob": "cb2ef20e42bfe9c8dc5bb9a483b902c9a1d62fdb"
+    },
+    {
+      "path": "src/LithoSharp.Markdown/Portable/SourceText.cs",
+      "byteLength": 2369,
+      "sha256": "c7cc33486e729665bbadabf098c035b349ac299f7b78c6431c9f5b82e60f7a20",
+      "gitBlob": "2d19e08c9a933789f610656581c705229d490c9f"
+    }
+  ]
+}

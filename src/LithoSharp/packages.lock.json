@@ -2,12 +2,6 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "AngleSharp": {
-        "type": "Direct",
-        "requested": "[1.8.3, )",
-        "resolved": "1.8.3",
-        "contentHash": "IiXdbBHzeKRUDayOFT/5nAqkY7Tqbtzr9dqoWrsfseLRs2r1j94qP8MmKnfs9aX+WHucmlmX8xq9QosIUJ/sbA=="
-      },
       "Microsoft.CodeAnalysis.PublicApiAnalyzers": {
         "type": "Direct",
         "requested": "[5.6.0, )",
@@ -29,6 +23,15 @@
         "requested": "[4.153.1, )",
         "resolved": "4.153.1",
         "contentHash": "NrnPjcxjcRau4GMOY0BTpUdMey+MnmLU3jC5AuExEFHPS2NkX1tdkXW0n/c5nQMMHBTAMpHnt7qEOpXs2FNfIQ=="
+      },
+      "Syntamark": {
+        "type": "Direct",
+        "requested": "[2.0.0-preview.3, 2.0.0-preview.3]",
+        "resolved": "2.0.0-preview.3",
+        "contentHash": "SS1kDrcSkEDVHPjKorWfy3y/cTKviDXdb/fxeO8ETEEUM82M6Nxstap6VZlHTcppeRfOdZXCs0xpR3ZxJk+TUw==",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0]"
+        }
       },
       "YamlDotNet": {
         "type": "Direct",

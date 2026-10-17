@@ -2,33 +2,10 @@ using System.Collections.ObjectModel;
 
 namespace LithoSharp.Diagnostics;
 
-/// <summary>サイト生成診断の重大度を表します。</summary>
-public enum SiteDiagnosticSeverity
-{
-    /// <summary>処理を妨げない補足情報です。</summary>
-    Info,
-
-    /// <summary>処理は継続できますが、確認が必要な問題です。</summary>
-    Warning,
-
-    /// <summary>安全な処理の継続を妨げる問題です。</summary>
-    Error,
-}
-
-/// <summary>診断に関連するソースファイル上の位置を表します。</summary>
+/// <summary>One-based source positions; null means unknown. An end position requires a start and cannot precede it.</summary>
 public sealed class SiteSourceLocation
 {
-    /// <summary>ソース位置を作成します。</summary>
-    /// <param name="filePath">関連するソースファイルのパス。</param>
-    /// <param name="line">1 から始まる行番号。特定できない場合は <see langword="null"/>。</param>
-    /// <param name="column">1 から始まる列番号。特定できない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException"><paramref name="filePath"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException"><paramref name="filePath"/> が空白です。</exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="line"/> または <paramref name="column"/> が 1 未満です。
-    /// </exception>
-    // RS0027 は意図的に抑制する。短い overload の 0.x 互換の省略可能引数を保ち、
-    // 引数の多い overload は既定値を持たないため既存呼び出しの解決は変わらない。
+    // RS0027: preserve optional arguments on the legacy overload; the longer overload has no defaults.
 #pragma warning disable RS0027
     public SiteSourceLocation(string filePath, int? line = null, int? column = null)
         : this(filePath, line, column, null, null)
@@ -36,18 +13,6 @@ public sealed class SiteSourceLocation
     }
 #pragma warning restore RS0027
 
-    /// <summary>終了位置付きのソース位置を作成します。</summary>
-    /// <param name="filePath">関連するソースファイルのパス。</param>
-    /// <param name="line">1 から始まる開始行番号。特定できない場合は <see langword="null"/>。</param>
-    /// <param name="column">1 から始まる開始列番号。特定できない場合は <see langword="null"/>。</param>
-    /// <param name="endLine">1 から始まる終了行番号。特定できない場合は <see langword="null"/>。</param>
-    /// <param name="endColumn">1 から始まる終了列番号。特定できない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException"><paramref name="filePath"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException"><paramref name="filePath"/> が空白です。</exception>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// 行または列が 1 未満か、終了位置が開始位置より前です。
-    /// </exception>
-    /// <exception cref="ArgumentException">開始位置なしに終了位置が指定されています。</exception>
     public SiteSourceLocation(string filePath, int? line, int? column, int? endLine, int? endColumn)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -103,38 +68,20 @@ public sealed class SiteSourceLocation
         EndColumn = endColumn;
     }
 
-    /// <summary>関連するソースファイルのパスを取得します。</summary>
     public string FilePath { get; }
 
-    /// <summary>1 から始まる行番号を取得します。</summary>
     public int? Line { get; }
 
-    /// <summary>1 から始まる列番号を取得します。</summary>
     public int? Column { get; }
 
-    /// <summary>1 から始まる終了行番号を取得します。</summary>
     public int? EndLine { get; }
 
-    /// <summary>1 から始まる終了列番号を取得します。</summary>
     public int? EndColumn { get; }
 }
 
-/// <summary>安定した識別子、重大度、メッセージ、任意のソース位置を持つ診断を表します。</summary>
 public sealed class SiteDiagnostic
 {
-    /// <summary>診断を作成します。</summary>
-    /// <param name="id">バージョン間で安定した診断識別子。</param>
-    /// <param name="severity">診断の重大度。</param>
-    /// <param name="message">診断メッセージ。</param>
-    /// <param name="location">関連するソース位置。特定できない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="id"/> または <paramref name="message"/> が <see langword="null"/> です。
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="id"/> または <paramref name="message"/> が空白です。
-    /// </exception>
-    // RS0027 は意図的に抑制する。短い overload の 0.x 互換の省略可能引数を保ち、
-    // 引数の多い overload は既定値を持たないため既存呼び出しの解決は変わらない。
+    // RS0027: preserve optional arguments on the legacy overload; the longer overload has no defaults.
 #pragma warning disable RS0027
     public SiteDiagnostic(
         string id,
@@ -146,20 +93,6 @@ public sealed class SiteDiagnostic
     }
 #pragma warning restore RS0027
 
-    /// <summary>分類と関連位置付きの診断を作成します。</summary>
-    /// <param name="id">バージョン間で安定した診断識別子。</param>
-    /// <param name="severity">診断の重大度。</param>
-    /// <param name="message">診断メッセージ。</param>
-    /// <param name="location">関連するソース位置。文書外の診断では <see langword="null"/>。</param>
-    /// <param name="category">診断の分類。ない場合は <see langword="null"/>。</param>
-    /// <param name="relatedLocations">関連する追加のソース位置。ない場合は <see langword="null"/>。</param>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="id"/> または <paramref name="message"/> が <see langword="null"/> です。
-    /// </exception>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="id"/>、<paramref name="message"/>、<paramref name="category"/> が空白か、
-    /// <paramref name="relatedLocations"/> に null が含まれています。
-    /// </exception>
     public SiteDiagnostic(
         string id,
         SiteDiagnosticSeverity severity,
@@ -204,21 +137,15 @@ public sealed class SiteDiagnostic
         RelatedLocations = new ReadOnlyCollection<SiteSourceLocation>(related);
     }
 
-    /// <summary>バージョン間で安定した診断識別子を取得します。</summary>
     public string Id { get; }
 
-    /// <summary>診断の重大度を取得します。</summary>
     public SiteDiagnosticSeverity Severity { get; }
 
-    /// <summary>診断メッセージを取得します。</summary>
     public string Message { get; }
 
-    /// <summary>関連するソース位置を取得します。</summary>
     public SiteSourceLocation? Location { get; }
 
-    /// <summary>診断の分類を取得します。</summary>
     public string? Category { get; }
 
-    /// <summary>関連する追加のソース位置を取得します。</summary>
     public IReadOnlyList<SiteSourceLocation> RelatedLocations { get; }
 }

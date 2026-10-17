@@ -115,13 +115,17 @@ public sealed class MdxInspectionTests
         var buildDiagnostic = buildFailure!.Diagnostics.First(item => item.Id == "LSMDX001");
         await using (var session = new MdxInspectionSession(WorkspaceOptions(workspace)))
         {
-            var analyzed = await session.AnalyzeAsync("broken.mdx", text);
+            var analyzed = await session.AnalyzeAsync("content/broken.mdx", text);
             var diagnostic = analyzed.Diagnostics.Single(item => item.Id == "LSMDX001");
             await Assert.That(diagnostic.Severity).IsEqualTo(buildDiagnostic.Severity);
             await Assert.That(diagnostic.Message).IsEqualTo(buildDiagnostic.Message);
             await Assert.That(diagnostic.Location?.Line).IsEqualTo(6);
             await Assert.That(diagnostic.Location?.Line).IsEqualTo(buildDiagnostic.Location?.Line);
             await Assert.That(diagnostic.Location?.Column).IsEqualTo(buildDiagnostic.Location?.Column);
+            await Assert.That(diagnostic.Location?.FilePath).IsEqualTo(buildDiagnostic.Location?.FilePath);
+            await Assert.That(diagnostic.Location?.EndLine).IsEqualTo(buildDiagnostic.Location?.EndLine);
+            await Assert.That(diagnostic.Location?.EndColumn).IsEqualTo(buildDiagnostic.Location?.EndColumn);
+            await Assert.That(diagnostic.Category).IsEqualTo(buildDiagnostic.Category);
         }
     }
 

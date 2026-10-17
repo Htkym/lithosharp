@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
@@ -15,6 +16,7 @@ using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
+using LithoSharp.HtmlParsing;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Quality;
@@ -117,6 +119,7 @@ public sealed partial class SiteGenerator
 
         /// <summary>Build cancellation, honored by post analysis and parse-cache IO.</summary>
         public CancellationToken Cancellation { get; init; }
+        internal BuildHtmlFacts? HtmlFacts { get; init; }
     }
 
     private sealed record PageClaim<TContent>(
@@ -134,27 +137,8 @@ public sealed partial class SiteGenerator
         IReadOnlyList<GeneratedArtifactState> Artifacts);
 
 
-    /// <summary>Generates a static site from the site settings and posts.</summary>
-    /// <param name="site">Site settings.</param>
-    /// <param name="posts">Posts to render.</param>
-    /// <param name="outputDirectory">Output directory.</param>
-    /// <param name="clean">Whether to delete the output directory before generating.</param>
-    /// <param name="customization">Text, theme, extra pages, and other overrides. Defaults to English when omitted.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The generation result.</returns>
-    /// <remarks>
-    /// Cooperating processes are serialized by a Unicode-normalized, case-folded output identity.
-    /// Transaction metadata is owner-only where supported. Symbolic links and name-surrogate
-    /// reparse points are rejected. Because .NET has no portable handle-relative no-follow directory
-    /// traversal, hostile same-user mutation outside this lock protocol is unsupported.
-    /// Generator ownership and content fingerprints are kept in an owner-restricted sibling sidecar.
-    /// The manifest published inside the output tree is informational and is never used for deletion.
-    /// With <paramref name="clean"/> set to <see langword="false"/>, timestamps, file attributes,
-    /// Windows owner/group/DACL data, and Unix permission modes are preserved. Unix ownership,
-    /// ACLs, extended attributes, and other platform metadata are not promised.
-    /// If cleanup after promotion fails, generation still succeeds, a trace warning is emitted,
-    /// and the owned backup is retained for cleanup by a later generation.
-    /// </remarks>
+    /// <inheritdoc cref="GenerateWithOptionsAsync" />
+    /// <remarks>Uses default generation options; omitted customization uses English text.</remarks>
     public Task<SiteGenerationResult> GenerateAsync(
         SiteSettings site,
         IReadOnlyList<MarkdownPost> posts,
@@ -171,29 +155,8 @@ public sealed partial class SiteGenerator
             new SiteGenerationOptions(),
             cancellationToken);
 
-    /// <summary>生成オプションを指定して静的サイトを生成します。</summary>
-    /// <param name="site">サイト設定。</param>
-    /// <param name="posts">描画する投稿。</param>
-    /// <param name="outputDirectory">出力ディレクトリ。</param>
-    /// <param name="clean">生成前に出力ディレクトリを削除するかどうか。</param>
-    /// <param name="customization">文言、テーマ、追加ページなどのカスタマイズ。</param>
-    /// <param name="options">今回の生成に適用するオプション。</param>
-    /// <param name="cancellationToken">キャンセルトークン。</param>
-    /// <returns>生成結果。</returns>
-    /// <remarks>
-    /// Unicode 正規化と大文字化を適用した出力識別子ごとに、協調するプロセス間の生成を直列化します。
-    /// 対応する環境ではトランザクション用メタデータを所有者専用にします。
-    /// シンボリックリンクと名前を置き換える再解析ポイントは拒否します。
-    /// 生成物の所有情報と内容フィンガープリントは、所有者専用の隣接サイドカーに保持します。
-    /// 出力ツリー内に公開するマニフェストは情報提供専用であり、削除判断には使用しません。
-    /// .NET には移植可能なハンドル相対の no-follow ディレクトリ走査がないため、
-    /// この排他制御を使わずに同じユーザーの外部プロセスが生成中のツリーを変更する敵対的操作はサポートしません。
-    /// <paramref name="clean"/> が <see langword="false"/> の場合は、タイムスタンプ、ファイル属性、
-    /// Windows の所有者、グループ、DACL、および Unix のパーミッションモードを保持します。
-    /// Unix の所有者、ACL、拡張属性などのメタデータ保持は保証しません。
-    /// 昇格後のバックアップ削除に失敗した場合も生成は成功として扱い、トレース警告を出力して、
-    /// 所有するバックアップを次回の生成で再度削除するために保持します。
-    /// </remarks>
+    /// <summary>Serializes cooperating processes by normalized output identity. Private sidecars, not the public manifest, authorize stale removal. Links and name-surrogate reparse points are rejected.</summary>
+    /// <remarks>Uncooperative same-user tree mutation is unsupported because portable handle-relative no-follow traversal is unavailable. With clean=false, preserves timestamps, attributes, Windows owner/group/DACL and Unix mode; Unix ownership, ACLs and extended attributes are not guaranteed. A promoted build remains successful if backup cleanup fails; a trace warning is emitted and the owned backup is retained for a later generation.</remarks>
     public async Task<SiteGenerationResult> GenerateWithOptionsAsync(
         SiteSettings site,
         IReadOnlyList<MarkdownPost> posts,
@@ -283,55 +246,75 @@ public sealed partial class SiteGenerator
         var buildTimestamp = ResolveBuildTimestamp(options.BuildTimestamp);
         ArgumentNullException.ThrowIfNull(options.Extensions);
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
-        var extensionDiagnostics = new List<SiteDiagnostic>();
-        foreach (var extension in options.Extensions)
+        var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
+            .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
+        if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
+        ArgumentNullException.ThrowIfNull(options.Extensions);
+        ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
+        options = options with
         {
-            ArgumentNullException.ThrowIfNull(extension);
-            var contribution = await extension.PrepareAsync(
-                new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp), cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("A build extension returned no contribution.");
-            ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
-            ArgumentNullException.ThrowIfNull(contribution.Assets);
-            ArgumentNullException.ThrowIfNull(contribution.Diagnostics);
-            extensionDiagnostics.AddRange(contribution.Diagnostics);
-            options = options with
-            {
-                ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
-                GeneratedAssets = [.. options.GeneratedAssets, .. contribution.Assets],
-            };
-        }
-        var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
-            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
-            .WithGenerated(options.GeneratedAssets, site.BaseUrl);
+            Extensions = options.Extensions.ToArray(),
+            ContentCollections = options.ContentCollections.ToArray(),
+            GeneratedAssets = options.GeneratedAssets.ToArray(),
+        };
         var template = customization.Template
             ?? throw new InvalidOperationException("Site customization must specify a template.");
         var pageRouteTable = new SiteRouteTable();
         var unpublishedPages = new List<string>();
         var publishedMarkdownClaims = AdaptPublishedMarkdownPages(
-            posts,
-            site.BaseUrl,
-            buildTimestamp,
-            options.EnvironmentName,
-            pageRouteTable,
-            unpublishedPages);
-        var extraPageClaims = AdaptExtraPages(customization.ExtraPages, site.BaseUrl, pageRouteTable);
+            posts, site.BaseUrl, buildTimestamp, options.EnvironmentName, pageRouteTable, unpublishedPages);
         var publishedExtraPageClaims = FilterPublished(
-            extraPageClaims,
-            buildTimestamp,
-            options.EnvironmentName);
+            AdaptExtraPages(customization.ExtraPages, site.BaseUrl, pageRouteTable), buildTimestamp, options.EnvironmentName);
         var contentPages = AdaptContentCollections(
-            options.ContentCollections,
-            site.BaseUrl,
-            buildTimestamp,
-            options.EnvironmentName,
-            pageRouteTable,
-            unpublishedPages,
-            cancellationToken);
+            options.ContentCollections, site.BaseUrl, buildTimestamp, options.EnvironmentName,
+            pageRouteTable, unpublishedPages, cancellationToken).ToList();
         var builtInTemplate = template is DocsSiteTemplate or BlogSiteTemplate;
         RegisterPageRoutes(pageRouteTable, publishedMarkdownClaims, builtInTemplate);
         RegisterPageRoutes(pageRouteTable, publishedExtraPageClaims, builtInTemplate);
+        // Keep this actual core catalog for rendering; do not re-run route callbacks.
+        // Known errors must stop before an extension can perform SSR or bundling.
         pageRouteTable.ValidateOrThrow();
-
+        await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null,
+            rawDemand: options.RawHtmlFactsDemand);
+        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+        var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
+            catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
+        var extensionDiagnostics = preflight.Diagnostics.ToList();
+        extensionDiagnostics.AddRange(preflight.DeferredReasons.Where(reason => reason.StartsWith("Extension '", StringComparison.Ordinal)).Select(reason => new SiteDiagnostic(
+            "LSPREFLIGHT001", SiteDiagnosticSeverity.Info, reason, null, "Preflight", null)));
+        for (var extensionIndex = 0; extensionIndex < options.Extensions.Count; extensionIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var extension = options.Extensions[extensionIndex];
+            ArgumentNullException.ThrowIfNull(extension);
+            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+            var contribution = await (catalogs[extensionIndex] is { } catalog
+                ? catalog.PrepareAsync(prepareContext, cancellationToken)
+                : extension.PrepareAsync(prepareContext, cancellationToken)).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("A build extension returned no contribution.");
+            ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
+            ArgumentNullException.ThrowIfNull(contribution.Assets);
+            ArgumentNullException.ThrowIfNull(contribution.Diagnostics);
+            extensionDiagnostics.AddRange(contribution.Diagnostics);
+            if (extensionDiagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
+                throw new SiteQualityValidationException(new SiteQualityReport(extensionDiagnostics));
+            options = options with
+            {
+                ContentCollections = [.. options.ContentCollections, .. contribution.ContentCollections],
+                GeneratedAssets = [.. options.GeneratedAssets, .. contribution.Assets],
+            };
+            ValidateContentCollectionIds(options.ContentCollections);
+            contentPages.AddRange(AdaptContentCollections(
+                contribution.ContentCollections, site.BaseUrl, buildTimestamp, options.EnvironmentName,
+                pageRouteTable, unpublishedPages, cancellationToken));
+            pageRouteTable.ValidateOrThrow();
+        }
+        // Match the original global collection ordering, preserving each collection's
+        // own page ordering after the batches were admitted at different phases.
+        contentPages = contentPages.OrderBy(page => page.CollectionId.Value, StringComparer.Ordinal).ToList();
+        var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
+            options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
+            .WithGenerated(options.GeneratedAssets, site.BaseUrl);
         var publishedPosts = publishedMarkdownClaims
             .Select(claim => claim.Page.Content)
             .ToArray();
@@ -368,6 +351,7 @@ public sealed partial class SiteGenerator
             routes)
         {
             Cancellation = cancellationToken,
+            HtmlFacts = sharedHtmlFacts,
         };
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
@@ -565,6 +549,7 @@ public sealed partial class SiteGenerator
             : SiteRoute.ForFile(EscapeOutputPath(artifact.RelativeOutputPath), site.BaseUrl), StringComparer.Ordinal);
 
         var outputScope = options.OutputScope.Select(SiteRoute.NormalizeRelativeOutputPath).ToArray();
+        var qualityPlan = buildPlan;
         if (outputScope.Length > 0 && (clean || !Directory.Exists(outputRoot)))
             throw new ArgumentException("A subset build requires an existing full output and clean=false.", nameof(options));
         bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
@@ -585,12 +570,20 @@ public sealed partial class SiteGenerator
                 cacheOptions: options)
             .ConfigureAwait(false);
         timing.MarkTransaction();
+        using var htmlFactsCache = options.Quality is not null && options.HtmlFactsCacheEnabled
+            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity), sharedHtmlFacts) : null;
         var generatedInStaging = new List<string>();
         var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
         var committed = false;
+        var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
+        async Task VerifyQualityOutputAsync(string root)
+        {
+            foreach (var artifact in inspectedQualityOutput.Values)
+                await VerifyQualityTextAsync(root, artifact, cancellationToken).ConfigureAwait(false);
+        }
         try
         {
             if (builtInTemplate)
@@ -725,23 +718,41 @@ public sealed partial class SiteGenerator
 
             if (options.Quality is { } qualityOptions)
             {
+                await sharedHtmlFacts.BeginQualityAsync().ConfigureAwait(false);
                 var textPaths = templateFiles.Concat(normalizedCollectionFiles).Concat(redirectOutputs.Select(redirect => redirect.File))
-                    .Select(file => file.RelativePath).Concat(assetRegistry.Files
-                        .Where(file => file.RelativePath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Select(file => file.RelativePath))
-                    .Where(path => outputScope.Length == 0 || ownedArtifactPaths.Contains(path, StringComparer.Ordinal)).ToArray();
+                    .Select(file => file.RelativePath).Concat(qualityPlan.Artifacts
+                        .Where(artifact => artifact.RelativeOutputPath.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+                            || artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                            || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                        .Select(artifact => artifact.RelativeOutputPath))
+                    .Distinct(StringComparer.Ordinal).ToArray();
                 string ValidationRootFor(string path) => execution?.PublishedOutputRetained == true
                     ? outputRoot
                     : outputTransaction.StagingRoot;
+                var referenceIdentities = new Dictionary<string, HtmlPageIdentity>(StringComparer.Ordinal);
+                foreach (var claim in publishedMarkdownClaims)
+                    referenceIdentities.Add(claim.Page.Route.RelativeOutputPath, new(claim.Page.Route.RelativeOutputPath,
+                        claim.Page.Route.PublicPath, claim.Page.Id.Value, claim.Page.Metadata.Document));
+                foreach (var claim in publishedExtraPageClaims)
+                    referenceIdentities.Add(claim.Page.Route.RelativeOutputPath, new(claim.Page.Route.RelativeOutputPath,
+                        claim.Page.Route.PublicPath, claim.Page.Id.Value, claim.Page.Metadata.Document));
+                foreach (var page in contentPages)
+                    referenceIdentities.Add(page.Route.RelativeOutputPath, new(page.Route.RelativeOutputPath,
+                        page.Route.PublicPath, page.PageId.Value, page.Metadata.Document));
                 qualityReport = await SiteQualityValidator.ValidateAsync(site.BaseUrl, textPaths,
-                    (path, token) => ReadStagedTextAsync(ValidationRootFor(path), path, token), artifactRoutes,
+                    (path, token) => ReadQualityTextAsync(ValidationRootFor(path), path, inspectedQualityOutput, token), artifactRoutes,
                     assetRegistry.Files.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal),
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
-                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes()).ConfigureAwait(false);
+                    qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache, sharedHtmlFacts,
+                    referenceIdentities).ConfigureAwait(false);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
+                buildPlan = QualityAnchorBuildPlan.Attach(buildPlan, qualityReport, cancellationToken);
             }
 
+            await sharedHtmlFacts.ReleaseAsync().ConfigureAwait(false);
             timing.MarkQuality();
+            cancellationToken.ThrowIfCancellationRequested();
             if (execution?.PublishedOutputRetained != true)
             {
                 await WriteOutputManifestAsync(
@@ -757,11 +768,14 @@ public sealed partial class SiteGenerator
                         generatedInStaging,
                         cancellationToken, outputScope.Length == 0 ? null : InScope)
                     .ConfigureAwait(false);
+                await VerifyQualityOutputAsync(outputTransaction.StagingRoot).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 await outputTransaction.CommitAsync(generatedInStaging, modifiedInStaging).ConfigureAwait(false);
                 committed = true;
                 timing.MarkCommit();
             }
+            else await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
+            if (htmlFactsCache is not null) await htmlFactsCache.PublishAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -793,9 +807,11 @@ public sealed partial class SiteGenerator
                 .ToArray();
         var result = new SiteGenerationResult(outputRoot, publishedPosts.Length, generated)
         {
+            Preflight = preflight,
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            HtmlFactsSharing = sharedHtmlFacts.Counters,
             Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
@@ -832,7 +848,7 @@ public sealed partial class SiteGenerator
             var ownerId = $"page:markdown:{index:D8}";
             var location = new SiteSourceLocation(post.FilePath);
             var metadata = LegacyPageAdapters.ToPageMetadata(post);
-            // 公開対象外のページはルートを所有しませんが、公開メタデータ自体は常に検証します。
+            // Unpublished pages own no routes, but their publication metadata must still be validated.
             if (!PagePublicationPolicy.ShouldPublish(metadata, buildTimestamp, environmentName))
             {
                 unpublishedPages?.Add(LegacyPageAdapters.CreateMarkdownPageId(post).Value);
@@ -889,7 +905,7 @@ public sealed partial class SiteGenerator
             buildTimestamp,
             environmentName,
             template.GetType().FullName ?? template.GetType().Name,
-            execution?.Nodes ?? plan.Nodes.Select(node => new SiteBuildReportNode(
+            execution?.Nodes ?? plan.Nodes.Where(node => !QualityAnchorBuildPlan.IsObservation(node)).Select(node => new SiteBuildReportNode(
                 node.Id.Value,
                 node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray())),
             invalidations,
@@ -2069,6 +2085,7 @@ public sealed partial class SiteGenerator
         var documents = new List<SearchDocument>(posts.Count);
         foreach (var post in posts)
         {
+            configuration.Cancellation.ThrowIfCancellationRequested();
             var plainText = GetPostSearchText(configuration, post);
             documents.Add(new SearchDocument(
                 post.FrontMatter.Title,
@@ -2082,7 +2099,10 @@ public sealed partial class SiteGenerator
         foreach (var page in contentPages
                      .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)))
         {
+            configuration.Cancellation.ThrowIfCancellationRequested();
             var derivedContent = page.DerivedContent ?? string.Empty;
+            var facts = configuration.HtmlFacts?.Get(derivedContent, configuration.Cancellation)
+                ?? HtmlConsumerFacts.Parse(derivedContent, configuration.Cancellation);
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
@@ -2091,10 +2111,10 @@ public sealed partial class SiteGenerator
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
                     : string.Empty,
-                NormalizeForIndex(StripTagsRegex.Replace(derivedContent, " ")))
+                NormalizeForIndex(facts.SearchText))
             {
                 Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
-                Sections = page.Metadata.Document is null ? null : ExtractSearchSections(derivedContent)
+                Sections = page.Metadata.Document is null ? null : facts.SearchSections()
             });
         }
 
@@ -2105,20 +2125,8 @@ public sealed partial class SiteGenerator
         return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
     }
 
-    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html)
-    {
-        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
-        foreach (var element in document.QuerySelectorAll("script,style,nav,noscript")) element.Remove();
-        var sections = new List<SearchSection>();
-        foreach (var heading in document.QuerySelectorAll("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]"))
-        {
-            var body = new StringBuilder();
-            for (var sibling = heading.NextElementSibling; sibling is not null && !(sibling.LocalName.Length == 2 && sibling.LocalName[0] == 'h' && char.IsDigit(sibling.LocalName[1])); sibling = sibling.NextElementSibling)
-                body.Append(sibling.TextContent).Append(' ');
-            sections.Add(new(heading.TextContent, heading.Id!, NormalizeForIndex(body.ToString())));
-        }
-        return sections;
-    }
+    internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html, CancellationToken cancellationToken = default) =>
+        HtmlFacts.Parse(html, cancellationToken).SearchSections();
 
 
     internal static string NormalizeForIndex(string text)

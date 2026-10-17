@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LithoSharp.CompilerDiagnostic.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);COMPILER_DIAGNOSTIC_ACCEPTANCE</DefineConstants>
+    <CompilerDiagnosticToolDirectory Condition="'$(CompilerDiagnosticToolDirectory)' == ''">$(MSBuildThisFileDirectory)../../src/LithoSharp.Tool/bin/$(Configuration)/net10.0</CompilerDiagnosticToolDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.72.16" />
+    <Using Include="TUnit.Core" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="LithoSharp">
+      <HintPath>$(CompilerDiagnosticToolDirectory)/LithoSharp.dll</HintPath>
+    </Reference>
+    <Compile Include="../LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs" Link="CompilerDiagnosticPreflightTests.cs" />
+  </ItemGroup>
+</Project>

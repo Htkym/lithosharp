@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using LithoSharp.Build;
 using LithoSharp.Diagnostics;
+using LithoSharp.Internal;
 
 namespace LithoSharp.Mdx;
 
@@ -15,6 +16,9 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
     private int offset;
     private int buffered;
     private readonly SemaphoreSlim gate = new(1, 1);
+    private readonly WatchLifecycleSidecar lifecycle = WatchLifecycleSidecar.FromEnvironment();
+    private Guid workerId;
+    private WatchLifecycleReason startReason = WatchLifecycleReason.FirstRequest;
     internal int Starts { get; private set; }
 
     internal async Task<JsonElement> SendAsync(object request, string requestId, CancellationToken cancellationToken)
@@ -44,6 +48,8 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                     start.Environment[pair.Key] = pair.Value;
                 }
                 process = StartWorker(start);
+                workerId = Guid.NewGuid();
+                lifecycle.Write(WatchLifecycleEvent.WorkerStarted, startReason, workerId: workerId);
                 Starts++;
                 stderrTask = DrainErrorsAsync(process.StandardError);
                 var ready = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
@@ -63,17 +69,17 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await StopAsync().ConfigureAwait(false);
+            await StopAsync(WatchLifecycleReason.Cancellation).ConfigureAwait(false);
             throw;
         }
         catch (OperationCanceledException)
         {
-            await StopAsync().ConfigureAwait(false);
+            await StopAsync(WatchLifecycleReason.Timeout).ConfigureAwait(false);
             throw Failure("LSMDX004", "The MDX worker timed out; the existing site was not published over.");
         }
         catch (Exception error) when (error is IOException or JsonException or KeyNotFoundException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await StopAsync().ConfigureAwait(false);
+            await StopAsync(WatchLifecycleReason.ProtocolOrIoFailure).ConfigureAwait(false);
             if (error is SiteBuildExtensionException) throw;
             throw Failure("LSMDX003", $"The MDX worker failed: {error.Message}");
         }
@@ -140,14 +146,17 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
         }
     }
 
-    private async Task StopAsync()
+    private async Task StopAsync(WatchLifecycleReason reason)
     {
         if (process is null) return;
+        lifecycle.Write(WatchLifecycleEvent.WorkerStopRequested, reason, workerId: workerId);
+        startReason = reason;
         try
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync().ConfigureAwait(false);
             if (stderrTask is not null) await stderrTask.ConfigureAwait(false);
+            lifecycle.Write(WatchLifecycleEvent.WorkerExited, reason, workerId: workerId, exitCode: process.ExitCode);
         }
         finally { process.Dispose(); process = null; buffered = offset = 0; stderrTask = null; }
     }
@@ -155,7 +164,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await gate.WaitAsync().ConfigureAwait(false);
-        try { await StopAsync().ConfigureAwait(false); }
+        try { await StopAsync(WatchLifecycleReason.Dispose).ConfigureAwait(false); }
         finally { gate.Release(); }
     }
 

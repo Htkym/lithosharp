@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Mdx</PackageId>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Description>Opt-in official MDX and React static rendering for LithoSharp.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -13,9 +14,11 @@
     <PackageIcon>icon.png</PackageIcon>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
     <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.'))">1.1.0</PackageValidationBaselineVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/WatchLifecycleSidecar.cs" Link="WatchLifecycleSidecar.cs" />
     <EmbeddedResource Include="Browser/*" />
     <ProjectReference Include="../LithoSharp/LithoSharp.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />

@@ -122,6 +122,8 @@ else {
     $vsix = $packages[0].FullName
 }
 
+& (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $vsix -Output (Join-Path $Output 'dependency-zero.json')
+
 $archive = [System.IO.Compression.ZipFile]::OpenRead($vsix)
 try {
     $entries = @($archive.Entries | ForEach-Object FullName | Sort-Object)
@@ -157,7 +159,6 @@ foreach ($pattern in $forbidden) {
 foreach ($required in @(
     'extension/package.json', 'extension/out/src/extension.js', 'extension/LICENSE.txt',
     'extension/resources/language-server/licenses/YamlDotNet.LICENSE.txt',
-    'extension/resources/language-server/licenses/AngleSharp.LICENSE.txt',
     'extension/resources/language-server/licenses/SkiaSharp.LICENSE.txt',
     'extension/resources/language-server/licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt',
     'extension/resources/language-server/licenses/THIRD-PARTY-NOTICES.md',

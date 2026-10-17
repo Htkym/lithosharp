@@ -1,5 +1,11 @@
 # LithoSharp for VS Code
 
+## Candidate preflight and capability reporting
+
+`LithoSharp: Preflight` is an explicit trusted-workspace command. It probes the selected CLI's compatible capability report before offering **Static inputs** (the saved active Markdown/MDX file only) or **Trusted project catalog** (compilation and trusted factory/catalog execution). Missing capabilities, including the published Core/Tool 1.1 report, disable this operation with an explanation. Existing Build, Inspect and live diagnostics remain available. Versions alone never enable preflight, and unsaved buffers must be saved before this explicit file operation. Preflight never renders or publishes; a successful snapshot does not authorize later rendering.
+
+The Output channel distinguishes the language server's bundled Core from the selected project's Core reference. Initialize does not acquire project capabilities. MDX worker availability is reported after actual analysis; an unavailable worker preserves Markdown diagnostics and points to `LithoSharp: Restore MDX Worker`. Restore and Restart replay already-open buffers. C# diagnostics and CodeFix remain with the Roslyn host; this extension does not implement a second C# server, LSA1402/1403 or FixAll.
+
 [日本語](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.ja.md)
 
 Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics and heading navigation.
@@ -36,6 +42,8 @@ Markdown/MDX diagnostics retain their original IDs. Changes are debounced by 150
 `LithoSharp: Open Preview`, `LithoSharp: Refresh Preview`, and `LithoSharp: Open in Browser` show the site's served output. Preview uses routes from site inspection. Unknown, draft, or unbuilt documents show an explanation. If an update fails, the last successful result remains labeled. A server started for preview stops when its last preview panel closes; a server started with `LithoSharp: Start Server` keeps running.
 
 Preview shows saved, built documents; unsaved buffers have no preview. The MDX worker transpiles TypeScript without type-checking.
+
+MDX preflight passes `lithosharp.nodeExecutable` to the CLI as `--node-executable`, using the same configured Node as live analysis. A waiting preflight capability probe is cancelled when it is superseded, the workspace/settings change, or the extension is disposed; its owned process tree is stopped.
 
 ## Workspace trust
 

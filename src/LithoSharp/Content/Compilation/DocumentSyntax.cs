@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 namespace LithoSharp.Content.Compilation;
 
 /// <summary>Block kinds in the Markdown syntax tree ("as written").</summary>

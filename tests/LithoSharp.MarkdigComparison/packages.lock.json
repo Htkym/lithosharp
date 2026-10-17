@@ -21,11 +21,6 @@
           "TUnit.Engine": "1.72.16"
         }
       },
-      "AngleSharp": {
-        "type": "Transitive",
-        "resolved": "1.8.3",
-        "contentHash": "IiXdbBHzeKRUDayOFT/5nAqkY7Tqbtzr9dqoWrsfseLRs2r1j94qP8MmKnfs9aX+WHucmlmX8xq9QosIUJ/sbA=="
-      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
@@ -114,6 +109,14 @@
         "resolved": "4.153.1",
         "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
       },
+      "Syntamark": {
+        "type": "Transitive",
+        "resolved": "2.0.0-preview.3",
+        "contentHash": "SS1kDrcSkEDVHPjKorWfy3y/cTKviDXdb/fxeO8ETEEUM82M6Nxstap6VZlHTcppeRfOdZXCs0xpR3ZxJk+TUw==",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0]"
+        }
+      },
       "TUnit.Assertions": {
         "type": "Transitive",
         "resolved": "1.72.16",
@@ -143,9 +146,9 @@
       "lithosharp": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.8.3, )",
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
+          "Syntamark": "[2.0.0-preview.3, 2.0.0-preview.3]",
           "YamlDotNet": "[18.1.0, )"
         }
       }

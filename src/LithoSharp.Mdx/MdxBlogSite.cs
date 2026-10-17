@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using LithoSharp.Build;
 using LithoSharp.Content;
+using LithoSharp.Inspection;
+using System.Runtime.CompilerServices;
 using LithoSharp.Pages;
 using LithoSharp.Routing;
 
@@ -52,10 +54,11 @@ public sealed record MdxBlogCollection(string Id, string InputDirectory, string 
 }
 
 /// <summary>Multiple MDX blogs sharing one compiler graph and the existing publication pipeline.</summary>
-public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
+public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationExtension, IAsyncDisposable
 {
     private readonly MdxSite mdx;
     private readonly List<MdxBlogCollection> blogs = [];
+    private readonly ConditionalWeakTable<MdxBlogFrontMatter, MdxBlogCollection> entryBlogs = new();
     /// <summary>Creates the optional blog preset without starting Node.</summary>
     public MdxBlogSite(MdxOptions options) => mdx = new(options);
     internal MdxBlogSite(MdxSite shared) => mdx = shared;
@@ -67,24 +70,64 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
         if (blogs.Any(value => value.Id == blog.Id)) throw new ArgumentException("Duplicate blog ID.");
         _ = SiteRoute.ForDirectoryIndex(blog.RoutePrefix);
         blogs.Add(blog);
-        mdx.AddCollection(new BlogLoader(blog), renderer: (entry, context) =>
+        mdx.AddCollection(new BlogLoader(blog, entryBlogs), renderer: (entry, context) =>
         {
+            var preparedBlog = entryBlogs.TryGetValue(entry.FrontMatter, out var captured)
+                ? captured : throw new InvalidOperationException("The blog entry has no captured catalog.");
             var metadata = entry.FrontMatter;
             var text = entry.Body.PlainText ?? metadata.Summary;
             var units = Regex.Matches(text, @"[\p{IsCJKUnifiedIdeographs}\p{IsHiragana}\p{IsKatakana}]|[\p{L}\p{N}]+").Count;
             var body = "<h1>" + Html.Encode(metadata.Title) + "</h1><p><time datetime=\"" + metadata.Date.ToString("O") + "\">" + metadata.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "</time> · "
                 + Math.Max(1, (int)Math.Ceiling(units / 250d)) + " min read</p>"
-                + string.Concat(metadata.Authors.Select(id => Profile(blog, id, context.Site.BaseUrl))) + entry.Body.ToHtmlString();
+                + string.Concat(metadata.Authors.Select(id => Profile(preparedBlog, id, context.Site.BaseUrl))) + entry.Body.ToHtmlString();
             return context.RenderDocument(body);
         });
     }
     /// <inheritdoc />
-    public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
+    public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default) =>
+        await (await InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false))
+            .PrepareAsync(context, cancellationToken).ConfigureAwait(false);
+
+    Task<SiteCatalogPreparation> ISiteCatalogPreparationExtension.InspectForGenerationAsync(
+        SiteBuildContext context, CancellationToken cancellationToken) => InspectForGenerationAsync(context, cancellationToken);
+
+    internal async Task<SiteCatalogPreparation> InspectForGenerationAsync(SiteBuildContext context, CancellationToken cancellationToken)
     {
-        var prepared = await mdx.PrepareAsync(context, cancellationToken).ConfigureAwait(false);
-        return Contribute(prepared, context);
+        var configuration = CaptureConfiguration();
+        var contribute = CaptureContribution();
+        var snapshot = await mdx.InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false);
+        var catalog = contribute(new() { ContentCollections = snapshot.ContentCollections, Diagnostics = snapshot.Contribution.Diagnostics }, context);
+        return SiteCatalogPreparation.FromContribution(catalog, context,
+            async (prepareContext, token) => contribute(await snapshot.PrepareAsync(prepareContext, token).ConfigureAwait(false), prepareContext),
+            async token =>
+            {
+                if (configuration != CaptureConfiguration())
+                    throw MdxWorker.Failure("LSMDX005", "Blog registration changed after catalog inspection; retry the build.");
+                await snapshot.ValidateInputsAsync(token).ConfigureAwait(false);
+            }, cancellationToken, snapshot.DeferredReasons, snapshot.SourceErrorDiagnostics);
     }
-    internal SiteBuildContribution Contribute(SiteBuildContribution prepared, SiteBuildContext context)
+
+    internal string CaptureConfiguration() => JsonSerializer.Serialize(blogs);
+    internal Func<SiteBuildContribution, SiteBuildContext, SiteBuildContribution> CaptureContribution()
+    {
+        var configured = blogs.ToArray();
+        MdxBlogCollection[]? captured = null;
+        return (prepared, context) =>
+        {
+            captured ??= configured.Select(blog => CaptureBlog(blog,
+                prepared.ContentCollections.OfType<SiteContentCollection<MdxBlogFrontMatter, MdxDocument>>()
+                    .Single(value => value.Collection.Id.Value == "blog:" + blog.Id).Collection.Entries
+                    .SelectMany(entry => entry.FrontMatter.Authors))).ToArray();
+            return Contribute(prepared, context, captured);
+        };
+    }
+    private static MdxBlogCollection CaptureBlog(MdxBlogCollection blog, IEnumerable<string> usedAuthors) =>
+        blog with { Authors = blog.Authors.Keys.Concat(usedAuthors).Distinct(StringComparer.Ordinal)
+            .ToDictionary(id => id, id => blog.Authors[id], StringComparer.Ordinal) };
+    internal SiteBuildContribution Contribute(SiteBuildContribution prepared, SiteBuildContext context) =>
+        Contribute(prepared, context, blogs);
+
+    private static SiteBuildContribution Contribute(SiteBuildContribution prepared, SiteBuildContext context, IReadOnlyList<MdxBlogCollection> blogs)
     {
         var collections = prepared.ContentCollections.ToList();
         var assets = prepared.Assets.ToList();
@@ -141,10 +184,11 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
     public JsonElement? GetInspection() => mdx.GetInspection();
     /// <inheritdoc />
     public ValueTask DisposeAsync() => mdx.DisposeAsync();
-    private sealed class BlogLoader(MdxBlogCollection blog) : IContentCollectionLoader<MdxBlogFrontMatter, MdxDocument>
+    private sealed class BlogLoader(MdxBlogCollection configuration, ConditionalWeakTable<MdxBlogFrontMatter, MdxBlogCollection> entryBlogs) : IContentCollectionLoader<MdxBlogFrontMatter, MdxDocument>
     {
         public async ValueTask<ContentLoadResult<MdxBlogFrontMatter, MdxDocument>> LoadAsync(CancellationToken cancellationToken = default)
         {
+            var blog = configuration;
             var result = await new MdxContentCollectionLoader<MdxBlogFrontMatter>(new("blog:" + blog.Id), blog.InputDirectory,
                 entry => SiteRoute.ForDirectoryIndex(blog.RoutePrefix.Trim('/') + "/" + (entry.FrontMatter.Slug ?? Path.ChangeExtension(entry.Id.Value, null)).Trim('/')),
                 entry => new(entry.FrontMatter.Title, entry.FrontMatter.Summary, entry.FrontMatter.Draft, entry.FrontMatter.Date, entry.FrontMatter.PublishUntil))
@@ -152,11 +196,15 @@ public sealed class MdxBlogSite : ISiteBuildExtension, IAsyncDisposable
             if (!result.IsSuccess) return result;
             var source = result.Collection!;
             foreach (var entry in source.Entries)
+            {
                 if (entry.FrontMatter.Authors.Any(id => !blog.Authors.ContainsKey(id)) || entry.FrontMatter.Date == default)
                     throw new ArgumentException("Blog entries require a date and known author IDs: " + entry.SourcePath);
+            }
+            var capturedBlog = CaptureBlog(blog, source.Entries.SelectMany(entry => entry.FrontMatter.Authors));
+            foreach (var entry in source.Entries) entryBlogs.Add(entry.FrontMatter, capturedBlog);
             return ContentLoadResult<MdxBlogFrontMatter, MdxDocument>.Success(new(source.Id, source.InputRoot, source.Entries.Select(entry =>
                 new ContentEntry<MdxBlogFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, entry.Body, entry.SourceLocation)
-                { DeclaredDependencies = entry.DeclaredDependencies, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : GeneratedPageDerivedSurfaces.All }), source.RouteConvention, source.PublicationMapper,
+                { DeclaredDependencies = entry.DeclaredDependencies, CapturedInputs = entry.CapturedInputs, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : GeneratedPageDerivedSurfaces.All }), source.RouteConvention, source.PublicationMapper,
                 declaredDependencies: [ContentDependency.FromValue("blog.options", JsonSerializer.Serialize(blog))], transformationId: new("mdx-blog-v1"), isCacheable: true));
         }
     }

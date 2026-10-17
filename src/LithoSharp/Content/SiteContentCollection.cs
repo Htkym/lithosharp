@@ -8,19 +8,12 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.Content;
 
-/// <summary>型付きコンテンツエントリを生成ファイルへ描画する処理を表します。</summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <typeparam name="TBody">本文の型。</typeparam>
-/// <param name="entry">描画するエントリ。</param>
-/// <param name="context">ルート、公開情報、レイアウト、および描画ヘルパーを持つコンテキスト。</param>
-/// <returns>出力ファイルへ書き込む文字列。</returns>
 public delegate string ContentPageRenderer<TFrontMatter, TBody>(
     ContentEntry<TFrontMatter, TBody> entry,
     ContentPageRenderingContext context)
     where TFrontMatter : notnull
     where TBody : notnull;
 
-/// <summary>型付きコンテンツページの描画時に使用する不変のコンテキストです。</summary>
 public sealed class ContentPageRenderingContext
 {
     private readonly SiteGenerator generator;
@@ -50,41 +43,29 @@ public sealed class ContentPageRenderingContext
         Assets = assets;
     }
 
-    /// <summary>サイト設定を取得します。</summary>
     public SiteSettings Site => configuration.Site;
 
-    /// <summary>正規化済みの公開ルートを取得します。</summary>
     public SiteRoute Route { get; }
 
-    /// <summary>公開判定済みのページメタデータを取得します。</summary>
     public PageMetadata Metadata { get; }
 
-    /// <summary>コレクションのレイアウト識別子を取得します。未指定の場合は <see langword="null"/> です。</summary>
     public ContentLayoutId? LayoutId { get; }
 
-    /// <summary>UTC に正規化されたビルド時刻を取得します。</summary>
+    /// <summary>UTC-normalized build time.</summary>
     public DateTimeOffset BuildTimestamp => configuration.BuildTimestamp;
 
-    /// <summary>公開判定に使用した環境名を取得します。</summary>
     public string EnvironmentName { get; }
 
     internal PageRenderingContext CreateLayoutContext() => new(generator, configuration, this);
 
-    /// <summary>このビルドで登録された資産を取得します。</summary>
     public AssetRegistry Assets { get; }
 
-    /// <summary>LithoSharp の安全な設定で Markdown を HTML に変換します。</summary>
-    /// <param name="markdown">変換する Markdown。</param>
-    /// <returns>変換後の HTML。</returns>
     public string RenderMarkdown(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
         return generator.RenderMarkdown(markdown);
     }
 
-    /// <summary>標準のメタデータ、ヘッダー、フッターを持つ HTML 文書を描画します。</summary>
-    /// <param name="bodyHtml"><c>main</c> 要素へ配置する HTML。</param>
-    /// <returns>完全な HTML 文書。</returns>
     public string RenderDocument(string bodyHtml)
     {
         ArgumentNullException.ThrowIfNull(bodyHtml);
@@ -106,7 +87,6 @@ public sealed class ContentPageRenderingContext
     }
 }
 
-/// <summary>生成へ接続する型付きコンテンツコレクションの基底契約です。</summary>
 public abstract class SiteContentCollection
 {
     private string? rendererFingerprint;
@@ -115,11 +95,9 @@ public abstract class SiteContentCollection
     {
     }
 
-    /// <summary>コレクションの安定した識別子を取得します。</summary>
     public abstract ContentCollectionId Id { get; }
 
-    /// <summary>レンダラー設定を識別する安定した値です。未指定の場合、レンダリング結果はキャッシュされません。</summary>
-    /// <exception cref="ArgumentException">値が空または空白だけです。</exception>
+    /// <summary>A stable renderer configuration identity; rendering is not cached when omitted.</summary>
     public string? RendererFingerprint
     {
         get => rendererFingerprint;
@@ -131,7 +109,7 @@ public abstract class SiteContentCollection
         }
     }
 
-    /// <summary>レンダラーを複数ページで同時に呼び出しても安全かどうかを示します。</summary>
+    /// <summary>Whether concurrent calls to this renderer are safe.</summary>
     public bool IsThreadSafe { get; init; }
 
     internal static string CaptureRendererIdentity(Delegate renderer, Type? layoutType = null)
@@ -168,18 +146,12 @@ public abstract class SiteContentCollection
         CancellationToken cancellationToken);
 }
 
-/// <summary>型付きコンテンツコレクションとページ描画処理を生成へ登録します。</summary>
-/// <typeparam name="TFrontMatter">フロントマターの型。</typeparam>
-/// <typeparam name="TBody">本文の型。</typeparam>
 public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentCollection
     where TFrontMatter : notnull
     where TBody : notnull
 {
     private readonly string rendererImplementationIdentity;
 
-    /// <summary>生成へ接続するコレクションを作成します。</summary>
-    /// <param name="collection">ルート、公開情報、レイアウト、依存関係を持つコレクション。</param>
-    /// <param name="renderer">公開対象の各エントリを描画する処理。</param>
     public SiteContentCollection(
         ContentCollection<TFrontMatter, TBody> collection,
         ContentPageRenderer<TFrontMatter, TBody> renderer)
@@ -189,11 +161,7 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
         rendererImplementationIdentity = CaptureRendererIdentity(renderer);
     }
 
-    /// <summary>型付きページレイアウトを使用してコレクションを作成します。</summary>
-    /// <param name="collection">描画対象のコレクション。</param>
-    /// <param name="layout">公開対象のページを描画するレイアウト。</param>
-    /// <exception cref="ArgumentNullException">コレクションまたはレイアウトが null です。</exception>
-    /// <remarks>レイアウトが null を返す場合は、生成時に InvalidOperationException が発生します。</remarks>
+    /// <summary>A layout returning null causes InvalidOperationException during generation.</summary>
     public SiteContentCollection(
         ContentCollection<TFrontMatter, TBody> collection,
         IPageLayout<ContentEntry<TFrontMatter, TBody>> layout)
@@ -216,10 +184,8 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
             layout.GetType());
     }
 
-    /// <summary>登録した型付きコンテンツコレクションを取得します。</summary>
     public ContentCollection<TFrontMatter, TBody> Collection { get; }
 
-    /// <summary>登録したページ描画処理を取得します。</summary>
     public ContentPageRenderer<TFrontMatter, TBody> Renderer { get; }
 
     /// <inheritdoc />

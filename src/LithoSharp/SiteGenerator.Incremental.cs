@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using LithoSharp.Build;
 using LithoSharp.Content;
@@ -305,10 +304,4 @@ public sealed partial class SiteGenerator
         { return false; }
     }
 
-    private static async Task<string> ReadStagedTextAsync(string root, string path, CancellationToken cancellationToken)
-    {
-        await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(root, SafeCombine(root, path), asynchronous: true);
-        using var reader = new StreamReader(stream, new UTF8Encoding(false, true));
-        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-    }
 }

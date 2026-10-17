@@ -1,0 +1,205 @@
+[
+  {
+    "name": "attribute",
+    "html": "<div style=\"background:url('javascript:attr')\"></div>",
+    "values": [
+      "javascript:attr"
+    ],
+    "errors": [
+      "javascript:attr"
+    ]
+  },
+  {
+    "name": "stylesheet",
+    "html": "<style>p{background:url('javascript:block')}</style>",
+    "values": [
+      "javascript:block"
+    ],
+    "errors": [
+      "javascript:block"
+    ]
+  },
+  {
+    "name": "css-escape",
+    "html": "<div style=\"background:u\\72l('java\\73 cript:escape')\"></div>",
+    "values": [
+      "javascript:escape"
+    ],
+    "errors": [
+      "java\\73 cript:escape"
+    ]
+  },
+  {
+    "name": "attribute-entity",
+    "html": "<div style=\"background:url('java&#x73;cript:entity')\"></div>",
+    "values": [
+      "javascript:entity"
+    ],
+    "errors": [
+      "java&#x73;cript:entity"
+    ]
+  },
+  {
+    "name": "html-style-raw-entity",
+    "html": "<style>p{background:url('java&#x73;cript:raw')}</style>",
+    "values": [
+      "java&#x73;cript:raw"
+    ],
+    "errors": []
+  },
+  {
+    "name": "svg-style-entity",
+    "html": "<svg><style>p{background:url('java&#x73;cript:svg')}</style></svg>",
+    "values": [
+      "javascript:svg"
+    ],
+    "errors": [
+      "java&#x73;cript:svg"
+    ]
+  },
+  {
+    "name": "svg-attribute",
+    "html": "<svg><rect style=\"background:url('javascript:svgattr')\"/></svg>",
+    "values": [
+      "javascript:svgattr"
+    ],
+    "errors": [
+      "javascript:svgattr"
+    ]
+  },
+  {
+    "name": "template-inert",
+    "html": "<template><style>p{background:url('javascript:inert')}</style><div style=\"background:url('javascript:inert')\"></div></template>",
+    "values": [],
+    "errors": []
+  },
+  {
+    "name": "foster-active",
+    "html": "<table><div style=\"background:url('javascript:foster')\"></div></table>",
+    "values": [
+      "javascript:foster"
+    ],
+    "errors": [
+      "javascript:foster"
+    ]
+  },
+  {
+    "name": "duplicate-attribute",
+    "html": "<div style=\"background:url('javascript:first')\" style=\"background:url('javascript:second')\"></div>",
+    "values": [
+      "javascript:first"
+    ],
+    "errors": [
+      "javascript:first"
+    ]
+  },
+  {
+    "name": "import",
+    "html": "<style>@import 'javascript:import';p{background:url('https://example.test/a')}</style>",
+    "values": [
+      "javascript:import",
+      "https://example.test/a"
+    ],
+    "errors": [
+      "javascript:import"
+    ]
+  },
+  {
+    "name": "attribute-import-excluded",
+    "html": "<div style=\"@import 'javascript:ignored'\"></div>",
+    "values": [],
+    "errors": []
+  },
+  {
+    "name": "comment-string",
+    "html": "<style>/*url('javascript:comment')*/p{content:\"url('javascript:string')\";x:myurl('javascript:name')}</style>",
+    "values": [],
+    "errors": []
+  },
+  {
+    "name": "quoted-eof",
+    "html": "<div style=\"background:url('javascript:eof\"></div>",
+    "values": [
+      "javascript:eof"
+    ],
+    "errors": [
+      "javascript:eof"
+    ]
+  },
+  {
+    "name": "valid-relative",
+    "html": "<div style=\"a:url('data:image/png;base64,AAAA');b:url('missing.png');c:url('//example.test/a')\"></div>",
+    "values": [
+      "data:image/png;base64,AAAA",
+      "missing.png",
+      "//example.test/a"
+    ],
+    "errors": []
+  },
+  {
+    "name": "partial-preserves-html",
+    "html": "<a href='javascript:href'>X</a><img src='javascript:src'><div style=\"a:url('javascript:css');b:url(var(--x))\"></div>",
+    "values": [
+      "javascript:css"
+    ],
+    "errors": [
+      "javascript:href",
+      "javascript:src"
+    ]
+  },
+  {
+    "name": "empty-unquoted",
+    "html": "<div style=\"background:url()\"></div>",
+    "values": [
+      ""
+    ],
+    "errors": [],
+    "zeroAfter": "url("
+  },
+  {
+    "name": "empty-quoted",
+    "html": "<div style=\"background:url('')\"></div>",
+    "values": [
+      ""
+    ],
+    "errors": [],
+    "zeroAfter": "url('"
+  },
+  {
+    "name": "empty-entity-quotes",
+    "html": "<div style='background:url(&quot;&quot;)'></div>",
+    "values": [
+      ""
+    ],
+    "errors": [],
+    "zeroAfter": "url(&quot;"
+  },
+  {
+    "name": "empty-gap",
+    "html": "<svg><style>url('<g/>')</style></svg>",
+    "values": [
+      ""
+    ],
+    "errors": []
+  },
+  {
+    "name": "style-text-preference",
+    "html": "<style style=\"background:url('javascript:ignored')\">p{a:url('javascript:text')}</style>",
+    "values": [
+      "javascript:text"
+    ],
+    "errors": [
+      "javascript:text"
+    ]
+  },
+  {
+    "name": "canonical-css-independent",
+    "html": "<div rel=canonical style=\"a:url('javascript:canonical')\"></div>",
+    "values": [
+      "javascript:canonical"
+    ],
+    "errors": [
+      "javascript:canonical"
+    ]
+  }
+]

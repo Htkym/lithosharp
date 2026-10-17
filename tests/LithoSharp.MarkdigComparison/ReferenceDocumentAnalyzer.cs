@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 using System.Text.RegularExpressions;
 using LithoSharp.Content.Compilation;
 using Markdig;
@@ -180,10 +181,10 @@ internal static class ReferenceDocumentAnalyzer
         }
     }
 
-    private static LithoSharp.Content.Compilation.SourceSpan ToFileSpan(Markdig.Syntax.SourceSpan span, int bodyStartOffset) =>
+    private static Syntamark.Compilation.SourceSpan ToFileSpan(Markdig.Syntax.SourceSpan span, int bodyStartOffset) =>
         span.IsEmpty
-            ? LithoSharp.Content.Compilation.SourceSpan.Empty
-            : LithoSharp.Content.Compilation.SourceSpan.FromInclusiveStartEnd(span.Start, span.End).Shift(bodyStartOffset);
+            ? Syntamark.Compilation.SourceSpan.Empty
+            : Syntamark.Compilation.SourceSpan.FromInclusiveStartEnd(span.Start, span.End).Shift(bodyStartOffset);
 
     private static string Slice(string body, Markdig.Syntax.SourceSpan span)
     {

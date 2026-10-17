@@ -18,19 +18,25 @@ function Get-Workflow([string] $Name) {
     return Get-Content -LiteralPath $path -Raw
 }
 
+function Test-StableComponentPair([string] $Version) {
+    if ($Tag -and $Version -notmatch '-') {
+        $component = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
+        if ($component.componentVersion -match '-') { Fail 'Stable publication requires an approved stable Syntamark pair; the fixed preview pair must not be repacked or relabeled.' }
+    }
+}
+
+function Test-MainCommitGate([string] $Workflow, [string] $Name) {
+    if ($Workflow -notmatch 'Test-MainRelease\.ps1 -CiWorkflow build\.yml -ReleaseTag .* -RequireTag') {
+        Fail "$Name requires the exact current main/tag SHA and successful normal main CI."
+    }
+}
+
 function Test-CoreTag {
     $nuget = Get-Workflow 'publish-nuget.yml'
+    Test-MainCommitGate $nuget 'publish-nuget.yml'
     # Check the actual workflow trigger; fixed tag prefixes need no glob self-test.
     if ($nuget -notmatch "(?m)^\s*-\s*'v\*'") { Fail 'publish-nuget.yml lost its v* tag trigger.' }
-    $projects = @(
-        'src/LithoSharp/LithoSharp.csproj',
-        'src/LithoSharp.Generators/LithoSharp.Generators.csproj',
-        'src/LithoSharp.Images/LithoSharp.Images.csproj',
-        'src/LithoSharp.Tool/LithoSharp.Tool.csproj',
-        'src/LithoSharp.Testing/LithoSharp.Testing.csproj',
-        'src/LithoSharp.Mdx/LithoSharp.Mdx.csproj',
-        'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj'
-    )
+    $projects = @((Get-Content -LiteralPath (Join-Path $repo 'eng/release-packages.json') -Raw | ConvertFrom-Json).project)
     $versions = @{}
     foreach ($project in $projects) {
         [xml] $xml = Get-Content -LiteralPath (Join-Path $repo $project) -Raw
@@ -38,10 +44,12 @@ function Test-CoreTag {
         if ($declared.Count -ne 1) { Fail "$project must declare exactly one Version." }
         $versions[$project] = $declared[0]
     }
+    if ($Tag -and $Tag -cne "v$($versions[$projects[0]])") { Fail "Core tag does not match tag version $($versions[$projects[0]])." }
     $distinct = @($versions.Values | Sort-Object -Unique)
     if ($distinct.Count -ne 1) {
         Fail ("Core package versions are not aligned: " + (($versions.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ', '))
     }
+    Test-StableComponentPair $distinct[0]
     if ($nuget -notmatch [regex]::Escape('artifacts/packages/*.nupkg') -or $nuget -notmatch 'dotnet nuget push') {
         Fail 'publish-nuget.yml lost its pack-then-push shape.'
     }
@@ -50,7 +58,7 @@ function Test-CoreTag {
     if ($nuget -notmatch 'does not match tag version') {
         Fail 'publish-nuget.yml lost its wrong-tag version guard.'
     }
-    Write-Host "Core tag series: v* triggers NuGet publish, 7 packages align at $($distinct[0])."
+    Write-Host "Core tag series: v* triggers NuGet publish, 9 packages align at $($distinct[0])."
 }
 
 function Test-ExtensionTag {
@@ -60,7 +68,7 @@ function Test-ExtensionTag {
     if ($extension -notmatch 'environment:\s*marketplace' -or $extension -notmatch 'Test-ExtensionPublish.ps1 -Check Environment') {
         Fail 'publish-extension.yml lost its configured required-reviewer gate.'
     }
-    if ($extension -notmatch 'merge-base --is-ancestor') { Fail 'publication requires the tagged commit on main.' }
+    Test-MainCommitGate $extension 'publish-extension.yml'
     if ($extension -notmatch 'uses: \./\.github/workflows/installed-extension.yml' -or $extension -notmatch 'needs: \[preflight, validate\]') {
         Fail 'publication must depend on three-OS installed acceptance.'
     }
@@ -75,6 +83,7 @@ function Test-ExtensionTag {
     if ([string]$package.publisher -cne 'htkym') { Fail 'extension must use the existing htkym publisher identity.' }
     $expectedTag = "extension/lithosharp-vscode/$version"
     if ($Tag -and $Tag -cne $expectedTag) { Fail "extension tag '$Tag' does not match package version $version (expected '$expectedTag')." }
+    Test-StableComponentPair $version
     foreach ($script in @('eng/Test-VsixContents.ps1')) {
         $text = Get-Content -LiteralPath (Join-Path $repo $script) -Raw
         if ($text -match 'vsce publish|nuget push') { Fail "$script mixes packaging with publishing." }

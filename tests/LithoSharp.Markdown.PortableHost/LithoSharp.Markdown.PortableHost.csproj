@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework><LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems><IsPackable>false</IsPackable>
+    <SyntamarkIncludeSource>true</SyntamarkIncludeSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkComponentVersion)]" PrivateAssets="all" IncludeAssets="build" />
+    <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

@@ -5,7 +5,6 @@ using System.Text;
 
 namespace LithoSharp.Routing;
 
-/// <summary>1 回の生成で使うページと共通成果物のルートを一元管理します。</summary>
 internal sealed class SiteRouteCatalog
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);

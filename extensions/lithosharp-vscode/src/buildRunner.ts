@@ -14,7 +14,7 @@ export type BuildResult =
       diagnosticsText: string | null;
       raw: unknown;
     }
-  | { ok: false; exitCode: number; error: string; diagnosticsText: string | null };
+  | { ok: false; exitCode: number; error: string; diagnosticsText: string | null; raw?: unknown };
 
 /**
  * Serialized one-shot builds per project. Concurrent build requests for the
@@ -29,7 +29,7 @@ export class BuildRunner {
   constructor(
     private readonly options: {
       isTrusted: () => boolean;
-      cli: (command: string) => { command: string[]; cwd?: string | undefined };
+      cli: (command: string, args: readonly string[]) => { command: string[]; cwd?: string | undefined };
       cwd: string;
       probe: RunProbe;
       maxOutputChars?: number;
@@ -38,12 +38,15 @@ export class BuildRunner {
   ) {}
 
   /** Runs `build`, `check`, or `inspect` with machine output and returns the envelope. */
-  async run(command: 'build' | 'check' | 'inspect'): Promise<BuildResult> {
+  async run(command: 'build' | 'check' | 'inspect' | 'preflight', args: readonly string[] = []): Promise<BuildResult> {
     requireTrusted(this.options.isTrusted(), `run lithosharp ${command}`);
     if (this.disposed) {
       return { ok: false, exitCode: 130, error: 'Build runner is disposed.', diagnosticsText: null };
     }
-    const pending = this.queue.then(() => this.execute(command));
+    const capturedArgs = [...args];
+    const resolved = this.options.cli(command, capturedArgs);
+    const invocation = { ...resolved, command: [...resolved.command] };
+    const pending = this.queue.then(() => this.execute(command, invocation));
     // A rejection must not poison later queued builds; each caller sees its own.
     this.queue = pending.catch(() => undefined);
     return pending;
@@ -55,13 +58,12 @@ export class BuildRunner {
     this.active?.abort();
   }
 
-  private async execute(command: 'build' | 'check' | 'inspect'): Promise<BuildResult> {
+  private async execute(command: 'build' | 'check' | 'inspect' | 'preflight', cli: { command: string[]; cwd?: string | undefined }): Promise<BuildResult> {
     if (this.disposed) {
       return { ok: false, exitCode: 130, error: 'Build runner was disposed before this command started.', diagnosticsText: null };
     }
     // The request may have waited behind another project build while trust changed.
     requireTrusted(this.options.isTrusted(), `run lithosharp ${command}`);
-    const cli = this.options.cli(command);
     const abort = new AbortController();
     this.active = abort;
     let result: { exit: number; stdout: string; stderr: string };
@@ -108,6 +110,7 @@ export class BuildRunner {
         exitCode: typeof envelope['exitCode'] === 'number' ? (envelope['exitCode'] as number) : result.exit,
         error: typeof envelope['error'] === 'string' ? (envelope['error'] as string) : `CLI ${command} failed.`,
         diagnosticsText: typeof envelope['diagnosticsText'] === 'string' ? (envelope['diagnosticsText'] as string) : null,
+        raw: envelope,
       };
     }
     return {

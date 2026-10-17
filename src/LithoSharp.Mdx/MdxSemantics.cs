@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 using System.Text.Json;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;

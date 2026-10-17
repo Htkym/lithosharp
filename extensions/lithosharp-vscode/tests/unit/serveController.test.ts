@@ -140,7 +140,7 @@ test('chunk-split multibyte JSON reassembles', () => {
   const characterStart = bytes.indexOf(Buffer.from('日', 'utf8'));
   assert.ok(characterStart >= 0);
   const split = characterStart + 1;
-  // Both seams split the three UTF-8 bytes of 日 in the public URL.
+  // Both seams split the three UTF-8 bytes of U+65E5 in the public URL.
   fake.children[0]!.emitStdout(bytes.subarray(0, split));
   fake.children[0]!.emitStdout(bytes.subarray(split, split + 1));
   fake.children[0]!.emitStdout(bytes.subarray(split + 1));

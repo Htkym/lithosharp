@@ -99,7 +99,7 @@ public sealed class MarkdownPostReader
                         $"{diagnostic.Id} ({diagnostic.Location?.Line}:{diagnostic.Location?.Column}): {diagnostic.Message}")));
         }
 
-        var bodyStartLine = new Compilation.SourceText(text).GetLineAndColumn(text.Length - body.Length).Line;
+        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(text.Length - body.Length).Line;
         var compilerDiagnostics = new[]
         {
             Compilation.LithoLimits.FindFootnoteWarning(body, path, bodyStartLine),

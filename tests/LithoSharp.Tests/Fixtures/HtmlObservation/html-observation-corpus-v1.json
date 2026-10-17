@@ -1,0 +1,829 @@
+{
+  "schemaVersion": 1,
+  "taskId": "HT-01",
+  "status": "OBSERVED_ANGLESHARP_BASELINE",
+  "consumerCommit": "95c0aa55f6d9a9990b9583053a4d1f7a886c7bfc",
+  "existingCorpus": {
+    "commit": "3c1adfa15ddf7955f25a854add30393ffaa43ec4",
+    "path": "docs/development/regression-corpus-v1.json",
+    "caseIds": [
+      "C03",
+      "C04"
+    ]
+  },
+  "oracle": {
+    "packageId": "AngleSharp",
+    "packageVersion": "1.8.3",
+    "assemblyName": "AngleSharp, Version=1.8.3.0, Culture=neutral, PublicKeyToken=e83494dcdc6d31ea",
+    "assemblySha256": "ed9ebe8f1f6a8537f52a5aa607225d929de55f202bd6c1fa198e10bf82db2911",
+    "sourceReferences": true,
+    "execution": "Synchronous HtmlParser only; no browsing context navigation, script execution or network access",
+    "packageArchiveSha256": "93cc6fd76ae6e450aa35f4f38b1a75f201b544ed8e336e02035b69cb25d81ebd",
+    "assetPath": "lib/net10.0/AngleSharp.dll"
+  },
+  "comparison": "Selected names/namespaces/parents/text/attributes/query membership, not full DOM serialization; old oracle behavior is evidence, not universal conformance",
+  "cases": [
+    {
+      "id": "H01-omitted",
+      "mode": "document",
+      "scripting": false,
+      "html": "<p>A<p>B<ul><li>C<li>D</ul><dl><dt>E<dd>F</dl><select><option>G<option>H</select>",
+      "inputUtf16Length": 81,
+      "inputSha256": "e67479d3e65b7f92adbfd7ac7b21de5ef793975729ea9dd92fba1fe869f8f09b",
+      "queries": [
+        {
+          "selector": "p,li,dt,dd,option",
+          "elements": [
+            {
+              "name": "p",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "A",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "p",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "B",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 4,
+                "line": 1,
+                "column": 5
+              }
+            },
+            {
+              "name": "li",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "ul",
+              "text": "C",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 12,
+                "line": 1,
+                "column": 13
+              }
+            },
+            {
+              "name": "li",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "ul",
+              "text": "D",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 17,
+                "line": 1,
+                "column": 18
+              }
+            },
+            {
+              "name": "dt",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "dl",
+              "text": "E",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 31,
+                "line": 1,
+                "column": 32
+              }
+            },
+            {
+              "name": "dd",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "dl",
+              "text": "F",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 36,
+                "line": 1,
+                "column": 37
+              }
+            },
+            {
+              "name": "option",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "select",
+              "text": "G",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 54,
+                "line": 1,
+                "column": 55
+              }
+            },
+            {
+              "name": "option",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "select",
+              "text": "H",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 63,
+                "line": 1,
+                "column": 64
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H02-table",
+      "mode": "document",
+      "scripting": false,
+      "html": "<table>before<tr><td>A</td></tr>after</table>",
+      "inputUtf16Length": 45,
+      "inputSha256": "d725c1055ff64e5cdc49629d7d871120535e431a32c36b9f35339f08e17bf0c4",
+      "queries": [
+        {
+          "selector": "body,table,tbody,tr,td",
+          "elements": [
+            {
+              "name": "body",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "html",
+              "text": "beforeafterA",
+              "attributes": [],
+              "source": {
+                "oracleIndex": -1,
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "name": "table",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "A",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "tbody",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "table",
+              "text": "A",
+              "attributes": [],
+              "source": {
+                "oracleIndex": -1,
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "name": "tr",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "tbody",
+              "text": "A",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 13,
+                "line": 1,
+                "column": 14
+              }
+            },
+            {
+              "name": "td",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "tr",
+              "text": "A",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 17,
+                "line": 1,
+                "column": 18
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H03-formatting",
+      "mode": "document",
+      "scripting": false,
+      "html": "<p><b>A<i>B</b>C</i>D",
+      "inputUtf16Length": 21,
+      "inputSha256": "8455aa8fa9a0008025e30a502f7c9e1c7358bdbeb28f9887ae86e4eae91359a9",
+      "queries": [
+        {
+          "selector": "p,b,i",
+          "elements": [
+            {
+              "name": "p",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "ABCD",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "b",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "p",
+              "text": "AB",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 3,
+                "line": 1,
+                "column": 4
+              }
+            },
+            {
+              "name": "i",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "b",
+              "text": "B",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 7,
+                "line": 1,
+                "column": 8
+              }
+            },
+            {
+              "name": "i",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "p",
+              "text": "C",
+              "attributes": [],
+              "source": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H04-template",
+      "mode": "document",
+      "scripting": false,
+      "html": "<template id='t'><h2 id='hidden'>Hidden</h2></template><h2 id='visible'>Visible</h2>",
+      "inputUtf16Length": 84,
+      "inputSha256": "ba124ad3530a61cab3ba945ab701e295d3b73ccd7c79d82cedefbdd18047a4ef",
+      "queries": [
+        {
+          "selector": "template,h2[id]",
+          "elements": [
+            {
+              "name": "template",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "head",
+              "text": "",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "t"
+                }
+              ],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "h2",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "Visible",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "visible"
+                }
+              ],
+              "source": {
+                "oracleIndex": 55,
+                "line": 1,
+                "column": 56
+              }
+            }
+          ]
+        }
+      ],
+      "templateContentQueries": [
+        {
+          "selector": "h2[id]",
+          "elements": [
+            {
+              "name": "h2",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": null,
+              "text": "Hidden",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "hidden"
+                }
+              ],
+              "source": {
+                "oracleIndex": 17,
+                "line": 1,
+                "column": 18
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H05-foreign",
+      "mode": "document",
+      "scripting": false,
+      "html": "<svg id='s'><title id='t'>S</title><foreignObject id='f'><p id='p'>H</p></foreignObject></svg><math id='m'><mi id='i'>M</mi></math>",
+      "inputUtf16Length": 131,
+      "inputSha256": "21a43039aa380d8a8b655227d100804af22c0ddfcf7872902ddf7f9e618c71db",
+      "queries": [
+        {
+          "selector": "[id]",
+          "elements": [
+            {
+              "name": "svg",
+              "namespace": "http://www.w3.org/2000/svg",
+              "parent": "body",
+              "text": "SH",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "s"
+                }
+              ],
+              "source": null
+            },
+            {
+              "name": "title",
+              "namespace": "http://www.w3.org/2000/svg",
+              "parent": "svg",
+              "text": "S",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "t"
+                }
+              ],
+              "source": {
+                "oracleIndex": 12,
+                "line": 1,
+                "column": 13
+              }
+            },
+            {
+              "name": "foreignObject",
+              "namespace": "http://www.w3.org/2000/svg",
+              "parent": "svg",
+              "text": "H",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "f"
+                }
+              ],
+              "source": {
+                "oracleIndex": 35,
+                "line": 1,
+                "column": 36
+              }
+            },
+            {
+              "name": "p",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "foreignObject",
+              "text": "H",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "p"
+                }
+              ],
+              "source": {
+                "oracleIndex": 57,
+                "line": 1,
+                "column": 58
+              }
+            },
+            {
+              "name": "math",
+              "namespace": "http://www.w3.org/1998/Math/MathML",
+              "parent": "body",
+              "text": "M",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "m"
+                }
+              ],
+              "source": null
+            },
+            {
+              "name": "mi",
+              "namespace": "http://www.w3.org/1998/Math/MathML",
+              "parent": "math",
+              "text": "M",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "i"
+                }
+              ],
+              "source": {
+                "oracleIndex": 107,
+                "line": 1,
+                "column": 108
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H06-noscript-off",
+      "mode": "document",
+      "scripting": false,
+      "html": "<body><noscript><h2 id='fallback'>Fallback</h2></noscript><h2 id='active'>Active</h2>",
+      "inputUtf16Length": 85,
+      "inputSha256": "b6cabbf4df54c4231f7d6cdeb8e6cd8cf540599b66d4bfce85375a0b9cc5f701",
+      "queries": [
+        {
+          "selector": "h2[id]",
+          "elements": [
+            {
+              "name": "h2",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "noscript",
+              "text": "Fallback",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "fallback"
+                }
+              ],
+              "source": {
+                "oracleIndex": 16,
+                "line": 1,
+                "column": 17
+              }
+            },
+            {
+              "name": "h2",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "Active",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "active"
+                }
+              ],
+              "source": {
+                "oracleIndex": 58,
+                "line": 1,
+                "column": 59
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H06-noscript-on",
+      "mode": "document",
+      "scripting": true,
+      "html": "<body><noscript><h2 id='fallback'>Fallback</h2></noscript><h2 id='active'>Active</h2>",
+      "inputUtf16Length": 85,
+      "inputSha256": "b6cabbf4df54c4231f7d6cdeb8e6cd8cf540599b66d4bfce85375a0b9cc5f701",
+      "queries": [
+        {
+          "selector": "h2[id]",
+          "elements": [
+            {
+              "name": "h2",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "Active",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "active"
+                }
+              ],
+              "source": {
+                "oracleIndex": 58,
+                "line": 1,
+                "column": 59
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H07-table-fragment",
+      "mode": "fragment",
+      "scripting": false,
+      "html": "<tr><td>Cell</td></tr>",
+      "inputUtf16Length": 22,
+      "inputSha256": "919e9d0c576a7a87628dbd74dea57ff27391af6e1c99c817bd7ade2027219298",
+      "queries": [
+        {
+          "selector": "tbody,tr,td",
+          "elements": [
+            {
+              "name": "tbody",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "table",
+              "text": "Cell",
+              "attributes": [],
+              "source": {
+                "oracleIndex": -1,
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "name": "tr",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "tbody",
+              "text": "Cell",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "td",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "tr",
+              "text": "Cell",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 4,
+                "line": 1,
+                "column": 5
+              }
+            }
+          ]
+        }
+      ],
+      "context": "table",
+      "fragmentRootNames": [
+        "TBODY"
+      ],
+      "fragmentObservation": {
+        "observationPoint": "Immediately after materializing HtmlParser.ParseFragment; before any harness tree mutation",
+        "harnessAppendOrReparent": false,
+        "contextBefore": {
+          "localName": "table",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "parent": null,
+          "childCount": 0
+        },
+        "contextAfter": {
+          "localName": "table",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "parent": null,
+          "childCount": 0
+        },
+        "returnedRoots": [
+          {
+            "nodeName": "TBODY",
+            "localName": "tbody",
+            "namespace": "http://www.w3.org/1999/xhtml",
+            "parent": "table",
+            "parentNamespace": "http://www.w3.org/1999/xhtml",
+            "parentIsSuppliedContext": false,
+            "parentParent": null,
+            "matchesSelector": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "H07-same-document",
+      "mode": "document",
+      "scripting": false,
+      "html": "<tr><td>Cell</td></tr>",
+      "inputUtf16Length": 22,
+      "inputSha256": "919e9d0c576a7a87628dbd74dea57ff27391af6e1c99c817bd7ade2027219298",
+      "queries": [
+        {
+          "selector": "body,tbody,tr,td",
+          "elements": [
+            {
+              "name": "body",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "html",
+              "text": "Cell",
+              "attributes": [],
+              "source": {
+                "oracleIndex": -1,
+                "line": 0,
+                "column": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H08-text-modes",
+      "mode": "document",
+      "scripting": false,
+      "html": "<title>A&amp;B</title><script>const x='<h2 id=fake>';</script><style>.x{content:'<p>'}</style><textarea>&lt;x&gt;</textarea><plaintext><b id=tail>literal",
+      "inputUtf16Length": 153,
+      "inputSha256": "0e5cf682caed8fb0ff443e590fb0bfe59370c37b3f64d83993920d8504392d52",
+      "queries": [
+        {
+          "selector": "title,script,style,textarea,plaintext,h2,p,#tail",
+          "elements": [
+            {
+              "name": "title",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "head",
+              "text": "A&B",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 0,
+                "line": 1,
+                "column": 1
+              }
+            },
+            {
+              "name": "script",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "head",
+              "text": "const x='<h2 id=fake>';",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 22,
+                "line": 1,
+                "column": 23
+              }
+            },
+            {
+              "name": "style",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "head",
+              "text": ".x{content:'<p>'}",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 62,
+                "line": 1,
+                "column": 63
+              }
+            },
+            {
+              "name": "textarea",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "<x>",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 94,
+                "line": 1,
+                "column": 95
+              }
+            },
+            {
+              "name": "plaintext",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "<b id=tail>literal",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 124,
+                "line": 1,
+                "column": 125
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H09-attributes-source",
+      "mode": "document",
+      "scripting": false,
+      "html": "😀\r\n<p id='first' ID='second' data-x=\"&amp;&#x1F600;\">😀</p>",
+      "inputUtf16Length": 60,
+      "inputSha256": "ae1a1f6f35b44dae4559867844284cf850e8fe04d955c7ef8872bd4301d06a98",
+      "queries": [
+        {
+          "selector": "p",
+          "elements": [
+            {
+              "name": "p",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "body",
+              "text": "😀",
+              "attributes": [
+                {
+                  "name": "id",
+                  "value": "first"
+                },
+                {
+                  "name": "data-x",
+                  "value": "&😀"
+                }
+              ],
+              "source": {
+                "oracleIndex": 4,
+                "line": 2,
+                "column": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H10-frameset",
+      "mode": "document",
+      "scripting": false,
+      "html": "<html><frameset><frame src='a.html'></frameset></html>",
+      "inputUtf16Length": 54,
+      "inputSha256": "5be7f33c1ed388f9a379a232f003b728385f10c4ea53a474f1441c2f02144828",
+      "queries": [
+        {
+          "selector": "frameset,frame",
+          "elements": [
+            {
+              "name": "frameset",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "html",
+              "text": "",
+              "attributes": [],
+              "source": {
+                "oracleIndex": 6,
+                "line": 1,
+                "column": 7
+              }
+            },
+            {
+              "name": "frame",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "parent": "frameset",
+              "text": "",
+              "attributes": [
+                {
+                  "name": "src",
+                  "value": "a.html"
+                }
+              ],
+              "source": {
+                "oracleIndex": 16,
+                "line": 1,
+                "column": 17
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "observationProtocol": {
+    "parser": "AngleSharp.Html.Parser.HtmlParser",
+    "options": {
+      "IsKeepingSourceReferences": true,
+      "IsScripting": "cases[].scripting"
+    },
+    "inputSha256Encoding": "UTF-8 without BOM",
+    "inputUtf16LengthUnit": "UTF-16 code units",
+    "document": {
+      "setup": "ParseDocument(case.html)",
+      "query": "document.QuerySelectorAll(selector)"
+    },
+    "fragment": {
+      "setup": [
+        "document = ParseDocument('')",
+        "context = document.CreateElement(case.context); do not append context",
+        "roots = ParseFragment(case.html, context).ToArray()"
+      ],
+      "contextNamespace": "http://www.w3.org/1999/xhtml",
+      "observationPoint": "Immediately after materializing ParseFragment return; before any harness tree mutation",
+      "harnessAppendOrReparent": false,
+      "queryScope": "Returned Element roots and their descendants; excludes supplied context and each root's existing parent",
+      "query": "For each returned root in return order: if Element, add itself when Matches(selector), then add QuerySelectorAll(selector) descendants",
+      "parentMeaning": "Actual ParentElement.LocalName at API return; does not imply the supplied context is that parent"
+    },
+    "template": {
+      "query": "document.QuerySelector('template').Content.QuerySelectorAll(selector); kept separate from document queries"
+    }
+  }
+}

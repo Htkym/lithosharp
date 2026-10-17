@@ -21,13 +21,14 @@ public interface ISiteBuildExtension
 public sealed class SiteBuildContext
 {
     internal SiteBuildContext(SiteSettings site, SiteGenerationOptions options, string outputDirectory,
-        string cacheDirectory, DateTimeOffset buildTimestamp)
+        string cacheDirectory, DateTimeOffset buildTimestamp, BuildHtmlFacts? htmlFacts = null)
     {
         Site = site;
         Options = options;
         OutputDirectory = outputDirectory;
         CacheDirectory = cacheDirectory;
         BuildTimestamp = buildTimestamp;
+        HtmlFacts = htmlFacts;
     }
 
     /// <summary>Site settings. Only explicitly selected fields may be exposed to browsers.</summary>
@@ -40,6 +41,8 @@ public sealed class SiteBuildContext
     public string CacheDirectory { get; }
     /// <summary>The fixed UTC timestamp used by publication and rendering.</summary>
     public DateTimeOffset BuildTimestamp { get; }
+
+    internal BuildHtmlFacts? HtmlFacts { get; }
 }
 
 /// <summary>Additions to the existing content and asset registries.</summary>

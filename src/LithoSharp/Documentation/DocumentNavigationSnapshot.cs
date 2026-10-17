@@ -2,17 +2,12 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.Documentation;
 
-/// <summary>カタログ上の文書の公開状態を表します。</summary>
-/// <remarks>下書きは公開判定の前に除外されるためカタログに入りません。未解決のキーやrouteは Try 系の false で表します。</remarks>
 public enum DocumentPublicationState
 {
-    /// <summary>公開され、navigationに載ります。</summary>
     Published = 0,
-    /// <summary>直接のrouteでは公開されますが、navigationと検索からは外れます。</summary>
     Unlisted = 1,
 }
 
-/// <summary>公開文書とそのnavigation相互参照を表します。</summary>
 public sealed class DocumentNavigationEntry
 {
     internal DocumentNavigationEntry(
@@ -31,26 +26,19 @@ public sealed class DocumentNavigationEntry
         Sidebars = Array.AsReadOnly(sidebars.ToArray());
     }
 
-    /// <summary>collection・version・localeを含む安定した文書識別子を取得します。</summary>
     public DocumentKey Key { get; }
 
-    /// <summary>variant入力内の相対source pathを取得します。</summary>
     public string SourcePath { get; }
 
-    /// <summary>公開routeを取得します。</summary>
     public SiteRoute Route { get; }
 
-    /// <summary>表示ラベルを取得します。</summary>
     public string Label { get; }
 
-    /// <summary>公開状態を取得します。</summary>
     public DocumentPublicationState Publication { get; }
 
-    /// <summary>この文書を含むsidebar名を取得します。unlistedは空です。</summary>
     public IReadOnlyList<string> Sidebars { get; }
 }
 
-/// <summary>version・localeの切替先を表します。欠落も情報として持ちます。</summary>
 public sealed class DocumentVariantLink
 {
     internal DocumentVariantLink(string version, string locale, bool exists, SiteRoute? route)
@@ -61,26 +49,16 @@ public sealed class DocumentVariantLink
         Route = route;
     }
 
-    /// <summary>切替先のversionを取得します。</summary>
     public string Version { get; }
 
-    /// <summary>切替先のlocaleを取得します。</summary>
     public string Locale { get; }
 
-    /// <summary>切替先の文書が存在するかどうかを取得します。</summary>
     public bool Exists { get; }
 
-    /// <summary>切替先の公開routeを取得します。欠落時は <see langword="null"/> です。</summary>
     public SiteRoute? Route { get; }
 }
 
-/// <summary>1つのcollection variantについて解決済みnavigationの相互参照を表します。</summary>
-/// <remarks>
-/// <see cref="DocumentCatalog"/> を再利用します。routeの一意性と衝突の検証はカタログ構築時の
-/// <c>SiteRouteTable</c> 検証に委ね、このsnapshotは別のroute模型を持ちません。
-/// sidebarsを読み直さなくても階層と前後移動を再現できます。未知のrouteやキーは例外ではなく
-/// 空の結果で表します。衝突や未解決のsidebar参照は構築時に例外として明示します。
-/// </remarks>
+/// <summary>Uses catalog route validation. Unknown routes/keys return empty results; collisions and unresolved sidebar references fail construction.</summary>
 public sealed class DocumentNavigationSnapshot
 {
     private readonly DocumentCatalog catalog;
@@ -122,32 +100,17 @@ public sealed class DocumentNavigationSnapshot
         }
     }
 
-    /// <summary>対象のcollectionを取得します。</summary>
     public string Collection { get; }
 
-    /// <summary>対象のversionを取得します。</summary>
     public string Version { get; }
 
-    /// <summary>対象のlocaleを取得します。</summary>
     public string Locale { get; }
 
-    /// <summary>sidebar名ごとの解決済み階層を取得します。category階層を含みます。</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<DocumentNavigationItem>> Sidebars { get; }
 
-    /// <summary>対象variantの公開文書を取得します。unlistedを含みます。</summary>
     public IReadOnlyList<DocumentNavigationEntry> Documents { get; }
 
-    /// <summary>カタログとsidebar定義からsnapshotを作ります。</summary>
-    /// <param name="catalog">公開文書のカタログ。</param>
-    /// <param name="collection">対象のcollection。</param>
-    /// <param name="version">対象のversion。</param>
-    /// <param name="locale">対象のlocale。</param>
-    /// <param name="sidebars">sidebar名ごとの定義。ない場合は自動navigationの <c>default</c> を使います。</param>
-    /// <param name="categories">自動sidebar用のcategory情報。ない場合は <see langword="null"/> です。</param>
-    /// <param name="defaultSidebar">既定の正準sidebar。ない場合は最初のsidebarを使います。</param>
-    /// <returns>相互参照を持つ不変snapshot。</returns>
-    /// <exception cref="ArgumentException">sidebar定義が未解決の文書を参照するか、未知の既定sidebarです。</exception>
-    /// <remarks>未解決参照の例外は <see cref="DocumentCatalog.Sidebar"/> と同じもので、黙って欠落させません。</remarks>
+    /// <summary>The default sidebar is used when supplied, otherwise the first sidebar; absent definitions use automatic navigation.</summary>
     public static DocumentNavigationSnapshot Create(
         DocumentCatalog catalog,
         string collection,
@@ -202,39 +165,19 @@ public sealed class DocumentNavigationSnapshot
         return new DocumentNavigationSnapshot(catalog, collection, version, locale, resolved, documents, defaultSidebar);
     }
 
-    /// <summary>識別子で文書を探します。</summary>
-    /// <param name="key">collection・version・localeを含む文書識別子。</param>
-    /// <param name="document">見つかった文書。ない場合は <see langword="null"/> です。</param>
-    /// <returns>対象variantに存在する場合に <see langword="true"/> を返します。</returns>
     public bool TryGet(DocumentKey key, out DocumentNavigationEntry? document) =>
         entries.TryGetValue(key, out document);
 
-    /// <summary>source pathから文書を探します。</summary>
-    /// <param name="sourcePath">variant入力内の相対source path。</param>
-    /// <param name="document">見つかった文書。ない場合は <see langword="null"/> です。</param>
-    /// <returns>対象variantに存在する場合に <see langword="true"/> を返します。</returns>
     public bool TryGetBySourcePath(string sourcePath, out DocumentNavigationEntry? document) =>
         bySource.TryGetValue(sourcePath, out document);
 
-    /// <summary>公開pathから文書を探します。</summary>
-    /// <param name="publicPath">公開URLのpath部分。</param>
-    /// <param name="document">見つかった文書。ない場合は <see langword="null"/> です。</param>
-    /// <returns>対象variantに存在する場合に <see langword="true"/> を返します。</returns>
-    /// <remarks>未知routeは例外ではなく false で表します。</remarks>
     public bool TryGetByPublicPath(string publicPath, out DocumentNavigationEntry? document) =>
         byPublicPath.TryGetValue(publicPath, out document);
 
-    /// <summary>出力相対pathから文書を探します。</summary>
-    /// <param name="relativeOutputPath">出力ルートからの相対ファイルパス。</param>
-    /// <param name="document">見つかった文書。ない場合は <see langword="null"/> です。</param>
-    /// <returns>対象variantに存在する場合に <see langword="true"/> を返します。</returns>
     public bool TryGetByOutputPath(string relativeOutputPath, out DocumentNavigationEntry? document) =>
         byOutputPath.TryGetValue(relativeOutputPath, out document);
 
-    /// <summary>文書のbreadcrumb階層を取得します。</summary>
-    /// <param name="key">対象の文書識別子。</param>
-    /// <param name="sidebarName">使うsidebar名。ない場合は表示指定・既定・最初の順で選びます。</param>
-    /// <returns>根から文書までの階層。未知の文書は空です。</returns>
+    /// <summary>Selects the explicit, display, default, then first sidebar. Unknown documents return an empty result.</summary>
     public IReadOnlyList<DocumentNavigationItem> Breadcrumbs(DocumentKey key, string? sidebarName = null)
     {
         if (!pages.ContainsKey(key))
@@ -244,10 +187,7 @@ public sealed class DocumentNavigationSnapshot
         return DocumentCatalog.Breadcrumbs(key, SelectSidebar(key, sidebarName));
     }
 
-    /// <summary>同じ正準sidebarでの前後文書を取得します。</summary>
-    /// <param name="key">対象の文書識別子。</param>
-    /// <param name="sidebarName">使うsidebar名。ない場合は表示指定・既定・最初の順で選びます。</param>
-    /// <returns>前後文書。ない側や未知の文書は <see langword="null"/> です。</returns>
+    /// <summary>Uses the same canonical sidebar selection; missing neighbors or unknown documents return null.</summary>
     public (DocumentNavigationEntry? Previous, DocumentNavigationEntry? Next) Adjacent(DocumentKey key, string? sidebarName = null)
     {
         if (!pages.ContainsKey(key))
@@ -258,9 +198,7 @@ public sealed class DocumentNavigationSnapshot
         return (previous is null ? null : entries[previous.Key], next is null ? null : entries[next.Key]);
     }
 
-    /// <summary>同じ文書IDのversion・locale切替先を取得します。</summary>
-    /// <param name="documentId">collection内で共通の文書ID。</param>
-    /// <returns>既知のversion・locale次元の切替先。欠落は <c>Exists</c> false で表します。未知IDは空です。</returns>
+    /// <summary>Unknown IDs return an empty result; missing version/locale targets have Exists=false.</summary>
     public IReadOnlyList<DocumentVariantLink> Variants(string documentId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentId);

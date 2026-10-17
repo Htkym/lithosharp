@@ -236,6 +236,12 @@ public sealed class LspServer
                     save = new { includeText = false },
                 },
                 documentSymbolProvider = true,
+                experimental = new { lithosharp = new {
+                    schemaVersion = "1.0", coreVersion,
+                    markdownInspection = true, mdxInspection = "on-demand-worker",
+                    preflightStaticInputs = false, preflightTrustedCatalog = false,
+                    project = ToolingCapabilities.NotEvaluatedProject,
+                } },
             },
             serverInfo = new { name = "lithosharp", version = coreVersion },
         }, JsonOptions);
@@ -825,6 +831,8 @@ public sealed class LspServer
                 buffer.MdxInspectionCompleted = true;
                 buffer.InspectionContext = entry;
                 Publish(buffer.Uri, buffer.Version, [], buffer.OpenGeneration, contextGeneration);
+                PublishAnalysisStatus(buffer, contextGeneration, "unavailable",
+                    "MDX analysis is unavailable. Restore the locked worker or correct the Node/worker setting, then restart the language server. Markdown diagnostics remain available.");
             }
             return;
         }
@@ -849,7 +857,15 @@ public sealed class LspServer
             buffer.MdxInspectionCompleted = true;
             buffer.InspectionContext = entry;
             Publish(buffer.Uri, buffer.Version, diagnostics, buffer.OpenGeneration, contextGeneration);
+            PublishAnalysisStatus(buffer, contextGeneration, "ready", "MDX syntax analysis completed; modules, plugins and SSR were not executed.");
         }
+    }
+
+    private void PublishAnalysisStatus(DocumentBuffer buffer, long contextGeneration, string state, string message)
+    {
+        transport.WriteMessage(JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "lithosharp/analysisStatus",
+            @params = new { uri = buffer.Uri, version = buffer.Version, language = "mdx", state, message,
+                lithosharpOpenGeneration = buffer.OpenGeneration, lithosharpContextGeneration = contextGeneration } }, JsonOptions));
     }
 
     private async Task<JsonElement> SymbolsForAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)

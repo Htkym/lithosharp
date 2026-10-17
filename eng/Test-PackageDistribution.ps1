@@ -13,15 +13,7 @@ $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!$Output) { $Output = Join-Path $repo '.tmp/package-distribution' }
 $Output = [IO.Path]::GetFullPath($Output)
 
-$packages = @(
-    @{ id = 'LithoSharp'; project = 'src/LithoSharp/LithoSharp.csproj' },
-    @{ id = 'LithoSharp.Generators'; project = 'src/LithoSharp.Generators/LithoSharp.Generators.csproj' },
-    @{ id = 'LithoSharp.Images'; project = 'src/LithoSharp.Images/LithoSharp.Images.csproj' },
-    @{ id = 'LithoSharp.Tool'; project = 'src/LithoSharp.Tool/LithoSharp.Tool.csproj' },
-    @{ id = 'LithoSharp.Testing'; project = 'src/LithoSharp.Testing/LithoSharp.Testing.csproj' },
-    @{ id = 'LithoSharp.Mdx'; project = 'src/LithoSharp.Mdx/LithoSharp.Mdx.csproj' },
-    @{ id = 'LithoSharp.ProjectTemplates'; project = 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj' }
-)
+$packages = @(Get-Content -LiteralPath (Join-Path $repo 'eng/release-packages.json') -Raw | ConvertFrom-Json)
 
 function Invoke-Dotnet([string[]] $Arguments, [string] $WorkingDirectory, [hashtable] $Environment) {
     $info = [Diagnostics.ProcessStartInfo]::new('dotnet')
@@ -81,11 +73,11 @@ if (!$SkipPack) {
     }
 }
 
-# Exactly seven candidate artifacts: no missing package, other version, or fixture extension.
+# Exactly nine candidate artifacts: no missing package, other version, or fixture extension.
 $expected = @($packages | ForEach-Object { "$($_.id).$version.nupkg" })
 $actual = @(Get-ChildItem -LiteralPath $feed -Filter '*.nupkg' | ForEach-Object Name)
 if ($actual.Count -ne $expected.Count -or @(Compare-Object $expected $actual).Count -ne 0) {
-    Fail "feed must contain exactly the seven candidate packages at $version; found: $($actual -join ', ')."
+    Fail "feed must contain exactly the nine candidate packages at $version; found: $($actual -join ', ')."
 }
 foreach ($package in $packages) {
     # Validate both newly packed and -SkipPack inputs before installation.
@@ -103,6 +95,8 @@ $isolatedEnv = [ordered]@{
 foreach ($dir in @($isolatedEnv.DOTNET_CLI_HOME, $isolatedEnv.NUGET_PACKAGES)) {
     $null = New-Item -ItemType Directory -Path $dir
 }
+$componentFeed = Join-Path $work 'markdown-fixed'
+& (Join-Path $repo 'eng/markdown/Copy-FixedRuntime.ps1') -PackageDirectory $componentFeed
 $nugetConfig = Join-Path $work 'NuGet.Config'
 [IO.File]::WriteAllText($nugetConfig, @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -110,9 +104,10 @@ $nugetConfig = Join-Path $work 'NuGet.Config'
   <packageSources>
     <clear />
     <add key="local" value="$([Security.SecurityElement]::Escape($feed))" />
+    <add key="markdown-fixed" value="$([Security.SecurityElement]::Escape($componentFeed))" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="Syntamark"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
 
@@ -140,6 +135,8 @@ try {
     if ($resolved.Count -ne 1 -or $resolved[0] -ne "LithoSharp/$version") {
         Fail "built site did not resolve the exact candidate LithoSharp/${version}: $($resolved -join ', ')."
     }
+    & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath (Join-Path $site 'obj/project.assets.json')
+    & (Join-Path $repo 'eng/Test-DependencyZero.ps1') -Paths @((Join-Path $site 'obj/project.assets.json'), (Join-Path $site 'bin/Release/net10.0'), $toolPath) -Output (Join-Path $Output 'dependency-zero-consumer.json')
     $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $feed "LithoSharp.$version.nupkg"))
     try {
         $entry = $archive.GetEntry('lib/net10.0/LithoSharp.dll')
@@ -165,10 +162,12 @@ $report = [ordered]@{
         [ordered]@{ id = $_.id; version = $version; file = [IO.Path]::GetFileName($file); sha256 = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash }
     })
     feed = $feed
+    markdownComponentFeed = $componentFeed
+    markdownComponent = (Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json).artifacts.runtime
     tool = Join-Path $toolPath $(if ($IsWindows) { 'lithosharp.exe' } else { 'lithosharp' })
     site = $site
     isolatedCaches = $work
-    validationScope = 'seven package contents; isolated tool/template install and docs build'
+    validationScope = 'nine package contents; isolated tool/template install and docs build'
 }
 [IO.File]::WriteAllText((Join-Path $Output 'package-distribution.json'), (($report | ConvertTo-Json -Depth 6)))
-Write-Host "Package distribution passed: 7 packages at $version validated; tool/template installed and docs built from the isolated feed."
+Write-Host "Package distribution passed: 9 packages at $version validated; tool/template installed and docs built from the isolated feed."

@@ -1,5 +1,4 @@
-using System.Text.RegularExpressions;
-
+using Syntamark.Compilation;
 namespace LithoSharp.Content.Compilation;
 
 /// <summary>
@@ -82,7 +81,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     {
         var blocks = Parse(markdown, cancellationToken);
         var texts = new List<string>();
-        CollectHeadingTexts(blocks, texts);
+        CollectHeadingTexts(blocks, texts, cancellationToken);
         return new PreparedTree(blocks, texts, AssignIds(texts));
     }
 
@@ -91,7 +90,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
 
     /// <inheritdoc />
     public string RenderPlainText(string markdown) =>
-        LithoHtmlRenderer.RenderPlainText(Parse(markdown));
+        LithoLegacyTextPolicy.Plain(Parse(markdown));
 
     /// <summary>Parses a body into Litho blocks.</summary>
     public IReadOnlyList<LithoBlock> Parse(string markdown, CancellationToken cancellationToken = default)
@@ -107,7 +106,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         ArgumentNullException.ThrowIfNull(markdown);
         var tree = Parse(markdown);
         var texts = new List<string>();
-        CollectHeadingTexts(tree, texts);
+        CollectHeadingTexts(tree, texts, CancellationToken.None);
         return (tree, AssignIds(texts));
     }
 
@@ -122,11 +121,11 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// <summary>Assigns ids from entity-decoded heading text, matching the reference slugs.</summary>
     private static IReadOnlyList<string> AssignIds(List<string> texts) => LithoSlug.Assign(texts);
 
-    private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts)
+    private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts, CancellationToken cancellationToken)
     {
         foreach (var heading in WalkHeadings(blocks))
         {
-            texts.Add(System.Net.WebUtility.HtmlDecode(StripTags(LithoHtmlRenderer.RenderInlines(heading.Inlines))));
+            texts.Add(LithoLegacyTextPolicy.Heading(heading.Inlines, cancellationToken));
         }
     }
 
@@ -202,7 +201,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
             new DocumentSemantics(
                 source,
                 DocumentSemantics.TitleOf(headings),
-                LithoHtmlRenderer.RenderPlainText(document),
+                LithoLegacyTextPolicy.Plain(document),
                 headings,
                 links,
                 assets,
@@ -387,8 +386,4 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         return body.Substring(span.Start, Math.Min(span.Length, body.Length - span.Start));
     }
 
-    private static string StripTags(string html) =>
-        TagStripper.Replace(html, string.Empty);
-
-    private static readonly Regex TagStripper = new("<.*?>", RegexOptions.Singleline);
 }

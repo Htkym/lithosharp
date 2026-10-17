@@ -7,7 +7,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>lithosharp</ToolCommandName>
     <PackageId>LithoSharp.Tool</PackageId>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
     <Authors>Htkym</Authors>
     <Description>Command-line build and development server for LithoSharp sites.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -17,13 +17,18 @@
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/LegacyTestingDomContract.cs" Link="Shared/LegacyTestingDomContract.cs" />
+    <Compile Include="../Shared/WatchLifecycleSidecar.cs" Link="WatchLifecycleSidecar.cs" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <ProjectReference Include="..\LithoSharp\LithoSharp.csproj" />
+    <ProjectReference Include="..\LithoSharp.Mdx\LithoSharp.Mdx.csproj" />
+    <ProjectReference Include="..\LithoSharp.Testing\LithoSharp.Testing.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup><None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" /></ItemGroup>
   <ItemGroup>
-    <None Include="../../licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
+    <None Include="../../licenses/*.txt" Exclude="../../licenses/AngleSharp.LICENSE.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="licenses/THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
   </ItemGroup>
 </Project>

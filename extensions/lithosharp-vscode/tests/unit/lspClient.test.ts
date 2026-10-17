@@ -4,6 +4,27 @@ import { LspClient } from '../../src/lspClient.js';
 import type { LspProcess } from '../../src/lspConnection.js';
 import type { LspDiagnosticData } from '../../src/diagnostics.js';
 
+test('analysis status ignores stale buffer and context generations without inventing Problems', async () => {
+  const script = scripted();
+  const statuses: string[] = [];
+  const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn,
+    isTrusted: () => true, onAnalysisStatus: (_uri, state) => statuses.push(state) },
+    { set: () => {}, delete: () => {}, clear: () => {} });
+  await client.start();
+  const uri = 'file:///project/one.mdx';
+  client.didOpen({ uri, languageId: 'mdx', version: 1, text: '<Unclosed>' });
+  const notify = (version: number, open: number, context: number, state: string): void => script.child.reply(frame(JSON.stringify({
+    jsonrpc: '2.0', method: 'lithosharp/analysisStatus', params: { uri, version, language: 'mdx', state, message: 'worker state',
+      lithosharpOpenGeneration: open, lithosharpContextGeneration: context } })));
+  notify(1, 1, 0, 'unavailable');
+  client.didChange(uri, 2, '# fixed');
+  notify(1, 1, 0, 'ready'); notify(2, 0, 0, 'ready');
+  client.sendProjectContext('site', ['/project'], null);
+  notify(2, 1, 0, 'ready'); notify(2, 1, 1, 'ready');
+  assert.deepEqual(statuses, ['unavailable', 'ready']);
+  client.stop();
+});
+
 interface ScriptedChild extends LspProcess {
   written: string[];
   closes: number;

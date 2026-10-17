@@ -1,5 +1,10 @@
 # LithoSharp.Generators
 
+`[StaticContentCollection(typeof(Front), typeof(string), "guides", EmitStaticSiteManifest = true)]`
+also emits `Guides.Manifest`, an immutable exact route lookup created from the same `Guides.Catalog` used by generated references. `Guides.Manifest.GetUrl("/intro/")` returns a `SiteUrl`; a missing exact path throws `KeyNotFoundException`. This optional member closes only that selected lookup universe. Catalogs, arbitrary site registrations, HTML anchors and assets do not gain a Closed publication claim. The default is off, so existing declarations and generated member names keep their prior behavior.
+
+The compiler fingerprint records original C# and AdditionalText buffers, relevant metadata/properties and reference assembly MVIDs. A fresh, verified generated manifest permits Analyzer LSA1201 for definitely missing paths; changed inputs cause LSA1205 Info and defer absence. Any generator declaration/input/schema error makes the emitted lookup Open. Dynamic membership should use `StaticSiteManifest.Open(catalog, resolver)`; the Analyzer never executes a resolver or getter. `StaticSiteManifest.Create` alone or a handwritten provenance attribute does not establish compiler evidence. These APIs describe exact public-path membership, not output publication or ordinary HTML link resolution.
+
 Roslyn incremental generators for explicitly declared static Markdown collections.
 Reference `LithoSharp` normally, then add this package as a private analyzer:
 
@@ -19,10 +24,35 @@ three metadata values:
 </AdditionalFiles>
 ```
 
-The annotated class receives `Binder`, `SchemaJson`, and nested `Pages`, `Entries`,
+The annotated class receives `Binder`, `SchemaJson`, `Catalog`, and nested `Pages`, `Entries`,
 and `Ids` classes. Set `EmitJsonSchema = true` to also generate
 `WriteJsonSchema(string outputPath)` for an optional runtime export. `SchemaJson`
 exists regardless of that option.
+
+`Catalog` snapshots the validated AdditionalFiles membership, including the existing
+collection ID, entry IDs, project-relative source paths, and routes. `Pages`, `Entries`,
+and `Ids` refer to this same snapshot. A route is declared once in AdditionalFiles;
+runtime code can use `entry => Guides.Catalog.GetRoute(entry.Id)` as the existing
+`ContentRouteConvention` instead of maintaining a second route list. An undeclared
+entry ID throws `KeyNotFoundException`. Runtime entry IDs must match the declared
+IDs: the Markdown loader uses its input-root-relative path including the extension,
+so a flat input can use `%(Filename)%(Extension)` as `LithoSharpId`. A catalog does
+not rename entries produced by a loader. Paths in the catalog are relative to
+`MSBuildProjectDirectory`, which can differ from a runtime loader's input root.
+
+For separate sites or variants, set `Site` and `Variant` on
+`StaticContentCollectionAttribute`, then supply matching `LithoSharpSite` and
+`LithoSharpVariant` metadata on the corresponding AdditionalFiles. Empty values
+retain the existing default scope. Collection identities and output conflicts are
+checked within each site/variant scope; a missing or different scope produces
+`LSG002`, rather than silently joining another site's collection. A consuming site
+must choose its own scoped catalog; these identities do not select runtime settings.
+
+The catalog describes declared inputs. It does not prove that a runtime collection
+was registered, loaded completely, or published, and it does not establish Closed
+route coverage. Dynamic loaders, custom resolvers, and conditional publication still
+require runtime validation. Compile-time YAML/schema diagnostics `LSG005` and
+`LSG006` remain owned solely by this generator; an analyzer must not emit them again.
 
 NuGet imports the required analyzer metadata through `buildTransitive`. When using a
 source-tree `ProjectReference`, set `OutputItemType="Analyzer"` and
@@ -34,3 +64,24 @@ Diagnostics `LSG001` through `LSG006` cover invalid declarations and input metad
 duplicate identities or generated names, invalid or conflicting routes, malformed
 YAML or unknown fields, and values that cannot bind to the declared front matter
 type. Dynamic loader data remains a runtime validation concern.
+
+The generated names `Binder`, `SchemaJson`, `Catalog`, `Pages`, `Entries`, `Ids`,
+and the private `BinderImpl` are reserved within the annotated partial class.
+The collection type itself and existing members in any partial declaration must
+not use these names. `WriteJsonSchema` is also reserved when `EmitJsonSchema` is
+enabled. Conflicts produce `LSG001` at the source declaration before generation,
+including when no AdditionalFiles are present.
+
+## Markdownの解析
+
+現在の開発候補は、Syntamark.Source [2.0.0-preview.3]のportable sourceを既定でコンパイルします。解析に使うYamlDotNet [18.1.0]もanalyzer payloadへ同梱します。Core runtimeやSyntamarkのruntime DLLをcompiler hostへ読み込ませません。
+
+source-treeからビルドする場合、Directory.Build.propsが固定版を選びます。SyntamarkSourceVersionは選択済みのruntime/source pairと同じ版にする必要があり、不一致はビルド時に拒否されます。
+
+通常のStaticContentGenerator経路も、同じAdditionalText原文をMarkdownSourceHostAdapterへ渡します。固定parser identity・profileと実MdOptionsを照合し、元のUTF-16区間を保つfrontmatter factsを既存LSG005/006検査に使います。YamlSpanは区切り行を含まず、YAML node位置の基準はその開始offsetです。BOM・CRLFを取り除いた別bufferへ位置を付け替えず、独自のfrontmatter境界抽出は行いません。
+
+frontmatterのUnknownや区間欠落は検証成功とせず、LSG002を報告して生成lookupをOpenにします。既知のAbsent・未閉鎖・YAML/schemaエラーは従来のLSG005/006へ渡します。本文のUnsupported/Partialだけを理由にfrontmatter失敗とはしません。既定MdOptionsの入力上限1048576 UTF-16などの有限budgetを使い、取消は伝播します。原入力から作るfingerprintの対象・方式、公開API、runtime/MDX経路、固定pairのbytesは変更しません。
+
+## Fixed full HTML plans
+
+`FixedHtmlSiteAttribute` and `FixedHtmlPageAttribute` opt a static partial class into the limited fixed-file owner. The generated `FixedHtmlPlan` calls only the declared page methods, snapshots their HTML as strict UTF8 generated assets, and publishes through `FixedHtmlSitePlan.GenerateAsync`. Invalid declaration shapes and duplicate output files are LSG001 errors. Dynamic page methods are valid runtime content but are not Closed compiler evidence. No site-wide anchor manifest or closure for arbitrary factories, layouts, extensions or Markdown headings is emitted. See the [LSA1202 subset and example](../LithoSharp.Analyzers/README.md#lsa1202).

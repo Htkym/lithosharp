@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>LithoSharp.Analyzers</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Htkym</Authors>
+    <Description>Compiler-safe LithoSharp static API and HTML interpolation context diagnostics.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/LegacyTestingDomContract.cs" Link="Shared/LegacyTestingDomContract.cs" />
+    <Compile Include="../Shared/StaticManifestFingerprint.cs" Link="Shared/StaticManifestFingerprint.cs" />
+    <Compile Include="../Shared/FixedHtmlPlanModel.cs" Link="Shared/FixedHtmlPlanModel.cs" />
+    <None Include="buildTransitive/LithoSharp.Analyzers.props" Pack="true" PackagePath="buildTransitive" />
+    <Compile Include="../Shared/StaticApiGuards.cs" Link="Shared/StaticApiGuards.cs" />
+    <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Shared/SiteQualityUrlRules.cs" />
+    <Compile Include="../LithoSharp/Quality/SrcsetUrlScanner.cs" Link="Shared/SrcsetUrlScanner.cs" />
+    <Compile Include="../LithoSharp/Quality/CssUrlScanner.cs" Link="Shared/CssUrlScanner.cs" />
+    <Compile Include="../LithoSharp/Routing/SiteRoute.cs" Link="Shared/SiteRoute.cs" />
+    <Compile Include="../LithoSharp/Diagnostics/SiteDiagnosticSeverity.cs" Link="Shared/SiteDiagnosticSeverity.cs" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md;AnalyzerReleases.Unshipped.md" />
+    <None Include="README.md" Pack="true" PackagePath="README.md" />
+    <None Update="static-value-contract.json" Pack="true" PackagePath="static-value-contract.json" />
+    <None Update="html-template-context-spec.md" Pack="true" PackagePath="html-template-context-spec.md" />
+    <None Include="../LithoSharp/icon.png" Pack="true" PackagePath="/" />
+    <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(TargetDir)$(TargetName).xml" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+  <Import Project="../../eng/html/HtmlSourceHost.projitems" />
+  <!-- The default source version is the component pair selected in Directory.Build.props. No runtime facade reference. -->
+  <PropertyGroup Condition="'$(SyntamarkSourceVersion)' != ''">
+    <SyntamarkIncludeSource>true</SyntamarkIncludeSource>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(SyntamarkSourceVersion)' != ''">
+    <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkSourceVersion)]" PrivateAssets="all" IncludeAssets="build" />
+    <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
+    <Compile Include="../../eng/markdown/MarkdownYamlIdentity.cs" Link="Hosting/MarkdownYamlIdentity.cs" />
+    <Compile Include="../LithoSharp.Generators/MarkdownSourceHostAdapter.cs" Link="Hosting/MarkdownSourceHostAdapter.cs" />
+    <None Include="$(TargetDir)YamlDotNet.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
+  </ItemGroup>
+  <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(SyntamarkSourceVersion)' != '$(SyntamarkComponentVersion)'"
+           Text="Markdown source hosts must use the same immutable component pair as the runtime consumers." />
+    <Error Condition="'$(SyntamarkSourceVersion)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(SyntamarkSourceVersion)', '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'))"
+           Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
+    <Error Condition="'$(SyntamarkIncludeSource)' == 'true' and '$(SyntamarkSourceVersion)' == ''"
+           Text="Select an immutable SyntamarkSourceVersion before enabling Markdown source." />
+  </Target>
+  <Target Name="CheckSelectedYamlPackInput" BeforeTargets="GenerateNuspec" Condition="'$(SyntamarkSourceVersion)' != ''">
+    <Error Condition="!Exists('$(TargetDir)YamlDotNet.dll')" Text="The selected source consumer requires the actual YamlDotNet dependency in the analyzer payload." />
+  </Target>
+</Project>

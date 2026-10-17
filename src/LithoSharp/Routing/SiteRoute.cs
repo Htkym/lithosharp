@@ -5,9 +5,7 @@ using System.Text;
 
 namespace LithoSharp.Routing;
 
-/// <summary>
-/// 公開 URL の正規化済みパスと、出力ルートからの相対ファイルパスを一体として表します。
-/// </summary>
+/// <summary>Pairs the normalized public URL path with its slash-separated, output-root-relative file path.</summary>
 #if NETSTANDARD2_0
 internal sealed class SiteRoute : IEquatable<SiteRoute>
 #else
@@ -24,25 +22,11 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
         RelativeOutputPath = relativeOutputPath;
     }
 
-    /// <summary>先頭が <c>/</c> で始まる、パーセントエンコード済みの公開 URL パスを取得します。</summary>
     public string PublicPath { get; }
 
-    /// <summary><c>/</c> 区切りで正規化された、出力ルートからの相対ファイルパスを取得します。</summary>
     public string RelativeOutputPath { get; }
 
-    /// <summary>ファイル形式のルートを作成します。</summary>
-    /// <param name="relativePath">サイト内の相対 URL パス。</param>
-    /// <param name="baseUrl">
-    /// サイトの絶対 HTTP(S) ベース URL。<see langword="null"/> の場合はサイトルートを使用します。
-    /// </param>
-    /// <returns>正規化と検証が完了したルート。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="relativePath"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException">
-    /// 相対パスが空、絶対パス、ディレクトリ形式、ドットセグメントを含む、または安全でないファイル名を含みます。
-    /// </exception>
-    /// <exception cref="UriFormatException">
-    /// パーセントエンコードまたは <paramref name="baseUrl"/> の URI 形式が不正です。
-    /// </exception>
+    /// <summary>Requires a safe relative file URL; a null base URL uses the site root.</summary>
     public static SiteRoute ForFile(string relativePath, string? baseUrl = null)
     {
         if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
@@ -69,19 +53,7 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             route.OutputPath);
     }
 
-    /// <summary>末尾スラッシュの公開 URL と <c>index.html</c> 出力を持つディレクトリ形式のルートを作成します。</summary>
-    /// <param name="relativePath">サイト内の相対ディレクトリパス。空文字列または <c>/</c> はサイトルートを表します。</param>
-    /// <param name="baseUrl">
-    /// サイトの絶対 HTTP(S) ベース URL。<see langword="null"/> の場合はサイトルートを使用します。
-    /// </param>
-    /// <returns>正規化と検証が完了したルート。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="relativePath"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException">
-    /// 相対パスが絶対パス、ドットセグメントを含む、または安全でないディレクトリ名を含みます。
-    /// </exception>
-    /// <exception cref="UriFormatException">
-    /// パーセントエンコードまたは <paramref name="baseUrl"/> の URI 形式が不正です。
-    /// </exception>
+    /// <summary>Uses a trailing-slash URL and index.html output; an empty path or slash denotes the site root. A null base URL uses the site root.</summary>
     public static SiteRoute ForDirectoryIndex(string relativePath, string? baseUrl = null)
     {
         if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
@@ -100,21 +72,13 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
             outputPath);
     }
 
-    /// <summary>指定したルートが同じ正規化済みルートを表すかどうかを判定します。</summary>
-    /// <param name="other">比較するルート。</param>
-    /// <returns>正規化済みの公開パスと出力パスが一致する場合は <see langword="true"/>。</returns>
     public bool Equals(SiteRoute? other) =>
         other is not null
         && StringComparer.Ordinal.Equals(PublicPath, other.PublicPath)
         && StringComparer.Ordinal.Equals(RelativeOutputPath, other.RelativeOutputPath);
 
-    /// <summary>指定したオブジェクトが同じ正規化済みルートを表すかどうかを判定します。</summary>
-    /// <param name="obj">比較するオブジェクト。</param>
-    /// <returns>同じルートを表す場合は <see langword="true"/>。</returns>
     public override bool Equals(object? obj) => obj is SiteRoute other && Equals(other);
 
-    /// <summary>正規化済みルートの大文字と小文字を区別するハッシュコードを返します。</summary>
-    /// <returns>正規化済みの公開パスと出力パスに基づくハッシュコード。</returns>
 #if NETSTANDARD2_0
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(PublicPath) ^ StringComparer.Ordinal.GetHashCode(RelativeOutputPath);
 #else

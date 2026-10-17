@@ -19,7 +19,7 @@ const installed = args[0] === '--installed-vsix';
 const options = new Map();
 if (installed) {
   const names = ['--installed-vsix', '--sha256', '--artifact-manifest', '--rc-feed', '--package-report'];
-  assert.equal(args.length, names.length * 2, 'Installed mode requires the VSIX, producer SHA/manifest, and exact seven-package RC feed/report.');
+  assert.equal(args.length, names.length * 2, 'Installed mode requires the VSIX, producer SHA/manifest, and exact nine-package RC feed/report.');
   for (let i = 0; i < args.length; i += 2) {
     assert.ok(names.includes(args[i]), 'Unknown installed-mode option.');
     assert.ok(!options.has(args[i]) && args[i + 1], 'Missing or duplicate option.');
@@ -196,10 +196,11 @@ if (installed) {
   const report = JSON.parse(await fs.readFile(options.get('--package-report'), 'utf8'));
   packageVersion = report.version;
   assert.match(packageVersion, /^\d+\.\d+\.\d+-rc\.[0-9A-Za-z.-]+$/, 'Only the local validation RC feed is accepted.');
-  assert.equal(report.packageCount, 7);
+  const releasePackages = JSON.parse(await fs.readFile(path.join(root, '../../eng/release-packages.json'), 'utf8'));
+  assert.equal(report.packageCount, releasePackages.length);
   assert.equal(manifest.packageVersion, packageVersion);
   assert.deepEqual(report.packages, manifest.packages, 'Package receipt differs from immutable producer receipt.');
-  const ids = ['LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.ProjectTemplates'];
+  const ids = releasePackages.map(item => item.id);
   assert.deepEqual(report.packages.map(item => item.id).sort(), [...ids].sort());
   const names = report.packages.map(item => {
     assert.equal(item.version, packageVersion);
@@ -207,7 +208,7 @@ if (installed) {
     assert.match(item.sha256, /^[a-f0-9]{64}$/i);
     return item.file;
   });
-  assert.deepEqual((await fs.readdir(feed)).filter(name => name.endsWith('.nupkg')).sort(), [...names].sort(), 'Feed must contain exactly seven candidate nupkgs.');
+  assert.deepEqual((await fs.readdir(feed)).filter(name => name.endsWith('.nupkg')).sort(), [...names].sort(), 'Feed must contain exactly nine candidate nupkgs.');
   const packageHashes = {};
   let toolZip;
   for (const item of report.packages) {
@@ -229,9 +230,16 @@ if (installed) {
   await fs.mkdir(isolatedEnv.NUGET_PACKAGES);
   await fs.mkdir(isolatedEnv.DOTNET_CLI_HOME);
   const config = path.join(workspace, 'NuGet.Config');
+  const componentFeed = path.join(owned, 'markdown-fixed');
+  const repo = path.resolve(root, '..', '..');
+  const pair = JSON.parse(await fs.readFile(path.join(repo, 'eng', 'markdown', 'component-pair.json'), 'utf8'));
+  assert.deepEqual(report.markdownComponent, pair.artifacts.runtime, 'Producer fixed runtime differs from the checked-out immutable pair.');
+  await exec('pwsh', ['-NoProfile', '-File', path.join(repo, 'eng', 'markdown', 'Copy-FixedRuntime.ps1'), '-PackageDirectory', componentFeed],
+    { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
   await fs.writeFile(config, '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="candidate" value="'
-    + escapeXml(feed) + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>'
-    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
+    + escapeXml(feed) + '"/><add key="markdown-fixed" value="' + escapeXml(componentFeed)
+    + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>'
+    + '<fallbackPackageFolders><clear/></fallbackPackageFolders><packageSourceMapping><clear/><packageSource key="candidate"><package pattern="LithoSharp*"/></packageSource><packageSource key="markdown-fixed"><package pattern="Syntamark"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>');
   const toolDir = path.join(owned, 'tools');
   await exec('dotnet', ['tool', 'install', 'LithoSharp.Tool', '--version', packageVersion, '--tool-path', toolDir, '--configfile', config],
     { cwd: workspace, env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
@@ -277,7 +285,8 @@ if (installed) {
   await fs.writeFile(path.join(userData, 'User', 'settings.json'), JSON.stringify(settings));
   packageProvenance = { version: packageVersion, feed, packageHashes, tool, shimHash: await fileHash(tool),
     toolDll: toolDlls[0], toolPayloadHashes, expectedSiteCoreAssemblyHash: coreAssemblyHash,
-    nugetPackages: isolatedEnv.NUGET_PACKAGES, sourceMapping: 'LithoSharp* exclusively from exact local candidate feed' };
+    nugetPackages: isolatedEnv.NUGET_PACKAGES, markdownComponentFeed: componentFeed, markdownComponent: pair.artifacts.runtime,
+    sourceMapping: 'LithoSharp* from exact candidate feed; Syntamark from verified fixed component feed' };
   await fs.writeFile(path.join(owned, 'package-provenance.json'), JSON.stringify(packageProvenance, null, 2));
 }
 await fs.writeFile(path.join(owned, 'identity.json'), JSON.stringify({
@@ -299,6 +308,11 @@ await runTests({
   launchArgs: [workspace, '--new-window', ...profile, '--disable-gpu', '--disable-workspace-trust',
     '--disable-extension=vscode.markdown-language-features', ...(process.env.LITHOSHARP_VERBOSE === '1' ? ['--verbose'] : [])],
 });
+if (installed) {
+  await exec('pwsh', ['-NoProfile', '-File', path.resolve(root, '..', '..', 'eng', 'markdown', 'Test-FixedRuntimeAssets.ps1'),
+    '-AssetsPath', path.join(workspace, 'obj', 'project.assets.json')],
+    { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
+}
 const result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
 assert.ok(result.started && result.finished && result.tests === (installed ? 5 : 3), 'Test runner did not execute the complete acceptance suite.');
 assert.equal(result.failures, 0);

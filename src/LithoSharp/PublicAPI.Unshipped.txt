@@ -1,4 +1,31 @@
 #nullable enable
+LithoSharp.Content.FixedHtmlSiteAttribute
+LithoSharp.Content.FixedHtmlSiteAttribute.FixedHtmlSiteAttribute(string! baseUrl) -> void
+LithoSharp.Content.FixedHtmlSiteAttribute.BaseUrl.get -> string!
+LithoSharp.Content.FixedHtmlPageAttribute
+LithoSharp.Content.FixedHtmlPageAttribute.FixedHtmlPageAttribute(string! relativeOutputPath) -> void
+LithoSharp.Content.FixedHtmlPageAttribute.RelativeOutputPath.get -> string!
+LithoSharp.Content.FixedHtmlSitePlan
+LithoSharp.Content.FixedHtmlSitePlan.FixedHtmlSitePlan(string! baseUrl, string![]! relativeOutputPaths, string![]! html) -> void
+LithoSharp.Content.FixedHtmlSitePlan.FixedHtmlSitePlan(string! baseUrl, System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>! pages) -> void
+LithoSharp.Content.FixedHtmlSitePlan.GenerateAsync(string! outputDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteGenerationResult!>!
+LithoSharp.Content.StaticContentCatalog
+LithoSharp.Content.StaticContentCatalog.StaticContentCatalog(LithoSharp.Content.ContentCollectionId! collectionId, System.Collections.Generic.IEnumerable<LithoSharp.Content.StaticContentCatalogEntry!>! entries, string! site = "", string! variant = "") -> void
+LithoSharp.Content.StaticContentCatalog.CollectionId.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.StaticContentCatalog.Site.get -> string!
+LithoSharp.Content.StaticContentCatalog.Variant.get -> string!
+LithoSharp.Content.StaticContentCatalog.Entries.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.StaticContentCatalogEntry!>!
+LithoSharp.Content.StaticContentCatalog.GetEntry(LithoSharp.Content.ContentEntryId! id) -> LithoSharp.Content.StaticContentCatalogEntry!
+LithoSharp.Content.StaticContentCatalog.GetRoute(LithoSharp.Content.ContentEntryId! id) -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.StaticContentCatalogEntry
+LithoSharp.Content.StaticContentCatalogEntry.StaticContentCatalogEntry(LithoSharp.Content.ContentEntryId! id, string! sourcePath, LithoSharp.Routing.SiteRoute! route) -> void
+LithoSharp.Content.StaticContentCatalogEntry.Id.get -> LithoSharp.Content.ContentEntryId!
+LithoSharp.Content.StaticContentCatalogEntry.SourcePath.get -> string!
+LithoSharp.Content.StaticContentCatalogEntry.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Content.StaticContentCollectionAttribute.Site.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.Site.set -> void
+LithoSharp.Content.StaticContentCollectionAttribute.Variant.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.Variant.set -> void
 const LithoSharp.ToolingCapabilities.DocumentInspection = "document-inspection" -> string!
 const LithoSharp.ToolingCapabilities.LanguageMarkdown = "markdown" -> string!
 const LithoSharp.ToolingCapabilities.LanguageMdx = "mdx" -> string!
@@ -583,3 +610,58 @@ virtual LithoSharp.Content.ContentRouteConvention<TFrontMatter, TBody>.Invoke(Li
 virtual LithoSharp.Content.GeneratedContentValueParser<T>.Invoke(object! input, LithoSharp.Content.GeneratedContentBindingContext! context, out T value) -> bool
 virtual LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>.Invoke(LithoSharp.Content.ContentPageGroup<TFrontMatter, TBody>! group) -> LithoSharp.Pages.SitePage<TPageContent>!
 virtual LithoSharp.Content.GeneratedPageRenderer<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string!
+LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.get -> bool
+LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled.init -> void
+LithoSharp.Quality.SiteQualityReport.HtmlParseCount.get -> int
+LithoSharp.Quality.SiteQualityReport.HtmlFactsCacheHitCount.get -> int
+LithoSharp.Content.StaticContentCollectionAttribute.EmitStaticSiteManifest.get -> bool
+LithoSharp.Content.StaticContentCollectionAttribute.EmitStaticSiteManifest.set -> void
+LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Closed = 0 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Open = 1 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Stale = 2 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticCoverageState.Unavailable = 3 -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest
+LithoSharp.Content.StaticSiteManifest.AnchorCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.AssetCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.CollectionId.get -> LithoSharp.Content.ContentCollectionId!
+LithoSharp.Content.StaticSiteManifest.GetUrl(string! publicPath) -> LithoSharp.SiteUrl!
+LithoSharp.Content.StaticSiteManifest.RouteCoverage.get -> LithoSharp.Content.StaticCoverageState
+LithoSharp.Content.StaticSiteManifest.Site.get -> string!
+LithoSharp.Content.StaticSiteManifest.SourceFingerprint.get -> string!
+LithoSharp.Content.StaticSiteManifest.Variant.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Contract.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Coverage.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Fingerprint.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.PublicPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Site.get -> string!
+LithoSharp.Content.StaticSiteManifestSourceAttribute.StaticSiteManifestSourceAttribute(string! contract, string! fingerprint, string! coverage, string! site, string! variant, params string![]! publicPaths) -> void
+LithoSharp.Content.StaticSiteManifestSourceAttribute.Variant.get -> string!
+static LithoSharp.Content.StaticSiteManifest.Create(LithoSharp.Content.StaticContentCatalog! catalog, string! sourceFingerprint) -> LithoSharp.Content.StaticSiteManifest!
+static LithoSharp.Content.StaticSiteManifest.Open(LithoSharp.Content.StaticContentCatalog! catalog, System.Func<string!, LithoSharp.SiteUrl!>? resolver = null) -> LithoSharp.Content.StaticSiteManifest!
+LithoSharp.Inspection.ISiteCatalogPreflightExtension
+LithoSharp.Inspection.ISiteCatalogPreflightExtension.InspectCatalogAsync(LithoSharp.Build.SiteBuildContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SiteCatalogPreflightContribution!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution
+LithoSharp.Inspection.SiteCatalogPreflightContribution.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution.Routes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.SitePreflightRoute!>!
+LithoSharp.Inspection.SiteCatalogPreflightContribution.SiteCatalogPreflightContribution(System.Collections.Generic.IEnumerable<LithoSharp.Inspection.SitePreflightRoute!>! routes, System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> void
+LithoSharp.Inspection.SitePreflight
+LithoSharp.Inspection.SitePreflightReport
+LithoSharp.Inspection.SitePreflightReport.DeferredReasons.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.SitePreflightReport.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Inspection.SitePreflightReport.Mode.get -> string!
+LithoSharp.Inspection.SitePreflightReport.Stage.get -> string!
+LithoSharp.Inspection.SitePreflightReport.Succeeded.get -> bool
+LithoSharp.Inspection.SitePreflightReport.ThrowIfFailed() -> void
+LithoSharp.Inspection.SitePreflightRoute
+LithoSharp.Inspection.SitePreflightRoute.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Inspection.SitePreflightRoute.OwnerId.get -> string!
+LithoSharp.Inspection.SitePreflightRoute.Route.get -> LithoSharp.Routing.SiteRoute!
+LithoSharp.Inspection.SitePreflightRoute.SitePreflightRoute(LithoSharp.Routing.SiteRoute! route, string! ownerId, LithoSharp.Diagnostics.SiteSourceLocation? location = null) -> void
+LithoSharp.SiteGenerator.PreflightCatalogAsync(LithoSharp.SiteDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SitePreflightReport!>!
+LithoSharp.SiteGenerator.PreflightFactoryAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<LithoSharp.SiteDefinition!>!>! createDefinition, LithoSharp.Inspection.SitePreflightReport! sourceReport, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Inspection.SitePreflightReport!>!
+static LithoSharp.Inspection.SitePreflight.FromDiagnostics(System.Collections.Generic.IEnumerable<LithoSharp.Diagnostics.SiteDiagnostic!>! diagnostics) -> LithoSharp.Inspection.SitePreflightReport!
+static LithoSharp.Inspection.SitePreflight.InspectMarkdown(string! sourcePath, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.SitePreflightReport!
+LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.ISiteBuildExtension!>!
+LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.init -> void

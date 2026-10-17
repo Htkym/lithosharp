@@ -31,13 +31,19 @@ including cancellation and I/O failures, propagate. Call `AssertSucceeded` befor
 interpreting a successful diagnostics assertion as a successful build.
 
 `SiteTestDocument.RenderComponent` and `RenderLayout` accept the existing rendering
-contexts. `Parse` supports standalone HTML, including empty output. The underlying
-AngleSharp `Document` supports arbitrary DOM queries; no scripts or network run.
+contexts. `Parse` supports standalone HTML, including empty output, and rejects incomplete
+tree coverage. `Snapshot.Query` and `QueryAll` expose read-only element views using
+the declared bounded selector grammar; no scripts or network run.
 `AssertText` and `AssertAttribute` compare the first matching element exactly.
 `AssertMeta`, `AssertLink` and `AssertImage` match decoded attribute values exactly;
 URL resolution and broken-target validation are performed by host quality checks.
 Invalid arguments throw standard argument exceptions; unsafe filesystem paths are
 rejected, and assertions on disposed hosts/documents throw `ObjectDisposedException`.
+
+Disposal also invalidates retained snapshot and element views. Malformed selectors
+throw `HtmlSelectorSyntaxException`; unsupported features or query limits throw
+`HtmlSelectorUnsupportedException`. The v2 major version removes `Document`.
+See [the snapshot/query contract and migration examples](https://github.com/Htkym/lithosharp/blob/feature/2.0.0/docs/Testing-v2-api.md).
 
 See [the testing guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md)
 and [Japanese guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.ja.md).

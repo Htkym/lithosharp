@@ -200,9 +200,46 @@ public sealed class MdxInspectionLifetimeTests
         Exception? primary = null;
         using var acceptedCancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.Token);
         var acceptedToken = acceptedCancellation.Token;
+        Task<MdxAnalysisResult>? observedAnalysis = null;
+        void ObserveDisposalWait(string phase, Exception? analysisOutcome, Exception? waitFailure = null)
+        {
+            try
+            {
+                var worker = typeof(MdxInspectionSession).GetField("worker", flags)!.GetValue(session)!;
+                var workerGate = (SemaphoreSlim)worker.GetType().GetField("gate", flags)!.GetValue(worker)!;
+                var completion = (TaskCompletionSource<bool>)typeof(MdxInspectionSession)
+                    .GetField("disposalCompletion", flags)!.GetValue(session)!;
+                Console.WriteLine("LSR25_DISPOSAL_OBSERVATION " + JsonSerializer.Serialize(new
+                {
+                    phase,
+                    utc = DateTimeOffset.UtcNow,
+                    analysisStatus = observedAnalysis?.Status.ToString(),
+                    analysisException = analysisOutcome?.GetType().FullName,
+                    analysisTokenMatches = analysisOutcome is OperationCanceledException canceled
+                        ? canceled.CancellationToken == acceptedToken : (bool?)null,
+                    waitException = waitFailure?.GetType().FullName,
+                    disposalStatus = disposal?.Status.ToString(),
+                    disposalCompletionStatus = completion.Task.Status.ToString(),
+                    disposalStarted = (int)typeof(MdxInspectionSession).GetField("disposalStarted", flags)!.GetValue(session)!,
+                    ownerCancellationRequested = owner.IsCancellationRequested,
+                    acceptedCancellationRequested = acceptedToken.IsCancellationRequested,
+                    lifetimeCount = gate.CurrentCount,
+                    workerGateCount = workerGate.CurrentCount,
+                    workerStarts = session.WorkerStarts,
+                    workerProcessPresent = worker.GetType().GetField("process", flags)!.GetValue(worker) is not null,
+                }));
+            }
+            catch (Exception observationError)
+            {
+                // Observation must never replace the test's original failure or owned cleanup.
+                try { Console.WriteLine("LSR25_DISPOSAL_OBSERVATION_ERROR " + observationError.GetType().FullName); }
+                catch { }
+            }
+        }
         try
         {
             var continuation = GateGrantedContinuation(session, acceptedCancellation);
+            observedAnalysis = continuation.Completion;
             disposal = session.DisposeAsync().AsTask();
             await Assert.That(acceptedToken.IsCancellationRequested).IsTrue();
             // This held permit now belongs to the already-granted continuation.
@@ -211,8 +248,18 @@ public sealed class MdxInspectionLifetimeTests
             continuation.Resume();
             Exception? outcome = null;
             try { await continuation.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (Exception error) { outcome = error; }
-            await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            catch (Exception error)
+            {
+                outcome = error;
+                if (error is TimeoutException) ObserveDisposalWait("analysis-timeout", outcome, error);
+            }
+            ObserveDisposalWait("before-disposal-wait", outcome);
+            try { await disposal.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (TimeoutException error)
+            {
+                ObserveDisposalWait("disposal-timeout", outcome, error);
+                throw;
+            }
             Console.WriteLine("LSR25_BOUNDARY " + JsonSerializer.Serialize(new
             {
                 stage = "gate-granted-disposal",
@@ -274,13 +321,13 @@ public sealed class MdxInspectionLifetimeTests
         await gate.WaitAsync();
         using var acceptedCancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.Token);
         var acceptedToken = acceptedCancellation.Token;
-        using var callbackEntered = new ManualResetEventSlim();
+        var callbackEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var releaseCallback = new ManualResetEventSlim();
         // Registered after the linked CTS: Cancel invokes this blocker first.
         // Disposal has published its flag, but propagation to acceptedToken is held.
         using var blocker = owner.Token.Register(() =>
         {
-            callbackEntered.Set();
+            callbackEntered.TrySetResult();
             if (!releaseCallback.Wait(TimeSpan.FromSeconds(10)))
                 throw new TimeoutException("LSR25_RESIDUAL owner cancellation blocker was not released.");
         });
@@ -291,14 +338,18 @@ public sealed class MdxInspectionLifetimeTests
         Exception? primary = null;
         try
         {
-            var continuation = GateGrantedContinuation(session, acceptedCancellation);
-            completion = continuation.Completion;
-            disposal = Task.Run(async () => await session.DisposeAsync());
-            if (!callbackEntered.Wait(TimeSpan.FromSeconds(5)))
-                throw new TimeoutException("LSR25_RESIDUAL owner cancellation did not enter the blocker.");
+            // This callback deliberately blocks; start its owner outside the shared pool.
+            disposal = Task.Factory.StartNew(() => session.DisposeAsync().AsTask(), CancellationToken.None,
+                TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+            try { await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (TimeoutException error)
+            { throw new TimeoutException("LSR25_RESIDUAL owner cancellation did not enter the blocker.", error); }
             await Assert.That(owner.IsCancellationRequested).IsTrue();
             await Assert.That(acceptedToken.IsCancellationRequested).IsFalse();
             await Assert.That((int)typeof(MdxInspectionSession).GetField("disposalStarted", flags)!.GetValue(session)!).IsEqualTo(1);
+            // Do not create an unscheduled completion until this boundary is established.
+            var continuation = GateGrantedContinuation(session, acceptedCancellation);
+            completion = continuation.Completion;
             transferred = true;
             continuation.Resume();
             Exception? outcome = null;

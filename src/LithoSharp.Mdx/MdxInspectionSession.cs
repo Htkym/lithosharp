@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 using System.Text.Json;
 using LithoSharp.Build;
 using LithoSharp.Content;
@@ -7,7 +8,7 @@ using LithoSharp.Inspection;
 
 namespace LithoSharp.Mdx;
 
-/// <summary>MDX import宣言の1件を表します。解決も実行もしていません。</summary>
+/// <summary>Unresolved import declaration; inspection never executes its target.</summary>
 public sealed class MdxImportInfo
 {
     internal MdxImportInfo(string specifier, IReadOnlyList<string> names, SiteSourceLocation? location)
@@ -17,22 +18,17 @@ public sealed class MdxImportInfo
         Location = location;
     }
 
-    /// <summary>import元を取得します。</summary>
     public string Specifier { get; }
 
-    /// <summary>導入名を取得します。</summary>
     public IReadOnlyList<string> Names { get; }
 
-    /// <summary>宣言の行精度の位置を取得します。列は不明です。</summary>
+    /// <summary>Line-accurate declaration location; the column is unknown.</summary>
     public SiteSourceLocation? Location { get; }
 }
 
-/// <summary>MDX非実行inspectionの要求条件を表します。</summary>
-/// <param name="DocumentVersion">文書版数。最新判定に使います。</param>
-/// <param name="ProjectGeneration">project generation。取得済みcontextと対応付けます。</param>
+/// <summary>DocumentVersion and ProjectGeneration identify the requested snapshot for freshness checks.</summary>
 public sealed record MdxAnalysisOptions(long DocumentVersion = 0, long ProjectGeneration = 0);
 
-/// <summary>MDX非実行inspectionの1回の結果を表します。</summary>
 public sealed class MdxAnalysisResult
 {
     internal MdxAnalysisResult(
@@ -63,51 +59,36 @@ public sealed class MdxAnalysisResult
         Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
     }
 
-    /// <summary>解析したsource pathを取得します。</summary>
     public string SourcePath { get; }
 
-    /// <summary>要求した文書版数を取得します。</summary>
     public long DocumentVersion { get; }
 
-    /// <summary>要求したproject generationを取得します。</summary>
     public long ProjectGeneration { get; }
 
-    /// <summary>解析段階を取得します。常に syntax です。</summary>
     public string Stage { get; }
 
-    /// <summary>文書題を取得します。ない場合は <see langword="null"/> です。</summary>
     public string? Title { get; }
 
-    /// <summary>静的テキストを取得します。</summary>
     public string PlainText { get; }
 
-    /// <summary>見出しを取得します。構文未完成では空です。</summary>
+    /// <summary>Empty when the syntax is incomplete.</summary>
     public IReadOnlyList<DocumentHeadingInfo> Headings { get; }
 
-    /// <summary>リンクと画像を取得します。構文未完成では空です。</summary>
+    /// <summary>Empty when the syntax is incomplete.</summary>
     public IReadOnlyList<DocumentLinkInfo> Links { get; }
 
-    /// <summary>asset参照を取得します。</summary>
     public IReadOnlyList<DocumentAssetInfo> Assets { get; }
 
-    /// <summary>island component参照を取得します。</summary>
     public IReadOnlyList<DocumentComponentInfo> Components { get; }
 
-    /// <summary>import宣言を取得します。解決も実行もしません。</summary>
     public IReadOnlyList<MdxImportInfo> Imports { get; }
 
-    /// <summary>解析で得た診断を取得します。構文未完成ではfatal診断のみです。</summary>
+    /// <summary>Incomplete syntax reports only fatal diagnostics.</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics { get; }
 }
 
-/// <summary>未保存MDXの非実行inspection sessionを表します。</summary>
-/// <remarks>
-/// 編集用の独立したworkerを所有し、serve/buildの実行workerと取消・寿命を分離します。
-/// 解析はbuildと同じ前処理・MDX parser・許可済み構文変換を使いますが、import先moduleの実行、
-/// SSR・evaluate・run・bundle、ユーザー設定/plugin読み込み、network取得を行いません。
-/// Markdownとして誤解釈せず、Markdown parserへのfallbackも作りません。
-/// TypeScriptはtranspileも型検査もしません（workerは型検査を一切行いません）。
-/// </remarks>
+/// <summary>Starts its editing worker lazily on first analysis, independent of build/serve lifetime and cancellation.</summary>
+/// <remarks>Uses build preprocessing and MDX syntax transforms without executing imports, SSR, plugins, bundling or network requests. No Markdown fallback, TypeScript transpilation or type checking.</remarks>
 public sealed class MdxInspectionSession : IAsyncDisposable
 {
     private readonly MdxOptions options;
@@ -118,7 +99,6 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private readonly TaskCompletionSource<bool> disposalCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int disposalStarted;
 
-    /// <summary>編集用の検査sessionを作成します。Nodeは初回解析まで起動しません。</summary>
     public MdxInspectionSession(MdxOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -131,13 +111,8 @@ public sealed class MdxInspectionSession : IAsyncDisposable
 
     internal int WorkerStarts => worker.Starts;
 
-    /// <summary>未保存を含むMDX文書を非実行で解析します。</summary>
-    /// <param name="sourcePath">文書のsource path。位置情報の識別に使います。</param>
-    /// <param name="text">文書全体のテキスト。front matterを含む形式です。</param>
-    /// <param name="analysisOptions">文書版数とproject generation。ない場合は既定値です。</param>
-    /// <param name="cancellationToken">取消token。入力取消でbuild側workerを止めません。</param>
-    /// <returns>見出し・リンク・asset・component・import宣言・診断のsnapshot。公開出力も元ファイルも更新しません。</returns>
-    /// <exception cref="SiteBuildExtensionException">worker異常時は診断付きで失敗します。</exception>
+    /// <summary>Inspects complete text, including front matter, without writing source or published output.</summary>
+    /// <remarks>Cancellation does not stop the build worker; worker failures throw SiteBuildExtensionException.</remarks>
     public async Task<MdxAnalysisResult> AnalyzeAsync(
         string sourcePath,
         string text,
@@ -311,7 +286,6 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         return new SiteSourceLocation(sourcePath);
     }
 
-    /// <summary>所有する編集用workerを破棄します。</summary>
     public ValueTask DisposeAsync()
     {
         // Publish disposal before canceling or waiting for the active analysis.

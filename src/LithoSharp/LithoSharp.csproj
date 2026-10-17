@@ -9,7 +9,8 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
     <Description>A type-safe static site and documentation generator for .NET. Build with C#, typed Markdown collections, dependency-aware incremental generation, and safe output publication. Add the optional MDX package for React components, versioned documentation, and selective hydration.</Description>
@@ -20,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>1.1.0 adds project-aware document inspection, versioned editor workspaces, and language-server workflows while preserving the 1.x contracts. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>2.0.0 replaces the Testing DOM getter with read-only snapshots and adds compiler-safe static diagnostics. See docs/Testing-v2-api.md for the major-version migration. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -28,6 +29,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.'))">1.1.0</PackageValidationBaselineVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <ApiCompatValidateAssemblies>true</ApiCompatValidateAssemblies>
     <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
@@ -36,10 +38,18 @@
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\licenses\WHATWG.HTML.LICENSE.txt" Pack="true" PackagePath="licenses/WHATWG.HTML.LICENSE.txt" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="1.8.3" />
+    <Compile Include="../Shared/StaticApiGuards.cs" Link="Internal/StaticApiGuards.cs" />
+    <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Internal/SiteQualityUrlRules.cs" />
+    <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
+    <!-- Immutable MD-05 runtime; component version is independent of the Core version. -->
+    <PackageReference Include="Syntamark" Version="[$(SyntamarkComponentVersion)]" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />

@@ -1,12 +1,20 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $PackageDirectory,
-    [ValidateNotNullOrEmpty()] [string] $CandidateVersion = '1.1.0'
+    [ValidateNotNullOrEmpty()] [string] $CandidateVersion
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+[xml] $templatePackage = Get-Content -LiteralPath (Join-Path $repo 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj') -Raw
+$templateVersionProperties = @($templatePackage.SelectNodes('/Project/PropertyGroup/Version'))
+if ($templateVersionProperties.Count -ne 1 -or [string]::IsNullOrWhiteSpace($templateVersionProperties[0].InnerText)) {
+    throw 'The template package must declare exactly one base Version.'
+}
+$templateBaseVersion = $templateVersionProperties[0].InnerText
+if (!$PSBoundParameters.ContainsKey('CandidateVersion')) { $CandidateVersion = $templateBaseVersion }
+$markdownPair = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
 $packages = [IO.Path]::GetFullPath($PackageDirectory)
 foreach ($id in @('LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates')) {
     $package = Join-Path $packages "$id.$CandidateVersion.nupkg"
@@ -20,15 +28,17 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
     $resolved = @{}
     foreach ($name in $assets.libraries.Keys) {
         $parts = $name.Split('/')
-        if ($parts[0] -notmatch '^LithoSharp(?:\.|$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
-        if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -ne $CandidateVersion) {
-            throw "Expected candidate $CandidateVersion, but resolved $name in $ProjectDirectory."
+        if ($parts[0] -notmatch '^(?:LithoSharp(?:\.|$)|Syntamark$)' -or $parts[0] -eq 'LithoSharp.FixtureExtension') { continue }
+        $expectedVersion = if ($parts[0] -ceq 'Syntamark') { $markdownPair.componentVersion } else { $CandidateVersion }
+        if ($assets.libraries[$name].type -ne 'package' -or $parts[1] -cne $expectedVersion) {
+            throw "Expected candidate $expectedVersion, but resolved $name in $ProjectDirectory."
         }
         $resolved[$parts[0]] = $parts[1]
     }
     foreach ($id in $Required) {
         if (!$resolved.ContainsKey($id)) { throw "Required candidate package $id was not resolved in $ProjectDirectory." }
     }
+    & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath $assetsPath
     Write-Host ("Resolved candidate packages: {0}" -f (($resolved.Keys | Sort-Object | ForEach-Object { "$_/$($resolved[$_])" }) -join ', '))
 }
 $fixture = Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N'))
@@ -44,6 +54,7 @@ foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'L
         Copy-Item -LiteralPath $candidateFile -Destination $packages
     }
 }
+& (Join-Path $repo 'eng/markdown/Copy-FixedRuntime.ps1') -PackageDirectory $packages
 $oldPackages = $env:NUGET_PACKAGES
 $oldHome = $env:DOTNET_CLI_HOME
 $oldTimestamp = $env:SOURCE_DATE_EPOCH
@@ -64,7 +75,7 @@ try {
     [IO.File]::WriteAllText($config, @"
 <configuration>
   <packageSources><clear/><add key="local" value="$escapedPackages"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/><package pattern="Syntamark"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
 </configuration>
 "@)
     dotnet tool install LithoSharp.Tool --version $CandidateVersion --tool-path $toolDirectory --configfile $config
@@ -79,8 +90,8 @@ try {
         $siteProject = Join-Path $project "Test$kind.csproj"
         $siteXml = [xml][IO.File]::ReadAllText($siteProject)
         $versionProperty = $siteXml.SelectSingleNode('/Project/PropertyGroup/LithoSharpVersion')
-        if ($null -eq $versionProperty -or $versionProperty.InnerText -ne '1.1.0' -or $versionProperty.Condition -ne "'`$(LithoSharpVersion)' == ''") {
-            throw "$kind template does not declare the overridable stable version 1.1.0."
+        if ($null -eq $versionProperty -or $versionProperty.InnerText -cne $templateBaseVersion -or $versionProperty.Condition -cne "'`$(LithoSharpVersion)' == ''") {
+            throw "$kind template does not declare the overridable package base version $templateBaseVersion."
         }
         $required = @('LithoSharp')
         if ($kind -eq 'mdx') { $required += 'LithoSharp.Mdx' }

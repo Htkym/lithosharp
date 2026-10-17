@@ -1,0 +1,654 @@
+{
+  "task": "MD-05",
+  "state": "VALIDATED_PENDING_BOCCHI_ACTUAL_DIFF_REVIEW",
+  "baseSha": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e",
+  "md04Review": {
+    "state": "PASS",
+    "reviewer": "Bocchi",
+    "scope": "all16 files + existing DisposeAsync route",
+    "sha": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e"
+  },
+  "sourceCommit": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e",
+  "componentVersion": "2.0.0-preview.1",
+  "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+  "canonicalParserUnchanged": true,
+  "localBuildPackTest": "PASS through final code; real Roslyn/bothrepo gates remain IN-01",
+  "artifactHashes": {
+    "runtime": "554a4c71de4fb8c55872895a985cf8f66e9518346e451e91a2607d69d17fb8ed",
+    "source": "537bd22998e5a2560a8cffea2f829b3bfae79179b91572671fbf66d0a46d9a06"
+  },
+  "scope": [
+    "Fixed Git bytes stage; independent runtime/source NuGet pair; same metadata/canonical hash; external real nupkg hashes",
+    "source target explicit opt-in + marker; exclude Public/friend metadata",
+    "local-feed exact restores + actual Generator Parse compile + tiny runtime/source comparison"
+  ],
+  "notRun": [
+    "Real Roslyn Generator/Analyzer host matrix; IN-01",
+    "SharpDeps consumers/bothrepo matrix; IN-01",
+    "Full solution/tests/benchmark/coverage",
+    "Publish"
+  ],
+  "ownership": {
+    "sharedCompilation": false,
+    "task": "MD-05",
+    "msbuildNodeReuse": false,
+    "remaining": [],
+    "checkedAt": "2026-10-08T09:49:32.9839944Z",
+    "unrelatedProcessesStopped": false,
+    "source": "One final Win32_Process snapshot after completed validation session",
+    "rootCreationTimeGuard": true,
+    "count": 0,
+    "ownedRootPids": [
+      40008,
+      47940,
+      34424,
+      49576,
+      40892,
+      48216,
+      10116,
+      36480,
+      22220,
+      36612,
+      3724,
+      37876,
+      27660
+    ]
+  },
+  "publicationAuthorized": false,
+  "reviewGate": "Selected finalchecks PASS -> ownPID0 reported beforecommit -> MD05-only feature commit/push -> Bocchi allfile actualdiff review -> nexttask",
+  "aiReviews": {
+    "state": "COMPLETED_LIMITED_SOURCE_REVIEW_FINDINGS_FIXED_STATICALLY",
+    "fastTier": false,
+    "copilot": {
+      "requestedModel": "claude-opus-5.5",
+      "requestedEffort": "high",
+      "modelBefore": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "modelAfter": {
+        "modelId": "claude-opus-5.5",
+        "reasoningEffort": "high"
+      },
+      "modelMatch": true,
+      "exitCode": 0,
+      "tools": 0,
+      "permissions": 0,
+      "quotaBefore": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 820,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 95.9,
+        "resetDate": "2026-10-08T08:45:59.912Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "quotaAfter": {
+        "isUnlimitedEntitlement": false,
+        "entitlementRequests": 20000,
+        "usedRequests": 820,
+        "usageAllowedWithExhaustedQuota": false,
+        "overage": 0,
+        "overageAllowedWithExhaustedQuota": false,
+        "remainingPercentage": 95.9,
+        "resetDate": "2026-10-08T08:45:59.912Z",
+        "hasQuota": true,
+        "tokenBasedBilling": true,
+        "overageEntitlement": 0
+      },
+      "usage": [
+        {
+          "model": "claude-opus-5.5",
+          "reasoningEffort": "high",
+          "inputTokens": 15078,
+          "outputTokens": 12379,
+          "reasoningTokens": 10802,
+          "cost": 15,
+          "isAuto": false,
+          "availableToolCount": 0,
+          "numToolCalls": 0,
+          "copilotUsage": {
+            "tokenDetails": [
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 400000000000,
+                "tokenCount": 4,
+                "tokenType": "input",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 20000000000,
+                "tokenCount": 0,
+                "tokenType": "cache_read",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 500000000000,
+                "tokenCount": 15074,
+                "tokenType": "cache_write",
+                "model": "claude-opus-5.5"
+              },
+              {
+                "batchSize": 1000000,
+                "costPerBatch": 2000000000000,
+                "tokenCount": 12379,
+                "tokenType": "output",
+                "model": "claude-opus-5.5"
+              }
+            ],
+            "totalNanoAiu": 32296600000
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "id": "CP-MD05-1",
+          "decision": "ACCEPTED_AND_FIXED",
+          "reason": "Added full runtime code set (no extra cs outside bin/obj), Git Public/Properties hashes, transformed recipe hashes; stage checked before build and seal. Earlier staged-byte checks already partially addressed original review input."
+        },
+        {
+          "id": "CP-MD05-2",
+          "decision": "PARTIALLY_ACCEPTED_FAIL_CLOSED",
+          "reason": "All current DTO/range types expose properties (RawSpan/MdRawRange Start/Length/End). Extended primitive handling and rejects zero-property unrecognized objects. No reflection of compiler backing fields or speculative DTO format added."
+        },
+        {
+          "id": "CP-MD05-3",
+          "decision": "GUARD_ALREADY_IMPLEMENTED_EVIDENCE_STRENGTHENED",
+          "reason": "MD04 MarkdownYamlIdentity.Require already compares typeof(Parser).Assembly actual metadata to manifest expectations; omitted from reviewer input. Added explicit Generator referenced identity and bound source assembly/informational checks/report. SourceParse keeps manifest expected metadata, avoiding acceptance of wrong loaded DLL as its own expectation."
+        }
+      ],
+      "initialAttempt": {
+        "state": "TIMEOUT_NO_REVIEW_RESULT",
+        "timeoutSeconds": 120,
+        "error": {
+          "name": "Error",
+          "message": "Timeout after 120000ms waiting for session.idle"
+        },
+        "usageUnavailable": true
+      },
+      "scopeLimit": "Final staged-byte/source-set and explicit bound dependency checks added after this input review; static readback/check-stage verified. Actual compile/run and Bocchi all-file diff pending"
+    },
+    "muse": {
+      "requestedModel": "opencode-go/muse-spark-1.3-contributor",
+      "actualSessionModel": {
+        "id": "muse-spark-1.3-contributor",
+        "providerID": "opencode-go",
+        "variant": "default"
+      },
+      "actualAgent": "md05-muse",
+      "modelMatch": true,
+      "exitCode": 0,
+      "tools": 0,
+      "response": "1 可\n2 可\n3 不可\n4 不可\n5 可\n6 不可\n7 不可\n8 可",
+      "sessionId": "ses_ee54f341cffezQ4sGYNxzXWrj0"
+    },
+    "agy": {
+      "requestedModel": "gemini-3.8-flash-high",
+      "actualInitModel": "gemini-3.8-flash-high",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "numTurns": 1,
+      "observedStepTypes": [
+        "user_input",
+        "agent_response"
+      ],
+      "skill": "Yomiyasu full text supplied",
+      "accepted": 3,
+      "isolationLimit": "init exposes tools/always-proceed; observed user_input and agent_response only",
+      "finalProse": {
+        "requestedModel": "gemini-3.8-flash-high",
+        "actualInitModel": "gemini-3.8-flash-high",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "numTurns": 1,
+        "observedStepTypes": [
+          "user_input",
+          "agent_response"
+        ],
+        "actualToolOrSubagentActionsObserved": false,
+        "accepted": [
+          [
+            "MD-04は上記SHAの全16ファイルと既存DisposeAsync経路をBocchiが直接レビューし、合格しました。",
+            "MD-04では上記SHAの全16ファイルと既存DisposeAsync経路をBocchiが直接レビューし、合格としました。"
+          ],
+          [
+            "stageとmanifest、既存nupkgを上書きしていません。",
+            "stageとmanifest、既存nupkgは上書きしていません。"
+          ],
+          [
+            "最終Win32_Process snapshotで記録したrootと子孫が0件でした。",
+            "最終Win32_Process snapshotで記録されたrootと子孫は0件でした。"
+          ]
+        ],
+        "codeChanges": false
+      }
+    }
+  },
+  "proposedValidation": {
+    "selectedChecks": 13,
+    "estimateSeconds": "45-90",
+    "runtime": "independent staged net10 build and no-build pack",
+    "source": "independent no-build pack + actual Generator netstandard2 source compile",
+    "pair": "exact version local-feed restores in isolated D packages; actual nupkg hash + same metadata + expected stamp/loaded YAML both paths",
+    "sourceSelection": "opt-in/out Compile+DefineConstants evaluation; wrong expected stamp rejected before Compile",
+    "canary": "runtime facade vs actual MD04 source-host Parse body;3 small fact comparisons and mismatch guards",
+    "actualRoslynHost": "NOT_RUN; IN-01",
+    "bothRepoMatrix": "NOT_RUN; IN-01",
+    "nugetAudit": "Disabled only for cached local restore"
+  },
+  "static": {
+    "nodeSyntax": "PASS",
+    "xmlSyntax": "PASS 4 project/target templates + stage config",
+    "canonicalFiles": 22,
+    "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+    "runtimeSourceSet": "Complete selected portable+stamp+Git Public/Properties; extra cs rejected outside bin/obj",
+    "packagingStage": "Source/metadata/license and transformed template bytes checked before build and seal"
+  },
+  "artifactPair": {
+    "path": "docs/development/md05-artifact-pair.json",
+    "componentVersion": "2.0.0-preview.1",
+    "sourceCommit": "ccd165a1fd0eff9cb7b54004c8b472547ba74e8e",
+    "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+    "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+    "runtimePackageId": "LithoSharp.Markdown",
+    "sourcePackageId": "LithoSharp.Markdown.Source",
+    "sealedManifestState": "PACKED_NOT_HOST_VERIFIED (historical point before canary)",
+    "restoredConsumerVerification": "PASS fixed pair + actual MD04 Parse body on net10 CLR",
+    "immutability": "One pack perkind, no overwrite/repack; different bytes require nextpreviewV"
+  },
+  "runtimeEvidence": {
+    "checkedAt": "2026-10-08T09:46:37.384Z",
+    "checks": [
+      {
+        "name": "MD05-runtime-restore",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 1.636,
+        "command": [
+          "dotnet",
+          "restore",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/runtime/runtime.csproj",
+          "--disable-parallel",
+          "--configfile",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/NuGet.Config",
+          "--packages",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/packages",
+          "-nr:false",
+          "-p:NuGetAudit=false"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-runtime-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 3.697,
+        "command": [
+          "dotnet",
+          "build",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/runtime/runtime.csproj",
+          "--no-restore",
+          "-c",
+          "Release",
+          "-m:1",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:UseSharedCompilation=false"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-runtime-pack",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.939,
+        "command": [
+          "dotnet",
+          "pack",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/runtime/runtime.csproj",
+          "--no-build",
+          "--no-restore",
+          "-c",
+          "Release",
+          "--output",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/feed",
+          "-nr:false",
+          "-p:NuGetAudit=false"
+        ],
+        "timeoutSeconds": 60,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-source-restore",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 1.138,
+        "command": [
+          "dotnet",
+          "restore",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/source/source.csproj",
+          "--disable-parallel",
+          "--configfile",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/NuGet.Config",
+          "--packages",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/packages",
+          "-nr:false",
+          "-p:NuGetAudit=false"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-source-pack",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.911,
+        "command": [
+          "dotnet",
+          "pack",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/source/source.csproj",
+          "--no-build",
+          "--no-restore",
+          "-c",
+          "Release",
+          "--output",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/feed",
+          "-nr:false",
+          "-p:NuGetAudit=false"
+        ],
+        "timeoutSeconds": 60,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-generator-source-restore",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 2.166,
+        "command": [
+          "dotnet",
+          "restore",
+          "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+          "--disable-parallel",
+          "--configfile",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/NuGet.Config",
+          "--packages",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/packages",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:LithoSharpMarkdownSourceVersion=2.0.0-preview.1",
+          "-p:LithoSharpMarkdownExpectedParserVersion=1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/Release/netstandard2.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-packages.lock.json"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-generator-source-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 2.585,
+        "command": [
+          "dotnet",
+          "build",
+          "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+          "--no-restore",
+          "-c",
+          "Release",
+          "-m:1",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:UseSharedCompilation=false",
+          "-p:LithoSharpMarkdownSourceVersion=2.0.0-preview.1",
+          "-p:LithoSharpMarkdownExpectedParserVersion=1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/Release/netstandard2.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-packages.lock.json"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-source-opt-in-evaluation",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.499,
+        "command": [
+          "dotnet",
+          "msbuild",
+          "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+          "-nologo",
+          "-getProperty:DefineConstants,LithoSharpMarkdownSourcePackageVersion",
+          "-getItem:Compile",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:LithoSharpMarkdownSourceVersion=2.0.0-preview.1",
+          "-p:LithoSharpMarkdownExpectedParserVersion=1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/Release/netstandard2.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-packages.lock.json"
+        ],
+        "timeoutSeconds": 20,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-source-opt-out-evaluation",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.467,
+        "command": [
+          "dotnet",
+          "msbuild",
+          "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+          "-nologo",
+          "-getProperty:DefineConstants,LithoSharpMarkdownSourcePackageVersion",
+          "-getItem:Compile",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:LithoSharpMarkdownSourceVersion=2.0.0-preview.1",
+          "-p:LithoSharpMarkdownExpectedParserVersion=1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/Release/netstandard2.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-packages.lock.json",
+          "-p:LithoSharpMarkdownIncludeSource=false"
+        ],
+        "timeoutSeconds": 20,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-source-wrong-stamp",
+        "state": "EXPECTED_FAILURE_PASS",
+        "exitCode": 1,
+        "elapsedSeconds": 0.501,
+        "command": [
+          "dotnet",
+          "msbuild",
+          "src/LithoSharp.Generators/LithoSharp.Generators.csproj",
+          "-nologo",
+          "-target:CheckLithoSharpMarkdownSourceArtifact",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:LithoSharpMarkdownSourceVersion=2.0.0-preview.1",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-obj/Release/netstandard2.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-packages.lock.json",
+          "-p:LithoSharpMarkdownExpectedParserVersion=1/0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "timeoutSeconds": 20,
+        "expectedDiagnostic": "Selected Markdown parser stamp differs from the expected pair manifest.",
+        "expectedDiagnosticMatched": true
+      },
+      {
+        "name": "MD05-canary-restore",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 0.934,
+        "command": [
+          "dotnet",
+          "restore",
+          "tests/LithoSharp.Markdown.Artifacts/LithoSharp.Markdown.Artifacts.csproj",
+          "--disable-parallel",
+          "--configfile",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/NuGet.Config",
+          "--packages",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/packages",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:LithoSharpMarkdownArtifactVersion=2.0.0-preview.1",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/Release/net10.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-packages.lock.json"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-canary-build",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 2.86,
+        "command": [
+          "dotnet",
+          "build",
+          "tests/LithoSharp.Markdown.Artifacts/LithoSharp.Markdown.Artifacts.csproj",
+          "--no-restore",
+          "-c",
+          "Release",
+          "-m:1",
+          "-nr:false",
+          "-p:NuGetAudit=false",
+          "-p:UseSharedCompilation=false",
+          "-p:LithoSharpMarkdownArtifactVersion=2.0.0-preview.1",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/Release/net10.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-packages.lock.json"
+        ],
+        "timeoutSeconds": 120,
+        "expectedDiagnosticMatched": null
+      },
+      {
+        "name": "MD05-canary-run",
+        "state": "PASS",
+        "exitCode": 0,
+        "elapsedSeconds": 1.139,
+        "command": [
+          "dotnet",
+          "run",
+          "--project",
+          "tests/LithoSharp.Markdown.Artifacts/LithoSharp.Markdown.Artifacts.csproj",
+          "--no-build",
+          "--no-restore",
+          "-c",
+          "Release",
+          "-p:LithoSharpMarkdownArtifactVersion=2.0.0-preview.1",
+          "-p:MSBuildProjectExtensionsPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/",
+          "-p:IntermediateOutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-obj/Release/net10.0/",
+          "-p:OutputPath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-bin/",
+          "-p:AppendTargetFrameworkToOutputPath=false",
+          "-p:NuGetLockFilePath=D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-packages.lock.json",
+          "--",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/artifact-stage-r1/pair-manifest.json",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/generator-bin/LithoSharp.Generators.dll",
+          "D:/DevData/AgentOps/work-cli-20261007/runs/lithosharp-md05-20261008-1791448968498/canary-result.json"
+        ],
+        "timeoutSeconds": 30,
+        "expectedDiagnosticMatched": null
+      }
+    ],
+    "elapsedSelectedSeconds": 19.472,
+    "builds": 3,
+    "buildErrors": 0,
+    "buildWarnings": 0,
+    "packWarnings": 0,
+    "canary": {
+      "task": "MD-05",
+      "status": "PASS",
+      "componentVersion": "2.0.0-preview.1",
+      "parserVersion": "1/02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+      "canonicalSourceHash": "02ce256eca6797e2c3a77eae5b1c1c1045a0a874b0936c61ec3dd08385fe0480",
+      "runtimeAssemblySha256": "1208ca8b32332ef58ea68838a6c672e3ea760257f84728e0a7e20b353d8389a5",
+      "actualGenerator": "D:\\DevData\\AgentOps\\work-cli-20261007\\runs\\lithosharp-md05-20261008-1791448968498\\generator-bin\\LithoSharp.Generators.dll",
+      "generatorSha256": "b3ac490e9c9bb446f0cf321da9df760ec594ed81a1c5bf1c458d2345703568af",
+      "sourceParseCompiled": true,
+      "noSourceFacade": true,
+      "noSourceFriendMetadata": true,
+      "expectedStampRejected": true,
+      "expectedDependencyRejected": true,
+      "yamlAssembly": "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e",
+      "yamlInformation": "18.1.0",
+      "sourceYamlAssembly": "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e",
+      "sourceYamlInformation": "18.1.0",
+      "fixtures": [
+        {
+          "utf16Length": 35,
+          "sha256": "7aceae8bbf1001f84762220a9fbcf7c7cc88684f51fbe1e6d05233afad82eb29"
+        },
+        {
+          "utf16Length": 48,
+          "sha256": "aba3d481de0dbe74207b1b2521768746c3870aabd812c76a8d1d5a4f83d7cd08"
+        },
+        {
+          "utf16Length": 31,
+          "sha256": "7b0ac91f940cc7b96dc89a1c003ec242299abd85ffdd3de016da7e9694790fe1"
+        }
+      ],
+      "actualRoslynHost": "NOT_RUN; IN-01",
+      "bothRepoMatrix": "NOT_RUN; IN-01"
+    },
+    "sourceSelection": {
+      "state": "PASS",
+      "positivePortableCompile": 20,
+      "expectedPortableCompile": 20,
+      "optOutPortableCompile": 0,
+      "positiveSymbol": true,
+      "optOutSymbol": false
+    },
+    "restoredHashes": {
+      "runtime": {
+        "sha256": "554a4c71de4fb8c55872895a985cf8f66e9518346e451e91a2607d69d17fb8ed"
+      },
+      "source": {
+        "sha256": "537bd22998e5a2560a8cffea2f829b3bfae79179b91572671fbf66d0a46d9a06"
+      }
+    },
+    "codeChangedAfterFinalRun": false
+  },
+  "finalChecks": [
+    "MD05-runtime-restore",
+    "MD05-runtime-build",
+    "MD05-runtime-pack",
+    "MD05-source-restore",
+    "MD05-source-pack",
+    "MD05-generator-source-restore",
+    "MD05-generator-source-build",
+    "MD05-source-opt-in-evaluation",
+    "MD05-source-opt-out-evaluation",
+    "MD05-source-wrong-stamp",
+    "MD05-canary-restore",
+    "MD05-canary-build",
+    "MD05-canary-run"
+  ]
+}

@@ -5,8 +5,12 @@ on:
     tags:
       - 'v*'
 
+env:
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 jobs:
@@ -16,6 +20,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify release tag equals current reviewed main
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -45,15 +56,22 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME -replace '^v', ''
-          foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.Testing', 'LithoSharp.Mdx', 'LithoSharp.ProjectTemplates')) {
-            $parent = if ($id -eq 'LithoSharp.ProjectTemplates') { 'templates' } else { 'src' }
-            $project = "$parent/$id/$id.csproj"
+          ./eng/Test-ReleasePipeline.ps1 -Check CoreTag -Tag $env:GITHUB_REF_NAME
+          foreach ($package in (Get-Content eng/release-packages.json -Raw | ConvertFrom-Json)) {
+            $id = $package.id
+            $project = $package.project
             [xml] $xml = Get-Content -LiteralPath $project -Raw
             if (@($xml.Project.PropertyGroup.Version) -notcontains $version) { throw "$project does not match tag version $version." }
             dotnet pack $project --no-build --no-restore --configuration Release --output artifacts/packages -p:EnablePackageValidation=true
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $version
           }
+
+      - name: Recheck main before publication
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
 
       - name: NuGet login (OIDC)
         id: login

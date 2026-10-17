@@ -1,0 +1,51 @@
+# MD-03のruntime接続とsite互換adapter
+
+MD-02の最終SHA eaacf27f0cbaa05d5ef62e32fda02890864412df を基準に、runtime・inspection・site policyを接続しています。BocchiはMD-02の全14ファイル差分を直接レビューし、合格としました。MD-02記録の最上位finalChecksをR1-A-build / R1-B-build / R1-B-runへ訂正し、古い実行履歴は残しています。親が許可した測定枠でMD-03の限定build/canaryを完了し、所有build/test PID 0を確認しました。Bocchiの最終実差分レビューはまだです。
+
+## runtimeの境界
+
+CoreのPortable source Compile linkを削除し、LithoSharp.MarkdownへのProjectReferenceでnet10 runtime componentを使います。内部AST、SourceSpan、SourceText、slugとparserはcomponentに属します。既存の公式runtime adapterにはNET10_0だけでfriend accessを与えます。public ASTは追加せず、既存public siteの署名も変更しません。
+
+CoreのSourceSpanは型の重複定義をやめ、SourceSpanLocationExtensions.ToSourceLocationとして共有spanからsite位置へ変換します。pure helperのLithoLimitsはLithoParserLimitsへ改名し、Coreに残る同名のsite診断helperとの型の衝突を避けます。数値やUnicode処理は変更しません。
+
+この変更で内部型のassembly所属は変わります。公式のfriend consumerは同じcomponentを参照して再buildする必要があります。既存Mdxのsource consumerも対象buildに含めます。古いfriend DLLと新しい内部ABIの混在を、互換性の証拠には使いません。
+
+現在のProjectReferenceは開発中の接続です。固定版のruntime/source artifact pairのpack・manifest・host認定を代用したとは記録しません。MD-04/MD-05/IN-01でexact版とloaded identityを確認します。source hostのpayloadにはruntime専用のfriend metadataを含めません。
+
+## HTMLを経由しないtext
+
+MdInlineFacts.LeafTextが共有syntaxのleaf文字列を返し、CoreのLithoLegacyTextPolicyがsiteの表示規則を適用します。heading textのRenderInlines・StripTags依存を除去しました。旧headingはimage labelを省き、inline mathの見える括弧を含むため、その規則をsite adapterに残しています。entityはparserで一度decodeした値を使い、二重decodeしません。
+
+plain textのLF、table cellのspace、task listのmarkerは旧rendererの処理をsite text policyへ移しています。inspectionは一度のbody parseからsyntax/semanticsを作り、本文HTMLを生成しません。実際のHTML rendererはCoreに残します。既存SourceHash、SemanticHashの実装とcompiler fingerprint 2は維持します。観測する意味が同じであることを小さいcanaryで確認しました。性能は測定していません。
+
+## frontmatterとsite policy
+
+MdFrontMatterScan.Scanをstrict entryと旧FrontMatterSplitterの共通delimiter scannerにしました。厳密なmarker、先頭BOM、CRLF/LF/CR、YAML/bodyのUTF-16範囲を一度走査します。strict entryのbudgetと取消を計上し、旧entryはcontextなしで呼びます。
+
+generic entryはoptional frontmatterを扱い、unclosedの場合はBodySpanをUnknownにします。siteのLSM001〜008、severity、位置、missing/unclosed時の全文body fallback、Emptyの診断はCoreに残します。型付きbindingとLocatedYamlの既存event readerもsite policyとして保持します。新strict entryのUnicode・入力・作業量上限をsiteへ無条件に適用しません。新cacheはまだ追加しません。
+
+## 小さい確認と停止条件
+
+canaryはproductの実net10 runtime componentと、別load contextの実netstandard2.0 componentを使います。Coreがparserのcopyを持たないことも確認します。MD-01/02の既存入力、snapshot、mapping、上限と取消の確認を引き続き使います。
+
+MD-03では、frontmatter無しのgeneric成功とsite LSM001、h1のRawLevel/OutputLevel、一度のparseとHTML非生成、旧heading計算との一致、BOM/CRLFのsliceと元位置、unclosedの両policy、LSM001〜008を小さい入力で確認しました。runtime/portableのParserVersion、TextHash、OptionsHashも一致しました。テスト用の新public APIは作りません。
+
+対象は必要なrestore、componentの二TFM build、canaryのbuild/run、Mdxのbuildです。以前のcomponent 4.9秒・canary build 6.4秒・run 1.0秒を基に、追加restoreとMdx buildを含め20〜30秒を仮の見込みとしました。最終実測は下記に記録しています。full solution/test、benchmark、coverage、pack、公開は実行していません。
+
+許可された枠で必要な修正を含めて最終sourceの確認を完了し、所有build/test PID 0を先に報告します。その後、MD-03だけをfeature/2.0.0へcommit/pushしてBocchiの全差分レビューへ返します。次のtaskは合格後に進めます。
+
+## CLIによる限定レビュー
+
+Museのdelimiter範囲と失敗行の計算は、文字列sliceで独立確認しました。Copilot Opus 5.5 highはnet10の明示参照とportable DLLの取得方法を指摘したため、canaryを通常のnet10 ProjectReferenceとMSBuildの実TargetOutputsへ変更しました。修正後のcompile/runは許可された検証枠で成功しました。
+
+strict budgetの重複operand計上を削る提案は採用していません。J01の保守的な作業量計上に従い、比較・改行の実読み取りも計上します。前版と同じ上限到達箇所は保証せず、source変更をParserVersionに反映します。contextなしの旧site entryの受理条件には予算を追加しません。
+
+Copilotの要求・応答model/effortは一致し、Auto切替・tool実行・権限要求はありませんでした。月内残量は実行前後とも20,000中780使用、19,220残です。累計差0は無料を意味せず、session usageはJSONに記録します。最新版一覧で確認したGemini 3.8 Flash HighとYomiyasuは1ターンの校正を完了し、主語・friend表記・冗長表現の3点だけ反映しました。Fast tierは使っていません。
+
+## 最終sourceの限定検証結果
+
+restore二件、componentの両TFM build、修正後canary build/run、Mdx buildはすべて成功しました。buildは警告・エラー0です。最終canaryは実net10/実netstandard2.0、MD-01/02の既存確認、MD-03の位置・表示・inspection・LSM001〜008・取消の確認を通過しました。選択した最終実行の合計は17.382秒です。最初のcanary build/runと調整中の待ち時間はこの合計に含めません。
+
+初回canaryは追加fixtureの診断IDの期待値が誤って失敗しました。現行MarkdownContentDiagnosticIdsに合わせ、重複キーLSM005・不正mapping key LSM007・不正root LSM008へfixtureだけを訂正しました。製品実装とcanonical source hashは変えず、必要なcanary build/runをやり直しました。失敗履歴もJSONに残しています。
+
+所有root PIDとその子孫を確認し、build/test残存0です。共有compilerとMSBuild node reuseは無効で、他taskのプロセスを停止していません。最終確認後は文書とgit操作だけを行い、次taskはBocchiの実差分レビュー合格まで待ちます。

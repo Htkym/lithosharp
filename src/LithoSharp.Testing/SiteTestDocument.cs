@@ -1,31 +1,29 @@
-using AngleSharp.Dom;
-using AngleSharp.Html.Parser;
+using LithoSharp.HtmlParsing;
 using LithoSharp.Pages;
 
 namespace LithoSharp.Testing;
 
 /// <summary>Provides framework-independent assertions over rendered HTML.</summary>
 /// <remarks>Assertion mismatches throw <see cref="SiteTestException"/>. Disposed document access throws
-/// <see cref="ObjectDisposedException"/>. Invalid CSS selectors raise AngleSharp syntax exceptions.</remarks>
+/// <see cref="ObjectDisposedException"/>. Selectors use the declared bounded Testing grammar.</remarks>
 public sealed class SiteTestDocument : IDisposable
 {
-    private bool disposed;
-    private readonly IDocument document;
+    private readonly HtmlTestDocument snapshot;
 
-    private SiteTestDocument(IDocument document) => this.document = document;
+    private SiteTestDocument(HtmlTestDocument snapshot) => this.snapshot = snapshot;
 
     /// <summary>Parses an HTML document without executing scripts or network requests.</summary>
     /// <param name="html">HTML source.</param>
-    /// <returns>A disposable DOM test document.</returns>
+    /// <returns>A disposable snapshot owner.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="html"/> is null.</exception>
     public static SiteTestDocument Parse(string html)
     {
         ArgumentNullException.ThrowIfNull(html);
-        return new SiteTestDocument(new HtmlParser(new HtmlParserOptions { IsKeepingSourceReferences = true }).ParseDocument(html));
+        return new SiteTestDocument(new HtmlTestDocument(HtmlFacts.Parse(html)));
     }
 
-    /// <summary>Gets the parsed DOM document.</summary>
-    public IDocument Document { get { EnsureNotDisposed(); return document; } }
+    /// <summary>Gets the read-only parsed snapshot, invalidated when this owner is disposed.</summary>
+    public HtmlTestDocument Snapshot { get { EnsureNotDisposed(); return snapshot; } }
 
     /// <summary>Gets the optional route associated with this document.</summary>
     public LithoSharp.Routing.SiteRoute? Route { get; internal set; }
@@ -74,7 +72,7 @@ public sealed class SiteTestDocument : IDisposable
     public void AssertMeta(string name, string expected, bool property = false)
     {
         EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(name); ArgumentNullException.ThrowIfNull(expected);
-        if (!Document.QuerySelectorAll("meta").Any(element => string.Equals(element.GetAttribute(property ? "property" : "name"), name, StringComparison.Ordinal) && string.Equals(element.GetAttribute("content"), expected, StringComparison.Ordinal))) throw new SiteTestException($"Expected meta {name} to have content '{expected}'.");
+        if (!Snapshot.QueryAll("meta").Any(element => string.Equals(element.GetAttribute(property ? "property" : "name"), name, StringComparison.Ordinal) && string.Equals(element.GetAttribute("content"), expected, StringComparison.Ordinal))) throw new SiteTestException($"Expected meta {name} to have content '{expected}'.");
     }
 
     /// <summary>Asserts that a link with the exact href exists.</summary>
@@ -82,7 +80,7 @@ public sealed class SiteTestDocument : IDisposable
     public void AssertLink(string href)
     {
         EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(href);
-        if (!Document.QuerySelectorAll("a").Any(element => string.Equals(element.GetAttribute("href"), href, StringComparison.Ordinal))) throw new SiteTestException($"Expected a link with href '{href}'.");
+        if (!Snapshot.QueryAll("a").Any(element => string.Equals(element.GetAttribute("href"), href, StringComparison.Ordinal))) throw new SiteTestException($"Expected a link with href '{href}'.");
     }
 
     /// <summary>Asserts that an image with the exact src exists.</summary>
@@ -90,24 +88,24 @@ public sealed class SiteTestDocument : IDisposable
     public void AssertImage(string src)
     {
         EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(src);
-        if (!Document.QuerySelectorAll("img").Any(element => string.Equals(element.GetAttribute("src"), src, StringComparison.Ordinal))) throw new SiteTestException($"Expected an image with src '{src}'.");
+        if (!Snapshot.QueryAll("img").Any(element => string.Equals(element.GetAttribute("src"), src, StringComparison.Ordinal))) throw new SiteTestException($"Expected an image with src '{src}'.");
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        if (!disposed) { document.Dispose(); disposed = true; }
+        snapshot.Invalidate();
     }
 
-    private IElement Find(string selector)
+    private HtmlTestElement Find(string selector)
     {
         EnsureNotDisposed();
         ArgumentNullException.ThrowIfNull(selector);
         if (string.IsNullOrWhiteSpace(selector)) throw new ArgumentException("A selector must not be empty.", nameof(selector));
-        return Document.QuerySelector(selector) ?? throw new SiteTestException($"Expected an element matching '{selector}'.");
+        return Snapshot.Query(selector) ?? throw new SiteTestException($"Expected an element matching '{selector}'.");
     }
 
-    private void AssertValue(string selector, string expected, Func<IElement, string?> value)
+    private void AssertValue(string selector, string expected, Func<HtmlTestElement, string?> value)
     {
         ArgumentNullException.ThrowIfNull(expected);
         var element = Find(selector);
@@ -115,5 +113,5 @@ public sealed class SiteTestDocument : IDisposable
         if (!string.Equals(actual, expected, StringComparison.Ordinal)) throw new SiteTestException($"Expected '{selector}' to have '{expected}', but found '{actual ?? "<missing>"}'.");
     }
 
-    private void EnsureNotDisposed() { if (disposed) throw new ObjectDisposedException(nameof(SiteTestDocument)); }
+    private void EnsureNotDisposed() => snapshot.EnsureAlive();
 }

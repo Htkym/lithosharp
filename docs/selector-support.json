@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "contract": "lithosharp-testing-query/2",
+  "syntaxReference": [
+    "https://www.w3.org/TR/selectors-4/",
+    "https://www.w3.org/TR/css-syntax-3/"
+  ],
+  "supported": [
+    "type",
+    "universal",
+    "id",
+    "class",
+    "attribute-presence",
+    "attribute-equals",
+    "attribute-word",
+    "attribute-language-prefix",
+    "attribute-prefix",
+    "attribute-suffix",
+    "attribute-substring",
+    "attribute-i/s-flags",
+    "descendant",
+    "child",
+    "adjacent-sibling",
+    "general-sibling",
+    "selector-list",
+    ":scope",
+    ":first-child",
+    ":last-child",
+    ":only-child",
+    ":nth-child(An+B)",
+    ":not(complex-selector-list)",
+    ":is(complex-selector-list)",
+    ":where(complex-selector-list)",
+    "CSS-escapes",
+    "quoted-values",
+    "Unicode-identifiers",
+    "CSS-comments"
+  ],
+  "unsupported": [
+    ":has",
+    "pseudo-elements",
+    "interaction/form/browser-state and unlisted pseudo-classes",
+    ":nth-child(... of selector)",
+    "named namespace prefixes",
+    "namespace declarations",
+    "DOM mutation"
+  ],
+  "logicalListPolicy": "Strict: malformed or unsupported branches fail the entire query; :is/:where do not discard branches.",
+  "commentPositions": "Between simple selectors and at whitespace boundaries; comments do not splice name tokens or namespace/operator punctuation.",
+  "namespaces": {
+    "unprefixedType": "any",
+    "unprefixedAttribute": "none",
+    "supportedPrefixes": [
+      "*|",
+      "|"
+    ],
+    "explicitAttributeLookup": "GetAttribute(name, namespaceUri)"
+  },
+  "scope": {
+    "document": "document element (html)",
+    "element": "queried element; result candidates are descendants",
+    "ancestorsOutsideQueryRoot": "may satisfy selector ancestry",
+    "templateContent": "inert; explicitly accessible root views"
+  },
+  "limits": {
+    "selectorUtf16Units": 4096,
+    "listNesting": 16,
+    "branchesPerList": 64,
+    "totalCompounds": 256,
+    "chainCompounds": 64,
+    "coefficientMagnitude": 2147483647,
+    "matchOperations": 4000000
+  },
+  "errors": {
+    "malformed": "HtmlSelectorSyntaxException",
+    "unsupportedOrLimit": "HtmlSelectorUnsupportedException",
+    "noMatch": "Query null; QueryAll empty list",
+    "incompleteHtml": "InvalidOperationException",
+    "disposedOwner": "ObjectDisposedException",
+    "cancelled": "OperationCanceledException"
+  },
+  "lifetime": "Owner-bound immutable snapshot. Dispose invalidates retained document and element views; independent owners are unaffected.",
+  "conformanceTests": [
+    "tests/LithoSharp.Tests/HtmlQueryTests.cs",
+    "tests/LithoSharp.Tests/SiteTestingDocumentTests.cs",
+    "tests/LithoSharp.Tests/SiteTestHostTests.cs"
+  ]
+}

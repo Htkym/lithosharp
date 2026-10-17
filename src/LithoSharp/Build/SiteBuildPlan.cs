@@ -4,7 +4,6 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.Build;
 
-/// <summary>検証済みのノード、入力、依存関係、成果物を持つ不変のサイトビルド計画を表します。</summary>
 public sealed class SiteBuildPlan
 {
     private readonly IReadOnlyDictionary<BuildArtifactId, BuildNode> _ownersByArtifactId;
@@ -21,18 +20,10 @@ public sealed class SiteBuildPlan
                 .ToDictionary(pair => pair.Id, pair => pair.Node));
     }
 
-    /// <summary>識別子の序数順に並べられたビルドノードを取得します。</summary>
     public IReadOnlyList<BuildNode> Nodes { get; }
 
-    /// <summary>識別子の序数順に並べられたすべての成果物を取得します。</summary>
     public IReadOnlyList<BuildArtifact> Artifacts { get; }
 
-    /// <summary>宣言を検証し、成功した場合は不変のビルド計画を作成します。</summary>
-    /// <param name="nodes">検証するビルドノード宣言。</param>
-    /// <returns>検証済みのビルド計画。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="nodes"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException"><paramref name="nodes"/> に <see langword="null"/> が含まれます。</exception>
-    /// <exception cref="SiteBuildPlanValidationException">1 件以上のエラー診断が見つかりました。</exception>
     public static SiteBuildPlan Create(IEnumerable<BuildNode> nodes)
     {
         var result = Validate(nodes);
@@ -44,11 +35,6 @@ public sealed class SiteBuildPlan
         return result.Plan!;
     }
 
-    /// <summary>宣言を検証し、すべての検出可能な問題を診断として返します。</summary>
-    /// <param name="nodes">検証するビルドノード宣言。</param>
-    /// <returns>診断と、成功時の不変なビルド計画。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="nodes"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="ArgumentException"><paramref name="nodes"/> に <see langword="null"/> が含まれます。</exception>
     public static SiteBuildPlanValidationResult Validate(IEnumerable<BuildNode> nodes)
     {
         ArgumentNullException.ThrowIfNull(nodes);
@@ -88,11 +74,6 @@ public sealed class SiteBuildPlan
             orderedDiagnostics);
     }
 
-    /// <summary>指定した成果物を所有するノードを取得します。</summary>
-    /// <param name="artifactId">所有者を調べる成果物の識別子。</param>
-    /// <returns>成果物の宣言入力と依存関係を含む所有ノード。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="artifactId"/> が <see langword="null"/> です。</exception>
-    /// <exception cref="KeyNotFoundException">指定した成果物が計画に存在しません。</exception>
     public BuildNode GetArtifactOwner(BuildArtifactId artifactId)
     {
         ArgumentNullException.ThrowIfNull(artifactId);
@@ -101,10 +82,7 @@ public sealed class SiteBuildPlan
             : throw new KeyNotFoundException($"Build artifact '{artifactId}' does not exist.");
     }
 
-    /// <summary>前回の検証済み計画と比較し、今回無効化されるノードと理由を返します。</summary>
-    /// <param name="previousPlan">比較元となる前回の検証済み計画。</param>
-    /// <returns>ノード識別子の序数順に並べられた無効化結果。</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="previousPlan"/> が <see langword="null"/> です。</exception>
+    /// <summary>Compares with the previous validated plan; results are ordered by ordinal node ID.</summary>
     public IReadOnlyList<BuildInvalidation> GetInvalidatedNodes(SiteBuildPlan previousPlan)
     {
         ArgumentNullException.ThrowIfNull(previousPlan);
@@ -150,13 +128,17 @@ public sealed class SiteBuildPlan
             }
         }
 
-        var dependentsByNode = Nodes
-            .SelectMany(node => node.Dependencies.Select(dependency => (Dependency: dependency, Node: node)))
+        // Removed nodes still invalidate surviving dependents through the last successful edges.
+        var currentIds = Nodes.Select(node => node.Id).ToHashSet();
+        foreach (var removed in previousNodes.Keys.Where(id => !currentIds.Contains(id)))
+            reasonsByNode.Add(removed, new SortedSet<string>(StringComparer.Ordinal) { "ノードが削除されました。" });
+        var dependentsByNode = Nodes.Concat(previousPlan.Nodes)
+            .SelectMany(node => node.Dependencies.Select(dependency => (Dependency: dependency, Node: node.Id)))
             .GroupBy(pair => pair.Dependency)
             .ToDictionary(
                 group => group.Key,
-                group => group.Select(pair => pair.Node)
-                    .OrderBy(node => node.Id.Value, StringComparer.Ordinal)
+                group => group.Select(pair => pair.Node).Distinct()
+                    .OrderBy(node => node.Value, StringComparer.Ordinal)
                     .ToArray());
         var pending = new SortedSet<BuildNodeId>(
             reasonsByNode.Keys,
@@ -173,17 +155,17 @@ public sealed class SiteBuildPlan
 
             foreach (var node in dependents)
             {
-                var wasInvalid = reasonsByNode.TryGetValue(node.Id, out var reasons);
+                var wasInvalid = reasonsByNode.TryGetValue(node, out var reasons);
                 if (!wasInvalid)
                 {
                     reasons = new SortedSet<string>(StringComparer.Ordinal);
-                    reasonsByNode.Add(node.Id, reasons);
+                    reasonsByNode.Add(node, reasons);
                 }
 
                 reasons!.Add($"依存ノード '{dependency}' が無効化されました。");
                 if (!wasInvalid)
                 {
-                    pending.Add(node.Id);
+                    pending.Add(node);
                 }
             }
         }

@@ -1,16 +1,12 @@
 using System.Text.RegularExpressions;
-using AngleSharp.Dom;
-using AngleSharp.Html.Parser;
 using LithoSharp.Diagnostics;
 using LithoSharp.Routing;
+using LithoSharp.Internal;
 
 namespace LithoSharp.Quality;
 
 internal static class SiteQualityValidator
 {
-    private static readonly Regex CssUrls = new("url\\(\\s*(?:\"(?<url>[^\"]*)\"|'(?<url>[^']*)'|(?<url>[^)\\s]*))\\s*\\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
-
     internal static async Task<SiteQualityReport> ValidateAsync(
         string baseUrl,
         IReadOnlyList<string> textFilePaths,
@@ -20,34 +16,64 @@ internal static class SiteQualityValidator
         IReadOnlyDictionary<string, SiteRoute> redirects,
         SiteQualityOptions options,
         CancellationToken cancellationToken,
-        IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null)
+        IReadOnlyList<LithoSharp.Build.BuildNode>? assetNodes = null,
+        LithoSharp.Build.SiteHtmlFactsCache? factsCache = null,
+        LithoSharp.Build.BuildHtmlFacts? sharedFacts = null,
+        IReadOnlyDictionary<string, HtmlPageIdentity>? pageIdentities = null)
     {
         ArgumentNullException.ThrowIfNull(textFilePaths);
         ArgumentNullException.ThrowIfNull(readText);
         var root = SiteRoute.ForDirectoryIndex(string.Empty, baseUrl);
         var origin = new Uri(baseUrl).GetLeftPart(UriPartial.Authority);
         var pages = new Dictionary<string, ParsedPage>(StringComparer.Ordinal);
-        var parser = new HtmlParser(new HtmlParserOptions { IsKeepingSourceReferences = true });
+        var cssFiles = new Dictionary<string, CssReferenceSnapshot>(StringComparer.Ordinal);
         var diagnostics = new List<SiteDiagnostic>();
         var referencedAssets = new HashSet<string>(StringComparer.Ordinal);
+        var resourceRoots = new HashSet<string>(StringComparer.Ordinal);
+        var cssReferences = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var links = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var externalLinks = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+        var anchorReferences = new List<HtmlAnchorReference>();
+        var parseCount = 0;
         foreach (var path in textFilePaths.Order(StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var content = await readText(path, cancellationToken).ConfigureAwait(false);
+            if (path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                var css = CssReferenceSnapshot.Create(path, new Uri(origin + artifactRoutes[path].PublicPath), content, cancellationToken);
+                css.RequireComplete();
+                cssFiles[path] = css;
+            }
             if (!IsHtml(path, content)) continue;
             var route = artifactRoutes[path];
-            using var document = await parser.ParseDocumentAsync(content, cancellationToken).ConfigureAwait(false);
             var pageUri = new Uri(origin + route.PublicPath);
-            var resolutionBase = pageUri;
-            var baseHref = document.QuerySelector("base[href]")?.GetAttribute("href");
-            if (baseHref is not null && Uri.TryCreate(pageUri, baseHref, out var declaredBase)) resolutionBase = declaredBase;
-            pages.Add(path, new ParsedPage(route, resolutionBase,
-                document.QuerySelectorAll("[id],a[name]").SelectMany(element =>
-                    new[] { element.GetAttribute("id"), element.LocalName == "a" ? element.GetAttribute("name") : null })
-                .Where(value => !string.IsNullOrEmpty(value)).Select(value => value!).ToHashSet(StringComparer.Ordinal),
-                document.Title));
+            var identity = pageIdentities is not null && pageIdentities.TryGetValue(path, out var registered)
+                ? registered : new HtmlPageIdentity(path, route.PublicPath, null, null);
+            if (identity.OutputPath != path || identity.PublicPath != route.PublicPath)
+                throw new InvalidOperationException("The reference identity does not match its output route.");
+            HtmlReferenceSnapshot snapshot;
+            if (factsCache is not null)
+            {
+                var facts = await factsCache.GetAsync(content, cancellationToken).ConfigureAwait(false);
+                if (sharedFacts?.RequiresQualityRaw == true)
+                    snapshot = (await sharedFacts.GetQualitySnapshotAsync(content, identity, pageUri, cancellationToken).ConfigureAwait(false)).Snapshot;
+                else snapshot = LithoSharp.Build.BuildHtmlFacts.BindDecodedQuality(facts, identity, pageUri, cancellationToken);
+            }
+            else if (sharedFacts is not null)
+            {
+                var bound = await sharedFacts.GetQualitySnapshotAsync(content, identity, pageUri, cancellationToken).ConfigureAwait(false);
+                snapshot = bound.Snapshot;
+                if (bound.NewParse) parseCount++;
+            }
+            else
+            {
+                var facts = QualityHtmlFacts.Parse(content, cancellationToken);
+                parseCount++;
+                snapshot = LithoSharp.Build.BuildHtmlFacts.BindDecodedQuality(facts, identity, pageUri, cancellationToken);
+            }
+            snapshot.RequireComplete();
+            pages.Add(path, new ParsedPage(snapshot, snapshot.Anchors.Select(anchor => anchor.Decoded).ToHashSet(StringComparer.Ordinal)));
             links.Add(path, new HashSet<string>(StringComparer.Ordinal));
         }
 
@@ -56,74 +82,78 @@ internal static class SiteQualityValidator
             cancellationToken.ThrowIfCancellationRequested();
             var path = pair.Key;
             var page = pair.Value;
-            var content = await readText(path, cancellationToken).ConfigureAwait(false);
-            using var document = await parser.ParseDocumentAsync(content, cancellationToken).ConfigureAwait(false);
-            var canonicalElements = document.QuerySelectorAll("link")
-                .Where(element => HasRel(element, "canonical")).ToArray();
-            if (canonicalElements.Length != 1)
+            var snapshot = page.Snapshot;
+            if (snapshot.Canonicals.Count != 1)
                 Add("LSQ003", SiteDiagnosticSeverity.Error, "A page must declare exactly one canonical URL.", path);
             else
             {
-                var canonical = canonicalElements[0].GetAttribute("href");
+                var canonical = snapshot.Canonicals[0];
                 var expected = redirects.TryGetValue(path, out var target) ? target.RelativeOutputPath : path;
-                if (string.IsNullOrWhiteSpace(canonical) || !Uri.TryCreate(page.ResolutionBase, canonical, out var address)
+                var address = canonical.Address;
+                if (string.IsNullOrWhiteSpace(canonical.Href) || address is null
                     || address.Query.Length != 0 || address.Fragment.Length != 0
                     || !TryInternalPath(address, out var canonicalPath) || canonicalPath != expected)
-                    Add("LSQ003", SiteDiagnosticSeverity.Error, "The canonical URL must identify this page's public route.", path, canonicalElements[0]);
+                    Add("LSQ003", SiteDiagnosticSeverity.Error, "The canonical URL must identify this page's public route.", path,
+                        snapshot.Positions[canonical.ElementOrdinal]);
             }
 
             if (!redirects.ContainsKey(path))
             {
-                if (string.IsNullOrWhiteSpace(document.Title)) AddMissing("title");
+                if (string.IsNullOrWhiteSpace(snapshot.Title)) AddMissing("title");
                 foreach (var (attribute, name) in new[] { ("name", "description"), ("property", "og:title"), ("property", "og:description"), ("property", "og:url") })
-                    if (!document.QuerySelectorAll("meta").Any(element =>
-                        string.Equals(element.GetAttribute(attribute), name, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(element.GetAttribute("content")))) AddMissing(name);
+                    if (!snapshot.Metadata.Any(meta => string.Equals(attribute == "name" ? meta.Name : meta.Property,
+                        name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(meta.Content))) AddMissing(name);
             }
 
-            foreach (var element in document.QuerySelectorAll("[href],[src],[srcset],[poster],object[data],form[action],meta[property]"))
+            foreach (var reference in snapshot.References)
             {
-                if (element.LocalName == "base" || HasRel(element, "canonical")) continue;
-                if (element.HasAttribute("href")) Check(element.GetAttribute("href")!, element.LocalName is "a" or "area", element.LocalName is not ("a" or "area"), element);
-                if (element.HasAttribute("src")) Check(element.GetAttribute("src")!, false, true, element);
-                if (element.HasAttribute("poster")) Check(element.GetAttribute("poster")!, false, true, element);
-                if (element.LocalName == "object" && element.HasAttribute("data")) Check(element.GetAttribute("data")!, false, true, element);
-                if (element.LocalName == "form" && element.HasAttribute("action")) Check(element.GetAttribute("action")!, true, false, element);
-                if (element.HasAttribute("srcset"))
-                    foreach (var candidate in SrcsetUrls(element.GetAttribute("srcset")!)) Check(candidate, false, true, element);
-                if (string.Equals(element.GetAttribute("property"), "og:image", StringComparison.OrdinalIgnoreCase))
-                    Check(element.GetAttribute("content") ?? string.Empty, false, true, element);
+                if (reference.Role is HtmlReferenceRole.Base or HtmlReferenceRole.Canonical) continue;
+                CheckReference(reference, path, snapshot.Positions[reference.ElementOrdinal]);
             }
-            foreach (var element in document.QuerySelectorAll("style,[style]"))
-                CheckCss(element.LocalName == "style" ? element.TextContent : element.GetAttribute("style")!, page.ResolutionBase, path, element);
+            foreach (var reference in snapshot.CssReferences)
+                CheckReference(reference, path, snapshot.Positions[reference.ElementOrdinal]);
 
             void AddMissing(string name) => Add("LSQ010", SiteDiagnosticSeverity.Warning, $"SEO field '{name}' is missing or empty.", path);
-            void Check(string value, bool navigation, bool resource, IElement element) =>
-                CheckReference(value, page.ResolutionBase, path, navigation, resource, element);
         }
 
         foreach (var path in textFilePaths.Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal))
-            CheckCss(await readText(path, cancellationToken).ConfigureAwait(false), new Uri(origin + artifactRoutes[path].PublicPath), path, null);
+            foreach (var reference in cssFiles[path].References) CheckReference(reference, path, null);
 
-        foreach (var group in pages.Where(pair => !redirects.ContainsKey(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value.Title))
-                .GroupBy(pair => Regex.Replace(pair.Value.Title!.Trim(), "\\s+", " "), StringComparer.OrdinalIgnoreCase)
+        foreach (var group in pages.Where(pair => !redirects.ContainsKey(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value.Snapshot.Title))
+                .GroupBy(pair => Regex.Replace(pair.Value.Snapshot.Title.Trim(), "\\s+", " "), StringComparer.OrdinalIgnoreCase)
                 .Where(group => group.Count() > 1))
                 foreach (var page in group) Add("LSQ009", SiteDiagnosticSeverity.Warning, $"Page title '{group.Key}' is duplicated.", page.Key);
 
         if (options.CheckOrphans)
         {
-            if (assetNodes is not null)
+            var byId = assetNodes?.ToDictionary(node => node.Id);
+            var owners = assetNodes?.SelectMany(node => node.Artifacts.Select(artifact => (artifact.RelativeOutputPath, Node: node)))
+                .ToDictionary(pair => pair.RelativeOutputPath, pair => pair.Node, StringComparer.Ordinal);
+            var visitedNodes = new HashSet<LithoSharp.Build.BuildNodeId>();
+            var assetQueue = new Queue<LithoSharp.Build.BuildNode>();
+            var resources = new Queue<string>(resourceRoots);
+            while (resources.Count != 0 || assetQueue.Count != 0)
             {
-                var byId = assetNodes.ToDictionary(node => node.Id);
-                var owners = assetNodes.SelectMany(node => node.Artifacts.Select(artifact => (artifact.RelativeOutputPath, Node: node))).ToDictionary(pair => pair.RelativeOutputPath, pair => pair.Node, StringComparer.Ordinal);
-                var visited = new HashSet<LithoSharp.Build.BuildNodeId>();
-                var assets = new Queue<LithoSharp.Build.BuildNode>(referencedAssets.Where(owners.ContainsKey).Select(path => owners[path]));
-                while (assets.TryDequeue(out var node))
+                while (resources.TryDequeue(out var resource))
                 {
-                    if (!visited.Add(node.Id)) continue;
-                    foreach (var artifact in node.Artifacts) referencedAssets.Add(artifact.RelativeOutputPath);
-                    foreach (var dependency in node.Dependencies) if (byId.TryGetValue(dependency, out var target)) assets.Enqueue(target);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (registeredAssets.Contains(resource)) referencedAssets.Add(resource);
+                    if (cssReferences.TryGetValue(resource, out var references))
+                        foreach (var reference in references) Reach(reference);
+                    if (owners is not null && owners.TryGetValue(resource, out var owner)) assetQueue.Enqueue(owner);
                 }
+                while (assetQueue.TryDequeue(out var node))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!visitedNodes.Add(node.Id)) continue;
+                    foreach (var artifact in node.Artifacts) Reach(artifact.RelativeOutputPath);
+                    foreach (var dependency in node.Dependencies)
+                        if (byId!.TryGetValue(dependency, out var target)) assetQueue.Enqueue(target);
+                }
+            }
+            void Reach(string path)
+            {
+                if (resourceRoots.Add(path)) resources.Enqueue(path);
             }
             var reachable = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<string>();
@@ -136,39 +166,38 @@ internal static class SiteQualityValidator
             foreach (var path in pages.Keys.Where(path => !reachable.Contains(path) && !redirects.ContainsKey(path)))
                 Add("LSQ007", SiteDiagnosticSeverity.Warning, "Page is not reachable from the site's home page.", path);
             foreach (var path in registeredAssets.Where(path => !referencedAssets.Contains(path)))
-                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset has no HTML, CSS or declared transitive reference.", path);
+                Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset is not reachable through HTML, CSS or declared transitive references.", path);
         }
         if (options.ExternalLinks is not null)
             diagnostics.AddRange(await ExternalLinkChecker.CheckAsync(externalLinks, options.ExternalLinks, cancellationToken).ConfigureAwait(false));
         cancellationToken.ThrowIfCancellationRequested();
-        return new SiteQualityReport(diagnostics);
-
-        void CheckCss(string css, Uri address, string path, IElement? element)
+        return new SiteQualityReport(diagnostics)
         {
-            // ponytail: inspect literal CSS url() values; generated dynamic assets must declare their dependency.
-            foreach (Match match in CssUrls.Matches(css))
-                CheckReference(match.Groups["url"].Value, address, path, false, true, element);
-        }
+            HtmlParseCount = factsCache?.ParseCount ?? parseCount,
+            HtmlFactsCacheHitCount = factsCache?.HitCount ?? 0,
+            HtmlReferences = Array.AsReadOnly(pages.Values.Select(page => page.Snapshot).ToArray()),
+            CssReferences = Array.AsReadOnly(cssFiles.Values.ToArray()),
+            AnchorReferences = Array.AsReadOnly(anchorReferences.ToArray()),
+        };
 
-        void CheckReference(string value, Uri resolutionBase, string path, bool navigation, bool resource, IElement? element)
+        void CheckReference(HtmlReference reference, string path, HtmlSnapshotPosition? element)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (resource && string.IsNullOrWhiteSpace(value))
+            var value = reference.UnresolvedValue;
+            var issue = reference.UrlIssue;
+            var address = reference.ResolvedUrl!;
+            if (issue != SiteQualityUrlIssue.None)
             {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, "A resource URL is empty.", path, element);
-                return;
-            }
-            if (!Uri.TryCreate(resolutionBase, value.Trim(), out var address))
-            {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, $"Invalid URL '{value}'.", path, element);
+                var message = issue switch
+                {
+                    SiteQualityUrlIssue.EmptyResource => "A resource URL is empty.",
+                    SiteQualityUrlIssue.InvalidReference => $"Invalid URL '{value}'.",
+                    _ => $"Unsupported URL '{value}'.",
+                };
+                Add("LSQ001", SiteDiagnosticSeverity.Error, message, path, element);
                 return;
             }
             if (address.Scheme is "mailto" or "tel" or "data") return;
-            if (address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0)
-            {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, $"Unsupported URL '{value}'.", path, element);
-                return;
-            }
             if (!string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase))
             {
                 externalLinks.TryAdd(new UriBuilder(address) { Fragment = string.Empty }.Uri.AbsoluteUri, Location(path, element));
@@ -179,36 +208,32 @@ internal static class SiteQualityValidator
                 Add("LSQ001", SiteDiagnosticSeverity.Error, $"Internal target '{value}' does not exist in this site.", path, element);
                 return;
             }
-            if (registeredAssets.Contains(targetPath)) referencedAssets.Add(targetPath);
-            if (navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets)) targets.Add(targetPath);
+            if (cssFiles.ContainsKey(path))
+            {
+                if (!cssReferences.TryGetValue(path, out var references))
+                    cssReferences.Add(path, references = new HashSet<string>(StringComparer.Ordinal));
+                references.Add(targetPath);
+            }
+            else resourceRoots.Add(targetPath);
+            if (reference.Navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets)) targets.Add(targetPath);
             if (address.Fragment.Length > 1 && pages.TryGetValue(targetPath, out var targetPage))
             {
-                var fragment = Uri.UnescapeDataString(address.Fragment[1..]);
+                var fragment = SiteQualityUrlRules.DecodedFragment(address);
+                anchorReferences.Add(new(path, targetPath, fragment));
                 if (!targetPage.Anchors.Contains(fragment))
                     Add("LSQ002", SiteDiagnosticSeverity.Error, $"Anchor '{fragment}' does not exist in '{targetPath}'.", path, element);
             }
         }
 
         bool TryInternalPath(Uri address, out string path)
-        {
-            path = string.Empty;
-            if (!address.IsAbsoluteUri || address.Scheme is not ("http" or "https") || address.UserInfo.Length != 0
-                || !string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase)) return false;
-            var publicPath = address.AbsolutePath;
-            if (publicPath == root.PublicPath.TrimEnd('/')) publicPath += "/";
-            if (!publicPath.StartsWith(root.PublicPath, StringComparison.Ordinal)) return false;
-            var relative = publicPath[root.PublicPath.Length..];
-            try
-            {
-                path = (relative.Length == 0 || relative.EndsWith('/')
-                    ? SiteRoute.ForDirectoryIndex(relative) : SiteRoute.ForFile(relative)).RelativeOutputPath;
-                return true;
-            }
-            catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return false; }
-        }
+            => SiteQualityUrlRules.TryInternalOutputPath(address, origin, root.PublicPath, out path);
 
-        void Add(string id, SiteDiagnosticSeverity severity, string message, string path, IElement? element = null) =>
+        void Add(string id, SiteDiagnosticSeverity severity, string message, string path, HtmlSnapshotPosition? element = null) =>
             diagnostics.Add(new SiteDiagnostic(id, severity, message, Location(path, element)));
+
+        SiteSourceLocation Location(string path, HtmlSnapshotPosition? element) =>
+            element is { Line: { } line, Column: { } column }
+                ? new(path, line, column) : new(path);
     }
 
     internal static Task<SiteQualityReport> ValidateAsync(
@@ -228,26 +253,8 @@ internal static class SiteQualityValidator
         || content.AsSpan().TrimStart().StartsWith("<!doctype html", StringComparison.OrdinalIgnoreCase)
         || content.AsSpan().TrimStart().StartsWith("<html", StringComparison.OrdinalIgnoreCase);
 
-    private static bool HasRel(IElement element, string value) => (element.GetAttribute("rel") ?? string.Empty)
+    internal static bool HasRel(QualityHtmlElement element, string value) => (QualityHtmlFacts.Attribute(element, "rel") ?? string.Empty)
         .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Contains(value, StringComparer.OrdinalIgnoreCase);
 
-    private static SiteSourceLocation Location(string path, IElement? element) => element?.SourceReference is { } source
-        ? new SiteSourceLocation(path, source.Position.Line, source.Position.Column) : new SiteSourceLocation(path);
-
-    private static IEnumerable<string> SrcsetUrls(string value)
-    {
-        var index = 0;
-        while (index < value.Length)
-        {
-            while (index < value.Length && (char.IsWhiteSpace(value[index]) || value[index] == ',')) index++;
-            var start = index;
-            while (index < value.Length && !char.IsWhiteSpace(value[index])) index++;
-            var url = value[start..index];
-            if (url.EndsWith(',')) { yield return url.TrimEnd(','); continue; }
-            if (url.Length != 0) yield return url;
-            while (index < value.Length && value[index] != ',') index++;
-        }
-    }
-
-    private sealed record ParsedPage(SiteRoute Route, Uri ResolutionBase, HashSet<string> Anchors, string? Title);
+    private sealed record ParsedPage(HtmlReferenceSnapshot Snapshot, HashSet<string> Anchors);
 }

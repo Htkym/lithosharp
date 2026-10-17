@@ -49,7 +49,8 @@ foreach ($required in @(
         Fail "published server is missing '$required'."
     }
 }
-foreach ($name in @('YamlDotNet.LICENSE.txt', 'AngleSharp.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.md')) {
+& (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $publishDir -Output (Join-Path $Output 'dependency-zero.json')
+foreach ($name in @('YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.md')) {
     $published = Join-Path $publishDir "licenses/$name"
     if (!(Test-Path -LiteralPath $published -PathType Leaf)) { Fail "published server is missing redistribution notice '$name'." }
     $source = if ($name -eq 'THIRD-PARTY-NOTICES.md') { Join-Path $repo $name } else { Join-Path $repo "licenses/$name" }

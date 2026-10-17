@@ -36,6 +36,26 @@ warnings as well. A failed check leaves the previously committed output intact.
 Reports support `Text`, `Json`, and SARIF 2.1.0 through
 `SiteQualityReport.Format`.
 
+Final HTML includes declared `.html`/`.htm` assets and retained pages in subset
+builds. Incomplete parser coverage, parser limits, cancellation, or bytes changing
+after inspection stop publication. Previously published output remains available.
+
+Local HTML observations are cached by content hash and parser/projection version
+in the output's existing build-cache partition. References, anchors, canonical URLs,
+and all site-wide rules are checked against the current build on every run. A cache
+hit is not a cached quality verdict. Set `HtmlFactsCacheEnabled = false` to disable
+this reuse. `HtmlParseCount` and `HtmlFactsCacheHitCount` on `QualityReport` count
+final HTML parsing and reuse; both are zero when quality checks are disabled.
+
+The cache admits at most 128 records and 32 MiB per output, with a 1 MiB record
+limit. Pending records have the same bounds and are released after the build;
+trees and cancellation tokens are not retained. Successful publication saves local
+observations and evicts older records. Missing, corrupt, foreign-version, oversized,
+or unavailable records cause a fresh parse. A no-op build parses no final HTML when
+its complete working set remains in this cache; output bytes are still read and
+verified. `SiteGenerator.ClearCache` clears this partition. Other build-cache data
+keeps its existing retention policy.
+
 External HTTP checks are off by default. Opt in with a cache path outside the
 site output directory:
 
@@ -118,6 +138,25 @@ var options = new SiteGenerationOptions
 既定では `Error` 以上の診断で生成に失敗します。`Warning` を指定すると警告も失敗として
 扱います。検査が失敗しても、前回確定した出力は維持されます。レポートは
 `SiteQualityReport.Format` により `Text`、`Json`、SARIF 2.1.0 の各形式で出力できます。
+
+最終 HTML の検査には、宣言済みの `.html`／`.htm` 資産と部分ビルドで保持するページも
+含まれます。解析器の未対応範囲や処理上限、キャンセル、検査後の bytes の変更を
+検出した場合は公開を止め、前回公開した出力を維持します。
+
+HTML の局所的な観測値は、内容ハッシュと解析・観測処理の実装版をキーにして、
+出力別の既存 build cache に保存します。参照先、anchor、canonical URL、サイト全体の
+規則は毎回現在の計画で検査します。再利用を無効にする場合は
+`HtmlFactsCacheEnabled = false` を指定します。`QualityReport.HtmlParseCount` と
+`HtmlFactsCacheHitCount` は最終 HTML の解析件数と再利用件数です。検査未実施時は
+どちらも 0 です。
+
+出力ごとに最大 128 レコード・32 MiB、1 レコードあたり最大 1 MiB を保存します。保存待ちの
+レコードも同じ上限を持ち、生成後に解放します。tree やキャンセルトークンは保持しません。
+公開が成功した後に保存し、古いレコードを削除します。欠落、破損、実装版の不一致、
+上限超過、読み書きの失敗は再解析で回復します。必要な観測値が全て cache に残る
+無変更ビルドでは、最終 HTML の解析は 0 件になります。出力 bytes の読み取りと
+照合は省略しません。`SiteGenerator.ClearCache` で出力別の cache を削除できます。
+その他の build cache の保持方針は従来どおりです。
 失敗時は `SiteQualityValidationException.Report` から同じレポートを取得できます。
 
 外部 HTTP リンク検査は既定で無効です。有効にする場合は、出力ディレクトリの外にある

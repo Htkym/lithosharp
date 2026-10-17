@@ -5,23 +5,15 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Quality;
 
-/// <summary>品質検査の出力形式です。</summary>
 public enum SiteDiagnosticFormat
 {
-    /// <summary>人間が読むテキスト形式です。</summary>
     Text,
-    /// <summary>診断情報の JSON 形式です。</summary>
     Json,
-    /// <summary>SARIF 2.1.0 形式です。</summary>
     Sarif,
 }
 
-/// <summary>品質検査で収集した診断を表します。</summary>
 public sealed class SiteQualityReport
 {
-    /// <summary>品質検査レポートを作成します。</summary>
-    /// <param name="diagnostics">収集した診断。</param>
-    /// <exception cref="ArgumentException">診断一覧に null が含まれています。</exception>
     public SiteQualityReport(IEnumerable<SiteDiagnostic>? diagnostics = null)
     {
         var values = (diagnostics ?? []).ToArray();
@@ -41,13 +33,18 @@ public sealed class SiteQualityReport
             .ToArray());
     }
 
-    /// <summary>決定的な順序で並べた診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics { get; }
 
-    /// <summary>指定形式で診断を出力します。</summary>
-    /// <param name="format">テキスト、JSON、またはSARIF形式。</param>
-    /// <returns>整列済み診断の文字列表現。</returns>
-    /// <exception cref="ArgumentOutOfRangeException">形式が未定義です。</exception>
+    /// <summary>Files parsed for this generation; zero when quality checks were disabled.</summary>
+    public int HtmlParseCount { get; internal init; }
+
+    /// <summary>Reused local facts still require target and quality-rule checks.</summary>
+    public int HtmlFactsCacheHitCount { get; internal init; }
+
+    internal IReadOnlyList<HtmlReferenceSnapshot> HtmlReferences { get; init; } = [];
+    internal IReadOnlyList<CssReferenceSnapshot> CssReferences { get; init; } = [];
+    internal IReadOnlyList<HtmlAnchorReference> AnchorReferences { get; init; } = [];
+
     public string Format(SiteDiagnosticFormat format) => format switch
     {
         SiteDiagnosticFormat.Text => FormatText(),
@@ -174,17 +171,15 @@ public sealed class SiteQualityReport
     }
 }
 
-/// <summary>品質検査が失敗したことを表します。</summary>
 public sealed class SiteQualityValidationException : InvalidOperationException
 {
-    /// <summary>品質検査失敗例外を作成します。</summary>
-    /// <param name="report">失敗した検査のレポート。</param>
     public SiteQualityValidationException(SiteQualityReport report) : base("Site quality validation failed.")
     {
         ArgumentNullException.ThrowIfNull(report); Report = report;
     }
-    /// <summary>失敗した検査のレポートを取得します。</summary>
     public SiteQualityReport Report { get; }
-    /// <summary>レポートの診断を取得します。</summary>
     public IReadOnlyList<SiteDiagnostic> Diagnostics => Report.Diagnostics;
 }
+
+// Captured at the existing LSQ002 decision, including non-navigation and CSS references.
+internal sealed record HtmlAnchorReference(string SourcePath, string TargetPath, string Fragment);

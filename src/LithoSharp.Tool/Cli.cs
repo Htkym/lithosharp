@@ -23,6 +23,9 @@ internal static class Cli
         if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
         if (args[0] == "cache") return CacheCommand.Run(args[1..]);
         if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
+        if (args[0] == "preflight") return await PreflightCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "migrate" && args.Length > 1 && args[1] == "testing")
+            return await TestingMigrationCommand.RunAsync(args[2..], cancellationToken);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
             return await ContentCommands.RunAsync(args, cancellationToken);
         if (args[0] == "migrate" && args.Length > 1 && args[1] == "docusaurus")
@@ -204,12 +207,15 @@ internal static class Cli
           lithosharp extract-translations <source>
           lithosharp restore-mdx <worker-directory> [--allow-scripts]
           lithosharp migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)
+          lithosharp migrate testing --dry-run --source file.cs --reference baseline.dll [--source file.cs] [--reference baseline.dll] [--format json] (metadata-only JSON report; no edits or user project execution)
           lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] [--source-version version] [--source-base-path path] [--compare-normalized-pages] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration]
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
+          lithosharp preflight --mode static --input file.md [--input file.mdx] [--format text|json|sarif] [--worker-directory directory]
+          lithosharp preflight project.csproj --mode trusted [--input file.md] [--format text|json|sarif] [--configuration configuration]
         """);
 }
 

@@ -1,3 +1,4 @@
+using Syntamark.Compilation;
 using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content.Compilation;

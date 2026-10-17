@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <OutputType>Exe</OutputType>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
     <Product>LithoSharp Language Server</Product>
     <Description>Unsaved-buffer Markdown/MDX inspection over LSP stdio. Bundled with the VS Code extension; no separate NuGet publication is required.</Description>
   </PropertyGroup>
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
+    <None Include="../../licenses/*.txt" Exclude="../../licenses/AngleSharp.LICENSE.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="licenses/THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="false" />
   </ItemGroup>
 </Project>

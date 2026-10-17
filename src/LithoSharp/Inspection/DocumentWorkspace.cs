@@ -2,10 +2,9 @@ using System.Collections.Concurrent;
 
 namespace LithoSharp.Inspection;
 
-/// <summary>文書検査の利用境界と寿命を表します。</summary>
-/// <remarks>T02の静的InspectをSiteGeneratorやCLIの起動から分離し、workspace単位でsnapshotの所有者を固定します。返したDocumentInfoは不変snapshotであり、再検査や破棄で書き換わりません。破棄済みのsnapshot参照は有効なままです。workerやhandleや一時領域を作らず、所有するmemory cacheのみ破棄します。1件の失敗は他件の保存内容を壊しません。
-/// CPU解析は寿命lockの外で実行し、lockは状態遷移とsnapshot交換に限定します。版数付き検査では予約時と完了時の両方で文書版数とproject generationを照合し、遅い旧要求が新しい結果を上書きしません。</remarks>
-public sealed class DocumentWorkspace : IAsyncDisposable
+/// <summary>Owns only its snapshot cache; returned immutable snapshots survive replacement or disposal.</summary>
+/// <remarks>Versioned publication checks both document version and project generation so older requests cannot overwrite newer results.</remarks>
+public sealed partial class DocumentWorkspace : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, DocumentInfo> _snapshots = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, DocumentEntry> _entries = new(StringComparer.Ordinal);
@@ -14,7 +13,6 @@ public sealed class DocumentWorkspace : IAsyncDisposable
     private readonly HashSet<Task> _activeAnalyses = new();
     private bool _disposed;
 
-    /// <summary>workspace識別子を取得します。</summary>
     public string Id { get; } = Guid.NewGuid().ToString("N");
 
     private sealed class DocumentEntry
@@ -30,25 +28,11 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         public CancellationTokenSource? Pending;
     }
 
-    /// <summary>文書を検査し、workspace所有のsnapshotとして保存します。</summary>
-    /// <param name="sourcePath">文書のsource path。位置情報の識別に使います。</param>
-    /// <param name="text">文書全体のテキスト。front matterを含む形式です。</param>
-    /// <param name="options">routeやversionなどの追加情報。ない場合はnullです。</param>
-    /// <param name="cancellationToken">取消token。取消時は保存しません。</param>
-    /// <returns>解析結果の不変snapshot。再検査で置き換わる前の参照は有効なままです。</returns>
-    /// <remarks>検査は公開出力を更新しません。取消や1件の失敗は別件の保存内容を壊しません。</remarks>
     public Task<DocumentInfo> InspectAsync(string sourcePath, string text, DocumentInspectionOptions? options = null, CancellationToken cancellationToken = default) =>
         InspectCoreAsync(sourcePath, text, null, null, options, cancellationToken);
 
-    /// <summary>版数付きで文書を検査し、最新版の結果だけを保存します。</summary>
-    /// <param name="sourcePath">文書のsource path。位置情報の識別に使います。</param>
-    /// <param name="text">文書全体のテキスト。front matterを含む形式です。不変の入力snapshotとして扱います。</param>
-    /// <param name="documentVersion">文書版数。新しい版数が古い結果を上書きします。</param>
-    /// <param name="projectGeneration">project generation。新しい世代が古い世代の結果を上書きします。</param>
-    /// <param name="options">routeやproject contextなどの追加情報。ない場合はnullです。</param>
-    /// <param name="cancellationToken">取消token。取消時は保存しません。</param>
-    /// <returns>解析結果の不変snapshot。追い越された旧要求は保存せず取り消します。</returns>
-    /// <remarks>文書あたり最新pending要求だけを残す有界queueを使い、.NET解析の同時実行は2件以内に抑えます。検査は公開出力を更新しません。同じキーで旧APIと混用しないでください。</remarks>
+    /// <summary>Retains only the latest pending request per document and permits at most two concurrent analyses. Superseded requests are canceled.</summary>
+    /// <remarks>Do not mix this API with unversioned inspection for the same key.</remarks>
     public Task<DocumentInfo> InspectVersionedAsync(
         string sourcePath,
         string text,
@@ -231,10 +215,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
             || (generationValue == entry.Generation && version < entry.Version);
     }
 
-    /// <summary>保存済みsnapshotの並行readを試みます。</summary>
-    /// <param name="documentId">文書識別子。未設定時はsource pathです。</param>
-    /// <param name="documentInfo">保存済みの不変snapshot。ない場合はnullです。</param>
-    /// <returns>保存済みの場合にtrueを返します。破棄後はfalseを返します。</returns>
+    /// <summary>Returns false after workspace disposal.</summary>
     public bool TryGet(string documentId, out DocumentInfo? documentInfo)
     {
         documentInfo = null;
@@ -250,11 +231,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         return _snapshots.TryGetValue(documentId, out documentInfo);
     }
 
-    /// <summary>project context付きの保存済みsnapshotの並行readを試みます。</summary>
-    /// <param name="projectId">project識別子。</param>
-    /// <param name="documentId">文書識別子。未設定時はsource pathです。</param>
-    /// <param name="documentInfo">保存済みの不変snapshot。ない場合はnullです。</param>
-    /// <returns>保存済みの場合にtrueを返します。破棄後はfalseを返します。</returns>
+    /// <summary>Returns false after workspace disposal.</summary>
     public bool TryGet(string projectId, string documentId, out DocumentInfo? documentInfo)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
@@ -271,10 +248,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         return _snapshots.TryGetValue(projectId + "\0" + documentId, out documentInfo);
     }
 
-    /// <summary>保存済みsnapshotを破棄します。</summary>
-    /// <param name="documentId">文書識別子。未設定時はsource pathです。</param>
-    /// <returns>保存済みを消した場合にtrueを返します。workspace破棄後はfalseを返します。</returns>
-    /// <remarks>pending要求を取り消し世代を失効させるため、遅延した旧要求の完了で削除文書が復活しません。renameは破棄と再検査で行います。</remarks>
+    /// <summary>Cancels pending requests and invalidates their generation, preventing late completion from restoring deleted documents.</summary>
     public bool Remove(string documentId)
     {
         lock (_lifetimeLock)
@@ -289,10 +263,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         return RemoveCore(documentId);
     }
 
-    /// <summary>project context付きの保存済みsnapshotを破棄します。</summary>
-    /// <param name="projectId">project識別子。</param>
-    /// <param name="documentId">文書識別子。未設定時はsource pathです。</param>
-    /// <returns>保存済みを消した場合にtrueを返します。workspace破棄後はfalseを返します。</returns>
+    /// <summary>Cancels pending requests and invalidates their generation, preventing late completion from restoring deleted documents.</summary>
     public bool Remove(string projectId, string documentId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
@@ -312,6 +283,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
     {
         lock (_lifetimeLock)
         {
+            RemoveMarkdownFacts(key);
             if (_entries.TryGetValue(key, out var entry))
             {
                 entry.Epoch++;
@@ -333,8 +305,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         }
     }
 
-    /// <summary>所有するsnapshot参照を破棄します。</summary>
-    /// <remarks>呼び出し側が保持するsnapshotは有効なままです。pending要求を取り消し、有界timeoutで終了を待ってから破棄します。</remarks>
+    /// <summary>Cancels pending work and waits with a bounded timeout; caller-held snapshots remain valid.</summary>
     public async ValueTask DisposeAsync()
     {
         List<Task> active;
@@ -342,6 +313,7 @@ public sealed class DocumentWorkspace : IAsyncDisposable
         lock (_lifetimeLock)
         {
             _disposed = true;
+            ClearMarkdownFacts();
             active = _activeAnalyses.ToList();
             pending = _entries.Values.Select(entry => entry.Pending).OfType<CancellationTokenSource>().ToList();
             foreach (var source in pending)
