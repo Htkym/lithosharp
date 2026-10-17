@@ -13,9 +13,9 @@
       },
       "Syntamark.Source": {
         "type": "Direct",
-        "requested": "[2.0.0-preview.3, 2.0.0-preview.3]",
-        "resolved": "2.0.0-preview.3",
-        "contentHash": "Ry2MUhTcH3/06Rzreo3RKjOfgCWUnQC2Ts+y2964TqLP1TM8od9tfJ9rchOgpzlmmx0+lEn4SJOANLpLOzw/+A=="
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "6Iq+AbqbyLOzSwyUGXfTMuXtT3Xy3b2oCtTOdeskTRpwt+ofhfcw1zaXea7KatewlH5bktJbgaFNc+7QfTbx4g=="
       },
       "YamlDotNet": {
         "type": "Direct",

@@ -5,6 +5,7 @@ param([ValidateRange(30, 600)] [int] $TimeoutSeconds = 180,
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'WatchImportedWindow.ps1')
+. (Join-Path $PSScriptRoot 'WatchInput.ps1')
 $fixture = Join-Path $repo ('.tmp/mdx-watch-' + [Guid]::NewGuid().ToString('N'))
 $project = Join-Path $fixture 'site'
 $content = Join-Path $project 'content'
@@ -56,6 +57,10 @@ $liveLastGeneration = $null; $livePendingBuild = $false; $liveStartupSeen = $fal
 $script:watchEvidence.importedEditWitness = $null
 $script:watchEvidence.importedEditBarrier = $null
 $script:watchEvidence.importedEditClassification = $null
+$script:watchEvidence.importedEditMarker = $null
+$script:watchEvidence.importedEditRecoveries = [Collections.Generic.List[object]]::new()
+$script:watchEvidence.recoveryWarmup = $null
+$script:watchEvidence.inputEditRetries = 0
 function Record-WatchCleanupFailure([string] $Stage, [Management.Automation.ErrorRecord] $Failure) {
     if ($null -eq $script:cleanupFailure) { $script:cleanupFailure = $Failure }
     if ($script:watchEvidence.cleanupFailures.Count -lt 16) { $script:watchEvidence.cleanupFailures.Add($Stage) }
@@ -168,7 +173,13 @@ function Write-ImportedEditFailureDiagnostic($Classification, $Barrier, [object[
     }
     Write-Host ('MDX_IMPORTED_EDIT_FAILURE ' + ($diagnostic | ConvertTo-Json -Depth 6 -Compress))
 }
-function Test-WatchImportedGeneration {
+function Get-WatchOwnerBarrier([long] $MinimumGeneration) {
+    $barrier = Invoke-RestMethod "$origin/_lithosharp/watch-barrier" -Method Post -NoProxy -TimeoutSec 60
+    $acknowledged = ConvertTo-WatchBarrier $barrier
+    if ($null -eq $acknowledged -or $acknowledged.generation -lt $MinimumGeneration) { throw 'Owner edit barrier is invalid or moved backwards.' }
+    return $barrier
+}
+function Test-WatchImportedGeneration([switch] $Warmup) {
     Receive-WatchMachineEvents
     $beforeState = State; $before = $script:pollState
     $observedPage = Page; $afterState = State; $after = $script:pollState
@@ -176,6 +187,8 @@ function Test-WatchImportedGeneration {
     if ($null -eq $baseline -or $baseline -lt 1) { throw 'Unknown imported-edit baseline generation.' }
     if ($null -eq $generation -or $generation -le $baseline -or $before.generation -ne $generation -or
         $before.success -ne $true -or $after.success -ne $true -or $observedPage -notmatch 'Count (<!-- -->)?2') { return $false }
+    if ($null -ne $script:watchEvidence.importedEditMarker -and
+        !$observedPage.Contains($script:watchEvidence.importedEditMarker)) { return $false }
     Receive-WatchMachineEvents
     # Publication precedes stdout terminal emission; an event not delivered yet
     # is pending, not invented. Retry within the original deadline.
@@ -187,14 +200,13 @@ function Test-WatchImportedGeneration {
     foreach ($key in @('workerStarts', 'renderedPages', 'compiledModules', 'cacheHit')) {
         if ($null -eq $before[$key] -or $null -eq $after[$key] -or $before[$key] -cne $latest[$key] -or $after[$key] -cne $latest[$key]) { return $false }
     }
-    $classification = Get-WatchImportedWindow $script:watchEvidence.importedEditBarrier $window $generation $true $true
+    $classification = Get-WatchImportedWindow $script:watchEvidence.importedEditBarrier $window $generation $true $true -Warmup:$Warmup
     $script:watchEvidence.importedEditClassification = $classification
     if ($classification.status -ceq 'PENDING') { return $false }
     if ($classification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN') {
-        $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
-        Write-ImportedEditFailureDiagnostic $classification $script:watchEvidence.importedEditBarrier $window $generation
-        throw 'Watcher recovery completed with Count2; ordinary component reuse remains unproven.'
+        return $false
     }
+    if ($Warmup -and $classification.status -ceq 'WARMUP_COMPLETE') { return $true }
     if ($classification.status -cne 'REUSE_PROVEN') {
         $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_REUSE_FAILED'
         Write-ImportedEditFailureDiagnostic $classification $script:watchEvidence.importedEditBarrier $window $generation
@@ -306,6 +318,9 @@ function Save-WatchDiagnostics([string] $StdoutText, [string] $StderrText) {
         importedEditWitness = $script:watchEvidence.importedEditWitness
         importedEditBarrier = $script:watchEvidence.importedEditBarrier
         importedEditClassification = $script:watchEvidence.importedEditClassification
+        importedEditRecoveries = @($script:watchEvidence.importedEditRecoveries.ToArray())
+        recoveryWarmup = $script:watchEvidence.recoveryWarmup
+        inputEditRetries = $script:watchEvidence.inputEditRetries
         lifecycle = Read-WatchLifecycleSidecar $lifecyclePath
         liveMachine = [ordered]@{ terminalLimit = 4096; ingressLineLimit = 256; lineLimitCharacters = 65536; droppedTerminals = $script:liveDroppedTerminals; pendingBuild = $script:livePendingBuild; shutdownSeen = $script:liveShutdownSeen; lastGeneration = $script:liveLastGeneration; events = @($script:liveTerminalEvents.ToArray()) }
         errorRecovery = @($script:watchEvidence.errorRecovery.ToArray())
@@ -491,7 +506,7 @@ namespace LithoSharp.WatchR7 {
     $warmupBaseline = Known-Count $initialState.generation
     if ($null -eq $warmupBaseline) { throw 'Initial build generation is unavailable.' }
     $script:watchEvidence.warmupBaselineGeneration = $warmupBaseline
-    [IO.File]::WriteAllText($pagePath, $source + "`nWatch warmup marker.`n")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $source + "`nWatch warmup marker.`n") }
     Wait-For {
         $observedPage = Page; $observedState = State
         $generation = Known-Count $observedState.generation; $success = Known-Bool $observedState.success
@@ -499,30 +514,70 @@ namespace LithoSharp.WatchR7 {
         if ($completed) { $script:watchEvidence.warmupCompletedGeneration = $generation }
         return $completed
     } 'completed MDX warmup'
-    # Freeze this owner-acknowledged boundary before any component write. Never rebase after the edit.
-    $barrier = Invoke-RestMethod "$origin/_lithosharp/watch-barrier" -Method Post -NoProxy -TimeoutSec 60
-    if ($barrier.success -isnot [bool] -or !$barrier.success -or $null -eq (ConvertTo-WatchWitness $barrier.watch) -or
-        $barrier.schemaVersion -cne '1.0' -or $barrier.scope -cne 'admitted-inputs-only' -or
-        $null -eq (Known-Count $barrier.generation) -or $barrier.generation -lt $script:watchEvidence.warmupCompletedGeneration) { throw 'Owner edit barrier is invalid.' }
-    $script:watchEvidence.importedEditBarrier = $barrier
-    $script:watchEvidence.importedEditBaselineGeneration = $barrier.generation
-    # Windows can report a directory LastWrite notification alongside a child edit.
-    # Exercise that real notification without allowing it to restart the persistent host.
-    if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }
-    [IO.File]::WriteAllText($componentPath, $component.Replace('useState(1)', 'useState(2)'))
-    Wait-For { Test-WatchImportedGeneration } 'completed imported component rebuild'
+    $retryBarrier = $null
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        # Every probe owns a new edit and a boundary frozen before that edit.
+        $barrier = if ($attempt -eq 0) { Get-WatchOwnerBarrier $script:watchEvidence.warmupCompletedGeneration } else { $retryBarrier }
+        $script:watchEvidence.importedEditBarrier = $barrier
+        $script:watchEvidence.importedEditBaselineGeneration = $barrier.generation
+        $script:watchEvidence.importedEditClassification = $null
+        $editedComponent = $component.Replace('useState(1)', 'useState(2)')
+        if ($attempt -gt 0) {
+            $script:watchEvidence.importedEditMarker = 'component-reuse-after-recovery'
+            $editedComponent = $editedComponent.Replace('</button>', " $($script:watchEvidence.importedEditMarker)</button>")
+        }
+        # Windows can report a directory LastWrite alongside a child edit.
+        if ($IsWindows) { [IO.Directory]::SetLastWriteTimeUtc($content, [DateTime]::UtcNow.AddSeconds(1)) }
+        $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($componentPath, $editedComponent) }
+        Wait-For {
+            (Test-WatchImportedGeneration) -or
+                $script:watchEvidence.importedEditClassification.status -ceq 'RECOVERY_OBSERVED_REUSE_UNPROVEN'
+        } 'completed imported component rebuild'
+        if ($script:watchEvidence.importedEditClassification.normalReuseProven) { break }
+        $script:watchEvidence.importedEditRecoveries.Add([ordered]@{
+            barrier = $barrier; classification = $script:watchEvidence.importedEditClassification
+        })
+        if ($attempt -gt 0) {
+            $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_WATCHER_RECOVERY_REUSE_UNPROVEN'
+            $classification = $script:watchEvidence.importedEditClassification
+            Write-ImportedEditFailureDiagnostic $classification $barrier $classification.terminalWindow $classification.observedGeneration
+            throw 'Repeated watcher recovery prevented an ordinary component reuse witness.'
+        }
+        Write-Host 'Watcher recovery preserved the edit; warming the recovered host before the independent reuse probe.'
+        $script:watchEvidence.importedEditMarker = 'recovery-worker-warmup'
+        $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit {
+            [IO.File]::WriteAllText($pagePath, $source + "`n$($script:watchEvidence.importedEditMarker).`n")
+        }
+        # Keep the original barrier: every recovery and warmup terminal stays in this window.
+        Wait-For { Test-WatchImportedGeneration -Warmup } 'recovered host cache-miss warmup'
+        $retryBarrier = Get-WatchOwnerBarrier $script:watchEvidence.importedEditClassification.observedGeneration
+        Wait-For {
+            Receive-WatchMachineEvents
+            if ($script:liveLastGeneration -lt $retryBarrier.generation) { return $false }
+            $handoff = Get-WatchImportedHandoff $barrier ($script:liveTerminalEvents.ToArray()) $retryBarrier
+            if ($handoff.status -cne 'WARMUP_COMPLETE') {
+                $script:watchEvidence.failureCategory = 'IMPORTED_EDIT_RECOVERY_HANDOFF_FAILED'
+                $script:watchEvidence.importedEditClassification = $handoff
+                $window = @($script:liveTerminalEvents | Where-Object { $_.generation -gt $barrier.generation -and $_.generation -le $retryBarrier.generation })
+                Write-ImportedEditFailureDiagnostic $handoff $barrier $window $retryBarrier.generation
+                throw 'Recovery warmup or its handoff contains an invalid restart, witness gap or owner change.'
+            }
+            $script:watchEvidence.recoveryWarmup = [ordered]@{ barrier = $barrier; classification = $handoff; retryBarrier = $retryBarrier }
+            return $true
+        } 'complete recovered-host handoff'
+    }
     if ((State).extensions[0].mdx.metrics.workerStarts -ne 0) { throw 'A component edit restarted the worker.' }
     $mdxFailure = Start-WatchFailureEvidence 'MDX diagnostic'
-    [IO.File]::WriteAllText($pagePath, $source + "`n<Unclosed")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $source + "`n<Unclosed") }
     Wait-For { Test-WatchFailedGeneration $mdxFailure } 'MDX diagnostic'
     if ((Page) -notmatch 'Count (<!-- -->)?2') { throw 'Failed MDX replaced the published page.' }
-    [IO.File]::WriteAllText($pagePath, $source + "`nRecovered content.`n")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $source + "`nRecovered content.`n") }
     Wait-For { Test-WatchRecoveryGeneration $mdxFailure 'Recovered content' } 'MDX recovery'
     $csharpFailure = Start-WatchFailureEvidence 'C# diagnostic'
-    [IO.File]::WriteAllText($factoryPath, $factory + "`ninvalid C# syntax")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($factoryPath, $factory + "`ninvalid C# syntax") }
     Wait-For { Test-WatchFailedGeneration $csharpFailure } 'C# diagnostic'
     if ((Page) -notmatch 'Recovered content') { throw 'Failed C# replaced the published page.' }
-    [IO.File]::WriteAllText($factoryPath, $factory.Replace('new SiteSettings()', 'new SiteSettings { Title="Factory recovered" }'))
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($factoryPath, $factory.Replace('new SiteSettings()', 'new SiteSettings { Title="Factory recovered" }')) }
     Wait-For { Test-WatchRecoveryGeneration $csharpFailure 'Factory recovered' } 'factory restart'
     $restartWorkerStarts = (State).extensions[0].mdx.metrics.workerStarts
     Write-Host "Factory restart recovered with workerStarts=$restartWorkerStarts."
@@ -532,20 +587,20 @@ namespace LithoSharp.WatchR7 {
     Write-Host 'Checking watch add/delete/rename...'
     $extraPath = Join-Path $content 'extra.mdx'
     $extraSource = "---`ntitle: Extra`n---`n# Extra`n`nExtra body.`n"
-    [IO.File]::WriteAllText($extraPath, $extraSource)
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($extraPath, $extraSource) }
     Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 200 -and (Get-Url '/guide/extra/').Content -match 'Extra body' } 'watch add'
     if (!(State).success) { throw 'Add broke the build.' }
-    Remove-Item -LiteralPath $extraPath
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { Remove-Item -LiteralPath $extraPath }
     Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 404 } 'watch delete'
     if (!(State).success) { throw 'Delete broke the build.' }
     if ((Page) -notmatch 'Factory recovered') { throw 'Delete replaced the surviving page.' }
     $renamedPath = Join-Path $content 'renamed.mdx'
-    [IO.File]::WriteAllText($extraPath, $extraSource)
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($extraPath, $extraSource) }
     Wait-For { (Get-Url '/guide/extra/').StatusCode -eq 200 } 'watch re-add'
-    Move-Item -LiteralPath $extraPath -Destination $renamedPath
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { Move-Item -LiteralPath $extraPath -Destination $renamedPath }
     Wait-For { (Get-Url '/guide/renamed/').StatusCode -eq 200 -and (Get-Url '/guide/extra/').StatusCode -eq 404 } 'watch rename'
     if (!(State).success) { throw 'Rename broke the build.' }
-    Remove-Item -LiteralPath $renamedPath
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { Remove-Item -LiteralPath $renamedPath }
     Wait-For { (Get-Url '/guide/renamed/').StatusCode -eq 404 -and (State).success } 'watch rename cleanup'
     $resources.Add((Sample-ServeResources 'after-add-delete-rename'))
 
@@ -554,7 +609,7 @@ namespace LithoSharp.WatchR7 {
     $soak = [Diagnostics.Stopwatch]::StartNew()
     for ($edit = 1; $edit -le $StressEdits; $edit++) {
         Receive-WatchMachineEvents
-        [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n")
+        $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision $edit.`n") }
         Receive-WatchMachineEvents
         if ($SoakMinutes -gt 0) {
             if ($edit % 25 -eq 0) {
@@ -572,8 +627,8 @@ namespace LithoSharp.WatchR7 {
     Write-Host "Completed $StressEdits edits over $([Math]::Round($soak.Elapsed.TotalSeconds, 1)) seconds (requested minimum: $SoakMinutes minutes)."
 
     Write-Host 'Checking stale coalescing converges to the latest edit...'
-    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision stale-9999.`n")
-    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`n")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision stale-9999.`n") }
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`n") }
     Wait-For { (Page) -match 'Revision final-10000' -and (State).success } 'stale coalescing'
     if ((Page) -match 'Revision stale-9999' -and (Page) -notmatch 'Revision final-10000') { throw 'A stale edit overwrote the latest result.' }
     $resources.Add((Sample-ServeResources 'after-stale-coalescing'))
@@ -581,10 +636,10 @@ namespace LithoSharp.WatchR7 {
     Write-Host 'Checking failed rebuild keeps the previous output after long use...'
     $beforeLongFailure = (Get-Url '/guide/index/').Content
     $longFailure = Start-WatchFailureEvidence 'long-use MDX diagnostic'
-    [IO.File]::WriteAllText($pagePath, $baseSource + "`n<Unclosed")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $baseSource + "`n<Unclosed") }
     Wait-For { Test-WatchFailedGeneration $longFailure } 'long-use MDX diagnostic'
     if ((Page) -notmatch 'Revision final-10000') { throw 'Long-use failure replaced the published page.' }
-    [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`nRecovered after soak.`n")
+    $script:watchEvidence.inputEditRetries += Invoke-WatchInputEdit { [IO.File]::WriteAllText($pagePath, $baseSource + "`nRevision final-10000.`nRecovered after soak.`n") }
     Wait-For { Test-WatchRecoveryGeneration $longFailure 'Recovered after soak' } 'long-use recovery'
     $resources.Add((Sample-ServeResources 'after-recovery'))
 
