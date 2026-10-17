@@ -34,8 +34,8 @@
       },
       "Syntamark": {
         "type": "Transitive",
-        "resolved": "2.0.0-preview.3",
-        "contentHash": "SS1kDrcSkEDVHPjKorWfy3y/cTKviDXdb/fxeO8ETEEUM82M6Nxstap6VZlHTcppeRfOdZXCs0xpR3ZxJk+TUw==",
+        "resolved": "1.0.0",
+        "contentHash": "FMro+EXX2o6lQJldBkrUy+g9CmfnvAXsLNPPQIjf/rCe1xubHwThfvQaySyrjNput7Tf693lJXyU8+wPbm+aZg==",
         "dependencies": {
           "YamlDotNet": "[18.1.0]"
         }
@@ -45,14 +45,14 @@
         "dependencies": {
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
-          "Syntamark": "[2.0.0-preview.3, 2.0.0-preview.3]",
+          "Syntamark": "[1.0.0, 1.0.0]",
           "YamlDotNet": "[18.1.0, )"
         }
       },
       "lithosharp.images": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[1.1.0, )"
+          "LithoSharp": "[2.0.0, )"
         }
       }
     }
