@@ -67,7 +67,7 @@ async function withTimeout(promise, ms, label) {
 async function processRows() {
   const exec = promisify(execFile);
   if (process.platform === 'win32') {
-    const result = await exec('pwsh', ['-NoProfile', '-Command', '$ErrorActionPreference="Stop"; Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{pid=$_.ProcessId;parent=$_.ParentProcessId;birth=$_.CreationDate.ToUniversalTime().ToString("o")} } | ConvertTo-Json -Compress'], { windowsHide: true });
+    const result = await exec('pwsh', ['-NoProfile', '-Command', '$ErrorActionPreference="Stop"; Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{pid=$_.ProcessId;parent=$_.ParentProcessId;birth=if($null -eq $_.CreationDate){$null}else{$_.CreationDate.ToUniversalTime().ToString("o")}} } | ConvertTo-Json -Compress'], { windowsHide: true });
     return JSON.parse(result.stdout).map(row => ({ pid: Number(row.pid), parent: Number(row.parent), birth: row.birth }));
   }
   const result = await exec('ps', ['-A', '-o', 'pid=,ppid=,lstart='], { env: { ...process.env, LC_ALL: 'C' } });

@@ -10,9 +10,10 @@ const unrelated = row(900, 1, '2026-10-18T00:36:20.0000000Z');
 
 test('captures genuine descendants even when enumeration is not in parent order', () => {
   const processes = new PackageServeProcesses(root.pid);
-  processes.capture([grandchild, worker, unrelated, root]);
-  assert.deepEqual(processes.remaining([grandchild, worker, unrelated]), [grandchild, worker]);
-  assert.deepEqual(processes.remaining([unrelated]), []);
+  const unknown = { ...unrelated, birth: null };
+  processes.capture([grandchild, worker, unknown, root]);
+  assert.deepEqual(processes.remaining([grandchild, worker, unknown]), [grandchild, worker]);
+  assert.deepEqual(processes.remaining([unknown]), []);
   assert.deepEqual(processes.evidence().root, { pid: root.pid, birth: root.birth });
 });
 
@@ -61,7 +62,7 @@ test('missing identity during shutdown or cleanup fails before any termination i
   processes.capture([root, worker]);
   const terminated = [];
   assert.throws(() => {
-    for (const process of processes.remaining([root, { ...worker, birth: undefined }])) terminated.push(process.pid);
+    for (const process of processes.remaining([root, { ...worker, birth: null }])) terminated.push(process.pid);
   }, /Missing process creation identity/);
   assert.deepEqual(terminated, []);
   assert.equal(processes.evidence().observed[1].pid, worker.pid);
