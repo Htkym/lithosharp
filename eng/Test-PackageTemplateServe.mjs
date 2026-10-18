@@ -7,6 +7,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const markdownPair = JSON.parse(await fs.readFile(path.join(repo, 'eng/markdown/component-pair.json'), 'utf8'));
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { PackageServeProcesses } from './package-serve-processes.mjs';
 
 const args = process.argv.slice(2);
 assert.equal(args.length, 4, 'Usage: node Test-PackageTemplateServe.mjs <tool> <project> <candidate-version> <evidence>');
@@ -26,7 +27,7 @@ for (const [name, library] of Object.entries(assets.libraries)) {
 assert.ok(assets.libraries[`LithoSharp/${version}`], 'Candidate Core was not resolved');
 assert.ok(assets.libraries[`Syntamark/${markdownPair.componentVersion}`], 'Fixed Markdown runtime was not resolved');
 await fs.mkdir(evidence, { recursive: false });
-const events = [], owned = new Map();
+const events = [];
 const startedAt = performance.now();
 let phase = 'capture-owned-processes', phaseStartedAt = startedAt, startupInfo;
 const initialHttp = { headersReceived: false, bodyReceived: false };
@@ -35,6 +36,7 @@ let pending = '', stdout = '', stderr = '', invalidJson, inputError, exitResult;
 const child = spawn(tool, ['serve', project, '-c', 'Release', '--port', '0', '--format', 'json', '--control-stdin'], {
   cwd: project, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
 });
+const processes = new PackageServeProcesses(child.pid);
 const exit = new Promise((resolve, reject) => {
   child.once('error', reject);
   child.once('close', (code, signal) => { exitResult = { code, signal }; resolve(exitResult); });
@@ -65,10 +67,10 @@ async function withTimeout(promise, ms, label) {
 async function processRows() {
   const exec = promisify(execFile);
   if (process.platform === 'win32') {
-    const result = await exec('pwsh', ['-NoProfile', '-Command', 'Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{pid=$_.ProcessId;parent=$_.ParentProcessId;birth=$_.CreationDate.ToUniversalTime().ToString("o")} } | ConvertTo-Json -Compress'], { windowsHide: true });
+    const result = await exec('pwsh', ['-NoProfile', '-Command', '$ErrorActionPreference="Stop"; Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{pid=$_.ProcessId;parent=$_.ParentProcessId;birth=$_.CreationDate.ToUniversalTime().ToString("o")} } | ConvertTo-Json -Compress'], { windowsHide: true });
     return JSON.parse(result.stdout).map(row => ({ pid: Number(row.pid), parent: Number(row.parent), birth: row.birth }));
   }
-  const result = await exec('ps', ['-A', '-o', 'pid=,ppid=,lstart=']);
+  const result = await exec('ps', ['-A', '-o', 'pid=,ppid=,lstart='], { env: { ...process.env, LC_ALL: 'C' } });
   return result.stdout.trim().split('\n').filter(Boolean).map(line => {
     const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/);
     assert.ok(match, 'Malformed process identity row');
@@ -76,17 +78,10 @@ async function processRows() {
   });
 }
 async function captureDescendants() {
-  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) { processes.requireRoot(); return; }
   const rows = await processRows();
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  const root = rows.find(row => row.pid === child.pid);
-  if (!root || (owned.has(child.pid) && owned.get(child.pid) !== root.birth)) return;
-  const ids = new Set([child.pid]);
-  for (let changed = true; changed;) {
-    changed = false;
-    for (const row of rows) if (ids.has(row.parent) && !ids.has(row.pid)) { ids.add(row.pid); changed = true; }
-  }
-  for (const row of rows) if (ids.has(row.pid) && (!owned.has(row.pid) || owned.get(row.pid) === row.birth)) owned.set(row.pid, row.birth);
+  if (child.exitCode !== null || child.signalCode !== null) { processes.requireRoot(); return; }
+  processes.capture(rows);
 }
 async function waitFor(predicate, label, timeout = 180_000) {
   const deadline = Date.now() + timeout;
@@ -204,13 +199,16 @@ try {
   assert.equal(await portOpen(startup.actualPort), false, 'Owned TCP listener remained');
   assert.equal(events.filter(event => event.event === 'shutdown').length, 1);
   markPhase('shutdown-processes');
-  const alive = (await processRows()).filter(row => owned.get(row.pid) === row.birth);
+  const alive = processes.remaining(await processRows());
   assert.deepEqual(alive, [], 'Owned server/worker process remained after shutdown');
-  result = { passed: true, template: path.basename(project), candidateVersion: version, packageOnly: true, startup, rebuildGeneration: rebuilt.generation, changedRoute, marker, ownedPids: [...owned.keys()], exit: terminal, listenerClosed: true, ownedProcessesRemaining: 0 };
+  result = { passed: true, template: path.basename(project), candidateVersion: version, packageOnly: true, startup, rebuildGeneration: rebuilt.generation, changedRoute, marker, ownedPids: [...processes.owned.keys()], exit: terminal, listenerClosed: true, ownedProcessesRemaining: 0 };
 } catch (error) {
   primaryError = error;
   result = { passed: false, template: path.basename(project), candidateVersion: version, error: String(error), exit: exitResult };
   await captureFailure(error, true);
+  result.processOwnershipBeforeCleanup = processes.evidence();
+  try { await fs.writeFile(path.join(evidence, 'result.json'), JSON.stringify(result, null, 2) + '\n'); }
+  catch (diagnosticError) { result.failureEvidenceWriteError = errorDetails(diagnosticError); }
 } finally {
   // Capture only descendants of the handle we spawned while it is still alive.
   if (!exitResult) {
@@ -231,17 +229,17 @@ try {
   try {
     // A PID alone is insufficient ownership proof after its parent exits.
     // Require the same recorded creation identity before touching a descendant.
-    const rows = await processRows();
-    for (const row of rows) {
-      if (row.pid === child.pid || owned.get(row.pid) !== row.birth) continue;
+    for (const row of processes.remaining(await processRows())) {
+      if (row.pid === child.pid) continue;
       try { process.kill(row.pid); cleanupKilled.push(row.pid); }
       catch (error) { if (error.code !== 'ESRCH') cleanupRemaining.push({ pid: row.pid, error: String(error) }); }
     }
     if (cleanupKilled.length) await delay(1000);
-    for (const row of await processRows()) if (owned.get(row.pid) === row.birth) cleanupRemaining.push({ pid: row.pid });
+    for (const row of processes.remaining(await processRows())) cleanupRemaining.push({ pid: row.pid });
   } catch (error) { cleanupRemaining.push({ error: String(error) }); }
   result.cleanupKilledOwnedPids = cleanupKilled;
   result.cleanupRemaining = cleanupRemaining;
+  result.processOwnership = processes.evidence();
   if (cleanupRemaining.length && !primaryError) {
     primaryError = Error('Owned processes remained after cleanup');
     result.passed = false; result.error = String(primaryError);

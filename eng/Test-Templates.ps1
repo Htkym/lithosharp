@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+& node --test (Join-Path $PSScriptRoot 'Test-PackageServeProcessOwnership.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Package serve process ownership checks failed.' }
 [xml] $templatePackage = Get-Content -LiteralPath (Join-Path $repo 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj') -Raw
 $templateVersionProperties = @($templatePackage.SelectNodes('/Project/PropertyGroup/Version'))
 if ($templateVersionProperties.Count -ne 1 -or [string]::IsNullOrWhiteSpace($templateVersionProperties[0].InnerText)) {
