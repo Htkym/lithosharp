@@ -6,7 +6,7 @@ These limits apply to 1.0.0 and 1.1.0 unless a section says
 otherwise. See [performance](performance.md) for
 measurement conditions and [MDX](mdx.md) for configuration and execution rules.
 The 1.1 scope (Core 1.1.0 plus the VS Code extension) is summarized in
-[1.1 features](release-1.1.md).
+[1.1 features](history/release-1.1.md).
 
 ## Markdown compatibility
 

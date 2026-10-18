@@ -3,7 +3,7 @@
 [English](known-limitations.md)
 
 1.0.0と1.1.0の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)を、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
-1.1の範囲（Core 1.1.0とVS Code拡張）は[1.1の機能](release-1.1.ja.md)にまとめています。
+1.1の範囲（Core 1.1.0とVS Code拡張）は[1.1の機能](history/release-1.1.ja.md)にまとめています。
 
 ## Markdown の互換性
 

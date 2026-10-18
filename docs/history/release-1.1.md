@@ -2,7 +2,7 @@
 
 [日本語](release-1.1.ja.md)
 
-Core 1.1.0 is available on NuGet, and [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) is available on the Marketplace. Generation cost for small edits remains a [known limitation](performance.md#110-performance-limitation).
+Core 1.1.0 is available on NuGet, and [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) is available on the Marketplace. Generation cost for small edits remains a [known limitation](../performance.md#110-performance-limitation).
 
 ## Feature table
 
@@ -27,12 +27,12 @@ Explicitly **not** in 1.1:
 
 1. Update all seven Core packages and the tool together; do not mix 1.0 and 1.1 assemblies. Use matching 1.1.0 packages.
 2. Rebuild the site and review content warnings, links and custom CSS.
-3. The Markdown compiler is unchanged since 1.0: footnotes, definition lists and the other listed Markdig extensions stay unsupported (see [Known limitations](known-limitations.md#markdown-compatibility)).
+3. The Markdown compiler is unchanged since 1.0: footnotes, definition lists and the other listed Markdig extensions stay unsupported (see [Known limitations](../known-limitations.md#markdown-compatibility)).
 4. `markdown-compat --advisory on` and `--project` share the editor inspection; advisories never change default output.
 
 SkiaSharp is updated to 4.153.1, whose decoder no longer accepts RAW or DNG.
 Convert those images to PNG or JPEG before using them as responsive-image sources
-or site icons; see [assets and images](assets-and-images.md).
+or site icons; see [assets and images](../assets-and-images.md).
 YamlDotNet 18.1.0 limits deserializer recursion to 130 by default. This applies
 to `MarkdownFrontMatterYaml.Deserialize<T>`; flatten deeply nested inputs rather
 than disabling the limit. Typed content loaders use their own strict parser,
@@ -53,14 +53,14 @@ The ordinary Flow/Class/State tooltip callers pass strings and do not enter this
 DOM-node plus `IN_PLACE` branch. This limited compatibility difference is accepted;
 complete DOM equality is not claimed.
 
-See [known limitations](known-limitations.md) for the upgrade scope.
+See [known limitations](../known-limitations.md) for the upgrade scope.
 
 ## API and schema policy
 
 Public signatures are preserved; new APIs are additive within 1.x. Structured CLI/serve output keeps
 schema `"1.0"`; unknown JSON fields are ignored. Anything else waits for 2.0.
-See [compatibility contract](compatibility-contract.md) and
-[CLI compatibility](cli.md#structured-output-and-1x-compatibility).
+See [compatibility contract](../compatibility-contract.md) and
+[CLI compatibility](../cli.md#structured-output-and-1x-compatibility).
 
 ## Requirements and version combinations
 

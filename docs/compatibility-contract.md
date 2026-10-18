@@ -61,7 +61,7 @@ not participate in route validation because it owns no generated route.
 
 `LithoSharp.Routing.SiteRoute` is the immutable route value used by the generator.
 Legacy valid routes retain their public paths; see the
-[0.3.0 migration guide](migration-0.3.md) for behavior changes from NuGet 0.2.0.
+[0.3.0 migration guide](history/migration-0.3.md) for behavior changes from NuGet 0.2.0.
 
 - `ForFile` maps a relative route such as `posts/intro.html` to public path
   `/posts/intro.html` and output path `posts/intro.html`.

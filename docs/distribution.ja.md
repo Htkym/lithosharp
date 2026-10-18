@@ -2,18 +2,18 @@
 
 [English](distribution.md)
 
-LithoSharp 1.1.0はNuGetで配布しています。[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はVS Code Marketplaceからインストールできます。拡張機能の識別子は`htkym.lithosharp`です。
+LithoSharp 2.0.0はNuGetで配布しています。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
 
 ## NuGetパッケージ
 
-プロジェクトで使うパッケージの版を1.1.0に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。ツールとテンプレートは別のパッケージです。
+プロジェクトで使うパッケージの版を2.0.0に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.0.0を使います。ツールとテンプレートは別のパッケージです。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.0
+dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
 ```
 
-サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[更新手順](release-1.1.ja.md)を参照してください。
+サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[2.0への移行案内](migration-2.0.ja.md)を参照してください。
 
 ## VS Code拡張機能
 

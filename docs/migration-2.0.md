@@ -1,8 +1,10 @@
-# Migrating to 2.0 from 1.x
+# Upgrade to 2.0.0
 
 [日本語](migration-2.0.ja.md)
 
-This guide covers 2.0.0 and its changes from 1.x. The README and [Quick Start](quickstart.md) installation examples target 1.1.0. Core packages and the VS Code extension have separate release channels; publishing Core does not publish the 0.2.0 extension to the Marketplace.
+This guide covers upgrading an existing site to 2.0.0, including its changes from 1.x. The README and [Quick Start](quickstart.md) installation examples use 2.0.0. Core packages and the VS Code extension have separate release channels; publishing Core does not publish the 0.2.0 extension to the Marketplace.
+
+For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; the target package version for this guide is 2.0.0. Compare generated output in a fresh directory before deploying it.
 
 ## Package versions
 

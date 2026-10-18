@@ -9,8 +9,8 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-The installation examples below target **1.1.0**.
-See the [2.0 migration notes](docs/migration-2.0.md) for 2.0 requirements and changes from 1.x.
+The current release is **2.0.0**. The installation examples below use this version.
+For an existing site, follow the [upgrade guide](docs/migration-2.0.md).
 
 ## Features
 
@@ -35,8 +35,8 @@ See the [2.0 migration notes](docs/migration-2.0.md) for 2.0 requirements and ch
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.0
+dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -47,7 +47,7 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 1.1.0`
+Existing applications can use `dotnet add package LithoSharp --version 2.0.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -92,14 +92,16 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 - [Testing](docs/testing.md), [HTML/CSS contract](docs/layout-css-contract.md),
   [compatibility contract](docs/compatibility-contract.md)
 
-## Upgrade to 1.1.0
+## Upgrade to 2.0.0
 
-Update the LithoSharp packages and CLI you use together to 1.1.0. Review the [1.1 upgrade notes](docs/release-1.1.md), then rebuild your site and check content warnings, links and custom CSS. The Markdown subset remains limited; footnotes and definition lists are unsupported.
+Update the LithoSharp packages, CLI and templates you use together to 2.0.0.
+Follow the [2.0 upgrade guide](docs/migration-2.0.md), including the breaking
+Testing API change from `Document` to `Snapshot`. Rebuild your site and check
+content warnings, links and custom CSS. MDX remains optional; see the
+[supported Markdown syntax](docs/known-limitations.md#markdown-compatibility).
 
-See the [API compatibility contract](docs/compatibility-contract.md#api-compatibility)
-and [1.x tooling policy](docs/cli.md#structured-output-and-1x-compatibility).
-Sites upgrading from 0.2.0 should also follow the
-[0.3 migration guide](docs/migration-0.3.md). MDX remains optional.
+Notes for migrations between older releases are preserved in the
+[upgrade history](docs/history/README.md).
 
 ## Known limitations
 

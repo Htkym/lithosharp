@@ -15,7 +15,7 @@
 - 最小stdio言語serverとVS Code 0.1.0 shellを追加した。MSBuild評価なしのproject検出、限定workspace trust、構造化停止付きbuild/serve制御、debounce診断、symbols、実出力previewを持つ。
 - Docusaurus移行に分類済みroute oracle、明示の正規化page set比較、component機能差分類を追加し、pin済み3サイトcorpusで変換を再現する。
 - 非互換の公開signatureはない。Markdown互換は[文書化した範囲](docs/known-limitations.ja.md#markdown-の互換性)のままである。
-  [1.1の機能と更新手順](docs/release-1.1.ja.md)を参照。
+  [1.1の機能と更新手順](docs/history/release-1.1.ja.md)を参照。
 
 ## 1.0.0
 
@@ -74,7 +74,7 @@
 実NuGet 0.2.0に対して、非互換な公開署名とobsolete警告の追加はありませんでした。独立したlegacy
 consumerは、Docs、Blog、custom templateのソース・バイナリ更新検証を通過しました。
 以前は無視していた公開条件のkey、危険なbase URL、診断文言の厳密な比較には挙動の変更があります。
-出力バイト列も変わります。rollbackを含む[0.2.0からの移行](docs/migration-0.3.ja.md)を確認してください。
+出力バイト列も変わります。rollbackを含む[0.2.0からの移行](docs/history/migration-0.3.ja.md)を確認してください。
 
 0.3.0は.NET 10向けです。MDXだけはNode.js 24.13.0と明示restoreが必要で、lockfileは
 MDX 3.1.1、React 19.2.4、esbuild 0.25.12を固定しています。今後の0.x minor releaseでは

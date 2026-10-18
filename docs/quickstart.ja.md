@@ -2,15 +2,15 @@
 
 [English](quickstart.md)
 
-.NET 10 SDKを用意します。検証版は10.0.300です。MDXにはNode.js 24.13.0も必要ですが、
+.NET 10 SDKを用意します。最低対応版は10.0.300です。MDXにはNode.js 24.13.0も必要ですが、
 Markdownだけなら不要です。`serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
-新しいディレクトリで作業してください。以下はNuGetで公開した1.1.0の手順です。
+新しいディレクトリで作業してください。以下はNuGetで公開した2.0.0の手順です。
 
 ## InstallとMarkdown Docsの作成
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.0
+dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -113,4 +113,4 @@ cache directoryは公開出力の外に置きます。開発用reload scriptはH
 | 独自C# layout | `lithosharp new empty MySite -o MySite` |
 
 testは高度な設定を実行できる例であり、追加のtemplate製品ではありません。
-[移行](migration-0.3.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。
+[2.0.0への更新](migration-2.0.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。

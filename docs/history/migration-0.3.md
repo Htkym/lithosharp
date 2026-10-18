@@ -11,7 +11,7 @@ package remains available; this release does not replace or unlist it.
 For the 0.3.1 patch, regenerate and review custom CSS against the refreshed
 Docs/Blog themes. Theme switching is enabled by default; use
 `Theme = new SiteThemeOptions { EnableThemeSwitching = false }` in your
-`SiteCustomization` for fixed light colors. See [theme configuration](layout-css-contract.md#theme-switching--テーマ切り替え)
+`SiteCustomization` for fixed light colors. See [theme configuration](../layout-css-contract.md#theme-switching--テーマ切り替え)
 for fixed dark colors and browser requirements. Routes and existing signatures
 remain unchanged.
 
@@ -78,8 +78,8 @@ Stricter safety validation can reject previously tolerated unsafe inputs. A
 tested `ftp:` base URL was accepted by 0.2.0 and rejected by 0.3.0. Routes
 must stay beneath output and cannot use reserved names, ambiguous encodings,
 case-only collisions or file/directory conflicts. Input, public assets and caches
-must not overlap output. See the [route contract](compatibility-contract.md) and
-[asset rules](assets-and-images.md). Correct these inputs rather than disabling
+must not overlap output. See the [route contract](../compatibility-contract.md) and
+[asset rules](../assets-and-images.md). Correct these inputs rather than disabling
 validation. Treat reliance on such inputs as a behavior-breaking migration.
 Case-only output collisions were already rejected; their exception is now the
 structured `SiteRouteValidationException`, still an `InvalidOperationException`.
@@ -97,10 +97,10 @@ unrelated files and older trees without proven ownership are preserved; do not
 expect an upgrade to remove every stale 0.2.0 artifact. Preserve ownership
 sidecars with their corresponding local output during normal incremental builds.
 Caches are disposable and are not ownership evidence. See
-[incremental builds](incremental-builds.md) for invalidation and transaction rules.
+[incremental builds](../incremental-builds.md) for invalidation and transaction rules.
 
 Existing theme CSS and semantic landmarks remain covered by the
-[layout contract](layout-css-contract.md). Compare custom selectors and snapshots
+[layout contract](../layout-css-contract.md). Compare custom selectors and snapshots
 semantically rather than requiring identical serialized HTML. Search, versioned
 Docs and locale variants are explicit configuration; upgrading a legacy site does
 not silently enable them or change its `.html` URLs.
@@ -113,11 +113,11 @@ versions aligned. Generated code is rebuilt from your `AdditionalFiles`; use
 `PrivateAssets="all"` for the generator and review its build diagnostics.
 
 The CLI and templates are optional new entry points. Follow the
-[Quick Start](quickstart.md); an existing console application remains supported.
+[Quick Start](../quickstart.md); an existing console application remains supported.
 For MDX only, use Node.js 24.13.0 and explicitly restore the packaged worker with
 `lithosharp restore-mdx`. The lockfile pins MDX 3.1.1, React 19.2.4 and esbuild
 0.25.12. Normal site builds do not install npm packages. MDX executes trusted
-code: read [Known limitations](known-limitations.md) before enabling it.
+code: read [Known limitations](../known-limitations.md) before enabling it.
 
 ## Roll back
 
