@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## Unreleased
+
+- HTMLのエスケープ処理で一時的な割り当てを減らしました。生成するHTMLと公開APIは変わりません。描画時間への効果は内容に依存します。
+
 ## 2.0.0
 
 - Markdownの共通基盤を独立したSyntamarkへ分離し、公開済みのSyntamark 1.0.0のruntimeとcompiler用sourceを同じ固定pairから利用する。

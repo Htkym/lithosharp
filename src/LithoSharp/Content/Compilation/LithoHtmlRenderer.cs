@@ -72,7 +72,9 @@ internal static class LithoHtmlRenderer
                 // Static shape mirrors the MDX runtime Admonition (aside with a
                 // strong title defaulting to the kind); no Node.js involved.
                 writer.Append($"<aside class=\"mdx-admonition mdx-{admonition.Kind}\" role=\"note\">");
-                writer.Append($"<strong>{Encode(admonition.Title)}</strong>\n");
+                writer.Append("<strong>");
+                AppendEncoded(writer, admonition.Title);
+                writer.Append("</strong>\n");
                 foreach (var child in admonition.Children)
                 {
                     RenderBlock(child, writer, state);
@@ -88,7 +90,9 @@ internal static class LithoHtmlRenderer
                 }
                 else
                 {
-                    writer.Append($"<div class=\"{Encode(directive.Name)}\">\n");
+                    writer.Append("<div class=\"");
+                    AppendEncoded(writer, directive.Name);
+                    writer.Append("\">\n");
                 }
 
                 foreach (var child in directive.Children)
@@ -100,7 +104,7 @@ internal static class LithoHtmlRenderer
                 break;
             case LithoMath math:
                 writer.Append("<div class=\"math\">\n\\[\n");
-                writer.Append(Encode(math.Content));
+                AppendEncoded(writer, math.Content);
                 writer.Append("\n\\]</div>\n");
                 break;
             case LithoQuote quote:
@@ -151,7 +155,7 @@ internal static class LithoHtmlRenderer
         if (string.Equals(code.Info, "mermaid", StringComparison.Ordinal))
         {
             writer.Append("<pre class=\"mermaid\">");
-            writer.Append(EncodeDiagram(code.Text));
+            AppendEncodedDiagram(writer, code.Text);
             writer.Append("</pre>\n");
             return;
         }
@@ -159,7 +163,7 @@ internal static class LithoHtmlRenderer
         if (string.Equals(code.Info, "nomnoml", StringComparison.Ordinal))
         {
             writer.Append("<div class=\"nomnoml\">");
-            writer.Append(EncodeDiagram(code.Text));
+            AppendEncodedDiagram(writer, code.Text);
             writer.Append("</div>\n");
             return;
         }
@@ -170,12 +174,16 @@ internal static class LithoHtmlRenderer
             // Attribute names mirror the MDX worker's data-* code metadata.
             if (!string.IsNullOrEmpty(meta.Title))
             {
-                writer.Append($" data-title=\"{Encode(meta.Title)}\"");
+                writer.Append(" data-title=\"");
+                AppendEncoded(writer, meta.Title);
+                writer.Append('"');
             }
 
             if (!string.IsNullOrEmpty(meta.Highlight))
             {
-                writer.Append($" data-highlight=\"{Encode(meta.Highlight)}\"");
+                writer.Append(" data-highlight=\"");
+                AppendEncoded(writer, meta.Highlight);
+                writer.Append('"');
             }
 
             if (meta.StartLine != 1)
@@ -192,11 +200,13 @@ internal static class LithoHtmlRenderer
         writer.Append("><code");
         if (code.Info is not null)
         {
-            writer.Append($" class=\"language-{Encode(code.Info)}\"");
+            writer.Append(" class=\"language-");
+            AppendEncoded(writer, code.Info);
+            writer.Append('"');
         }
 
         writer.Append('>');
-        writer.Append(Encode(code.Text));
+        AppendEncoded(writer, code.Text);
         writer.Append("</code></pre>\n");
     }
 
@@ -290,7 +300,7 @@ internal static class LithoHtmlRenderer
         switch (inline)
         {
             case LithoText text:
-                writer.Append(Encode(text.Text));
+                AppendEncoded(writer, text.Text);
                 break;
             case LithoEmphasis emphasis:
                 writer.Append(emphasis.Level == 2 ? "<strong>" : "<em>");
@@ -300,26 +310,36 @@ internal static class LithoHtmlRenderer
                 break;
             case LithoCodeSpan code:
                 writer.Append("<code>");
-                writer.Append(Encode(code.Code));
+                AppendEncoded(writer, code.Code);
                 writer.Append("</code>");
                 break;
             case LithoLink link:
                 if (link.Image)
                 {
-                    writer.Append($"<img src=\"{Encode(link.Url)}\" alt=\"{Encode(RenderLabelText(link.Label))}\"");
+                    writer.Append("<img src=\"");
+                    AppendEncoded(writer, link.Url);
+                    writer.Append("\" alt=\"");
+                    AppendEncoded(writer, RenderLabelText(link.Label));
+                    writer.Append('"');
                     if (link.Title is not null)
                     {
-                        writer.Append($" title=\"{Encode(link.Title)}\"");
+                        writer.Append(" title=\"");
+                        AppendEncoded(writer, link.Title);
+                        writer.Append('"');
                     }
 
                     writer.Append(" />");
                 }
                 else
                 {
-                    writer.Append($"<a href=\"{Encode(link.Url)}\"");
+                    writer.Append("<a href=\"");
+                    AppendEncoded(writer, link.Url);
+                    writer.Append('"');
                     if (link.Title is not null)
                     {
-                        writer.Append($" title=\"{Encode(link.Title)}\"");
+                        writer.Append(" title=\"");
+                        AppendEncoded(writer, link.Title);
+                        writer.Append('"');
                     }
 
                     writer.Append('>');
@@ -327,11 +347,15 @@ internal static class LithoHtmlRenderer
 
                 break;
             case LithoAutolink autolink:
-                writer.Append($"<a href=\"{Encode(autolink.Href)}\">{Encode(autolink.Text)}</a>");
+                writer.Append("<a href=\"");
+                AppendEncoded(writer, autolink.Href);
+                writer.Append("\">");
+                AppendEncoded(writer, autolink.Text);
+                writer.Append("</a>");
                 break;
             case LithoMathInline math:
                 writer.Append("<span class=\"math\">\\(");
-                writer.Append(Encode(math.Content));
+                AppendEncoded(writer, math.Content);
                 writer.Append("\\)</span>");
                 break;
             case LithoLineBreak lineBreak:
@@ -345,47 +369,99 @@ internal static class LithoHtmlRenderer
 
     private static string RenderLabelText(IReadOnlyList<LithoInline> label) => LithoLegacyTextPolicy.Label(label);
 
-    private static string EncodeDiagram(string text)
+    private static void AppendEncodedDiagram(StringBuilder writer, string text)
     {
         if (text.Length == 0)
         {
-            return string.Empty;
+            return;
         }
 
-        var writer = new StringBuilder(text.Length);
-        foreach (var ch in text)
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
         {
-            switch (ch)
+            var replacement = text[i] switch
             {
-                case '&': writer.Append("&amp;"); break;
-                case '<': writer.Append("&lt;"); break;
-                default: writer.Append(ch); break;
+                '&' => "&amp;",
+                '<' => "&lt;",
+                _ => null
+            };
+            if (replacement is null)
+            {
+                continue;
             }
-        }
 
-        return writer.ToString();
+            var length = i - start;
+            if (length != 0)
+            {
+                if (length == 1)
+                {
+                    writer.Append(text[start]);
+                }
+                else
+                {
+                    writer.Append(text, start, length);
+                }
+            }
+            writer.Append(replacement);
+            start = i + 1;
+        }
+        var remaining = text.Length - start;
+        if (remaining == 1)
+        {
+            writer.Append(text[start]);
+        }
+        else if (remaining > 1)
+        {
+            writer.Append(text, start, remaining);
+        }
     }
 
-    private static string Encode(string text)
+    private static void AppendEncoded(StringBuilder writer, string text)
     {
         if (text.Length == 0)
         {
-            return string.Empty;
+            return;
         }
 
-        var writer = new StringBuilder(text.Length);
-        foreach (var ch in text)
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
         {
-            switch (ch)
+            var replacement = text[i] switch
             {
-                case '&': writer.Append("&amp;"); break;
-                case '<': writer.Append("&lt;"); break;
-                case '>': writer.Append("&gt;"); break;
-                case '"': writer.Append("&quot;"); break;
-                default: writer.Append(ch); break;
+                '&' => "&amp;",
+                '<' => "&lt;",
+                '>' => "&gt;",
+                '"' => "&quot;",
+                _ => null
+            };
+            if (replacement is null)
+            {
+                continue;
             }
-        }
 
-        return writer.ToString();
+            var length = i - start;
+            if (length != 0)
+            {
+                if (length == 1)
+                {
+                    writer.Append(text[start]);
+                }
+                else
+                {
+                    writer.Append(text, start, length);
+                }
+            }
+            writer.Append(replacement);
+            start = i + 1;
+        }
+        var remaining = text.Length - start;
+        if (remaining == 1)
+        {
+            writer.Append(text[start]);
+        }
+        else if (remaining > 1)
+        {
+            writer.Append(text, start, remaining);
+        }
     }
 }
