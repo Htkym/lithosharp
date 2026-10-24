@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/lithosharp-dotnet-10.0.401
         with:
           dotnet-version: 10.0.401
       - uses: actions/setup-node@v7
@@ -35,7 +37,13 @@ jobs:
       - name: Restore and build exact candidate
         shell: pwsh
         run: |
-          if ((dotnet --version) -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
+          (Get-Command dotnet).Source
+          dotnet --list-sdks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sdkVersion = dotnet --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Host "Selected .NET SDK: $sdkVersion"
+          if ($sdkVersion -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
           dotnet restore LithoSharp.slnx --locked-mode
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build LithoSharp.slnx --no-restore --configuration Release
@@ -127,6 +135,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/lithosharp-dotnet-10.0.401
         with:
           dotnet-version: 10.0.401
       - uses: actions/setup-node@v7
@@ -144,7 +154,13 @@ jobs:
           node -e "if(process.platform !== '${{ matrix.node-platform }}' || process.arch !== '${{ matrix.arch }}') throw Error('Unexpected runner architecture'); console.log(process.platform + '/' + process.arch)"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet --info
-          if ((dotnet --version) -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
+          (Get-Command dotnet).Source
+          dotnet --list-sdks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sdkVersion = dotnet --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Host "Selected .NET SDK: $sdkVersion"
+          if ($sdkVersion -cne '10.0.401') { throw 'Expected SDK 10.0.401.' }
           npm ci --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run compile
