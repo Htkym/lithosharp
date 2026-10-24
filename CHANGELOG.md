@@ -2,6 +2,10 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## Unreleased
+
+- Reduce temporary allocations during HTML escaping without changing generated HTML or public APIs. The effect on rendering time depends on content.
+
 ## 2.0.0
 
 - Separate the shared Markdown foundation into Syntamark, using the published Syntamark 1.0.0 runtime and compiler-source artifacts from one verified pair.
