@@ -1,18 +1,18 @@
-# Upgrade to 2.0.0
+# Upgrade to 2.0.1
 
 [日本語](migration-2.0.ja.md)
 
-This guide covers upgrading an existing site to 2.0.0, including its changes from 1.x. The README and [Quick Start](quickstart.md) installation examples use 2.0.0. Core packages and the VS Code extension have separate release channels; publishing Core does not publish the 0.2.0 extension to the Marketplace.
+This guide covers upgrading an existing site to 2.0.1, including its changes from 1.x. The README and [Quick Start](quickstart.md) installation examples use 2.0.1. Core packages and the VS Code extension have separate release channels; publishing Core does not publish the 0.2.0 extension to the Marketplace.
 
-For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; the target package version for this guide is 2.0.0. Compare generated output in a fresh directory before deploying it.
+For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; the target package version for this guide is 2.0.1. Compare generated output in a fresh directory before deploying it.
 
 ## Package versions
 
-For the stable release, keep all selected LithoSharp packages at 2.0.0.
+For the stable release, keep all selected LithoSharp packages at 2.0.1.
 
-When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Candidate versions such as `2.0.0-ci.…` and `2.0.0-rc.…` differ from the `2.0.0` base version declared in the projects.
+When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Candidate versions such as `2.0.0-ci.…` and `2.0.0-rc.…` differ from the `2.0.1` base version declared in the projects.
 
-Templates default to `2.0.0`. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The following commands are absent from the published 1.1.0 Tool.
+Templates default to `2.0.1`. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The following commands are absent from the published 1.1.0 Tool.
 
 The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. The current fixed pair is Syntamark 1.0.0, published on NuGet. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
 
@@ -40,7 +40,7 @@ Use the same asset declaration instances for registration, transforms and render
 
 `LithoSharp.Analyzers` is an optional compiler package. It checks definite misuse of registered APIs, supported HTML interpolation contexts and literal URLs, and references to verified catalogs. Definite absence requires a fresh Closed scope; Open, Stale, Unknown and unsupported values are not guessed. No diagnostic does not mean that every site link, anchor or asset was verified. The `LSA9001` coverage policy requires explicit opt-in.
 
-Set the generated project's `LithoSharpVersion` to `2.0.0` (or the exact candidate version when using a candidate feed), then add this reference to the `ItemGroup` of the project that should receive diagnostics:
+Set the generated project's `LithoSharpVersion` to `2.0.1` (or the exact candidate version when using a candidate feed), then add this reference to the `ItemGroup` of the project that should receive diagnostics:
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

@@ -74,7 +74,7 @@ including when no AdditionalFiles are present.
 
 ## Markdownの解析
 
-現在の開発候補は、Syntamark.Source [2.0.0-preview.3]のportable sourceを既定でコンパイルします。解析に使うYamlDotNet [18.1.0]もanalyzer payloadへ同梱します。Core runtimeやSyntamarkのruntime DLLをcompiler hostへ読み込ませません。
+Syntamark.Source [1.0.0]のportable sourceを既定でコンパイルします。解析に使うYamlDotNet [18.1.0]もanalyzer payloadへ同梱します。Core runtimeやSyntamarkのruntime DLLをcompiler hostへ読み込ませません。
 
 source-treeからビルドする場合、Directory.Build.propsが固定版を選びます。SyntamarkSourceVersionは選択済みのruntime/source pairと同じ版にする必要があり、不一致はビルド時に拒否されます。
 

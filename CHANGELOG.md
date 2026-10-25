@@ -2,9 +2,10 @@
 
 [日本語](CHANGELOG.ja.md)
 
-## Unreleased
+## 2.0.1 — 2026-10-25
 
-- Reduce temporary allocations during HTML escaping without changing generated HTML or public APIs. The effect on rendering time depends on content.
+- Reduce temporary allocations during HTML escaping and tight-list rendering while preserving generated HTML, line endings and public APIs.
+- Rendering time depends on content; some complex mixed-syntax inputs may render more slowly.
 
 ## 2.0.0
 
