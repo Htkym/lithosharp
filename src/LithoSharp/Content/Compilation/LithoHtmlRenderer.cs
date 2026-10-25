@@ -235,14 +235,33 @@ internal static class LithoHtmlRenderer
 
         if (tight)
         {
-            var parts = new List<string>(item.Children.Count);
+            var childCount = 0;
             foreach (var child in item.Children)
             {
-                parts.Add(child is LithoParagraph paragraph ? RenderInlines(paragraph.Inlines) : RenderChild(child, state));
+                if (childCount > 0)
+                {
+                    writer.Append('\n');
+                }
+
+                if (child is LithoParagraph paragraph)
+                {
+                    ArgumentNullException.ThrowIfNull(paragraph.Inlines, "inlines");
+                    RenderInlineTree(paragraph.Inlines, writer);
+                }
+                else
+                {
+                    var childStart = writer.Length;
+                    RenderBlock(child, writer, state);
+                    while (writer.Length > childStart && writer[writer.Length - 1] == '\n')
+                    {
+                        writer.Length--;
+                    }
+                }
+
+                childCount++;
             }
 
-            writer.Append(string.Join("\n", parts));
-            if (parts.Count > 1)
+            if (childCount > 1)
             {
                 writer.Append('\n');
             }
@@ -258,12 +277,6 @@ internal static class LithoHtmlRenderer
         writer.Append("</li>\n");
     }
 
-    private static string RenderChild(LithoBlock child, RenderState state)
-    {
-        var writer = new StringBuilder();
-        RenderBlock(child, writer, state);
-        return writer.ToString().TrimEnd('\n');
-    }
 
     private static void RenderRow(
         IReadOnlyList<IReadOnlyList<LithoInline>> cells,
