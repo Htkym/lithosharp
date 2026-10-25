@@ -2,15 +2,15 @@
 
 [English](distribution.md)
 
-LithoSharp 2.0.0はNuGetで配布しています。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
+LithoSharp 2.0.1はNuGetで配布しています。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
 
 ## NuGetパッケージ
 
-プロジェクトで使うパッケージの版を2.0.0に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.0.0を使います。ツールとテンプレートは別のパッケージです。
+プロジェクトで使うパッケージのバージョンを2.0.1に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.0.1を使います。ツールとテンプレートは別のパッケージです。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.0
-dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.1
+dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
 ```
 
 サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[2.0への移行案内](migration-2.0.ja.md)を参照してください。
@@ -29,7 +29,7 @@ code --install-extension htkym.lithosharp
 
 Markdownだけのサイトや診断にはNode.jsは不要です。MDXにはNode.js 24.13.0と、明示的なワーカーの依存関係の復元が必要です。
 
-編集時の診断には`LithoSharp: Restore MDX Worker`を実行してください。拡張機能は、同梱ソースをハッシュ名の専用ストレージにコピーし、そこで`npm ci --ignore-scripts --no-audit --no-fund`を実行してlockfileに従って依存関係を復元します。復元済みの`node_modules`は拡張機能に含めません。`lithosharp.workerDirectory`で保存先を変更した場合は、`LithoSharp: Restart Language Server`の実行が必要です。
+編集時の診断には`LithoSharp: Restore MDX Worker`を実行してください。拡張機能は同梱ソースをハッシュ名の専用ストレージにコピーし、そこで`npm ci --ignore-scripts --no-audit --no-fund`を実行してlockfileに従って依存関係を復元します。復元済みの`node_modules`は拡張機能に含めません。`lithosharp.workerDirectory`で保存先を変更した場合は、`LithoSharp: Restart Language Server`の実行が必要です。
 
 サイトのビルドにはCLIの`restore-mdx`を使います。詳しくは[MDXガイド](mdx.ja.md)を参照してください。ビルド、配信、キー入力でnpmの依存関係を自動復元することはありません。コード実行や依存関係のインストールを伴うコマンドには、ワークスペースの信頼が必要です。
 

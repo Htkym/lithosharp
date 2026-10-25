@@ -9,7 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-The current release is **2.0.0**. The installation examples below use this version.
+The current release is **2.0.1**. The installation examples below use this version.
 For an existing site, follow the [upgrade guide](docs/migration-2.0.md).
 
 ## Features
@@ -35,8 +35,8 @@ For an existing site, follow the [upgrade guide](docs/migration-2.0.md).
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.0
-dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.1
+dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -47,7 +47,7 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 2.0.0`
+Existing applications can use `dotnet add package LithoSharp --version 2.0.1`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -92,9 +92,9 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 - [Testing](docs/testing.md), [HTML/CSS contract](docs/layout-css-contract.md),
   [compatibility contract](docs/compatibility-contract.md)
 
-## Upgrade to 2.0.0
+## Upgrade to 2.0.1
 
-Update the LithoSharp packages, CLI and templates you use together to 2.0.0.
+Update the LithoSharp packages, CLI and templates you use together to 2.0.1.
 Follow the [2.0 upgrade guide](docs/migration-2.0.md), including the breaking
 Testing API change from `Document` to `Snapshot`. Rebuild your site and check
 content warnings, links and custom CSS. MDX remains optional; see the

@@ -2,15 +2,15 @@
 
 [日本語](distribution.ja.md)
 
-LithoSharp 2.0.0 is available on NuGet. The VS Code extension has a separate release channel and uses the Marketplace identity `htkym.lithosharp`.
+LithoSharp 2.0.1 is available on NuGet. The VS Code extension has a separate release channel and uses the Marketplace identity `htkym.lithosharp`.
 
 ## NuGet packages
 
-Use matching 2.0.0 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.0.0. The tool and templates are separate packages.
+Use matching 2.0.1 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.0.1. The tool and templates are separate packages.
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.0
-dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.1
+dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
 ```
 
 See the [Quick Start](quickstart.md) to create and serve a site, and [2.0 upgrade notes](migration-2.0.md) before updating an existing project.

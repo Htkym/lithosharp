@@ -4,7 +4,7 @@
 
 ## Preflight
 
-The preflight commands below are available in the 2.0.0 development candidate. They are not included in the published 1.1.0 Tool. Install the exact reviewed candidate Tool package from its candidate feed and use matching candidate Core/MDX packages for trusted project validation.
+The preflight commands below are available in LithoSharp.Tool 2.0.1. Install this version from NuGet and use matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -47,7 +47,7 @@ Testing migration is a static report over explicit source and isolated legacy me
 lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1/LithoSharp.Testing.dll --reference /isolated/1.1/AngleSharp.dll --format json
 ```
 
-The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/feature/2.0.0/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
+The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/v2.0.1/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
 
 See the [CLI guide](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md) for
 factory examples, output behavior, development server limitations and deployment support.

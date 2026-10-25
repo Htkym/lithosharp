@@ -2,14 +2,14 @@
 
 [English](golden-path.md)
 
-導入からserveまでの対応経路は5つである。各手順で依存restoreとbuildの実行
-境界を明示する。以下はNuGet 2.0.0を使う手順である。既存サイトを更新する場合は[2.0への移行案内](migration-2.0.ja.md)を参照する。
+導入からserveまでの対応経路は5つである。各手順で依存関係のrestoreとbuildの実行
+境界を明示する。以下はNuGet 2.0.1を使う手順である。既存サイトを更新する場合は[2.0への移行案内](migration-2.0.ja.md)を参照する。
 
 ## 1. Markdown-onlyのsite
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.0
-dotnet tool install LithoSharp.Tool --version 2.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.0.1
+dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -55,7 +55,7 @@ cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを�
 code --install-extension htkym.lithosharp
 ```
 
-同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.0.0を用意する。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行する。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要である。未信頼のワークスペースでは検出だけが動作する。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照。
+同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.0.1を用意する。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行する。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要である。未信頼のワークスペースでは検出だけが動作する。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照。
 
 ## 5. multi-rootのworkspace
 

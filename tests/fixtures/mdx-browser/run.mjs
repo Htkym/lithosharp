@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
 const browser = await chromium.launch();
 try {
-  for (const file of ['check.js', 'optional.js', 'analytics.js', 'failures.js']) {
+  for (const file of ['check.js', 'optional.js', 'analytics.js', 'failures.js', 'lifecycle.js']) {
     const context = await browser.newContext();
     try {
       const page = await context.newPage();
