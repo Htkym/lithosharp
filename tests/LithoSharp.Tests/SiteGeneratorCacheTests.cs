@@ -110,7 +110,7 @@ public sealed class SiteGeneratorCacheTests
             release.Wait();
             return context.RenderDocument(entry.Body);
         });
-        var building = new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, clean: false,
+        var building = Task.Factory.StartNew(() => new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, clean: false,
             new SiteCustomization { Template = new BlogSiteTemplate() },
             new SiteGenerationOptions
             {
@@ -118,24 +118,44 @@ public sealed class SiteGeneratorCacheTests
                 BuildTimestamp = FixedBuildTimestamp,
                 PreviousBuildPlan = first.BuildPlan,
             },
-            CancellationToken.None);
+            CancellationToken.None), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
         var clearStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<LithoSharp.Build.SiteBuildCacheUsage>? clearing = null;
         Exception? failure = null;
         var phase = "renderer-entry";
+
+        static Task WaitForSignalAsync(Task signal, string message)
+        {
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            return Task.Factory.StartNew(() =>
+            {
+                var remaining = TimeSpan.FromSeconds(5) - System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                if (remaining <= TimeSpan.Zero || !signal.Wait(remaining)) throw new TimeoutException(message);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
         try
         {
-            try { await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (TimeoutException exception) { workspace.Snapshot("entered-timeout", building, failure: exception); throw; }
-            // ClearCache blocks synchronously; its startup must not compete with
-            // the blocked renderer and other parallel tests for a pool worker.
+            try { await WaitForSignalAsync(entered.Task, "The renderer did not signal entry within five seconds."); }
+            catch (TimeoutException exception)
+            {
+                workspace.Snapshot("entered-timeout", building, failure: exception,
+                    entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
+                throw;
+            }
+            workspace.Snapshot("renderer-entry-confirmed", building,
+                entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
+            // Decide signal timeouts on dedicated workers, without a queued
+            // completion relay competing with the timeout.
             phase = "clear-start";
             clearing = Task.Factory.StartNew(() =>
             {
                 clearStarted.TrySetResult();
                 return SiteGenerator.ClearCache(output);
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-            await clearStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitForSignalAsync(clearStarted.Task, "Cache clearing did not signal startup within five seconds.");
+            workspace.Snapshot("clear-start-confirmed", building, clearing,
+                entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
             phase = "clear-pending-assert";
             await Task.Delay(100);
             await Assert.That(clearing.IsCompleted).IsFalse();
@@ -143,22 +163,27 @@ public sealed class SiteGeneratorCacheTests
         catch (Exception exception)
         {
             failure = exception;
-            workspace.Snapshot(phase + "-failed", building, clearing, exception);
+            workspace.Snapshot(phase + "-failed", building, clearing, exception,
+                entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
         }
         finally
         {
-            workspace.Snapshot("before-release", building, clearing);
+            workspace.Snapshot("before-release", building, clearing,
+                entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
             release.Set();
-            workspace.Snapshot("after-release", building, clearing);
+            workspace.Snapshot("after-release", building, clearing,
+                entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
             try
             {
                 await Task.WhenAll(building, (Task?)clearing ?? Task.CompletedTask).WaitAsync(TimeSpan.FromSeconds(5));
                 workspace.BuildResult(building);
-                workspace.Snapshot("join-completed", building, clearing);
+                workspace.Snapshot("join-completed", building, clearing,
+                    entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
             }
             catch (Exception cleanup)
             {
-                workspace.Snapshot(cleanup is TimeoutException ? "join-timeout" : "join-fault", building, clearing, cleanup);
+                workspace.Snapshot(cleanup is TimeoutException ? "join-timeout" : "join-fault", building, clearing, cleanup,
+                    entrySignalStatus: entered.Task.Status.ToString(), clearSignalStatus: clearStarted.Task.Status.ToString());
                 if (failure is not null) throw new AggregateException("Assertion and owned fixture cleanup failed.", failure, cleanup);
                 throw;
             }

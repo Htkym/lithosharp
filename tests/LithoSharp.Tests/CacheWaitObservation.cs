@@ -59,7 +59,8 @@ internal sealed class CacheWaitObservation : IDisposable
         if (_recordPath is not null) Interlocked.CompareExchange(ref _rendererExited, Stopwatch.GetTimestamp(), 0);
     }
 
-    internal void Snapshot(string phase, Task building, Task? clearing = null, Exception? failure = null)
+    internal void Snapshot(string phase, Task building, Task? clearing = null, Exception? failure = null,
+        string? entrySignalStatus = null, string? clearSignalStatus = null)
     {
         if (_recordPath is null) return;
         _snapshots.Add(new
@@ -68,6 +69,7 @@ internal sealed class CacheWaitObservation : IDisposable
             clearingCaptured = _observeDisposal || clearing is not null,
             clearing = _observeDisposal || clearing is not null ? State(clearing) : null,
             rendererEntered = Volatile.Read(ref _rendererEntered), rendererExited = Volatile.Read(ref _rendererExited),
+            entrySignalStatus, clearSignalStatus,
             failure = failure?.ToString()
         });
     }
