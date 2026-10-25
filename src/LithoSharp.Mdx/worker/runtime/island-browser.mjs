@@ -20,7 +20,10 @@ export function registerIsland(descriptor, context) {
       hydrationStarts.set(descriptor.id, performance.now());
       state.clearTiming = () => hydrationStarts.delete(descriptor.id);
       state.root = hydrateRoot(element, React.createElement(HydrationProbe, {id: descriptor.id}, React.createElement(PageContext.Provider, {value: context}, React.createElement(component, JSON.parse(element.dataset.islandProps)))), {
-        identifierPrefix: descriptor.id + '-', onRecoverableError(error) { document.dispatchEvent(new CustomEvent('lithosharp:hydration-error', {detail: {id: descriptor.id, message: String(error)}})); }
+        identifierPrefix: descriptor.id + '-', onRecoverableError(error) {
+          if (generation !== epoch) return;
+          document.dispatchEvent(new CustomEvent('lithosharp:hydration-error', {detail: {id: descriptor.id, message: String(error)}}));
+        }
       });
       document.dispatchEvent(new CustomEvent('lithosharp:island-hydrated', {detail: {id: descriptor.id, milliseconds: performance.now() - start}}));
     } catch (error) {

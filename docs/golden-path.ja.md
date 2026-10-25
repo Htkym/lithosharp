@@ -2,7 +2,7 @@
 
 [English](golden-path.md)
 
-導入からserveまでの対応経路は5つである。各手順で依存restoreとbuildの実行
+導入からserveまでの対応経路は5つである。各手順で依存関係のrestoreとbuildの実行
 境界を明示する。以下はNuGet 2.0.1を使う手順である。既存サイトを更新する場合は[2.0への移行案内](migration-2.0.ja.md)を参照する。
 
 ## 1. Markdown-onlyのsite

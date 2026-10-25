@@ -4,11 +4,11 @@
 
 この案内は既存サイトを2.0.1へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.0.1を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.2.0がMarketplaceへ公開されるわけではありません。
 
-0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時の版に向けた手順を残しています。この案内の更新先は2.0.1です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
+0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.0.1です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-正式版では、利用するLithoSharpパッケージをすべて2.0.1にそろえます。
+正式版では利用するLithoSharpパッケージをすべて2.0.1にそろえます。
 
 候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.0.0-ci.…`や`2.0.0-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.0.1`を区別してください。
 
@@ -30,11 +30,11 @@ document.AssertText("h1", "Home");
 
 `QuerySelector`は`Snapshot.Query`、`QuerySelectorAll`は`Snapshot.QueryAll`へ移します。DOMの変更、第三者型へのcast、独自の拡張メソッドは単純な置換では移行できません。元のHTMLや描画処理を変更し、必要に応じて解析し直します。対応selector、例外、所有期間は[Testing v2の仕様と移行表](Testing-v2-api.md#migration)を確認してください。ブラウザーの完全なDOM／CSS互換は保証しません。
 
-Toolの`migrate testing --dry-run`は、明示したC# sourceと旧1.1.0 DLLのmetadata参照から利用箇所を報告します。旧DLLを実行せず、projectやsourceを変更せず、利用者の依存packageも削除しません。`ReadCandidate`のpreviewも確認が必要であり、`Manual`と`Unknown`は自動変換しません。[実行例と報告形式](Testing-v2-api.md#migration)を参照してください。
+Toolの`migrate testing --dry-run`は明示したC# sourceと旧1.1.0 DLLのmetadata参照から利用箇所を報告します。旧DLLを実行せず、projectやsourceを変更せず、利用者の依存packageも削除しません。`ReadCandidate`のpreviewも確認が必要であり、`Manual`と`Unknown`は自動変換しません。[実行例と報告形式](Testing-v2-api.md#migration)を参照してください。
 
 ## HTML・資産・診断
 
-HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範囲と予算を持つ共通の解析コードを使います。未対応のHTMLや不完全な解析を、完全な検査結果として扱いません。[サイト品質の設定](site-quality.md)では、最終HTMLの検査を`SiteGenerationOptions.Quality`で有効にできます。
+HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範囲と予算を持つ共通の解析コードを使います。未対応のHTMLや不完全な解析を、完全な検査結果として扱いません。[サイト品質の設定](site-quality.md)では最終HTMLの検査を`SiteGenerationOptions.Quality`で有効にできます。
 
 資産の登録・変換・描画では同じ宣言オブジェクトを使います。`Assets`、`AssetTransforms`、`PublicDirectory`の利用例とパスの制約は[資産と画像](assets-and-images.ja.md)を参照してください。生成の`MaxDegreeOfParallelism`は1以上で、既定値は1です。登録済みの生成呼び出しに対する確定した不正値は、Analyzerの`LSA1005`でも検査します。
 

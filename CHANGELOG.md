@@ -6,6 +6,7 @@
 
 - Reduce temporary allocations during HTML escaping and tight-list rendering while preserving generated HTML, line endings and public APIs.
 - Rendering time depends on content; some complex mixed-syntax inputs may render more slowly.
+- Keep hydration errors from MDX islands retired by navigation out of current-page diagnostics while preserving active mismatch reporting. Browser asset fingerprints change; regenerate MDX sites after upgrading.
 
 ## 2.0.0
 
