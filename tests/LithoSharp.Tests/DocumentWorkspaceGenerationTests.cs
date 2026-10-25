@@ -104,26 +104,201 @@ public sealed class DocumentWorkspaceGenerationTests
     [Test]
     public async Task CancelledVersionedInspectKeepsPriorSnapshot()
     {
-        await using var workspace = new DocumentWorkspace();
-        await workspace.InspectVersionedAsync("docs/c.md", SampleA, documentVersion: 1, projectGeneration: 1);
-
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var armed = 0;
+        var gateCount = 0;
+        var gateTimedOut = 0;
+        long gateEnteredAt = 0, gateReleasedAt = 0, tokenObservedAt = 0;
+        long waitStartedAt = 0, cancelStartedAt = 0, cancelReturnedAt = 0, outcomeAt = 0;
+        var incompleteAtGate = false;
+        var priorFoundAtGate = false;
+        var samePriorAtGate = false;
+        var requestedBeforeRelease = false;
         var canceled = false;
+        var tokenAtOutcome = false;
+        var exceptionTokenIsCaller = false;
+        var snapshotFound = false;
+        var samePriorAfter = false;
+        var followupFound = false;
+        var sameFollowup = false;
+        string? priorTitle = null, snapshotTitle = null, followupTitle = null;
+        var slotsBefore = -1;
+        var slotsAfterCancel = -1;
+        var slotsAfterFollowup = -1;
+        var outcome = "not-started";
+        var drained = false;
+        Exception? failure = null, drainFailure = null;
+        var cleanupFailures = new List<string>();
+        Task<DocumentInfo>? pending = null;
+        DocumentWorkspace? workspace = null;
+        CancellationTokenSource? source = null;
+        var callerToken = CancellationToken.None;
+        CancellationTokenRegistration registration = default;
+
+        static long Stamp() => System.Diagnostics.Stopwatch.GetTimestamp();
+        static string? Describe(Exception? error)
+        {
+            if (error is null) return null;
+            var text = error.ToString();
+            return text.Length <= 2048 ? text : text[..2048];
+        }
+        async Task DrainAsync()
+        {
+            var owned = pending;
+            if (owned is null || drained) return;
+            try
+            {
+                await owned;
+                outcome = "completed";
+            }
+            catch (OperationCanceledException exception)
+            {
+                canceled = true;
+                outcome = "canceled";
+                exceptionTokenIsCaller = exception.CancellationToken == callerToken;
+            }
+            catch (Exception exception)
+            {
+                outcome = "faulted";
+                drainFailure = exception;
+                failure ??= exception;
+            }
+            finally
+            {
+                outcomeAt = Stamp();
+                tokenAtOutcome = callerToken.IsCancellationRequested;
+                drained = true;
+            }
+        }
+
         try
         {
-            using var source = new CancellationTokenSource();
-            var pending = workspace.InspectVersionedAsync("docs/c.md", BigText(200000), documentVersion: 2, projectGeneration: 1, cancellationToken: source.Token);
-            source.CancelAfter(TimeSpan.FromMilliseconds(200));
-            await pending;
-        }
-        catch (OperationCanceledException)
-        {
-            canceled = true;
-        }
+            source = new CancellationTokenSource();
+            callerToken = source.Token;
+            registration = callerToken.Register(() =>
+            {
+                Interlocked.CompareExchange(ref tokenObservedAt, Stamp(), 0);
+            });
+            workspace = new DocumentWorkspace(() =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 0) return;
+                Interlocked.Increment(ref gateCount);
+                Interlocked.Exchange(ref gateEnteredAt, Stamp());
+                ready.TrySetResult();
+                if (!release.Task.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    Interlocked.Exchange(ref gateTimedOut, 1);
+                    throw new TimeoutException("The prepublication fixture gate was not released.");
+                }
+                Interlocked.Exchange(ref gateReleasedAt, Stamp());
+            });
+            var prior = await workspace.InspectVersionedAsync("docs/c.md", SampleA, documentVersion: 1, projectGeneration: 1);
+            priorTitle = prior.Title;
+            var slots = (SemaphoreSlim)typeof(DocumentWorkspace)
+                .GetField("_analysisSlots", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(workspace)!;
+            slotsBefore = slots.CurrentCount;
+            Interlocked.Exchange(ref armed, 1);
+            pending = Task.Run(() => workspace.InspectVersionedAsync("docs/c.md", EditText(2),
+                documentVersion: 2, projectGeneration: 1, cancellationToken: callerToken), CancellationToken.None);
+            try
+            {
+                waitStartedAt = Stamp();
+                await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                incompleteAtGate = !pending.IsCompleted;
+                priorFoundAtGate = workspace.TryGet("docs/c.md", out var atGate);
+                samePriorAtGate = ReferenceEquals(prior, atGate);
+                cancelStartedAt = Stamp();
+                source.Cancel();
+                cancelReturnedAt = Stamp();
+                requestedBeforeRelease = callerToken.IsCancellationRequested;
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            finally
+            {
+                release.TrySetResult();
+                await DrainAsync();
+            }
 
-        await Assert.That(canceled).IsTrue();
-        var found = workspace.TryGet("docs/c.md", out var kept);
-        await Assert.That(found).IsTrue();
-        await Assert.That(kept!.Title).IsEqualTo("Alpha");
+            snapshotFound = workspace.TryGet("docs/c.md", out var kept);
+            snapshotTitle = kept?.Title;
+            samePriorAfter = ReferenceEquals(prior, kept);
+            slotsAfterCancel = slots.CurrentCount;
+            if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            await Assert.That(incompleteAtGate).IsTrue();
+            await Assert.That(priorFoundAtGate).IsTrue();
+            await Assert.That(samePriorAtGate).IsTrue();
+            await Assert.That(requestedBeforeRelease).IsTrue();
+            await Assert.That(gateCount).IsEqualTo(1);
+            await Assert.That(canceled).IsTrue();
+            await Assert.That(snapshotFound).IsTrue();
+            await Assert.That(kept!.Title).IsEqualTo("Alpha");
+            await Assert.That(samePriorAfter).IsTrue();
+            await Assert.That(slotsBefore).IsEqualTo(2);
+            await Assert.That(slotsAfterCancel).IsEqualTo(slotsBefore);
+            var next = await workspace.InspectVersionedAsync("docs/c.md", EditText(3), documentVersion: 3, projectGeneration: 1);
+            followupTitle = next.Title;
+            slotsAfterFollowup = slots.CurrentCount;
+            followupFound = workspace.TryGet("docs/c.md", out var latest);
+            sameFollowup = ReferenceEquals(next, latest);
+            await Assert.That(next.Title).IsEqualTo("Heading 3");
+            await Assert.That(followupFound).IsTrue();
+            await Assert.That(sameFollowup).IsTrue();
+            await Assert.That(slotsAfterFollowup).IsEqualTo(slotsBefore);
+        }
+        catch (Exception exception)
+        {
+            failure ??= exception;
+        }
+        finally
+        {
+            release.TrySetResult();
+            await DrainAsync();
+            try { if (workspace is not null) await workspace.DisposeAsync(); }
+            catch (Exception exception) { cleanupFailures.Add(Describe(exception)!); failure ??= exception; }
+            try { registration.Dispose(); }
+            catch (Exception exception) { cleanupFailures.Add(Describe(exception)!); failure ??= exception; }
+            try { source?.Dispose(); }
+            catch (Exception exception) { cleanupFailures.Add(Describe(exception)!); failure ??= exception; }
+            try
+            {
+                var diagnostic = new
+                {
+                    schema = "workspace-cancellation/1", test = nameof(CancelledVersionedInspectKeepsPriorSnapshot),
+                    processId = Environment.ProcessId, frequency = System.Diagnostics.Stopwatch.Frequency,
+                    gateCount, gateTimedOut, gateEnteredAt = Volatile.Read(ref gateEnteredAt),
+                    gateReleasedAt = Volatile.Read(ref gateReleasedAt), waitStartedAt,
+                    readyStatus = ready.Task.Status.ToString(), releaseStatus = release.Task.Status.ToString(),
+                    incompleteAtGate, priorFoundAtGate, samePriorAtGate, cancelStartedAt, cancelReturnedAt,
+                    tokenObservedAt = Volatile.Read(ref tokenObservedAt), requestedBeforeRelease,
+                    outcome, outcomeAt, tokenAtOutcome, exceptionTokenIsCaller, drained,
+                    pendingStatus = pending?.Status.ToString(), snapshotFound, priorTitle, snapshotTitle, samePriorAfter,
+                    followupTitle, followupFound, sameFollowup, slotsBefore, slotsAfterCancel, slotsAfterFollowup,
+                    failure = Describe(failure), drainFailure = Describe(drainFailure), cleanupFailures
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(diagnostic);
+                Console.WriteLine(json);
+                var output = Environment.GetEnvironmentVariable("LITHOSHARP_WORKSPACE_CANCELLATION_OUTPUT");
+                if (!string.IsNullOrWhiteSpace(output))
+                {
+                    output = Path.GetFullPath(output);
+                    Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                    using var file = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                    using var writer = new StreamWriter(file, new System.Text.UTF8Encoding(false));
+                    writer.WriteLine(json);
+                }
+            }
+            catch (Exception exception)
+            {
+                try { Console.Error.WriteLine("Cancellation observation incomplete: " + exception.Message); }
+                catch (Exception) { }
+            }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Test]

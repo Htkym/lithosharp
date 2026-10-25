@@ -11,9 +11,21 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
     private readonly SemaphoreSlim _analysisSlots = new(2, 2);
     private readonly object _lifetimeLock = new();
     private readonly HashSet<Task> _activeAnalyses = new();
+    private readonly Action? _beforePublication;
     private bool _disposed;
 
     public string Id { get; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>Creates a workspace with its own snapshot cache.</summary>
+    public DocumentWorkspace()
+    {
+    }
+
+    internal DocumentWorkspace(Action beforePublication)
+    {
+        ArgumentNullException.ThrowIfNull(beforePublication);
+        _beforePublication = beforePublication;
+    }
 
     private sealed class DocumentEntry
     {
@@ -123,6 +135,7 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
                     }
                 }
 
+                _beforePublication?.Invoke();
                 cancellationToken.ThrowIfCancellationRequested();
                 lock (_lifetimeLock)
                 {
