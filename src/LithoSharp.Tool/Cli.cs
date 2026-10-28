@@ -21,6 +21,7 @@ internal static class Cli
         }
         if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
         if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
+        if (args[0] == "check-output") return await CheckOutputCommand.RunAsync(args[1..], cancellationToken);
         if (args[0] == "cache") return CacheCommand.Run(args[1..]);
         if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
         if (args[0] == "preflight") return await PreflightCommand.RunAsync(args[1..], cancellationToken);
@@ -211,7 +212,8 @@ internal static class Cli
           lithosharp migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] [--source-version version] [--source-base-path path] [--compare-normalized-pages] (exit 0 done, 1 failure, 3 unconvertible)
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
-          lithosharp check [project] [--format text|json|sarif] [-c configuration]
+          lithosharp check [project] [--format text|json|sarif] [-c configuration] (regenerates into temporary output)
+          lithosharp check-output -o directory --base-url url [--format text|json|sarif] (reads existing output; no generation or cache writes)
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
           lithosharp preflight --mode static --input file.md [--input file.mdx] [--format text|json|sarif] [--worker-directory directory]

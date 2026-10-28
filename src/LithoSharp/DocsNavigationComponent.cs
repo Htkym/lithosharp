@@ -9,7 +9,11 @@ namespace LithoSharp;
 public sealed record DocsNavigationComponentProps(
     SiteTemplateNavigationNode Root,
     IReadOnlyList<NavigationLink> AdditionalLinks,
-    SiteUrl? CurrentUrl = null);
+    SiteUrl? CurrentUrl = null)
+{
+    /// <summary>Uses native disclosure controls for topics and initially opens the current page's ancestors.</summary>
+    public bool CollapseTopics { get; init; }
+}
 
 /// <summary>Renders the documentation sidebar using the built-in CSS and script contract.</summary>
 public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationComponentProps>
@@ -29,17 +33,17 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
             ArgumentNullException.ThrowIfNull(link.Url);
         }
         return Html.UnsafeRaw(RenderCore(props.Root,
-            props.AdditionalLinks.Select(link => (link.Label, link.Url.Value, link.IsCurrent)), props.CurrentUrl?.Value));
+            props.AdditionalLinks.Select(link => (link.Label, link.Url.Value, link.IsCurrent)), props.CurrentUrl?.Value, props.CollapseTopics));
     }
 
     internal static string RenderCore(SiteTemplateNavigationNode root,
-        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl)
+        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false)
     {
         var body = new StringBuilder();
         body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
         body.AppendLine("<nav aria-label=\"Documentation navigation\">");
         body.AppendLine("<ul class=\"docs-nav-list\">");
-        AppendNodes(body, root, currentUrl);
+        AppendNodes(body, root, currentUrl, collapseTopics);
         foreach (var link in additionalLinks)
         {
             body.Append("<li>");
@@ -52,7 +56,7 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
         return body.ToString();
     }
 
-    private static void AppendNodes(StringBuilder body, SiteTemplateNavigationNode parent, string? currentUrl)
+    private static void AppendNodes(StringBuilder body, SiteTemplateNavigationNode parent, string? currentUrl, bool collapseTopics)
     {
         foreach (var node in parent.Children)
         {
@@ -65,20 +69,34 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
                 continue;
             }
 
-            var folderClass = ContainsUrl(node, currentUrl) ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
+            var containsCurrent = ContainsUrl(node, currentUrl);
+            var folderClass = containsCurrent ? "docs-nav-folder is-ancestor" : "docs-nav-folder";
             body.AppendLine($"<li class=\"{folderClass}\">");
+            var collapsible = collapseTopics && node.Children.Count > 0;
+            if (collapsible)
+            {
+                body.AppendLine($"<details class=\"docs-nav-topic\"{(containsCurrent ? " open" : string.Empty)}>");
+                body.AppendLine($"<summary>{Html.Encode(node.Label)}</summary>");
+            }
             if (node.Page is not null)
             {
                 AppendLink(body, node.Label, node.Page.Url, isCurrent);
                 body.AppendLine();
             }
-            else
+            else if (!collapsible)
             {
                 body.AppendLine($"<span>{Html.Encode(node.Label)}</span>");
             }
             body.AppendLine("<ul>");
-            AppendNodes(body, node, currentUrl);
-            body.AppendLine("</ul></li>");
+            AppendNodes(body, node, currentUrl, collapseTopics);
+            if (collapsible)
+            {
+                body.AppendLine("</ul></details></li>");
+            }
+            else
+            {
+                body.AppendLine("</ul></li>");
+            }
         }
     }
 

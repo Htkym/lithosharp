@@ -79,7 +79,7 @@ public sealed class SiteTemplateContext
 
     public AssetRegistry Assets { get; }
 
-    internal SiteTemplateResult RenderDocsTemplate(bool enableSearch = false) => _generator.RenderDocsTemplate(this, enableSearch);
+    internal SiteTemplateResult RenderDocsTemplate(DocsSiteTemplate template) => _generator.RenderDocsTemplate(this, template);
 
     internal SiteTemplateResult RenderBlogTemplate() => _generator.RenderBlogTemplate(this);
 

@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # The v2 feature candidate must not advertise the removed Testing API as 1.x.
-      LITHOSHARP_CANDIDATE_VERSION: ${{ format('2.0.0-ci.{0}', github.run_id) }}
+      LITHOSHARP_CANDIDATE_VERSION: ${{ format('2.1.0-ci.{0}', github.run_id) }}
       LITHOSHARP_BASELINE_VERSION: '1.1.0'
 
     steps:

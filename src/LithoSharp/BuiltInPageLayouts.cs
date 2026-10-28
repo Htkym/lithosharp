@@ -52,7 +52,7 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
               <main id="blog-main" tabindex="-1">
             {body}
               </main>
-              {FooterComponent.RenderCore(configuration.Site.Title, docs: false)}
+              {FooterComponent.RenderCore(configuration.Site.Title, docs: false, configuration.Footer)}
             </body>
             </html>
             """;
@@ -111,7 +111,10 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
             {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true, metadata, head, includeDefaultScript)}
             <body class="docs-body">
               <a class="docs-skip-link" href="#docs-main">Skip to main content</a>
-              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching)}
+              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching, configuration.DocsTemplate?.EnableHeaderSearch == true ? configuration.Text : null,
+                  configuration.DocsTemplate?.EnableHeaderSearch == true && relativePath != configuration.Routes.SearchPage.RelativeOutputPath
+                    ? SearchFormComponent.RenderCore(configuration, configuration.Routes.PublicPath(configuration.Routes.SearchPage), includeInputId: false)
+                    : string.Empty)}
               <div class="docs-shell">
                 {sidebar ?? string.Empty}
                 <main id="docs-main" class="docs-main" tabindex="-1">
@@ -121,7 +124,7 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
                 </main>
                 {tableOfContents ?? string.Empty}
               </div>
-              {FooterComponent.RenderCore(configuration.Site.Title, docs: true)}
+              {FooterComponent.RenderCore(configuration.Site.Title, docs: true, configuration.Footer)}
             </body>
             </html>
             """;

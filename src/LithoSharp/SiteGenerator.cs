@@ -120,6 +120,8 @@ public sealed partial class SiteGenerator
         /// <summary>Build cancellation, honored by post analysis and parse-cache IO.</summary>
         public CancellationToken Cancellation { get; init; }
         internal BuildHtmlFacts? HtmlFacts { get; init; }
+        internal SiteFooterOptions? Footer { get; init; }
+        internal DocsSiteTemplate? DocsTemplate { get; init; }
     }
 
     private sealed record PageClaim<TContent>(
@@ -352,6 +354,8 @@ public sealed partial class SiteGenerator
         {
             Cancellation = cancellationToken,
             HtmlFacts = sharedHtmlFacts,
+            Footer = customization.Footer,
+            DocsTemplate = template as DocsSiteTemplate,
         };
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
@@ -520,6 +524,16 @@ public sealed partial class SiteGenerator
         var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
         {
             IEnumerable<BuildInput> inputs = node.Inputs;
+            if (node.Artifacts.Any(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
+            {
+                inputs = inputs.Append(BuildInput.FromConfiguration("customization.footer", JsonSerializer.Serialize(customization.Footer)))
+                    .Append(BuildInput.FromConfiguration("template.docs", JsonSerializer.Serialize(configuration.DocsTemplate)));
+                if (configuration.DocsTemplate?.EnableHeaderSearch == true)
+                    inputs = inputs.Append(BuildInput.FromConfiguration("text.docsHeader", JsonSerializer.Serialize(customization.Text)));
+                if (node.Id.Value == "page:index" && configuration.DocsTemplate?.ShowTopicCards == true)
+                    inputs = inputs.Append(BuildInput.FromCollection("docs.topicSummaries",
+                        JsonSerializer.Serialize(publishedPosts.Select(post => post.FrontMatter.Summary))));
+            }
             if (node.Id.Value.StartsWith("social:", StringComparison.Ordinal))
                 inputs = inputs.Append(socialImplementation is null
                     ? BuildInput.FromValue("social.cachePolicy", "always-rebuild")
@@ -1289,9 +1303,10 @@ public sealed partial class SiteGenerator
         return new SiteTemplateResult(files);
     }
 
-    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext, bool enableSearch = false)
+    internal SiteTemplateResult RenderDocsTemplate(SiteTemplateContext templateContext, DocsSiteTemplate template)
     {
-        var configuration = templateContext.Configuration;
+        var configuration = templateContext.Configuration with { DocsTemplate = template };
+        var enableSearch = template.SearchEnabled;
         var root = BuildDocsNavigation(templateContext.Posts);
         var orderedPosts = FlattenDocsNavigation(root).ToArray();
         var files = new List<SiteTemplateFile>
@@ -1654,18 +1669,22 @@ public sealed partial class SiteGenerator
         IReadOnlyList<MarkdownPost> orderedPosts, bool enableSearch = false)
     {
         var body = new StringBuilder();
-        body.AppendLine("<section class=\"docs-hero\">");
+        body.AppendLine(configuration.DocsTemplate?.CompactHome == true
+            ? "<section class=\"docs-hero docs-hero-compact\">"
+            : "<section class=\"docs-hero\">");
         body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
         body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
         if (enableSearch) body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
-        if (orderedPosts.Count > 0)
+        if (orderedPosts.Count > 0 && configuration.DocsTemplate?.ShowStartLink != false)
         {
             var first = orderedPosts[0];
             body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(first)))}\">Start reading</a></p>");
         }
 
         body.AppendLine("</section>");
+        if (configuration.DocsTemplate?.ShowTopicCards == true)
+            body.AppendLine(DocsTopicCardsComponent.RenderCore(root));
         return DocsLayout(configuration, root, configuration.Site.Title, body.ToString(), "index.html", "index.html", null);
     }
 
@@ -1732,7 +1751,7 @@ public sealed partial class SiteGenerator
         var currentUrl = string.IsNullOrWhiteSpace(currentPagePath)
             ? null
             : configuration.Routes.PublicPath(configuration.Routes.File(currentPagePath));
-        return DocsNavigationComponent.RenderCore(root, links, currentUrl);
+        return DocsNavigationComponent.RenderCore(root, links, currentUrl, configuration.DocsTemplate?.CollapseTopics == true);
     }
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
         Layout(configuration, page.Title, page.BodyHtml, page.RelativePath);
@@ -5128,8 +5147,8 @@ public sealed partial class SiteGenerator
           }
           .docs-sidebar {
             position: sticky;
-            inset-block-start: 5.75rem;
-            max-block-size: calc(100svh - 7rem);
+            inset-block-start: calc(var(--docs-header-height, 4.25rem) + 1.5rem);
+            max-block-size: calc(100svh - var(--docs-header-height, 4.25rem) - 2.75rem);
             overflow-y: auto;
             padding-inline-end: 1rem;
             border-inline-end: 1px solid var(--border);
@@ -5158,7 +5177,7 @@ public sealed partial class SiteGenerator
           .docs-content { overflow-wrap: anywhere; }
           .docs-content :where(h1, h2, h3, h4, h5, h6) {
             color: var(--text);
-            scroll-margin-block-start: 6rem;
+            scroll-margin-block-start: calc(var(--docs-header-height, 4.25rem) + 1.75rem);
           }
           .docs-content :where(img, video) { max-inline-size: 100%; height: auto; }
           .docs-content table { display: block; overflow-x: auto; border-collapse: collapse; }
@@ -5173,6 +5192,23 @@ public sealed partial class SiteGenerator
           .docs-body #search-input { background: var(--panel); color: var(--text); }
           .docs-body .card :where(a, mark) { color: var(--text); }
           .docs-header-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+          .docs-header-with-search { flex-wrap: wrap; position: static; }
+          .docs-header-with-search .docs-brand { min-inline-size: 0; overflow-wrap: anywhere; }
+          .docs-enhanced .docs-header-with-search { position: sticky; }
+          .docs-header-with-search .docs-header-actions {
+            flex: 1 1 18rem;
+            min-inline-size: 0;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+          .docs-header .site-header-search { flex: 1 1 12rem; min-inline-size: 0; }
+          .docs-nav-topic > summary { cursor: pointer; padding: 0.5rem 0.75rem; overflow-wrap: anywhere; }
+          .docs-nav-topic[open] > summary { color: var(--accent); }
+          .docs-hero.docs-hero-compact { padding: 1rem; }
+          .docs-hero.docs-hero-compact h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+          .docs-topic-cards { display: grid; gap: 1rem; margin-block-start: 2rem; }
+          .docs-topic-card { min-inline-size: 0; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); }
+          .docs-content .docs-topic-card h2 { margin-block: 0 0.5rem; padding: 0; border: 0; }
           .docs-brand {
             display: inline-flex;
             align-items: center;
@@ -5329,7 +5365,7 @@ public sealed partial class SiteGenerator
           }
           .docs-toc.post-toc {
             position: sticky;
-            inset-block-start: 5.75rem;
+            inset-block-start: calc(var(--docs-header-height, 4.25rem) + 1.5rem);
             font-size: 0.875rem;
             border-inline-start: 1px solid var(--border);
             padding-inline-start: 1rem;
@@ -5385,7 +5421,7 @@ public sealed partial class SiteGenerator
           }
           .docs-body.docs-enhanced .docs-sidebar {
             position: fixed;
-            inset-block: 4.25rem 0;
+            inset-block: var(--docs-header-height, 4.25rem) 0;
             inset-inline-start: 0;
             z-index: 15;
             inline-size: min(19rem, 85vw);
@@ -5441,6 +5477,12 @@ public sealed partial class SiteGenerator
             return;
           }
           document.body.classList.add("docs-enhanced");
+          const header = document.querySelector(".docs-header-with-search");
+          if (header) {
+            const updateHeaderHeight = () => document.body.style.setProperty("--docs-header-height", `${header.getBoundingClientRect().height}px`);
+            updateHeaderHeight();
+            new ResizeObserver(updateHeaderHeight).observe(header);
+          }
 
           const setOpen = (isOpen) => {
             toggle.setAttribute("aria-expanded", String(isOpen));
@@ -5652,6 +5694,8 @@ public sealed partial class SiteGenerator
             stroke-linejoin: round;
           }
 
+          .site-footer-additional { overflow-wrap: anywhere; }
+          .site-footer-additional ul { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; padding: 0; list-style: none; }
           .visually-hidden {
             position: absolute;
             inline-size: 1px;

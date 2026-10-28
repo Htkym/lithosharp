@@ -2,6 +2,13 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 2.1.0
+
+- Add optional standard-footer plain text and validated links. Text and link labels are HTML-escaped.
+- Add Docs header GET search, collapsible sidebar topics with separate overview links, navigation-derived topic cards, and compact home and start-link settings. Existing defaults and public URLs remain supported.
+- Add `GeneratedSiteInspector.InspectAsync` and `check-output` for fresh, read-only inspection of existing HTML, CSS and local targets. Inspection does not regenerate output or prove that it matches current sources. See [generated-output checks](docs/generated-output-checks.md) for encoding, file-type and platform limits.
+- Document [Docs template settings and migration](docs/docs-template.md), including replacing HTML postprocessing while retaining site notices and links. Regenerate sites to use the new settings and review custom CSS.
+
 ## 2.0.1 — 2026-10-25
 
 - Reduce temporary allocations during HTML escaping and tight-list rendering while preserving generated HTML, line endings and public APIs.

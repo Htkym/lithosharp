@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch();
-const url = new URL('/posts/getting-started/installation.html', process.argv[2] ?? 'http://127.0.0.1:4328').href;
+const base = (process.argv[2] ?? 'http://127.0.0.1:4328/').replace(/\/?$/, '/');
+const url = new URL('posts/getting-started/installation.html', base).href;
 try {
   const page = await browser.newPage();
   for (const colorScheme of ['light', 'dark']) {

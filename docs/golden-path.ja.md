@@ -3,13 +3,13 @@
 [English](golden-path.md)
 
 導入からserveまでの対応経路は5つである。各手順で依存関係のrestoreとbuildの実行
-境界を明示する。以下はNuGet 2.0.1を使う手順である。既存サイトを更新する場合は[2.0への移行案内](migration-2.0.ja.md)を参照する。
+境界を明示する。以下はNuGet 2.1.0を使う手順である。既存サイトを更新する場合は[更新手順](migration-2.0.ja.md)を参照する。
 
 ## 1. Markdown-onlyのsite
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.1
-dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.0
+dotnet tool install LithoSharp.Tool --version 2.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -38,13 +38,14 @@ npm依存を入れるのは`restore-mdx`だけである（package済みlockfile�
 
 ```sh
 dotnet restore MySite -p:NuGetAudit=false
-dotnet build MySite -c Release
-.tools/lithosharp check MySite -c Release --format json
 .tools/lithosharp build MySite -c Release
+.tools/lithosharp check-output --output MySite/dist --base-url https://example.com/guide/ --format json
 ```
 
-`check`は一時出力へ生成して検証し、公開しない。`build`はprojectをcompile
-してから設定出力へ増分生成する。`clean`は所有の未変更成果物だけを消し、
+`build`はprojectをcompileしてから設定出力へ増分生成する。`check-output`は
+その配布対象を読み取り専用で検査する。実際の出力先と公開URLを指定すること。
+現在の原稿との一致は保証しない。`check`は一時出力へ再生成して検証し、公開しない。
+詳しくは[生成済み成果物の検査](generated-output-checks.md)を参照する。`clean`は所有の未変更成果物だけを消し、
 cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを明示回収する。
 
 ## 4. VS Code拡張機能
@@ -55,7 +56,7 @@ cacheは消さない。`cache clean -o <directory>`で1出力の区分だけを�
 code --install-extension htkym.lithosharp
 ```
 
-同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.0.1を用意する。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行する。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要である。未信頼のワークスペースでは検出だけが動作する。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照。
+同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.1.0を用意する。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行する。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要である。未信頼のワークスペースでは検出だけが動作する。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照。
 
 ## 5. multi-rootのworkspace
 

@@ -99,7 +99,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                 navigationNodeId);
         }
 
-        if (template is DocsSiteTemplate { EnableSearch: true })
+        if (template is DocsSiteTemplate { SearchEnabled: true })
         {
             foreach (var (id, route) in new[] { (SearchIndexNodeId, routes.SearchIndex), (SearchScriptNodeId, routes.SearchScript), (SearchPageNodeId, routes.SearchPage), (SitemapNodeId, routes.Sitemap) })
                 AddTextArtifactNode(nodes, filesByPath, id, route,
@@ -152,7 +152,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             owners[routes.Feed.RelativeOutputPath] = FeedNodeId;
             owners[routes.Sitemap.RelativeOutputPath] = SitemapNodeId;
         }
-        else if (template is DocsSiteTemplate { EnableSearch: true })
+        else if (template is DocsSiteTemplate { SearchEnabled: true })
         {
             owners[routes.SearchScript.RelativeOutputPath] = SearchScriptNodeId;
             owners[routes.SearchIndex.RelativeOutputPath] = SearchIndexNodeId;

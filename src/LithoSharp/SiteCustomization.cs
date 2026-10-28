@@ -11,6 +11,9 @@ public sealed record SiteCustomization
     /// <summary>UI text.</summary>
     public SiteText Text { get; init; } = SiteText.English;
 
+    /// <summary>Additional text and links for all standard document footers. Omitted by default.</summary>
+    public SiteFooterOptions? Footer { get; init; }
+
     /// <summary>Theme settings.</summary>
     public SiteThemeOptions Theme { get; init; } = new();
 

@@ -1473,3 +1473,34 @@ static LithoSharp.SiteUrl.FromAbsolute(string! value) -> LithoSharp.SiteUrl!
 static LithoSharp.SiteUrl.FromRoute(LithoSharp.Routing.SiteRoute! route) -> LithoSharp.SiteUrl!
 LithoSharp.SiteThemeOptions.EnableThemeSwitching.get -> bool
 LithoSharp.SiteThemeOptions.EnableThemeSwitching.init -> void
+LithoSharp.DocsNavigationComponentProps.CollapseTopics.get -> bool
+LithoSharp.DocsNavigationComponentProps.CollapseTopics.init -> void
+LithoSharp.DocsSiteTemplate.CollapseTopics.get -> bool
+LithoSharp.DocsSiteTemplate.CollapseTopics.init -> void
+LithoSharp.DocsSiteTemplate.CompactHome.get -> bool
+LithoSharp.DocsSiteTemplate.CompactHome.init -> void
+LithoSharp.DocsSiteTemplate.EnableHeaderSearch.get -> bool
+LithoSharp.DocsSiteTemplate.EnableHeaderSearch.init -> void
+LithoSharp.DocsSiteTemplate.ShowStartLink.get -> bool
+LithoSharp.DocsSiteTemplate.ShowStartLink.init -> void
+LithoSharp.DocsSiteTemplate.ShowTopicCards.get -> bool
+LithoSharp.DocsSiteTemplate.ShowTopicCards.init -> void
+LithoSharp.FooterComponentProps.AdditionalContent.get -> LithoSharp.SiteFooterOptions?
+LithoSharp.FooterComponentProps.AdditionalContent.init -> void
+LithoSharp.SiteCustomization.Footer.get -> LithoSharp.SiteFooterOptions?
+LithoSharp.SiteCustomization.Footer.init -> void
+LithoSharp.SiteFooterOptions
+LithoSharp.SiteFooterOptions.Links.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.NavigationLink!>!
+LithoSharp.SiteFooterOptions.Links.init -> void
+LithoSharp.SiteFooterOptions.Text.get -> string?
+LithoSharp.SiteFooterOptions.Text.init -> void
+LithoSharp.SiteFooterOptions.<Clone>$() -> LithoSharp.SiteFooterOptions!
+LithoSharp.SiteFooterOptions.Equals(LithoSharp.SiteFooterOptions? other) -> bool
+LithoSharp.SiteFooterOptions.SiteFooterOptions() -> void
+override LithoSharp.SiteFooterOptions.Equals(object? obj) -> bool
+override LithoSharp.SiteFooterOptions.GetHashCode() -> int
+override LithoSharp.SiteFooterOptions.ToString() -> string!
+static LithoSharp.SiteFooterOptions.operator !=(LithoSharp.SiteFooterOptions? left, LithoSharp.SiteFooterOptions? right) -> bool
+static LithoSharp.SiteFooterOptions.operator ==(LithoSharp.SiteFooterOptions? left, LithoSharp.SiteFooterOptions? right) -> bool
+LithoSharp.Quality.GeneratedSiteInspector
+static LithoSharp.Quality.GeneratedSiteInspector.InspectAsync(string! outputDirectory, string! baseUrl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Quality.SiteQualityReport!>!
