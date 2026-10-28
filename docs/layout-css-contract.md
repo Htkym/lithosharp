@@ -55,6 +55,18 @@ of navigation semantics.
 `header-search-input` と対応するラベル、GETフィールドの `q`、`type="search"` を維持します。
 ナビゲーションの意味を表す `aria-current="page"`、`rel="prev"`、`rel="next"` も契約に含みます。
 
+The opt-in Docs header search described in [Docs configuration](docs-template.md)
+uses `aria-label` without a fixed input ID and is omitted on the search page.
+Standalone `SearchFormComponent` and the Blog header retain `header-search-input`.
+Additional footer content uses `site-footer-additional`; topic disclosures and
+cards use `docs-nav-topic`, `docs-topic-cards`, and `docs-topic-card`.
+
+[Docsの設定](docs-template.ja.md)で有効にするヘッダー検索は、固定の入力IDを付けずに
+`aria-label`を使い、検索ページには表示しません。単独で使う`SearchFormComponent`とBlogの
+ヘッダーは従来どおり`header-search-input`を使います。追加フッターには
+`site-footer-additional`、トピックの開閉とカードには`docs-nav-topic`、`docs-topic-cards`、
+`docs-topic-card`を使います。
+
 ## Theme switching / テーマ切り替え
 
 Docs and Blog follow the operating system until the reader selects a palette.

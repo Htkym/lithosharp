@@ -72,6 +72,7 @@ CLI の `-o` はシェルの作業ディレクトリを基準にします。
 | `build [project]` | コンパイル後に差分生成する。`--clean` は出力全体を置き換える。 |
 | `serve [project]` | ビルドし、ファイル変更を監視してループバックで配信する。ポートは `--port` で指定する。 |
 | `check [project]` | 一時出力で品質を検証し、設定済みの公開先を変更しない。 |
+| `check-output --output <directory> --base-url <url>` | コンパイルや再生成をせずに生成済みの出力を検査する。[検査対象と制約](generated-output-checks.ja.md)を参照する。 |
 | `clean [project]` | 所有情報を検証し、生成後に変更されていない成果物を削除する。 |
 | `inspect [project]` | サイトを更新し、グラフ、出力パス、所有者、キャッシュのヒットとミスの理由を表示する。 |
 | `restore-mdx <worker>` | MDX worker の固定依存を明示的に復元する。 |

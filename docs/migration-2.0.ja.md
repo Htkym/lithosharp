@@ -1,20 +1,32 @@
-# 2.0.1への更新
+# 2.1.0への更新
 
 [English](migration-2.0.md)
 
-この案内は既存サイトを2.0.1へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.0.1を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.2.0がMarketplaceへ公開されるわけではありません。
+この案内は既存サイトを2.1.0へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.1.0を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.2.0がMarketplaceへ公開されるわけではありません。
 
-0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.0.1です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
+0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.1.0です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-正式版では利用するLithoSharpパッケージをすべて2.0.1にそろえます。
+正式版では利用するLithoSharpパッケージをすべて2.1.0にそろえます。
 
-候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.0.0-ci.…`や`2.0.0-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.0.1`を区別してください。
+候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.1.0-ci.…`や`2.1.0-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.1.0`を区別してください。
 
-templateの既定参照は`2.0.1`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。公開済み1.1.0のToolに、以下のコマンドは含まれません。
+templateの既定参照は`2.1.0`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。公開済み1.1.0のToolに、以下のコマンドは含まれません。
 
 Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedには、その候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々の版に入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。現在の固定pairはNuGetで公開済みのSyntamark 1.0.0です。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
+
+## Docsの設定と生成済み成果物
+
+Docsの追加設定は必要な項目だけを有効にします。標準テンプレートの検索、トピック、
+トップページの設定と、追加の注意書きやリンクを指定する`SiteCustomization.Footer`は、
+[Docsの標準設定](docs-template.md)を参照してください。HTMLの後処理を置き換える場合も、
+サイトに必要な注意書きとリンクは残します。AngleSharpの依存は、ほかの利用コードが
+残っていないことを確認してから削除してください。
+
+配布する成果物を再生成せずに調べるには、`check-output`を使います。毎回現在のファイルを
+読みますが、現在の原稿との一致は保証しません。原稿や設定を変更した場合は再生成が必要です。
+`check`との違い、出力形式、検査範囲は[生成済み成果物の検査](generated-output-checks.md)を参照してください。
 
 ## Testingの非互換変更
 
@@ -40,7 +52,7 @@ HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範�
 
 `LithoSharp.Analyzers`は任意で導入するcompiler packageです。登録済みAPIの確定した誤用、対応するHTML補間contextとliteral URL、検証済みcatalogへの参照を検査します。不存在の確定にはfreshなClosed scopeが必要で、Open／Stale／Unknownや未対応の値を推測しません。診断がないことは、site全体のリンク・anchor・資産が検証済みであることを意味しません。coverage方針の`LSA9001`は明示opt-inです。
 
-生成projectの`LithoSharpVersion`を`2.0.1`に設定し、診断を利用するprojectの`ItemGroup`へ次を追加します。候補feedを使う場合は、実際の候補版を指定してください。
+生成projectの`LithoSharpVersion`を`2.1.0`に設定し、診断を利用するprojectの`ItemGroup`へ次を追加します。候補feedを使う場合は、実際の候補版を指定してください。
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

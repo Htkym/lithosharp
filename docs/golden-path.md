@@ -4,13 +4,13 @@
 
 Five supported routes from install to serving. Each step states where
 dependencies are restored and where builds run; nothing hidden happens.
-The commands below use NuGet 2.0.1. For existing sites, follow the [2.0 upgrade guide](migration-2.0.md).
+The commands below use NuGet 2.1.0. For existing sites, follow the [upgrade guide](migration-2.0.md).
 
 ## 1. Markdown-only site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.0.1
-dotnet tool install LithoSharp.Tool --version 2.0.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.0
+dotnet tool install LithoSharp.Tool --version 2.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -39,14 +39,15 @@ transpiled, not type-checked.
 
 ```sh
 dotnet restore MySite -p:NuGetAudit=false
-dotnet build MySite -c Release
-.tools/lithosharp check MySite -c Release --format json
 .tools/lithosharp build MySite -c Release
+.tools/lithosharp check-output --output MySite/dist --base-url https://example.com/guide/ --format json
 ```
 
-`check` generates into temporary output and validates without publishing.
 `build` compiles the project first, then generates incrementally into the
-configured output. `clean` removes only owned unchanged artifacts, never
+configured output. `check-output` inspects that existing distribution; use its
+actual output path and published base URL. It does not prove source freshness.
+`check` instead generates into temporary output and validates without publishing.
+See [existing output checks](generated-output-checks.md). `clean` removes only owned unchanged artifacts, never
 caches; `cache clean -o <directory>` reclaims one output partition explicitly.
 
 ## 4. VS Code extension
@@ -57,7 +58,7 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 code --install-extension htkym.lithosharp
 ```
 
-Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 2.0.1 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
+Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 2.1.0 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
 
 ## 5. Multi-root workspace
 

@@ -43,7 +43,7 @@ rejected, and assertions on disposed hosts/documents throw `ObjectDisposedExcept
 Disposal also invalidates retained snapshot and element views. Malformed selectors
 throw `HtmlSelectorSyntaxException`; unsupported features or query limits throw
 `HtmlSelectorUnsupportedException`. The v2 major version removes `Document`.
-See [the snapshot/query contract and migration examples](https://github.com/Htkym/lithosharp/blob/v2.0.1/docs/Testing-v2-api.md).
+See [the snapshot/query contract and migration examples](https://github.com/Htkym/lithosharp/blob/v2.1.0/docs/Testing-v2-api.md).
 
 See [the testing guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md)
 and [Japanese guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.ja.md).

@@ -9,7 +9,8 @@ public sealed partial class SiteGenerator
 {
     // Hash the exact inspected bytes, independently of text decoding and local-facts keys.
     internal static async Task<string> ReadQualityTextAsync(string root, string path,
-        IDictionary<string, LithoSharp.Build.CachedBuildArtifact> inspected, CancellationToken cancellationToken)
+        IDictionary<string, LithoSharp.Build.CachedBuildArtifact> inspected, CancellationToken cancellationToken,
+        bool strictUtf8 = false)
     {
         await using var source = LithoSharp.Build.BuildInputFingerprint.OpenVerifiedContainedRead(
             root, SafeCombine(root, path), asynchronous: true);
@@ -17,6 +18,13 @@ public sealed partial class SiteGenerator
         await source.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
         inspected.Add(path, new(path, path, buffer.Length, Convert.ToHexStringLower(
             System.Security.Cryptography.SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)))));
+        if (strictUtf8)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var bytes = buffer.GetBuffer().AsSpan(0, (int)buffer.Length);
+            if (bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf) bytes = bytes[3..];
+            return new System.Text.UTF8Encoding(false, true).GetString(bytes);
+        }
         buffer.Position = 0;
         using var reader = new StreamReader(buffer, new System.Text.UTF8Encoding(false, true));
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);

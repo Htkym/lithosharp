@@ -2,9 +2,21 @@
 
 .NET 10 CLI for C# static sites. Requires the .NET SDK and ASP.NET Core shared framework.
 
+## Inspect existing output
+
+```sh
+lithosharp check-output --output dist --base-url https://example.com/guide/ --format json
+```
+
+Use the actual published base URL. This reads the distribution without compiling a
+project, activating its factory, generating files, or writing caches. It does not
+prove source freshness. The existing `check` command regenerates temporary output.
+See [generated-output checks](https://github.com/Htkym/lithosharp/blob/v2.1.0/docs/generated-output-checks.md)
+for encoding, file-type and platform limits.
+
 ## Preflight
 
-The preflight commands below are available in LithoSharp.Tool 2.0.1. Install this version from NuGet and use matching Core/MDX packages for trusted project validation.
+The preflight commands below are available in LithoSharp.Tool 2.1.0. Install this version from NuGet and use matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -22,11 +34,11 @@ Library callers can use `SitePreflight.InspectMarkdown` or the MDX analysis-only
 
 Normal generation validates the captured Core catalog and all available extension catalogs before calling any prepare hook. The built-in MDX, Blog and Documentation extensions hand that operation's captured catalog to preparation; MDX route/publication callbacks and loaders are not repeated, and changed captured inputs stop preparation. Report-only preflight discards its preparation snapshot. Extensions without inspection or a snapshot handoff remain explicitly Deferred. Build JSON includes the catalog phase, and the Core build report includes informational Deferred diagnostics; neither claims complete source coverage or a guarantee about a future build. Runtime guards and the final HTML publication gate remain in place.
 
-The following install and site creation example uses the published 1.1.0 packages and their existing commands:
+Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
+dotnet tool install LithoSharp.Tool --version 2.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -47,7 +59,7 @@ Testing migration is a static report over explicit source and isolated legacy me
 lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1/LithoSharp.Testing.dll --reference /isolated/1.1/AngleSharp.dll --format json
 ```
 
-The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/v2.0.1/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
+The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/v2.1.0/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
 
 See the [CLI guide](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md) for
 factory examples, output behavior, development server limitations and deployment support.

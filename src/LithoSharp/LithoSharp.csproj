@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
@@ -21,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>2.0.1 reduces temporary allocations in HTML escaping and tight-list rendering while preserving generated HTML and public APIs. Rendering time depends on content. See https://github.com/Htkym/lithosharp/blob/v2.0.1/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>2.1.0 adds optional Docs header search, collapsible topics, topic cards, compact home settings and standard footer text and links, plus read-only checks of existing generated output. Existing settings and public URLs remain supported. See https://github.com/Htkym/lithosharp/blob/v2.1.0/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

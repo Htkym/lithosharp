@@ -1,12 +1,34 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $PackageDirectory,
-    [ValidateNotNullOrEmpty()] [string] $CandidateVersion
+    [ValidateNotNullOrEmpty()] [string] $CandidateVersion,
+    [ValidateNotNullOrEmpty()] [string] $WorkDirectory,
+    [ValidateNotNullOrEmpty()] [string] $DependencyPackageDirectory
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+if ($PSBoundParameters.ContainsKey('WorkDirectory')) {
+    $WorkDirectory = [IO.Path]::GetFullPath($WorkDirectory, $repo)
+    $relative = [IO.Path]::GetRelativePath($repo, $WorkDirectory)
+    if ([IO.Path]::GetDirectoryName($WorkDirectory) -eq $null -or $relative -eq '.' -or
+        [IO.Path]::IsPathRooted($relative) -or $relative -eq '..' -or $relative.StartsWith('..' + [IO.Path]::DirectorySeparatorChar) -or
+        (Test-Path -LiteralPath $WorkDirectory)) {
+        throw 'WorkDirectory must be a new dedicated directory inside the repository.'
+    }
+    for ($parent = [IO.DirectoryInfo]::new([IO.Path]::GetDirectoryName($WorkDirectory)); $null -ne $parent; $parent = $parent.Parent) {
+        if ($parent.Exists -and ($parent.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'WorkDirectory must not traverse a link or reparse point.'
+        }
+    }
+}
+if ($PSBoundParameters.ContainsKey('DependencyPackageDirectory')) {
+    $DependencyPackageDirectory = [IO.Path]::GetFullPath($DependencyPackageDirectory, $repo)
+    if (!(Test-Path -LiteralPath $DependencyPackageDirectory -PathType Container)) {
+        throw 'DependencyPackageDirectory must contain the previously audited dependency archives.'
+    }
+}
 & node --test (Join-Path $PSScriptRoot 'Test-PackageServeProcessOwnership.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Package serve process ownership checks failed.' }
 [xml] $templatePackage = Get-Content -LiteralPath (Join-Path $repo 'templates/LithoSharp.ProjectTemplates/LithoSharp.ProjectTemplates.csproj') -Raw
@@ -43,7 +65,7 @@ function Assert-CandidatePackages([string] $ProjectDirectory, [string[]] $Requir
     & (Join-Path $repo 'eng/markdown/Test-FixedRuntimeAssets.ps1') -AssetsPath $assetsPath
     Write-Host ("Resolved candidate packages: {0}" -f (($resolved.Keys | Sort-Object | ForEach-Object { "$_/$($resolved[$_])" }) -join ', '))
 }
-$fixture = Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N'))
+$fixture = if ($PSBoundParameters.ContainsKey('WorkDirectory')) { $WorkDirectory } else { Join-Path $repo ('.tmp/template-package-test-' + [Guid]::NewGuid().ToString('N')) }
 $null = New-Item -ItemType Directory -Path $fixture
 # Keep caller's validated shipping feed immutable. FixtureExtension belongs
 # only to this unique test feed and never to release package artifacts.
@@ -54,6 +76,18 @@ foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'L
     $candidateFile = Join-Path $sourcePackages "$id.$CandidateVersion.nupkg"
     if (Test-Path -LiteralPath $candidateFile -PathType Leaf) {
         Copy-Item -LiteralPath $candidateFile -Destination $packages
+    }
+}
+if ($PSBoundParameters.ContainsKey('DependencyPackageDirectory')) {
+    foreach ($archive in (Get-ChildItem -LiteralPath $DependencyPackageDirectory -File -Filter '*.nupkg')) {
+        if ($archive.Name -match '^(?:LithoSharp(?:\.|$)|Syntamark(?:\.|$))') { continue }
+        $destination = Join-Path $packages $archive.Name
+        if (Test-Path -LiteralPath $destination) {
+            if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -cne
+                (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash) {
+                throw 'Refusing to overwrite different dependency archive bytes in the private feed.'
+            }
+        } else { Copy-Item -LiteralPath $archive.FullName -Destination $destination }
     }
 }
 & (Join-Path $repo 'eng/markdown/Copy-FixedRuntime.ps1') -PackageDirectory $packages
@@ -74,10 +108,14 @@ try {
     $toolDirectory = Join-Path $fixture 'tool'
     $config = Join-Path $fixture 'NuGet.Config'
     $escapedPackages = [Security.SecurityElement]::Escape($packages)
+    $offlineDependencies = $PSBoundParameters.ContainsKey('DependencyPackageDirectory')
+    $remoteSource = if ($offlineDependencies) { '' } else { '<add key="nuget" value="https://api.nuget.org/v3/index.json"/>' }
+    $localPatterns = if ($offlineDependencies) { '<package pattern="*"/>' } else { '<package pattern="LithoSharp*"/><package pattern="Syntamark"/>' }
+    $remoteMapping = if ($offlineDependencies) { '' } else { '<packageSource key="nuget"><package pattern="*"/></packageSource>' }
     [IO.File]::WriteAllText($config, @"
 <configuration>
-  <packageSources><clear/><add key="local" value="$escapedPackages"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources>
-  <packageSourceMapping><clear/><packageSource key="local"><package pattern="LithoSharp*"/><package pattern="Syntamark"/></packageSource><packageSource key="nuget"><package pattern="*"/></packageSource></packageSourceMapping>
+  <packageSources><clear/><add key="local" value="$escapedPackages"/>$remoteSource</packageSources>
+  <packageSourceMapping><clear/><packageSource key="local">$localPatterns</packageSource>$remoteMapping</packageSourceMapping>
 </configuration>
 "@)
     dotnet tool install LithoSharp.Tool --version $CandidateVersion --tool-path $toolDirectory --configfile $config
