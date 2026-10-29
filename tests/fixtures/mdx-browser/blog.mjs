@@ -19,6 +19,8 @@ try {
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${route} at ${width}`);
         assert.equal(await page.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), String(colorScheme === 'dark'));
       }
+      const searchButton = await page.locator('.site-header-search button').boundingBox();
+      assert.ok(searchButton.width >= 44 && searchButton.height >= 44, `Search button at ${width}px`);
       const menu = page.locator('[data-site-menu-toggle]');
       await menu.click();
       assert.equal(await page.locator('[data-site-nav]').isVisible(), true);

@@ -8,7 +8,7 @@
 C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
 .NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-以下の導入例では **2.1.0** を使います。
+以下の導入例では **2.1.1** を使います。
 既存サイトを更新する場合は[更新手順](docs/migration-2.0.ja.md)を参照してください。
 
 ## サンプルサイト
@@ -39,8 +39,8 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 .NET 10 SDKを用意して実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.0
-dotnet tool install LithoSharp.Tool --version 2.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.1
+dotnet tool install LithoSharp.Tool --version 2.1.1 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -50,7 +50,7 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 `DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 2.1.0`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version 2.1.1`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -83,9 +83,9 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 2.1.0への更新
+## 2.1.1への更新
 
-利用しているLithoSharpのパッケージ、CLI、templateを2.1.0に揃えてください。
+利用しているLithoSharpのパッケージ、CLI、templateを2.1.1に揃えてください。
 Docsの追加機能は必要な項目だけを有効にします。[標準設定の案内](docs/docs-template.md)を参照してください。
 1.xから更新する場合は、[更新手順](docs/migration-2.0.ja.md)に従い、Testing APIの`Document`から`Snapshot`への非互換変更にも対応します。
 サイトを再生成し、コンテンツの警告、リンク、独自CSSの表示を確認してください。
