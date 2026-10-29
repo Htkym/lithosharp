@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -42,7 +42,7 @@ jobs:
           --output artifacts/performance-baselines/baseline-${{ inputs.size }}.json
 
       - name: Upload result
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: performance-baseline-${{ inputs.size }}
           path: artifacts/performance-baselines/baseline-${{ inputs.size }}.json
