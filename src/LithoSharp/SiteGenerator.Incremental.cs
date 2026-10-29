@@ -25,8 +25,12 @@ public sealed partial class SiteGenerator
             renders.Add(routes.SiteCss.RelativeOutputPath, _ => BuildDocsCss(configuration));
             renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildDocsScript(configuration));
             renders.Add(routes.Home.RelativeOutputPath, _ => RenderDocsIndex(configuration, context.Navigation, orderedPosts, template is DocsSiteTemplate { SearchEnabled: true }));
-            foreach (var post in orderedPosts)
-                renders.Add(routes.Post(post).RelativeOutputPath, _ => RenderDocsPost(configuration, context.Navigation, orderedPosts, post));
+            for (var index = 0; index < orderedPosts.Length; index++)
+            {
+                var currentIndex = index;
+                var post = orderedPosts[currentIndex];
+                renders.Add(routes.Post(post).RelativeOutputPath, _ => RenderDocsPost(configuration, context.Navigation, orderedPosts, currentIndex));
+            }
             foreach (var page in configuration.ExtraPages)
                 renders.Add(routes.ExtraPage(page).RelativeOutputPath, _ => RenderDocsExtraPage(configuration, context.Navigation, page));
             if (template is DocsSiteTemplate { SearchEnabled: true })

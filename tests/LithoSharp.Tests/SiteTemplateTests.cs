@@ -180,6 +180,50 @@ public sealed class SiteTemplateTests
             .WithMessageContaining("conflicts with a common artifact");
     }
 
+    [Test]
+    public async Task GenerateAsync_DocsPaginationFollowsNavigationOrderForBuiltInAndDelegatingTemplates()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var timestamp = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
+        MarkdownPost Post(string slug, int position) => new(slug + ".md", slug,
+            new PostFrontMatter
+            {
+                Title = slug, Summary = slug + " summary", Date = timestamp.AddDays(-1), SidebarPosition = position
+            }, "## Heading\n\nBody", "posts/" + slug + ".html");
+        var posts = new[] { Post("last", 3), Post("first", 1), Post("middle", 2) };
+        var expected = new[]
+        {
+            (Slug: "first", Links: "next=/sub/posts/middle.html"),
+            (Slug: "middle", Links: "prev=/sub/posts/first.html,next=/sub/posts/last.html"),
+            (Slug: "last", Links: "prev=/sub/posts/middle.html")
+        };
+        foreach (var template in new ISiteTemplate[] { new DocsSiteTemplate(), new DelegatingDocsTemplate() })
+        {
+            var output = Path.Combine(workspace.Root, template.GetType().Name);
+            await new SiteGenerator().GenerateWithOptionsAsync(
+                TestSite() with { BaseUrl = "https://example.test/sub/" }, posts, output, clean: true,
+                new SiteCustomization
+                {
+                    Template = template, FaviconSourceDirectory = Path.Combine(workspace.Root, "empty-favicon")
+                },
+                new SiteGenerationOptions { BuildTimestamp = timestamp }, CancellationToken.None);
+            foreach (var (slug, links) in expected)
+            {
+                using var document = LithoSharp.Testing.SiteTestDocument.Parse(
+                    await File.ReadAllTextAsync(Path.Combine(output, "posts", slug + ".html")));
+                var actual = document.Snapshot.QueryAll(".docs-pagination a")
+                    .Select(anchor => anchor.GetAttribute("rel") + "=" + anchor.GetAttribute("href"));
+                await Assert.That(string.Join(',', actual)).IsEqualTo(links);
+            }
+        }
+    }
+
+    private sealed class DelegatingDocsTemplate : ISiteTemplate
+    {
+        public Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default) =>
+            new DocsSiteTemplate().RenderAsync(context, cancellationToken);
+    }
+
     private static async Task WriteDocumentAsync(
         string contentRoot,
         string relativePath,

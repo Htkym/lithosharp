@@ -1331,12 +1331,13 @@ public sealed partial class SiteGenerator
             files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
         }
 
-        foreach (var post in orderedPosts)
+        for (var index = 0; index < orderedPosts.Length; index++)
         {
+            var post = orderedPosts[index];
             files.Add(new SiteTemplateFile
             {
                 RelativePath = configuration.Routes.Post(post).RelativeOutputPath,
-                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, post)
+                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, index)
             });
         }
 
@@ -1694,17 +1695,11 @@ public sealed partial class SiteGenerator
         RenderContext configuration,
         SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts,
-        MarkdownPost post)
+        int currentIndex)
     {
+        var post = orderedPosts[currentIndex];
         var compiled = CompilePostBody(configuration, post);
         var postBody = compiled.Html;
-        var currentIndex = -1;
-        for (var index = 0; index < orderedPosts.Count; index++)
-        {
-            if (!EqualityComparer<MarkdownPost>.Default.Equals(orderedPosts[index], post)) continue;
-            currentIndex = index;
-            break;
-        }
         var body = new StringBuilder();
         body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
         if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
