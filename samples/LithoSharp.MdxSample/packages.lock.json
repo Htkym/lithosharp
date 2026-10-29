@@ -51,7 +51,7 @@
       "lithosharp.mdx": {
         "type": "Project",
         "dependencies": {
-          "LithoSharp": "[2.1.0, )"
+          "LithoSharp": "[2.1.1, )"
         }
       }
     }

@@ -5193,7 +5193,6 @@ public sealed partial class SiteGenerator
           .docs-body .card :where(a, mark) { color: var(--text); }
           .docs-header-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
           .docs-header-with-search { flex-wrap: wrap; position: static; }
-          .docs-header-with-search .docs-brand { min-inline-size: 0; overflow-wrap: anywhere; }
           .docs-enhanced .docs-header-with-search { position: sticky; }
           .docs-header-with-search .docs-header-actions {
             flex: 1 1 18rem;
@@ -5213,6 +5212,8 @@ public sealed partial class SiteGenerator
             display: inline-flex;
             align-items: center;
             gap: 0.75rem;
+            min-inline-size: 0;
+            overflow-wrap: anywhere;
             color: var(--text);
             font-size: 1.15rem;
             font-weight: 750;
@@ -5477,7 +5478,7 @@ public sealed partial class SiteGenerator
             return;
           }
           document.body.classList.add("docs-enhanced");
-          const header = document.querySelector(".docs-header-with-search");
+          const header = document.querySelector(".docs-header");
           if (header) {
             const updateHeaderHeight = () => document.body.style.setProperty("--docs-header-height", `${header.getBoundingClientRect().height}px`);
             updateHeaderHeight();
@@ -5731,7 +5732,7 @@ public sealed partial class SiteGenerator
             align-items: center;
             gap: 0.5rem;
             min-block-size: 3rem;
-            padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+            padding: 0 0.1rem 0 0.8rem;
             border: 1px solid var(--border);
             border-radius: var(--radius);
             background: var(--panel);
@@ -5746,6 +5747,8 @@ public sealed partial class SiteGenerator
           }
           .browser-search input::placeholder { color: var(--muted); }
           .browser-search button {
+            min-inline-size: 2.75rem;
+            min-block-size: 2.75rem;
             border: 0;
             padding: 0.2rem;
             color: var(--accent);
@@ -6148,7 +6151,7 @@ public sealed partial class SiteGenerator
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             min-block-size: 2.75rem;
-            padding: 0.25rem 0.35rem 0.25rem 0.8rem;
+            padding: 0 0 0 0.65rem;
             gap: 0.35rem;
           }
           .site-header-search input {

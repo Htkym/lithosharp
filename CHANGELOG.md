@@ -2,6 +2,11 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 2.1.1 — 2026-10-29
+
+- Brush up the built-in templates: wrap long Docs site titles and position the mobile menu below the full measured header height.
+- Enlarge Docs and Blog header search buttons to make them easier to tap while retaining compact header spacing. Public APIs and URLs remain supported. Regenerate sites to apply the changes and review custom CSS.
+
 ## 2.1.0
 
 - Add optional standard-footer plain text and validated links. Text and link labels are HTML-escaped.
