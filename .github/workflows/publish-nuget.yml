@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Verify release tag equals current reviewed main
@@ -29,7 +29,7 @@ jobs:
         run: ./eng/Test-MainRelease.ps1 -CiWorkflow build.yml -ReleaseTag $env:GITHUB_REF_NAME -RequireTag
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -37,7 +37,7 @@ jobs:
         run: dotnet restore LithoSharp.slnx --locked-mode
 
       - name: Setup MDX toolchain
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.13.0
 
@@ -68,7 +68,7 @@ jobs:
           }
 
       - name: Preserve validated release packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: lithosharp-packages-${{ github.ref_name }}
           path: artifacts/packages/*nupkg
@@ -82,7 +82,7 @@ jobs:
 
       - name: NuGet login (OIDC)
         id: login
-        uses: NuGet/login@v1
+        uses: NuGet/login@v1.2.0
         with:
           user: ${{ vars.NUGET_USER }}
 

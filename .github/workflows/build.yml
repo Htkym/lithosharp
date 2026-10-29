@@ -42,15 +42,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: 10.0.x
 
       - name: Setup MDX toolchain
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.13.0
 
@@ -139,7 +139,7 @@ jobs:
 
       - name: Preserve cache wait diagnostics
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: cache-wait-${{ matrix.os }}
           path: |
@@ -149,7 +149,7 @@ jobs:
 
       - name: Preserve workspace resource diagnostics
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: workspace-resources-${{ matrix.os }}
           path: |
@@ -159,7 +159,7 @@ jobs:
 
       - name: Preserve exact solution test reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: solution-trx-${{ matrix.os }}
           path: artifacts/test-diagnostics/solution-trx/*.trx
@@ -189,7 +189,7 @@ jobs:
 
       - name: Preserve sanitized MDX watch diagnostics
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mdx-watch-diagnostics-${{ matrix.os }}
           path: artifacts/test-diagnostics/mdx-watch/*.json
@@ -215,7 +215,7 @@ jobs:
 
       - name: Preserve package template serve failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: package-template-serve-${{ matrix.os }}
           path: |
@@ -317,7 +317,7 @@ jobs:
         run: ./eng/Test-Deployment.ps1
 
       - name: Upload sample site
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: sample-site-${{ matrix.os }}
           path: |
