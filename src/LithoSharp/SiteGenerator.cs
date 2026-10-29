@@ -521,13 +521,14 @@ public sealed partial class SiteGenerator
         }
         var socialImplementation = hasSocialImage ? SocialImageGenerator.GetImplementationFingerprint() : null;
         // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
+        string? docsTemplateJson = null;
         var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
         {
             IEnumerable<BuildInput> inputs = node.Inputs;
             if (node.Artifacts.Any(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
             {
                 inputs = inputs.Append(BuildInput.FromConfiguration("customization.footer", JsonSerializer.Serialize(customization.Footer)))
-                    .Append(BuildInput.FromConfiguration("template.docs", JsonSerializer.Serialize(configuration.DocsTemplate)));
+                    .Append(BuildInput.FromConfiguration("template.docs", docsTemplateJson ??= JsonSerializer.Serialize(configuration.DocsTemplate)));
                 if (configuration.DocsTemplate?.EnableHeaderSearch == true)
                     inputs = inputs.Append(BuildInput.FromConfiguration("text.docsHeader", JsonSerializer.Serialize(customization.Text)));
                 if (node.Id.Value == "page:index" && configuration.DocsTemplate?.ShowTopicCards == true)
