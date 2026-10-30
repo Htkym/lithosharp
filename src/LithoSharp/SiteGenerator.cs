@@ -4851,25 +4851,26 @@ public sealed partial class SiteGenerator
             public static FileSystemMetadata Capture(
                 string sourcePath,
                 string destinationPath,
-                bool isDirectory) =>
-                new(
+                bool isDirectory)
+            {
+                var attributes = File.GetAttributes(sourcePath);
+                FileSystemInfo sourceInfo = isDirectory
+                    ? new DirectoryInfo(sourcePath)
+                    : new FileInfo(sourcePath);
+                sourceInfo.Refresh();
+                return new(
                     sourcePath,
                     destinationPath,
                     isDirectory,
-                    File.GetAttributes(sourcePath),
-                    isDirectory
-                        ? Directory.GetCreationTimeUtc(sourcePath)
-                        : File.GetCreationTimeUtc(sourcePath),
-                    isDirectory
-                        ? Directory.GetLastAccessTimeUtc(sourcePath)
-                        : File.GetLastAccessTimeUtc(sourcePath),
-                    isDirectory
-                        ? Directory.GetLastWriteTimeUtc(sourcePath)
-                        : File.GetLastWriteTimeUtc(sourcePath),
+                    attributes,
+                    sourceInfo.CreationTimeUtc,
+                    sourceInfo.LastAccessTimeUtc,
+                    sourceInfo.LastWriteTimeUtc,
                     OperatingSystem.IsWindows()
                         ? null
                         : File.GetUnixFileMode(sourcePath),
                     CaptureWindowsSecurityDescriptor(sourcePath, isDirectory));
+            }
 
             public void Apply(bool preserveTimestamps = true)
             {
