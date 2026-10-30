@@ -407,6 +407,15 @@ public sealed partial class SiteGenerator
             publishedPosts,
             contentPages,
             customization.GenerateLlmsTxt);
+        var contentSocialImageOwners = new Dictionary<string, IntegratedContentPage>(StringComparer.Ordinal);
+        if (commonArtifacts.Count != 0)
+        {
+            foreach (var page in contentPages)
+            {
+                if (page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage))
+                    contentSocialImageOwners.TryAdd(configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath, page);
+            }
+        }
         var builtInTemplateOwners = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.CreateTemplateOwnerMap(
                 template,
@@ -424,11 +433,7 @@ public sealed partial class SiteGenerator
             commonArtifacts,
             route =>
             {
-                var contentOwner = contentPages.FirstOrDefault(page =>
-                    page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
-                    && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
-                        == route.RelativeOutputPath);
-                if (contentOwner is not null)
+                if (contentSocialImageOwners.TryGetValue(route.RelativeOutputPath, out var contentOwner))
                 {
                     return ContentCollectionBuildPlanAdapter.SocialNodeId(contentOwner).Value;
                 }
@@ -454,10 +459,7 @@ public sealed partial class SiteGenerator
             templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
                 .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath)));
         var baseCommonArtifacts = commonArtifacts
-            .Where(route => !contentPages.Any(page =>
-                page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
-                && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
-                    == route.RelativeOutputPath))
+            .Where(route => !contentSocialImageOwners.ContainsKey(route.RelativeOutputPath))
             .ToArray();
         var basePlan = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.Create(
@@ -504,13 +506,22 @@ public sealed partial class SiteGenerator
             hasSocialImage,
             routes);
         var assetNodes = assetRegistry.CreateBuildNodes();
+        var contentOwnersWithAssetDependencies = new HashSet<string>(StringComparer.Ordinal);
+        if (assetNodes.Count != 0)
+        {
+            foreach (var page in contentPages)
+            {
+                if (page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
+                    contentOwnersWithAssetDependencies.Add(page.OwnerId);
+            }
+        }
         IEnumerable<BuildNode> allNodes = assetNodes.Count == 0
             ? basePlan.Nodes.Concat(collectionNodes)
             : basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node)
                 .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
-                    && !contentPages.Any(page => page.OwnerId == node.Id.Value && page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
+                    && !contentOwnersWithAssetDependencies.Contains(node.Id.Value)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
                 .Concat(assetNodes);
