@@ -113,7 +113,7 @@ internal sealed class SiteBuildCache
         try
         {
             var bytes = await ReadVerifiedAsync("blobs", hash, ".utf8", cancellationToken).ConfigureAwait(false);
-            return bytes is null ? null : StrictUtf8.GetString(bytes);
+            return bytes is null ? null : StrictUtf8.GetString(bytes.Value.AsSpan());
         }
         catch (Exception exception) when (IsCacheReadFailure(exception))
         {
@@ -203,7 +203,7 @@ internal sealed class SiteBuildCache
         }
     }
 
-    private async Task<byte[]?> ReadVerifiedAsync(
+    private async Task<ArraySegment<byte>?> ReadVerifiedAsync(
         string folder, string digest, string extension, CancellationToken cancellationToken)
     {
         var path = Path.Combine(_directory, folder, digest + extension);
@@ -211,9 +211,10 @@ internal sealed class SiteBuildCache
         await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(_directory, path, asynchronous: true);
         using var buffer = new MemoryStream();
         await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-        var bytes = buffer.ToArray();
+        var bytes = new ArraySegment<byte>(buffer.GetBuffer(), 0, (int)buffer.Length);
         cancellationToken.ThrowIfCancellationRequested();
-        return Convert.ToHexStringLower(SHA256.HashData(bytes)) == digest ? bytes : null;
+        if (Convert.ToHexStringLower(SHA256.HashData(bytes.AsSpan())) != digest) return null;
+        return bytes;
     }
 
     private async Task<string> StoreAsync(
