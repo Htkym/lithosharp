@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">2.1.1</LithoSharpVersion>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">2.1.2</LithoSharpVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="LithoSharp.Mdx" Version="$(LithoSharpVersion)" />

@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>2.1.1</Version>
+    <Version>2.1.2</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
@@ -21,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>2.1.1 brushes up the built-in templates: long Docs site titles wrap, mobile menus follow the full header height, and Docs/Blog header search buttons are easier to tap. Public APIs and URLs remain supported. Regenerate sites and review custom CSS. See https://github.com/Htkym/lithosharp/blob/v2.1.1/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>2.1.2 reduces repeated work in Docs and content planning, avoids an extra rendered-body cache copy, and reuses copied-file timestamp reads. Public APIs remain supported. Build-time and memory effects depend on content and cache usage. See https://github.com/Htkym/lithosharp/blob/v2.1.2/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

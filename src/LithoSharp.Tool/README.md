@@ -16,7 +16,7 @@ for encoding, file-type and platform limits.
 
 ## Preflight
 
-The preflight commands below are available in LithoSharp.Tool 2.1.1. Install this version from NuGet and use matching Core/MDX packages for trusted project validation.
+The preflight commands below are available in LithoSharp.Tool 2.1.2. Install this version from NuGet and use matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -37,8 +37,8 @@ Normal generation validates the captured Core catalog and all available extensio
 Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 2.1.1 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.1.1
+dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.2
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

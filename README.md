@@ -9,7 +9,7 @@ A type-safe static site and documentation generator for .NET with C#, Markdown,
 MDX, React and incremental builds. Build documentation alongside your .NET code,
 validate content and links during generation, and deploy ordinary static files.
 
-The installation examples below use **2.1.1**.
+The installation examples below use **2.1.2**.
 For an existing site, follow the [upgrade guide](docs/migration-2.0.md).
 
 ## Features
@@ -35,8 +35,8 @@ For an existing site, follow the [upgrade guide](docs/migration-2.0.md).
 With the .NET 10 SDK installed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.1
-dotnet tool install LithoSharp.Tool --version 2.1.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.2
+dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -47,7 +47,7 @@ configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 2.1.1`
+Existing applications can use `dotnet add package LithoSharp --version 2.1.2`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -93,9 +93,9 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 - [Testing](docs/testing.md), [HTML/CSS contract](docs/layout-css-contract.md),
   [compatibility contract](docs/compatibility-contract.md)
 
-## Upgrade to 2.1.1
+## Upgrade to 2.1.2
 
-Update the LithoSharp packages, CLI and templates you use together to 2.1.1.
+Update the LithoSharp packages, CLI and templates you use together to 2.1.2.
 Docs additions are opt-in; see [template settings](docs/docs-template.md).
 When upgrading from 1.x, follow the [upgrade guide](docs/migration-2.0.md),
 including the Testing API change from `Document` to `Snapshot`. Rebuild your site and check
