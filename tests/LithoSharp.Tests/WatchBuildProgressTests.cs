@@ -39,6 +39,7 @@ public sealed class WatchBuildProgressTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task InputFenceWaitsForPriorInvalidationAndPropagatesConsumerFailure()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

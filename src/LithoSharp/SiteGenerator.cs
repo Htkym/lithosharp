@@ -407,6 +407,15 @@ public sealed partial class SiteGenerator
             publishedPosts,
             contentPages,
             customization.GenerateLlmsTxt);
+        var contentSocialImageOwners = new Dictionary<string, IntegratedContentPage>(StringComparer.Ordinal);
+        if (commonArtifacts.Count != 0)
+        {
+            foreach (var page in contentPages)
+            {
+                if (page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage))
+                    contentSocialImageOwners.TryAdd(configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath, page);
+            }
+        }
         var builtInTemplateOwners = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.CreateTemplateOwnerMap(
                 template,
@@ -424,11 +433,7 @@ public sealed partial class SiteGenerator
             commonArtifacts,
             route =>
             {
-                var contentOwner = contentPages.FirstOrDefault(page =>
-                    page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
-                    && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
-                        == route.RelativeOutputPath);
-                if (contentOwner is not null)
+                if (contentSocialImageOwners.TryGetValue(route.RelativeOutputPath, out var contentOwner))
                 {
                     return ContentCollectionBuildPlanAdapter.SocialNodeId(contentOwner).Value;
                 }
@@ -454,10 +459,7 @@ public sealed partial class SiteGenerator
             templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
                 .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath)));
         var baseCommonArtifacts = commonArtifacts
-            .Where(route => !contentPages.Any(page =>
-                page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
-                && configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath
-                    == route.RelativeOutputPath))
+            .Where(route => !contentSocialImageOwners.ContainsKey(route.RelativeOutputPath))
             .ToArray();
         var basePlan = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.Create(
@@ -504,13 +506,22 @@ public sealed partial class SiteGenerator
             hasSocialImage,
             routes);
         var assetNodes = assetRegistry.CreateBuildNodes();
+        var contentOwnersWithAssetDependencies = new HashSet<string>(StringComparer.Ordinal);
+        if (assetNodes.Count != 0)
+        {
+            foreach (var page in contentPages)
+            {
+                if (page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
+                    contentOwnersWithAssetDependencies.Add(page.OwnerId);
+            }
+        }
         IEnumerable<BuildNode> allNodes = assetNodes.Count == 0
             ? basePlan.Nodes.Concat(collectionNodes)
             : basePlan.Nodes.Select(node => node.Id.Equals(LegacySiteTemplateBuildPlanAdapter.TemplateNodeId)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node)
                 .Concat(collectionNodes.Select(node => node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal)
-                    && !contentPages.Any(page => page.OwnerId == node.Id.Value && page.DeclaredDependencies.Any(dependency => dependency.Kind == ContentDependencyKind.Asset))
+                    && !contentOwnersWithAssetDependencies.Contains(node.Id.Value)
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
                 .Concat(assetNodes);
@@ -521,15 +532,17 @@ public sealed partial class SiteGenerator
         }
         var socialImplementation = hasSocialImage ? SocialImageGenerator.GetImplementationFingerprint() : null;
         // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
+        string? docsTemplateJson = null;
+        string? docsHeaderTextJson = null;
         var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
         {
             IEnumerable<BuildInput> inputs = node.Inputs;
             if (node.Artifacts.Any(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
             {
                 inputs = inputs.Append(BuildInput.FromConfiguration("customization.footer", JsonSerializer.Serialize(customization.Footer)))
-                    .Append(BuildInput.FromConfiguration("template.docs", JsonSerializer.Serialize(configuration.DocsTemplate)));
+                    .Append(BuildInput.FromConfiguration("template.docs", docsTemplateJson ??= JsonSerializer.Serialize(configuration.DocsTemplate)));
                 if (configuration.DocsTemplate?.EnableHeaderSearch == true)
-                    inputs = inputs.Append(BuildInput.FromConfiguration("text.docsHeader", JsonSerializer.Serialize(customization.Text)));
+                    inputs = inputs.Append(BuildInput.FromConfiguration("text.docsHeader", docsHeaderTextJson ??= JsonSerializer.Serialize(customization.Text)));
                 if (node.Id.Value == "page:index" && configuration.DocsTemplate?.ShowTopicCards == true)
                     inputs = inputs.Append(BuildInput.FromCollection("docs.topicSummaries",
                         JsonSerializer.Serialize(publishedPosts.Select(post => post.FrontMatter.Summary))));
@@ -1329,12 +1342,13 @@ public sealed partial class SiteGenerator
             files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
         }
 
-        foreach (var post in orderedPosts)
+        for (var index = 0; index < orderedPosts.Length; index++)
         {
+            var post = orderedPosts[index];
             files.Add(new SiteTemplateFile
             {
                 RelativePath = configuration.Routes.Post(post).RelativeOutputPath,
-                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, post)
+                Content = RenderDocsPost(configuration, templateContext.Navigation, orderedPosts, index)
             });
         }
 
@@ -1692,17 +1706,11 @@ public sealed partial class SiteGenerator
         RenderContext configuration,
         SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts,
-        MarkdownPost post)
+        int currentIndex)
     {
+        var post = orderedPosts[currentIndex];
         var compiled = CompilePostBody(configuration, post);
         var postBody = compiled.Html;
-        var currentIndex = -1;
-        for (var index = 0; index < orderedPosts.Count; index++)
-        {
-            if (!EqualityComparer<MarkdownPost>.Default.Equals(orderedPosts[index], post)) continue;
-            currentIndex = index;
-            break;
-        }
         var body = new StringBuilder();
         body.AppendLine($"<h1>{Html.Encode(post.FrontMatter.Title)}</h1>");
         if (!string.IsNullOrWhiteSpace(post.FrontMatter.Summary))
@@ -4843,25 +4851,26 @@ public sealed partial class SiteGenerator
             public static FileSystemMetadata Capture(
                 string sourcePath,
                 string destinationPath,
-                bool isDirectory) =>
-                new(
+                bool isDirectory)
+            {
+                var attributes = File.GetAttributes(sourcePath);
+                FileSystemInfo sourceInfo = isDirectory
+                    ? new DirectoryInfo(sourcePath)
+                    : new FileInfo(sourcePath);
+                sourceInfo.Refresh();
+                return new(
                     sourcePath,
                     destinationPath,
                     isDirectory,
-                    File.GetAttributes(sourcePath),
-                    isDirectory
-                        ? Directory.GetCreationTimeUtc(sourcePath)
-                        : File.GetCreationTimeUtc(sourcePath),
-                    isDirectory
-                        ? Directory.GetLastAccessTimeUtc(sourcePath)
-                        : File.GetLastAccessTimeUtc(sourcePath),
-                    isDirectory
-                        ? Directory.GetLastWriteTimeUtc(sourcePath)
-                        : File.GetLastWriteTimeUtc(sourcePath),
+                    attributes,
+                    sourceInfo.CreationTimeUtc,
+                    sourceInfo.LastAccessTimeUtc,
+                    sourceInfo.LastWriteTimeUtc,
                     OperatingSystem.IsWindows()
                         ? null
                         : File.GetUnixFileMode(sourcePath),
                     CaptureWindowsSecurityDescriptor(sourcePath, isDirectory));
+            }
 
             public void Apply(bool preserveTimestamps = true)
             {

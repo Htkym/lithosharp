@@ -2,15 +2,15 @@
 
 [English](distribution.md)
 
-以下ではNuGetからLithoSharp 2.1.1を導入します。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
+以下ではNuGetからLithoSharp 2.1.2を導入します。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
 
 ## NuGetパッケージ
 
-プロジェクトで使うパッケージのバージョンを2.1.1に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.1.1を使います。ツールとテンプレートは別のパッケージです。
+プロジェクトで使うパッケージのバージョンを2.1.2に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.1.2を使います。ツールとテンプレートは別のパッケージです。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.1
-dotnet tool install LithoSharp.Tool --version 2.1.1 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.2
+dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
 ```
 
 サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[更新手順](migration-2.0.ja.md)を参照してください。

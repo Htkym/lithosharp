@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Testing</PackageId>
-    <Version>2.1.1</Version>
+    <Version>2.1.2</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Description>Framework-independent site and DOM assertions for LithoSharp.</Description>

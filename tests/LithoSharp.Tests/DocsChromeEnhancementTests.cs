@@ -28,6 +28,48 @@ public sealed class DocsChromeEnhancementTests
     }
 
     [Test]
+    public async Task HeaderSearchTextChangesAreScopedToEachGeneration()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var timestamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var site = new SiteSettings { Title = "Guide", BaseUrl = "https://example.test/sub/", TimeZone = "UTC" };
+        var post = new MarkdownPost("guide.md", "guide", new PostFrontMatter
+        {
+            Title = "Guide", Summary = "Summary", Date = timestamp.AddDays(-1)
+        }, "## Guide\n\nBody", "posts/guide.html");
+        var customization = new SiteCustomization
+        {
+            Template = new DocsSiteTemplate { EnableHeaderSearch = true },
+            Text = SiteText.English with { HeaderSearchPlaceholder = "Original search" },
+            FaviconSourceDirectory = Path.Combine(workspace.Root, "favicon")
+        };
+        var options = new SiteGenerationOptions { BuildTimestamp = timestamp };
+        var generator = new SiteGenerator();
+        var first = await generator.GenerateWithOptionsAsync(site, [post], output, true,
+            customization, options, CancellationToken.None);
+        using (var home = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))))
+            home.AssertAttribute("header input[name=q]", "placeholder", customization.Text.HeaderSearchPlaceholder);
+
+        var changed = customization with
+        {
+            Text = customization.Text with { HeaderSearchPlaceholder = "Updated & localized search" }
+        };
+        var second = await generator.GenerateWithOptionsAsync(site, [post], output, false,
+            changed, options with { PreviousBuildPlan = first.BuildPlan }, CancellationToken.None);
+        using (var home = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))))
+            home.AssertAttribute("header input[name=q]", "placeholder", changed.Text.HeaderSearchPlaceholder);
+        var headerInput = second.BuildPlan.Nodes.Single(node => node.Id.Value == "page:index")
+            .Inputs.Single(input => input.Key == "text.docsHeader");
+        await Assert.That(headerInput.Value).IsEqualTo(System.Text.Json.JsonSerializer.Serialize(changed.Text));
+
+        var unchanged = await generator.GenerateWithOptionsAsync(site, [post], output, false,
+            changed, options with { PreviousBuildPlan = second.BuildPlan }, CancellationToken.None);
+        await Assert.That(unchanged.BuildReport.Invalidations).IsEmpty();
+        await Assert.That(unchanged.BuildReport.CacheMissCount).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task HeaderSearchUsesLocalizedBasePathWithoutDuplicateInputsAndInvalidatesChangedChrome()
     {
         using var workspace = new TemporaryWorkspace();

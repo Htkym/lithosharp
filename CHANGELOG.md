@@ -2,6 +2,14 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 2.1.2
+
+- Reuse Docs settings and header-search text serialization within each generation instead of repeating it for HTML nodes.
+- Reduce repeated content-owner lookups and Docs previous/next-page position scans.
+- Avoid an extra byte-array copy when reading verified rendered-body cache entries. Full hash validation and strict UTF-8 decoding remain enabled.
+- Read creation, access and write timestamps from one fresh metadata snapshot when copying existing output. Output safety checks and metadata restoration remain in place.
+- Public APIs and default parallelism remain unchanged. Effects on build time and memory usage depend on site content and cache usage.
+
 ## 2.1.1 — 2026-10-29
 
 - Brush up the built-in templates: wrap long Docs site titles and position the mobile menu below the full measured header height.
