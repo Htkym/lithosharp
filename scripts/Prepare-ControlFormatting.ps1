@@ -48,6 +48,8 @@ $projects = @(
     'tests/LithoSharp.Tests/LithoSharp.Tests.csproj',
     'tests/LithoSharp.Tool.Tests/LithoSharp.Tool.Tests.csproj'
 )
+$compilerFixture = 'tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs'
+$compilerProject = 'tests/LithoSharp.Tool.Tests/LithoSharp.Tool.Tests.csproj'
 $excluded = @('src/LithoSharp/HtmlParsing/HtmlCharacterReferences.g.cs', 'tests/fixtures/', 'tests/LithoSharp.Tests/Fixtures/', 'templates/')
 foreach ($project in $projects) {
     if (-not (Test-Path $project)) { throw "Missing project: $project" }
@@ -69,20 +71,29 @@ foreach ($project in $projects) {
     if (-not (Test-Path $project)) { throw "Missing solution project: $project" }
 }
 foreach ($project in $projects) {
-    dotnet format style $project --diagnostics IDE2001 --exclude @excluded --no-restore --verbosity normal
+    $projectExcluded = @($excluded)
+    if ($project -ne $compilerProject) { $projectExcluded += $compilerFixture }
+    dotnet format style $project --diagnostics IDE2001 --exclude @projectExcluded --no-restore --verbosity normal
     if ($LASTEXITCODE -ne 0) { throw "IDE2001 formatting failed: $project" }
 }
 foreach ($project in $projects) {
-    dotnet format whitespace $project --exclude @excluded --no-restore --verbosity normal
+    $projectExcluded = @($excluded)
+    if ($project -ne $compilerProject) { $projectExcluded += $compilerFixture }
+    dotnet format whitespace $project --exclude @projectExcluded --no-restore --verbosity normal
     if ($LASTEXITCODE -ne 0) { throw "Whitespace formatting failed: $project" }
 }
+git diff -- '*.cs' | Set-Content -Encoding utf8 (Join-Path $out 'unaccepted-before-verification.patch')
 Check-Tokens 'all-source-token-check'
 foreach ($project in $projects) {
-    dotnet format style $project --diagnostics IDE2001 --exclude @excluded --no-restore --verify-no-changes
+    $projectExcluded = @($excluded)
+    if ($project -ne $compilerProject) { $projectExcluded += $compilerFixture }
+    dotnet format style $project --diagnostics IDE2001 --exclude @projectExcluded --no-restore --verify-no-changes
     if ($LASTEXITCODE -ne 0) { throw "IDE2001 verification failed: $project" }
 }
 foreach ($project in $projects) {
-    dotnet format whitespace $project --exclude @excluded --no-restore --verify-no-changes
+    $projectExcluded = @($excluded)
+    if ($project -ne $compilerProject) { $projectExcluded += $compilerFixture }
+    dotnet format whitespace $project --exclude @projectExcluded --no-restore --verify-no-changes
     if ($LASTEXITCODE -ne 0) { throw "Whitespace verification failed: $project" }
 }
 $changed = @(git diff --name-only)
