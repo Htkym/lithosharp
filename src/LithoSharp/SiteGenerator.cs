@@ -250,7 +250,8 @@ public sealed partial class SiteGenerator
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
         var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
-        if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
+        if (sourceErrors.Length != 0)
+            throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
         ArgumentNullException.ThrowIfNull(options.Extensions);
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
         options = options with
@@ -582,7 +583,8 @@ public sealed partial class SiteGenerator
         bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
         if (outputScope.Length > 0)
         {
-            if (!builtInTemplate) throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
+            if (!builtInTemplate)
+                throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
             buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Select(node => new BuildNode(node.Id, node.Inputs, node.Dependencies,
                 node.Artifacts.Where(artifact => InScope(artifact.RelativeOutputPath) || node.Id.Value.StartsWith("asset:", StringComparison.Ordinal)))));
             ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
@@ -801,8 +803,10 @@ public sealed partial class SiteGenerator
                 committed = true;
                 timing.MarkCommit();
             }
-            else await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
-            if (htmlFactsCache is not null) await htmlFactsCache.PublishAsync().ConfigureAwait(false);
+            else
+                await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
+            if (htmlFactsCache is not null)
+                await htmlFactsCache.PublishAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -1143,7 +1147,8 @@ public sealed partial class SiteGenerator
     private static CachedPostParse? ReadCachedPostParse(RenderContext configuration, MarkdownPost post, string sourceHash)
     {
         configuration.Cancellation.ThrowIfCancellationRequested();
-        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent) return null;
+        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent)
+            return null;
         return persistent.Cache.ReadPostParseAsync(persistent.CompilerFingerprint,
             sourceHash, post.MarkdownBody.Length,
             configuration.Cancellation).GetAwaiter().GetResult();
@@ -1689,7 +1694,8 @@ public sealed partial class SiteGenerator
         body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
         body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
-        if (enableSearch) body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
+        if (enableSearch)
+            body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
         if (orderedPosts.Count > 0 && configuration.DocsTemplate?.ShowStartLink != false)
         {
             var first = orderedPosts[0];
@@ -2140,7 +2146,9 @@ public sealed partial class SiteGenerator
                     : string.Empty,
                 NormalizeForIndex(facts.SearchText))
             {
-                Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
+                Collection = page.Metadata.Document?.Collection,
+                Version = page.Metadata.Document?.Version,
+                Locale = page.Metadata.Document?.Locale,
                 Sections = page.Metadata.Document is null ? null : facts.SearchSections()
             });
         }
@@ -2323,7 +2331,8 @@ public sealed partial class SiteGenerator
     // This catches case/Unicode aliases on insensitive volumes without conflating distinct inputs.
     private static bool ContainsInputDirectory(string root, string path)
     {
-        if (ContainsDirectory(root, path)) return true;
+        if (ContainsDirectory(root, path))
+            return true;
         return ContainsDirectory(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
     }
 
@@ -2374,7 +2383,8 @@ public sealed partial class SiteGenerator
         {
             writer.WriteStartObject();
             writer.WriteNumber("version", OutputManifestVersion);
-            if (buildCacheKey is not null) writer.WriteString("buildCache", buildCacheKey);
+            if (buildCacheKey is not null)
+                writer.WriteString("buildCache", buildCacheKey);
             writer.WritePropertyName("files");
             writer.WriteStartArray();
             foreach (var path in ownedArtifactPaths)
@@ -2892,7 +2902,8 @@ public sealed partial class SiteGenerator
 
         private void Advance(ref long field)
         {
-            if (!enabled) return;
+            if (!enabled)
+                return;
             var now = Stopwatch.GetTimestamp();
             field += (long)Stopwatch.GetElapsedTime(last, now).TotalMilliseconds;
             last = now;
@@ -2912,12 +2923,14 @@ public sealed partial class SiteGenerator
 
         internal void AddVerificationTimestampTicks(long timestampTicks)
         {
-            if (enabled) Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
+            if (enabled)
+                Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
         }
 
         internal void CountVerifiedArtifact()
         {
-            if (enabled) Interlocked.Increment(ref verifiedArtifacts);
+            if (enabled)
+                Interlocked.Increment(ref verifiedArtifacts);
         }
 
         internal long VerificationTimestampTicks => Interlocked.Read(ref verificationTimestampTicks);
@@ -2990,7 +3003,8 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             var owned = _previousOwnershipState?.Artifacts.FirstOrDefault(artifact =>
                 string.Equals(artifact.Path, OutputManifestRelativePath, StringComparison.Ordinal));
-            if (owned is null) return null;
+            if (owned is null)
+                return null;
             try
             {
                 var manifestRoot = _existingOutputCopied ? StagingRoot : _outputRoot;
@@ -3000,12 +3014,14 @@ public sealed partial class SiteGenerator
                 using var buffer = new MemoryStream();
                 await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bytes = buffer.ToArray();
-                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256) return null;
+                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256)
+                    return null;
                 using var document = JsonDocument.Parse(bytes);
                 var root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object
                     || !root.TryGetProperty("version", out var version) || !version.TryGetInt32(out var number) || number != OutputManifestVersion
-                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String) return null;
+                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String)
+                    return null;
                 var digest = cache.GetString();
                 return digest is not null && IsSha256(digest) && digest == digest.ToLowerInvariant() ? digest : null;
             }
@@ -3046,7 +3062,8 @@ public sealed partial class SiteGenerator
         /// </summary>
         internal bool CanBypassPublishedOutput(IEnumerable<string> currentOwnedPaths)
         {
-            if (_previousOwnershipState is null) return false;
+            if (_previousOwnershipState is null)
+                return false;
             var current = currentOwnedPaths.Select(ArtifactPathIdentity).ToHashSet(StringComparer.Ordinal);
             return _previousOwnershipState.Artifacts.All(artifact => current.Contains(ArtifactPathIdentity(artifact.Path)));
         }
@@ -3098,7 +3115,8 @@ public sealed partial class SiteGenerator
                 throw new InvalidOperationException("The file system root cannot be used as the output directory.");
             }
 
-            if (cacheOptions is not null) ValidateCachePathAncestry(outputRoot, cacheOptions);
+            if (cacheOptions is not null)
+                ValidateCachePathAncestry(outputRoot, cacheOptions);
             CreateSafeAbsoluteDirectory(parentRoot);
             var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
             var lockIdentity = CreateLockIdentity(outputRoot);
@@ -4204,7 +4222,8 @@ public sealed partial class SiteGenerator
 
         private static string CreateLockIdentity(string outputRoot)
         {
-            if (OperatingSystem.IsWindows()) outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
+            if (OperatingSystem.IsWindows())
+                outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
             var normalizedPath = outputRoot
                 .Normalize(NormalizationForm.FormC)
                 .ToUpperInvariant();
@@ -4217,7 +4236,8 @@ public sealed partial class SiteGenerator
         // parent is resolved read-only through its closest existing ancestor.
         internal static string CreateProspectiveOwnershipScope(string parentRoot, string outputName)
         {
-            if (Directory.Exists(parentRoot)) return CreateOwnershipScope(parentRoot, outputName);
+            if (Directory.Exists(parentRoot))
+                return CreateOwnershipScope(parentRoot, outputName);
             var canonicalParent = CanonicalizeCacheBoundaryPath(parentRoot);
             var prospectiveName = OperatingSystem.IsMacOS()
                 ? outputName.Normalize(NormalizationForm.FormD)
@@ -4431,7 +4451,7 @@ public sealed partial class SiteGenerator
             }
         }
 
-        private static async Task MoveDirectoryWithRetriesAsync(            string source,
+        private static async Task MoveDirectoryWithRetriesAsync(string source,
             string destination)
         {
             // Directory.Move compares roots before reaching Win32. Equivalent

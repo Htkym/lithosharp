@@ -32,8 +32,13 @@ internal sealed class WatchEventQueue : IAsyncDisposable
                 await foreach (var item in events.Reader.ReadAllAsync())
                 {
                     ReportLoss();
-                    if (item.Barrier is not null) { item.Barrier.TrySetResult(); continue; }
-                    if (item.Path is null) continue; // Loss wake, not a path event.
+                    if (item.Barrier is not null)
+                    {
+                        item.Barrier.TrySetResult();
+                        continue;
+                    }
+                    if (item.Path is null)
+                        continue; // Loss wake, not a path event.
                     Dispatch(item.Path, item.Kind, item.Error);
                     if (item.OldPath is not null)
                         Dispatch(item.OldPath, WatcherChangeTypes.Renamed, null);
@@ -64,16 +69,23 @@ internal sealed class WatchEventQueue : IAsyncDisposable
             await write.ConfigureAwait(false);
             var finished = await Task.WhenAny(barrier.Task, consumer).WaitAsync(token).ConfigureAwait(false);
             await finished.ConfigureAwait(false);
-            if (!barrier.Task.IsCompleted) throw new IOException("Watch input consumer ended before the barrier.");
+            if (!barrier.Task.IsCompleted)
+                throw new IOException("Watch input consumer ended before the barrier.");
         }
-        finally { admission.Cancel(); }
+        finally
+        {
+            admission.Cancel();
+        }
     }
 
     internal void Enqueue(string path, WatcherChangeTypes kind, string? oldPath = null, Exception? error = null)
     {
-        if (Volatile.Read(ref stopped) != 0) return;
-        if (events.Writer.TryWrite(new(path, oldPath, kind, error))) return;
-        if (error is not null) Interlocked.CompareExchange(ref lostError, error, null);
+        if (Volatile.Read(ref stopped) != 0)
+            return;
+        if (events.Writer.TryWrite(new(path, oldPath, kind, error)))
+            return;
+        if (error is not null)
+            Interlocked.CompareExchange(ref lostError, error, null);
         Interlocked.Exchange(ref lost, 1);
         // The reader may have drained the queue between rejection and flagging
         // loss. Reinsert a wake if there is now room; otherwise queued work wakes it.
@@ -82,9 +94,11 @@ internal sealed class WatchEventQueue : IAsyncDisposable
 
     private void ReportLoss()
     {
-        if (Interlocked.Exchange(ref lost, 0) == 0) return;
+        if (Interlocked.Exchange(ref lost, 0) == 0)
+            return;
         var error = Interlocked.Exchange(ref lostError, null);
-        if (error is not null) Dispatch(root, WatcherChangeTypes.All, error);
+        if (error is not null)
+            Dispatch(root, WatcherChangeTypes.All, error);
         // Distinct from native InternalBufferOverflowException in the sidecar.
         Dispatch(root, WatcherChangeTypes.All, new IOException("File watching event queue lost changes."));
     }
@@ -101,7 +115,8 @@ internal sealed class WatchEventQueue : IAsyncDisposable
     {
         // Reject late producers, then drain admitted records. The serve owner
         // cancels rebuilds/closes its wake channel before awaiting this lifetime.
-        if (Interlocked.Exchange(ref stopped, 1) == 0) events.Writer.TryComplete();
+        if (Interlocked.Exchange(ref stopped, 1) == 0)
+            events.Writer.TryComplete();
     }
 
     internal ValueTask CompleteAsync()

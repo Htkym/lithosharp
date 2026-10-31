@@ -90,9 +90,14 @@ public sealed partial class AnalyzerPackageHostTests
     private static string SiteAssetPathSource(string body) => "// 😀 original UTF16 source\r\nclass C { void M(bool b,string unknown,string root) {\r\n" + body + "\r\n} }";
     private static object SiteAssetPathDiagnostic(Diagnostic d) => new
     {
-        d.Id, severity = d.Severity.ToString(), message = d.GetMessage(), start = d.Location.SourceSpan.Start,
-        length = d.Location.SourceSpan.Length, file = d.Location.SourceTree?.FilePath,
-        argument = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan), d.Properties
+        d.Id,
+        severity = d.Severity.ToString(),
+        message = d.GetMessage(),
+        start = d.Location.SourceSpan.Start,
+        length = d.Location.SourceSpan.Length,
+        file = d.Location.SourceTree?.FilePath,
+        argument = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan),
+        d.Properties
     };
     private static void SiteAssetPathEvidence(string name, List<object> proof) => File.WriteAllText(
         Path.Combine(Required("RA03_EVIDENCE_DIR"), name + ".json"),

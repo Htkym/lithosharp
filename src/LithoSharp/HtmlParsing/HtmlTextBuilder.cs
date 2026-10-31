@@ -10,8 +10,10 @@ internal sealed class HtmlTextBuilder(int emptyOffset, int maxLength, Action<int
 
     public void Append(string text, HtmlSpan source)
     {
-        if (text.Length == 0) return;
-        if (text.Length > maxLength - value.Length) throw new HtmlTokenizerBudgetException("value-budget");
+        if (text.Length == 0)
+            return;
+        if (text.Length > maxLength - value.Length)
+            throw new HtmlTokenizerBudgetException("value-budget");
         var canMerge = segments.Count != 0 && segments[segments.Count - 1].Source.End == source.Start &&
             segments[segments.Count - 1].ValueLength == segments[segments.Count - 1].Source.Length && text.Length == source.Length;
         reserve(text.Length, !canMerge);
@@ -24,7 +26,8 @@ internal sealed class HtmlTextBuilder(int emptyOffset, int maxLength, Action<int
                 Source = new HtmlSpan(last.Source.Start, last.Source.Length + source.Length)
             };
         }
-        else segments.Add(new HtmlTextSegment(value.Length, text.Length, source));
+        else
+            segments.Add(new HtmlTextSegment(value.Length, text.Length, source));
         value.Append(text);
     }
 

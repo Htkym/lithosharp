@@ -96,13 +96,15 @@ static object Parse(Assembly assembly, string input)
 // Compare the internal node DTOs without widening the product's public API.
 static object? Snapshot(object? value)
 {
-    if (value is null || value is string || value is bool || value is int) return value;
+    if (value is null || value is string || value is bool || value is int)
+        return value;
     if (value is IEnumerable sequence)
         return sequence.Cast<object?>().Select(Snapshot).ToArray();
     var type = value.GetType();
     var result = new SortedDictionary<string, object?>(StringComparer.Ordinal) { ["$type"] = type.Name };
     foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        if (property.GetIndexParameters().Length == 0) result[property.Name] = Snapshot(property.GetValue(value));
+        if (property.GetIndexParameters().Length == 0)
+            result[property.Name] = Snapshot(property.GetValue(value));
     foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
         result[field.Name] = Snapshot(field.GetValue(value));
     return result;
@@ -110,5 +112,6 @@ static object? Snapshot(object? value)
 
 static void Check(bool condition, string message)
 {
-    if (!condition) throw new InvalidOperationException(message);
+    if (!condition)
+        throw new InvalidOperationException(message);
 }

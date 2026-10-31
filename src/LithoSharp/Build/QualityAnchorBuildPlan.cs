@@ -52,7 +52,8 @@ internal static class QualityAnchorBuildPlan
             {
                 token.ThrowIfCancellationRequested();
                 var count = Math.Min(value.Length - start, buffer.Length / 2);
-                for (var i = 0; i < count; i++) BinaryPrimitives.WriteUInt16LittleEndian(buffer[(2 * i)..], value[start + i]);
+                for (var i = 0; i < count; i++)
+                    BinaryPrimitives.WriteUInt16LittleEndian(buffer[(2 * i)..], value[start + i]);
                 hash.AppendData(buffer[..(count * 2)]);
             }
         }

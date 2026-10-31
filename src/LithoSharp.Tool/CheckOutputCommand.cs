@@ -57,7 +57,8 @@ internal static class CheckOutputCommand
         (format == SiteDiagnosticFormat.Text ? Console.Out : Console.Error).WriteLine(banner);
         Console.WriteLine(report.Format(format));
         var failed = report.Diagnostics.Any(diagnostic => diagnostic.Severity >= SiteDiagnosticSeverity.Error);
-        if (format == SiteDiagnosticFormat.Text) Console.WriteLine(failed ? "Output inspection failed." : "Output inspection succeeded.");
+        if (format == SiteDiagnosticFormat.Text)
+            Console.WriteLine(failed ? "Output inspection failed." : "Output inspection succeeded.");
         return failed ? 1 : 0;
     }
 }

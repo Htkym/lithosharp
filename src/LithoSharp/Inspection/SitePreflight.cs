@@ -29,7 +29,8 @@ public sealed class SitePreflightReport
     /// <summary>Stops the caller on Error without rewriting severity or suppression policy.</summary>
     public void ThrowIfFailed()
     {
-        if (!Succeeded) throw new SiteQualityValidationException(new SiteQualityReport(Diagnostics));
+        if (!Succeeded)
+            throw new SiteQualityValidationException(new SiteQualityReport(Diagnostics));
     }
 }
 
@@ -63,7 +64,9 @@ public sealed class SitePreflightRoute
     {
         ArgumentNullException.ThrowIfNull(route);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
-        Route = route; OwnerId = ownerId; Location = location;
+        Route = route;
+        OwnerId = ownerId;
+        Location = location;
     }
     /// <summary>The existing validated route.</summary>
     public SiteRoute Route { get; }
@@ -82,7 +85,8 @@ public sealed class SiteCatalogPreflightContribution
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentNullException.ThrowIfNull(diagnostics);
         var claims = routes.ToArray();
-        if (claims.Any(claim => claim is null)) throw new ArgumentException("Routes must not contain null.", nameof(routes));
+        if (claims.Any(claim => claim is null))
+            throw new ArgumentException("Routes must not contain null.", nameof(routes));
         Routes = Array.AsReadOnly(claims);
         Diagnostics = new SiteQualityReport(diagnostics).Diagnostics;
     }

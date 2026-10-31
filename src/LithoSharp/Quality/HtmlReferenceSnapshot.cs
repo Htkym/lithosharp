@@ -87,7 +87,12 @@ internal sealed class HtmlReferenceSnapshot
 internal sealed class CssReferenceSnapshot
 {
     private CssReferenceSnapshot(string path, Uri resolutionBase, HtmlReference[] references, HtmlFactsProjectionCoverage coverage)
-    { OutputPath = path; ResolutionBase = resolutionBase; References = Array.AsReadOnly(references); Coverage = coverage; }
+    {
+        OutputPath = path;
+        ResolutionBase = resolutionBase;
+        References = Array.AsReadOnly(references);
+        Coverage = coverage;
+    }
     internal string OutputPath { get; }
     internal Uri ResolutionBase { get; }
     internal IReadOnlyList<HtmlReference> References { get; }
@@ -114,8 +119,10 @@ internal sealed class CssReferenceSnapshot
 
     internal void RequireComplete()
     {
-        if (Coverage.Status != HtmlFactsCoverageStatus.Complete) throw new HtmlQualitySnapshotIncompleteException(Coverage);
-        if (SourceCoverage.Status != HtmlFactsCoverageStatus.Complete) throw new HtmlQualitySnapshotIncompleteException(SourceCoverage);
+        if (Coverage.Status != HtmlFactsCoverageStatus.Complete)
+            throw new HtmlQualitySnapshotIncompleteException(Coverage);
+        if (SourceCoverage.Status != HtmlFactsCoverageStatus.Complete)
+            throw new HtmlQualitySnapshotIncompleteException(SourceCoverage);
     }
 }
 

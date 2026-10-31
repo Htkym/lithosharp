@@ -63,7 +63,8 @@ public static class LocalSearch
                 var sections = document.Sections ?? [];
                 var section = sections.FirstOrDefault(section => tokens.All(token => Normalize(section.Title + " " + section.Body).Contains(token, StringComparison.Ordinal)));
                 var text = Normalize(document.Title + " " + document.Summary + " " + document.Body);
-                if (!tokens.All(token => text.Contains(token, StringComparison.Ordinal))) return null;
+                if (!tokens.All(token => text.Contains(token, StringComparison.Ordinal)))
+                    return null;
                 var body = section?.Body ?? document.Body;
                 var position = tokens.Length == 0 ? 0 : Math.Max(0, body.IndexOf(tokens[0], StringComparison.OrdinalIgnoreCase) - 40);
                 return new SearchHit(document, document.Url + (section is null ? "" : "#" + Uri.EscapeDataString(section.Anchor)),

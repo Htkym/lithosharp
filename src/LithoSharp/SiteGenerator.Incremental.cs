@@ -139,7 +139,8 @@ public sealed partial class SiteGenerator
             renders.Add(routes.Llms.RelativeOutputPath, _ => Task.FromResult(GetTextContentBytes(BuildLlmsTxt(configuration, context.Posts, pages))));
         var declaredPaths = plan.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToHashSet(StringComparer.Ordinal);
         if (subset)
-            foreach (var path in renders.Keys.Where(path => !declaredPaths.Contains(path)).ToArray()) renders.Remove(path);
+            foreach (var path in renders.Keys.Where(path => !declaredPaths.Contains(path)).ToArray())
+                renders.Remove(path);
         if (!declaredPaths.SetEquals(renders.Keys))
             throw new InvalidOperationException("Render actions must exactly match the validated build artifacts.");
         var textPaths = textRenders.Keys.Concat(pages.Select(page => page.Route.RelativeOutputPath))
@@ -151,7 +152,8 @@ public sealed partial class SiteGenerator
         {
             cancellationToken.ThrowIfCancellationRequested();
             var ready = remaining.Values.Where(node => node.Dependencies.All(id => completed.ContainsKey(id.Value))).ToArray();
-            if (ready.Length == 0) throw new InvalidOperationException("The build plan cannot make progress.");
+            if (ready.Length == 0)
+                throw new InvalidOperationException("The build plan cannot make progress.");
             var results = new System.Collections.Concurrent.ConcurrentBag<(CachedBuildNode Cache, SiteBuildReportNode Report)>();
             await Parallel.ForEachAsync(ready.Where(node => !pagesByNode.TryGetValue(node.Id.Value, out var page) || page.IsThreadSafe),
                 new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = cancellationToken },
@@ -305,7 +307,9 @@ public sealed partial class SiteGenerator
             return stream.Length == artifact.Length && Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)) == artifact.Sha256;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
-        { return false; }
+        {
+            return false;
+        }
     }
 
 }

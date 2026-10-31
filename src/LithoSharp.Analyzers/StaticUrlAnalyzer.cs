@@ -39,14 +39,16 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
             TestingDomMigrationAnalysis.Register(start);
             start.RegisterCompilationEndAction(FixedHtmlAnchorAnalysis.Analyze);
             var assetInputs = StaticAssetInputAnalysis.Create(start.Compilation);
-            if (assetInputs is not null) start.RegisterOperationAction(assetInputs.Analyze, OperationKind.ObjectCreation);
+            if (assetInputs is not null)
+                start.RegisterOperationAction(assetInputs.Analyze, OperationKind.ObjectCreation);
             var sinks = RegisterSinks(start.Compilation);
             var generationOptions = GenerationOptionsAnalysis.Create(start.Compilation);
             var html = HtmlTemplateAnalysis.Create(start.Compilation);
             var htmlUrls = new HtmlFlowUrlAnalysis(start.Compilation);
             var manifest = StaticManifestAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
             var guarantee = StaticRouteGuaranteeAnalysis.Create(start.Compilation, start.Options, start.CancellationToken);
-            if (sinks.Count == 0 && html is null && manifest is null && guarantee is null && generationOptions is null) return;
+            if (sinks.Count == 0 && html is null && manifest is null && guarantee is null && generationOptions is null)
+                return;
             var coverage = new StaticCoveragePolicy(start.Compilation);
             start.RegisterOperationAction(operation =>
             {
@@ -69,17 +71,21 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
                 guarantee?.Analyze(block, operation, coverage);
                 var method = operation is IInvocationOperation call ? call.TargetMethod
                     : (operation as IObjectCreationOperation)?.Constructor;
-                if (method is null || !sinks.TryGetValue(method.OriginalDefinition, out var rules)) return;
+                if (method is null || !sinks.TryGetValue(method.OriginalDefinition, out var rules))
+                    return;
                 var arguments = operation is IInvocationOperation invocation ? invocation.Arguments
                     : ((IObjectCreationOperation)operation).Arguments;
-                if (StaticValueFlow.HasBindingError(operation)) return;
+                if (StaticValueFlow.HasBindingError(operation))
+                    return;
                 foreach (var rule in rules)
                 {
                     var argument = arguments.FirstOrDefault(a => a.Parameter?.Ordinal == rule.Ordinal);
                     // Null-forgiving syntax can make an explicit CFG argument IsImplicit.
-                    if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit) continue;
+                    if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit)
+                        continue;
                     var values = evaluate(argument.Value);
-                    if (values.Values is null || values.Values.Length == 0 || !values.Values.All(rule.Invalid)) continue;
+                    if (values.Values is null || values.Values.Length == 0 || !values.Values.All(rule.Invalid))
+                        continue;
                     var properties = ImmutableDictionary<string, string?>.Empty
                         .Add("staticState", "Known").Add("candidateCount", values.Values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
                         .Add("origin", "original-argument-utf16-span");
@@ -100,13 +106,16 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
         void Register(string metadataName, string member, string[] parameterTypes, params Sink[] rules)
         {
             var type = compilation.GetTypeByMetadataName(metadataName);
-            if (type?.ContainingAssembly.Identity.Name != "LithoSharp" || type.Locations.Any(l => l.IsInSource)) return;
+            if (type?.ContainingAssembly.Identity.Name != "LithoSharp" || type.Locations.Any(l => l.IsInSource))
+                return;
             foreach (var method in type.GetMembers(member).OfType<IMethodSymbol>().Where(m => m.Arity == 0
                 && m.DeclaredAccessibility == Accessibility.Public && m.Parameters.Length == parameterTypes.Length
                 && m.Parameters.All(p => p.RefKind == RefKind.None)))
             {
-                if (!method.Parameters.Select(p => p.Type.ToDisplayString()).SequenceEqual(parameterTypes)) continue;
-                if (member != ".ctor" && (!method.IsStatic || !SymbolEqualityComparer.Default.Equals(method.ReturnType, type))) continue;
+                if (!method.Parameters.Select(p => p.Type.ToDisplayString()).SequenceEqual(parameterTypes))
+                    continue;
+                if (member != ".ctor" && (!method.IsStatic || !SymbolEqualityComparer.Default.Equals(method.ReturnType, type)))
+                    continue;
                 result.Add(method.OriginalDefinition, rules.ToList());
             }
         }
@@ -204,15 +213,29 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
 
     private static bool Reject(Action guard)
     {
-        try { guard(); return false; }
-        catch (ArgumentException) { return true; }
-        catch (UriFormatException) { return true; }
+        try
+        {
+            guard();
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (UriFormatException)
+        {
+            return true;
+        }
     }
 
     private sealed class Sink
     {
         internal Sink(int ordinal, DiagnosticDescriptor descriptor, Func<object?, bool> invalid)
-        { Ordinal = ordinal; Descriptor = descriptor; Invalid = invalid; }
+        {
+            Ordinal = ordinal;
+            Descriptor = descriptor;
+            Invalid = invalid;
+        }
         internal int Ordinal { get; }
         internal DiagnosticDescriptor Descriptor { get; }
         internal Func<object?, bool> Invalid { get; }

@@ -42,7 +42,13 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
     }
 
     internal (int ParseCount, int ReuseCount, long RetainedBytes, int EntryCount) Counters
-    { get { lock (gate) return (parseCount, reuseCount, retainedBytes, entries.Count); } }
+    {
+        get
+        {
+            lock (gate)
+                return (parseCount, reuseCount, retainedBytes, entries.Count);
+        }
+    }
 
     internal HtmlConsumerFacts Get(string source, CancellationToken consumerCancellation) =>
         GetAsync(source, consumerCancellation).GetAwaiter().GetResult().Facts;
@@ -81,7 +87,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
     internal async Task<(QualityHtmlFacts Facts, HtmlReferenceSnapshot Snapshot, bool NewParse)> GetQualityReferencesAsync(
         string source, HtmlPageIdentity identity, Uri pageUrl, CancellationToken consumerCancellation)
     {
-        if (!RequiresQualityRaw) throw new InvalidOperationException("Reference snapshots require declared Quality raw demand.");
+        if (!RequiresQualityRaw)
+            throw new InvalidOperationException("Reference snapshots require declared Quality raw demand.");
         return await GetQualitySnapshotAsync(source, identity, pageUrl, consumerCancellation).ConfigureAwait(false);
     }
 
@@ -109,7 +116,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
             throw new ArgumentException("The page URL must identify the bound public route.", nameof(pageUrl));
         raw?.RequireComplete();
         var resolutionBase = pageUrl;
-        if (facts.BaseHref is not null && Uri.TryCreate(pageUrl, facts.BaseHref, out var declaredBase)) resolutionBase = declaredBase;
+        if (facts.BaseHref is not null && Uri.TryCreate(pageUrl, facts.BaseHref, out var declaredBase))
+            resolutionBase = declaredBase;
         var references = new List<HtmlReference>();
         var cssReferences = new List<HtmlReference>();
         var cssReasons = new List<HtmlFactsCoverageReason>();
@@ -117,7 +125,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
         var anchors = new List<HtmlAnchorSnapshot>();
         var metadata = new List<HtmlMetadataSnapshot>();
         var canonicals = new List<HtmlCanonicalSnapshot>();
-        if (raw is not null && raw.Elements.Count != facts.Elements.Length) throw new InvalidOperationException("Shared raw/Quality element order differs.");
+        if (raw is not null && raw.Elements.Count != facts.Elements.Length)
+            throw new InvalidOperationException("Shared raw/Quality element order differs.");
         for (var i = 0; i < facts.Elements.Length; i++)
         {
             token.ThrowIfCancellationRequested();
@@ -129,15 +138,18 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
                 throw new InvalidOperationException("Shared raw/Quality attributes differ.");
             positions.Add(new(element.Line, element.Column, material?.Source));
             Anchor("id");
-            if (element.Name == "a") Anchor("name");
-            if (element.Name == "meta") metadata.Add(new(i, Value("name"), Value("property"), Value("content"),
+            if (element.Name == "a")
+                Anchor("name");
+            if (element.Name == "meta")
+                metadata.Add(new(i, Value("name"), Value("property"), Value("content"),
                 Attribute("content")?.Value, Attribute("name")?.Value, Attribute("property")?.Value));
             var canonical = SiteQualityValidator.HasRel(element, "canonical");
             if (element.Name == "link" && canonical)
             {
                 var href = Value("href");
                 Uri? address = null;
-                if (href is not null && Uri.TryCreate(resolutionBase, href, out var resolved)) address = resolved;
+                if (href is not null && Uri.TryCreate(resolutionBase, href, out var resolved))
+                    address = resolved;
                 canonicals.Add(new(i, href, address, Attribute("href")?.Value));
             }
             var style = Value("style");
@@ -149,7 +161,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
                 HtmlSourceMap? input = element.Name == "style"
                     ? raw?.Materials?.Styles.GetValueOrDefault(i)
                     : Attribute("style") is { } styleAttribute ? HtmlSourceMap.FromRaw(styleAttribute.Value, HtmlFactsProjection.InlineCss) : null;
-                if (input is not null && input.Value != css) throw new InvalidOperationException("Paired CSS input differs.");
+                if (input is not null && input.Value != css)
+                    throw new InvalidOperationException("Paired CSS input differs.");
                 var ordinal = 0;
                 foreach (var candidate in collected.Candidates)
                 {
@@ -161,18 +174,29 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
                         input?.Compose(candidate.Value, candidate.Source, candidate.Mapping, HtmlFactsProjection.InlineCss)));
                 }
             }
-            if (element.Name == "base") { Add("href", HtmlReferenceRole.Base, false, false); continue; }
-            if (canonical) { Add("href", HtmlReferenceRole.Canonical, false, false); continue; }
+            if (element.Name == "base")
+            {
+                Add("href", HtmlReferenceRole.Base, false, false);
+                continue;
+            }
+            if (canonical)
+            {
+                Add("href", HtmlReferenceRole.Canonical, false, false);
+                continue;
+            }
             if (!element.Attributes.Any(attribute => attribute.Name is "href" or "src" or "srcset" or "poster")
                 && !(element.Name == "object" && QualityHtmlFacts.Attribute(element, "data") is not null)
                 && !(element.Name == "form" && QualityHtmlFacts.Attribute(element, "action") is not null)
-                && !(element.Name == "meta" && QualityHtmlFacts.Attribute(element, "property") is not null)) continue;
+                && !(element.Name == "meta" && QualityHtmlFacts.Attribute(element, "property") is not null))
+                continue;
             Add("href", element.Name is "a" or "area" ? HtmlReferenceRole.Navigation : HtmlReferenceRole.Resource,
                 element.Name is "a" or "area", element.Name is not ("a" or "area"));
             Add("src", HtmlReferenceRole.Resource, false, true);
             Add("poster", HtmlReferenceRole.Resource, false, true);
-            if (element.Name == "object") Add("data", HtmlReferenceRole.Resource, false, true);
-            if (element.Name == "form") Add("action", HtmlReferenceRole.FormAction, true, false);
+            if (element.Name == "object")
+                Add("data", HtmlReferenceRole.Resource, false, true);
+            if (element.Name == "form")
+                Add("action", HtmlReferenceRole.FormAction, true, false);
             var srcset = Value("srcset");
             if (srcset is not null)
             {
@@ -192,11 +216,13 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
             HtmlRawAttributeSnapshot? Attribute(string name) => material?.Attributes.FirstOrDefault(a => a.Namespace is null && a.Name == name);
             void Anchor(string name)
             {
-                if (Value(name) is { Length: > 0 } value) anchors.Add(new(i, name, value, Attribute(name)?.Value));
+                if (Value(name) is { Length: > 0 } value)
+                    anchors.Add(new(i, name, value, Attribute(name)?.Value));
             }
             void Add(string name, HtmlReferenceRole role, bool navigation, bool resource)
             {
-                if (Value(name) is { } value) Capture(name, Attribute(name)?.Value, value, value, role, navigation, resource, 0);
+                if (Value(name) is { } value)
+                    Capture(name, Attribute(name)?.Value, value, value, role, navigation, resource, 0);
             }
             void Capture(string name, HtmlRawValueSnapshot? value, string? decoded, string unresolved, HtmlReferenceRole role,
                 bool navigation, bool resource, int candidate, HtmlSpan? candidateRange = null)
@@ -223,7 +249,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
         });
         var sourceCoverage = Enum.GetValues<HtmlFactsProjection>().Select(projection =>
         {
-            if (raw is null) return new HtmlFactsProjectionCoverage(projection, HtmlFactsCoverageStatus.NotRequested, []);
+            if (raw is null)
+                return new HtmlFactsProjectionCoverage(projection, HtmlFactsCoverageStatus.NotRequested, []);
             IEnumerable<HtmlFactsCoverageReason> reasons = projection switch
             {
                 HtmlFactsProjection.References => references.Where(reference => reference.Value is not null)
@@ -234,7 +261,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
                 HtmlFactsProjection.Headings => raw.Materials?.Headings.SelectMany(h => h.Text.Coverage.Reasons.Concat(h.SearchTitle.Coverage.Reasons)) ?? [],
                 _ => [],
             };
-            if (projection == HtmlFactsProjection.Search) return new HtmlFactsProjectionCoverage(projection, HtmlFactsCoverageStatus.NotRequested, []);
+            if (projection == HtmlFactsProjection.Search)
+                return new HtmlFactsProjectionCoverage(projection, HtmlFactsCoverageStatus.NotRequested, []);
             var errors = reasons.ToArray();
             return new HtmlFactsProjectionCoverage(projection, errors.Length == 0 ? HtmlFactsCoverageStatus.Complete : HtmlFactsCoverageStatus.Partial, errors);
         });
@@ -255,7 +283,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
             lifetimeToken.ThrowIfCancellationRequested();
             if (closed || (search && qualityPhase))
                 throw new InvalidOperationException("The requested HTML consumer phase has finished; reparsing is not permitted.");
-            if (!search && !qualityRequired) throw new InvalidOperationException("This build has no Quality consumer.");
+            if (!search && !qualityRequired)
+                throw new InvalidOperationException("This build has no Quality consumer.");
             var snapshot = SnapshotOptions(options ?? new());
             var key = new Key(source, Profile(snapshot)); // Raw ordinal UTF-16 equality, not hash-only identity.
             consumerCancellation.ThrowIfCancellationRequested();
@@ -268,7 +297,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
                 flight = Task.Run(() => ParseAsync(key, snapshot, captureSearch));
                 entries.Add(key, flight);
             }
-            else reuseCount++;
+            else
+                reuseCount++;
         }
         var facts = await flight.WaitAsync(consumerCancellation).ConfigureAwait(false);
         consumerCancellation.ThrowIfCancellationRequested();
@@ -279,14 +309,21 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
     private async Task<HtmlConsumerFacts> ParseAsync(Key key, HtmlTreeOptions options, bool captureSearch)
     {
         await parser.WaitAsync(lifetimeToken).ConfigureAwait(false);
-        try { return ParseAndProject(key, options, captureSearch); }
-        finally { parser.Release(); }
+        try
+        {
+            return ParseAndProject(key, options, captureSearch);
+        }
+        finally
+        {
+            parser.Release();
+        }
     }
 
     private HtmlConsumerFacts ParseAndProject(Key key, HtmlTreeOptions options, bool captureSearch)
     {
         lifetimeToken.ThrowIfCancellationRequested();
-        lock (gate) parseCount++;
+        lock (gate)
+            parseCount++;
         HtmlFacts parsed;
         HtmlRawAttributeFacts? raw = null;
         if (RequiresQualityRaw || (captureSearch && (rawDemand & HtmlRawFactsDemand.Search) != 0))
@@ -297,9 +334,11 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
             raw = captured.RawAttributes;
             raw.RequireComplete();
         }
-        else parsed = HtmlFacts.Parse(key.Source, lifetimeToken, options);
+        else
+            parsed = HtmlFacts.Parse(key.Source, lifetimeToken, options);
         var projection = HtmlConsumerFacts.Capture(parsed, captureSearch, qualityRequired, lifetimeToken, raw);
-        lock (gate) retainedBytes += projection.RetentionCharge;
+        lock (gate)
+            retainedBytes += projection.RetentionCharge;
         return projection; // No tree, line-start array or cancellation token enters the retained value.
     }
 
@@ -310,7 +349,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (closed || !qualityRequired) throw new InvalidOperationException("There is no pending Quality phase.");
+            if (closed || !qualityRequired)
+                throw new InvalidOperationException("There is no pending Quality phase.");
             qualityPhase = true;
             flights = entries.Values.ToArray();
         }
@@ -321,7 +361,8 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
             foreach (var key in entries.Keys.ToArray())
             {
                 var flight = entries[key];
-                if (!flight.IsCompletedSuccessfully) continue; // Faults remain terminal faults, not empty facts.
+                if (!flight.IsCompletedSuccessfully)
+                    continue; // Faults remain terminal faults, not empty facts.
                 var compact = flight.Result.QualityOnly(keepRaw: RequiresQualityRaw);
                 retainedBytes -= flight.Result.RetentionCharge - compact.RetentionCharge;
                 entries[key] = Task.FromResult(compact);
@@ -333,14 +374,27 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
     internal async Task ReleaseAsync()
     {
         Task<HtmlConsumerFacts>[] flights;
-        lock (gate) { closed = true; flights = entries.Values.ToArray(); }
+        lock (gate)
+        {
+            closed = true;
+            flights = entries.Values.ToArray();
+        }
         await ObserveAsync(flights).ConfigureAwait(false);
-        lock (gate) { entries.Clear(); retainedBytes = 0; }
+        lock (gate)
+        {
+            entries.Clear();
+            retainedBytes = 0;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        lock (gate) { if (disposed) return; disposed = true; }
+        lock (gate)
+        {
+            if (disposed)
+                return;
+            disposed = true;
+        }
         lifetime.Cancel();
         await ReleaseAsync().ConfigureAwait(false);
         parser.Dispose();
@@ -349,39 +403,64 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
 
     private static async Task ObserveAsync(Task<HtmlConsumerFacts>[] flights)
     {
-        try { await Task.WhenAll(flights).ConfigureAwait(false); }
+        try
+        {
+            await Task.WhenAll(flights).ConfigureAwait(false);
+        }
         catch { /* Observe failed/canceled flights. Their consumers still receive the original failure. */ }
     }
 
     private static HtmlTreeOptions SnapshotOptions(HtmlTreeOptions options)
     {
-        if (options.Fragment is not { } fragment) return options;
-        return options with { Fragment = fragment with
+        if (options.Fragment is not { } fragment)
+            return options;
+        return options with
         {
-            Attributes = Array.AsReadOnly((fragment.Attributes ?? []).Select(attribute => new HtmlAttribute(
-                Freeze(attribute.Name), Freeze(attribute.Value))).ToArray())
-        } };
+            Fragment = fragment with
+            {
+                Attributes = Array.AsReadOnly((fragment.Attributes ?? []).Select(attribute => new HtmlAttribute(
+                    Freeze(attribute.Name), Freeze(attribute.Value))).ToArray())
+            }
+        };
         static ParsedHtmlText Freeze(ParsedHtmlText text) => text with { Segments = Array.AsReadOnly(text.Segments.ToArray()) };
     }
 
     private string Profile(HtmlTreeOptions options)
     {
         var identity = new StringBuilder("tree/1;tokenizer/1;default-limits/1;").Append(options.Scripting ? '1' : '0');
-        if (options.Fragment is not { } context) return identity.Append(";document").ToString();
-        identity.Append(";fragment;"); Text(context.Name); Text(context.Namespace);
-        Number((int)context.OwnerDocumentMode); Number(context.HasExternalFormAncestor ? 1 : 0);
+        if (options.Fragment is not { } context)
+            return identity.Append(";document").ToString();
+        identity.Append(";fragment;");
+        Text(context.Name);
+        Text(context.Namespace);
+        Number((int)context.OwnerDocumentMode);
+        Number(context.HasExternalFormAncestor ? 1 : 0);
         Number(context.Attributes!.Count);
-        foreach (var attribute in context.Attributes) { Mapped(attribute.Name); Mapped(attribute.Value); }
+        foreach (var attribute in context.Attributes)
+        {
+            Mapped(attribute.Name);
+            Mapped(attribute.Value);
+        }
         return identity.ToString();
-        void Text(string value) { Number(value.Length); identity.Append(value); }
+        void Text(string value)
+        {
+            Number(value.Length);
+            identity.Append(value);
+        }
         void Number(int value) => identity.Append(value.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(':');
         void Mapped(ParsedHtmlText text)
         {
-            Text(text.Value); Number(text.Source.Start); Number(text.Source.Length); Number(text.Segments.Count);
+            Text(text.Value);
+            Number(text.Source.Start);
+            Number(text.Source.Length);
+            Number(text.Segments.Count);
             foreach (var segment in text.Segments)
             {
                 lifetimeToken.ThrowIfCancellationRequested();
-                Number(segment.ValueStart); Number(segment.ValueLength); Number(segment.Source.Start); Number(segment.Source.Length);
+                Number(segment.ValueStart);
+                Number(segment.ValueLength);
+                Number(segment.Source.Start);
+                Number(segment.Source.Length);
             }
         }
     }
@@ -401,7 +480,13 @@ internal sealed class HtmlConsumerFacts
 
     private HtmlConsumerFacts(SearchProjection? search, QualityProjection? quality,
         CancellationToken consumer = default, CancellationToken scope = default, HtmlRawAttributeFacts? raw = null)
-    { this.search = search; this.quality = quality; this.raw = raw; consumerCancellation = consumer; scopeCancellation = scope; }
+    {
+        this.search = search;
+        this.quality = quality;
+        this.raw = raw;
+        consumerCancellation = consumer;
+        scopeCancellation = scope;
+    }
 
     internal static HtmlConsumerFacts Parse(string source, CancellationToken token) =>
         Capture(HtmlFacts.Parse(source, token), true, false, token).ForConsumer(token);
@@ -422,18 +507,50 @@ internal sealed class HtmlConsumerFacts
     internal HtmlConsumerFacts ForConsumer(CancellationToken consumer, CancellationToken scope = default) => new(search, quality, consumer, scope, raw);
     internal HtmlConsumerFacts QualityOnly(bool keepRaw = false) => new(null, quality, raw: keepRaw ? raw?.WithoutSearchMaterials() : null);
     internal HtmlRawAttributeFacts RawAttributes
-    { get { Check(); return raw ?? throw new InvalidOperationException("Raw attributes were not requested for this phase."); } }
-    internal string BodyText { get { Check(); return RequiredSearch.Body; } }
-    internal string SearchText { get { Check(); return RequiredSearch.Text; } }
-    internal IReadOnlyList<SearchSection> SearchSections() { Check(); return RequiredSearch.Sections; }
-    internal HtmlSearchSourceSnapshot? SearchSource { get { Check(); return RequiredSearch.Source; } }
+    {
+        get
+        {
+            Check();
+            return raw ?? throw new InvalidOperationException("Raw attributes were not requested for this phase.");
+        }
+    }
+    internal string BodyText
+    {
+        get
+        {
+            Check();
+            return RequiredSearch.Body;
+        }
+    }
+    internal string SearchText
+    {
+        get
+        {
+            Check();
+            return RequiredSearch.Text;
+        }
+    }
+    internal IReadOnlyList<SearchSection> SearchSections()
+    {
+        Check();
+        return RequiredSearch.Sections;
+    }
+    internal HtmlSearchSourceSnapshot? SearchSource
+    {
+        get
+        {
+            Check();
+            return RequiredSearch.Source;
+        }
+    }
     internal HtmlFactsProjectionCoverage SearchSourceCoverage
     {
         get
         {
             Check();
             var source = RequiredSearch.Source;
-            if (source is null) return new(HtmlFactsProjection.Search, HtmlFactsCoverageStatus.NotRequested, []);
+            if (source is null)
+                return new(HtmlFactsProjection.Search, HtmlFactsCoverageStatus.NotRequested, []);
             return source.Coverage;
         }
     }
@@ -454,7 +571,11 @@ internal sealed class HtmlConsumerFacts
         return new(source.Title, source.BaseHref, source.Anchors.ToArray(), elements);
     }
 
-    private void Check() { consumerCancellation.ThrowIfCancellationRequested(); scopeCancellation.ThrowIfCancellationRequested(); }
+    private void Check()
+    {
+        consumerCancellation.ThrowIfCancellationRequested();
+        scopeCancellation.ThrowIfCancellationRequested();
+    }
     // Diagnostic accounting only; this is not an admission quota or a process heap measurement.
     internal long RetentionCharge => 256L + (search?.Charge ?? 0) + (quality?.Charge ?? 0) + (raw?.RetentionCharge ?? 0);
 

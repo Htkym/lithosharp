@@ -16,7 +16,8 @@ internal static class LegacyTestingDomContract
     internal static IPropertySymbol? FindProperty(Compilation compilation)
     {
         var owner = compilation.GetTypeByMetadataName("LithoSharp.Testing.SiteTestDocument");
-        if (owner?.ContainingAssembly.Identity.Name != "LithoSharp.Testing" || owner.Locations.Any(l => l.IsInSource)) return null;
+        if (owner?.ContainingAssembly.Identity.Name != "LithoSharp.Testing" || owner.Locations.Any(l => l.IsInSource))
+            return null;
         var candidates = owner.GetMembers("Document").OfType<IPropertySymbol>().Where(property =>
             !property.IsStatic && !property.IsIndexer && property.Parameters.Length == 0
             && property.DeclaredAccessibility == Accessibility.Public && property.SetMethod is null
@@ -31,7 +32,8 @@ internal static class LegacyTestingDomContract
     internal static void Register(CompilationStartAnalysisContext start)
     {
         var legacy = FindProperty(start.Compilation);
-        if (legacy is null) return;
+        if (legacy is null)
+            return;
         start.RegisterOperationAction(context =>
         {
             context.CancellationToken.ThrowIfCancellationRequested();

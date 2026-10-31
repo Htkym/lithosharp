@@ -50,7 +50,8 @@ public sealed class LithoFuzzTests
         {
             var input = Mutate(Seeds[random.Next(Seeds.Length)], random);
             var violation = Check(input);
-            if (violation is null) continue;
+            if (violation is null)
+                continue;
             var directory = Path.Combine(RepoRoot(), ".local", "fuzz", "c12");
             Directory.CreateDirectory(directory);
             var prefix = Path.Combine(directory, $"iter-{iteration:D4}");
@@ -114,13 +115,18 @@ public sealed class LithoFuzzTests
         }
 
         elapsed.Stop();
-        if (first.Html != second) return "Litho output is not deterministic.";
-        if (elapsed.Elapsed > Watchdog) return $"Analysis took {elapsed.Elapsed} (watchdog {Watchdog}).";
+        if (first.Html != second)
+            return "Litho output is not deterministic.";
+        if (elapsed.Elapsed > Watchdog)
+            return $"Analysis took {elapsed.Elapsed} (watchdog {Watchdog}).";
         // Mirror the robustness bound: NUL counts as one unit inside Litho.
         var bound = input.Replace("\0", "\uFFFD", StringComparison.Ordinal).Length;
-        if (first.Syntax is null || first.Semantics is null) return "Litho returned no syntax or semantics.";
-        if (first.Syntax.Blocks.Any(block => block.Span.End > bound)) return "Litho block span escapes the input.";
-        if (first.Semantics.Headings.Any(heading => heading.Span.End > bound)) return "Litho heading span escapes the input.";
+        if (first.Syntax is null || first.Semantics is null)
+            return "Litho returned no syntax or semantics.";
+        if (first.Syntax.Blocks.Any(block => block.Span.End > bound))
+            return "Litho block span escapes the input.";
+        if (first.Semantics.Headings.Any(heading => heading.Span.End > bound))
+            return "Litho heading span escapes the input.";
         return null;
     }
 
@@ -141,11 +147,11 @@ public sealed class LithoFuzzTests
 
                 break;
             case 2:
-            {
-                var lines = builder.ToString().Split('\n');
-                builder.Append(lines[random.Next(lines.Length)]).Append('\n');
-                break;
-            }
+                {
+                    var lines = builder.ToString().Split('\n');
+                    builder.Append(lines[random.Next(lines.Length)]).Append('\n');
+                    break;
+                }
             case 3:
                 builder.Length = random.Next(builder.Length + 1);
                 break;
@@ -153,30 +159,31 @@ public sealed class LithoFuzzTests
                 builder.Insert(random.Next(builder.Length + 1), Seeds[random.Next(Seeds.Length)]);
                 break;
             case 5:
-            {
-                var lines = builder.ToString().Split('\n');
-                var line = lines[random.Next(lines.Length)];
-                for (var i = 0; i < random.Next(1, 51); i++) builder.Append(line).Append('\n');
-                break;
-            }
-            case 6:
-            {
-                var lines = builder.ToString().Split('\n');
-                if (lines.Length > 2)
                 {
-                    var at = random.Next(lines.Length - 1);
-                    (lines[at], lines[at + 1]) = (lines[at + 1], lines[at]);
-                    builder = new StringBuilder(string.Join('\n', lines));
+                    var lines = builder.ToString().Split('\n');
+                    var line = lines[random.Next(lines.Length)];
+                    for (var i = 0; i < random.Next(1, 51); i++)
+                        builder.Append(line).Append('\n');
+                    break;
                 }
+            case 6:
+                {
+                    var lines = builder.ToString().Split('\n');
+                    if (lines.Length > 2)
+                    {
+                        var at = random.Next(lines.Length - 1);
+                        (lines[at], lines[at + 1]) = (lines[at + 1], lines[at]);
+                        builder = new StringBuilder(string.Join('\n', lines));
+                    }
 
-                break;
-            }
+                    break;
+                }
             default:
-            {
-                if (builder.Length > 0)
-                    builder[random.Next(builder.Length)] = Tokens[random.Next(Tokens.Length)][0];
-                break;
-            }
+                {
+                    if (builder.Length > 0)
+                        builder[random.Next(builder.Length)] = Tokens[random.Next(Tokens.Length)][0];
+                    break;
+                }
         }
 
         return builder.ToString();
@@ -187,7 +194,8 @@ public sealed class LithoFuzzTests
         var count = 0;
         bool Reproduces(string candidate)
         {
-            if (++count > 60) return false;
+            if (++count > 60)
+                return false;
             try
             {
                 var first = new LithoMarkdownCompiler().Analyze(candidate).Html;
@@ -218,8 +226,10 @@ public sealed class LithoFuzzTests
             size = improved ? Math.Max(8, best.Length / 2) : size / 2;
         }
 
-        while (best.Length > 1 && count <= 60 && Reproduces(best[1..])) best = best[1..];
-        while (best.Length > 1 && count <= 60 && Reproduces(best[..^1])) best = best[..^1];
+        while (best.Length > 1 && count <= 60 && Reproduces(best[1..]))
+            best = best[1..];
+        while (best.Length > 1 && count <= 60 && Reproduces(best[..^1]))
+            best = best[..^1];
         probes = count;
         return best;
     }
@@ -228,8 +238,10 @@ public sealed class LithoFuzzTests
     {
         for (var i = 0; i < text.Length; i++)
         {
-            if (char.IsHighSurrogate(text[i]) && (i + 1 >= text.Length || !char.IsLowSurrogate(text[i + 1]))) return true;
-            if (char.IsLowSurrogate(text[i]) && (i == 0 || !char.IsHighSurrogate(text[i - 1]))) return true;
+            if (char.IsHighSurrogate(text[i]) && (i + 1 >= text.Length || !char.IsLowSurrogate(text[i + 1])))
+                return true;
+            if (char.IsLowSurrogate(text[i]) && (i == 0 || !char.IsHighSurrogate(text[i - 1])))
+                return true;
         }
 
         return false;

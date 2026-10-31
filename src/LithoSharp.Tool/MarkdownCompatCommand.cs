@@ -27,17 +27,20 @@ internal static class MarkdownCompatCommand
             var argument = args[index];
             if (argument is "--advisory")
             {
-                if (++index >= args.Length) throw new CliUsageException(Usage);
+                if (++index >= args.Length)
+                    throw new CliUsageException(Usage);
                 advisory = args[index];
             }
             else if (argument is "-f" or "--format")
             {
-                if (++index >= args.Length) throw new CliUsageException(Usage);
+                if (++index >= args.Length)
+                    throw new CliUsageException(Usage);
                 format = args[index];
             }
             else if (argument is "--project")
             {
-                if (++index >= args.Length) throw new CliUsageException(Usage);
+                if (++index >= args.Length)
+                    throw new CliUsageException(Usage);
                 projectFile = args[index];
             }
             else if (argument.StartsWith('-'))
@@ -46,12 +49,14 @@ internal static class MarkdownCompatCommand
             }
             else
             {
-                if (file is not null) throw new CliUsageException(Usage);
+                if (file is not null)
+                    throw new CliUsageException(Usage);
                 file = argument;
             }
         }
 
-        if (file is null) throw new CliUsageException(Usage);
+        if (file is null)
+            throw new CliUsageException(Usage);
         if (!CompatibilityAdvisoryOption.TryParse(advisory, out var enabled))
             throw new CliUsageException(Usage + $" Unknown advisory '{advisory}'. Supported values: on, off.");
         if (format is not ("text" or "json"))
@@ -61,7 +66,8 @@ internal static class MarkdownCompatCommand
         if (projectFile is not null)
         {
             var projectPath = Path.GetFullPath(projectFile);
-            if (!File.Exists(projectPath)) throw new CliUsageException($"Project snapshot '{projectFile}' does not exist.");
+            if (!File.Exists(projectPath))
+                throw new CliUsageException($"Project snapshot '{projectFile}' does not exist.");
             try
             {
                 project = ProjectInspectionSnapshot.ParseJson(File.ReadAllText(projectPath));
@@ -73,7 +79,8 @@ internal static class MarkdownCompatCommand
         }
 
         var path = Path.GetFullPath(file);
-        if (!File.Exists(path)) throw new CliUsageException($"Markdown file '{file}' does not exist.");
+        if (!File.Exists(path))
+            throw new CliUsageException($"Markdown file '{file}' does not exist.");
         var text = File.ReadAllText(path);
         var info = DocumentInspection.Inspect(path, text, new DocumentInspectionOptions
         {

@@ -20,7 +20,11 @@ internal sealed class GenerationOptionsAnalysis
     private readonly IPropertySymbol property;
 
     private GenerationOptionsAnalysis(IMethodSymbol method, IMethodSymbol constructor, IPropertySymbol property)
-    { this.method = method; this.constructor = constructor; this.property = property; }
+    {
+        this.method = method;
+        this.constructor = constructor;
+        this.property = property;
+    }
 
     internal static GenerationOptionsAnalysis? Create(Compilation compilation)
     {
@@ -34,11 +38,13 @@ internal sealed class GenerationOptionsAnalysis
         if (generator is null || options is not { Arity: 0, IsSealed: true }
             || owned.Any(type => type is null || type.ContainingAssembly.Identity.Name != "LithoSharp"
                 || type.Locations.Any(location => location.IsInSource)
-                || !SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, generator.ContainingAssembly))) return null;
+                || !SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, generator.ContainingAssembly)))
+            return null;
         var task = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
         var list = compilation.GetTypeByMetadataName("System.Collections.Generic.IReadOnlyList`1");
         var token = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
-        if (task is null || list is null || token is null) return null;
+        if (task is null || list is null || token is null)
+            return null;
         var signature = new ITypeSymbol[] { site!, list.Construct(post!), compilation.GetSpecialType(SpecialType.System_String),
             compilation.GetSpecialType(SpecialType.System_Boolean), customization!, options, token };
         var methods = generator.GetMembers("GenerateWithOptionsAsync").OfType<IMethodSymbol>().Where(candidate =>
@@ -61,25 +67,30 @@ internal sealed class GenerationOptionsAnalysis
     internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate)
     {
         if (operation is not ISimpleAssignmentOperation { IsRef: false, Target: IPropertyReferenceOperation target } assignment
-            || !SymbolEqualityComparer.Default.Equals(target.Property, property)) return;
+            || !SymbolEqualityComparer.Default.Equals(target.Property, property))
+            return;
         var model = context.Compilation.GetSemanticModel(operation.Syntax.SyntaxTree);
         if (model.GetOperation(operation.Syntax, context.CancellationToken) is not ISimpleAssignmentOperation original
             || original.Parent is not IObjectOrCollectionInitializerOperation initializer
             || initializer.Parent is not IObjectCreationOperation creation
             || !SymbolEqualityComparer.Default.Equals(creation.Constructor?.OriginalDefinition, constructor)
             || original.Target is not IPropertyReferenceOperation originalTarget
-            || !SymbolEqualityComparer.Default.Equals(originalTarget.Property, property)) return;
+            || !SymbolEqualityComparer.Default.Equals(originalTarget.Property, property))
+            return;
         IOperation owner = creation;
         while (owner.Parent is IParenthesizedOperation
-            || owner.Parent is IConversionOperation { IsImplicit: true, Conversion.IsIdentity: true }) owner = owner.Parent;
+            || owner.Parent is IConversionOperation { IsImplicit: true, Conversion.IsIdentity: true })
+            owner = owner.Parent;
         if (owner.Parent is not IArgumentOperation { ArgumentKind: ArgumentKind.Explicit, Parameter.Ordinal: 5 } argument
             || argument.Parent is not IInvocationOperation call
             || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, method)
-            || StaticValueFlow.HasBindingError(call)) return;
+            || StaticValueFlow.HasBindingError(call))
+            return;
         // Never evaluate the original syntax or the final invocation state. In a split
         // CFG a missing/invalidated capture stays Unknown at this assignment.
         var value = evaluate(assignment.Value);
-        if (value.Values is not { Length: > 0 } values || !values.All(candidate => candidate is int number && number < 1)) return;
+        if (value.Values is not { Length: > 0 } values || !values.All(candidate => candidate is int number && number < 1))
+            return;
         var properties = ImmutableDictionary<string, string?>.Empty.Add("staticState", "Known")
             .Add("candidateCount", values.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
             .Add("origin", "original-initializer-value-utf16-span").Add("optionsArgumentOrdinal", "5");

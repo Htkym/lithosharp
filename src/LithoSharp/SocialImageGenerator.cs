@@ -40,12 +40,14 @@ internal sealed class SocialImageGenerator
             using var data = SKData.CreateCopy(Bytes);
             var typeface = SKTypeface.FromData(data, Index)
                 ?? throw new InvalidOperationException("Failed to load captured social image font.");
-            if (Position.Length == 0) return typeface;
+            if (Position.Length == 0)
+                return typeface;
             try
             {
                 return typeface.Clone(new SKFontArguments
                 {
-                    CollectionIndex = Index, VariationDesignPosition = Position,
+                    CollectionIndex = Index,
+                    VariationDesignPosition = Position,
                 }) ?? throw new InvalidOperationException("Failed to restore captured font variations.");
             }
             finally
@@ -74,7 +76,8 @@ internal sealed class SocialImageGenerator
     {
         lock (FontGate)
         {
-            if (_capturedFonts is not null) return _capturedFonts;
+            if (_capturedFonts is not null)
+                return _capturedFonts;
             // Like the old native manager, successful selection lasts for this process.
             // Retain immutable bytes, not live file paths or native handles. Failed
             // discovery is not cached, so installing a usable font permits a retry.
@@ -101,7 +104,8 @@ internal sealed class SocialImageGenerator
         while (offset < bytes.Length)
         {
             var count = stream.Read(buffer, Math.Min(buffer.Length, bytes.Length - offset));
-            if (count <= 0) throw new IOException("Could not capture the complete social image font.");
+            if (count <= 0)
+                throw new IOException("Could not capture the complete social image font.");
             buffer.AsSpan(0, count).CopyTo(bytes.AsSpan(offset));
             offset += count;
         }
@@ -112,8 +116,10 @@ internal sealed class SocialImageGenerator
         using var captured = snapshot.Open();
         return snapshot with
         {
-            Family = captured.FamilyName, Weight = captured.FontWeight,
-            Width = captured.FontWidth, Slant = captured.FontSlant,
+            Family = captured.FamilyName,
+            Weight = captured.FontWeight,
+            Width = captured.FontWidth,
+            Slant = captured.FontSlant,
         };
     }
 
@@ -244,10 +250,12 @@ internal sealed class SocialImageGenerator
         foreach (var preferredFont in PreferredMonoFonts)
         {
             var typeface = SKTypeface.FromFamilyName(preferredFont, fontStyle);
-            if (typeface is null) continue;
+            if (typeface is null)
+                continue;
             try
             {
-                if (!typeface.IsEmpty) return CaptureFont(typeface);
+                if (!typeface.IsEmpty)
+                    return CaptureFont(typeface);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
                 or ArgumentException or InvalidOperationException or NotSupportedException or ExternalException)
@@ -256,7 +264,8 @@ internal sealed class SocialImageGenerator
             }
             finally
             {
-                if (!ReferenceEquals(typeface, SKTypeface.Default)) typeface.Dispose();
+                if (!ReferenceEquals(typeface, SKTypeface.Default))
+                    typeface.Dispose();
             }
         }
 
@@ -281,13 +290,15 @@ internal sealed class SocialImageGenerator
                                  : font.Weight < 400 ? 1000 - font.Weight : 1000 + font.Weight))
             {
                 using var typeface = OpenInstalledFont(font.Path, font.Index);
-                if (typeface is null) continue;
+                if (typeface is null)
+                    continue;
                 try
                 {
                     var captured = CaptureFont(typeface);
                     if (captured.Index == font.Index && captured.Family == font.Family
                         && captured.Weight == font.Weight && captured.Width == font.Width
-                        && captured.Slant == font.Slant) return captured;
+                        && captured.Slant == font.Slant)
+                        return captured;
                     // A replaced file must not freeze a different family/style under stale metadata.
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
@@ -305,7 +316,8 @@ internal sealed class SocialImageGenerator
     private static InstalledFont[] FindLinuxFonts()
     {
         const string root = "/usr/share/fonts";
-        if (!Directory.Exists(root)) return [];
+        if (!Directory.Exists(root))
+            return [];
         var options = new EnumerationOptions
         {
             RecurseSubdirectories = true,
@@ -324,7 +336,8 @@ internal sealed class SocialImageGenerator
             for (var index = 0; index < 64; index++)
             {
                 using var typeface = OpenInstalledFont(path, index);
-                if (typeface is null) break;
+                if (typeface is null)
+                    break;
                 fonts.Add(new InstalledFont(path, index, typeface.FamilyName,
                     typeface.FontWeight, typeface.FontWidth, typeface.FontSlant));
             }
@@ -338,7 +351,8 @@ internal sealed class SocialImageGenerator
         try
         {
             var typeface = SKTypeface.FromFile(path, index);
-            if (typeface is not null && !typeface.IsEmpty) return typeface;
+            if (typeface is not null && !typeface.IsEmpty)
+                return typeface;
             typeface?.Dispose();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException

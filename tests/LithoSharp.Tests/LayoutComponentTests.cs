@@ -148,7 +148,9 @@ public sealed class LayoutComponentTests
             new SiteCustomization { Template = new AdapterTemplate(asset) },
             new SiteGenerationOptions
             {
-                Assets = [asset], EnvironmentName = "Preview", BuildTimestamp = DateTimeOffset.UnixEpoch
+                Assets = [asset],
+                EnvironmentName = "Preview",
+                BuildTimestamp = DateTimeOffset.UnixEpoch
             }, default);
         var html = await File.ReadAllTextAsync(Path.Combine(output, "adapter.html"));
         await Assert.That(html).Contains("Preview|0|/sub/assets/test.");
@@ -161,7 +163,8 @@ public sealed class LayoutComponentTests
         var context = ComponentRenderingContext.Create(new SiteSettings());
         var root = new SiteTemplateNavigationNode
         {
-            Label = "Root", Children = [new SiteTemplateNavigationNode { Label = "<Folder>", Children = [] }]
+            Label = "Root",
+            Children = [new SiteTemplateNavigationNode { Label = "<Folder>", Children = [] }]
         };
         var current = SiteUrl.ForFile("extra.html");
         var html = context.Render(new DocsNavigationComponent(),

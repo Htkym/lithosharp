@@ -24,7 +24,8 @@ public sealed class MdxInspectionLifetimeTests
     private static async Task<int> WaitForStartedAsync(string marker)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        while (!File.Exists(marker)) await Task.Delay(10, deadline.Token);
+        while (!File.Exists(marker))
+            await Task.Delay(10, deadline.Token);
         using var data = JsonDocument.Parse(await File.ReadAllTextAsync(marker, deadline.Token));
         return data.RootElement.GetProperty("pid").GetInt32();
     }
@@ -77,9 +78,23 @@ public sealed class MdxInspectionLifetimeTests
             await Task.WhenAll(disposal, repeated).WaitAsync(TimeSpan.FromSeconds(5));
 
             var activeCanceled = false;
-            try { await active; } catch (OperationCanceledException) { activeCanceled = true; }
+            try
+            {
+                await active;
+            }
+            catch (OperationCanceledException)
+            {
+                activeCanceled = true;
+            }
             var queuedCanceled = false;
-            try { await queued; } catch (OperationCanceledException) { queuedCanceled = true; }
+            try
+            {
+                await queued;
+            }
+            catch (OperationCanceledException)
+            {
+                queuedCanceled = true;
+            }
             await Assert.That(activeCanceled).IsTrue();
             await Assert.That(queuedCanceled).IsTrue();
             await Assert.That(ownerProcess.HasExited).IsTrue();
@@ -90,8 +105,14 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(other.WorkerStarts).IsEqualTo(1);
 
             var rejected = false;
-            try { await owner.AnalyzeAsync("later.mdx", "# Later"); }
-            catch (ObjectDisposedException) { rejected = true; }
+            try
+            {
+                await owner.AnalyzeAsync("later.mdx", "# Later");
+            }
+            catch (ObjectDisposedException)
+            {
+                rejected = true;
+            }
             await Assert.That(rejected).IsTrue();
             await owner.DisposeAsync();
         }
@@ -106,25 +127,51 @@ public sealed class MdxInspectionLifetimeTests
             // owned analysis/disposer/session even when one cleanup task faults.
             // Expected cancellation of analyses is the only suppressed outcome.
             var cleanupFailures = new List<Exception>();
-            try { abort.Cancel(); }
-            catch (Exception error) { cleanupFailures.Add(error); }
+            try
+            {
+                abort.Cancel();
+            }
+            catch (Exception error)
+            {
+                cleanupFailures.Add(error);
+            }
             foreach (var analysis in new[] { active, queued })
             {
-                if (analysis is null) continue;
-                try { await analysis.WaitAsync(TimeSpan.FromSeconds(10)); }
+                if (analysis is null)
+                    continue;
+                try
+                {
+                    await analysis.WaitAsync(TimeSpan.FromSeconds(10));
+                }
                 catch (OperationCanceledException) { }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
             foreach (var disposer in new[] { disposal, repeated })
             {
-                if (disposer is null) continue;
-                try { await disposer.WaitAsync(TimeSpan.FromSeconds(10)); }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                if (disposer is null)
+                    continue;
+                try
+                {
+                    await disposer.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
             foreach (var ownedSession in new[] { owner, other })
             {
-                try { await ownedSession.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                try
+                {
+                    await ownedSession.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
             if (cleanupFailures.Count != 0)
             {
@@ -147,8 +194,14 @@ public sealed class MdxInspectionLifetimeTests
         await session.DisposeAsync();
         await Assert.That(session.WorkerStarts).IsEqualTo(0);
         var rejected = false;
-        try { await session.AnalyzeAsync("later.mdx", "# Later"); }
-        catch (ObjectDisposedException) { rejected = true; }
+        try
+        {
+            await session.AnalyzeAsync("later.mdx", "# Later");
+        }
+        catch (ObjectDisposedException)
+        {
+            rejected = true;
+        }
         await Assert.That(rejected).IsTrue();
     }
 
@@ -232,7 +285,10 @@ public sealed class MdxInspectionLifetimeTests
             catch (Exception observationError)
             {
                 // Observation must never replace the test's original failure or owned cleanup.
-                try { Console.WriteLine("LSR25_DISPOSAL_OBSERVATION_ERROR " + observationError.GetType().FullName); }
+                try
+                {
+                    Console.WriteLine("LSR25_DISPOSAL_OBSERVATION_ERROR " + observationError.GetType().FullName);
+                }
                 catch { }
             }
         }
@@ -247,14 +303,21 @@ public sealed class MdxInspectionLifetimeTests
             transferred = true;
             continuation.Resume();
             Exception? outcome = null;
-            try { await continuation.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await continuation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (Exception error)
             {
                 outcome = error;
-                if (error is TimeoutException) ObserveDisposalWait("analysis-timeout", outcome, error);
+                if (error is TimeoutException)
+                    ObserveDisposalWait("analysis-timeout", outcome, error);
             }
             ObserveDisposalWait("before-disposal-wait", outcome);
-            try { await disposal.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (TimeoutException error)
             {
                 ObserveDisposalWait("disposal-timeout", outcome, error);
@@ -274,8 +337,14 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(gate.CurrentCount).IsEqualTo(1);
 
             Exception? newRequest = null;
-            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
-            catch (Exception error) { newRequest = error; }
+            try
+            {
+                await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true));
+            }
+            catch (Exception error)
+            {
+                newRequest = error;
+            }
             await Assert.That(newRequest is ObjectDisposedException).IsTrue();
             await Assert.That(session.WorkerStarts).IsEqualTo(0);
         }
@@ -289,11 +358,19 @@ public sealed class MdxInspectionLifetimeTests
             Exception? cleanup = null;
             try
             {
-                if (!transferred) gate.Release();
-                if (disposal is not null) await disposal.WaitAsync(TimeSpan.FromSeconds(5));
+                if (!transferred)
+                    gate.Release();
+                if (disposal is not null)
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (Exception error) { cleanup = error; }
-            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (Exception error)
+            {
+                cleanup = error;
+            }
+            try
+            {
+                await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (Exception error)
             {
                 cleanup = cleanup is null ? error : new AggregateException("Both owned disposal waits failed.", cleanup, error);
@@ -341,9 +418,14 @@ public sealed class MdxInspectionLifetimeTests
             // This callback deliberately blocks; start its owner outside the shared pool.
             disposal = Task.Factory.StartNew(() => session.DisposeAsync().AsTask(), CancellationToken.None,
                 TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
-            try { await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (TimeoutException error)
-            { throw new TimeoutException("LSR25_RESIDUAL owner cancellation did not enter the blocker.", error); }
+            {
+                throw new TimeoutException("LSR25_RESIDUAL owner cancellation did not enter the blocker.", error);
+            }
             await Assert.That(owner.IsCancellationRequested).IsTrue();
             await Assert.That(acceptedToken.IsCancellationRequested).IsFalse();
             await Assert.That((int)typeof(MdxInspectionSession).GetField("disposalStarted", flags)!.GetValue(session)!).IsEqualTo(1);
@@ -353,8 +435,14 @@ public sealed class MdxInspectionLifetimeTests
             transferred = true;
             continuation.Resume();
             Exception? outcome = null;
-            try { await completion.WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (Exception error) { outcome = error; }
+            try
+            {
+                await completion.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception error)
+            {
+                outcome = error;
+            }
             completionObserved = completion.IsCompleted;
             Console.WriteLine("LSR25_RESIDUAL_BOUNDARY " + JsonSerializer.Serialize(new
             {
@@ -373,8 +461,14 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(acceptedToken.IsCancellationRequested).IsTrue();
             await Assert.That(gate.CurrentCount).IsEqualTo(1);
             Exception? newRequest = null;
-            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
-            catch (Exception error) { newRequest = error; }
+            try
+            {
+                await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true));
+            }
+            catch (Exception error)
+            {
+                newRequest = error;
+            }
             await Assert.That(newRequest is ObjectDisposedException).IsTrue();
             await Assert.That(session.WorkerStarts).IsEqualTo(0);
         }
@@ -389,22 +483,46 @@ public sealed class MdxInspectionLifetimeTests
             var cleanupFailures = new List<Exception>();
             if (!transferred)
             {
-                try { gate.Release(); }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                try
+                {
+                    gate.Release();
+                }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
             if (completion is not null && !completionObserved)
             {
-                try { await completion.WaitAsync(TimeSpan.FromSeconds(10)); }
+                try
+                {
+                    await completion.WaitAsync(TimeSpan.FromSeconds(10));
+                }
                 catch (OperationCanceledException) { }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
             if (disposal is not null)
             {
-                try { await disposal.WaitAsync(TimeSpan.FromSeconds(10)); }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                try
+                {
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
-            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
-            catch (Exception error) { cleanupFailures.Add(error); }
+            try
+            {
+                await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            catch (Exception error)
+            {
+                cleanupFailures.Add(error);
+            }
             if (cleanupFailures.Count != 0)
             {
                 if (primary is not null)
@@ -436,8 +554,14 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(ownerToken.IsCancellationRequested).IsTrue();
             await Assert.That((int)disposalFlag.GetValue(session)!).IsEqualTo(1);
             var disposedGetterRejected = false;
-            try { _ = owner.Token; }
-            catch (ObjectDisposedException) { disposedGetterRejected = true; }
+            try
+            {
+                _ = owner.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                disposedGetterRejected = true;
+            }
             await Assert.That(disposedGetterRejected).IsTrue();
 
             // Owned boundary-state replay, not a scheduler race reproduction:
@@ -446,12 +570,24 @@ public sealed class MdxInspectionLifetimeTests
             // the real canceled/disposed owner. Neither branch can reach worker
             // or read the post-gate flag: old getter faults, new wait cancels.
             disposalFlag.SetValue(session, 0);
-            try { analysis = session.AnalyzeAsync("accepted.mdx", "# Accepted", cancellationToken: caller.Token); }
-            finally { disposalFlag.SetValue(session, 1); }
+            try
+            {
+                analysis = session.AnalyzeAsync("accepted.mdx", "# Accepted", cancellationToken: caller.Token);
+            }
+            finally
+            {
+                disposalFlag.SetValue(session, 1);
+            }
             await Assert.That(analysis.IsCompleted).IsTrue();
             Exception? outcome = null;
-            try { await analysis.WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (Exception error) { outcome = error; }
+            try
+            {
+                await analysis.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception error)
+            {
+                outcome = error;
+            }
             completionObserved = analysis.IsCompleted;
             var cancellation = outcome as OperationCanceledException;
             Console.WriteLine("LSR25_PRECTS_BOUNDARY " + JsonSerializer.Serialize(new
@@ -474,8 +610,14 @@ public sealed class MdxInspectionLifetimeTests
             await Assert.That(session.WorkerStarts).IsEqualTo(0);
             await Assert.That((int)disposalFlag.GetValue(session)!).IsEqualTo(1);
             Exception? newRequest = null;
-            try { await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true)); }
-            catch (Exception error) { newRequest = error; }
+            try
+            {
+                await session.AnalyzeAsync("later.mdx", "# Later", cancellationToken: new CancellationToken(true));
+            }
+            catch (Exception error)
+            {
+                newRequest = error;
+            }
             await Assert.That(newRequest is ObjectDisposedException).IsTrue();
             await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(session.WorkerStarts).IsEqualTo(0);
@@ -488,16 +630,34 @@ public sealed class MdxInspectionLifetimeTests
         finally
         {
             var cleanupFailures = new List<Exception>();
-            try { disposalFlag.SetValue(session, 1); }
-            catch (Exception error) { cleanupFailures.Add(error); }
+            try
+            {
+                disposalFlag.SetValue(session, 1);
+            }
+            catch (Exception error)
+            {
+                cleanupFailures.Add(error);
+            }
             if (analysis is not null && !completionObserved)
             {
-                try { await analysis.WaitAsync(TimeSpan.FromSeconds(10)); }
+                try
+                {
+                    await analysis.WaitAsync(TimeSpan.FromSeconds(10));
+                }
                 catch (OperationCanceledException) { }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
-            try { await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
-            catch (Exception error) { cleanupFailures.Add(error); }
+            try
+            {
+                await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            catch (Exception error)
+            {
+                cleanupFailures.Add(error);
+            }
             if (cleanupFailures.Count != 0)
             {
                 if (primary is not null)

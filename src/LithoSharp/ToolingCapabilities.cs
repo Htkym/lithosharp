@@ -176,7 +176,8 @@ public static class ToolingCapabilities
     public static void Require(IEnumerable<string> advertised, IEnumerable<string> required)
     {
         var missing = Missing(advertised, required);
-        if (missing.Count == 0) return;
+        if (missing.Count == 0)
+            return;
         var supported = string.Join(", ", All.Select(static capability => capability.Name));
         throw new InvalidOperationException(
             $"The peer does not provide the required tooling capability '{string.Join("', '", missing)}'; "

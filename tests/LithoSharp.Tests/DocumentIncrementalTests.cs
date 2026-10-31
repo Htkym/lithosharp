@@ -369,10 +369,18 @@ public sealed class DocumentIncrementalTests
                 var json = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(file))!;
                 switch (corruption)
                 {
-                    case "negative-span": json["Headings"]![0]!["SpanStart"] = -1; break;
-                    case "overflow-span": json["Headings"]![0]!["SpanLength"] = int.MaxValue; break;
-                    case "null-heading": json["Headings"]![0] = null; break;
-                    case "wrong-html": json["RawHtml"] = "<p>corrupt cached HTML</p>"; break;
+                    case "negative-span":
+                        json["Headings"]![0]!["SpanStart"] = -1;
+                        break;
+                    case "overflow-span":
+                        json["Headings"]![0]!["SpanLength"] = int.MaxValue;
+                        break;
+                    case "null-heading":
+                        json["Headings"]![0] = null;
+                        break;
+                    case "wrong-html":
+                        json["RawHtml"] = "<p>corrupt cached HTML</p>";
+                        break;
                 }
                 await File.WriteAllTextAsync(file, corruption == "invalid-json" ? "corrupt" : json.ToJsonString());
                 corrupted++;

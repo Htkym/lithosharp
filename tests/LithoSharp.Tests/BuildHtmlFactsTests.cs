@@ -90,7 +90,10 @@ public sealed class BuildHtmlFactsTests
         var waiter = owner.GetAsync("<h2 id=queued>Queued</h2>", waiterCancellation.Token);
         waiterCancellation.Cancel();
         HtmlConsumerFacts? canceledView = null;
-        try { canceledView = (await waiter).Facts; }
+        try
+        {
+            canceledView = (await waiter).Facts;
+        }
         catch (OperationCanceledException) { }
         // Completion may win the cancellation race; its caller view must still observe cancellation.
         if (canceledView is not null)
@@ -135,7 +138,8 @@ public sealed class BuildHtmlFactsTests
         // Former cache thresholds must not become product capacity limits. These inputs fit the old parser profile.
         await using (var many = new BuildHtmlFacts(default))
         {
-            for (var i = 0; i < 4097; i++) await many.GetAsync($"<p>{i}</p>", default);
+            for (var i = 0; i < 4097; i++)
+                await many.GetAsync($"<p>{i}</p>", default);
             await many.GetAsync("<p>0</p>", default);
             await Assert.That(many.Counters.ParseCount).IsEqualTo(4097);
             var bytesBeforeQuality = many.Counters.RetainedBytes;
@@ -172,7 +176,10 @@ public sealed class BuildHtmlFactsTests
             var pending = canceled.GetAsync(string.Concat(Enumerable.Repeat("<p>cancel</p>", 10_000)), default);
             buildCancellation.Cancel();
             HtmlConsumerFacts? completedView = null;
-            try { completedView = (await pending).Facts; }
+            try
+            {
+                completedView = (await pending).Facts;
+            }
             catch (OperationCanceledException) { }
             if (completedView is not null)
                 await Assert.That(() => completedView.SearchText).Throws<OperationCanceledException>();

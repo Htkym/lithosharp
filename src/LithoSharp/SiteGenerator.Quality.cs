@@ -22,7 +22,8 @@ public sealed partial class SiteGenerator
         {
             cancellationToken.ThrowIfCancellationRequested();
             var bytes = buffer.GetBuffer().AsSpan(0, (int)buffer.Length);
-            if (bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf) bytes = bytes[3..];
+            if (bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf)
+                bytes = bytes[3..];
             return new System.Text.UTF8Encoding(false, true).GetString(bytes);
         }
         buffer.Position = 0;
@@ -51,7 +52,8 @@ public sealed partial class SiteGenerator
             routeTable.Register(redirect.Source, registered.Add(redirect.Source.RelativeOutputPath) ? owner : owner + ":duplicate");
         }
         routeTable.ValidateOrThrow();
-        if (normalized.Length == 0) return [];
+        if (normalized.Length == 0)
+            return [];
 
         var bySource = normalized.ToDictionary(redirect => redirect.Source.RelativeOutputPath, StringComparer.Ordinal);
         var knownPaths = artifactPaths.ToHashSet(StringComparer.Ordinal);
@@ -79,12 +81,16 @@ public sealed partial class SiteGenerator
         foreach (var redirect in normalized)
         {
             var source = redirect.Source.RelativeOutputPath;
-            if (cycles.Contains(source)) Add("LSQ004", "Redirect participates in a cycle.");
-            else if (bySource.ContainsKey(redirect.Target.RelativeOutputPath)) Add("LSQ005", "Redirect chains are not supported; target the final route directly.");
-            else if (!knownPaths.Contains(redirect.Target.RelativeOutputPath)) Add("LSQ006", $"Redirect target '{redirect.Target.PublicPath}' does not exist.");
+            if (cycles.Contains(source))
+                Add("LSQ004", "Redirect participates in a cycle.");
+            else if (bySource.ContainsKey(redirect.Target.RelativeOutputPath))
+                Add("LSQ005", "Redirect chains are not supported; target the final route directly.");
+            else if (!knownPaths.Contains(redirect.Target.RelativeOutputPath))
+                Add("LSQ006", $"Redirect target '{redirect.Target.PublicPath}' does not exist.");
             void Add(string id, string message) => diagnostics.Add(new SiteDiagnostic(id, SiteDiagnosticSeverity.Error, message, new SiteSourceLocation(source)));
         }
-        if (diagnostics.Count != 0) throw new SiteQualityValidationException(new SiteQualityReport(diagnostics));
+        if (diagnostics.Count != 0)
+            throw new SiteQualityValidationException(new SiteQualityReport(diagnostics));
         var origin = new Uri(baseUrl).GetLeftPart(UriPartial.Authority);
         return normalized.Select(redirect => new RedirectOutput(redirect.Source, redirect.Target, new SiteTemplateFile
         {

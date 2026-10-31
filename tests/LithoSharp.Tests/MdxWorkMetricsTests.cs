@@ -142,9 +142,15 @@ public sealed class MdxWorkMetricsTests
         var published = HashOutput(output);
         await using var mdx = CreateSite(workspace, worker, "primary");
         SiteBuildExtensionException? failure = null;
-        try { await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null,
-            new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default); }
-        catch (SiteBuildExtensionException error) { failure = error; }
+        try
+        {
+            await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null,
+            new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+        }
+        catch (SiteBuildExtensionException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.Diagnostics.Single().Message).IsEqualTo("OriginalPrimaryWorkerFailure");
         await Assert.That(mdx.Metrics.Work.RequestAttempts).IsEqualTo(1);
@@ -157,7 +163,8 @@ public sealed class MdxWorkMetricsTests
     {
         var content = Path.Combine(workspace.Root, "content");
         var worker = Path.Combine(workspace.Root, "worker");
-        Directory.CreateDirectory(content); Directory.CreateDirectory(worker);
+        Directory.CreateDirectory(content);
+        Directory.CreateDirectory(worker);
         await File.WriteAllTextAsync(Path.Combine(content, "page.mdx"), "---\ntitle: Metric\n---\n# Metric\n");
         await File.WriteAllTextAsync(Path.Combine(content, "_partial.mdx"), "# Partial\n");
         await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), Script);

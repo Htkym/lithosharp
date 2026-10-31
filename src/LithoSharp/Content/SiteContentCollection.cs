@@ -124,16 +124,24 @@ public abstract class SiteContentCollection
         static string AssemblyIdentity(Assembly assembly) => assembly.FullName ?? assembly.GetName().Name ?? "unknown";
         static string TryGetMetadataToken(MethodInfo method)
         {
-            try { return method.MetadataToken.ToString(System.Globalization.CultureInfo.InvariantCulture); }
-            catch (InvalidOperationException) { return "dynamic"; }
+            try
+            {
+                return method.MetadataToken.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (InvalidOperationException)
+            {
+                return "dynamic";
+            }
         }
     }
 
     internal static string FrontMatterSchemaName(Type frontMatterType)
     {
         ArgumentNullException.ThrowIfNull(frontMatterType);
-        if (frontMatterType == typeof(DocumentFrontMatter)) return "document";
-        if (frontMatterType == typeof(PostFrontMatter)) return "post";
+        if (frontMatterType == typeof(DocumentFrontMatter))
+            return "document";
+        if (frontMatterType == typeof(PostFrontMatter))
+            return "post";
         return frontMatterType.Name;
     }
 

@@ -27,8 +27,10 @@ public sealed class ImageVariant
     public ImageVariant(string id, string relativeOutputPath, int width, ImageFormat format, int quality = 80)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        if (quality is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(quality));
-        if (!Enum.IsDefined(format)) throw new ArgumentOutOfRangeException(nameof(format));
+        if (quality is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(quality));
+        if (!Enum.IsDefined(format))
+            throw new ArgumentOutOfRangeException(nameof(format));
         Output = new SiteAssetOutput(id, relativeOutputPath);
         Width = width;
         Format = format;

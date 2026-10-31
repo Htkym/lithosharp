@@ -35,7 +35,8 @@ internal sealed record HtmlTreeLimits
     {
         if (MaxNodes < 1 || MaxDepth < 1 || MaxAttributesPerElement < 1 || MaxOperations < 1 || MaxDiagnostics < 1)
             throw new ArgumentOutOfRangeException(nameof(HtmlTreeLimits), "Tree limits must be positive.");
-        if (Tokenizer is null) throw new ArgumentNullException(nameof(Tokenizer));
+        if (Tokenizer is null)
+            throw new ArgumentNullException(nameof(Tokenizer));
         Tokenizer.Validate();
     }
 }
@@ -55,8 +56,10 @@ internal sealed record CompactHtmlTree(int Root, bool IsFragment, IReadOnlyList<
         while (pending.Count > 0)
         {
             var node = Nodes[pending.Pop()];
-            if (node.Kind == HtmlTreeNodeKind.Element) yield return node;
-            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
+            if (node.Kind == HtmlTreeNodeKind.Element)
+                yield return node;
+            for (var i = node.Children.Count - 1; i >= 0; i--)
+                pending.Push(node.Children[i]);
         }
     }
 
@@ -69,8 +72,10 @@ internal sealed record CompactHtmlTree(int Root, bool IsFragment, IReadOnlyList<
         {
             var node = Nodes[pending.Pop()];
             if (node.Kind == HtmlTreeNodeKind.Text)
-                foreach (var chunk in node.TextChunks) text.Append(chunk.Value);
-            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
+                foreach (var chunk in node.TextChunks)
+                    text.Append(chunk.Value);
+            for (var i = node.Children.Count - 1; i >= 0; i--)
+                pending.Push(node.Children[i]);
         }
         return text.ToString();
     }

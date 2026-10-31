@@ -14,38 +14,45 @@ public sealed class DocumentationTests
         using var workspace = new TemporaryWorkspace();
         var en = Path.Combine(workspace.Root, "en");
         var ja = Path.Combine(workspace.Root, "ja");
-        Directory.CreateDirectory(en); Directory.CreateDirectory(ja);
+        Directory.CreateDirectory(en);
+        Directory.CreateDirectory(ja);
         await File.WriteAllTextAsync(Path.Combine(en, "intro.md"), "---\ntitle: Intro\n---\n# Intro\n");
         async Task Git(params string[] arguments)
         {
             var start = new System.Diagnostics.ProcessStartInfo("git") { WorkingDirectory = workspace.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+            foreach (var argument in arguments)
+                start.ArgumentList.Add(argument);
             using var process = System.Diagnostics.Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync(); await output;
-            if (process.ExitCode != 0) throw new InvalidOperationException(await error);
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            await output;
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException(await error);
         }
         try
         {
-        await Git("init"); await Git("add", "en/intro.md");
-        await Git("-c", "user.name=Fixture Author", "-c", "user.email=fixture@example.test", "commit", "-m", "Document fixture");
-        var collection = new DocumentationCollection("guide", [new("current", "en", en, "en"), new("current", "ja", ja, "ja")]) { GitMetadata = true };
-        await using var docs = new DocumentationSite(new(workspace.Root));
-        docs.AddCollection(collection);
-        var outputRoot = Path.Combine(workspace.Root, "out");
-        await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, true, new() { Template = new DocsSiteTemplate() }, new() { Extensions = [docs] }, default);
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(outputRoot, "en/intro/index.html"))).Contains("Fixture Author");
-        await Assert.That(docs.GetInspection()!.Value.GetProperty("missingTranslations").GetArrayLength()).IsEqualTo(1);
-        await using var strict = new DocumentationSite(new(workspace.Root));
-        strict.AddCollection(collection with { MissingDocuments = MissingDocumentPolicy.Error });
-        await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, false, null, new() { Extensions = [strict] }, default)).Throws<LithoSharp.Build.SiteBuildExtensionException>();
-        await Assert.That(File.Exists(Path.Combine(outputRoot, "en/intro/index.html"))).IsTrue();
+            await Git("init");
+            await Git("add", "en/intro.md");
+            await Git("-c", "user.name=Fixture Author", "-c", "user.email=fixture@example.test", "commit", "-m", "Document fixture");
+            var collection = new DocumentationCollection("guide", [new("current", "en", en, "en"), new("current", "ja", ja, "ja")]) { GitMetadata = true };
+            await using var docs = new DocumentationSite(new(workspace.Root));
+            docs.AddCollection(collection);
+            var outputRoot = Path.Combine(workspace.Root, "out");
+            await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, true, new() { Template = new DocsSiteTemplate() }, new() { Extensions = [docs] }, default);
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(outputRoot, "en/intro/index.html"))).Contains("Fixture Author");
+            await Assert.That(docs.GetInspection()!.Value.GetProperty("missingTranslations").GetArrayLength()).IsEqualTo(1);
+            await using var strict = new DocumentationSite(new(workspace.Root));
+            strict.AddCollection(collection with { MissingDocuments = MissingDocumentPolicy.Error });
+            await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], outputRoot, false, null, new() { Extensions = [strict] }, default)).Throws<LithoSharp.Build.SiteBuildExtensionException>();
+            await Assert.That(File.Exists(Path.Combine(outputRoot, "en/intro/index.html"))).IsTrue();
         }
         finally
         {
             var gitRoot = Path.Combine(workspace.Root, ".git");
             if (Directory.Exists(gitRoot))
-                foreach (var file in Directory.EnumerateFiles(gitRoot, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+                foreach (var file in Directory.EnumerateFiles(gitRoot, "*", SearchOption.AllDirectories))
+                    File.SetAttributes(file, FileAttributes.Normal);
         }
     }
 
@@ -90,15 +97,15 @@ public sealed class DocumentationTests
         {
             var variants = new List<DocumentVariant>();
             foreach (var version in new[] { "current", "v1", "v2" })
-            foreach (var locale in new[] { "en", "ja" })
-            {
-                var input = Path.Combine(workspace.Root, "input", collection, version, locale);
-                Directory.CreateDirectory(input);
-                await File.WriteAllTextAsync(Path.Combine(input, "02-next.md"), "---\ntitle: Next\ntags: [topic]\n---\n# Next\n");
-                await File.WriteAllTextAsync(Path.Combine(input, "01-intro.md"), "---\nid: introduction\ntitle: Introduction\n---\n# Intro\n");
-                await File.WriteAllTextAsync(Path.Combine(input, "03-hidden.md"), "---\ntitle: Hidden\nunlisted: true\n---\nPrivate discovery canary\n");
-                variants.Add(new(version, locale, input, $"{collection}/{version}/{locale}") { FallbackDocumentId = "introduction" });
-            }
+                foreach (var locale in new[] { "en", "ja" })
+                {
+                    var input = Path.Combine(workspace.Root, "input", collection, version, locale);
+                    Directory.CreateDirectory(input);
+                    await File.WriteAllTextAsync(Path.Combine(input, "02-next.md"), "---\ntitle: Next\ntags: [topic]\n---\n# Next\n");
+                    await File.WriteAllTextAsync(Path.Combine(input, "01-intro.md"), "---\nid: introduction\ntitle: Introduction\n---\n# Intro\n");
+                    await File.WriteAllTextAsync(Path.Combine(input, "03-hidden.md"), "---\ntitle: Hidden\nunlisted: true\n---\nPrivate discovery canary\n");
+                    variants.Add(new(version, locale, input, $"{collection}/{version}/{locale}") { FallbackDocumentId = "introduction" });
+                }
             docs.AddCollection(new(collection, variants));
         }
         var output = Path.Combine(workspace.Root, "out");

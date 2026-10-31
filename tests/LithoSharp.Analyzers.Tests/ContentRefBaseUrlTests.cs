@@ -32,7 +32,8 @@ public sealed partial class AnalyzerPackageHostTests
             var invocation = compilation.SyntaxTrees.Single().GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>()
                 .Last(node => node.Expression is MemberAccessExpressionSyntax member && member.Name.Identifier.ValueText == "GetUrl");
             var expression = invocation.ArgumentList.Arguments.Single().Expression;
-            var diagnostic = diagnostics[0]; var at = expression.SpanStart;
+            var diagnostic = diagnostics[0];
+            var at = expression.SpanStart;
             var position = diagnostic.Location.GetLineSpan().StartLinePosition;
             Check(diagnostic.Id == "LSA1002" && diagnostic.Severity == DiagnosticSeverity.Error
                 && diagnostic.GetMessage().Contains("'baseUrl'", StringComparison.Ordinal)
@@ -90,9 +91,14 @@ public sealed partial class AnalyzerPackageHostTests
         + "void M(bool b,string unknown,Ref reference,LithoSharp.Content.ContentRef<int> numbers){\r\n" + body + "\r\n} }";
     private static object ContentRefBaseDiagnostic(Diagnostic d) => new
     {
-        d.Id, severity = d.Severity.ToString(), message = d.GetMessage(), start = d.Location.SourceSpan.Start,
-        length = d.Location.SourceSpan.Length, file = d.Location.SourceTree?.FilePath,
-        argument = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan), d.Properties
+        d.Id,
+        severity = d.Severity.ToString(),
+        message = d.GetMessage(),
+        start = d.Location.SourceSpan.Start,
+        length = d.Location.SourceSpan.Length,
+        file = d.Location.SourceTree?.FilePath,
+        argument = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan),
+        d.Properties
     };
     private static void ContentRefBaseEvidence(string name, List<object> proof) => File.WriteAllText(
         Path.Combine(Required("RA03_EVIDENCE_DIR"), name + ".json"),

@@ -21,7 +21,8 @@ public sealed class ProjectRouteCandidate
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(locale);
-        if (!Enum.IsDefined(publication)) throw new ArgumentOutOfRangeException(nameof(publication));
+        if (!Enum.IsDefined(publication))
+            throw new ArgumentOutOfRangeException(nameof(publication));
         SourcePath = sourcePath;
         PublicPath = publicPath;
         ProjectId = projectId;

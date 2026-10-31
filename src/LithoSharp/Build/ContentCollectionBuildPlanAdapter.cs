@@ -24,14 +24,14 @@ internal static class ContentCollectionBuildPlanAdapter
         var navigationValue = Json(pages
             .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
             .Select(page => new
-        {
-            Collection = page.CollectionId.Value,
-            Page = page.PageId.Value,
-            page.Route.PublicPath,
-            page.Route.RelativeOutputPath,
-            page.Metadata.Title,
-            Layout = page.LayoutId?.Value,
-        }));
+            {
+                Collection = page.CollectionId.Value,
+                Page = page.PageId.Value,
+                page.Route.PublicPath,
+                page.Route.RelativeOutputPath,
+                page.Metadata.Title,
+                Layout = page.LayoutId?.Value,
+            }));
         navigationValue = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(navigationValue)));
 
         foreach (var page in pages)
@@ -103,21 +103,21 @@ internal static class ContentCollectionBuildPlanAdapter
         Json(pages
             .Where(page => requiredSurface is null || page.IsIncludedIn(requiredSurface.Value))
             .Select(page => new
-        {
-            Surface = surface,
-            Collection = page.CollectionId.Value,
-            Page = page.PageId.Value,
-            page.SourceFingerprint,
-            Transformation = page.TransformationId?.Value,
-            SourceTransformation = page.SourceTransformationId?.Value,
-            Sources = SourceValues(page),
-            Dependencies = DependencyValues(page),
-            page.Route.PublicPath,
-            page.Route.RelativeOutputPath,
-            Metadata = page.Metadata,
-            Layout = page.LayoutId?.Value,
-            Renderer = includeContent ? page.RendererFingerprint : null,
-        }));
+            {
+                Surface = surface,
+                Collection = page.CollectionId.Value,
+                Page = page.PageId.Value,
+                page.SourceFingerprint,
+                Transformation = page.TransformationId?.Value,
+                SourceTransformation = page.SourceTransformationId?.Value,
+                Sources = SourceValues(page),
+                Dependencies = DependencyValues(page),
+                page.Route.PublicPath,
+                page.Route.RelativeOutputPath,
+                Metadata = page.Metadata,
+                Layout = page.LayoutId?.Value,
+                Renderer = includeContent ? page.RendererFingerprint : null,
+            }));
 
     private static IEnumerable<BuildInput> PageInputs(
         IntegratedContentPage page,

@@ -11,7 +11,8 @@ public sealed class WatchEventQueueTests
 
     private static void WaitForRelease(ManualResetEventSlim release)
     {
-        if (!release.Wait(Timeout)) throw new TimeoutException("Owned test consumer gate was not released.");
+        if (!release.Wait(Timeout))
+            throw new TimeoutException("Owned test consumer gate was not released.");
     }
 
     [Test]
@@ -53,7 +54,8 @@ public sealed class WatchEventQueueTests
                 .Select(i => Path.Combine(workspace.Root, $"edit-{i:D3}." + (i % 2 == 0 ? "cs" : "csproj"))).ToArray();
             producer = Task.Run(() =>
             {
-                foreach (var path in pending) queue.Enqueue(path, WatcherChangeTypes.Changed);
+                foreach (var path in pending)
+                    queue.Enqueue(path, WatcherChangeTypes.Changed);
                 queue.Enqueue(renamed, WatcherChangeTypes.Renamed, old);
             });
             await producer.WaitAsync(Timeout);
@@ -83,8 +85,15 @@ public sealed class WatchEventQueueTests
         {
             releaseFirst.Set();
             releaseRename.Set();
-            try { if (producer is not null) await producer.WaitAsync(Timeout); }
-            finally { await queue.DisposeAsync().AsTask().WaitAsync(Timeout); }
+            try
+            {
+                if (producer is not null)
+                    await producer.WaitAsync(Timeout);
+            }
+            finally
+            {
+                await queue.DisposeAsync().AsTask().WaitAsync(Timeout);
+            }
         }
     }
 
@@ -118,7 +127,8 @@ public sealed class WatchEventQueueTests
                 .Select(i => Path.Combine(workspace.Root, $"pending-{i:D3}.cs")).ToArray();
             producer = Task.Run(() =>
             {
-                foreach (var path in accepted) queue.Enqueue(path, WatcherChangeTypes.Changed);
+                foreach (var path in accepted)
+                    queue.Enqueue(path, WatcherChangeTypes.Changed);
                 queue.Enqueue(Path.Combine(workspace.Root, "Site.csproj"), WatcherChangeTypes.Changed);
                 queue.Enqueue(workspace.Root, WatcherChangeTypes.All, error: nativeError);
                 queue.Enqueue(workspace.Root, WatcherChangeTypes.All, error: laterNativeError);
@@ -139,8 +149,15 @@ public sealed class WatchEventQueueTests
         finally
         {
             release.Set();
-            try { if (producer is not null) await producer.WaitAsync(Timeout); }
-            finally { await queue.DisposeAsync().AsTask().WaitAsync(Timeout); }
+            try
+            {
+                if (producer is not null)
+                    await producer.WaitAsync(Timeout);
+            }
+            finally
+            {
+                await queue.DisposeAsync().AsTask().WaitAsync(Timeout);
+            }
         }
     }
 
@@ -166,20 +183,35 @@ public sealed class WatchEventQueueTests
             queue.Enqueue(Path.Combine(workspace.Root, "Factory.cs"), WatcherChangeTypes.Changed);
             await signalled.Task.WaitAsync(Timeout);
             Exception? observed = null;
-            try { await queue.Completion.WaitAsync(Timeout); }
-            catch (Exception error) { observed = error; }
+            try
+            {
+                await queue.Completion.WaitAsync(Timeout);
+            }
+            catch (Exception error)
+            {
+                observed = error;
+            }
             await Assert.That(ReferenceEquals(observed, failure)).IsTrue();
             queue.Enqueue(Path.Combine(workspace.Root, "Site.csproj"), WatcherChangeTypes.Changed);
             await Assert.That(delivered).IsEqualTo(1);
             await Assert.That(failed).IsEqualTo(1);
             observed = null;
-            try { await queue.CompleteAsync().AsTask().WaitAsync(Timeout); }
-            catch (Exception error) { observed = error; }
+            try
+            {
+                await queue.CompleteAsync().AsTask().WaitAsync(Timeout);
+            }
+            catch (Exception error)
+            {
+                observed = error;
+            }
             await Assert.That(ReferenceEquals(observed, failure)).IsTrue();
         }
         finally
         {
-            try { await queue.DisposeAsync().AsTask().WaitAsync(Timeout); }
+            try
+            {
+                await queue.DisposeAsync().AsTask().WaitAsync(Timeout);
+            }
             catch (InvalidOperationException error) when (ReferenceEquals(error, failure)) { }
         }
     }

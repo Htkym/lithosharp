@@ -149,15 +149,18 @@ public sealed class IncrementalBuildTests
         var bodyPath = await DerivedBodyPathAsync(Cache(workspace), initial, "one");
         var originalBody = await File.ReadAllTextAsync(bodyPath);
         await File.WriteAllTextAsync(Path.Combine(output, "unowned.txt"), "preserve this file");
-        if (missing) File.Delete(bodyPath);
-        else await File.WriteAllTextAsync(bodyPath, "corrupt");
+        if (missing)
+            File.Delete(bodyPath);
+        else
+            await File.WriteAllTextAsync(bodyPath, "corrupt");
         var renderedAfterCopy = 0;
         var calls = 0;
 
         var repaired = await GenerateAsync(output, workspace.Root, entries, Registration(() =>
         {
             Interlocked.Increment(ref calls);
-            if (StagingContainsSentinel(workspace.Root)) Interlocked.Increment(ref renderedAfterCopy);
+            if (StagingContainsSentinel(workspace.Root))
+                Interlocked.Increment(ref renderedAfterCopy);
         }, "renderer:1"), clean: false);
 
         await Assert.That(calls).IsEqualTo(1);
@@ -203,7 +206,8 @@ public sealed class IncrementalBuildTests
         var repaired = await GenerateAsync(output, workspace.Root, entries, Registration(() =>
         {
             Interlocked.Increment(ref calls);
-            if (StagingContainsSentinel(workspace.Root)) Interlocked.Increment(ref renderedAfterCopy);
+            if (StagingContainsSentinel(workspace.Root))
+                Interlocked.Increment(ref renderedAfterCopy);
         }, "renderer:1", threadSafe: true), clean: false, parallelism: 2);
 
         await Assert.That(calls).IsEqualTo(2);
@@ -243,8 +247,10 @@ public sealed class IncrementalBuildTests
         using var cancellation = new CancellationTokenSource();
         var registration = Registration(() =>
         {
-            if (cancel) cancellation.Cancel();
-            else throw new TestRendererException();
+            if (cancel)
+                cancellation.Cancel();
+            else
+                throw new TestRendererException();
         }, "renderer:2");
 
         Exception? failure = null;

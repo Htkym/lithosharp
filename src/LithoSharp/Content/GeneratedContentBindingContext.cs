@@ -81,7 +81,8 @@ public sealed class GeneratedContentBindingContext
     /// <summary>Reports input names not recognized by TryRead or ValidateRequired.</summary>
     public void ValidateUnknownFields()
     {
-        if (!rejectUnknownFields) return;
+        if (!rejectUnknownFields)
+            return;
         foreach (var name in Values.Keys.Where(name => !knownNames.Contains(name)))
         {
             Add(ContentFrontMatterDiagnosticIds.UnknownField, $"Unknown front matter field '{name}'.",
@@ -170,14 +171,17 @@ public sealed class GeneratedContentBindingContext
             return true;
         }
         value = new(StringComparer.Ordinal);
-        if (input is not IReadOnlyDictionary<string, object?> mapping) return false;
+        if (input is not IReadOnlyDictionary<string, object?> mapping)
+            return false;
         var success = true;
         foreach (var pair in mapping)
         {
             var child = At($"{fieldPath}.{pair.Key}",
                 mapping is LocatedYamlMapping located ? located.GetValueLocation(pair.Key) : location);
-            if (child.ConvertValue(pair.Value, valueAllowsNull, parser, out var converted)) value.Add(pair.Key, converted);
-            else success = false;
+            if (child.ConvertValue(pair.Value, valueAllowsNull, parser, out var converted))
+                value.Add(pair.Key, converted);
+            else
+                success = false;
         }
         return success;
     }
@@ -229,15 +233,18 @@ public sealed class GeneratedContentBindingContext
         if (input is null)
         {
             value = default!;
-            if (allowsNull) return true;
+            if (allowsNull)
+                return true;
             Add(ContentFrontMatterDiagnosticIds.NullNotAllowed,
                 $"Front matter field '{fieldPath}' does not allow null.", inputLocation);
             return false;
         }
         var before = diagnostics.Count;
         var child = At(fieldPath, inputLocation);
-        if (parser(input, child, out value)) return true;
-        if (diagnostics.Count == before) child.Invalid<T>();
+        if (parser(input, child, out value))
+            return true;
+        if (diagnostics.Count == before)
+            child.Invalid<T>();
         return false;
     }
 

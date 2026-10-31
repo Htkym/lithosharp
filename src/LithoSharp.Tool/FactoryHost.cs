@@ -77,9 +77,13 @@ internal static class FactoryHost
                 if (command == "preflight")
                 {
                     var report = await generator.PreflightCatalogAsync(definition, cancellationToken).ConfigureAwait(false);
-                    response = new HostResponse { Success = report.Succeeded, ExitCode = report.Succeeded ? 0 : 1,
+                    response = new HostResponse
+                    {
+                        Success = report.Succeeded,
+                        ExitCode = report.Succeeded ? 0 : 1,
                         Diagnostics = ToHostDiagnostics(report.Diagnostics),
-                        Preflight = new(report.Mode, report.Stage, report.DeferredReasons.ToArray()) };
+                        Preflight = new(report.Mode, report.Stage, report.DeferredReasons.ToArray())
+                    };
                 }
                 else if (command == "clean")
                 {
@@ -114,7 +118,8 @@ internal static class FactoryHost
                         };
                     }
                     var watch = options.ContainsKey("--watch");
-                    if (watch && command != "build") throw new ArgumentException("Watch hosts support only build.");
+                    if (watch && command != "build")
+                        throw new ArgumentException("Watch hosts support only build.");
                     do
                     {
                         try
@@ -126,13 +131,20 @@ internal static class FactoryHost
                         }
                         catch (Exception exception) when (watch && exception is not OperationCanceledException)
                         {
-                            response = new HostResponse { ExitCode = 1, OutputDirectory = outputDirectory, Error = Describe(exception),
+                            response = new HostResponse
+                            {
+                                ExitCode = 1,
+                                OutputDirectory = outputDirectory,
+                                Error = Describe(exception),
                                 DiagnosticsText = exception is SiteBuildExtensionException failure ? new SiteQualityReport(failure.Diagnostics).Format(format) : Describe(exception),
-                                Diagnostics = exception is SiteBuildExtensionException structured ? ToHostDiagnostics(structured.Diagnostics) : [] };
+                                Diagnostics = exception is SiteBuildExtensionException structured ? ToHostDiagnostics(structured.Diagnostics) : []
+                            };
                         }
-                        if (!watch) break;
+                        if (!watch)
+                            break;
                         await WriteResponseAsync(responsePath, response).ConfigureAwait(false);
-                        if (await Console.In.ReadLineAsync(cancellationToken).ConfigureAwait(false) != "build") break;
+                        if (await Console.In.ReadLineAsync(cancellationToken).ConfigureAwait(false) != "build")
+                            break;
                     } while (true);
                 }
             }
@@ -140,8 +152,10 @@ internal static class FactoryHost
             {
                 if (definition is not null)
                     foreach (var extension in definition.Options.Extensions.Reverse().Distinct())
-                        if (extension is IAsyncDisposable asyncDisposable) await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-                        else if (extension is IDisposable disposable) disposable.Dispose();
+                        if (extension is IAsyncDisposable asyncDisposable)
+                            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        else if (extension is IDisposable disposable)
+                            disposable.Dispose();
                 Directory.SetCurrentDirectory(originalDirectory);
                 loadContext.Unload();
             }
@@ -173,7 +187,9 @@ internal static class FactoryHost
             };
             response = new HostResponse
             {
-                ExitCode = 1, OutputDirectory = outputDirectory, Error = Describe(exception),
+                ExitCode = 1,
+                OutputDirectory = outputDirectory,
+                Error = Describe(exception),
                 DiagnosticsText = new SiteQualityReport(diagnostics).Format(format),
                 Diagnostics = ToHostDiagnostics(diagnostics)
             };
@@ -181,7 +197,8 @@ internal static class FactoryHost
 
         if (preflight && response.Preflight is null)
             response = response with { Preflight = new("trusted-catalog", preflightStage, ["Render was not invoked."]) };
-        if (preflight) response = response with { ProjectCoreVersion = projectCoreVersion };
+        if (preflight)
+            response = response with { ProjectCoreVersion = projectCoreVersion };
         if (responsePath is null)
         {
             await Console.Error.WriteLineAsync(response.Error ?? "A host response path is required.").ConfigureAwait(false);
@@ -249,7 +266,8 @@ internal static class FactoryHost
                 throw new ArgumentException($"Unknown host option '{name}'.");
             var value = name is "--clean" or "--watch" ? "true" : ++index < args.Length
                 ? args[index] : throw new ArgumentException($"Host option '{name}' requires a value.");
-            if (!options.TryAdd(name, value)) throw new ArgumentException($"Host option '{name}' was specified more than once.");
+            if (!options.TryAdd(name, value))
+                throw new ArgumentException($"Host option '{name}' was specified more than once.");
         }
         return options;
     }
@@ -260,8 +278,14 @@ internal static class FactoryHost
 
     private static string? SiteBasePathOf(SiteDefinition definition)
     {
-        try { return new Uri(definition.Site.BaseUrl, UriKind.Absolute).AbsolutePath; }
-        catch (Exception exception) when (exception is UriFormatException or ArgumentException) { return null; }
+        try
+        {
+            return new Uri(definition.Site.BaseUrl, UriKind.Absolute).AbsolutePath;
+        }
+        catch (Exception exception) when (exception is UriFormatException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     internal static HostDiagnostic[] ToHostDiagnostics(IEnumerable<SiteDiagnostic> diagnostics) =>
@@ -300,7 +324,10 @@ internal static class FactoryHost
         }
         finally
         {
-            try { File.Delete(temporary); }
+            try
+            {
+                File.Delete(temporary);
+            }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
@@ -313,11 +340,13 @@ internal static class FactoryHost
         protected override Assembly? Load(AssemblyName assemblyName)
         {
             var contract = typeof(ISiteFactory).Assembly;
-            if (string.Equals(assemblyName.Name, contract.GetName().Name, StringComparison.Ordinal)) return contract;
+            if (string.Equals(assemblyName.Name, contract.GetName().Name, StringComparison.Ordinal))
+                return contract;
             // Core semantic records use SourceSpan from Markdown; both must keep
             // the same type identity when MDX runs in the collectible factory context.
             var markdownContract = typeof(Syntamark.MarkdownParser).Assembly;
-            if (string.Equals(assemblyName.Name, markdownContract.GetName().Name, StringComparison.Ordinal)) return markdownContract;
+            if (string.Equals(assemblyName.Name, markdownContract.GetName().Name, StringComparison.Ordinal))
+                return markdownContract;
             var path = resolver.ResolveAssemblyToPath(assemblyName);
             return path is null ? null : LoadFromAssemblyPath(path);
         }

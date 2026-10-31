@@ -15,7 +15,8 @@ public sealed class MdxSampleFactory : ISiteFactory
         docs.AddCollection(new("guide", [new("current", "en", Path.Combine(context.ProjectDirectory, "content"), "guide")]) { UseMdx = true });
         return Task.FromResult(new SiteDefinition(new SiteSettings { Title = Title, BaseUrl = "https://example.com/", Language = "en" }, [])
         {
-            OutputDirectory = ".artifacts/site", Customization = new() { Template = new DocsSiteTemplate { EnableSearch = true }, GenerateLlmsTxt = true },
+            OutputDirectory = ".artifacts/site",
+            Customization = new() { Template = new DocsSiteTemplate { EnableSearch = true }, GenerateLlmsTxt = true },
             Options = new() { Extensions = [docs], BuildTimestamp = DateTimeOffset.Parse("2026-09-08T00:00:00Z") }
         });
     }

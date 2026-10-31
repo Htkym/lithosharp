@@ -96,7 +96,11 @@ public sealed class ExternalLinkCheckerTests
     public async Task CheckAsync_PropagatesCallerCancellation()
     {
         using var cancellation = new CancellationTokenSource();
-        var handler = new RecordingHandler(async (_, token) => { await Task.Delay(Timeout.InfiniteTimeSpan, token); return new HttpResponseMessage(HttpStatusCode.OK); });
+        var handler = new RecordingHandler(async (_, token) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         cancellation.Cancel();
         Func<Task> operation = async () => { await ExternalLinkChecker.CheckAsync(new Dictionary<string, SiteSourceLocation> { ["https://example.test/cancel"] = new("page.md") }, new ExternalLinkCheckOptions(path, minimumRequestInterval: TimeSpan.Zero), cancellation.Token, handler); };
@@ -124,7 +128,11 @@ public sealed class ExternalLinkCheckerTests
     [Test]
     public async Task CheckAsync_TimesOutAsWarning()
     {
-        var handler = new RecordingHandler(async (_, token) => { await Task.Delay(Timeout.InfiniteTimeSpan, token); return new HttpResponseMessage(HttpStatusCode.OK); });
+        var handler = new RecordingHandler(async (_, token) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         var result = await ExternalLinkChecker.CheckAsync(new Dictionary<string, SiteSourceLocation> { ["https://example.test/slow"] = new("page.md") }, new ExternalLinkCheckOptions(path, requestTimeout: TimeSpan.FromMilliseconds(20), minimumRequestInterval: TimeSpan.Zero), CancellationToken.None, handler);
         await Assert.That(result).Count().IsEqualTo(1);
@@ -167,7 +175,9 @@ public sealed class ExternalLinkCheckerTests
         public List<DateTimeOffset> RequestTimes { get; } = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Methods.Add(request.Method.Method); RequestUris.Add(request.RequestUri!.ToString()); RequestTimes.Add(DateTimeOffset.UtcNow);
+            Methods.Add(request.Method.Method);
+            RequestUris.Add(request.RequestUri!.ToString());
+            RequestTimes.Add(DateTimeOffset.UtcNow);
             return await callback(request, cancellationToken);
         }
     }

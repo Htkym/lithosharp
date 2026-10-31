@@ -21,7 +21,8 @@ internal sealed class SiteBuildCache
         string? digest, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsDigest(digest)) return new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
+        if (!IsDigest(digest))
+            return new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
         try
         {
             var path = Path.Combine(_directory, "builds", digest + ".json");
@@ -109,7 +110,8 @@ internal sealed class SiteBuildCache
     internal async Task<string?> ReadBodyAsync(string hash, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsDigest(hash)) return null;
+        if (!IsDigest(hash))
+            return null;
         try
         {
             var bytes = await ReadVerifiedAsync("blobs", hash, ".utf8", cancellationToken).ConfigureAwait(false);
@@ -176,7 +178,8 @@ internal sealed class SiteBuildCache
         string compiler, string sourceHash, int sourceLength, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(compiler) || !IsDigest(sourceHash)) return null;
+        if (string.IsNullOrWhiteSpace(compiler) || !IsDigest(sourceHash))
+            return null;
         try
         {
             var path = Path.Combine(_directory, "parses", CachedPostParse.CacheKey(compiler, sourceHash) + ".json");
@@ -213,7 +216,8 @@ internal sealed class SiteBuildCache
         await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
         var bytes = new ArraySegment<byte>(buffer.GetBuffer(), 0, (int)buffer.Length);
         cancellationToken.ThrowIfCancellationRequested();
-        if (Convert.ToHexStringLower(SHA256.HashData(bytes.AsSpan())) != digest) return null;
+        if (Convert.ToHexStringLower(SHA256.HashData(bytes.AsSpan())) != digest)
+            return null;
         return bytes;
     }
 
