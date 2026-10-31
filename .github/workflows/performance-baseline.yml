@@ -1,48 +1,46 @@
-name: performance baseline
+name: Site generation comparison
 
+# Called only after the ordinary build and unit-test jobs succeed.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      size:
-        description: Corpus size to measure
-        required: true
-        default: 1000
-        type: choice
-        options:
-          - 100
-          - 1000
-          - 10000
+      baseline:
+        description: Full baseline SHA; empty or all-zero uses the first parent
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
-  benchmark:
-    runs-on: ubuntu-latest
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      BASELINE_SHA: ${{ inputs.baseline }}
     steps:
-      - name: Checkout
+      - name: Checkout candidate and history
         uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Setup .NET
+      - name: Setup fixed SDK and runtime
         uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 10.0.403
 
-      - name: Restore
-        run: dotnet restore LithoSharp.slnx --locked-mode
+      - name: Compare representative site generation
+        run: python3 eng/compare-site-generation.py
 
-      - name: Build
-        run: dotnet build benchmarks/LithoSharp.Performance/LithoSharp.Performance.csproj --no-restore --configuration Release
-
-      - name: Run benchmark
-        run: >
-          dotnet run --project benchmarks/LithoSharp.Performance
-          --configuration Release --no-build --
-          --size ${{ inputs.size }}
-          --output artifacts/performance-baselines/baseline-${{ inputs.size }}.json
-
-      - name: Upload result
+      - name: Preserve raw results, output manifests and failures
+        if: always()
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: performance-baseline-${{ inputs.size }}
-          path: artifacts/performance-baselines/baseline-${{ inputs.size }}.json
+          name: site-generation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/site-generation-comparison
+          retention-days: 14
+          if-no-files-found: warn

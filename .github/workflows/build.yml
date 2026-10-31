@@ -2,15 +2,39 @@ name: build
 
 on:
   workflow_dispatch:
+    inputs:
+      run_measurement:
+        description: Run the optional 100-page site generation comparison after build and tests
+        required: false
+        type: boolean
+        default: false
+      baseline:
+        description: Optional full baseline commit SHA (default first parent)
+        required: false
+        type: string
   pull_request:
   push:
     branches:
-      - main
+      - '**'
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  site-generation-comparison:
+    name: Site generation comparison
+    needs: build
+    if: >-
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[measure]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_measurement)
+    uses: ./.github/workflows/performance-baseline.yml
+    with:
+      baseline: ${{ inputs.baseline || github.event.before || '' }}
+
   installed-extension:
     name: Installed extension with one VSIX across three OSes
     needs: build
@@ -323,3 +347,4 @@ jobs:
           path: |
             artifacts/docs-sample-site
             artifacts/blog-sample-site
+
