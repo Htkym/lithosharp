@@ -11,6 +11,8 @@ indent_style = space
 indent_size = 2
 
 [*.cs]
+csharp_style_allow_embedded_statements_on_same_line_experimental = false
+dotnet_diagnostic.IDE2001.severity = warning
 indent_size = 4
 csharp_style_namespace_declarations = file_scoped:suggestion
 dotnet_style_qualification_for_field = false:suggestion
@@ -21,3 +23,18 @@ dotnet_style_qualification_for_event = false:suggestion
 [*.md]
 trim_trailing_whitespace = false
 
+
+[src/LithoSharp/HtmlParsing/HtmlCharacterReferences.g.cs]
+dotnet_diagnostic.IDE2001.severity = none
+
+[tests/fixtures/**/*.cs]
+dotnet_diagnostic.IDE2001.severity = none
+
+[tests/LithoSharp.Tests/Fixtures/**/*.cs]
+dotnet_diagnostic.IDE2001.severity = none
+
+[templates/**/*.cs]
+dotnet_diagnostic.IDE2001.severity = none
+
+[*.{g,generated}.cs]
+dotnet_diagnostic.IDE2001.severity = none
