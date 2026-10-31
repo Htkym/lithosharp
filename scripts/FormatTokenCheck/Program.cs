@@ -19,13 +19,40 @@ foreach (var beforePath in files.Order())
     var before = File.ReadAllText(beforePath);
     var after = File.ReadAllText(afterPath);
     var options = new CSharpParseOptions(LanguageVersion.Preview);
-    var oldRoot = CSharpSyntaxTree.ParseText(before, options).GetRoot();
-    var newRoot = CSharpSyntaxTree.ParseText(after, options).GetRoot();
-    var tokensEqual = oldRoot.DescendantTokens().Select(t => (t.RawKind, t.Text))
-        .SequenceEqual(newRoot.DescendantTokens().Select(t => (t.RawKind, t.Text)));
-    // All token Text values are compared verbatim, including raw/interpolated string parts.
-    var triviaEqual = oldRoot.DescendantTrivia().Where(IsSignificant).Select(t => (t.RawKind, t.ToFullString()))
-        .SequenceEqual(newRoot.DescendantTrivia().Where(IsSignificant).Select(t => (t.RawKind, t.ToFullString())));
+    var conditionalAcceptance = relative.Replace('\\', '/') == "tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs";
+    var contexts = conditionalAcceptance
+        ? new[] { options, options.WithPreprocessorSymbols("COMPILER_DIAGNOSTIC_ACCEPTANCE") }
+        : new[] { options };
+    var tokensEqual = true;
+    var triviaEqual = true;
+    foreach (var context in contexts)
+    {
+        var oldRoot = CSharpSyntaxTree.ParseText(before, context).GetRoot();
+        var newRoot = CSharpSyntaxTree.ParseText(after, context).GetRoot();
+        // Both contexts are checked. Only this known whole-file conditional is covered
+        // by the enabled context; no other disabled branches may be skipped.
+        if (conditionalAcceptance)
+        {
+            foreach (var root in new[] { oldRoot, newRoot })
+            {
+                var directives = root.DescendantTrivia().Where(t => t.IsDirective).ToArray();
+                var starts = directives.Where(t => t.IsKind(SyntaxKind.IfDirectiveTrivia)).ToArray();
+                if (starts.Length != 1 || starts[0].GetStructure() is not Microsoft.CodeAnalysis.CSharp.Syntax.IfDirectiveTriviaSyntax directive
+                    || directive.Condition.ToString() != "COMPILER_DIAGNOSTIC_ACCEPTANCE"
+                    || directives.Count(t => t.IsKind(SyntaxKind.EndIfDirectiveTrivia)) != 1
+                    || directives.Any(t => t.IsKind(SyntaxKind.ElseDirectiveTrivia) || t.IsKind(SyntaxKind.ElifDirectiveTrivia)))
+                    throw new InvalidOperationException("Unexpected conditional structure: " + relative);
+                if (context.PreprocessorSymbolNames.Any() && root.DescendantTrivia().Any(t => t.IsKind(SyntaxKind.DisabledTextTrivia)))
+                    throw new InvalidOperationException("Acceptance context left an unchecked disabled branch: " + relative);
+            }
+        }
+        tokensEqual &= oldRoot.DescendantTokens().Select(t => (t.RawKind, t.Text))
+            .SequenceEqual(newRoot.DescendantTokens().Select(t => (t.RawKind, t.Text)));
+        bool CompareTrivia(SyntaxTrivia t) => IsSignificant(t)
+            && !(conditionalAcceptance && !context.PreprocessorSymbolNames.Any() && t.IsKind(SyntaxKind.DisabledTextTrivia));
+        triviaEqual &= oldRoot.DescendantTrivia().Where(CompareTrivia).Select(t => (t.RawKind, t.ToFullString()))
+            .SequenceEqual(newRoot.DescendantTrivia().Where(CompareTrivia).Select(t => (t.RawKind, t.ToFullString())));
+    }
     if (!tokensEqual || !triviaEqual)
         failures.Add(relative);
     rows.Add(new { path = relative.Replace('\\', '/'), changed = before != after, tokensEqual, significantTriviaEqual = triviaEqual,

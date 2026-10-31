@@ -13,6 +13,7 @@ indent_size = 2
 [*.cs]
 csharp_style_allow_embedded_statements_on_same_line_experimental = false
 dotnet_diagnostic.IDE2001.severity = warning
+csharp_preserve_single_line_statements = false
 indent_size = 4
 csharp_style_namespace_declarations = file_scoped:suggestion
 dotnet_style_qualification_for_field = false:suggestion
