@@ -203,13 +203,27 @@ jobs:
           ./eng/Test-ReleasePipeline.ps1
           ./eng/Test-ExtensionPublishGuards.ps1
 
-      - name: Check CLI and development server
+      # Separate stages identify a stuck validation script; each has an outer
+      # deadline even if an owned process or redirected stream never completes.
+      - name: Check CLI tool
+        timeout-minutes: 10
         shell: pwsh
-        run: |
-          ./eng/Test-Tool.ps1
-          ./eng/Test-ServeControl.ps1
-          ./eng/Test-MdxWatch.ps1
-          ./eng/Test-DocumentationVerification.ps1
+        run: ./eng/Test-Tool.ps1
+
+      - name: Check development server control
+        timeout-minutes: 10
+        shell: pwsh
+        run: ./eng/Test-ServeControl.ps1
+
+      - name: Check MDX watch
+        timeout-minutes: 10
+        shell: pwsh
+        run: ./eng/Test-MdxWatch.ps1
+
+      - name: Check documentation verification
+        timeout-minutes: 10
+        shell: pwsh
+        run: ./eng/Test-DocumentationVerification.ps1
 
       - name: Preserve sanitized MDX watch diagnostics
         if: always()
