@@ -323,3 +323,7 @@ finally {
     Remove-Item -LiteralPath $resolved -Recurse -Force
     }
 }
+
+# The usage-rejection probe intentionally returns nonzero. Reaching here means
+# every assertion and cleanup succeeded; report the script's own result.
+exit 0

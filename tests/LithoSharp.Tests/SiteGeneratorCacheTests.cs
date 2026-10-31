@@ -1287,7 +1287,7 @@ public sealed class SiteGeneratorCacheTests
             catch (Exception exception)
             {
                 return new { index, exists = false, bytes = -1L, sha256 = (string?)null,
-                    lastWriteUtcTicks = (long?)null, error = exception.GetType().Name };
+                    lastWriteUtcTicks = (long?)null, error = (string?)exception.GetType().Name };
             }
         }).ToArray());
 
