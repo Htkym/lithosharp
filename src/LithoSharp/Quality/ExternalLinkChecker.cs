@@ -39,7 +39,8 @@ internal static class ExternalLinkChecker
             var key = uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped);
             if (cache.TryGetValue(key, out var cached) && cached is not null && IsValidCacheEntry(cached) && DateTimeOffset.UtcNow - cached.CheckedAt <= options.CacheDuration)
             {
-                if (cached.Status is < 200 or >= 300) results.Add(Failure(key, pair.Value, cached.Message));
+                if (cached.Status is < 200 or >= 300)
+                    results.Add(Failure(key, pair.Value, cached.Message));
                 continue;
             }
             try
@@ -47,7 +48,8 @@ internal static class ExternalLinkChecker
                 using var response = await SendAsync(client, uri, options.MinimumRequestInterval, token).ConfigureAwait(false);
                 var message = response.IsSuccessStatusCode ? "" : $"External link returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).";
                 cache[key] = new CacheEntry(DateTimeOffset.UtcNow, (int)response.StatusCode, message);
-                if (!response.IsSuccessStatusCode) results.Add(Failure(key, pair.Value, message));
+                if (!response.IsSuccessStatusCode)
+                    results.Add(Failure(key, pair.Value, message));
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             {
@@ -65,8 +67,10 @@ internal static class ExternalLinkChecker
     internal static bool IsPublicAddress(IPAddress address)
     {
         ArgumentNullException.ThrowIfNull(address);
-        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-        if (IPAddress.IsLoopback(address)) return false;
+        if (address.IsIPv4MappedToIPv6)
+            address = address.MapToIPv4();
+        if (IPAddress.IsLoopback(address))
+            return false;
         var bytes = address.GetAddressBytes();
         if (address.AddressFamily == AddressFamily.InterNetwork)
             return !(bytes[0] is 0 or 10 or 127
@@ -100,12 +104,22 @@ internal static class ExternalLinkChecker
     private static async ValueTask<Stream> ConnectAsync(SocketsHttpConnectionContext context, CancellationToken token)
     {
         var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, token).ConfigureAwait(false);
-        if (addresses.Length == 0 || addresses.Any(static address => !IsPublicAddress(address))) throw new HttpRequestException("The host resolved to a non-public address.");
+        if (addresses.Length == 0 || addresses.Any(static address => !IsPublicAddress(address)))
+            throw new HttpRequestException("The host resolved to a non-public address.");
         foreach (var address in addresses)
         {
             var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            try { await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), token).ConfigureAwait(false); return new NetworkStream(socket, ownsSocket: true); }
-            catch { socket.Dispose(); if (token.IsCancellationRequested) token.ThrowIfCancellationRequested(); }
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), token).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                if (token.IsCancellationRequested)
+                    token.ThrowIfCancellationRequested();
+            }
         }
         throw new HttpRequestException("Unable to connect to the resolved host.");
     }
@@ -116,7 +130,8 @@ internal static class ExternalLinkChecker
         for (var hop = 0; hop <= MaxRedirects; hop++)
         {
             ValidateUri(uri);
-            if (!visited.Add(uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped))) throw new HttpRequestException("The redirect loop was detected.");
+            if (!visited.Add(uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped)))
+                throw new HttpRequestException("The redirect loop was detected.");
             using var head = new HttpRequestMessage(HttpMethod.Head, uri);
             await WaitRateAsync(interval, token).ConfigureAwait(false);
             var response = await client.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
@@ -148,15 +163,20 @@ internal static class ExternalLinkChecker
         try
         {
             var delay = LastRequest == 0 ? TimeSpan.Zero : interval - Stopwatch.GetElapsedTime(LastRequest);
-            if (delay > TimeSpan.Zero) await Task.Delay(delay, token).ConfigureAwait(false);
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay, token).ConfigureAwait(false);
             LastRequest = Stopwatch.GetTimestamp();
         }
-        finally { RateGate.Release(); }
+        finally
+        {
+            RateGate.Release();
+        }
     }
 
     private static void ValidateUri(Uri uri)
     {
-        if ((uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Fragment) || (IPAddress.TryParse(uri.Host, out var address) && !IsPublicAddress(address))) throw new HttpRequestException("The external link URL is invalid or resolves to a non-public address.");
+        if ((uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Fragment) || (IPAddress.TryParse(uri.Host, out var address) && !IsPublicAddress(address)))
+            throw new HttpRequestException("The external link URL is invalid or resolves to a non-public address.");
     }
 
     private static SiteDiagnostic Failure(string url, SiteSourceLocation location, string message) => new("LSQ011", SiteDiagnosticSeverity.Warning, message + " (" + url + ")", location);
@@ -194,7 +214,10 @@ internal static class ExternalLinkChecker
         }
         finally
         {
-            try { File.Delete(temp); }
+            try
+            {
+                File.Delete(temp);
+            }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         }
     }

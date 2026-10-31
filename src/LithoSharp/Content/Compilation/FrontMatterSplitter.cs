@@ -46,7 +46,8 @@ internal static class FrontMatterSplitter
             return new FrontMatterSplit(FrontMatterSplitStatus.MissingFrontMatter, string.Empty, string.Empty, 0, 1);
         if (!envelope.Closing.HasValue)
             return new FrontMatterSplit(FrontMatterSplitStatus.UnterminatedFrontMatter, string.Empty, string.Empty, 0, envelope.FailureLine);
-        var yamlSpan = envelope.Yaml!.Value; var bodySpan = envelope.Body!.Value;
+        var yamlSpan = envelope.Yaml!.Value;
+        var bodySpan = envelope.Body!.Value;
         var yaml = text.Substring(yamlSpan.Start, yamlSpan.Length);
         var status = string.IsNullOrWhiteSpace(yaml) ? FrontMatterSplitStatus.EmptyFrontMatter : FrontMatterSplitStatus.Ok;
         return new FrontMatterSplit(status, yaml, text.Substring(bodySpan.Start, bodySpan.Length), bodySpan.Start,

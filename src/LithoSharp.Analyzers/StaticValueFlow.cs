@@ -14,7 +14,13 @@ internal sealed class StaticValue
 {
     private StaticValue(object?[]? values, string? reason, HtmlStringOrigins? origins = null,
         HtmlTemplateProof? template = null, HtmlHoleKind outputKind = HtmlHoleKind.Unknown)
-    { Values = values; Reason = reason; Origins = origins; Template = template; OutputKind = outputKind; }
+    {
+        Values = values;
+        Reason = reason;
+        Origins = origins;
+        Template = template;
+        OutputKind = outputKind;
+    }
     internal object?[]? Values { get; }
     internal string? Reason { get; }
     internal HtmlStringOrigins? Origins { get; }
@@ -30,8 +36,10 @@ internal sealed class StaticValue
     {
         var template = HtmlTemplateProof.Join(Template, other.Template);
         var kind = OutputKind == other.OutputKind ? OutputKind : HtmlHoleKind.Unknown;
-        if (Values is null) return new(null, Reason, template: template, outputKind: kind);
-        if (other.Values is null) return new(null, other.Reason, template: template, outputKind: kind);
+        if (Values is null)
+            return new(null, Reason, template: template, outputKind: kind);
+        if (other.Values is null)
+            return new(null, other.Reason, template: template, outputKind: kind);
         var values = Values.Concat(other.Values).Distinct().Take(StaticValueFlow.MaxCandidates + 1).ToArray();
         return values.Length > StaticValueFlow.MaxCandidates ? Unknown("candidate-budget")
             : new(values, null, HtmlStringOrigins.Join(Origins, other.Origins), template, kind);
@@ -60,18 +68,31 @@ internal static class StaticValueFlow
             context.CancellationToken.ThrowIfCancellationRequested();
             var model = context.Compilation.GetSemanticModel(root.Syntax.SyntaxTree);
             var outer = ControlFlowGraph.Create(root.Parent?.Syntax ?? root.Syntax, model, context.CancellationToken);
-            if (outer is null) { interrupted?.Invoke(root, "flow-unavailable"); continue; }
+            if (outer is null)
+            {
+                interrupted?.Invoke(root, "flow-unavailable");
+                continue;
+            }
             foreach (var graph in NestedGraphs(outer, context.CancellationToken, () => interrupted?.Invoke(root, "nested-graph-budget")))
             {
-                if (graph.Blocks.Length > MaxBlocks) { interrupted?.Invoke(root, "block-budget"); continue; }
+                if (graph.Blocks.Length > MaxBlocks)
+                {
+                    interrupted?.Invoke(root, "block-budget");
+                    continue;
+                }
                 var operationCount = 0;
                 foreach (var operation in graph.Blocks.SelectMany(b => b.Operations.Concat(b.BranchValue is null
                     ? Enumerable.Empty<IOperation>() : new[] { b.BranchValue })).SelectMany(Walk))
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
-                    if (++operationCount > MaxOperations) break;
+                    if (++operationCount > MaxOperations)
+                        break;
                 }
-                if (operationCount > MaxOperations) { interrupted?.Invoke(root, "operation-budget"); continue; }
+                if (operationCount > MaxOperations)
+                {
+                    interrupted?.Invoke(root, "operation-budget");
+                    continue;
+                }
                 // Exceptional edges/finally execution are not ordinary CFG predecessor joins.
                 // Defer their local facts, as well as loops, rather than assume ordinal flow.
                 var deferredFlow = graph.Blocks.Any(b => b.Predecessors.Any(p => p.Source.Ordinal >= b.Ordinal))
@@ -80,7 +101,8 @@ internal static class StaticValueFlow
                 foreach (var block in graph.Blocks)
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
-                    if (!block.IsReachable) continue;
+                    if (!block.IsReachable)
+                        continue;
                     var predecessors = block.Predecessors.Where(p => states.ContainsKey(p.Source.Ordinal)).ToArray();
                     var state = deferredFlow || predecessors.Length == 0 ? new State()
                         : State.Merge(predecessors.Select(p => states[p.Source.Ordinal]).ToArray());
@@ -113,8 +135,10 @@ internal static class StaticValueFlow
                             ? snapshot : StaticValue.Unknown("missing-evaluation-snapshot"));
                         if (!deferredFlow && operation is ISimpleAssignmentOperation assignment && assignment.Target is ILocalReferenceOperation local)
                         {
-                            if (assignment.IsRef || local.Local.RefKind != RefKind.None) state.Invalidate("ref-alias");
-                            else state.Locals[local.Local] = Evaluate(assignment.Value, state, 0, snapshots, timeSpan);
+                            if (assignment.IsRef || local.Local.RefKind != RefKind.None)
+                                state.Invalidate("ref-alias");
+                            else
+                                state.Locals[local.Local] = Evaluate(assignment.Value, state, 0, snapshots, timeSpan);
                         }
                         else if (!deferredFlow && operation is IFlowCaptureOperation capture)
                             state.Captures[capture.Id] = Evaluate(capture.Value, state, 0, snapshots, timeSpan);
@@ -128,7 +152,8 @@ internal static class StaticValueFlow
                             state.Locals[changed.Local] = StaticValue.Unknown("mutation");
                         if (operation is ICompoundAssignmentOperation compound && compound.Target is ILocalReferenceOperation target)
                             state.Locals[target.Local] = StaticValue.Unknown("mutation");
-                        if (operation is IDeconstructionAssignmentOperation) state.Invalidate("deconstruction");
+                        if (operation is IDeconstructionAssignmentOperation)
+                            state.Invalidate("deconstruction");
                         // These can invalidate an origin even when legacy scalar facts remain Known.
                         if (operation is ISimpleAssignmentOperation { IsRef: true }
                             || operation is IVariableDeclaratorOperation declarator && declarator.Symbol.RefKind != RefKind.None
@@ -148,13 +173,20 @@ internal static class StaticValueFlow
                         {
                             context.CancellationToken.ThrowIfCancellationRequested();
                             var next = pending.Pop();
-                            if (next.Visited) { Apply(next.Operation); continue; }
+                            if (next.Visited)
+                            {
+                                Apply(next.Operation);
+                                continue;
+                            }
                             pending.Push((next.Operation, true));
-                            foreach (var child in next.Operation.ChildOperations.Reverse()) pending.Push((child, false));
+                            foreach (var child in next.Operation.ChildOperations.Reverse())
+                                pending.Push((child, false));
                         }
                     }
-                    foreach (var operation in block.Operations) Visit(operation);
-                    if (block.BranchValue is not null) Visit(block.BranchValue);
+                    foreach (var operation in block.Operations)
+                        Visit(operation);
+                    if (block.BranchValue is not null)
+                        Visit(block.BranchValue);
                     states[block.Ordinal] = state;
                 }
             }
@@ -169,7 +201,8 @@ internal static class StaticValueFlow
         {
             var region = pending.Pop();
             yield return region;
-            foreach (var child in region.NestedRegions) pending.Push(child);
+            foreach (var child in region.NestedRegions)
+                pending.Push(child);
         }
     }
 
@@ -189,19 +222,24 @@ internal static class StaticValueFlow
                 ? Enumerable.Empty<IOperation>() : new[] { b.BranchValue })).SelectMany(Walk).OfType<IFlowAnonymousFunctionOperation>())
                 pending.Push(graph.GetAnonymousFunctionControlFlowGraph(anonymous, cancellation));
         }
-        if (pending.Count != 0) exhausted();
+        if (pending.Count != 0)
+            exhausted();
     }
 
     private static StaticValue Evaluate(IOperation operation, State state, int depth,
         IReadOnlyDictionary<IOperation, StaticValue> snapshots, INamedTypeSymbol? timeSpan)
     {
-        if (snapshots.TryGetValue(operation, out var snapshot)) return snapshot;
-        if (depth >= MaxDepth) return StaticValue.Unknown("depth-budget");
+        if (snapshots.TryGetValue(operation, out var snapshot))
+            return snapshot;
+        if (depth >= MaxDepth)
+            return StaticValue.Unknown("depth-budget");
         if (operation.Kind == OperationKind.Invalid || operation.Type?.TypeKind == TypeKind.Error)
             return StaticValue.Unknown("binding-error");
-        if (operation.ConstantValue.HasValue) return StaticValue.Known(operation.ConstantValue.Value);
+        if (operation.ConstantValue.HasValue)
+            return StaticValue.Known(operation.ConstantValue.Value);
         var duration = StaticDuration.Evaluate(operation, timeSpan, child => Evaluate(child, state, depth + 1, snapshots, timeSpan));
-        if (duration is not null) return duration;
+        if (duration is not null)
+            return duration;
         switch (operation)
         {
             case ILocalReferenceOperation local when local.Local.RefKind == RefKind.None:
@@ -226,7 +264,8 @@ internal static class StaticValueFlow
                     else if (part is IInterpolationOperation hole && hole.Alignment is null && hole.FormatString is null
                         && hole.Expression.Type?.SpecialType == SpecialType.System_String)
                         text = Concat(text, Evaluate(hole.Expression, state, depth + 1, snapshots, timeSpan));
-                    else return StaticValue.Unknown("interpolation-user-code");
+                    else
+                        return StaticValue.Unknown("interpolation-user-code");
                 }
                 return text;
             case IConditionalOperation conditional:
@@ -236,22 +275,27 @@ internal static class StaticValueFlow
                         : Evaluate(choice ? conditional.WhenTrue : conditional.WhenFalse, state, depth + 1, snapshots, timeSpan);
                 return conditional.WhenFalse is null ? StaticValue.Unknown("missing-branch")
                     : Evaluate(conditional.WhenTrue, state, depth + 1, snapshots, timeSpan).Join(Evaluate(conditional.WhenFalse, state, depth + 1, snapshots, timeSpan));
-            default: return StaticValue.Unknown("nonconstant-user-code");
+            default:
+                return StaticValue.Unknown("nonconstant-user-code");
         }
     }
 
     private static StaticValue Concat(StaticValue left, StaticValue right)
     {
-        if (left.Values is null) return left;
-        if (right.Values is null) return right;
+        if (left.Values is null)
+            return left;
+        if (right.Values is null)
+            return right;
         StaticValue? result = null;
         foreach (var a in left.Values)
             foreach (var b in right.Values)
             {
-                if (a is not null && a is not string || b is not null && b is not string) return StaticValue.Unknown("nonstring-concat");
+                if (a is not null && a is not string || b is not null && b is not string)
+                    return StaticValue.Unknown("nonstring-concat");
                 var value = StaticValue.Known((string?)a + (string?)b);
                 result = result is null ? value : result.Join(value);
-                if (result.Values is null) return result;
+                if (result.Values is null)
+                    return result;
             }
         return result ?? StaticValue.Unknown("empty-set");
     }
@@ -264,7 +308,8 @@ internal static class StaticValueFlow
         {
             var next = pending.Pop();
             yield return next;
-            foreach (var child in next.ChildOperations) pending.Push(child);
+            foreach (var child in next.ChildOperations)
+                pending.Push(child);
         }
     }
 
@@ -274,13 +319,17 @@ internal static class StaticValueFlow
         internal Dictionary<CaptureId, StaticValue> Captures { get; } = new();
         internal void Invalidate(string reason)
         {
-            foreach (var key in Locals.Keys.ToArray()) Locals[key] = StaticValue.Unknown(reason);
-            foreach (var key in Captures.Keys.ToArray()) Captures[key] = StaticValue.Unknown(reason);
+            foreach (var key in Locals.Keys.ToArray())
+                Locals[key] = StaticValue.Unknown(reason);
+            foreach (var key in Captures.Keys.ToArray())
+                Captures[key] = StaticValue.Unknown(reason);
         }
         internal void InvalidateOrigins()
         {
-            foreach (var key in Locals.Keys.ToArray()) Locals[key] = Locals[key].WithoutProofs();
-            foreach (var key in Captures.Keys.ToArray()) Captures[key] = Captures[key].WithoutProofs();
+            foreach (var key in Locals.Keys.ToArray())
+                Locals[key] = Locals[key].WithoutProofs();
+            foreach (var key in Captures.Keys.ToArray())
+                Captures[key] = Captures[key].WithoutProofs();
         }
         internal static State Merge(State[] inputs)
         {

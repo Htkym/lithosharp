@@ -60,7 +60,8 @@ public sealed class LithoParserComparisonTests
         var count = 0;
         foreach (var file in Directory.EnumerateFiles(root, "*.md", SearchOption.AllDirectories).OrderBy(p => p))
         {
-            if (excluded.Contains(Path.GetRelativePath(root, file))) continue;
+            if (excluded.Contains(Path.GetRelativePath(root, file)))
+                continue;
             var text = await File.ReadAllTextAsync(file);
             var split = FrontMatterSplitter.TrySplit(text);
             await AssertAgreementAsync(split.Status == FrontMatterSplitStatus.Ok ? split.Body : text);
@@ -124,7 +125,8 @@ public sealed class LithoParserComparisonTests
         hugeCode.Append('z', 5000).Append("`\n\n```text\n").Append('w', 100000).Append("\n```\n");
 
         var emphasisRun = new System.Text.StringBuilder();
-        for (var i = 0; i < 500; i++) emphasisRun.Append("*a ");
+        for (var i = 0; i < 500; i++)
+            emphasisRun.Append("*a ");
         emphasisRun.Append('\n');
 
         foreach (var body in new[] { linkHeavy.ToString(), nested.ToString(), codeHeavy.ToString(), pathological,

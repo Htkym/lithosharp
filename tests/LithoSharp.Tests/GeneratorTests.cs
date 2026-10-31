@@ -367,7 +367,8 @@ public sealed class GeneratorTests
                 await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
                 validCompilation ??= compilation;
             }
-            else await Assert.That(Errors(diagnostics)).Contains(expected);
+            else
+                await Assert.That(Errors(diagnostics)).Contains(expected);
         }
         using var stream = new MemoryStream();
         var emitted = validCompilation!.Emit(stream);
@@ -555,12 +556,14 @@ public sealed class GeneratorTests
         public override AnalyzerConfigOptions GetOptions(AdditionalText text)
         {
             var input = ((Text)text).Input;
-            return new Options(new() {
+            return new Options(new()
+            {
                 ["build_metadata.AdditionalFiles.LithoSharpCollection"] = input.Collection,
                 ["build_metadata.AdditionalFiles.LithoSharpId"] = input.Id,
                 ["build_metadata.AdditionalFiles.LithoSharpRoute"] = input.Route,
                 ["build_metadata.AdditionalFiles.LithoSharpSite"] = input.Site,
-                ["build_metadata.AdditionalFiles.LithoSharpVariant"] = input.Variant });
+                ["build_metadata.AdditionalFiles.LithoSharpVariant"] = input.Variant
+            });
         }
     }
 }

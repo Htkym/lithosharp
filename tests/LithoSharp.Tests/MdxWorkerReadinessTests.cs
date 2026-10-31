@@ -8,8 +8,12 @@ public sealed class MdxWorkerReadinessTests
 {
     private static Dictionary<string, object> Ready() => new()
     {
-        ["protocol"] = 1, ["type"] = "ready", ["node"] = "24.13.0", ["mdx"] = "3.1.1",
-        ["react"] = "19.2.4", ["esbuild"] = "0.28.2",
+        ["protocol"] = 1,
+        ["type"] = "ready",
+        ["node"] = "24.13.0",
+        ["mdx"] = "3.1.1",
+        ["react"] = "19.2.4",
+        ["esbuild"] = "0.28.2",
     };
 
     private static async Task<MdxInspectionSession> SessionAsync(TemporaryWorkspace workspace, Dictionary<string, object> ready)
@@ -30,11 +34,18 @@ public sealed class MdxWorkerReadinessTests
     public async Task WrongSupportedFieldRemainsRejectedAndReportsBoundedTuple(string field, string version)
     {
         using var workspace = new TemporaryWorkspace();
-        var ready = Ready(); ready[field] = version;
+        var ready = Ready();
+        ready[field] = version;
         await using var session = await SessionAsync(workspace, ready);
         SiteBuildExtensionException? failure = null;
-        try { await session.AnalyzeAsync("ready.mdx", "# Ready\n"); }
-        catch (SiteBuildExtensionException error) { failure = error; }
+        try
+        {
+            await session.AnalyzeAsync("ready.mdx", "# Ready\n");
+        }
+        catch (SiteBuildExtensionException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure).IsNotNull();
         var diagnostic = failure!.Diagnostics.Single();
         await Assert.That(diagnostic.Id).IsEqualTo("LSMDX003");
@@ -68,8 +79,14 @@ public sealed class MdxWorkerReadinessTests
         ready["unknown"] = "PRIVATE_UNKNOWN_SENTINEL";
         await using var session = await SessionAsync(workspace, ready);
         SiteBuildExtensionException? failure = null;
-        try { await session.AnalyzeAsync("ready.mdx", "# Ready\n"); }
-        catch (SiteBuildExtensionException error) { failure = error; }
+        try
+        {
+            await session.AnalyzeAsync("ready.mdx", "# Ready\n");
+        }
+        catch (SiteBuildExtensionException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure).IsNotNull();
         var diagnostic = failure!.Diagnostics.Single();
         await Assert.That(diagnostic.Id).IsEqualTo("LSMDX003");

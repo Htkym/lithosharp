@@ -27,7 +27,8 @@ public sealed class QualitySnapshotTests
         var guide = Document("Guide", "/guide.html", "<p id=x></p><p id=x></p><a name=legacy></a>");
         var files = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["index.html"] = index, ["guide.html"] = guide,
+            ["index.html"] = index,
+            ["guide.html"] = guide,
             ["isolated.html"] = Document("Island", "/isolated.html", string.Empty),
             ["styles/root.css"] = "@import \"nested.css\"; /* url(ignored.png) */",
             ["styles/nested.css"] = """p{background:url('../images/\66rom-css.png')}""",
@@ -36,12 +37,17 @@ public sealed class QualitySnapshotTests
         var routes = files.Keys.Concat(assets).Distinct(StringComparer.Ordinal).ToDictionary(path => path,
             path => SiteRoute.ForFile(path, "https://example.test/"), StringComparer.Ordinal);
         await using var owner = new BuildHtmlFacts(default, rawDemand: HtmlRawFactsDemand.Quality);
-        foreach (var html in files.Where(pair => pair.Key.EndsWith(".html", StringComparison.Ordinal))) owner.Get(html.Value, default);
+        foreach (var html in files.Where(pair => pair.Key.EndsWith(".html", StringComparison.Ordinal)))
+            owner.Get(html.Value, default);
         var before = owner.Counters.ParseCount;
         await owner.BeginQualityAsync();
         var reads = new Dictionary<string, int>(StringComparer.Ordinal);
         var report = await SiteQualityValidator.ValidateAsync("https://example.test/", files.Keys.ToArray(),
-            (path, _) => { reads[path] = reads.GetValueOrDefault(path) + 1; return Task.FromResult(files[path]); },
+            (path, _) =>
+            {
+                reads[path] = reads.GetValueOrDefault(path) + 1;
+                return Task.FromResult(files[path]);
+            },
             routes, assets.ToHashSet(StringComparer.Ordinal), new Dictionary<string, SiteRoute>(), new(), default, sharedFacts: owner);
         var expected = new SiteQualityReport([
             new("LSQ001", SiteDiagnosticSeverity.Error, "Internal target 'missing-inline.png' does not exist in this site.", new("index.html", 8, 1)),
@@ -79,7 +85,8 @@ public sealed class QualitySnapshotTests
         using var workspace = new TemporaryWorkspace();
         var input = Path.Combine(workspace.Root, "content");
         Directory.CreateDirectory(input);
-        foreach (var locale in new[] { "en", "ja" }) await File.WriteAllTextAsync(Path.Combine(input, locale + ".txt"), locale);
+        foreach (var locale in new[] { "en", "ja" })
+            await File.WriteAllTextAsync(Path.Combine(input, locale + ".txt"), locale);
         var version = "v1";
         var collection = new ContentCollection<string, string>(new("docs"), input,
             new[] { "en", "ja" }.Select(locale => new ContentEntry<string, string>(new(locale), locale + ".txt", "sha256:" + locale, locale, string.Empty)),
@@ -87,10 +94,17 @@ public sealed class QualitySnapshotTests
             entry => new PageMetadata("Guide " + entry.Id.Value) { Document = new("docs", version, entry.Id.Value, "guide") });
         var registration = new SiteContentCollection<string, string>(collection,
             (entry, context) => Document("Guide " + entry.Id.Value, context.Route.PublicPath, "<a href='/'>Home</a>"));
-        var options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch,
-            Quality = new(checkOrphans: false), ContentCollections = [registration] };
-        var customization = new SiteCustomization { Template = new FilesTemplate(
-            Document("Home", "/index.html", "<a href='docs/en.html'>EN</a><a href='docs/ja.html'>JA</a>"), "p{color:red}") };
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Quality = new(checkOrphans: false),
+            ContentCollections = [registration]
+        };
+        var customization = new SiteCustomization
+        {
+            Template = new FilesTemplate(
+            Document("Home", "/index.html", "<a href='docs/en.html'>EN</a><a href='docs/ja.html'>JA</a>"), "p{color:red}")
+        };
         var generator = new SiteGenerator();
         var site = new SiteSettings { Title = "Site", BaseUrl = "https://example.test/", TimeZone = "UTC" };
         var output = Path.Combine(workspace.Root, "output");
@@ -121,8 +135,12 @@ public sealed class QualitySnapshotTests
         var site = new SiteSettings { Title = "Coverage", BaseUrl = "https://example.test/", TimeZone = "UTC" };
         var output = Path.Combine(workspace.Root, "output");
         var html = Document("Home", "/index.html", "<link rel=stylesheet href='styles/site.css'>");
-        var options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch,
-            Quality = new(checkOrphans: false), RawHtmlFactsDemand = HtmlRawFactsDemand.Quality };
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Quality = new(checkOrphans: false),
+            RawHtmlFactsDemand = HtmlRawFactsDemand.Quality
+        };
         await generator.GenerateWithOptionsAsync(site, [], output, true, new() { Template = new FilesTemplate(html, "p{color:red}") }, options, default);
         var before = Snapshot(output);
         var incomplete = CssReferenceSnapshot.Create("styles/site.css", new("https://example.test/styles/site.css"),

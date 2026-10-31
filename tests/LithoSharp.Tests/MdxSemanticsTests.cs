@@ -150,7 +150,8 @@ public sealed class MdxSemanticsTests
         var observer = new FactsLifetimeObserver();
         var options = new SiteGenerationOptions
         {
-            Extensions = [observer, docs], BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Extensions = [observer, docs],
+            BuildTimestamp = DateTimeOffset.UnixEpoch,
             Quality = new(checkOrphans: false)
         };
         var generator = new SiteGenerator();
@@ -248,13 +249,13 @@ public sealed class MdxSemanticsTests
     private static string WorkerDirectory([System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
     {
         foreach (var start in new[] { Path.GetDirectoryName(sourcePath)!, AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
-        for (var path = new DirectoryInfo(start); path is not null; path = path.Parent)
-        {
-            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
+            for (var path = new DirectoryInfo(start); path is not null; path = path.Parent)
             {
-                return Path.Combine(path.FullName, "src", "LithoSharp.Mdx", "worker");
+                if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
+                {
+                    return Path.Combine(path.FullName, "src", "LithoSharp.Mdx", "worker");
+                }
             }
-        }
 
         throw new DirectoryNotFoundException("The MDX integration fixture requires the repository's restored worker.");
     }

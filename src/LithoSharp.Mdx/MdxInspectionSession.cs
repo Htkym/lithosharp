@@ -151,7 +151,8 @@ public sealed class MdxInspectionSession : IAsyncDisposable
             // it does not bind a user type or execute project/module/plugin code.
             var parsed = MarkdownContentCollectionLoader<object>.ParseYaml(
                 split.Yaml, sourcePath, 2, cancellationToken);
-            if (!parsed.IsSuccess) frontMatterDiagnostics.AddRange(parsed.Diagnostics);
+            if (!parsed.IsSuccess)
+                frontMatterDiagnostics.AddRange(parsed.Diagnostics);
         }
         else if (split.Status == FrontMatterSplitStatus.EmptyFrontMatter)
         {
@@ -218,10 +219,12 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private static IReadOnlyList<MdxImportInfo> ReadImports(JsonElement imports, string sourcePath)
     {
         var list = new List<MdxImportInfo>();
-        if (imports.ValueKind != JsonValueKind.Array) return list;
+        if (imports.ValueKind != JsonValueKind.Array)
+            return list;
         foreach (var item in imports.EnumerateArray())
         {
-            if (item.ValueKind != JsonValueKind.Object) continue;
+            if (item.ValueKind != JsonValueKind.Object)
+                continue;
             var specifier = item.TryGetProperty("source", out var source) && source.ValueKind == JsonValueKind.String
                 ? source.GetString() ?? string.Empty : string.Empty;
             var names = item.TryGetProperty("names", out var namesValue) && namesValue.ValueKind == JsonValueKind.Array
@@ -239,10 +242,12 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private static IReadOnlyList<SiteDiagnostic> ReadDiagnostics(JsonElement diagnostics, string sourcePath)
     {
         var list = new List<SiteDiagnostic>();
-        if (diagnostics.ValueKind != JsonValueKind.Array) return list;
+        if (diagnostics.ValueKind != JsonValueKind.Array)
+            return list;
         foreach (var item in diagnostics.EnumerateArray())
         {
-            if (item.ValueKind != JsonValueKind.Object) continue;
+            if (item.ValueKind != JsonValueKind.Object)
+                continue;
             var message = item.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String
                 ? messageValue.GetString() ?? string.Empty : string.Empty;
             var line = item.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number
@@ -264,7 +269,8 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         var file = diagnostic.TryGetProperty("file", out var fileValue) && fileValue.ValueKind == JsonValueKind.String
             ? fileValue.GetString()
             : null;
-        if (string.IsNullOrEmpty(file)) return null;
+        if (string.IsNullOrEmpty(file))
+            return null;
         var line = diagnostic.TryGetProperty("line", out var lineValue) && lineValue.ValueKind == JsonValueKind.Number
             && lineValue.TryGetInt32(out var lineNumber) && lineNumber > 0 ? lineNumber : (int?)null;
         var column = diagnostic.TryGetProperty("column", out var columnValue) && columnValue.ValueKind == JsonValueKind.Number
@@ -275,7 +281,8 @@ public sealed class MdxInspectionSession : IAsyncDisposable
     private static SiteSourceLocation? Locate(SourceText locator, string sourcePath, SourceSpan span)
     {
         // Empty is the semantic model's unknown location, not a point at1:1.
-        if (span.IsEmpty) return null;
+        if (span.IsEmpty)
+            return null;
         if (span.End <= locator.Text.Length)
         {
             var (line, column) = locator.GetLineAndColumn(span.Start);

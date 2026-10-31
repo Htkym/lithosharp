@@ -201,7 +201,8 @@ public sealed class DocumentCatalog
         IReadOnlyList<DocumentNavigationItem> Auto(string directory)
         {
             var prefix = directory.Trim('/');
-            if (prefix.Length > 0) prefix += "/";
+            if (prefix.Length > 0)
+                prefix += "/";
             var selected = candidates.Where(page => page.SourcePath.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
             return selected.GroupBy(page => page.SourcePath[prefix.Length..].Split('/')[0])
                 .OrderBy(group => categories?.GetValueOrDefault((prefix + group.Key).Trim('/'))?.Position ?? group.Min(page => page.Position)).ThenBy(group => group.Key, StringComparer.Ordinal)
@@ -232,9 +233,11 @@ public sealed class DocumentCatalog
     {
         foreach (var item in navigation)
         {
-            if (item.Document == key) return [item];
+            if (item.Document == key)
+                return [item];
             var nested = Breadcrumbs(key, item.Children);
-            if (nested.Count > 0) return [item, .. nested];
+            if (nested.Count > 0)
+                return [item, .. nested];
         }
         return [];
     }

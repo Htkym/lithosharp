@@ -19,16 +19,22 @@ internal sealed class BinderEmitter
     private int AddType(ITypeSymbol type)
     {
         var key = GeneratorModel.Display(type);
-        if (parsers.TryGetValue(key, out var existing)) return existing;
+        if (parsers.TryGetValue(key, out var existing))
+            return existing;
         var index = types.Count;
         parsers.Add(key, index);
         types.Add(type);
         if (type is INamedTypeSymbol nullable && nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
             AddType(nullable.TypeArguments[0]);
-        else if (type is IArrayTypeSymbol array && array.Rank == 1) AddType(array.ElementType);
-        else if (GeneratorModel.IsScalar(type)) { }
-        else if (type is INamedTypeSymbol list && GeneratorModel.IsList(list)) AddType(list.TypeArguments[0]);
-        else if (type is INamedTypeSymbol dictionary && GeneratorModel.IsDictionary(dictionary)) AddType(dictionary.TypeArguments[1]);
+        else if (type is IArrayTypeSymbol array && array.Rank == 1)
+            AddType(array.ElementType);
+        else if (GeneratorModel.IsScalar(type))
+        {
+        }
+        else if (type is INamedTypeSymbol list && GeneratorModel.IsList(list))
+            AddType(list.TypeArguments[0]);
+        else if (type is INamedTypeSymbol dictionary && GeneratorModel.IsDictionary(dictionary))
+            AddType(dictionary.TypeArguments[1]);
         else if (type is INamedTypeSymbol model && model.TypeKind is TypeKind.Class or TypeKind.Struct
             && !model.IsAbstract && !model.IsAnonymousType && model.SpecialType == SpecialType.None)
         {
@@ -44,10 +50,12 @@ internal sealed class BinderEmitter
                     throw new InvalidOperationException($"Front matter type '{model}' has a property without a getter.");
                 binders.Add(objectKey, objects.Count);
                 objects.Add((INamedTypeSymbol)model.WithNullableAnnotation(NullableAnnotation.NotAnnotated));
-                foreach (var member in members) AddType(member.Type);
+                foreach (var member in members)
+                    AddType(member.Type);
             }
         }
-        else throw new InvalidOperationException($"Front matter member type '{type}' is not supported by static binding.");
+        else
+            throw new InvalidOperationException($"Front matter member type '{type}' is not supported by static binding.");
         return index;
     }
 
@@ -62,8 +70,10 @@ internal sealed class BinderEmitter
         text.AppendLine("var binding = new global::LithoSharp.Content.GeneratedContentBindingContext(values, sourceLocation);");
         text.AppendLine("return binding.Complete(Bind_0(binding));");
         text.AppendLine("}");
-        for (var index = 0; index < objects.Count; index++) EmitObject(text, objects[index], index);
-        for (var index = 0; index < types.Count; index++) EmitParser(text, types[index], index);
+        for (var index = 0; index < objects.Count; index++)
+            EmitObject(text, objects[index], index);
+        for (var index = 0; index < types.Count; index++)
+            EmitParser(text, types[index], index);
         text.AppendLine("}");
         return text.ToString();
     }
@@ -79,7 +89,8 @@ internal sealed class BinderEmitter
             text.AppendLine("[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Constructor)]");
             text.AppendLine($"private static extern {name} Create_{index}();");
         }
-        else text.AppendLine($"private static {name} Create_{index}() => {(required ? $"default({name})" : $"new {name}()")};");
+        else
+            text.AppendLine($"private static {name} Create_{index}() => {(required ? $"default({name})" : $"new {name}()")};");
         text.AppendLine($"private static {name} Bind_{index}(global::LithoSharp.Content.GeneratedContentBindingContext binding)");
         text.AppendLine("{");
         text.AppendLine($"var instance = Create_{index}();");
@@ -120,7 +131,8 @@ internal sealed class BinderEmitter
         for (var memberIndex = 0; memberIndex < members.Count; memberIndex++)
         {
             var member = members[memberIndex];
-            if (member.Symbol is not IPropertySymbol property) continue;
+            if (member.Symbol is not IPropertySymbol property)
+                continue;
             var owner = GeneratorModel.Display(property.ContainingType);
             var parameter = (type.IsValueType ? "ref " : string.Empty) + owner + " instance";
             if (property.SetMethod!.IsInitOnly)
@@ -164,7 +176,8 @@ internal sealed class BinderEmitter
             text.AppendLine($"var success = context.TryDictionary<{GeneratorModel.Display(element)}>(input, {Bool(GeneratorModel.AllowsNull(element))}, Parse_{parsers[GeneratorModel.Display(element)]}, out var items);");
             text.AppendLine("value = items; return success;");
         }
-        else text.AppendLine($"return context.TryObject(input, Bind_{binders[GeneratorModel.Display(type.WithNullableAnnotation(NullableAnnotation.NotAnnotated))]}, out value);");
+        else
+            text.AppendLine($"return context.TryObject(input, Bind_{binders[GeneratorModel.Display(type.WithNullableAnnotation(NullableAnnotation.NotAnnotated))]}, out value);");
         text.AppendLine("}");
     }
 

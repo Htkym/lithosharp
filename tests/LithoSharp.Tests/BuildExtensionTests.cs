@@ -57,7 +57,8 @@ public sealed class BuildExtensionTests
         public int CompletedBuilds { get; private set; }
         public Task AfterBuildAsync(SiteGenerationResult result, CancellationToken cancellationToken)
         {
-            if (!File.Exists(Path.Combine(result.OutputDirectory, "chunks/entry.js"))) throw new InvalidOperationException("Output has not been committed.");
+            if (!File.Exists(Path.Combine(result.OutputDirectory, "chunks/entry.js")))
+                throw new InvalidOperationException("Output has not been committed.");
             CompletedBuilds++;
             return Task.CompletedTask;
         }

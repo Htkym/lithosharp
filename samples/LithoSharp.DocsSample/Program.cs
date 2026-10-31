@@ -48,7 +48,8 @@ Console.WriteLine(
     $"{result.BuildReport.GeneratedArtifacts.Count} artifact(s) into {result.OutputDirectory}.");
 Console.WriteLine($"Build invalidations: {result.BuildReport.Invalidations.Count}.");
 Console.WriteLine($"Cache hits: {result.BuildReport.CacheHitCount}; misses: {result.BuildReport.CacheMissCount}.");
-if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
+if (check)
+    Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
 return 0;
 
 static string? GetArgument(string[] args, string name)

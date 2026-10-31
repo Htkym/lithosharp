@@ -21,7 +21,11 @@ internal sealed class WatchBuildProgress
 
     internal void Invalidate(int reasons)
     {
-        lock (gate) { admitted = checked(admitted + 1); restartReasons |= reasons; }
+        lock (gate)
+        {
+            admitted = checked(admitted + 1);
+            restartReasons |= reasons;
+        }
     }
 
     internal WatchBuildBatch BeginBuild()
@@ -35,7 +39,11 @@ internal sealed class WatchBuildProgress
         }
     }
 
-    internal void RememberRestart(int reasons) { lock (gate) restartReasons |= reasons; }
+    internal void RememberRestart(int reasons)
+    {
+        lock (gate)
+            restartReasons |= reasons;
+    }
 
     internal WatchGeneration Witness(WatchBuildBatch batch, Guid host, Guid? previousHost) =>
         new(ownerId, host.ToString("N"), previousHost?.ToString("N"), batch.InputRevision, batch.RestartReasons);
@@ -62,7 +70,8 @@ internal sealed class WatchBuildProgress
             Task wait;
             lock (gate)
             {
-                if (!building && admitted == completed && latest is not null) return latest;
+                if (!building && admitted == completed && latest is not null)
+                    return latest;
                 wait = pulse.Task;
             }
             await wait.WaitAsync(token).ConfigureAwait(false);

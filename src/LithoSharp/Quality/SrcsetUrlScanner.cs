@@ -24,7 +24,8 @@ internal static class SrcsetUrlScanner
                 cancellationToken.ThrowIfCancellationRequested();
                 index++;
             }
-            if (index == value.Length) yield break;
+            if (index == value.Length)
+                yield break;
             var urlStart = index;
             while (index < value.Length && !IsWhitespace(value[index]))
             {
@@ -54,8 +55,13 @@ internal static class SrcsetUrlScanner
                     cancellationToken.ThrowIfCancellationRequested();
                     index++;
                 }
-                if (index == value.Length) break;
-                if (value[index] == ',') { index++; break; }
+                if (index == value.Length)
+                    break;
+                if (value[index] == ',')
+                {
+                    index++;
+                    break;
+                }
                 var descriptorStart = index;
                 var inParens = false;
                 while (index < value.Length)
@@ -64,12 +70,15 @@ internal static class SrcsetUrlScanner
                     var character = value[index];
                     if (inParens)
                     {
-                        if (character == ')') inParens = false;
+                        if (character == ')')
+                            inParens = false;
                     }
                     else
                     {
-                        if (IsWhitespace(character) || character == ',') break;
-                        if (character == '(') inParens = true;
+                        if (IsWhitespace(character) || character == ',')
+                            break;
+                        if (character == '(')
+                            inParens = true;
                     }
                     index++;
                 }
@@ -77,7 +86,8 @@ internal static class SrcsetUrlScanner
                     ref width, ref density, ref height, cancellationToken);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (valid && (!height || width)) yield return new(value.Substring(urlStart, urlEnd - urlStart), new(urlStart, urlEnd - urlStart));
+            if (valid && (!height || width))
+                yield return new(value.Substring(urlStart, urlEnd - urlStart), new(urlStart, urlEnd - urlStart));
         }
     }
 
@@ -107,7 +117,8 @@ internal static class SrcsetUrlScanner
         foreach (var character in value)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (character is < '0' or > '9') return false;
+            if (character is < '0' or > '9')
+                return false;
             positive |= character != '0';
         }
         return positive;
@@ -116,21 +127,27 @@ internal static class SrcsetUrlScanner
     private static bool IsDensity(string value, CancellationToken cancellationToken)
     {
         var index = 0;
-        if (index < value.Length && value[index] == '-') index++;
+        if (index < value.Length && value[index] == '-')
+            index++;
         var integral = ReadDigits(value, ref index, cancellationToken);
         if (index < value.Length && value[index] == '.')
         {
             index++;
-            if (!ReadDigits(value, ref index, cancellationToken)) return false;
+            if (!ReadDigits(value, ref index, cancellationToken))
+                return false;
         }
-        else if (!integral) return false;
+        else if (!integral)
+            return false;
         if (index < value.Length && value[index] is 'e' or 'E')
         {
             index++;
-            if (index < value.Length && value[index] is '+' or '-') index++;
-            if (!ReadDigits(value, ref index, cancellationToken)) return false;
+            if (index < value.Length && value[index] is '+' or '-')
+                index++;
+            if (!ReadDigits(value, ref index, cancellationToken))
+                return false;
         }
-        if (index != value.Length) return false;
+        if (index != value.Length)
+            return false;
         cancellationToken.ThrowIfCancellationRequested();
         var accepted = double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var density)
             && !double.IsNaN(density) && !double.IsInfinity(density) && density >= 0;

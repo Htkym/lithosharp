@@ -38,7 +38,8 @@ public sealed class FixedHtmlSitePlan
         ArgumentNullException.ThrowIfNull(html);
         var paths = relativeOutputPaths.ToArray();
         var sources = html.ToArray();
-        if (paths.Length != sources.Length) throw new ArgumentException("Each output path requires one full HTML source.", nameof(html));
+        if (paths.Length != sources.Length)
+            throw new ArgumentException("Each output path requires one full HTML source.", nameof(html));
         var encoding = new UTF8Encoding(false, true);
         return Array.AsReadOnly(paths.Select((path, index) => new SiteGeneratedAsset(
             "fixed-html:" + path, path, encoding.GetBytes(sources[index]))).ToArray());
@@ -51,7 +52,8 @@ public sealed class FixedHtmlSitePlan
         _ = SiteUrl.FromAbsolute(baseUrl);
         site = new SiteSettings { BaseUrl = baseUrl };
         this.pages = Array.AsReadOnly(pages.ToArray());
-        if (this.pages.Any(page => page is null)) throw new ArgumentException("A fixed HTML page must not be null.", nameof(pages));
+        if (this.pages.Any(page => page is null))
+            throw new ArgumentException("A fixed HTML page must not be null.", nameof(pages));
     }
 
     /// <summary>Publishes the exact prepared bytes through the common ownership and output transaction.</summary>

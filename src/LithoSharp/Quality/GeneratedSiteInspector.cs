@@ -30,7 +30,8 @@ public static class GeneratedSiteInspector
         if (Path.GetDirectoryName(root) is null)
             throw new ArgumentException("The output directory must not be a file system root.", nameof(outputDirectory));
         EnsureSafeAncestors(root);
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException($"Output directory '{root}' does not exist.");
+        if (!Directory.Exists(root))
+            throw new DirectoryNotFoundException($"Output directory '{root}' does not exist.");
         var paths = EnumerateFiles(root, cancellationToken);
         var routes = paths.ToDictionary(path => path,
             path => SiteRoute.ForFile(string.Join('/', path.Split('/').Select(Uri.EscapeDataString)), baseUrl),
@@ -38,10 +39,12 @@ public static class GeneratedSiteInspector
         if (routes.Any(pair => pair.Key != pair.Value.RelativeOutputPath))
             throw new InvalidOperationException("Output paths must use normalized Unicode names.");
         var routeTable = new SiteRouteTable();
-        foreach (var route in routes.Values) routeTable.Register(route, route.RelativeOutputPath);
+        foreach (var route in routes.Values)
+            routeTable.Register(route, route.RelativeOutputPath);
         routeTable.ValidateOrThrow();
         var textPaths = paths.Where(path => IsHtml(path) || path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).ToArray();
-        if (!textPaths.Any(IsHtml)) throw new InvalidOperationException("The output contains no .html or .htm pages to inspect.");
+        if (!textPaths.Any(IsHtml))
+            throw new InvalidOperationException("The output contains no .html or .htm pages to inspect.");
         var inspected = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
         var redirects = new Dictionary<string, SiteRoute>(StringComparer.Ordinal);
         var redirectDiagnostics = new List<SiteDiagnostic>();
@@ -68,11 +71,13 @@ public static class GeneratedSiteInspector
         {
             EnsureEntryType(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar)), directory: false);
             var content = await SiteGenerator.ReadQualityTextAsync(root, path, inspected, token, strictUtf8: true).ConfigureAwait(false);
-            if (!IsHtml(path)) return content;
+            if (!IsHtml(path))
+                return content;
             var pageFacts = (await facts.GetQualityAsync(content, token).ConfigureAwait(false)).Facts;
             var refreshes = pageFacts.Elements.Where(element => element.Name == "meta"
                 && string.Equals(QualityHtmlFacts.Attribute(element, "http-equiv"), "refresh", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (refreshes.Length == 0) return content;
+            if (refreshes.Length == 0)
+                return content;
             var value = refreshes.Length == 1 ? QualityHtmlFacts.Attribute(refreshes[0], "content")?.Trim() : null;
             var resolutionBase = new Uri(origin + routes[path].PublicPath);
             if (pageFacts.BaseHref is { } declaredBase && Uri.TryCreate(resolutionBase, declaredBase, out var parsedBase))
@@ -154,8 +159,10 @@ public static class GeneratedSiteInspector
                 var relative = Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
                 if (relative.Contains('\\'))
                     throw new InvalidOperationException($"Output path '{path}' contains a literal backslash.");
-                if ((attributes & FileAttributes.Directory) != 0) pending.Push(path);
-                else files.Add(relative);
+                if ((attributes & FileAttributes.Directory) != 0)
+                    pending.Push(path);
+                else
+                    files.Add(relative);
             }
         }
         return files.Order(StringComparer.Ordinal).ToArray();
@@ -163,7 +170,8 @@ public static class GeneratedSiteInspector
 
     private static void EnsureEntryType(string path, bool directory)
     {
-        if (OperatingSystem.IsWindows()) return;
+        if (OperatingSystem.IsWindows())
+            return;
         ushort mode;
         try
         {
@@ -183,10 +191,12 @@ public static class GeneratedSiteInspector
                 DarwinFileType status;
                 var result = RuntimeInformation.ProcessArchitecture == Architecture.X64
                     ? DarwinLStatX64(path, out status) : DarwinLStatArm64(path, out status);
-                if (result != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+                if (result != 0)
+                    throw new Win32Exception(Marshal.GetLastPInvokeError());
                 mode = status.Mode;
             }
-            else throw new PlatformNotSupportedException("Output file type verification requires Windows, Linux statx, or macOS x64/arm64.");
+            else
+                throw new PlatformNotSupportedException("Output file type verification requires Windows, Linux statx, or macOS x64/arm64.");
         }
         catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
         {
@@ -225,7 +235,8 @@ public static class GeneratedSiteInspector
     private static void EnsureSafeAncestors(string path)
     {
         for (DirectoryInfo? current = new(path); current is not null; current = current.Parent)
-            if (current.Exists) RejectReparsePoint(current.FullName, current.Attributes);
+            if (current.Exists)
+                RejectReparsePoint(current.FullName, current.Attributes);
     }
 
     private static void RejectReparsePoint(string path, FileAttributes attributes)

@@ -23,15 +23,18 @@ internal static class PreflightCommand
         {
             if (!args[i].StartsWith('-'))
             {
-                if (project is not null) throw new CliUsageException("Specify one project.");
+                if (project is not null)
+                    throw new CliUsageException("Specify one project.");
                 project = args[i];
                 continue;
             }
             var name = args[i];
             if (name is not ("--mode" or "--input" or "--format" or "--configuration" or "--worker-directory" or "--node-executable") || ++i >= args.Length)
                 throw new CliUsageException($"Unknown or incomplete preflight option '{name}'.");
-            if (name == "--input") inputs.Add(Path.GetFullPath(args[i]));
-            else if (!options.TryAdd(name, args[i])) throw new CliUsageException($"Option '{name}' was specified more than once.");
+            if (name == "--input")
+                inputs.Add(Path.GetFullPath(args[i]));
+            else if (!options.TryAdd(name, args[i]))
+                throw new CliUsageException($"Option '{name}' was specified more than once.");
         }
         var mode = options.GetValueOrDefault("--mode") switch
         {
@@ -40,15 +43,19 @@ internal static class PreflightCommand
             _ => throw new CliUsageException("Preflight requires --mode static or --mode trusted."),
         };
         var format = options.GetValueOrDefault("--format", "text");
-        if (format is not ("text" or "json" or "sarif")) throw new CliUsageException("Preflight format must be text, json or sarif.");
+        if (format is not ("text" or "json" or "sarif"))
+            throw new CliUsageException("Preflight format must be text, json or sarif.");
         if (mode == "static-inputs" && (inputs.Count == 0 || project is not null))
             throw new CliUsageException("Static preflight requires explicit --input files and accepts no project.");
-        if (mode == "trusted-catalog" && project is null) throw new CliUsageException("Trusted preflight requires an explicit project.");
+        if (mode == "trusted-catalog" && project is null)
+            throw new CliUsageException("Trusted preflight requires an explicit project.");
 
         var nodeExecutable = options.GetValueOrDefault("--node-executable", "node");
-        if (string.IsNullOrWhiteSpace(nodeExecutable)) throw new CliUsageException("Preflight --node-executable must not be empty.");
+        if (string.IsNullOrWhiteSpace(nodeExecutable))
+            throw new CliUsageException("Preflight --node-executable must not be empty.");
         var source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
-        if (mode == "static-inputs" || !source.Report.Succeeded) return Print(SourceResponse(source), format);
+        if (mode == "static-inputs" || !source.Report.Succeeded)
+            return Print(SourceResponse(source), format);
         project = ProjectCompiler.ResolveProject(project);
         var root = SiteGenerator.CreateTemporaryDirectory("lithosharp-preflight-compiler-");
         try
@@ -61,19 +68,28 @@ internal static class PreflightCommand
             }
             catch (ProjectCompilationException exception)
             {
-                return Print(WithSourceMetadata(new HostResponse { ExitCode = 1, Diagnostics = FactoryHost.ToHostDiagnostics(exception.Diagnostics), Error = exception.Message,
-                    Preflight = new("trusted-catalog", "compiler", ["Factory and render were not invoked."]) }, source.Sources), format);
+                return Print(WithSourceMetadata(new HostResponse
+                {
+                    ExitCode = 1,
+                    Diagnostics = FactoryHost.ToHostDiagnostics(exception.Diagnostics),
+                    Error = exception.Message,
+                    Preflight = new("trusted-catalog", "compiler", ["Factory and render were not invoked."])
+                }, source.Sources), format);
             }
             // Re-read selected files after compilation; an earlier source snapshot is not
             // authorization to invoke a factory against newly invalid input.
             source = await InspectInputsAsync(inputs, options.GetValueOrDefault("--worker-directory"), nodeExecutable, cancellationToken);
-            if (!source.Report.Succeeded) return Print(SourceResponse(source), format);
+            if (!source.Report.Succeeded)
+                return Print(SourceResponse(source), format);
             var hostOptions = CommandOptions.Parse(["--format", "json"]);
             var response = await Cli.RunHostAsync(assembly, project, "preflight", hostOptions, null, cancellationToken);
             response = response with { Diagnostics = FactoryHost.ToHostDiagnostics(source.Report.Diagnostics).Concat(response.Diagnostics).ToArray() };
             return Print(WithSourceMetadata(response, source.Sources), format);
         }
-        finally { Directory.Delete(root, recursive: true); }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
     private static async Task<(SitePreflightReport Report, HostPreflightSource[] Sources)> InspectInputsAsync(IReadOnlyList<string> inputs, string? workerDirectory, string nodeExecutable, CancellationToken cancellationToken)
     {
@@ -94,7 +110,8 @@ internal static class PreflightCommand
                 var text = new UTF8Encoding(false, true).GetString(bytes);
                 readState = "Utf8";
                 // UTF-8 BOM is transport metadata, not a front matter character.
-                if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+                if (text.Length > 0 && text[0] == '\uFEFF')
+                    text = text[1..];
                 if (Path.GetExtension(input).Equals(".mdx", StringComparison.OrdinalIgnoreCase))
                 {
                     diagnostics.AddRange((await mdx.AnalyzeAsync(input, text, cancellationToken: cancellationToken)).Diagnostics);
@@ -117,15 +134,19 @@ internal static class PreflightCommand
                 diagnostics.AddRange(exception.Diagnostics);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or DecoderFallbackException)
-            { diagnostics.Add(new("LSC7001", SiteDiagnosticSeverity.Error, exception.Message, new SiteSourceLocation(input))); }
+            {
+                diagnostics.Add(new("LSC7001", SiteDiagnosticSeverity.Error, exception.Message, new SiteSourceLocation(input)));
+            }
             sources.Add(new(input, hash, readState, analysisState));
         }
         return (SitePreflight.FromDiagnostics(diagnostics), sources.ToArray());
     }
     private static HostResponse SourceResponse((SitePreflightReport Report, HostPreflightSource[] Sources) source) => WithSourceMetadata(new()
     {
-        Success = source.Report.Succeeded, ExitCode = source.Report.Succeeded ? 0 : 1,
-        Diagnostics = FactoryHost.ToHostDiagnostics(source.Report.Diagnostics), Preflight = new(source.Report.Mode, source.Report.Stage, source.Report.DeferredReasons.ToArray()),
+        Success = source.Report.Succeeded,
+        ExitCode = source.Report.Succeeded ? 0 : 1,
+        Diagnostics = FactoryHost.ToHostDiagnostics(source.Report.Diagnostics),
+        Preflight = new(source.Report.Mode, source.Report.Stage, source.Report.DeferredReasons.ToArray()),
     }, source.Sources);
     private static HostResponse WithSourceMetadata(HostResponse response, HostPreflightSource[] sources) => response with
     {
@@ -137,21 +158,27 @@ internal static class PreflightCommand
     };
     private static int Print(HostResponse response, string format)
     {
-        if (format is "json" or "sarif") Console.WriteLine(FormatMachineOutput(response, format));
+        if (format is "json" or "sarif")
+            Console.WriteLine(FormatMachineOutput(response, format));
         else
         {
             Console.WriteLine($"Preflight {response.Preflight?.Mode}/{response.Preflight?.Stage}: {(response.Success ? "no Error" : "failed")}");
-            foreach (var d in response.Diagnostics) Console.WriteLine($"{d.Id} {d.Severity}: {d.Message}");
-            foreach (var deferred in response.Preflight?.DeferredReasons ?? []) Console.WriteLine($"Deferred: {deferred}");
-            if (response.Error is not null) Console.Error.WriteLine(response.Error);
+            foreach (var d in response.Diagnostics)
+                Console.WriteLine($"{d.Id} {d.Severity}: {d.Message}");
+            foreach (var deferred in response.Preflight?.DeferredReasons ?? [])
+                Console.WriteLine($"Deferred: {deferred}");
+            if (response.Error is not null)
+                Console.Error.WriteLine(response.Error);
         }
         return response.ExitCode;
     }
 
     internal static string FormatMachineOutput(HostResponse response, string format)
     {
-        if (format == "json") return JsonSerializer.Serialize(response, JsonOptions);
-        if (format != "sarif") throw new ArgumentOutOfRangeException(nameof(format));
+        if (format == "json")
+            return JsonSerializer.Serialize(response, JsonOptions);
+        if (format != "sarif")
+            throw new ArgumentOutOfRangeException(nameof(format));
         var diagnostics = response.Diagnostics.Select(d => new SiteDiagnostic(d.Id, Enum.Parse<SiteDiagnosticSeverity>(d.Severity), d.Message,
             d.File is null ? null : new SiteSourceLocation(d.File, d.Line, d.Column, d.EndLine, d.EndColumn), d.Category,
             (d.RelatedLocations ?? []).Select(r => new SiteSourceLocation(r.File, r.Line, r.Column, r.EndLine, r.EndColumn))));

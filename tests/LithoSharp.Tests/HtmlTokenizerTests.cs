@@ -293,7 +293,8 @@ public sealed class HtmlTokenizerTests
                 foreach (var text in new[] { token.Name, token.Data, token.PublicIdentifier, token.SystemIdentifier }
                     .Concat(token.Attributes?.SelectMany(a => new[] { a.Name, a.Value }) ?? []))
                 {
-                    if (text is null) continue;
+                    if (text is null)
+                        continue;
                     var valueEnd = 0;
                     foreach (var segment in text.Segments)
                     {
@@ -313,7 +314,8 @@ public sealed class HtmlTokenizerTests
         while (true)
         {
             var token = reader.NextToken();
-            if (token.Kind == HtmlTokenKind.EndOfFile) return tokens;
+            if (token.Kind == HtmlTokenKind.EndOfFile)
+                return tokens;
             tokens.Add(token);
         }
     }

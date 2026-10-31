@@ -236,12 +236,19 @@ public sealed class LspServer
                     save = new { includeText = false },
                 },
                 documentSymbolProvider = true,
-                experimental = new { lithosharp = new {
-                    schemaVersion = "1.0", coreVersion,
-                    markdownInspection = true, mdxInspection = "on-demand-worker",
-                    preflightStaticInputs = false, preflightTrustedCatalog = false,
-                    project = ToolingCapabilities.NotEvaluatedProject,
-                } },
+                experimental = new
+                {
+                    lithosharp = new
+                    {
+                        schemaVersion = "1.0",
+                        coreVersion,
+                        markdownInspection = true,
+                        mdxInspection = "on-demand-worker",
+                        preflightStaticInputs = false,
+                        preflightTrustedCatalog = false,
+                        project = ToolingCapabilities.NotEvaluatedProject,
+                    }
+                },
             },
             serverInfo = new { name = "lithosharp", version = coreVersion },
         }, JsonOptions);
@@ -419,7 +426,10 @@ public sealed class LspServer
             };
             if (id is not null && requests.TryGetValue(id, out var source))
             {
-                try { source.Cancel(); }
+                try
+                {
+                    source.Cancel();
+                }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -515,7 +525,8 @@ public sealed class LspServer
                 return;
             }
             var generationChanged = contextGeneration is { } nextGeneration && nextGeneration != clientContextGeneration;
-            if (contextGeneration is { } generation) clientContextGeneration = generation;
+            if (contextGeneration is { } generation)
+                clientContextGeneration = generation;
             var previousOwners = buffers.Values.ToDictionary(buffer => buffer.Uri, buffer => ContextFor(buffer.Uri));
             contexts.RemoveAll(entry => entry.ProjectId == projectId);
             if (snapshot is not null)
@@ -533,8 +544,10 @@ public sealed class LspServer
                 var path = UriPath(uri);
                 workspace.Remove(path);
                 workspace.Remove(projectId, path);
-                if (previousOwners[uri] is { } previous) workspace.Remove(previous.ProjectId, path);
-                if (ContextFor(uri) is { } current) workspace.Remove(current.ProjectId, path);
+                if (previousOwners[uri] is { } previous)
+                    workspace.Remove(previous.ProjectId, path);
+                if (ContextFor(uri) is { } current)
+                    workspace.Remove(current.ProjectId, path);
             }
             foreach (var (uri, version) in affected)
             {
@@ -547,7 +560,8 @@ public sealed class LspServer
     {
         lock (stateGate)
         {
-            if (generation is not { } next || next <= clientContextGeneration) return;
+            if (generation is not { } next || next <= clientContextGeneration)
+                return;
             clientContextGeneration = next;
             // Retain the last valid snapshots. Invalidate owned work before new
             // publication so an obsolete analysis cannot acquire the new tag.
@@ -555,9 +569,11 @@ public sealed class LspServer
             {
                 var path = UriPath(buffer.Uri);
                 workspace.Remove(path);
-                if (ContextFor(buffer.Uri) is { } owner) workspace.Remove(owner.ProjectId, path);
+                if (ContextFor(buffer.Uri) is { } owner)
+                    workspace.Remove(owner.ProjectId, path);
             }
-            foreach (var buffer in buffers.Values) TrackDocumentAnalysis(buffer.Uri, buffer.Version);
+            foreach (var buffer in buffers.Values)
+                TrackDocumentAnalysis(buffer.Uri, buffer.Version);
         }
     }
 
@@ -586,11 +602,13 @@ public sealed class LspServer
         foreach (var route in entry.Snapshot.Routes)
         {
             var source = route.SourcePath.Replace('\\', '/');
-            if (string.Equals(source, path, comparison)) return true;
+            if (string.Equals(source, path, comparison))
+                return true;
             // Relative sources are scoped to the declared folders, never matched
             // by filename alone across unrelated roots.
             if (!Path.IsPathRooted(source) && entry.Folders.Any(folder =>
-                string.Equals(UriPath(folder).TrimEnd('/') + "/" + source, path, comparison))) return true;
+                string.Equals(UriPath(folder).TrimEnd('/') + "/" + source, path, comparison)))
+                return true;
         }
         return false;
     }
@@ -602,10 +620,12 @@ public sealed class LspServer
             ProjectContextEntry? sourceOwner = null;
             foreach (var entry in contexts.Where(entry => ClaimsSource(entry, uri)))
             {
-                if (sourceOwner is not null) return null;
+                if (sourceOwner is not null)
+                    return null;
                 sourceOwner = entry;
             }
-            if (sourceOwner is not null) return sourceOwner;
+            if (sourceOwner is not null)
+                return sourceOwner;
 
             ProjectContextEntry? best = null;
             var bestFolderLength = -1;
@@ -863,9 +883,21 @@ public sealed class LspServer
 
     private void PublishAnalysisStatus(DocumentBuffer buffer, long contextGeneration, string state, string message)
     {
-        transport.WriteMessage(JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "lithosharp/analysisStatus",
-            @params = new { uri = buffer.Uri, version = buffer.Version, language = "mdx", state, message,
-                lithosharpOpenGeneration = buffer.OpenGeneration, lithosharpContextGeneration = contextGeneration } }, JsonOptions));
+        transport.WriteMessage(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method = "lithosharp/analysisStatus",
+            @params = new
+            {
+                uri = buffer.Uri,
+                version = buffer.Version,
+                language = "mdx",
+                state,
+                message,
+                lithosharpOpenGeneration = buffer.OpenGeneration,
+                lithosharpContextGeneration = contextGeneration
+            }
+        }, JsonOptions));
     }
 
     private async Task<JsonElement> SymbolsForAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
@@ -901,7 +933,7 @@ public sealed class LspServer
         }
 
         DocumentInfo info;
-        for (;;)
+        for (; ; )
         {
             Task pending;
             lock (stateGate)
@@ -961,7 +993,7 @@ public sealed class LspServer
     private async Task<JsonElement> MdxSymbolsAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
     {
         MdxAnalysisResult? result;
-        for (;;)
+        for (; ; )
         {
             Task pending;
             lock (stateGate)
@@ -1163,7 +1195,10 @@ public sealed class LspServer
 
             foreach (var source in requests.Values)
             {
-                try { source.Cancel(); }
+                try
+                {
+                    source.Cancel();
+                }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -1259,9 +1294,11 @@ public sealed class LspServer
     private static bool TryClientGeneration(JsonElement element, string name, out long? generation)
     {
         generation = null;
-        if (!element.TryGetProperty(name, out var value)) return true;
+        if (!element.TryGetProperty(name, out var value))
+            return true;
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var number)
-            || number < 0 || number > 9007199254740991) return false;
+            || number < 0 || number > 9007199254740991)
+            return false;
         generation = number;
         return true;
     }

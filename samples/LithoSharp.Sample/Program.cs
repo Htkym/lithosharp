@@ -31,7 +31,8 @@ catch (SiteQualityValidationException exception)
 }
 
 Console.WriteLine($"Generated {result.PostCount} post(s) into {result.OutputDirectory}.");
-if (check) Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
+if (check)
+    Console.WriteLine(result.QualityReport.Format(SiteDiagnosticFormat.Text));
 return 0;
 
 static string? GetArgument(string[] args, string name)

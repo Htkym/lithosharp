@@ -21,7 +21,8 @@ public sealed partial class AnalyzerPackageHostTests
             var parameter = new[] { "cacheFilePath", "cacheDuration", "minimumRequestInterval", "requestTimeout" }[slot];
             var path = slot == 0 ? row.GetProperty("path").GetString() : "cache.json";
             var args = new List<string> { "cacheFilePath:" + (path is null ? "null" : SymbolDisplay.FormatLiteral(path, true)) };
-            if (slot != 0) args.Add(parameter + ":" + row.GetProperty("expression").GetString());
+            if (slot != 0)
+                args.Add(parameter + ":" + row.GetProperty("expression").GetString());
             foreach (var reverse in new[] { false, true })
             {
                 var source = "// 😀 UTF16\nclass C { void M() { new LithoSharp.Quality.ExternalLinkCheckOptions(" + string.Join(",", reverse ? args.AsEnumerable().Reverse() : args) + "); } }";
@@ -46,7 +47,7 @@ public sealed partial class AnalyzerPackageHostTests
         await Options("var t=b?System.TimeSpan.Zero:System.TimeSpan.MinValue; new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:t);", "requestTimeout");
         await Options("var t=System.TimeSpan.Zero; new LithoSharp.Quality.ExternalLinkCheckOptions(requestTimeout:t,cacheFilePath:(t=System.TimeSpan.FromTicks(1L)).ToString());", "requestTimeout");
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No compiler-host Core/user execution");
-        File.WriteAllText(Path.Combine(Required("RA03_EVIDENCE_DIR"), "external-options-inputs.json"), JsonSerializer.Serialize(new { status="PASS", runtimeCases=actual.Count, cases=proof }, new JsonSerializerOptions { WriteIndented=true }));
+        File.WriteAllText(Path.Combine(Required("RA03_EVIDENCE_DIR"), "external-options-inputs.json"), JsonSerializer.Serialize(new { status = "PASS", runtimeCases = actual.Count, cases = proof }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]
@@ -70,27 +71,37 @@ public sealed partial class AnalyzerPackageHostTests
             "var good=System.TimeSpan.FromTicks(1L); var bad=System.TimeSpan.Zero; (bad,good)=(good,bad); new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:bad);",
             "var good=System.TimeSpan.Zero; var bad=System.TimeSpan.MinValue; (bad,good)=(good,bad); new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",cacheDuration:bad);"
         };
-        foreach (var body in bodies) await Options(body);
-        string Branches(int count) => string.Join(" ", Enumerable.Range(0,count-1).Select(i => "n=="+i+"?System.TimeSpan.FromTicks(-"+(i+1)+"L):"))+"System.TimeSpan.FromTicks(-"+count+"L)";
-        await Options("var t="+Branches(8)+"; new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:t);", "requestTimeout");
-        await Options("var t="+Branches(9)+"; new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:t);");
+        foreach (var body in bodies)
+            await Options(body);
+        string Branches(int count) => string.Join(" ", Enumerable.Range(0, count - 1).Select(i => "n==" + i + "?System.TimeSpan.FromTicks(-" + (i + 1) + "L):")) + "System.TimeSpan.FromTicks(-" + count + "L)";
+        await Options("var t=" + Branches(8) + "; new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:t);", "requestTimeout");
+        await Options("var t=" + Branches(9) + "; new LithoSharp.Quality.ExternalLinkCheckOptions(\"c\",requestTimeout:t);");
         await Options("new LithoSharp.Quality.ExternalLinkCheckOptions(\"\",requestTimeout:duration);", "cacheFilePath");
         const string fake = "namespace LithoSharp.Quality { class ExternalLinkCheckOptions { public ExternalLinkCheckOptions(string cacheFilePath){} } } class C { void M(){new LithoSharp.Quality.ExternalLinkCheckOptions(\"\");}}";
-        Check(!(await Analyze(Compile(fake, false))).Any(d=>d.Id=="LSA1004"), "Source lookalike options excluded");
+        Check(!(await Analyze(Compile(fake, false))).Any(d => d.Id == "LSA1004"), "Source lookalike options excluded");
         var suppressed = Compile("#pragma warning disable LSA1004\nclass C { void M(){new LithoSharp.Quality.ExternalLinkCheckOptions(\"\");}}", true);
-        Check(!(await Analyze(suppressed)).Any(d=>d.Id=="LSA1004"), "Standard suppression");
-        using var canceled = new CancellationTokenSource(); canceled.Cancel(); var propagated = false;
-        try { await Analyze(Compile("class C{}", true),canceled.Token); } catch (OperationCanceledException) { propagated=true; }
+        Check(!(await Analyze(suppressed)).Any(d => d.Id == "LSA1004"), "Standard suppression");
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        var propagated = false;
+        try
+        {
+            await Analyze(Compile("class C{}", true), canceled.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            propagated = true;
+        }
         Check(propagated, "Cancellation propagates");
-        File.WriteAllText(Path.Combine(Required("RA03_EVIDENCE_DIR"), "external-options-boundaries.json"), JsonSerializer.Serialize(new { status="PASS", cases=bodies, deconstructionStringAndTimeSpan=true, candidates8Known9Deferred=true, suppression=true, cancellation=true }));
+        File.WriteAllText(Path.Combine(Required("RA03_EVIDENCE_DIR"), "external-options-boundaries.json"), JsonSerializer.Serialize(new { status = "PASS", cases = bodies, deconstructionStringAndTimeSpan = true, candidates8Known9Deferred = true, suppression = true, cancellation = true }));
     }
 
     private static async Task Options(string body, params string[] parameters)
     {
-        var source = "static class Fake { public static System.TimeSpan FromSeconds()=>throw new System.Exception(\"FACTORY_SENTINEL\"); } class C { static readonly System.TimeSpan Field=System.TimeSpan.Zero; static System.TimeSpan Getter=>throw new System.Exception(\"GETTER_SENTINEL\"); static void Escape(){} void M(bool b,int n,string unknown,System.TimeSpan? duration){"+body+"} }";
+        var source = "static class Fake { public static System.TimeSpan FromSeconds()=>throw new System.Exception(\"FACTORY_SENTINEL\"); } class C { static readonly System.TimeSpan Field=System.TimeSpan.Zero; static System.TimeSpan Getter=>throw new System.Exception(\"GETTER_SENTINEL\"); static void Escape(){} void M(bool b,int n,string unknown,System.TimeSpan? duration){" + body + "} }";
         var compilation = Compile(source, true);
-        Check(!compilation.GetDiagnostics().Any(d=>d.Severity==DiagnosticSeverity.Error), "Options flow fixture binds: "+body);
-        var results = (await Analyze(compilation)).Where(d=>d.Id=="LSA1004").ToArray();
-        Check(results.Length==parameters.Length && parameters.All(p=>results.Count(d=>d.GetMessage().Contains("'"+p+"'",StringComparison.Ordinal))==1), "Options proof: "+body+" "+string.Join(";",results.Select(d=>d.ToString())));
+        Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Options flow fixture binds: " + body);
+        var results = (await Analyze(compilation)).Where(d => d.Id == "LSA1004").ToArray();
+        Check(results.Length == parameters.Length && parameters.All(p => results.Count(d => d.GetMessage().Contains("'" + p + "'", StringComparison.Ordinal)) == 1), "Options proof: " + body + " " + string.Join(";", results.Select(d => d.ToString())));
     }
 }

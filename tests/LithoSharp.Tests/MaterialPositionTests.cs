@@ -121,8 +121,12 @@ public sealed class MaterialPositionTests
             var references = snapshot.Snapshot.CssReferences;
             var values = references.Select(reference => reference.UnresolvedValue).ToArray();
             await Assert.That(values).IsEquivalentTo(row.GetProperty("values").EnumerateArray().Select(value => value.GetString()).ToArray());
-            observations.Add(new { name = row.GetProperty("name").GetString(), values,
-                positions = references.Select(reference => new { reference.CandidateSource, raw = reference.Candidate?.Raw }).ToArray() });
+            observations.Add(new
+            {
+                name = row.GetProperty("name").GetString(),
+                values,
+                positions = references.Select(reference => new { reference.CandidateSource, raw = reference.Candidate?.Raw }).ToArray()
+            });
         }
         if (Environment.GetEnvironmentVariable("RA04B_EVIDENCE_DIR") is { Length: > 0 } directory)
             File.WriteAllText(Path.Combine(directory, "inline-css-runtime.json"), System.Text.Json.JsonSerializer.Serialize(
@@ -139,8 +143,12 @@ public sealed class MaterialPositionTests
         var output = Path.Combine(workspace.Root, "output");
         const string html = "<title>Home</title><link rel=canonical href='/index.html'><link rel=stylesheet href='site.css'>"
             + "<h2 id=h>Heading</h2><p>A<em>B</em>C</p><p>D</p>";
-        var options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch,
-            Quality = new(checkOrphans: false), RawHtmlFactsDemand = HtmlRawFactsDemand.Search | HtmlRawFactsDemand.Quality };
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Quality = new(checkOrphans: false),
+            RawHtmlFactsDemand = HtmlRawFactsDemand.Search | HtmlRawFactsDemand.Quality
+        };
         var generator = new SiteGenerator();
         var site = new SiteSettings { Title = "Home", BaseUrl = "https://example.test/", TimeZone = "UTC" };
         var first = await generator.GenerateWithOptionsAsync(site, [], output, true,

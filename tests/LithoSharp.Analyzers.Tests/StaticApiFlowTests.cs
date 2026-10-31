@@ -12,12 +12,17 @@ public sealed partial class AnalyzerPackageHostTests
         var compilation = Compile(source, true, "argument-evaluation-cases.cs");
         Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Shared runtime fixture must bind in the packed host");
         var diagnostics = await Analyze(compilation);
-        var expected = new Dictionary<string, string[]> {
-            ["PositionalValid"] = [], ["NamedValid"] = [], ["NamedReversedValid"] = [],
-            ["PositionalInvalidFirst"] = ["relativePath"], ["NamedReversedInvalidFirst"] = ["baseUrl"],
+        var expected = new Dictionary<string, string[]>
+        {
+            ["PositionalValid"] = [],
+            ["NamedValid"] = [],
+            ["NamedReversedValid"] = [],
+            ["PositionalInvalidFirst"] = ["relativePath"],
+            ["NamedReversedInvalidFirst"] = ["baseUrl"],
             ["PositionalSwappedInvalidBoth"] = ["relativePath", "baseUrl"],
             ["NamedSwappedInvalidBoth"] = ["relativePath", "baseUrl"],
-            ["WithinArgumentValid"] = [], ["OutputNamedReversedInvalidFirst"] = ["relativeOutputPath"],
+            ["WithinArgumentValid"] = [],
+            ["OutputNamedReversedInvalidFirst"] = ["relativeOutputPath"],
             ["OptionLaterAssignmentValid"] = [],
         };
         var proof = new List<object>();
@@ -29,8 +34,18 @@ public sealed partial class AnalyzerPackageHostTests
             Check(results.Length == parameters.Length, name + ": expected " + parameters.Length + " diagnostics, got " + string.Join("; ", results.Select(d => d.ToString())));
             foreach (var parameter in parameters)
                 Check(results.Count(d => d.GetMessage().Contains("'" + parameter + "'", StringComparison.Ordinal)) == 1, name + ": original parameter " + parameter);
-            proof.Add(new { name, diagnostics = results.Select(d => new { d.Id, message = d.GetMessage(), start = d.Location.SourceSpan.Start,
-                length = d.Location.SourceSpan.Length, argument = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length) }).ToArray() });
+            proof.Add(new
+            {
+                name,
+                diagnostics = results.Select(d => new
+                {
+                    d.Id,
+                    message = d.GetMessage(),
+                    start = d.Location.SourceSpan.Start,
+                    length = d.Location.SourceSpan.Length,
+                    argument = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length)
+                }).ToArray()
+            });
         }
         Check(diagnostics.Length == expected.Values.Sum(p => p.Length), "No diagnostics outside the expected fixture arguments");
         File.WriteAllText(Path.Combine(Required("RA03_EVIDENCE_DIR"), "argument-evaluation-analyzer.json"), JsonSerializer.Serialize(new { status = "PASS", cases = proof }, new JsonSerializerOptions { WriteIndented = true }));

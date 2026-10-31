@@ -109,8 +109,10 @@ public static class ToolingCompatibility
         if (version.Length == 0 || version.Any(character => !char.IsAsciiDigit(character) && character != '.'))
             return false;
         var dot = version.IndexOf('.');
-        if (dot < 0) return int.TryParse(version, out major);
-        if (!Version.TryParse(version, out var parsed)) return false;
+        if (dot < 0)
+            return int.TryParse(version, out major);
+        if (!Version.TryParse(version, out var parsed))
+            return false;
         major = parsed.Major;
         return true;
     }
