@@ -8,6 +8,44 @@ separately. Render-only never includes parsing. The engine fixed corpora are
 `gfm-table`, `task-list`, `admonition`, `practical-docs`, `docusaurus-doc`, and
 `pathological`.
 
+## Push comparison
+
+The build workflow runs its ordinary build and unit checks on every branch push;
+the paired measurement is opt-in. Include `[measure]` in the pushed HEAD commit's
+message, or manually run the build workflow with `run_measurement` enabled
+(default: false). After the build and unit checks succeed, the requested comparison
+calls `performance-baseline.yml` on Ubuntu 24.04. Pull requests retain their
+existing checks but do not run a second measurement. An open
+same-repository PR can still have both push and PR validation runs. A branch must
+contain these workflow changes to use them.
+
+The lightweight comparison uses 100 deterministic Blog pages and the same harness
+source from the candidate for both revisions. Separate processes run in
+baseline/candidate/candidate/baseline order with SDK 10.0.403 and runtime 10.0.14.
+It records clean generation plus existing no-op, page-change and layout-change
+workloads. Restore, compilation and corpus parsing are outside generation timing.
+This is an approximate trend check, not the larger official comparison below;
+two observations do not establish a small performance improvement.
+This replaces the old standalone manual 100/1,000/10,000-page workflow with the
+opt-in 100-page paired check, also selectable in manual build runs. Larger runs remain available
+through the benchmark commands below; they are not run on every push.
+
+On a push, the baseline is the previous branch head. On a new branch, or a manual
+build with no baseline supplied, it is the candidate's first parent. The build
+workflow's manual `baseline` input accepts a full commit SHA. A missing or
+incompatible baseline fails explicitly rather than silently changing the pair.
+The summary records both SHAs, selection reason, environment, all observations,
+final-state input/output hashes and failures; artifacts are retained for 14 days. The runner
+never deploys the site and has only read access to repository contents.
+
+Timing changes never fail the job. Existing harness invariants still fail on an
+invalid corpus, output count or incremental invalidation scope. Hashes cover only
+the final mutated corpus and output after the layout-change workload, not snapshots
+of each clean, no-op or page-change workload. Final-state generated output byte differences are reported for review, excluding only the internal output
+manifest; they may be intentional template changes, not automatically defects.
+No timestamp or content normalization hides those differences. Normal unit tests
+remain the correctness gate. Fresh processes do not imply a cold OS cache.
+
 ## Commands
 
 Run the small CI smoke measurement (site mode is the default for compatibility):
@@ -72,3 +110,4 @@ Working-set sampling starts immediately after forced GC and immediately before `
 Each workload passes the immediately preceding workload's `SiteGenerationResult.BuildPlan` as `PreviousBuildPlan`: clean → no-op → single-page-change → layout-change. This keeps each invalidation count attributable to only the mutation introduced by that workload.
 
 The first baseline pass records comparison data only. It does not enforce the planned 10% regression threshold; timing and working-set values are intentionally not used as pass/fail criteria. Candidate regression thresholds from C00 variance are recorded in the implementation instruction (C05 record); final confirmation happens in R19. Do not treat the exploration target in the plan as achieved.
+
