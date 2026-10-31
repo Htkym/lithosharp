@@ -46,8 +46,12 @@ public sealed class GenerationPreflightBoundaryTests
         AddMdx(mdx, source, "collision", counters);
         var failure = await Failure<SiteRouteValidationException>(() => new SiteGenerator().GenerateWithOptionsAsync(
             new SiteSettings(), [], output, true, null,
-            new() { ContentCollections = [CoreCollection(workspace.Root, "collision", counters)],
-                Extensions = [new UnknownPrepare(counters), mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default));
+            new()
+            {
+                ContentCollections = [CoreCollection(workspace.Root, "collision", counters)],
+                Extensions = [new UnknownPrepare(counters), mdx],
+                BuildTimestamp = DateTimeOffset.UnixEpoch
+            }, default));
         await Assert.That(failure.Diagnostics.Any(d => d.Id == SiteRouteDiagnosticIds.DuplicatePublicPath)).IsTrue();
         await Assert.That(counters.Prepares + counters.Renders).IsEqualTo(0);
         await Assert.That(File.Exists(Path.Combine(workspace.Root, "executed.txt"))).IsFalse();
@@ -131,8 +135,12 @@ public sealed class GenerationPreflightBoundaryTests
         blog.AddCollection(new("news", source, "news"));
         var failure = await Failure<ArgumentException>(() => new SiteGenerator().GenerateWithOptionsAsync(
             new SiteSettings(), [], output, true, null,
-            new() { ContentCollections = [CoreCollection(workspace.Root, "core", counters)],
-                Extensions = [new UnknownPrepare(counters), blog], BuildTimestamp = DateTimeOffset.Parse("2021-01-01T00:00:00Z") }, default));
+            new()
+            {
+                ContentCollections = [CoreCollection(workspace.Root, "core", counters)],
+                Extensions = [new UnknownPrepare(counters), blog],
+                BuildTimestamp = DateTimeOffset.Parse("2021-01-01T00:00:00Z")
+            }, default));
         await Assert.That(failure.Message).Contains("known author IDs");
         await Assert.That(counters.Prepares + counters.Renders).IsEqualTo(0);
         await Assert.That(File.Exists(Path.Combine(workspace.Root, "executed.txt"))).IsFalse();
@@ -151,11 +159,15 @@ public sealed class GenerationPreflightBoundaryTests
         var counters = new Counters();
         await using var docs = new DocumentationSite(CanaryOptions(workspace.Root));
         docs.AddCollection(new("guide", [new("current", "en", english, "guide/en"), new("current", "ja", japanese, "guide/ja")])
-            { UseMdx = true, SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error });
+        { UseMdx = true, SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error });
         var failure = await Failure<SiteBuildExtensionException>(() => new SiteGenerator().GenerateWithOptionsAsync(
             new SiteSettings(), [], output, true, null,
-            new() { ContentCollections = [CoreCollection(workspace.Root, "core", counters)],
-                Extensions = [new UnknownPrepare(counters), docs], BuildTimestamp = DateTimeOffset.UnixEpoch }, default));
+            new()
+            {
+                ContentCollections = [CoreCollection(workspace.Root, "core", counters)],
+                Extensions = [new UnknownPrepare(counters), docs],
+                BuildTimestamp = DateTimeOffset.UnixEpoch
+            }, default));
         await Assert.That(failure.Diagnostics.Any(d => d.Id == "LSDOC001" && d.Severity == SiteDiagnosticSeverity.Error)).IsTrue();
         await Assert.That(counters.Prepares + counters.Renders).IsEqualTo(0);
         await Assert.That(File.Exists(Path.Combine(workspace.Root, "executed.txt"))).IsFalse();
@@ -169,9 +181,18 @@ public sealed class GenerationPreflightBoundaryTests
     private static void AddMdx(MdxSite mdx, string source, string route, Counters counters)
     {
         var real = new MdxContentCollectionLoader<Front>(new("mdx"), source,
-            _ => { counters.Routes++; return SiteRoute.ForDirectoryIndex(route); },
-            entry => { counters.Publications++; return new(entry.FrontMatter.Title); });
-        mdx.AddCollection(new CountingLoader(real, counters), renderer: (entry, rendering) => {
+            _ =>
+            {
+                counters.Routes++;
+                return SiteRoute.ForDirectoryIndex(route);
+            },
+            entry =>
+            {
+                counters.Publications++;
+                return new(entry.FrontMatter.Title);
+            });
+        mdx.AddCollection(new CountingLoader(real, counters), renderer: (entry, rendering) =>
+        {
             counters.Renders++;
             return rendering.RenderDocument(entry.Body.ToHtmlString());
         });
@@ -180,7 +201,10 @@ public sealed class GenerationPreflightBoundaryTests
     private sealed class CountingLoader(IContentCollectionLoader<Front, MdxDocument> real, Counters counters) : IContentCollectionLoader<Front, MdxDocument>
     {
         public async ValueTask<ContentLoadResult<Front, MdxDocument>> LoadAsync(CancellationToken cancellationToken = default)
-        { counters.Loads++; return await real.LoadAsync(cancellationToken); }
+        {
+            counters.Loads++;
+            return await real.LoadAsync(cancellationToken);
+        }
     }
 
     private static SiteContentCollection CoreCollection(string root, string route, Counters counters)
@@ -188,7 +212,8 @@ public sealed class GenerationPreflightBoundaryTests
         var collection = new ContentCollection<Front, string>(new("core"), root,
             [new ContentEntry<Front, string>(new("one"), "one.md", "core-one", new() { Title = "Core" }, "Core")],
             _ => SiteRoute.ForDirectoryIndex(route), entry => new PageMetadata(entry.FrontMatter.Title));
-        return new SiteContentCollection<Front, string>(collection, (_, rendering) => {
+        return new SiteContentCollection<Front, string>(collection, (_, rendering) =>
+        {
             counters.Renders++;
             return rendering.RenderDocument("Core");
         });
@@ -197,7 +222,10 @@ public sealed class GenerationPreflightBoundaryTests
     private sealed class UnknownPrepare(Counters counters) : ISiteBuildExtension
     {
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
-        { counters.Prepares++; return Task.FromResult(new SiteBuildContribution()); }
+        {
+            counters.Prepares++;
+            return Task.FromResult(new SiteBuildContribution());
+        }
     }
 
     private sealed class LegacyInspector(string root) : ISiteCatalogPreflightExtension
@@ -217,8 +245,15 @@ public sealed class GenerationPreflightBoundaryTests
             var collection = new ContentCollection<Front, string>(new("legacy"), root,
                 [new ContentEntry<Front, string>(new("one"), "legacy.md", "legacy-one", new() { Title = "Legacy" }, "Legacy compatible inspector")],
                 _ => SiteRoute.ForDirectoryIndex("legacy"), entry => new PageMetadata(entry.FrontMatter.Title));
-            return Task.FromResult(new SiteBuildContribution { ContentCollections = [new SiteContentCollection<Front, string>(collection,
-                (entry, rendering) => { Renders++; return rendering.RenderDocument(entry.Body); })] });
+            return Task.FromResult(new SiteBuildContribution
+            {
+                ContentCollections = [new SiteContentCollection<Front, string>(collection,
+                (entry, rendering) =>
+                {
+                    Renders++;
+                    return rendering.RenderDocument(entry.Body);
+                })]
+            });
         }
     }
 
@@ -230,7 +265,10 @@ public sealed class GenerationPreflightBoundaryTests
             return Task.FromResult(new SiteCatalogPreflightContribution([], [new("LSC7001", SiteDiagnosticSeverity.Error, "Known catalog error")]));
         }
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
-        { counters.Prepares++; return Task.FromResult(new SiteBuildContribution()); }
+        {
+            counters.Prepares++;
+            return Task.FromResult(new SiteBuildContribution());
+        }
     }
 
     private sealed class MutatingInspector(string file, Counters counters) : ISiteCatalogPreflightExtension
@@ -243,13 +281,19 @@ public sealed class GenerationPreflightBoundaryTests
             return new([], []);
         }
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
-        { counters.Prepares++; return Task.FromResult(new SiteBuildContribution()); }
+        {
+            counters.Prepares++;
+            return Task.FromResult(new SiteBuildContribution());
+        }
     }
 
     private sealed class CountingTemplate(Counters counters) : ISiteTemplate
     {
         public Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default)
-        { counters.Renders++; return Task.FromResult(new SiteTemplateResult([])); }
+        {
+            counters.Renders++;
+            return Task.FromResult(new SiteTemplateResult([]));
+        }
     }
 
     private static async Task<string> CanarySource(string root, string name, string frontMatter)
@@ -282,8 +326,14 @@ public sealed class GenerationPreflightBoundaryTests
 
     private static async Task<T> Failure<T>(Func<Task<SiteGenerationResult>> generate) where T : Exception
     {
-        try { await generate(); }
-        catch (T error) { return error; }
+        try
+        {
+            await generate();
+        }
+        catch (T error)
+        {
+            return error;
+        }
         throw new InvalidOperationException("Generation succeeded despite an expected " + typeof(T).Name);
     }
     private static async Task AssertNoMdxWork(MdxBuildMetrics metrics) =>
@@ -292,7 +342,8 @@ public sealed class GenerationPreflightBoundaryTests
     private static string WorkerDirectory()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "LithoSharp.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "LithoSharp.slnx")))
+            directory = directory.Parent;
         return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository worker was not found."), "src", "LithoSharp.Mdx", "worker");
     }
 }

@@ -27,7 +27,7 @@ public sealed class MdxSnapshotConsistencyTests
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title));
         var loader = new CapturingLoader(inner);
         await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
-            { Cacheable = false });
+        { Cacheable = false });
         mdx.AddCollection(loader);
         var output = Path.Combine(workspace.Root, "out");
         var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
@@ -51,14 +51,27 @@ public sealed class MdxSnapshotConsistencyTests
         catch
         {
             cancellation.Cancel();
-            try { await attempt; } catch { /* Observe the bounded attempt; preserve the barrier failure. */ }
+            try
+            {
+                await attempt;
+            }
+            catch { /* Observe the bounded attempt; preserve the barrier failure. */ }
             throw;
         }
-        finally { barrier.Release.TrySetResult(); }
+        finally
+        {
+            barrier.Release.TrySetResult();
+        }
 
         SiteBuildExtensionException? failure = null;
-        try { await attempt; }
-        catch (SiteBuildExtensionException error) { failure = error; }
+        try
+        {
+            await attempt;
+        }
+        catch (SiteBuildExtensionException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.Diagnostics.Any(diagnostic => diagnostic.Id == "LSMDX005")).IsTrue();
         await Assert.That(HashOutput(output)).IsEquivalentTo(published);
@@ -158,7 +171,8 @@ public sealed class MdxSnapshotConsistencyTests
     private static string FindRepository()
     {
         for (var path = new DirectoryInfo(AppContext.BaseDirectory); path is not null; path = path.Parent)
-            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx"))) return path.FullName;
+            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
+                return path.FullName;
         throw new DirectoryNotFoundException("The MDX integration fixture requires the repository's restored worker.");
     }
 }

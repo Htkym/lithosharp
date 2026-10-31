@@ -22,7 +22,8 @@ public sealed class SiteTestHostTests
             OutputDirectory = source.Root,
             Options = new SiteGenerationOptions
             {
-                BuildCacheDirectory = source.Root, AssetCacheDirectory = source.Root,
+                BuildCacheDirectory = source.Root,
+                AssetCacheDirectory = source.Root,
                 Quality = new(externalLinks: new(Path.Combine(source.Root, "external.json")))
             }
         };
@@ -50,7 +51,10 @@ public sealed class SiteTestHostTests
             foreach (var path in new[] { "../mine.txt", "/mine.txt", "a/../../mine.txt", "C:/mine.txt" })
                 await Assert.That(() => host.AssertArtifact(path)).Throws<ArgumentException>();
         }
-        finally { await host.DisposeAsync(); }
+        finally
+        {
+            await host.DisposeAsync();
+        }
         await host.DisposeAsync();
         await Assert.That(Directory.Exists(root)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("untouched");
@@ -115,28 +119,38 @@ public sealed class SiteTestHostTests
         if (OperatingSystem.IsWindows())
         {
             var start = new System.Diagnostics.ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true };
-            start.ArgumentList.Add("/c"); start.ArgumentList.Add("mklink"); start.ArgumentList.Add("/J");
-            start.ArgumentList.Add(directory); start.ArgumentList.Add(outside.Root);
+            start.ArgumentList.Add("/c");
+            start.ArgumentList.Add("mklink");
+            start.ArgumentList.Add("/J");
+            start.ArgumentList.Add(directory);
+            start.ArgumentList.Add(outside.Root);
             using var process = System.Diagnostics.Process.Start(start)!;
             await process.WaitForExitAsync();
             await Assert.That(process.ExitCode).IsEqualTo(0);
         }
-        else Directory.CreateSymbolicLink(directory, outside.Root);
+        else
+            Directory.CreateSymbolicLink(directory, outside.Root);
         try
         {
             await Assert.That(() => host.AssertArtifact("linked/index.html")).Throws<InvalidOperationException>();
             await Assert.That(async () => await host.DisposeAsync()).Throws<InvalidOperationException>();
             await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("outside");
         }
-        finally { Directory.Delete(directory); await host.DisposeAsync(); }
+        finally
+        {
+            Directory.Delete(directory);
+            await host.DisposeAsync();
+        }
     }
 
     [Test]
     public async Task DocsAndBlogFactoriesUsePublicTestingApi()
     {
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
-        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "LithoSharp.slnx"))) repository = repository.Parent;
-        if (repository is null) throw new InvalidOperationException("Repository root not found.");
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "LithoSharp.slnx")))
+            repository = repository.Parent;
+        if (repository is null)
+            throw new InvalidOperationException("Repository root not found.");
         foreach (var (factory, folder) in new (ISiteFactory, string)[]
         {
             (new DocsSampleFactory { AssetDemo = true }, "LithoSharp.DocsSample"),

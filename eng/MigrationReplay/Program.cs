@@ -49,7 +49,8 @@ if (config.Action == "serve-check")
     Console.WriteLine($"serve report: {Path.GetFullPath(config.ServeReportPath)}");
     return 0;
 }
-if (config.Action != "candidate-build") throw new ArgumentException($"Unsupported replay action '{config.Action}'.");
+if (config.Action != "candidate-build")
+    throw new ArgumentException($"Unsupported replay action '{config.Action}'.");
 
 var source = Path.GetFullPath(config.SourceDirectory);
 var oracle = ReadOracle(config.RouteOracle);
@@ -78,16 +79,19 @@ var candidateOracle = new MigrationRouteOracle(
 var convertedDirectory = Path.GetFullPath(config.ConvertedDirectory);
 var candidateSource = Path.GetFullPath(config.CandidateSourceDirectory);
 var candidateOutput = Path.GetFullPath(config.CandidateOutputDirectory);
-if (!Directory.Exists(convertedDirectory)) throw new DirectoryNotFoundException($"The standalone migration-conversion stage is missing: {convertedDirectory}");
+if (!Directory.Exists(convertedDirectory))
+    throw new DirectoryNotFoundException($"The standalone migration-conversion stage is missing: {convertedDirectory}");
 foreach (var path in new[] { candidateSource, candidateOutput })
-    if (Path.Exists(path)) throw new IOException($"Candidate replay never overwrites an existing path: {path}");
+    if (Path.Exists(path))
+        throw new IOException($"Candidate replay never overwrites an existing path: {path}");
 
 await CreateCandidateSourceAsync(convertedDirectory, candidateSource, fullReport, selected);
 var report = DocusaurusMigrationReport.AnalyzeWithOracle(candidateSource, candidateOracle, options);
 var variantDirectories = report.Manifest.Variants
     .Select(variant => Path.Combine(candidateSource, variant.InputDirectory.Replace('/', Path.DirectorySeparatorChar)))
     .ToArray();
-foreach (var directory in variantDirectories) Directory.CreateDirectory(directory);
+foreach (var directory in variantDirectories)
+    Directory.CreateDirectory(directory);
 
 var workerDirectory = Path.GetFullPath(config.WorkerDirectory);
 var docs = new DocumentationSite(new MdxOptions(candidateSource, workerDirectory));
@@ -98,7 +102,8 @@ try
         variant.Locale,
         Path.Combine(candidateSource, variant.InputDirectory.Replace('/', Path.DirectorySeparatorChar)),
         variant.SuggestedRoutePrefix)).ToArray();
-    if (variants.Length > 0) docs.AddCollection(new("guide", variants) { UseMdx = true });
+    if (variants.Length > 0)
+        docs.AddCollection(new("guide", variants) { UseMdx = true });
 
     var hasBlog = Directory.Exists(Path.Combine(candidateSource, "blog"))
         && Directory.EnumerateFiles(Path.Combine(candidateSource, "blog"), "*", SearchOption.AllDirectories)
@@ -323,7 +328,8 @@ static List<RouteSource> SelectCandidatePages(
     void AddFirst(IEnumerable<RouteSource> group)
     {
         var candidate = group.FirstOrDefault(route => !selectedPaths.Contains(route.Path));
-        if (candidate is null || selected.Count >= limit) return;
+        if (candidate is null || selected.Count >= limit)
+            return;
         selected.Add(candidate);
         selectedPaths.Add(candidate.Path);
     }
@@ -332,15 +338,18 @@ static List<RouteSource> SelectCandidatePages(
                  .OrderBy(group => group.Key.Version, StringComparer.Ordinal).ThenBy(group => group.Key.Locale, StringComparer.Ordinal))
         AddFirst(group);
 
-    if (!selected.Any(route => route.Format == "mdx")) AddFirst(candidates.Where(route => route.Format == "mdx"));
+    if (!selected.Any(route => route.Format == "mdx"))
+        AddFirst(candidates.Where(route => route.Format == "mdx"));
     if (!selected.Any(route => route.SourcePath!.StartsWith("blog/", StringComparison.Ordinal)))
         AddFirst(candidates.Where(route => route.SourcePath!.StartsWith("blog/", StringComparison.Ordinal)));
     if (!selected.Any(route => !route.SourcePath!.StartsWith("blog/", StringComparison.Ordinal)))
         AddFirst(candidates.Where(route => !route.SourcePath!.StartsWith("blog/", StringComparison.Ordinal)));
     foreach (var candidate in candidates)
     {
-        if (selected.Count >= limit) break;
-        if (selectedPaths.Add(candidate.Path)) selected.Add(candidate);
+        if (selected.Count >= limit)
+            break;
+        if (selectedPaths.Add(candidate.Path))
+            selected.Add(candidate);
     }
     return selected;
 }
@@ -362,8 +371,10 @@ static Task CreateCandidateSourceAsync(
         var extension = Path.GetExtension(relative);
         var isDocument = extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".mdx", StringComparison.OrdinalIgnoreCase);
-        if (isDocument && !selectedFiles.Contains(relative)) continue;
-        if (!isDocument && !IsCandidateSupportFile(relative)) continue;
+        if (isDocument && !selectedFiles.Contains(relative))
+            continue;
+        if (!isDocument && !IsCandidateSupportFile(relative))
+            continue;
         var target = Path.Combine(candidateSource, relative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         File.Copy(file, target, overwrite: false);
@@ -403,9 +414,18 @@ static async Task<object> ServeAndProbeAsync(
         while (!stop.IsCancellationRequested)
         {
             HttpListenerContext context;
-            try { context = await listener.GetContextAsync().ConfigureAwait(false); }
-            catch (HttpListenerException) { break; }
-            catch (ObjectDisposedException) { break; }
+            try
+            {
+                context = await listener.GetContextAsync().ConfigureAwait(false);
+            }
+            catch (HttpListenerException)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
             var requestPath = context.Request.Url?.AbsolutePath ?? "/";
             if (routeFiles.TryGetValue(requestPath, out var relative))
             {
@@ -419,9 +439,11 @@ static async Task<object> ServeAndProbeAsync(
                     context.Response.ContentLength64 = bytes.Length;
                     await context.Response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
                 }
-                else context.Response.StatusCode = 404;
+                else
+                    context.Response.StatusCode = 404;
             }
-            else context.Response.StatusCode = 404;
+            else
+                context.Response.StatusCode = 404;
             context.Response.Close();
         }
     }, stop.Token);
@@ -436,8 +458,10 @@ static async Task<object> ServeAndProbeAsync(
             var route = page.Route;
             using var response = await client.GetAsync(new Uri(new Uri(origin), route.TrimStart('/'))).ConfigureAwait(false);
             var html = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK) throw new HttpRequestException($"Serve smoke returned {(int)response.StatusCode} for '{route}'.");
-            if (!html.Contains("<html", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException($"Served route '{route}' is not HTML.");
+            if (response.StatusCode != HttpStatusCode.OK)
+                throw new HttpRequestException($"Serve smoke returned {(int)response.StatusCode} for '{route}'.");
+            if (!html.Contains("<html", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Served route '{route}' is not HTML.");
             if (page.Kind == "blog")
             {
                 // Blog entries use the blog layout without a docs sidebar. The
@@ -451,13 +475,15 @@ static async Task<object> ServeAndProbeAsync(
             }
 
             var sidebar = Regex.Match(html, "<aside\\b[^>]*id=[\"']docs-sidebar[\"'][^>]*>(?<body>[\\s\\S]*?)</aside>", RegexOptions.IgnoreCase);
-            if (!sidebar.Success) throw new InvalidDataException($"Served route '{route}' has no documentation navigation sidebar.");
+            if (!sidebar.Success)
+                throw new InvalidDataException($"Served route '{route}' has no documentation navigation sidebar.");
             foreach (Match link in Regex.Matches(sidebar.Groups["body"].Value, "\\bhref=[\"'](?<url>[^\"']+)[\"']", RegexOptions.IgnoreCase))
             {
                 var href = WebUtility.HtmlDecode(link.Groups["url"].Value);
                 if (!Uri.TryCreate(new Uri(origin), href, out var linkUri)
                     || !string.Equals(linkUri.Host, "127.0.0.1", StringComparison.Ordinal)
-                    || !routeFiles.ContainsKey(linkUri.AbsolutePath)) continue;
+                    || !routeFiles.ContainsKey(linkUri.AbsolutePath))
+                    continue;
                 navigationLinks.Add(linkUri.AbsolutePath);
             }
             pages.Add(new { route, kind = "doc", statusCode = (int)response.StatusCode, hasNavigation = true });
@@ -472,25 +498,30 @@ static async Task<object> ServeAndProbeAsync(
 
         var stylesheet = routes.FirstOrDefault(route => route.RelativeOutputPath.EndsWith(".css", StringComparison.OrdinalIgnoreCase));
         object asset;
-        if (stylesheet is null) asset = new { status = "not-found", reason = "Candidate output has no generated CSS route." };
+        if (stylesheet is null)
+            asset = new { status = "not-found", reason = "Candidate output has no generated CSS route." };
         else
         {
             using var response = await client.GetAsync(new Uri(new Uri(origin), stylesheet.PublicPath.TrimStart('/'))).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK) throw new HttpRequestException($"Serve smoke could not fetch stylesheet '{stylesheet.PublicPath}'.");
+            if (response.StatusCode != HttpStatusCode.OK)
+                throw new HttpRequestException($"Serve smoke could not fetch stylesheet '{stylesheet.PublicPath}'.");
             asset = new { status = "passed", route = stylesheet.PublicPath, statusCode = (int)response.StatusCode };
         }
 
         var searchIndex = routes.FirstOrDefault(route => route.RelativeOutputPath.EndsWith("search-index.json", StringComparison.OrdinalIgnoreCase));
         object search;
-        if (searchIndex is null) search = new { status = "not-generated", reason = "No search index route was generated for this candidate." };
+        if (searchIndex is null)
+            search = new { status = "not-generated", reason = "No search index route was generated for this candidate." };
         else
         {
             using var response = await client.GetAsync(new Uri(new Uri(origin), searchIndex.PublicPath.TrimStart('/'))).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK) throw new HttpRequestException($"Serve smoke could not fetch search index '{searchIndex.PublicPath}'.");
+            if (response.StatusCode != HttpStatusCode.OK)
+                throw new HttpRequestException($"Serve smoke could not fetch search index '{searchIndex.PublicPath}'.");
             var searchJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             using var searchData = JsonDocument.Parse(searchJson);
             var mappedSelectedPages = selectedRoutes.Count(page => searchJson.Contains(page.Route, StringComparison.Ordinal));
-            if (mappedSelectedPages == 0) throw new InvalidDataException("The served search index contains none of the selected candidate page routes.");
+            if (mappedSelectedPages == 0)
+                throw new InvalidDataException("The served search index contains none of the selected candidate page routes.");
             search = new { status = "passed", route = searchIndex.PublicPath, statusCode = (int)response.StatusCode, mappedSelectedPages };
         }
 
@@ -500,7 +531,10 @@ static async Task<object> ServeAndProbeAsync(
     {
         stop.Cancel();
         listener.Stop();
-        try { await serving.ConfigureAwait(false); }
+        try
+        {
+            await serving.ConfigureAwait(false);
+        }
         catch (HttpListenerException) { }
     }
 }

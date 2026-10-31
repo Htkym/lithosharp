@@ -41,7 +41,10 @@ internal sealed class HtmlTemplateAnalysis
 
     private HtmlTemplateAnalysis(Compilation compilation, IMethodSymbol raw, IMethodSymbol encode, INamedTypeSymbol text, INamedTypeSymbol attribute)
     {
-        this.raw = raw; this.encode = encode; this.text = text; this.attribute = attribute;
+        this.raw = raw;
+        this.encode = encode;
+        this.text = text;
+        this.attribute = attribute;
         treeOrder = compilation.SyntaxTrees.Select((tree, index) => (tree, index)).ToDictionary(p => p.tree, p => p.index);
     }
 
@@ -52,13 +55,17 @@ internal sealed class HtmlTemplateAnalysis
             var type = compilation.GetTypeByMetadataName("LithoSharp." + name);
             return type?.ContainingAssembly.Identity.Name == "LithoSharp" && !type.Locations.Any(l => l.IsInSource) ? type : null;
         }
-        var html = Core("Html"); var content = Core("IHtmlContent");
-        var text = Core("HtmlText"); var attribute = Core("HtmlAttributeValue");
-        if (html is null || content is null || text is null || attribute is null) return null;
+        var html = Core("Html");
+        var content = Core("IHtmlContent");
+        var text = Core("HtmlText");
+        var attribute = Core("HtmlAttributeValue");
+        if (html is null || content is null || text is null || attribute is null)
+            return null;
         IMethodSymbol? Method(string name) => html.GetMembers(name).OfType<IMethodSymbol>().SingleOrDefault(m =>
             m.IsStatic && m.Arity == 0 && m.DeclaredAccessibility == Accessibility.Public && m.Parameters.Length == 1
             && m.Parameters[0].RefKind == RefKind.None && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
-        var raw = Method("UnsafeRaw"); var encode = Method("Encode");
+        var raw = Method("UnsafeRaw");
+        var encode = Method("Encode");
         return raw is not null && encode?.ReturnType.SpecialType == SpecialType.System_String
             && SymbolEqualityComparer.Default.Equals(raw.ReturnType, content)
             ? new HtmlTemplateAnalysis(compilation, raw, encode, text, attribute) : null;
@@ -67,7 +74,8 @@ internal sealed class HtmlTemplateAnalysis
     internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, Func<IOperation, StaticValue> evaluate, HtmlFlowUrlAnalysis urls)
     {
         if (operation is not IInvocationOperation call || !Same(call.TargetMethod, raw)
-            || call.Arguments.Length != 1 || StaticValueFlow.HasBindingError(call)) return;
+            || call.Arguments.Length != 1 || StaticValueFlow.HasBindingError(call))
+            return;
         var argument = call.Arguments[0].Value;
         var value = evaluate(argument);
         void Report(DiagnosticDescriptor rule, Location location, string state, string reason, params object[] args) =>
@@ -77,7 +85,8 @@ internal sealed class HtmlTemplateAnalysis
             Report(Raw, argument.Syntax.GetLocation(), value.Reason?.EndsWith("-budget", StringComparison.Ordinal) == true ? "Deferred" : "Unknown",
                 value.Reason ?? "unverified-raw", value.Reason ?? "unverified-raw");
         HtmlLiteralAnalysis.Analyze(context, argument, value, urls);
-        if (value.Template is null) return;
+        if (value.Template is null)
+            return;
         HashSet<ContextKey>? common = null;
         foreach (var alternative in value.Template.Alternatives)
         {
@@ -87,22 +96,46 @@ internal sealed class HtmlTemplateAnalysis
             foreach (var piece in alternative)
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
-                if (piece.Literal is { } literal) { cursor.Feed(literal); continue; }
-                if (piece.Deferred) { cursor.Invalidate(); continue; }
-                string? id = null; string detail = "";
-                if (cursor.Known && cursor.ForbiddenPosition is { } position) { id = Position.Id; detail = position; }
-                else if (cursor.Quoted && piece.Kind == HtmlHoleKind.Fragment) id = Fragment.Id;
-                else if (cursor.SpecialContext is { } special && piece.Kind == HtmlHoleKind.Encoded) { id = Encoding.Id; detail = special; }
+                if (piece.Literal is { } literal)
+                {
+                    cursor.Feed(literal);
+                    continue;
+                }
+                if (piece.Deferred)
+                {
+                    cursor.Invalidate();
+                    continue;
+                }
+                string? id = null;
+                string detail = "";
+                if (cursor.Known && cursor.ForbiddenPosition is { } position)
+                {
+                    id = Position.Id;
+                    detail = position;
+                }
+                else if (cursor.Quoted && piece.Kind == HtmlHoleKind.Fragment)
+                    id = Fragment.Id;
+                else if (cursor.SpecialContext is { } special && piece.Kind == HtmlHoleKind.Encoded)
+                {
+                    id = Encoding.Id;
+                    detail = special;
+                }
                 if (id is not null && piece.Origin?.SourceTree is { } tree)
                     violations.Add(new(tree, piece.Origin.SourceSpan, id, detail));
-                if (piece.KnownText is { } known) cursor.Feed(known);
-                else if (piece.Kind != HtmlHoleKind.Encoded || !cursor.AcceptsEncoded) cursor.Invalidate();
+                if (piece.KnownText is { } known)
+                    cursor.Feed(known);
+                else if (piece.Kind != HtmlHoleKind.Encoded || !cursor.AcceptsEncoded)
+                    cursor.Invalidate();
             }
-            if (common is null) common = violations;
-            else common.IntersectWith(violations);
-            if (common.Count == 0) return;
+            if (common is null)
+                common = violations;
+            else
+                common.IntersectWith(violations);
+            if (common.Count == 0)
+                return;
         }
-        if (common is null) return;
+        if (common is null)
+            return;
         foreach (var key in common)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -139,13 +172,18 @@ internal sealed class HtmlTemplateAnalysis
     internal HtmlHoleKind Classify(IOperation operation, Func<IOperation, StaticValue> snapshot,
         Func<ILocalSymbol, StaticValue> local, Func<CaptureId, StaticValue> capture)
     {
-        if (StaticValueFlow.HasBindingError(operation)) return HtmlHoleKind.Unknown;
+        if (StaticValueFlow.HasBindingError(operation))
+            return HtmlHoleKind.Unknown;
         if (SymbolEqualityComparer.Default.Equals(operation.Type, text) || SymbolEqualityComparer.Default.Equals(operation.Type, attribute))
             return HtmlHoleKind.Encoded;
-        if (operation is ILocalReferenceOperation reference) return local(reference.Local).OutputKind;
-        if (operation is IFlowCaptureReferenceOperation captured) return capture(captured.Id).OutputKind;
-        if (operation is IFlowCaptureOperation flow) return snapshot(flow.Value).OutputKind;
-        if (operation is ISimpleAssignmentOperation assignment && !assignment.IsRef) return snapshot(assignment.Value).OutputKind;
+        if (operation is ILocalReferenceOperation reference)
+            return local(reference.Local).OutputKind;
+        if (operation is IFlowCaptureReferenceOperation captured)
+            return capture(captured.Id).OutputKind;
+        if (operation is IFlowCaptureOperation flow)
+            return snapshot(flow.Value).OutputKind;
+        if (operation is ISimpleAssignmentOperation assignment && !assignment.IsRef)
+            return snapshot(assignment.Value).OutputKind;
         if (operation is IConditionalOperation conditional && conditional.WhenFalse is not null)
         {
             var condition = snapshot(conditional.Condition).Values;
@@ -155,15 +193,19 @@ internal sealed class HtmlTemplateAnalysis
             return left == snapshot(conditional.WhenFalse).OutputKind ? left : HtmlHoleKind.Unknown;
         }
         if (operation is IConversionOperation conversion && conversion.OperatorMethod is null
-            && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference)) return snapshot(conversion.Operand).OutputKind;
+            && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference))
+            return snapshot(conversion.Operand).OutputKind;
         if (operation is IInvocationOperation call)
         {
-            if (Same(call.TargetMethod, encode)) return HtmlHoleKind.Encoded;
-            if (Same(call.TargetMethod, raw)) return HtmlHoleKind.RawObject;
+            if (Same(call.TargetMethod, encode))
+                return HtmlHoleKind.Encoded;
+            if (Same(call.TargetMethod, raw))
+                return HtmlHoleKind.RawObject;
             if (call.Arguments.Length == 0 && call.TargetMethod.Name == "ToHtmlString"
                 && call.TargetMethod.ContainingType.ToDisplayString() == "LithoSharp.IHtmlContent"
                 && call.TargetMethod.ContainingAssembly.Identity.Name == "LithoSharp"
-                && call.Instance is not null && snapshot(call.Instance).OutputKind == HtmlHoleKind.RawObject) return HtmlHoleKind.Fragment;
+                && call.Instance is not null && snapshot(call.Instance).OutputKind == HtmlHoleKind.RawObject)
+                return HtmlHoleKind.Fragment;
             // Interface dispatch is safe only for the two sealed, metadata-defined wrappers.
             if (call.Arguments.Length == 0 && call.TargetMethod.Name is "ToHtmlString" or "ToString"
                 && (SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, text)
@@ -205,85 +247,165 @@ internal sealed class HtmlContextCursor
     {
         foreach (var character in literal)
         {
-            if (!Known) return;
+            if (!Known)
+                return;
             var c = character >= 'A' && character <= 'Z' ? (char)(character + 32) : character;
             var space = c is ' ' or '\t' or '\r' or '\n' or '\f';
             switch (state)
             {
                 case State.Text:
-                    if (c == '<') { state = State.Open; pending = ""; tag = ""; closing = false; }
+                    if (c == '<')
+                    {
+                        state = State.Open;
+                        pending = "";
+                        tag = "";
+                        closing = false;
+                    }
                     break;
                 case State.Open:
-                    if (pending.Length == 0 && c == '/' && !closing) { closing = true; break; }
-                    if (pending.Length == 0 && c >= 'a' && c <= 'z') { tag = c.ToString(); state = State.Tag; break; }
+                    if (pending.Length == 0 && c == '/' && !closing)
+                    {
+                        closing = true;
+                        break;
+                    }
+                    if (pending.Length == 0 && c >= 'a' && c <= 'z')
+                    {
+                        tag = c.ToString();
+                        state = State.Tag;
+                        break;
+                    }
                     pending += c;
-                    if (pending == "!--") { state = State.Comment; pending = ""; }
-                    else if (!"!--".StartsWith(pending, StringComparison.Ordinal)) Invalidate();
+                    if (pending == "!--")
+                    {
+                        state = State.Comment;
+                        pending = "";
+                    }
+                    else if (!"!--".StartsWith(pending, StringComparison.Ordinal))
+                        Invalidate();
                     break;
                 case State.Tag:
-                    if (space) state = State.BeforeAttribute;
-                    else if (c == '>') EndTag();
-                    else if (c == '/') state = State.Slash;
-                    else if (Name(c)) tag += c;
-                    else Invalidate();
+                    if (space)
+                        state = State.BeforeAttribute;
+                    else if (c == '>')
+                        EndTag();
+                    else if (c == '/')
+                        state = State.Slash;
+                    else if (Name(c))
+                        tag += c;
+                    else
+                        Invalidate();
                     // Foreign namespaces and alternate HTML tokenizer modes are not certified.
-                    if (tag == "svg" || tag == "math") Invalidate();
+                    if (tag == "svg" || tag == "math")
+                        Invalidate();
                     break;
                 case State.BeforeAttribute:
-                    if (space) break;
-                    if (c == '>') EndTag();
-                    else if (c == '/') state = State.Slash;
-                    else if (!closing && Name(c)) { attribute = c.ToString(); state = State.Attribute; }
-                    else Invalidate();
+                    if (space)
+                        break;
+                    if (c == '>')
+                        EndTag();
+                    else if (c == '/')
+                        state = State.Slash;
+                    else if (!closing && Name(c))
+                    {
+                        attribute = c.ToString();
+                        state = State.Attribute;
+                    }
+                    else
+                        Invalidate();
                     break;
                 case State.Attribute:
-                    if (space) state = State.AfterAttribute;
-                    else if (c == '=') state = State.BeforeValue;
-                    else if (c == '>') EndTag();
-                    else if (c == '/') state = State.Slash;
-                    else if (Name(c)) attribute += c;
-                    else Invalidate();
+                    if (space)
+                        state = State.AfterAttribute;
+                    else if (c == '=')
+                        state = State.BeforeValue;
+                    else if (c == '>')
+                        EndTag();
+                    else if (c == '/')
+                        state = State.Slash;
+                    else if (Name(c))
+                        attribute += c;
+                    else
+                        Invalidate();
                     break;
                 case State.AfterAttribute:
-                    if (space) break;
-                    if (c == '=') state = State.BeforeValue;
-                    else if (c == '>') EndTag();
-                    else if (c == '/') state = State.Slash;
-                    else if (Name(c)) { attribute = c.ToString(); state = State.Attribute; }
-                    else Invalidate();
+                    if (space)
+                        break;
+                    if (c == '=')
+                        state = State.BeforeValue;
+                    else if (c == '>')
+                        EndTag();
+                    else if (c == '/')
+                        state = State.Slash;
+                    else if (Name(c))
+                    {
+                        attribute = c.ToString();
+                        state = State.Attribute;
+                    }
+                    else
+                        Invalidate();
                     break;
                 case State.BeforeValue:
-                    if (space) break;
-                    if (c is '\'' or '"') { quote = c; state = State.Quoted; }
-                    else if (c is '<' or '>' or '=' or '`') Invalidate();
-                    else state = State.Unquoted;
+                    if (space)
+                        break;
+                    if (c is '\'' or '"')
+                    {
+                        quote = c;
+                        state = State.Quoted;
+                    }
+                    else if (c is '<' or '>' or '=' or '`')
+                        Invalidate();
+                    else
+                        state = State.Unquoted;
                     break;
                 case State.Quoted:
-                    if (c == quote) state = State.BeforeAttribute;
+                    if (c == quote)
+                        state = State.BeforeAttribute;
                     break;
                 case State.Unquoted:
-                    if (space) state = State.BeforeAttribute;
-                    else if (c == '>') EndTag();
-                    else if (c is '<' or '=' or '`' or '\'' or '"') Invalidate();
+                    if (space)
+                        state = State.BeforeAttribute;
+                    else if (c == '>')
+                        EndTag();
+                    else if (c is '<' or '=' or '`' or '\'' or '"')
+                        Invalidate();
                     break;
                 case State.Slash:
-                    if (c == '>') EndTag(); else Invalidate();
+                    if (c == '>')
+                        EndTag();
+                    else
+                        Invalidate();
                     break;
                 case State.Comment:
                     pending = (pending + c);
-                    if (pending.EndsWith("-->", StringComparison.Ordinal)) { state = State.Text; pending = ""; }
-                    else if (pending.Length > 3) pending = pending.Substring(pending.Length - 3);
+                    if (pending.EndsWith("-->", StringComparison.Ordinal))
+                    {
+                        state = State.Text;
+                        pending = "";
+                    }
+                    else if (pending.Length > 3)
+                        pending = pending.Substring(pending.Length - 3);
                     break;
                 case State.Raw:
-                    if (tag == "script" && pending == "<" && c == '!') { Invalidate(); break; }
+                    if (tag == "script" && pending == "<" && c == '!')
+                    {
+                        Invalidate();
+                        break;
+                    }
                     var end = "</" + tag;
                     if (pending == end && (space || c is '>' or '/'))
-                    { closing = true; state = c == '>' ? State.Text : c == '/' ? State.Slash : State.BeforeAttribute; pending = ""; break; }
+                    {
+                        closing = true;
+                        state = c == '>' ? State.Text : c == '/' ? State.Slash : State.BeforeAttribute;
+                        pending = "";
+                        break;
+                    }
                     pending += c;
-                    if (!end.StartsWith(pending, StringComparison.Ordinal)) pending = c == '<' ? "<" : "";
+                    if (!end.StartsWith(pending, StringComparison.Ordinal))
+                        pending = c == '<' ? "<" : "";
                     break;
             }
-            if (tag.Length > MaxNameLength || attribute.Length > MaxNameLength) Invalidate();
+            if (tag.Length > MaxNameLength || attribute.Length > MaxNameLength)
+                Invalidate();
         }
     }
     private void EndTag()

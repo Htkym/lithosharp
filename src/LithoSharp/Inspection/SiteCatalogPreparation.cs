@@ -39,7 +39,8 @@ internal sealed class SiteCatalogPreparation(
         ThrowIfSourceFailed();
         new SitePreflightReport("trusted-catalog", "catalog", Contribution.Diagnostics, []).ThrowIfFailed();
         var routes = new SiteRouteTable();
-        foreach (var claim in Contribution.Routes) routes.Register(claim.Route, claim.OwnerId, claim.Location);
+        foreach (var claim in Contribution.Routes)
+            routes.Register(claim.Route, claim.OwnerId, claim.Location);
         routes.ValidateOrThrow();
         await validate(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();

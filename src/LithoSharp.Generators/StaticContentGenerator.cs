@@ -67,7 +67,10 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     {
         var complete = true;
         void Fail(DiagnosticDescriptor rule, Location location, string message)
-        { complete = false; Report(output, rule, location, message); }
+        {
+            complete = false;
+            Report(output, rule, location, message);
+        }
         var collections = new List<Collection>();
         foreach (var attribute in attributes)
         {
@@ -129,13 +132,17 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                     throw new InvalidOperationException("The content body must be a closed, non-ref type.");
                 collections.Add(new Collection(symbol, front, page, id, site, variant, emitSchema, emitManifest, emitter, body));
             }
-            catch (InvalidOperationException failure) { Fail(InvalidDeclaration, location, failure.Message); }
+            catch (InvalidOperationException failure)
+            {
+                Fail(InvalidDeclaration, location, failure.Message);
+            }
         }
 
         var routes = new List<(string Site, string Variant, SiteRoute Route)>();
         foreach (var input in files)
         {
-            if (input.Collection.Length == 0 && input.Id.Length == 0 && input.Route.Length == 0 && input.Site.Length == 0 && input.Variant.Length == 0) continue;
+            if (input.Collection.Length == 0 && input.Id.Length == 0 && input.Route.Length == 0 && input.Site.Length == 0 && input.Variant.Length == 0)
+                continue;
             var collection = TryId(input.Collection, out var collectionId) && TryScope(input.Site, out var site) && TryScope(input.Variant, out var variant)
                 ? collections.FirstOrDefault(item => item.Id == collectionId && item.Site == site && item.Variant == variant) : null;
             if (collection is null || input.Text is null || !TryId(input.Id, out var entryId) || input.Route.Length == 0)
@@ -145,8 +152,16 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
             }
             string name;
             string sourcePath;
-            try { sourcePath = RelativeInputPath(input); name = InputName(sourcePath); }
-            catch (ArgumentException failure) { Fail(MissingInput, input.Location, failure.Message); continue; }
+            try
+            {
+                sourcePath = RelativeInputPath(input);
+                name = InputName(sourcePath);
+            }
+            catch (ArgumentException failure)
+            {
+                Fail(MissingInput, input.Location, failure.Message);
+                continue;
+            }
             if (name is "Pages" or "Entries" or "Ids" or "Catalog" || collection.Entries.Any(entry => entry.Id == entryId || entry.Name == name))
             {
                 Fail(DuplicateId, input.Location, "Duplicate entry ID or generated member name '" + name + "'.");
@@ -173,7 +188,11 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
             var markdown = MarkdownSourceHostAdapter.ParseForCompiler(input.Text.ToString(),
                 collection.Site + "|" + collection.Variant + "|" + collection.Id, input.Path, output.CancellationToken);
             if (!StaticYamlValidation.Validate(input.Path, markdown, collection.Front, diagnostic =>
-                { if (diagnostic.Severity == DiagnosticSeverity.Error) complete = false; output.ReportDiagnostic(diagnostic); }, output.CancellationToken))
+                {
+                    if (diagnostic.Severity == DiagnosticSeverity.Error)
+                        complete = false;
+                    output.ReportDiagnostic(diagnostic);
+                }, output.CancellationToken))
                 Fail(MissingInput, input.Location, "Markdown front matter could not be verified ("
                     + string.Join(", ", markdown.Coverage.Reasons) + ").");
             collection.Entries.Add(new Entry(name, entryId, sourcePath, input.Route, route.PublicPath.EndsWith("/", StringComparison.Ordinal)));
@@ -258,9 +277,17 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     private static bool TryId(string value, out string id)
     {
         id = string.Empty;
-        if (string.IsNullOrWhiteSpace(value) || value != value.Trim() || value.Any(char.IsControl)) return false;
-        try { id = value.Normalize(NormalizationForm.FormC); return true; }
-        catch (ArgumentException) { return false; }
+        if (string.IsNullOrWhiteSpace(value) || value != value.Trim() || value.Any(char.IsControl))
+            return false;
+        try
+        {
+            id = value.Normalize(NormalizationForm.FormC);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static bool TryScope(string value, out string id)
@@ -289,11 +316,13 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     private static string InputName(string relative)
     {
         var dot = relative.LastIndexOf('.');
-        if (dot > relative.LastIndexOf('/')) relative = relative.Substring(0, dot);
+        if (dot > relative.LastIndexOf('/'))
+            relative = relative.Substring(0, dot);
         var parts = relative.Split(new[] { '/', '-', '_', '.', ' ' }, StringSplitOptions.RemoveEmptyEntries);
         var name = string.Join("_", parts.Select(part => char.ToUpperInvariant(part[0]) + part.Substring(1)));
         name = string.Concat(name.Select(character => SyntaxFacts.IsIdentifierPartCharacter(character) ? character : '_'));
-        if (name.Length == 0 || !SyntaxFacts.IsIdentifierStartCharacter(name[0])) name = "_" + name;
+        if (name.Length == 0 || !SyntaxFacts.IsIdentifierStartCharacter(name[0]))
+            name = "_" + name;
         return GeneratorModel.Identifier(name);
     }
 
@@ -305,7 +334,18 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     private sealed class Collection
     {
         public Collection(INamedTypeSymbol symbol, INamedTypeSymbol front, ITypeSymbol page, string id, string site, string variant, bool emitSchema, bool emitManifest, BinderEmitter emitter, ITypeSymbol? body)
-        { Symbol = symbol; Front = front; Page = page; Id = id; Site = site; Variant = variant; EmitSchema = emitSchema; EmitManifest = emitManifest; Emitter = emitter; Body = body; }
+        {
+            Symbol = symbol;
+            Front = front;
+            Page = page;
+            Id = id;
+            Site = site;
+            Variant = variant;
+            EmitSchema = emitSchema;
+            EmitManifest = emitManifest;
+            Emitter = emitter;
+            Body = body;
+        }
         public string Site { get; }
         public string Variant { get; }
         public ITypeSymbol? Body { get; }
@@ -320,7 +360,14 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     }
     private sealed class Entry
     {
-        public Entry(string name, string id, string sourcePath, string route, bool directory) { Name = name; Id = id; SourcePath = sourcePath; Route = route; Directory = directory; }
+        public Entry(string name, string id, string sourcePath, string route, bool directory)
+        {
+            Name = name;
+            Id = id;
+            SourcePath = sourcePath;
+            Route = route;
+            Directory = directory;
+        }
         public string SourcePath { get; }
         public string Name { get; }
         public string Id { get; }
@@ -330,7 +377,16 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     private sealed class Input
     {
         public Input(string path, SourceText? text, string collection, string id, string route, string site, string variant, string projectDirectory)
-        { Path = path; Text = text; Collection = collection; Id = id; Route = route; Site = site; Variant = variant; ProjectDirectory = projectDirectory; }
+        {
+            Path = path;
+            Text = text;
+            Collection = collection;
+            Id = id;
+            Route = route;
+            Site = site;
+            Variant = variant;
+            ProjectDirectory = projectDirectory;
+        }
         public string Site { get; }
         public string Variant { get; }
         public string Path { get; }

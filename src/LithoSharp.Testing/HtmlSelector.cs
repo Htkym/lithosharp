@@ -26,13 +26,16 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
     internal static HtmlSelector Parse(string selector, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(selector);
-        if (string.IsNullOrWhiteSpace(selector)) throw new ArgumentException("A selector must not be empty.", nameof(selector));
-        if (selector.Length > 4096) throw new HtmlSelectorUnsupportedException("Selector length exceeds 4096 UTF-16 units.");
+        if (string.IsNullOrWhiteSpace(selector))
+            throw new ArgumentException("A selector must not be empty.", nameof(selector));
+        if (selector.Length > 4096)
+            throw new HtmlSelectorUnsupportedException("Selector length exceeds 4096 UTF-16 units.");
         cancellationToken.ThrowIfCancellationRequested();
         var parser = new Parser(selector.Replace("\r\n", "\n").Replace('\r', '\n').Replace('\f', '\n').Replace('\0', '\uFFFD'), cancellationToken);
         var parsed = parser.List(nested: false);
         parser.Trivia();
-        if (!parser.End) throw parser.Syntax();
+        if (!parser.End)
+            throw parser.Syntax();
         return parsed;
     }
 
@@ -41,9 +44,11 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
 
     private static bool AsciiEquals(string left, string right)
     {
-        if (left.Length != right.Length) return false;
+        if (left.Length != right.Length)
+            return false;
         for (var i = 0; i < left.Length; i++)
-            if (Lower(left[i]) != Lower(right[i])) return false;
+            if (Lower(left[i]) != Lower(right[i]))
+                return false;
         return true;
     }
 
@@ -64,7 +69,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
         {
             cancellationToken.ThrowIfCancellationRequested();
             owner.EnsureAlive();
-            if (++operations > 4_000_000) throw new HtmlSelectorUnsupportedException("Selector matching exceeds the operation budget.");
+            if (++operations > 4_000_000)
+                throw new HtmlSelectorUnsupportedException("Selector matching exceeds the operation budget.");
         }
     }
 
@@ -75,23 +81,34 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
         private bool At(int part, int id, MatchContext context)
         {
             context.Step();
-            if (id < 0 || context.Owner.Tree.Nodes[id].Kind != HtmlTreeNodeKind.Element) return false;
-            foreach (var test in parts[part].Tests) { context.Step(); if (!test(id, context)) return false; }
-            if (part == 0) return true;
+            if (id < 0 || context.Owner.Tree.Nodes[id].Kind != HtmlTreeNodeKind.Element)
+                return false;
+            foreach (var test in parts[part].Tests)
+            {
+                context.Step();
+                if (!test(id, context))
+                    return false;
+            }
+            if (part == 0)
+                return true;
             var owner = context.Owner;
             var parent = owner.Tree.Nodes[id].Parent ?? -1;
             switch (parts[part].Relation)
             {
-                case '>': return At(part - 1, parent, context);
-                case '+': return At(part - 1, owner.Previous[id], context);
+                case '>':
+                    return At(part - 1, parent, context);
+                case '+':
+                    return At(part - 1, owner.Previous[id], context);
                 case '~':
                     for (var previous = owner.Previous[id]; previous >= 0; previous = owner.Previous[previous])
-                        if (At(part - 1, previous, context)) return true;
+                        if (At(part - 1, previous, context))
+                            return true;
                     return false;
                 default:
                     while (parent >= 0)
                     {
-                        if (At(part - 1, parent, context)) return true;
+                        if (At(part - 1, parent, context))
+                            return true;
                         parent = owner.Tree.Nodes[parent].Parent ?? -1;
                     }
                     return false;
@@ -109,8 +126,18 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
         private char Peek(int offset) => position + offset < source.Length ? source[position + offset] : '\0';
         internal HtmlSelectorSyntaxException Syntax() => new($"Malformed selector near UTF-16 offset {position}.");
         private static HtmlSelectorUnsupportedException Unsupported(string feature) => new($"Unsupported selector feature: {feature}.");
-        private bool Take(char value) { if (Current != value) return false; position++; return true; }
-        private void Require(char value) { if (!Take(value)) throw Syntax(); }
+        private bool Take(char value)
+        {
+            if (Current != value)
+                return false;
+            position++;
+            return true;
+        }
+        private void Require(char value)
+        {
+            if (!Take(value))
+                throw Syntax();
+        }
 
         internal bool Trivia()
         {
@@ -118,12 +145,17 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             while (!End)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (Space(Current)) { spaced = true; position++; }
+                if (Space(Current))
+                {
+                    spaced = true;
+                    position++;
+                }
                 else if (Current == '/' && Peek(1) == '*')
                 {
                     Comment();
                 }
-                else break;
+                else
+                    break;
             }
             return spaced;
         }
@@ -131,25 +163,31 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
         private void Comment()
         {
             position += 2;
-            while (!End && !(Current == '*' && Peek(1) == '/')) position++;
-            if (End) throw Syntax();
+            while (!End && !(Current == '*' && Peek(1) == '/'))
+                position++;
+            if (End)
+                throw Syntax();
             position += 2;
         }
 
         internal HtmlSelector List(bool nested)
         {
-            if (++depth > 16) throw Unsupported("nesting depth exceeds 16");
+            if (++depth > 16)
+                throw Unsupported("nesting depth exceeds 16");
             var result = new List<Complex>();
             Trivia();
             while (true)
             {
                 result.Add(Chain());
-                if (result.Count > 64) throw Unsupported("selector list exceeds 64 branches");
+                if (result.Count > 64)
+                    throw Unsupported("selector list exceeds 64 branches");
                 Trivia();
-                if (!Take(',')) break;
+                if (!Take(','))
+                    break;
                 Trivia();
             }
-            if (nested) Require(')');
+            if (nested)
+                Require(')');
             depth--;
             return new(result);
         }
@@ -160,12 +198,20 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             while (true)
             {
                 var spaced = Trivia();
-                if (End || Current is ',' or ')') break;
+                if (End || Current is ',' or ')')
+                    break;
                 var relation = ' ';
-                if (Current is '>' or '+' or '~') { relation = Current; position++; Trivia(); }
-                else if (!spaced) throw Syntax();
+                if (Current is '>' or '+' or '~')
+                {
+                    relation = Current;
+                    position++;
+                    Trivia();
+                }
+                else if (!spaced)
+                    throw Syntax();
                 parts.Add((Compound(), relation));
-                if (parts.Count > 64) throw Unsupported("combinator chain exceeds 64 compounds");
+                if (parts.Count > 64)
+                    throw Unsupported("combinator chain exceeds 64 compounds");
             }
             return new(parts);
         }
@@ -173,7 +219,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
         private List<Func<int, MatchContext, bool>> Compound()
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (++compounds > 256) throw Unsupported("selector exceeds 256 compounds");
+            if (++compounds > 256)
+                throw Unsupported("selector exceeds 256 compounds");
             var tests = new List<Func<int, MatchContext, bool>>();
             if (Current is '*' or '|' || StartsIdentifier())
             {
@@ -187,7 +234,11 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             }
             while (!End)
             {
-                if (Current == '/' && Peek(1) == '*') { Comment(); continue; }
+                if (Current == '/' && Peek(1) == '*')
+                {
+                    Comment();
+                    continue;
+                }
                 if (Take('#'))
                 {
                     var value = Identifier();
@@ -198,11 +249,15 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                     var value = Identifier();
                     tests.Add((id, context) => WordContains(Attribute(context.Owner.Tree.Nodes[id], "class") ?? "", value, context.Quirks));
                 }
-                else if (Take('[')) tests.Add(AttributeTest());
-                else if (Take(':')) tests.Add(Pseudo());
-                else break;
+                else if (Take('['))
+                    tests.Add(AttributeTest());
+                else if (Take(':'))
+                    tests.Add(Pseudo());
+                else
+                    break;
             }
-            if (tests.Count == 0) throw Syntax();
+            if (tests.Count == 0)
+                throw Syntax();
             return tests;
         }
 
@@ -227,11 +282,13 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                     var wildcardPrefix = universal;
                     universal = Take('*');
                     name = universal ? "" : Identifier();
-                    if (!wildcardPrefix) throw Unsupported("named namespace prefixes");
+                    if (!wildcardPrefix)
+                        throw Unsupported("named namespace prefixes");
                     anyNamespace = true;
                 }
             }
-            if (attribute && universal) throw Syntax();
+            if (attribute && universal)
+                throw Syntax();
             return (anyNamespace, name, universal);
         }
 
@@ -245,18 +302,28 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             bool? insensitive = null;
             if (Current != ']')
             {
-                if (Take('=')) op = "=";
-                else if (Current is '~' or '|' or '^' or '$' or '*') { op = Current + "="; position++; Require('='); }
-                else throw Syntax();
+                if (Take('='))
+                    op = "=";
+                else if (Current is '~' or '|' or '^' or '$' or '*')
+                {
+                    op = Current + "=";
+                    position++;
+                    Require('=');
+                }
+                else
+                    throw Syntax();
                 Trivia();
                 value = Current is '\'' or '"' ? String() : Identifier();
                 Trivia();
                 if (Current != ']')
                 {
                     var flag = Identifier();
-                    if (AsciiEquals(flag, "i")) insensitive = true;
-                    else if (AsciiEquals(flag, "s")) insensitive = false;
-                    else throw Syntax();
+                    if (AsciiEquals(flag, "i"))
+                        insensitive = true;
+                    else if (AsciiEquals(flag, "s"))
+                        insensitive = false;
+                    else
+                        throw Syntax();
                     Trivia();
                 }
             }
@@ -268,8 +335,10 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                 foreach (var attribute in node.Attributes)
                 {
                     context.Step();
-                    if ((!anyNamespace && !string.IsNullOrEmpty(attribute.Namespace)) || !NameEquals(attribute.Name, name, html)) continue;
-                    if (value is null) return true;
+                    if ((!anyNamespace && !string.IsNullOrEmpty(attribute.Namespace)) || !NameEquals(attribute.Name, name, html))
+                        continue;
+                    if (value is null)
+                        return true;
                     var ignoreCase = insensitive ?? (html && CaseInsensitiveAttributeNames.Contains(AsciiLower(name)));
                     var actual = attribute.Value.Value;
                     // ASCII comparison is explicit; Unicode culture folding is never used.
@@ -284,7 +353,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                         "$=" => right.Length != 0 && left.EndsWith(right, StringComparison.Ordinal),
                         "*=" => right.Length != 0 && left.Contains(right, StringComparison.Ordinal),
                         _ => false
-                    }) return true;
+                    })
+                        return true;
                 }
                 return false;
             };
@@ -296,7 +366,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             var name = AsciiLower(Identifier());
             if (pseudoElement || name is not ("scope" or "first-child" or "last-child" or "only-child" or "nth-child" or "not" or "is" or "where"))
             {
-                if (Take('(')) SkipFunction();
+                if (Take('('))
+                    SkipFunction();
                 throw Unsupported(pseudoElement ? "pseudo-elements" : ":" + name);
             }
             if (name is "not" or "is" or "where")
@@ -316,7 +387,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                     return a == 0 ? delta == 0 : delta % a == 0 && delta / a >= 0;
                 };
             }
-            if (Current == '(') throw Syntax();
+            if (Current == '(')
+                throw Syntax();
             return (id, context) => name switch
             {
                 "scope" => id == context.Scope,
@@ -338,26 +410,38 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             if (StartsIdentifier())
             {
                 var word = Identifier();
-                if (!signed && !digits && AsciiEquals(word, "odd")) { a = 2; b = 1; }
-                else if (!signed && !digits && AsciiEquals(word, "even")) { a = 2; b = 0; }
+                if (!signed && !digits && AsciiEquals(word, "odd"))
+                {
+                    a = 2;
+                    b = 1;
+                }
+                else if (!signed && !digits && AsciiEquals(word, "even"))
+                {
+                    a = 2;
+                    b = 0;
+                }
                 else if (word.Length > 0 && Lower(word[0]) == 'n')
                 {
                     a = sign * number;
                     b = 0;
                     if (word.Length > 1)
                     {
-                        if (word[1] != '-') throw Syntax();
+                        if (word[1] != '-')
+                            throw Syntax();
                         if (word.Length == 2)
                         {
                             Trivia();
-                            if (!char.IsAsciiDigit(Current)) throw Syntax();
+                            if (!char.IsAsciiDigit(Current))
+                                throw Syntax();
                             b = -Digits();
                         }
                         else
                         {
                             var suffix = word.AsSpan(2);
-                            if (suffix.IsEmpty || suffix.ContainsAnyExceptInRange('0', '9')) throw Syntax();
-                            if (!int.TryParse(suffix, CultureInfo.InvariantCulture, out var offset)) throw Unsupported("An+B coefficient exceeds Int32 range");
+                            if (suffix.IsEmpty || suffix.ContainsAnyExceptInRange('0', '9'))
+                                throw Syntax();
+                            if (!int.TryParse(suffix, CultureInfo.InvariantCulture, out var offset))
+                                throw Unsupported("An+B coefficient exceeds Int32 range");
                             b = -offset;
                         }
                     }
@@ -368,19 +452,30 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
                         {
                             var offsetSign = Take('-') ? -1 : Take('+') ? 1 : 1;
                             Trivia();
-                            if (!char.IsAsciiDigit(Current)) throw Syntax();
+                            if (!char.IsAsciiDigit(Current))
+                                throw Syntax();
                             b = offsetSign * Digits();
                         }
                     }
                 }
-                else throw Syntax();
+                else
+                    throw Syntax();
             }
-            else { if (!digits) throw Syntax(); b = sign * number; }
+            else
+            {
+                if (!digits)
+                    throw Syntax();
+                b = sign * number;
+            }
             Trivia();
             if (StartsIdentifier())
             {
                 var extension = Identifier();
-                if (AsciiEquals(extension, "of")) { SkipFunction(); throw Unsupported(":nth-child(... of selector)"); }
+                if (AsciiEquals(extension, "of"))
+                {
+                    SkipFunction();
+                    throw Unsupported(":nth-child(... of selector)");
+                }
                 throw Syntax();
             }
             Require(')');
@@ -393,7 +488,8 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             while (char.IsAsciiDigit(Current))
             {
                 value = value * 10 + Current - '0';
-                if (value > int.MaxValue) throw Unsupported("An+B coefficient exceeds Int32 range");
+                if (value > int.MaxValue)
+                    throw Unsupported("An+B coefficient exceeds Int32 range");
                 position++;
             }
             return value;
@@ -406,24 +502,44 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             while (!End)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (Current == '/' && Peek(1) == '*') { Comment(); continue; }
-                if (Current is '\'' or '"') { _ = String(); continue; }
-                if (Current == '\\') { _ = Escape(); continue; }
-                if (Current is '(' or '[') { closings.Push(Current == '(' ? ')' : ']'); position++; }
+                if (Current == '/' && Peek(1) == '*')
+                {
+                    Comment();
+                    continue;
+                }
+                if (Current is '\'' or '"')
+                {
+                    _ = String();
+                    continue;
+                }
+                if (Current == '\\')
+                {
+                    _ = Escape();
+                    continue;
+                }
+                if (Current is '(' or '[')
+                {
+                    closings.Push(Current == '(' ? ')' : ']');
+                    position++;
+                }
                 else if (Current is ')' or ']')
                 {
-                    if (Current != closings.Pop()) throw Syntax();
+                    if (Current != closings.Pop())
+                        throw Syntax();
                     position++;
-                    if (closings.Count == 0) return;
+                    if (closings.Count == 0)
+                        return;
                 }
-                else position++;
+                else
+                    position++;
             }
             throw Syntax();
         }
 
         private bool StartsIdentifier()
         {
-            if (Current == '-') return Peek(1) == '-' || NameStartAt(position + 1) || ValidEscape(position + 1);
+            if (Current == '-')
+                return Peek(1) == '-' || NameStartAt(position + 1) || ValidEscape(position + 1);
             return NameStartAt(position) || ValidEscape(position);
         }
 
@@ -434,14 +550,22 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
 
         private string Identifier()
         {
-            if (!StartsIdentifier() && !(char.IsHighSurrogate(Current) && char.IsLowSurrogate(Peek(1)))) throw Syntax();
+            if (!StartsIdentifier() && !(char.IsHighSurrogate(Current) && char.IsLowSurrogate(Peek(1))))
+                throw Syntax();
             var value = new StringBuilder();
             while (!End)
             {
-                if (Current == '\\') value.Append(Escape());
-                else if (char.IsHighSurrogate(Current) && char.IsLowSurrogate(Peek(1))) { value.Append(Current).Append(Peek(1)); position += 2; }
-                else if (NameStart(Current) || char.IsAsciiDigit(Current) || Current == '-') value.Append(source[position++]);
-                else break;
+                if (Current == '\\')
+                    value.Append(Escape());
+                else if (char.IsHighSurrogate(Current) && char.IsLowSurrogate(Peek(1)))
+                {
+                    value.Append(Current).Append(Peek(1));
+                    position += 2;
+                }
+                else if (NameStart(Current) || char.IsAsciiDigit(Current) || Current == '-')
+                    value.Append(source[position++]);
+                else
+                    break;
             }
             return value.ToString();
         }
@@ -452,10 +576,17 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
             var value = new StringBuilder();
             while (!End && Current != quote)
             {
-                if (Current == '\n') throw Syntax();
-                if (Current == '\\' && Peek(1) == '\n') { position += 2; continue; }
-                if (Current == '\\') value.Append(Escape());
-                else value.Append(source[position++]);
+                if (Current == '\n')
+                    throw Syntax();
+                if (Current == '\\' && Peek(1) == '\n')
+                {
+                    position += 2;
+                    continue;
+                }
+                if (Current == '\\')
+                    value.Append(Escape());
+                else
+                    value.Append(source[position++]);
             }
             Require(quote);
             return value.ToString();
@@ -463,20 +594,25 @@ internal sealed class HtmlSelector(List<HtmlSelector.Complex> selectors)
 
         private string Escape()
         {
-            if (!ValidEscape(position)) throw Syntax();
+            if (!ValidEscape(position))
+                throw Syntax();
             position++;
             var start = position;
-            while (position - start < 6 && Uri.IsHexDigit(Current)) position++;
+            while (position - start < 6 && Uri.IsHexDigit(Current))
+                position++;
             if (position == start)
             {
                 if (char.IsHighSurrogate(Current) && char.IsLowSurrogate(Peek(1)))
                 {
-                    var pair = source.Substring(position, 2); position += 2; return pair;
+                    var pair = source.Substring(position, 2);
+                    position += 2;
+                    return pair;
                 }
                 return source[position++].ToString();
             }
             var code = int.Parse(source.AsSpan(start, position - start), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-            if (Space(Current)) position++;
+            if (Space(Current))
+                position++;
             return code is 0 or > 0x10FFFF or >= 0xD800 and <= 0xDFFF ? "\uFFFD" : char.ConvertFromUtf32(code);
         }
     }

@@ -22,7 +22,8 @@ public sealed partial class AnalyzerPackageHostTests
             .SequenceEqual(["analyzers/dotnet/cs/LithoSharp.CodeFixes.dll"]), "CodeFix package has no Core, runtime or Workspaces payload");
         var path = Path.Combine(Required("RA01_PAYLOAD_DIR"), "LithoSharp.CodeFixes.dll");
         using (var source = zip.GetEntry("analyzers/dotnet/cs/LithoSharp.CodeFixes.dll")!.Open())
-        using (var target = File.Create(path)) source.CopyTo(target);
+        using (var target = File.Create(path))
+            source.CopyTo(target);
         var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
         return (CodeFixProvider)Activator.CreateInstance(assembly.GetType("LithoSharp.CodeFixes.GeneratedPageReferenceCodeFix")!)!;
     }
@@ -117,7 +118,11 @@ public sealed partial class AnalyzerPackageHostTests
         {
             var content = original.ToString();
             var callback = Interlocked.Exchange(ref afterRead, null);
-            if (callback is not null) { Callbacks++; callback(); }
+            if (callback is not null)
+            {
+                Callbacks++;
+                callback();
+            }
             return content;
         }
     }
@@ -312,10 +317,17 @@ public sealed partial class AnalyzerPackageHostTests
                 Check(await FixAllAction(document, new FixAllDiagnostics(unexpected)) is null, "One unproven literal, partial span or foreign tree refuses the entire action");
                 Check((await workspace.CurrentSolution.GetDocument(document.Id)!.GetTextAsync()).ToString() == source, "No valid subset is applied after a rejected target");
             }
-            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
             var threw = false;
-            try { await FixAllAction(document, new FixAllDiagnostics(), cancellation: cancelled.Token); }
-            catch (OperationCanceledException) { threw = true; }
+            try
+            {
+                await FixAllAction(document, new FixAllDiagnostics(), cancellation: cancelled.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                threw = true;
+            }
             Check(threw, "Cancellation cannot produce a document action");
         }
     }
@@ -392,7 +404,8 @@ public sealed partial class AnalyzerPackageHostTests
                         "Non-target documents, generated proof and other projects remain byte-for-byte");
                 Check(workspace.TryApplyChanges(operation.ChangedSolution), "One scoped solution applies");
                 await GenerateFixProject(workspace, document.Project.Id);
-                if (scope == FixAllScope.Solution) await GenerateFixProject(workspace, second.Project.Id);
+                if (scope == FixAllScope.Solution)
+                    await GenerateFixProject(workspace, second.Project.Id);
                 await AssertFreshClosedFixProject(workspace.CurrentSolution.GetProject(document.Project.Id)!, 0);
                 await AssertFreshClosedFixProject(workspace.CurrentSolution.GetProject(second.Project.Id)!, scope == FixAllScope.Project ? 1 : 0);
                 Check(await ScopedFixAllAction(workspace.CurrentSolution.GetProject(document.Project.Id)!, new FixAllDiagnostics(), scope) is null,
@@ -441,7 +454,8 @@ public sealed partial class AnalyzerPackageHostTests
                 }
                 Check(await ScopedFixAllAction(project, new FixAllDiagnostics(), scope, key: "Other.Action") is null, "Wrong equivalence key has no scoped action");
                 var originals = new Dictionary<DocumentId, SourceText>();
-                foreach (var doc in workspace.CurrentSolution.Projects.SelectMany(p => p.Documents)) originals.Add(doc.Id, await doc.GetTextAsync());
+                foreach (var doc in workspace.CurrentSolution.Projects.SelectMany(p => p.Documents))
+                    originals.Add(doc.Id, await doc.GetTextAsync());
                 var additional = project.AdditionalDocuments.Single();
                 var config = project.AnalyzerConfigDocuments.Single();
                 var additionalText = await additional.GetTextAsync();
@@ -450,8 +464,10 @@ public sealed partial class AnalyzerPackageHostTests
                 Solution RestoreInputs()
                 {
                     var restored = workspace.CurrentSolution;
-                    foreach (var added in restored.Projects.SelectMany(p => p.DocumentIds).Where(id => !originals.ContainsKey(id)).ToArray()) restored = restored.RemoveDocument(added);
-                    foreach (var original in originals) restored = restored.WithDocumentText(original.Key, original.Value);
+                    foreach (var added in restored.Projects.SelectMany(p => p.DocumentIds).Where(id => !originals.ContainsKey(id)).ToArray())
+                        restored = restored.RemoveDocument(added);
+                    foreach (var original in originals)
+                        restored = restored.WithDocumentText(original.Key, original.Value);
                     return restored.WithAdditionalDocumentText(additional.Id, additionalText)
                         .WithAnalyzerConfigDocumentText(config.Id, configText).WithProjectParseOptions(project.Id, parseOptions);
                 }
@@ -461,7 +477,8 @@ public sealed partial class AnalyzerPackageHostTests
                     var currentProject = workspace.CurrentSolution.GetProject(project.Id)!;
                     var registered = await ScopedFixAllAction(currentProject, new FixAllDiagnostics(), scope);
                     Check(registered is not null, "Fresh full scope registers before concurrent edit: " + input);
-                    var edited = input switch {
+                    var edited = input switch
+                    {
                         "source" => workspace.CurrentSolution.WithDocumentText(target.Id, SourceText.From(source + "\n// concurrent target edit")),
                         "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nChanged body")),
                         "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.ToString().Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
@@ -477,11 +494,15 @@ public sealed partial class AnalyzerPackageHostTests
                 }
                 Check(workspace.TryApplyChanges(RestoreInputs()), "Restore original inputs before editing across the GetAll await");
                 var duringRetrieval = SourceText.From(originals[otherDocId] + "\n// edit during actual diagnostic retrieval");
-                var retrievalDiagnostics = new FixAllDiagnostics { AfterAllDiagnostics = queried => {
-                    if (queried.Id == project.Id)
-                        Check(workspace.TryApplyChanges(workspace.CurrentSolution.WithDocumentText(otherDocId, duringRetrieval)),
-                            "Non-target edit applies after actual packed analyzer retrieval and before its reply");
-                } };
+                var retrievalDiagnostics = new FixAllDiagnostics
+                {
+                    AfterAllDiagnostics = queried =>
+                    {
+                        if (queried.Id == project.Id)
+                            Check(workspace.TryApplyChanges(workspace.CurrentSolution.WithDocumentText(otherDocId, duringRetrieval)),
+                                "Non-target edit applies after actual packed analyzer retrieval and before its reply");
+                    }
+                };
                 Check(await ScopedFixAllAction(workspace.CurrentSolution.GetProject(project.Id)!, retrievalDiagnostics, scope) is null,
                     "Workspace change across the GetAll await cannot register an old-snapshot action");
                 Check((await workspace.CurrentSolution.GetDocument(otherDocId)!.GetTextAsync()).ToString() == duringRetrieval.ToString()
@@ -494,16 +515,30 @@ public sealed partial class AnalyzerPackageHostTests
                 Check(linkedProject.GetDocument(target.Id)!.GetLinkedDocumentIds().Length > 0, "Roslyn identifies a linked diagnostic target");
                 Check(await ScopedFixAllAction(linkedProject, new FixAllDiagnostics(), scope) is null, "Linked peer rejects the whole action even outside Project scope");
                 Check(workspace.TryApplyChanges(RestoreInputs()), "Restore original inputs before cancellation");
-                using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
                 var threw = false;
-                try { await ScopedFixAllAction(workspace.CurrentSolution.GetProject(project.Id)!, new FixAllDiagnostics(), scope, cancellation: cancelled.Token); }
-                catch (OperationCanceledException) { threw = true; }
+                try
+                {
+                    await ScopedFixAllAction(workspace.CurrentSolution.GetProject(project.Id)!, new FixAllDiagnostics(), scope, cancellation: cancelled.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    threw = true;
+                }
                 Check(threw, "Cancelled retrieval cannot offer a scoped action");
                 var action = await ScopedFixAllAction(workspace.CurrentSolution.GetProject(project.Id)!, new FixAllDiagnostics(), scope);
                 Check(action is not null, "Fresh scope is restored before cancelled application");
                 var beforeCancellation = workspace.CurrentSolution;
                 threw = false;
-                try { await action!.GetOperationsAsync(cancelled.Token); } catch (OperationCanceledException) { threw = true; }
+                try
+                {
+                    await action!.GetOperationsAsync(cancelled.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    threw = true;
+                }
                 Check(threw && workspace.CurrentSolution == beforeCancellation, "Cancelled application cannot leave one target replaced");
             }
         }
@@ -547,9 +582,17 @@ public sealed partial class AnalyzerPackageHostTests
             }
             Check(workspace.TryApplyChanges(RestoredInputs()), "Restore current inputs before application cancellation");
             var action = await FixAllAction(workspace.CurrentSolution.GetDocument(document.Id)!, new FixAllDiagnostics());
-            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
             var threw = false;
-            try { await action!.GetOperationsAsync(cancelled.Token); } catch (OperationCanceledException) { threw = true; }
+            try
+            {
+                await action!.GetOperationsAsync(cancelled.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                threw = true;
+            }
             Check(threw && (await workspace.CurrentSolution.GetDocument(document.Id)!.GetTextAsync()).ToString() == source, "Cancelled application cannot leave one target replaced");
         }
     }
@@ -612,7 +655,8 @@ public sealed partial class AnalyzerPackageHostTests
                 Check(workspace.TryApplyChanges(RestoredInputs()), "Restore actual inputs before independent single stale case: " + input);
                 var currentDocument = workspace.CurrentSolution.GetDocument(document.Id)!;
                 var registered = (await Actions(currentDocument, diagnostic)).Single();
-                var edited = input switch {
+                var edited = input switch
+                {
                     "source" => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source + "\n// concurrent source edit")),
                     "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nChanged body")),
                     "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.ToString().Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
@@ -640,9 +684,17 @@ public sealed partial class AnalyzerPackageHostTests
                 Check(workspace.TryApplyChanges(changed), "Case applies " + name);
                 Check((await Actions(workspace.CurrentSolution.GetDocument(document.Id)!, diagnostic)).Count == 0, "No fix for " + name);
             }
-            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
             var threw = false;
-            try { await Actions(document, diagnostic, cancelled.Token); } catch (OperationCanceledException) { threw = true; }
+            try
+            {
+                await Actions(document, diagnostic, cancelled.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                threw = true;
+            }
             Check(threw, "Cancellation never offers an action");
         }
     }
@@ -682,7 +734,8 @@ public sealed partial class AnalyzerPackageHostTests
                     "Unchanged forwarded content retains actual packed Closed proof before arming");
                 return (current, diagnostic, text);
             }
-            Solution Edited(string input) => input switch {
+            Solution Edited(string input) => input switch
+            {
                 "source" => workspace.CurrentSolution.WithDocumentText(document.Id, SourceText.From(source + "\n// edit during single proof")),
                 "additional" => workspace.CurrentSolution.WithAdditionalDocumentText(additional.Id, SourceText.From(additionalText + "\nEdited during proof")),
                 "config" => workspace.CurrentSolution.WithAnalyzerConfigDocumentText(config.Id, SourceText.From(configText.ToString().Replace("Configuration = Release", "Configuration = Debug", StringComparison.Ordinal))),
@@ -693,14 +746,17 @@ public sealed partial class AnalyzerPackageHostTests
                 var prepared = await PrepareProofRead();
                 var action = stage == "action" ? (await Actions(prepared.Document, prepared.Diagnostic)).Single() : null;
                 Solution? interrupted = null;
-                prepared.Text.Arm(() => {
+                prepared.Text.Arm(() =>
+                {
                     Check(workspace.TryApplyChanges(Edited(input)), "Actual input edit applies during " + stage + " proof: " + input);
                     interrupted = workspace.CurrentSolution;
                 });
                 List<CodeAction>? registrations = null;
                 ApplyChangesOperation? operation = null;
-                if (action is null) registrations = await Actions(prepared.Document, prepared.Diagnostic);
-                else operation = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
+                if (action is null)
+                    registrations = await Actions(prepared.Document, prepared.Diagnostic);
+                else
+                    operation = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single();
                 Check(prepared.Text.Callbacks == 1 && interrupted is not null && workspace.CurrentSolution == interrupted,
                     "One actual proof read reaches the callback and preserves all concurrent edits: " + stage + "/" + input);
                 if (registrations is not null)
@@ -717,10 +773,15 @@ public sealed partial class AnalyzerPackageHostTests
             var threw = false;
             try
             {
-                if (registered is null) await Actions(cancelling.Document, cancelling.Diagnostic, cancellation.Token);
-                else await registered.GetOperationsAsync(cancellation.Token);
+                if (registered is null)
+                    await Actions(cancelling.Document, cancelling.Diagnostic, cancellation.Token);
+                else
+                    await registered.GetOperationsAsync(cancellation.Token);
             }
-            catch (OperationCanceledException) { threw = true; }
+            catch (OperationCanceledException)
+            {
+                threw = true;
+            }
             Check(threw && cancelling.Text.Callbacks == 1 && workspace.CurrentSolution == beforeCancellation,
                 "Cancellation during actual " + stage + " proof throws without edits or a successful action");
         }

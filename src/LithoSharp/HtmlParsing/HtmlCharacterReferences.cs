@@ -30,22 +30,27 @@ internal static partial class HtmlCharacterReferences
     {
         cancellationToken.ThrowIfCancellationRequested();
         var cursor = index + 1;
-        if (cursor == source.Length) return new("&", 1, HtmlReferenceErrors.None);
-        if (source[cursor] == '#') return ReadNumber(source, index, cancellationToken);
-        if (!IsAsciiAlphanumeric(source[cursor])) return new("&", 1, HtmlReferenceErrors.None);
+        if (cursor == source.Length)
+            return new("&", 1, HtmlReferenceErrors.None);
+        if (source[cursor] == '#')
+            return ReadNumber(source, index, cancellationToken);
+        if (!IsAsciiAlphanumeric(source[cursor]))
+            return new("&", 1, HtmlReferenceErrors.None);
 
         string? matched = null;
         var matchedEnd = cursor;
         for (var end = cursor; end < source.Length && end - cursor < LongestName; end++)
         {
             var c = source[end];
-            if (!IsAsciiAlphanumeric(c) && c != ';') break;
+            if (!IsAsciiAlphanumeric(c) && c != ';')
+                break;
             if (Named.TryGetValue(source.Substring(cursor, end - cursor + 1), out var text))
             {
                 matched = text;
                 matchedEnd = end + 1;
             }
-            if (c == ';') break;
+            if (c == ';')
+                break;
         }
         if (matched is not null)
         {
@@ -60,7 +65,8 @@ internal static partial class HtmlCharacterReferences
         // An unknown name is literal text. Its final ';' still has a parse error.
         while (cursor < source.Length && IsAsciiAlphanumeric(source[cursor]))
         {
-            if ((cursor & 255) == 0) cancellationToken.ThrowIfCancellationRequested();
+            if ((cursor & 255) == 0)
+                cancellationToken.ThrowIfCancellationRequested();
             cursor++;
         }
         return new("&", 1, cursor < source.Length && source[cursor] == ';'
@@ -71,14 +77,17 @@ internal static partial class HtmlCharacterReferences
     {
         var cursor = start + 2;
         var hex = cursor < source.Length && source[cursor] is 'x' or 'X';
-        if (hex) cursor++;
+        if (hex)
+            cursor++;
         var digitStart = cursor;
         var number = 0;
         while (cursor < source.Length)
         {
-            if ((cursor & 255) == 0) cancellationToken.ThrowIfCancellationRequested();
+            if ((cursor & 255) == 0)
+                cancellationToken.ThrowIfCancellationRequested();
             var digit = Digit(source[cursor], hex);
-            if (digit < 0) break;
+            if (digit < 0)
+                break;
             // Saturate before overflow; continue consuming all digits.
             number = Math.Min(0x110000, number * (hex ? 16 : 10) + digit);
             cursor++;
@@ -86,27 +95,63 @@ internal static partial class HtmlCharacterReferences
         if (cursor == digitStart)
             return new(source.Substring(start, cursor - start), cursor - start, HtmlReferenceErrors.MissingDigits);
         var errors = HtmlReferenceErrors.None;
-        if (cursor < source.Length && source[cursor] == ';') cursor++;
-        else errors |= HtmlReferenceErrors.MissingSemicolon;
+        if (cursor < source.Length && source[cursor] == ';')
+            cursor++;
+        else
+            errors |= HtmlReferenceErrors.MissingSemicolon;
 
-        if (number == 0) { errors |= HtmlReferenceErrors.Null; number = 0xFFFD; }
-        else if (number > 0x10FFFF) { errors |= HtmlReferenceErrors.OutOfRange; number = 0xFFFD; }
-        else if (number is >= 0xD800 and <= 0xDFFF) { errors |= HtmlReferenceErrors.Surrogate; number = 0xFFFD; }
+        if (number == 0)
+        {
+            errors |= HtmlReferenceErrors.Null;
+            number = 0xFFFD;
+        }
+        else if (number > 0x10FFFF)
+        {
+            errors |= HtmlReferenceErrors.OutOfRange;
+            number = 0xFFFD;
+        }
+        else if (number is >= 0xD800 and <= 0xDFFF)
+        {
+            errors |= HtmlReferenceErrors.Surrogate;
+            number = 0xFFFD;
+        }
         else
         {
-            if (IsNoncharacter(number)) errors |= HtmlReferenceErrors.Noncharacter;
+            if (IsNoncharacter(number))
+                errors |= HtmlReferenceErrors.Noncharacter;
             if (IsControl(number) || number == 13)
             {
                 errors |= HtmlReferenceErrors.Control;
                 number = number switch
                 {
-                    0x80 => 0x20AC, 0x82 => 0x201A, 0x83 => 0x0192, 0x84 => 0x201E,
-                    0x85 => 0x2026, 0x86 => 0x2020, 0x87 => 0x2021, 0x88 => 0x02C6,
-                    0x89 => 0x2030, 0x8A => 0x0160, 0x8B => 0x2039, 0x8C => 0x0152,
-                    0x8E => 0x017D, 0x91 => 0x2018, 0x92 => 0x2019, 0x93 => 0x201C,
-                    0x94 => 0x201D, 0x95 => 0x2022, 0x96 => 0x2013, 0x97 => 0x2014,
-                    0x98 => 0x02DC, 0x99 => 0x2122, 0x9A => 0x0161, 0x9B => 0x203A,
-                    0x9C => 0x0153, 0x9E => 0x017E, 0x9F => 0x0178, _ => number
+                    0x80 => 0x20AC,
+                    0x82 => 0x201A,
+                    0x83 => 0x0192,
+                    0x84 => 0x201E,
+                    0x85 => 0x2026,
+                    0x86 => 0x2020,
+                    0x87 => 0x2021,
+                    0x88 => 0x02C6,
+                    0x89 => 0x2030,
+                    0x8A => 0x0160,
+                    0x8B => 0x2039,
+                    0x8C => 0x0152,
+                    0x8E => 0x017D,
+                    0x91 => 0x2018,
+                    0x92 => 0x2019,
+                    0x93 => 0x201C,
+                    0x94 => 0x201D,
+                    0x95 => 0x2022,
+                    0x96 => 0x2013,
+                    0x97 => 0x2014,
+                    0x98 => 0x02DC,
+                    0x99 => 0x2122,
+                    0x9A => 0x0161,
+                    0x9B => 0x203A,
+                    0x9C => 0x0153,
+                    0x9E => 0x017E,
+                    0x9F => 0x0178,
+                    _ => number
                 };
             }
         }

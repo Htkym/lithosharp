@@ -687,13 +687,13 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             ContentPages = contentPages
                 .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
                 .Select(page => new
-            {
-                Collection = page.CollectionId.Value,
-                Entry = page.EntryId.Value,
-                page.Route.RelativeOutputPath,
-                page.Metadata.Title,
-                Layout = page.LayoutId?.Value,
-            }),
+                {
+                    Collection = page.CollectionId.Value,
+                    Entry = page.EntryId.Value,
+                    page.Route.RelativeOutputPath,
+                    page.Metadata.Title,
+                    Layout = page.LayoutId?.Value,
+                }),
         });
 
     private static string BlogNavigationValue(
@@ -712,13 +712,13 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             ContentPages = contentPages
                 .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
                 .Select(page => new
-            {
-                Collection = page.CollectionId.Value,
-                Entry = page.EntryId.Value,
-                page.Route.RelativeOutputPath,
-                page.Metadata.Title,
-                Layout = page.LayoutId?.Value,
-            }),
+                {
+                    Collection = page.CollectionId.Value,
+                    Entry = page.EntryId.Value,
+                    page.Route.RelativeOutputPath,
+                    page.Metadata.Title,
+                    Layout = page.LayoutId?.Value,
+                }),
             Text = new
             {
                 text.MenuLabel,

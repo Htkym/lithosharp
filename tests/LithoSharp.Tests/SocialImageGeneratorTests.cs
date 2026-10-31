@@ -47,12 +47,16 @@ public sealed class SocialImageGeneratorTests
         var output = Path.Combine(workspace.Root, "output");
         var site = new SiteSettings
         {
-            Title = "LithoSharp title", Description = "Social image test",
-            BaseUrl = "https://example.test/", Language = "en", TimeZone = "UTC",
+            Title = "LithoSharp title",
+            Description = "Social image test",
+            BaseUrl = "https://example.test/",
+            Language = "en",
+            TimeZone = "UTC",
         };
         var customization = new SiteCustomization
         {
-            Template = new BlogSiteTemplate(), FaviconSourceDirectory = favicon,
+            Template = new BlogSiteTemplate(),
+            FaviconSourceDirectory = favicon,
         };
         var timestamp = new DateTimeOffset(2026, 8, 30, 10, 11, 12, TimeSpan.Zero);
         var post = new MarkdownPost("content/post.md", "post",
@@ -132,7 +136,8 @@ public sealed class SocialImageGeneratorTests
         using var output = new MemoryStream();
         var buffer = new byte[81920];
         int count;
-        while ((count = stream.Read(buffer, buffer.Length)) > 0) output.Write(buffer, 0, count);
+        while ((count = stream.Read(buffer, buffer.Length)) > 0)
+            output.Write(buffer, 0, count);
         return (output.ToArray(), index);
     }
 
@@ -143,7 +148,8 @@ public sealed class SocialImageGeneratorTests
         // Brand icon ends at x=258; this region contains only the rendered text.
         for (var y = top; y < bottom; y++)
             for (var x = 278; x < bitmap.Width; x++)
-                if (bitmap.GetPixel(x, y) != background) count++;
+                if (bitmap.GetPixel(x, y) != background)
+                    count++;
         return count;
     }
 }

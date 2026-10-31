@@ -23,7 +23,14 @@ public sealed class SiteTestDocument : IDisposable
     }
 
     /// <summary>Gets the read-only parsed snapshot, invalidated when this owner is disposed.</summary>
-    public HtmlTestDocument Snapshot { get { EnsureNotDisposed(); return snapshot; } }
+    public HtmlTestDocument Snapshot
+    {
+        get
+        {
+            EnsureNotDisposed();
+            return snapshot;
+        }
+    }
 
     /// <summary>Gets the optional route associated with this document.</summary>
     public LithoSharp.Routing.SiteRoute? Route { get; internal set; }
@@ -71,24 +78,31 @@ public sealed class SiteTestDocument : IDisposable
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     public void AssertMeta(string name, string expected, bool property = false)
     {
-        EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(name); ArgumentNullException.ThrowIfNull(expected);
-        if (!Snapshot.QueryAll("meta").Any(element => string.Equals(element.GetAttribute(property ? "property" : "name"), name, StringComparison.Ordinal) && string.Equals(element.GetAttribute("content"), expected, StringComparison.Ordinal))) throw new SiteTestException($"Expected meta {name} to have content '{expected}'.");
+        EnsureNotDisposed();
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(expected);
+        if (!Snapshot.QueryAll("meta").Any(element => string.Equals(element.GetAttribute(property ? "property" : "name"), name, StringComparison.Ordinal) && string.Equals(element.GetAttribute("content"), expected, StringComparison.Ordinal)))
+            throw new SiteTestException($"Expected meta {name} to have content '{expected}'.");
     }
 
     /// <summary>Asserts that a link with the exact href exists.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="href"/> is null.</exception>
     public void AssertLink(string href)
     {
-        EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(href);
-        if (!Snapshot.QueryAll("a").Any(element => string.Equals(element.GetAttribute("href"), href, StringComparison.Ordinal))) throw new SiteTestException($"Expected a link with href '{href}'.");
+        EnsureNotDisposed();
+        ArgumentNullException.ThrowIfNull(href);
+        if (!Snapshot.QueryAll("a").Any(element => string.Equals(element.GetAttribute("href"), href, StringComparison.Ordinal)))
+            throw new SiteTestException($"Expected a link with href '{href}'.");
     }
 
     /// <summary>Asserts that an image with the exact src exists.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="src"/> is null.</exception>
     public void AssertImage(string src)
     {
-        EnsureNotDisposed(); ArgumentNullException.ThrowIfNull(src);
-        if (!Snapshot.QueryAll("img").Any(element => string.Equals(element.GetAttribute("src"), src, StringComparison.Ordinal))) throw new SiteTestException($"Expected an image with src '{src}'.");
+        EnsureNotDisposed();
+        ArgumentNullException.ThrowIfNull(src);
+        if (!Snapshot.QueryAll("img").Any(element => string.Equals(element.GetAttribute("src"), src, StringComparison.Ordinal)))
+            throw new SiteTestException($"Expected an image with src '{src}'.");
     }
 
     /// <inheritdoc />
@@ -101,7 +115,8 @@ public sealed class SiteTestDocument : IDisposable
     {
         EnsureNotDisposed();
         ArgumentNullException.ThrowIfNull(selector);
-        if (string.IsNullOrWhiteSpace(selector)) throw new ArgumentException("A selector must not be empty.", nameof(selector));
+        if (string.IsNullOrWhiteSpace(selector))
+            throw new ArgumentException("A selector must not be empty.", nameof(selector));
         return Snapshot.Query(selector) ?? throw new SiteTestException($"Expected an element matching '{selector}'.");
     }
 
@@ -110,7 +125,8 @@ public sealed class SiteTestDocument : IDisposable
         ArgumentNullException.ThrowIfNull(expected);
         var element = Find(selector);
         var actual = value(element);
-        if (!string.Equals(actual, expected, StringComparison.Ordinal)) throw new SiteTestException($"Expected '{selector}' to have '{expected}', but found '{actual ?? "<missing>"}'.");
+        if (!string.Equals(actual, expected, StringComparison.Ordinal))
+            throw new SiteTestException($"Expected '{selector}' to have '{expected}', but found '{actual ?? "<missing>"}'.");
     }
 
     private void EnsureNotDisposed() => snapshot.EnsureAlive();

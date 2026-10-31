@@ -32,7 +32,8 @@ internal static class StaticYamlValidation
         cancellationToken.ThrowIfCancellationRequested();
         var markdown = document.RawText;
         var envelope = document.FrontMatter;
-        if (envelope.State == MdFrontMatterState.Unknown) return false;
+        if (envelope.State == MdFrontMatterState.Unknown)
+            return false;
         if (envelope.State == MdFrontMatterState.Absent)
         {
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, 0, Math.Min(3, markdown.Length)), "Markdown front matter is required."));
@@ -44,7 +45,8 @@ internal static class StaticYamlValidation
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, start, 3), "Front matter is not closed."));
             return true;
         }
-        if (envelope.YamlSpan is not { } yamlSpan || envelope.OpeningSpan is null || envelope.ClosingSpan is null) return false;
+        if (envelope.YamlSpan is not { } yamlSpan || envelope.OpeningSpan is null || envelope.ClosingSpan is null)
+            return false;
         // YamlSpan excludes both delimiter lines and is already in the full original UTF-16 buffer.
         // Body Partial/Unsupported is unrelated to this bounded schema projection.
         var yaml = markdown.Substring(yamlSpan.Start, yamlSpan.Length);
@@ -66,7 +68,8 @@ internal static class StaticYamlValidation
                     report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "YAML nesting is too deep."));
                     return true;
                 }
-                if (parser.Current is MappingEnd or SequenceEnd) depth--;
+                if (parser.Current is MappingEnd or SequenceEnd)
+                    depth--;
             }
             var stream = new YamlStream();
             stream.Load(new StringReader(yaml));
@@ -213,38 +216,60 @@ internal static class StaticYamlValidation
             }
         }
         else if (node is YamlSequenceNode sequence)
-            foreach (var item in sequence.Children) ValidateUntypedNode(path, source, offset, item, report);
+            foreach (var item in sequence.Children)
+                ValidateUntypedNode(path, source, offset, item, report);
     }
 
     private static bool ScalarValid(string? value, ITypeSymbol type)
     {
-        if (value is null) return false;
-        if (type.SpecialType == SpecialType.System_String || type.SpecialType == SpecialType.System_Object) return true;
-        if (type.SpecialType == SpecialType.System_Boolean) return bool.TryParse(value, out _);
-        if (type.SpecialType == SpecialType.System_Char) return value.Length == 1;
-        if (type.SpecialType == SpecialType.System_SByte) return sbyte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Byte) return byte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Int16) return short.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Int32) return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_UInt16) return ushort.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_UInt32) return uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_UInt64) return ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Int64) return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Single) return float.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Double) return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_Decimal) return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
-        if (type.SpecialType == SpecialType.System_DateTime) return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
+        if (value is null)
+            return false;
+        if (type.SpecialType == SpecialType.System_String || type.SpecialType == SpecialType.System_Object)
+            return true;
+        if (type.SpecialType == SpecialType.System_Boolean)
+            return bool.TryParse(value, out _);
+        if (type.SpecialType == SpecialType.System_Char)
+            return value.Length == 1;
+        if (type.SpecialType == SpecialType.System_SByte)
+            return sbyte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Byte)
+            return byte.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Int16)
+            return short.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Int32)
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_UInt16)
+            return ushort.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_UInt32)
+            return uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_UInt64)
+            return ulong.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Int64)
+            return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Single)
+            return float.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Double)
+            return double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_Decimal)
+            return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
+        if (type.SpecialType == SpecialType.System_DateTime)
+            return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
         var name = type.ToDisplayString().TrimEnd('?');
         if (name is "System.DateOnly" or "System.TimeOnly")
         {
             var method = name == "System.DateOnly" ? DateOnlyParser : TimeOnlyParser;
-            if (method is null) throw new NotSupportedException("Static DateOnly/TimeOnly validation requires a modern .NET compiler host. Use dotnet build.");
+            if (method is null)
+                throw new NotSupportedException("Static DateOnly/TimeOnly validation requires a modern .NET compiler host. Use dotnet build.");
             return (bool)method.Invoke(null, new object?[] { value, CultureInfo.InvariantCulture, DateTimeStyles.None, null })!;
         }
-        if (name == "System.DateTimeOffset") return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
-        if (name == "System.TimeSpan") return TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out _);
-        if (name == "System.Guid") return Guid.TryParseExact(value, "D", out _);
-        if (name == "System.Uri") return Uri.TryCreate(value, UriKind.RelativeOrAbsolute, out _);
+        if (name == "System.DateTimeOffset")
+            return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
+        if (name == "System.TimeSpan")
+            return TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out _);
+        if (name == "System.Guid")
+            return Guid.TryParseExact(value, "D", out _);
+        if (name == "System.Uri")
+            return Uri.TryCreate(value, UriKind.RelativeOrAbsolute, out _);
         return true;
     }
 

@@ -39,19 +39,31 @@ public sealed partial class AnalyzerPackageHostTests
             Check(diagnostics[0].Location.SourceSpan == expected && diagnostics[0].Location.SourceTree?.FilePath == "canary.cs", "Original argument UTF16 span");
             var allLoaded = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetName().Name!).ToArray();
             Check(!allLoaded.Any(Forbidden), "Core/Markdown/Node/MSBuild/Skia must not be loaded into the host");
-            var evidence = new { task = "RA-01", package.Path, package.Version, package.Sha256,
+            var evidence = new
+            {
+                task = "RA-01",
+                package.Path,
+                package.Version,
+                package.Sha256,
                 analyzerAssemblySha256 = Sha(File.ReadAllBytes(package.Assembly.Location)),
                 targetFramework = package.Assembly.GetCustomAttribute<TargetFrameworkAttribute>()!.FrameworkName,
                 actualRoslyn = typeof(CSharpCompilation).Assembly.FullName,
                 actualCommon = typeof(Compilation).Assembly.FullName,
-                coreMetadataPath = Required("RA01_CORE_METADATA"), coreMetadataSha256 = Sha(File.ReadAllBytes(Required("RA01_CORE_METADATA"))),
+                coreMetadataPath = Required("RA01_CORE_METADATA"),
+                coreMetadataSha256 = Sha(File.ReadAllBytes(Required("RA01_CORE_METADATA"))),
                 diagnostic = new { diagnostics[0].Id, severity = diagnostics[0].Severity.ToString(), start = expected.Start, length = expected.Length },
-                loadedDuringCanary = loaded.Distinct().Order().ToArray(), forbiddenLoaded = allLoaded.Where(Forbidden).ToArray(),
+                loadedDuringCanary = loaded.Distinct().Order().ToArray(),
+                forbiddenLoaded = allLoaded.Where(Forbidden).ToArray(),
                 analyzerReferences = package.Assembly.GetReferencedAssemblies().Select(a => a.FullName).ToArray(),
-                selectedSourceMode = "fixed-preview.3", hostRuntime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription };
+                selectedSourceMode = "fixed-preview.3",
+                hostRuntime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription
+            };
             File.WriteAllText(Required("RA01_HOST_PROOF"), JsonSerializer.Serialize(evidence, new JsonSerializerOptions { WriteIndented = true }));
         }
-        finally { AppDomain.CurrentDomain.AssemblyLoad -= handler; }
+        finally
+        {
+            AppDomain.CurrentDomain.AssemblyLoad -= handler;
+        }
     }
 
     [Test]
@@ -77,8 +89,14 @@ public sealed partial class AnalyzerPackageHostTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var cancelled = false;
-        try { await Analyze(Compile("class C {}", core: false), cancellation.Token); }
-        catch (OperationCanceledException) { cancelled = true; }
+        try
+        {
+            await Analyze(Compile("class C {}", core: false), cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
         Check(cancelled, "Cancelled packed analyzer pipeline must not produce a result");
     }
 

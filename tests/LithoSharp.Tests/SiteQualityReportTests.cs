@@ -60,7 +60,8 @@ public sealed class SiteQualityReportTests
     [Test]
     public async Task Sarif_AbsoluteWindowsPathUsesFileUri()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         var report = new SiteQualityReport([new SiteDiagnostic("LS001", SiteDiagnosticSeverity.Error, "bad", new SiteSourceLocation(@"C:\docs\a b.md"))]);
         using var json = JsonDocument.Parse(report.Format(SiteDiagnosticFormat.Sarif));
         var uri = json.RootElement.GetProperty("runs")[0].GetProperty("results")[0].GetProperty("locations")[0].GetProperty("physicalLocation").GetProperty("artifactLocation").GetProperty("uri").GetString();

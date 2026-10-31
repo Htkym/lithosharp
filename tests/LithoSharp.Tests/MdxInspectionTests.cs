@@ -15,7 +15,8 @@ public sealed class MdxInspectionTests
     private static string FindRepository()
     {
         for (var path = new DirectoryInfo(AppContext.BaseDirectory); path is not null; path = path.Parent)
-            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx"))) return path.FullName;
+            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
+                return path.FullName;
         throw new DirectoryNotFoundException("The MDX inspection fixture requires the repository's restored worker.");
     }
 
@@ -179,7 +180,8 @@ public sealed class MdxInspectionTests
     {
         using var workspace = new TemporaryWorkspace();
         await using var session = new MdxInspectionSession(new MdxOptions(workspace.Root,
-            Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker")) { Timeout = TimeSpan.FromMinutes(5) });
+            Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
+        { Timeout = TimeSpan.FromMinutes(5) });
         var body = new System.Text.StringBuilder("# Big\n\n");
         for (var index = 0; index < 5000; index++)
         {

@@ -72,7 +72,8 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
                 allRoutes.Add(key, RouteFor(input.Variant.RoutePrefix, member.Id, context.Site.BaseUrl));
             }
         }
-        members = allMembers; routes = allRoutes;
+        members = allMembers;
+        routes = allRoutes;
         var collections = new List<SiteContentCollection>();
         foreach (var (input, parsed, hash) in loaded)
         {
@@ -85,7 +86,8 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
                 { Document = Key(entry.Id.Value), Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex },
                 declaredDependencies: [ContentDependency.FromValue("api.input", hash), ContentDependency.FromValue("api.variant", JsonSerializer.Serialize(variant))], transformationId: new("api-v1"), isCacheable: true);
             collections.Add(new SiteContentCollection<ApiMember, ApiMember>(collection, (entry, rendering) => rendering.RenderDocument(
-                "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" + (entry.FrontMatter.Deprecated ? "<aside role=\"note\">Deprecated</aside>" : "") + entry.Body.BodyHtml)) { RendererFingerprint = "api-v1", IsThreadSafe = true });
+                "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" + (entry.FrontMatter.Deprecated ? "<aside role=\"note\">Deprecated</aside>" : "") + entry.Body.BodyHtml))
+            { RendererFingerprint = "api-v1", IsThreadSafe = true });
             collections.Add(collection.GeneratePages(new(collection.Id.Value + ":index"), _ => ["index"],
                 group => new SitePage<IReadOnlyList<ContentEntry<ApiMember, ApiMember>>>(new("index"), SiteRoute.ForDirectoryIndex(variant.RoutePrefix, context.Site.BaseUrl), group.Entries, new(input.Collection)),
                 (page, rendering) => rendering.RenderDocument("<h1>" + Html.Encode(input.Collection) + "</h1><ul>" + string.Concat(page.Content.Select(entry =>
@@ -97,7 +99,8 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
             var before = members.Where(pair => pair.Key.Collection == comparison.Collection && pair.Key.Version == comparison.Previous && pair.Key.Locale == comparison.Locale).Select(pair => pair.Value).ToArray();
             var after = members.Where(pair => pair.Key.Collection == comparison.Collection && pair.Key.Version == comparison.Current && pair.Key.Locale == comparison.Locale).Select(pair => pair.Value).ToArray();
             if (!inputs.Any(value => value.Input.Collection == comparison.Collection && value.Input.Variant.Version == comparison.Previous && value.Input.Variant.Locale == comparison.Locale)
-                || !inputs.Any(value => value.Input.Collection == comparison.Collection && value.Input.Variant.Version == comparison.Current && value.Input.Variant.Locale == comparison.Locale)) throw new ArgumentException("API comparison requires both registered variants.");
+                || !inputs.Any(value => value.Input.Collection == comparison.Collection && value.Input.Variant.Version == comparison.Current && value.Input.Variant.Locale == comparison.Locale))
+                throw new ArgumentException("API comparison requires both registered variants.");
             var changes = Compare(before, after);
             var body = "<h1>API changes</h1><ul>" + string.Concat(changes.Select(change => "<li><code>" + Html.Encode(change.Id) + "</code>: " + Html.Encode(change.Kind) + "</li>")) + "</ul>";
             var collection = new ContentCollection<string, string>(new("api-diff:" + comparison.Collection + ":" + comparison.Previous + ":" + comparison.Current + ":" + comparison.Locale),
@@ -142,7 +145,8 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
     {
         using var document = JsonDocument.Parse(bytes);
         var root = document.RootElement;
-        if (!root.TryGetProperty("openapi", out var version) || !version.GetString()!.StartsWith("3.", StringComparison.Ordinal)) throw new ArgumentException("OpenAPI 3 JSON is required.");
+        if (!root.TryGetProperty("openapi", out var version) || !version.GetString()!.StartsWith("3.", StringComparison.Ordinal))
+            throw new ArgumentException("OpenAPI 3 JSON is required.");
         void Validate(JsonElement element)
         {
             if (element.ValueKind == JsonValueKind.Object)
@@ -150,25 +154,29 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
                 var names = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var property in element.EnumerateObject())
                 {
-                    if (!names.Add(property.Name)) throw new ArgumentException("Duplicate OpenAPI key: " + property.Name);
-                    if (property.Name == "$ref" && !property.Value.GetString()!.StartsWith("#/", StringComparison.Ordinal)) throw new ArgumentException("External OpenAPI references must be bundled explicitly before generation.");
+                    if (!names.Add(property.Name))
+                        throw new ArgumentException("Duplicate OpenAPI key: " + property.Name);
+                    if (property.Name == "$ref" && !property.Value.GetString()!.StartsWith("#/", StringComparison.Ordinal))
+                        throw new ArgumentException("External OpenAPI references must be bundled explicitly before generation.");
                     Validate(property.Value);
                 }
             }
-            else if (element.ValueKind == JsonValueKind.Array) foreach (var item in element.EnumerateArray()) Validate(item);
+            else if (element.ValueKind == JsonValueKind.Array)
+                foreach (var item in element.EnumerateArray())
+                    Validate(item);
         }
         Validate(root);
         var result = new List<ApiMember>();
         foreach (var path in root.GetProperty("paths").EnumerateObject())
-        foreach (var operation in path.Value.EnumerateObject().Where(property => property.Name is "get" or "put" or "post" or "delete" or "options" or "head" or "patch" or "trace"))
-        {
-            var value = operation.Value;
-            var id = "O:" + operation.Name.ToUpperInvariant() + " " + path.Name;
-            var title = value.TryGetProperty("summary", out var summary) ? summary.GetString()! : id[2..];
-            var description = value.TryGetProperty("description", out var detail) ? detail.GetString()! : "";
-            result.Add(new(id, title, description, "<p><code>" + Html.Encode(id[2..]) + "</code></p><p>" + Html.Encode(description) + "</p><pre><code>" + Html.Encode(JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true })) + "</code></pre>",
-                value.TryGetProperty("deprecated", out var deprecated) && deprecated.GetBoolean()));
-        }
+            foreach (var operation in path.Value.EnumerateObject().Where(property => property.Name is "get" or "put" or "post" or "delete" or "options" or "head" or "patch" or "trace"))
+            {
+                var value = operation.Value;
+                var id = "O:" + operation.Name.ToUpperInvariant() + " " + path.Name;
+                var title = value.TryGetProperty("summary", out var summary) ? summary.GetString()! : id[2..];
+                var description = value.TryGetProperty("description", out var detail) ? detail.GetString()! : "";
+                result.Add(new(id, title, description, "<p><code>" + Html.Encode(id[2..]) + "</code></p><p>" + Html.Encode(description) + "</p><pre><code>" + Html.Encode(JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true })) + "</code></pre>",
+                    value.TryGetProperty("deprecated", out var deprecated) && deprecated.GetBoolean()));
+            }
         return result.ToArray();
     }
 }
@@ -180,7 +188,8 @@ public static class DocumentationVerification
     public static async Task<IReadOnlyList<string>> BuildApiAsync(string projectOrSolution, CancellationToken cancellationToken = default)
     {
         var path = Path.GetFullPath(projectOrSolution);
-        if (Path.GetExtension(path) is not (".csproj" or ".sln" or ".slnx")) throw new ArgumentException("A project or solution is required.");
+        if (Path.GetExtension(path) is not (".csproj" or ".sln" or ".slnx"))
+            throw new ArgumentException("A project or solution is required.");
         await RunAsync(path, ["build", path, "--no-restore", "-p:GenerateDocumentationFile=true"], cancellationToken).ConfigureAwait(false);
         return Directory.EnumerateFiles(Path.GetDirectoryName(path)!, "*.xml", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
             .Where(file => file.Split(Path.DirectorySeparatorChar).Contains("bin") && File.Exists(Path.ChangeExtension(file, ".dll"))).Order(StringComparer.Ordinal).ToArray();
@@ -189,17 +198,40 @@ public static class DocumentationVerification
     public static Task VerifyExamplesAsync(string project, CancellationToken cancellationToken = default) => RunAsync(Path.GetFullPath(project), ["test", "--project", Path.GetFullPath(project), "--no-restore"], cancellationToken);
     private static async Task RunAsync(string path, string[] arguments, CancellationToken cancellationToken)
     {
-        if (!File.Exists(path)) throw new FileNotFoundException("Documentation verification input does not exist.", path);
+        if (!File.Exists(path))
+            throw new FileNotFoundException("Documentation verification input does not exist.", path);
         var start = new ProcessStartInfo("dotnet") { WorkingDirectory = Path.GetDirectoryName(path)!, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        foreach (var argument in arguments)
+            start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new IOException("Cannot start dotnet.");
         // Drain output without retaining an unbounded log from executed project code.
-        async Task Drain(StreamReader reader) { var buffer = new char[4096]; while (await reader.ReadAsync(buffer).ConfigureAwait(false) > 0) { } }
-        var output = Drain(process.StandardOutput); var error = Drain(process.StandardError);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromMinutes(10));
-        try { await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false); }
-        catch (OperationCanceledException) { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false); throw; }
-        finally { await Task.WhenAll(output, error).ConfigureAwait(false); }
-        if (process.ExitCode != 0) throw new IOException("Documentation verification failed with exit code " + process.ExitCode + ". Run the same project command directly for diagnostics.");
+        async Task Drain(StreamReader reader)
+        {
+            var buffer = new char[4096];
+            while (await reader.ReadAsync(buffer).ConfigureAwait(false) > 0)
+            {
+            }
+        }
+        var output = Drain(process.StandardOutput);
+        var error = Drain(process.StandardError);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(10));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+        finally
+        {
+            await Task.WhenAll(output, error).ConfigureAwait(false);
+        }
+        if (process.ExitCode != 0)
+            throw new IOException("Documentation verification failed with exit code " + process.ExitCode + ". Run the same project command directly for diagnostics.");
     }
 }

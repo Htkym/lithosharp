@@ -46,8 +46,14 @@ public sealed partial class AnalyzerPackageHostTests
             Check(diagnostic.AdditionalLocations.Count >= 1 && diagnostic.AdditionalLocations.All(location =>
                 source.Substring(location.SourceSpan.Start, location.SourceSpan.Length).Contains("html", StringComparison.Ordinal)
                 || name == "field-const-chain"), "Usage locations: " + name);
-            proof.Add(new { name, source, start = expected.Start, length = expected.Length,
-                related = diagnostic.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray() });
+            proof.Add(new
+            {
+                name,
+                source,
+                start = expected.Start,
+                length = expected.Length,
+                related = diagnostic.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray()
+            });
         }
 
         const string definitions = "static class Shared { public const string Html=\"<img src='javascript:shared'>\"; }";
@@ -124,8 +130,13 @@ public sealed partial class AnalyzerPackageHostTests
         // A proven sink stays reported even if another use of that same source has no common violation.
         const string independent = "class C { void M(bool b) { const string html=\"<img src='javascript:bad'>\"; LithoSharp.Html.UnsafeRaw(html); LithoSharp.Html.UnsafeRaw(b?html:\"<p>Safe</p>\"); } }";
         Check((await Analyze(Compile(independent, true))).Count(d => d.Id == "LSA1105") == 1, "No cross-sink intersection");
-        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
-        try { await Analyze(Compile(independent, true), cancellation.Token); throw new InvalidOperationException("Cancelled shared HTML returned a result"); }
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        try
+        {
+            await Analyze(Compile(independent, true), cancellation.Token);
+            throw new InvalidOperationException("Cancelled shared HTML returned a result");
+        }
         catch (OperationCanceledException) { }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No runtime/user sentinel execution");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "shared-html-boundaries.json"), JsonSerializer.Serialize(

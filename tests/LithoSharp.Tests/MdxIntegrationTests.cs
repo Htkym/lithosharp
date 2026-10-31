@@ -19,7 +19,8 @@ public sealed class MdxIntegrationTests
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
         var worker = Path.Combine(workspace.Root, "worker");
-        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(worker);
         await File.WriteAllTextAsync(Path.Combine(source, "hello.mdx"), "---\ntitle: Hello\n---\n# Hello\n");
         var output = Path.Combine(workspace.Root, "out");
         var generator = new SiteGenerator();
@@ -41,7 +42,8 @@ public sealed class MdxIntegrationTests
             await using var mdx = new MdxSite(new(workspace.Root, worker) { Timeout = TimeSpan.FromSeconds(1), MaximumMessageBytes = 8192 });
             mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("fault"), source, _ => SiteRoute.ForDirectoryIndex("hello"), entry => new(entry.FrontMatter.Title)));
             using var cancellation = new CancellationTokenSource();
-            if (mode == "cancel") cancellation.CancelAfter(TimeSpan.FromMilliseconds(200));
+            if (mode == "cancel")
+                cancellation.CancelAfter(TimeSpan.FromMilliseconds(200));
             await Assert.That(async () => await generator.GenerateWithOptionsAsync(new SiteSettings(), [], output, false, null,
                 new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, cancellation.Token)).ThrowsException();
             await Assert.That(HashOutput(output)).IsEquivalentTo(snapshot);
@@ -94,7 +96,7 @@ public sealed class MdxIntegrationTests
         await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker")) { Cacheable = true });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
-            { TransformationFingerprint = "test-v1" });
+        { TransformationFingerprint = "test-v1" });
         var output = Path.Combine(root, "out");
         var generator = new SiteGenerator();
         var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
@@ -159,10 +161,10 @@ public sealed class MdxIntegrationTests
         await File.WriteAllTextAsync(Path.Combine(source, "Toggle.jsx"), "export default function Toggle(){return <button>Toggle</button>}");
         var repository = FindRepository();
         await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
-            { Cacheable = true, Hydration = "selective" });
+        { Cacheable = true, Hydration = "selective" });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
-            { TransformationFingerprint = "test-v1" });
+        { TransformationFingerprint = "test-v1" });
         var output = Path.Combine(root, "out");
         var generator = new SiteGenerator();
         var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
@@ -217,10 +219,10 @@ public sealed class MdxIntegrationTests
         await File.WriteAllTextAsync(declared, "one");
         var repository = FindRepository();
         await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
-            { Cacheable = true, DeclaredInputFiles = [declared] });
+        { Cacheable = true, DeclaredInputFiles = [declared] });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
-            { TransformationFingerprint = "test-v1" });
+        { TransformationFingerprint = "test-v1" });
         var output = Path.Combine(root, "out");
         var generator = new SiteGenerator();
         var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
@@ -253,7 +255,7 @@ public sealed class MdxIntegrationTests
             await using var mdx = new MdxSite(new(project, worker) { Cacheable = true });
             mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
                 entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
-                { TransformationFingerprint = "test-v1" });
+            { TransformationFingerprint = "test-v1" });
             var output = Path.Combine(project, "out");
             var generation = await new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, true, null,
                 new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
@@ -291,10 +293,10 @@ public sealed class MdxIntegrationTests
 
         var repository = FindRepository();
         await using var mdx = new MdxSite(new(root, Path.Combine(repository, "src/LithoSharp.Mdx/worker"))
-            { Cacheable = true });
+        { Cacheable = true });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             entry => SiteRoute.ForDirectoryIndex(Path.ChangeExtension(entry.Id.Value, null)), entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Draft))
-            { TransformationFingerprint = "test-v1" });
+        { TransformationFingerprint = "test-v1" });
         var output = Path.Combine(root, "out");
         await new SiteGenerator().GenerateWithOptionsAsync(
             new SiteSettings { BaseUrl = "https://example.com/project/" }, [], output, clean: true, null,
@@ -313,10 +315,10 @@ public sealed class MdxIntegrationTests
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
         await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
-            { Cacheable = true, Hydration = "selective" });
+        { Cacheable = true, Hydration = "selective" });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
-            { TransformationFingerprint = "cache-corruption-test" });
+        { TransformationFingerprint = "cache-corruption-test" });
         var generator = new SiteGenerator();
         var output = Path.Combine(workspace.Root, "out");
         var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
@@ -373,7 +375,8 @@ public sealed class MdxIntegrationTests
             }
         }
 
-        if (failures.Count != 0) throw new AggregateException(failures);
+        if (failures.Count != 0)
+            throw new AggregateException(failures);
     }
 
     [Test]
@@ -388,10 +391,10 @@ public sealed class MdxIntegrationTests
         const string good = "export default function Counter(){return <button>Ready</button>}";
         await File.WriteAllTextAsync(component, good);
         await using var mdx = new MdxSite(new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"))
-            { Cacheable = true });
+        { Cacheable = true });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
-            { TransformationFingerprint = "cache-corruption-test" });
+        { TransformationFingerprint = "cache-corruption-test" });
         var generator = new SiteGenerator();
         var output = Path.Combine(workspace.Root, "out");
         var settings = new SiteSettings { BaseUrl = "https://example.com/project/" };
@@ -429,7 +432,8 @@ public sealed class MdxIntegrationTests
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
         var worker = Path.Combine(workspace.Root, "worker");
-        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(worker);
         await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
         // Scripted successful protocol reply; these cases test bridge validation,
         // not actual MDX/esbuild operation counts or compiler failure behavior.
@@ -448,7 +452,7 @@ public sealed class MdxIntegrationTests
         });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
-            { TransformationFingerprint = "invalid-live-asset-test" });
+        { TransformationFingerprint = "invalid-live-asset-test" });
         Exception? failure = null;
         try
         {
@@ -456,9 +460,18 @@ public sealed class MdxIntegrationTests
                 new() { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
         }
         catch (SiteBuildExtensionException error) when (corruption is "inner-hash-mismatch" or "unresolved-import" or "duplicate-asset-path"
-            or "wrong-page-id" or "missing-page" or "unknown-page-entry" or "unknown-page-css") { failure = error; }
-        catch (ArgumentException error) when (corruption == "duplicate-page-id") { failure = error; }
-        catch (FormatException error) when (corruption == "invalid-base64") { failure = error; }
+            or "wrong-page-id" or "missing-page" or "unknown-page-entry" or "unknown-page-css")
+        {
+            failure = error;
+        }
+        catch (ArgumentException error) when (corruption == "duplicate-page-id")
+        {
+            failure = error;
+        }
+        catch (FormatException error) when (corruption == "invalid-base64")
+        {
+            failure = error;
+        }
         await Assert.That(failure).IsNotNull();
         if (corruption is "unresolved-import" or "duplicate-asset-path")
             await Assert.That(failure!.Message).Contains("LSMDX003: Worker returned duplicate assets or unresolved chunk references.");
@@ -482,7 +495,8 @@ public sealed class MdxIntegrationTests
         using var workspace = new TemporaryWorkspace();
         var source = Path.Combine(workspace.Root, "content");
         var worker = Path.Combine(workspace.Root, "worker");
-        Directory.CreateDirectory(source); Directory.CreateDirectory(worker);
+        Directory.CreateDirectory(source);
+        Directory.CreateDirectory(worker);
         await File.WriteAllTextAsync(Path.Combine(source, "page.mdx"), "---\ntitle: Page\n---\n# Page\n");
         await WriteScriptedValidationWorkerAsync(worker);
         await using var mdx = new MdxSite(new(workspace.Root, worker)
@@ -493,7 +507,7 @@ public sealed class MdxIntegrationTests
         });
         mdx.AddCollection(new MdxContentCollectionLoader<FrontMatter>(new("mdx"), source,
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title))
-            { TransformationFingerprint = "valid-page-reference-test" });
+        { TransformationFingerprint = "valid-page-reference-test" });
         var generator = new SiteGenerator();
         var output = Path.Combine(workspace.Root, "out");
         var options = new SiteGenerationOptions { Extensions = [mdx], BuildTimestamp = DateTimeOffset.UnixEpoch };
@@ -550,35 +564,81 @@ public sealed class MdxIntegrationTests
 
     private static string CorruptCache(string original, string corruption)
     {
-        if (corruption == "null-envelope") return "null";
-        if (corruption == "array-envelope") return "[]";
-        if (corruption == "truncated") return "{\"result\":";
+        if (corruption == "null-envelope")
+            return "null";
+        if (corruption == "array-envelope")
+            return "[]";
+        if (corruption == "truncated")
+            return "{\"result\":";
         var envelope = JsonNode.Parse(original)!.AsObject();
         var result = envelope["result"]!.AsObject();
         switch (corruption)
         {
-            case "numeric-hash": envelope["hash"] = 123; break;
-            case "null-result": envelope["result"] = null; break;
-            case "array-result": envelope["result"] = new JsonArray(); break;
-            case "missing-result-fields": envelope["result"] = new JsonObject { ["inputs"] = new JsonArray() }; break;
-            case "null-inputs": result["inputs"] = null; break;
-            case "numeric-input-file": result["inputs"]![0]!["file"] = 123; break;
-            case "numeric-input-hash": result["inputs"]![0]!["hash"] = 123; break;
-            case "numeric-page-id": result["pages"]![0]!["id"] = 123; break;
-            case "object-page-css": result["pages"]![0]!["css"] = new JsonObject(); break;
-            case "numeric-asset-bytes": result["assets"]![0]!["bytes"] = 123; break;
-            case "invalid-base64-asset-bytes": result["assets"]![0]!["bytes"] = "!"; break;
-            case "inner-asset-hash-mismatch": result["assets"]![0]!["hash"] = new string('0', 64); break;
-            case "numeric-asset-import": result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123)); break;
-            case "unresolved-asset-import": result["assets"]![0]!["imports"] = new JsonArray("__missing__.js"); break;
-            case "duplicate-asset-path": result["assets"]!.AsArray().Add(result["assets"]![0]!.DeepClone()); break;
-            case "wrong-page-id": result["pages"]![0]!["id"] = "__wrong_page__"; break;
-            case "missing-page": result["pages"]!.AsArray().Clear(); break;
-            case "duplicate-page-id": result["pages"]!.AsArray().Add(result["pages"]![0]!.DeepClone()); break;
-            case "unknown-page-entry": result["pages"]![0]!["entry"] = "__missing__.js"; break;
-            case "unknown-page-css": result["pages"]![0]!["css"] = new JsonArray("__missing__.css"); break;
-            case "hash-mismatch": envelope["hash"] = new string('0', 64); break;
-            default: throw new ArgumentOutOfRangeException(nameof(corruption));
+            case "numeric-hash":
+                envelope["hash"] = 123;
+                break;
+            case "null-result":
+                envelope["result"] = null;
+                break;
+            case "array-result":
+                envelope["result"] = new JsonArray();
+                break;
+            case "missing-result-fields":
+                envelope["result"] = new JsonObject { ["inputs"] = new JsonArray() };
+                break;
+            case "null-inputs":
+                result["inputs"] = null;
+                break;
+            case "numeric-input-file":
+                result["inputs"]![0]!["file"] = 123;
+                break;
+            case "numeric-input-hash":
+                result["inputs"]![0]!["hash"] = 123;
+                break;
+            case "numeric-page-id":
+                result["pages"]![0]!["id"] = 123;
+                break;
+            case "object-page-css":
+                result["pages"]![0]!["css"] = new JsonObject();
+                break;
+            case "numeric-asset-bytes":
+                result["assets"]![0]!["bytes"] = 123;
+                break;
+            case "invalid-base64-asset-bytes":
+                result["assets"]![0]!["bytes"] = "!";
+                break;
+            case "inner-asset-hash-mismatch":
+                result["assets"]![0]!["hash"] = new string('0', 64);
+                break;
+            case "numeric-asset-import":
+                result["assets"]![0]!["imports"] = new JsonArray(JsonValue.Create(123));
+                break;
+            case "unresolved-asset-import":
+                result["assets"]![0]!["imports"] = new JsonArray("__missing__.js");
+                break;
+            case "duplicate-asset-path":
+                result["assets"]!.AsArray().Add(result["assets"]![0]!.DeepClone());
+                break;
+            case "wrong-page-id":
+                result["pages"]![0]!["id"] = "__wrong_page__";
+                break;
+            case "missing-page":
+                result["pages"]!.AsArray().Clear();
+                break;
+            case "duplicate-page-id":
+                result["pages"]!.AsArray().Add(result["pages"]![0]!.DeepClone());
+                break;
+            case "unknown-page-entry":
+                result["pages"]![0]!["entry"] = "__missing__.js";
+                break;
+            case "unknown-page-css":
+                result["pages"]![0]!["css"] = new JsonArray("__missing__.css");
+                break;
+            case "hash-mismatch":
+                envelope["hash"] = new string('0', 64);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(corruption));
         }
         if (corruption is not ("numeric-hash" or "hash-mismatch"))
         {
@@ -612,7 +672,8 @@ public sealed class MdxIntegrationTests
     private static string FindRepository()
     {
         for (var path = new DirectoryInfo(AppContext.BaseDirectory); path is not null; path = path.Parent)
-            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx"))) return path.FullName;
+            if (File.Exists(Path.Combine(path.FullName, "LithoSharp.slnx")))
+                return path.FullName;
         throw new DirectoryNotFoundException("The MDX integration fixture requires the repository's restored worker.");
     }
     public sealed class FrontMatter

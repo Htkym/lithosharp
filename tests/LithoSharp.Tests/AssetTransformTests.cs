@@ -132,14 +132,26 @@ public sealed class AssetTransformTests
         {
             executions++;
             await context.WriteAsync(output, "value"u8.ToArray(), token);
-        }, _ => { validates++; return Task.CompletedTask; });
+        }, _ =>
+        {
+            validates++;
+            return Task.CompletedTask;
+        });
         await Generate(workspace, [], [transform]);
         await Generate(workspace, [], [transform], clean: false, template: new CallbackTemplate(context =>
         {
             var alias = new SiteAssetOutput(output.Id, output.RelativeOutputPath);
-            try { context.Assets.GetUrl(alias); throw new Exception("An undeclared alias was accepted."); }
+            try
+            {
+                context.Assets.GetUrl(alias);
+                throw new Exception("An undeclared alias was accepted.");
+            }
             catch (AssetRegistryException) { }
-            try { context.Assets.OpenRead(alias); throw new Exception("An undeclared alias was read."); }
+            try
+            {
+                context.Assets.OpenRead(alias);
+                throw new Exception("An undeclared alias was read.");
+            }
             catch (AssetRegistryException) { }
             return "ok";
         }));
@@ -161,14 +173,23 @@ public sealed class AssetTransformTests
         await File.WriteAllTextAsync(sentinel, "keep");
         Directory.CreateDirectory(Public(workspace));
         var link = Path.Combine(Public(workspace), "linked");
-        try { Directory.CreateSymbolicLink(link, outside); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { return; }
+        try
+        {
+            Directory.CreateSymbolicLink(link, outside);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
         try
         {
             await Assert.That(async () => await Generate(workspace, [], [])).Throws<IOException>();
             await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("keep");
         }
-        finally { Directory.Delete(link); }
+        finally
+        {
+            Directory.Delete(link);
+        }
         Directory.CreateSymbolicLink(Cache(workspace), outside);
         var output = new SiteAssetOutput("value", "value.txt");
         var transform = new SiteAssetTransform("value", "v1", [], [output],
@@ -179,7 +200,10 @@ public sealed class AssetTransformTests
             await Assert.That(await File.ReadAllTextAsync(sentinel)).IsEqualTo("keep");
             await Assert.That(Directory.GetFiles(outside).Length).IsEqualTo(1);
         }
-        finally { Directory.Delete(Cache(workspace)); }
+        finally
+        {
+            Directory.Delete(Cache(workspace));
+        }
     }
 
     [Test]

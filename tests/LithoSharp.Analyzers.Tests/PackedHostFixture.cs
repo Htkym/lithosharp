@@ -23,7 +23,8 @@ public sealed partial class AnalyzerPackageHostTests
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "System.Private.CoreLib.dll", "System.Runtime.dll", "netstandard.dll" };
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(System.IO.Path.PathSeparator)
             .Where(p => names.Contains(System.IO.Path.GetFileName(p))).Select(p => MetadataReference.CreateFromFile(p)).Cast<MetadataReference>().ToList();
-        if (core) references.Add(MetadataReference.CreateFromFile(Required("RA01_CORE_METADATA")));
+        if (core)
+            references.Add(MetadataReference.CreateFromFile(Required("RA01_CORE_METADATA")));
         return CSharpCompilation.Create("CanaryUser", new[] { CSharpSyntaxTree.ParseText(source,
             new CSharpParseOptions(LanguageVersion.CSharp13), file) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -41,7 +42,11 @@ public sealed partial class AnalyzerPackageHostTests
     private static string Required(string key) => Environment.GetEnvironmentVariable(key) is { Length: > 0 } value
         ? value : throw new InvalidOperationException("Explicit canary input missing: " + key);
     private static string Sha(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-    private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
+    private static void Check(bool condition, string message)
+    {
+        if (!condition)
+            throw new InvalidOperationException(message);
+    }
 
     private sealed record PackageArtifact(string Path, string Version, string Sha256, Assembly Assembly, ImmutableArray<DiagnosticAnalyzer> Analyzers)
     {
@@ -66,7 +71,8 @@ public sealed partial class AnalyzerPackageHostTests
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(payload)!);
             foreach (var dll in dlls)
                 using (var source = dll.Open())
-                using (var target = File.Create(System.IO.Path.Combine(Required("RA01_PAYLOAD_DIR"), System.IO.Path.GetFileName(dll.FullName)))) source.CopyTo(target);
+                using (var target = File.Create(System.IO.Path.Combine(Required("RA01_PAYLOAD_DIR"), System.IO.Path.GetFileName(dll.FullName))))
+                    source.CopyTo(target);
             var reference = new AnalyzerFileReference(payload, new Loader());
             var failed = false;
             reference.AnalyzerLoadFailed += (_, _) => failed = true;

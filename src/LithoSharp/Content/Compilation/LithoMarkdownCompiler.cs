@@ -279,19 +279,19 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         switch (block)
         {
             case LithoHeading heading:
-            {
-                var ordinal = headingIndex.Value++;
-                var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
-                var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
-                headings.Add(new DocumentHeading(
-                    text,
-                    id,
-                    heading.Level,
-                    heading.Level == 1 ? 2 : heading.Level,
-                    heading.Span.Shift(shift)));
-                MapInlines(heading.Inlines, body, shift, links, assets);
-                break;
-            }
+                {
+                    var ordinal = headingIndex.Value++;
+                    var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
+                    var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
+                    headings.Add(new DocumentHeading(
+                        text,
+                        id,
+                        heading.Level,
+                        heading.Level == 1 ? 2 : heading.Level,
+                        heading.Span.Shift(shift)));
+                    MapInlines(heading.Inlines, body, shift, links, assets);
+                    break;
+                }
 
             case LithoParagraph paragraph:
                 MapInlines(paragraph.Inlines, body, shift, links, assets);
@@ -349,24 +349,25 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     {
         foreach (var (inline, exit) in LithoInline.Walk(inlines))
         {
-            if (exit) continue;
+            if (exit)
+                continue;
             switch (inline)
             {
                 case LithoLink link:
-                {
-                    links.Add(new DocumentLink(
-                        Slice(body, link.Span),
-                        link.Url,
-                        link.Title,
-                        link.Image,
-                        link.Span.Shift(shift)));
-                    if (link.Image)
                     {
-                        assets.Add(new DocumentAsset(link.Url, link.Span.Shift(shift)));
-                    }
+                        links.Add(new DocumentLink(
+                            Slice(body, link.Span),
+                            link.Url,
+                            link.Title,
+                            link.Image,
+                            link.Span.Shift(shift)));
+                        if (link.Image)
+                        {
+                            assets.Add(new DocumentAsset(link.Url, link.Span.Shift(shift)));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case LithoAutolink autolink:
                     links.Add(new DocumentLink(

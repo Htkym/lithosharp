@@ -301,7 +301,8 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 fingerprint,
                 bindResult.Value!,
                 inclusion.Body,
-                new SiteSourceLocation(relativePath, 1, 1)) { CapturedInputs = capturedInputs };
+                new SiteSourceLocation(relativePath, 1, 1))
+            { CapturedInputs = capturedInputs };
         }
 
         var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;
@@ -507,105 +508,105 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
         switch (parser.Current)
         {
             case Scalar scalar:
-            {
-                var value = IsNullScalar(scalar) ? null : scalar.Value;
-                var result = new LocatedYamlScalar(
-                    value,
-                    Location(relativePath, scalar.Start, yamlStartLine));
-                parser.MoveNext();
-                return ContentParseResult<object>.Success(result);
-            }
-
-            case SequenceStart sequenceStart:
-            {
-                var values = new List<object?>();
-                var location = Location(relativePath, sequenceStart.Start, yamlStartLine);
-                parser.MoveNext();
-                while (parser.Current is not SequenceEnd)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var item = ParseYamlNode(
-                        parser,
-                        relativePath,
-                        yamlStartLine,
-                        cancellationToken);
-                    if (!item.IsSuccess)
-                    {
-                        return item;
-                    }
-
-                    values.Add(item.Value);
+                    var value = IsNullScalar(scalar) ? null : scalar.Value;
+                    var result = new LocatedYamlScalar(
+                        value,
+                        Location(relativePath, scalar.Start, yamlStartLine));
+                    parser.MoveNext();
+                    return ContentParseResult<object>.Success(result);
                 }
 
-                parser.MoveNext();
-                return ContentParseResult<object>.Success(
-                    new LocatedYamlSequence(values.AsReadOnly(), location));
-            }
+            case SequenceStart sequenceStart:
+                {
+                    var values = new List<object?>();
+                    var location = Location(relativePath, sequenceStart.Start, yamlStartLine);
+                    parser.MoveNext();
+                    while (parser.Current is not SequenceEnd)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var item = ParseYamlNode(
+                            parser,
+                            relativePath,
+                            yamlStartLine,
+                            cancellationToken);
+                        if (!item.IsSuccess)
+                        {
+                            return item;
+                        }
+
+                        values.Add(item.Value);
+                    }
+
+                    parser.MoveNext();
+                    return ContentParseResult<object>.Success(
+                        new LocatedYamlSequence(values.AsReadOnly(), location));
+                }
 
             case MappingStart mappingStart:
-            {
-                var values = new Dictionary<string, object?>(StringComparer.Ordinal);
-                var keyLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
-                var valueLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
-                var location = Location(relativePath, mappingStart.Start, yamlStartLine);
-                parser.MoveNext();
-                while (parser.Current is not MappingEnd)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (parser.Current is not Scalar keyScalar || IsNullScalar(keyScalar))
-                    {
-                        return NodeFailure(
-                            MarkdownContentDiagnosticIds.InvalidMappingKey,
-                            "YAML mapping keys must be non-null strings.",
-                            relativePath,
-                            parser.Current?.Start ?? mappingStart.Start,
-                            yamlStartLine);
-                    }
-
-                    if (!keyScalar.Anchor.IsEmpty)
-                    {
-                        return NodeFailure(
-                            MarkdownContentDiagnosticIds.AliasNotAllowed,
-                            $"YAML anchor '&{keyScalar.Anchor}' is not allowed.",
-                            relativePath,
-                            keyScalar.Start,
-                            yamlStartLine);
-                    }
-
-                    var key = keyScalar.Value.Normalize(NormalizationForm.FormC);
-                    var keyLocation = Location(relativePath, keyScalar.Start, yamlStartLine);
+                    var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+                    var keyLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+                    var valueLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+                    var location = Location(relativePath, mappingStart.Start, yamlStartLine);
                     parser.MoveNext();
-                    if (values.ContainsKey(key))
+                    while (parser.Current is not MappingEnd)
                     {
-                        return ContentParseResult<object>.Failure(
-                            [new SiteDiagnostic(
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (parser.Current is not Scalar keyScalar || IsNullScalar(keyScalar))
+                        {
+                            return NodeFailure(
+                                MarkdownContentDiagnosticIds.InvalidMappingKey,
+                                "YAML mapping keys must be non-null strings.",
+                                relativePath,
+                                parser.Current?.Start ?? mappingStart.Start,
+                                yamlStartLine);
+                        }
+
+                        if (!keyScalar.Anchor.IsEmpty)
+                        {
+                            return NodeFailure(
+                                MarkdownContentDiagnosticIds.AliasNotAllowed,
+                                $"YAML anchor '&{keyScalar.Anchor}' is not allowed.",
+                                relativePath,
+                                keyScalar.Start,
+                                yamlStartLine);
+                        }
+
+                        var key = keyScalar.Value.Normalize(NormalizationForm.FormC);
+                        var keyLocation = Location(relativePath, keyScalar.Start, yamlStartLine);
+                        parser.MoveNext();
+                        if (values.ContainsKey(key))
+                        {
+                            return ContentParseResult<object>.Failure(
+                                [new SiteDiagnostic(
                                 MarkdownContentDiagnosticIds.DuplicateKey,
                                 SiteDiagnosticSeverity.Error,
                                 $"YAML mapping key '{key}' is duplicated.",
                                 keyLocation)]);
+                        }
+
+                        var value = ParseYamlNode(
+                            parser,
+                            relativePath,
+                            yamlStartLine,
+                            cancellationToken);
+                        if (!value.IsSuccess)
+                        {
+                            return value;
+                        }
+
+                        values.Add(key, value.Value);
+                        keyLocations.Add(key, keyLocation);
+                        valueLocations.Add(
+                            key,
+                            LocatedYamlValue.GetLocation(value.Value) ?? keyLocation);
                     }
 
-                    var value = ParseYamlNode(
-                        parser,
-                        relativePath,
-                        yamlStartLine,
-                        cancellationToken);
-                    if (!value.IsSuccess)
-                    {
-                        return value;
-                    }
-
-                    values.Add(key, value.Value);
-                    keyLocations.Add(key, keyLocation);
-                    valueLocations.Add(
-                        key,
-                        LocatedYamlValue.GetLocation(value.Value) ?? keyLocation);
+                    parser.MoveNext();
+                    return ContentParseResult<object>.Success(
+                        new LocatedYamlMapping(values, keyLocations, valueLocations, location));
                 }
-
-                parser.MoveNext();
-                return ContentParseResult<object>.Success(
-                    new LocatedYamlMapping(values, keyLocations, valueLocations, location));
-            }
 
             default:
                 return NodeFailure(

@@ -17,7 +17,8 @@ public sealed class SiteQualityReport
     public SiteQualityReport(IEnumerable<SiteDiagnostic>? diagnostics = null)
     {
         var values = (diagnostics ?? []).ToArray();
-        if (values.Any(static value => value is null)) throw new ArgumentException("Diagnostics must not contain null entries.", nameof(diagnostics));
+        if (values.Any(static value => value is null))
+            throw new ArgumentException("Diagnostics must not contain null entries.", nameof(diagnostics));
         Diagnostics = new ReadOnlyCollection<SiteDiagnostic>(values
             .OrderBy(static value => value.Id, StringComparer.Ordinal)
             .ThenBy(static value => value.Location?.FilePath, StringComparer.Ordinal)
@@ -68,9 +69,12 @@ public sealed class SiteQualityReport
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
         {
-            writer.WriteStartObject(); writer.WriteStartArray("diagnostics");
-            foreach (var diagnostic in Diagnostics) WriteDiagnostic(writer, diagnostic);
-            writer.WriteEndArray(); writer.WriteEndObject();
+            writer.WriteStartObject();
+            writer.WriteStartArray("diagnostics");
+            foreach (var diagnostic in Diagnostics)
+                WriteDiagnostic(writer, diagnostic);
+            writer.WriteEndArray();
+            writer.WriteEndObject();
         }
         return Encoding.UTF8.GetString(stream.ToArray());
     }
@@ -80,10 +84,25 @@ public sealed class SiteQualityReport
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
         {
-            writer.WriteStartObject(); writer.WriteString("version", "2.1.0"); writer.WriteString("$schema", "https://json.schemastore.org/sarif-2.1.0.json");
-            writer.WriteStartArray("runs"); writer.WriteStartObject(); writer.WriteStartObject("tool"); writer.WriteStartObject("driver"); writer.WriteString("name", "LithoSharp"); writer.WriteStartArray("rules");
-            foreach (var id in Diagnostics.Select(static d => d.Id).Distinct(StringComparer.Ordinal)) { writer.WriteStartObject(); writer.WriteString("id", id); writer.WriteEndObject(); }
-            writer.WriteEndArray(); writer.WriteEndObject(); writer.WriteEndObject(); writer.WriteStartArray("results");
+            writer.WriteStartObject();
+            writer.WriteString("version", "2.1.0");
+            writer.WriteString("$schema", "https://json.schemastore.org/sarif-2.1.0.json");
+            writer.WriteStartArray("runs");
+            writer.WriteStartObject();
+            writer.WriteStartObject("tool");
+            writer.WriteStartObject("driver");
+            writer.WriteString("name", "LithoSharp");
+            writer.WriteStartArray("rules");
+            foreach (var id in Diagnostics.Select(static d => d.Id).Distinct(StringComparer.Ordinal))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", id);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+            writer.WriteStartArray("results");
             foreach (var diagnostic in Diagnostics)
             {
                 writer.WriteStartObject();
@@ -104,40 +123,57 @@ public sealed class SiteQualityReport
                     {
                         writer.WriteStartObject("region");
                         writer.WriteNumber("startLine", line);
-                        if (location.Column is { } column) writer.WriteNumber("startColumn", column);
-                        if (location.EndLine is { } endLine) writer.WriteNumber("endLine", endLine);
-                        if (location.EndColumn is { } endColumn) writer.WriteNumber("endColumn", endColumn);
+                        if (location.Column is { } column)
+                            writer.WriteNumber("startColumn", column);
+                        if (location.EndLine is { } endLine)
+                            writer.WriteNumber("endLine", endLine);
+                        if (location.EndColumn is { } endColumn)
+                            writer.WriteNumber("endColumn", endColumn);
                         writer.WriteEndObject();
                     }
                     writer.WriteEndObject();
                     writer.WriteEndObject();
                     writer.WriteEndArray();
                 }
-                if (diagnostic.Category is { } category) { writer.WriteStartObject("properties"); writer.WriteString("category", category); writer.WriteEndObject(); }
+                if (diagnostic.Category is { } category)
+                {
+                    writer.WriteStartObject("properties");
+                    writer.WriteString("category", category);
+                    writer.WriteEndObject();
+                }
                 if (diagnostic.RelatedLocations.Count > 0)
                 {
                     writer.WriteStartArray("relatedLocations");
                     foreach (var related in diagnostic.RelatedLocations)
                     {
-                        writer.WriteStartObject(); writer.WriteStartObject("physicalLocation"); writer.WriteStartObject("artifactLocation");
+                        writer.WriteStartObject();
+                        writer.WriteStartObject("physicalLocation");
+                        writer.WriteStartObject("artifactLocation");
                         writer.WriteString("uri", ArtifactUri(related.FilePath));
                         writer.WriteEndObject();
                         if (related.Line is { } relatedLine)
                         {
                             writer.WriteStartObject("region");
                             writer.WriteNumber("startLine", relatedLine);
-                            if (related.Column is { } relatedColumn) writer.WriteNumber("startColumn", relatedColumn);
-                            if (related.EndLine is { } relatedEndLine) writer.WriteNumber("endLine", relatedEndLine);
-                            if (related.EndColumn is { } relatedEndColumn) writer.WriteNumber("endColumn", relatedEndColumn);
+                            if (related.Column is { } relatedColumn)
+                                writer.WriteNumber("startColumn", relatedColumn);
+                            if (related.EndLine is { } relatedEndLine)
+                                writer.WriteNumber("endLine", relatedEndLine);
+                            if (related.EndColumn is { } relatedEndColumn)
+                                writer.WriteNumber("endColumn", relatedEndColumn);
                             writer.WriteEndObject();
                         }
-                        writer.WriteEndObject(); writer.WriteEndObject();
+                        writer.WriteEndObject();
+                        writer.WriteEndObject();
                     }
                     writer.WriteEndArray();
                 }
                 writer.WriteEndObject();
             }
-            writer.WriteEndArray(); writer.WriteEndObject(); writer.WriteEndArray(); writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject();
         }
         return Encoding.UTF8.GetString(stream.ToArray());
     }
@@ -145,7 +181,8 @@ public sealed class SiteQualityReport
     private static string ArtifactUri(string path)
     {
         path = path.Replace('\\', '/');
-        if (Path.IsPathRooted(path)) return new Uri(Path.GetFullPath(path)).AbsoluteUri;
+        if (Path.IsPathRooted(path))
+            return new Uri(Path.GetFullPath(path)).AbsoluteUri;
         return string.Join("/", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
     }
 
@@ -155,18 +192,42 @@ public sealed class SiteQualityReport
     private static void WriteLocationBody(Utf8JsonWriter writer, SiteSourceLocation location)
     {
         writer.WriteString("filePath", location.FilePath);
-        if (location.Line is { } line) writer.WriteNumber("line", line);
-        if (location.Column is { } column) writer.WriteNumber("column", column);
-        if (location.EndLine is { } endLine) writer.WriteNumber("endLine", endLine);
-        if (location.EndColumn is { } endColumn) writer.WriteNumber("endColumn", endColumn);
+        if (location.Line is { } line)
+            writer.WriteNumber("line", line);
+        if (location.Column is { } column)
+            writer.WriteNumber("column", column);
+        if (location.EndLine is { } endLine)
+            writer.WriteNumber("endLine", endLine);
+        if (location.EndColumn is { } endColumn)
+            writer.WriteNumber("endColumn", endColumn);
     }
 
     private static void WriteDiagnostic(Utf8JsonWriter writer, SiteDiagnostic diagnostic)
     {
-        writer.WriteStartObject(); writer.WriteString("id", diagnostic.Id); writer.WriteString("severity", diagnostic.Severity.ToString()); writer.WriteString("message", diagnostic.Message);
-        if (diagnostic.Category is { } category) writer.WriteString("category", category);
-        if (diagnostic.Location is { } location) { writer.WriteStartObject("location"); WriteLocationBody(writer, location); writer.WriteEndObject(); }
-        if (diagnostic.RelatedLocations.Count > 0) { writer.WriteStartArray("relatedLocations"); foreach (var related in diagnostic.RelatedLocations) { writer.WriteStartObject(); WriteLocationBody(writer, related); writer.WriteEndObject(); } writer.WriteEndArray(); }
+        writer.WriteStartObject();
+        writer.WriteString("id", diagnostic.Id);
+        writer.WriteString("severity", diagnostic.Severity.ToString());
+        writer.WriteString("message", diagnostic.Message);
+        if (diagnostic.Category is { } category)
+            writer.WriteString("category", category);
+        if (diagnostic.Location is { } location)
+        {
+            writer.WriteStartObject("location");
+            WriteLocationBody(writer, location);
+            writer.WriteEndObject();
+        }
+        if (diagnostic.RelatedLocations.Count > 0)
+        {
+            writer.WriteStartArray("relatedLocations");
+            foreach (var related in diagnostic.RelatedLocations)
+            {
+                writer.WriteStartObject();
+                WriteLocationBody(writer, related);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+        }
         writer.WriteEndObject();
     }
 }
@@ -175,7 +236,8 @@ public sealed class SiteQualityValidationException : InvalidOperationException
 {
     public SiteQualityValidationException(SiteQualityReport report) : base("Site quality validation failed.")
     {
-        ArgumentNullException.ThrowIfNull(report); Report = report;
+        ArgumentNullException.ThrowIfNull(report);
+        Report = report;
     }
     public SiteQualityReport Report { get; }
     public IReadOnlyList<SiteDiagnostic> Diagnostics => Report.Diagnostics;

@@ -11,36 +11,58 @@ internal static class ContentCommands
     {
         if (args[0] == "snapshot")
         {
-            if (args.Length != 4) throw new CliUsageException("Usage: snapshot <source> <destination> <version>");
+            if (args.Length != 4)
+                throw new CliUsageException("Usage: snapshot <source> <destination> <version>");
             await DocumentSnapshot.CreateAsync(args[1], args[2], args[3], cancellationToken);
             Console.WriteLine(Path.GetFullPath(args[2]));
             return 0;
         }
         if (args[0] == "restore-mdx")
         {
-            if (args.Length < 2 || args.Length > 3) throw new CliUsageException("Specify an input directory.");
+            if (args.Length < 2 || args.Length > 3)
+                throw new CliUsageException("Specify an input directory.");
             var root = Path.GetFullPath(args[1]);
-            if (args.Length == 3 && args[2] != "--allow-scripts") throw new CliUsageException("Only --allow-scripts is supported.");
+            if (args.Length == 3 && args[2] != "--allow-scripts")
+                throw new CliUsageException("Only --allow-scripts is supported.");
             if (!File.Exists(Path.Combine(root, "package-lock.json")) || !File.Exists(Path.Combine(root, "worker.mjs")))
                 throw new CliUsageException("Specify the packaged worker directory with its lockfile.");
             // npm.cmd is a Windows launcher; fixed arguments never contain user paths or shell syntax.
             var start = new ProcessStartInfo(OperatingSystem.IsWindows() ? "cmd.exe" : "npm") { WorkingDirectory = root, UseShellExecute = false };
-            if (OperatingSystem.IsWindows()) { start.ArgumentList.Add("/d"); start.ArgumentList.Add("/c"); start.ArgumentList.Add("npm.cmd"); }
-            start.ArgumentList.Add("ci"); start.ArgumentList.Add("--no-audit"); start.ArgumentList.Add("--no-fund");
-            if (args.Length == 2) start.ArgumentList.Add("--ignore-scripts");
+            if (OperatingSystem.IsWindows())
+            {
+                start.ArgumentList.Add("/d");
+                start.ArgumentList.Add("/c");
+                start.ArgumentList.Add("npm.cmd");
+            }
+            start.ArgumentList.Add("ci");
+            start.ArgumentList.Add("--no-audit");
+            start.ArgumentList.Add("--no-fund");
+            if (args.Length == 2)
+                start.ArgumentList.Add("--ignore-scripts");
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Cannot start npm.");
-            try { await process.WaitForExitAsync(cancellationToken); }
-            catch (OperationCanceledException) { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); throw; }
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync(CancellationToken.None);
+                throw;
+            }
             return process.ExitCode;
         }
         if (args[0] == "migrate-docusaurus")
         {
-            if (args.Length != 2) throw new CliUsageException("Usage: migrate-docusaurus <source>");
+            if (args.Length != 2)
+                throw new CliUsageException("Usage: migrate-docusaurus <source>");
             return await MigrateAsync(args[1], null, null, new(), cancellationToken);
         }
         if (args[0] == "migrate")
         {
-            if (args.Length < 3 || args[1] != "docusaurus") throw new CliUsageException("Usage: migrate docusaurus <source> [--output <directory>] [--expected-routes <file>] [--base-url <url>] [--default-locale <locale>] [--source-version <version>] [--source-base-path <path>] [--compare-normalized-pages]");
+            if (args.Length < 3 || args[1] != "docusaurus")
+                throw new CliUsageException("Usage: migrate docusaurus <source> [--output <directory>] [--expected-routes <file>] [--base-url <url>] [--default-locale <locale>] [--source-version <version>] [--source-base-path <path>] [--compare-normalized-pages]");
             string? output = null;
             string? expectedRoutes = null;
             string? sourceVersion = null;
@@ -52,20 +74,36 @@ internal static class ContentCommands
             {
                 string Next()
                 {
-                    if (++index >= args.Length) throw new CliUsageException($"Option '{args[index - 1]}' requires a value.");
+                    if (++index >= args.Length)
+                        throw new CliUsageException($"Option '{args[index - 1]}' requires a value.");
                     return args[index];
                 }
 
                 switch (args[index])
                 {
-                    case "--output": output = Next(); break;
-                    case "--expected-routes": expectedRoutes = Next(); break;
-                    case "--base-url": baseUrl = Next(); break;
-                    case "--default-locale": defaultLocale = Next(); break;
-                    case "--source-version": sourceVersion = Next(); break;
-                    case "--source-base-path": sourceBasePath = Next(); break;
-                    case "--compare-normalized-pages": compareNormalizedPages = true; break;
-                    default: throw new CliUsageException($"Unknown option '{args[index]}'.");
+                    case "--output":
+                        output = Next();
+                        break;
+                    case "--expected-routes":
+                        expectedRoutes = Next();
+                        break;
+                    case "--base-url":
+                        baseUrl = Next();
+                        break;
+                    case "--default-locale":
+                        defaultLocale = Next();
+                        break;
+                    case "--source-version":
+                        sourceVersion = Next();
+                        break;
+                    case "--source-base-path":
+                        sourceBasePath = Next();
+                        break;
+                    case "--compare-normalized-pages":
+                        compareNormalizedPages = true;
+                        break;
+                    default:
+                        throw new CliUsageException($"Unknown option '{args[index]}'.");
                 }
             }
 
@@ -77,17 +115,22 @@ internal static class ContentCommands
             };
             return await MigrateAsync(args[2], output, expectedRoutes, migrationOptions, cancellationToken, sourceVersion, sourceBasePath);
         }
-        if (args.Length < 2 || args.Length > 3) throw new CliUsageException("Specify an input directory.");
+        if (args.Length < 2 || args.Length > 3)
+            throw new CliUsageException("Specify an input directory.");
         var scanRoot = Path.GetFullPath(args[1]);
-        if (args.Length != 2) throw new CliUsageException("This command accepts only an input directory.");
+        if (args.Length != 2)
+            throw new CliUsageException("This command accepts only an input directory.");
         var files = Directory.EnumerateFiles(scanRoot, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
             .Where(file => !Path.GetRelativePath(scanRoot, file).Split(Path.DirectorySeparatorChar).Any(segment => segment is "node_modules" or ".git" or "bin" or "obj"))
             .Where(file => Path.GetExtension(file) is ".md" or ".mdx" or ".js" or ".jsx" or ".ts" or ".tsx" or ".json").Order(StringComparer.Ordinal).ToArray();
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var file in files) texts.Add(Path.GetRelativePath(scanRoot, file).Replace('\\', '/'), await File.ReadAllTextAsync(file, cancellationToken));
+        foreach (var file in files)
+            texts.Add(Path.GetRelativePath(scanRoot, file).Replace('\\', '/'), await File.ReadAllTextAsync(file, cancellationToken));
         object report;
-        if (args[0] == "extract-translations") report = texts.Values.SelectMany(TranslationCatalog.ExtractKeys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToDictionary(key => key, _ => "");
-        else throw new CliUsageException($"Unknown command '{args[0]}'.");
+        if (args[0] == "extract-translations")
+            report = texts.Values.SelectMany(TranslationCatalog.ExtractKeys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToDictionary(key => key, _ => "");
+        else
+            throw new CliUsageException($"Unknown command '{args[0]}'.");
         Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
         return 0;
     }
@@ -274,8 +317,10 @@ internal static class ContentCommands
 
     private static string? OptionalString(JsonElement element, string propertyName)
     {
-        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind == JsonValueKind.Null) return null;
-        if (value.ValueKind != JsonValueKind.String) throw new CliUsageException($"Route-oracle field '{propertyName}' must be a string or null.");
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind == JsonValueKind.Null)
+            return null;
+        if (value.ValueKind != JsonValueKind.String)
+            throw new CliUsageException($"Route-oracle field '{propertyName}' must be a string or null.");
         return value.GetString();
     }
 
@@ -285,7 +330,8 @@ internal static class ContentCommands
         foreach (var candidate in Enum.GetValues<MigrationRouteCategory>())
         {
             var name = new string(candidate.ToString().Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
-            if (!string.Equals(normalized, name, StringComparison.Ordinal)) continue;
+            if (!string.Equals(normalized, name, StringComparison.Ordinal))
+                continue;
             category = candidate;
             return true;
         }

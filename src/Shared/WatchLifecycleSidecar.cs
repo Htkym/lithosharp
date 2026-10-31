@@ -24,7 +24,10 @@ internal sealed class WatchLifecycleSidecar
         HostId = hostId;
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (file is not null && Path.IsPathFullyQualified(file) && deadline > now && deadline <= now + 300000)
-        { path = file; until = deadline; }
+        {
+            path = file;
+            until = deadline;
+        }
     }
 
     internal static WatchLifecycleSidecar FromEnvironment()
@@ -38,7 +41,8 @@ internal sealed class WatchLifecycleSidecar
         long generation = 0, int restartReasons = 0, Guid? hostId = null, Guid? workerId = null, int? exitCode = null,
         Exception? watcherError = null)
     {
-        if (path is null || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until) return;
+        if (path is null || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until)
+            return;
         lock (gate)
         {
             try
@@ -47,35 +51,47 @@ internal sealed class WatchLifecycleSidecar
                 // the single capture's byte bound across parent/host processes.
                 // Contention is dropped without waiting or affecting the build.
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
-                if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until) return;
+                if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() >= until)
+                    return;
                 var record = JsonSerializer.Serialize(new
                 {
-                    schemaVersion = 2, utcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    writerId = writer.ToString("N"), hostId = (hostId ?? HostId).ToString("N"),
-                    workerId = workerId?.ToString("N"), @event = kind.ToString(), reason = reason.ToString(),
-                    generation, restartReasons, exitCode, droppedBefore = dropped,
+                    schemaVersion = 2,
+                    utcUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    writerId = writer.ToString("N"),
+                    hostId = (hostId ?? HostId).ToString("N"),
+                    workerId = workerId?.ToString("N"),
+                    @event = kind.ToString(),
+                    reason = reason.ToString(),
+                    generation,
+                    restartReasons,
+                    exitCode,
+                    droppedBefore = dropped,
                     // Never serialize exception names from user types, messages,
                     // paths, stacks, Data or inner exceptions into the sidecar.
-                    watcherErrorType = KnownWatcherErrorType(watcherError), watcherHResult = watcherError?.HResult,
+                    watcherErrorType = KnownWatcherErrorType(watcherError),
+                    watcherHResult = watcherError?.HResult,
                     watcherNativeErrorCode = watcherError?.GetType() == typeof(System.ComponentModel.Win32Exception)
                         ? (int?)((System.ComponentModel.Win32Exception)watcherError).NativeErrorCode : null,
                 });
                 var bytes = Encoding.UTF8.GetBytes(record + "\n");
-                if (stream.Length > MaximumBytes - bytes.Length) return;
+                if (stream.Length > MaximumBytes - bytes.Length)
+                    return;
                 stream.Seek(0, SeekOrigin.End);
                 stream.Write(bytes);
                 dropped = 0;
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                if (dropped < int.MaxValue) dropped++;
+                if (dropped < int.MaxValue)
+                    dropped++;
             }
         }
     }
 
     private static string? KnownWatcherErrorType(Exception? error)
     {
-        if (error is null) return null;
+        if (error is null)
+            return null;
         var type = error.GetType();
         return type == typeof(InternalBufferOverflowException) ? nameof(InternalBufferOverflowException)
             : type == typeof(IOException) ? nameof(IOException)

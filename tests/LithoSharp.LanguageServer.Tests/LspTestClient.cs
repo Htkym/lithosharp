@@ -171,7 +171,8 @@ internal sealed class LspTestClient : IAsyncDisposable
     /// <summary>Validates every remaining stdout byte after the owned server exits.</summary>
     public async Task DrainStdoutAsync()
     {
-        if (!process.HasExited) throw new InvalidOperationException("Exit is required before draining stdout.");
+        if (!process.HasExited)
+            throw new InvalidOperationException("Exit is required before draining stdout.");
         var chunk = new byte[8192];
         int count;
         while ((count = await process.StandardOutput.BaseStream.ReadAsync(chunk.AsMemory())
@@ -180,7 +181,8 @@ internal sealed class LspTestClient : IAsyncDisposable
             pendingBytes.AddRange(chunk.Take(count));
             Received.AddRange(Extract(pendingBytes));
         }
-        if (pendingBytes.Count != 0) throw new InvalidDataException("Unframed or incomplete stdout at EOF.");
+        if (pendingBytes.Count != 0)
+            throw new InvalidDataException("Unframed or incomplete stdout at EOF.");
     }
 
     private static IEnumerable<JsonElement> Extract(List<byte> pending)
@@ -206,7 +208,8 @@ internal sealed class LspTestClient : IAsyncDisposable
                 else if (!line.StartsWith("Content-Type:", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Unexpected non-protocol stdout header.");
             }
-            if (length == -1) throw new InvalidDataException("Content-Length missing on stdout.");
+            if (length == -1)
+                throw new InvalidDataException("Content-Length missing on stdout.");
 
             if (pending.Count - (headerEnd + 4) < length)
             {
@@ -313,7 +316,8 @@ internal sealed class LspTestClient : IAsyncDisposable
                     // itself fails or races the process exit.
                     try
                     {
-                        if (!process.HasExited) process.Kill(entireProcessTree: true);
+                        if (!process.HasExited)
+                            process.Kill(entireProcessTree: true);
                         await process.WaitForExitAsync().ConfigureAwait(false);
                     }
                     catch (Exception cleanupFailure)

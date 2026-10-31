@@ -21,29 +21,36 @@ internal static class FixedHtmlAnchorAnalysis
 
     internal static void Analyze(CompilationAnalysisContext context)
     {
-        if (!FixedHtmlPlanModel.Core(context.Compilation.GetTypeByMetadataName("LithoSharp.Content.FixedHtmlSiteAttribute"), "LithoSharp.Content.FixedHtmlSiteAttribute")) return;
+        if (!FixedHtmlPlanModel.Core(context.Compilation.GetTypeByMetadataName("LithoSharp.Content.FixedHtmlSiteAttribute"), "LithoSharp.Content.FixedHtmlSiteAttribute"))
+            return;
         var fingerprint = FixedHtmlPlanModel.Fingerprint(context.Compilation, context.Options.AdditionalFiles, context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken);
-        if (fingerprint is null) return;
+        if (fingerprint is null)
+            return;
         var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            if (StaticManifestFingerprint.OwnGenerated(tree)) continue;
+            if (StaticManifestFingerprint.OwnGenerated(tree))
+                continue;
             var semantic = context.Compilation.GetSemanticModel(tree);
             foreach (var declaration in tree.GetRoot(context.CancellationToken).DescendantNodes().OfType<ClassDeclarationSyntax>())
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
-                if (semantic.GetDeclaredSymbol(declaration, context.CancellationToken) is not INamedTypeSymbol symbol || !seen.Add(symbol)) continue;
+                if (semantic.GetDeclaredSymbol(declaration, context.CancellationToken) is not INamedTypeSymbol symbol || !seen.Add(symbol))
+                    continue;
                 var model = FixedHtmlPlanModel.Read(symbol, context.CancellationToken);
-                if (model is null || model.Pages.Count > 64 || symbol.StaticConstructors.Any(c => !c.IsImplicitlyDeclared)) continue;
+                if (model is null || model.Pages.Count > 64 || symbol.StaticConstructors.Any(c => !c.IsImplicitlyDeclared))
+                    continue;
                 var members = symbol.GetMembers("FixedHtmlPlan");
                 if (members.Length != 1 || members[0] is not IPropertySymbol property
                     || property.SetMethod is not null || !FixedHtmlPlanModel.Core(property.Type, "LithoSharp.Content.FixedHtmlSitePlan")
-                    || property.DeclaringSyntaxReferences.Length != 1) continue;
+                    || property.DeclaringSyntaxReferences.Length != 1)
+                    continue;
                 var ownerTree = property.DeclaringSyntaxReferences[0].SyntaxTree;
                 // A generated-looking path or attribute alone is not evidence. Reconstruct the exact owner
                 // from current original buffers and bind it to the actual immutable Core entry point.
-                if (!StaticManifestFingerprint.OwnGenerated(ownerTree) || ownerTree.GetText(context.CancellationToken).ToString() != model.Emit(fingerprint)) continue;
+                if (!StaticManifestFingerprint.OwnGenerated(ownerTree) || ownerTree.GetText(context.CancellationToken).ToString() != model.Emit(fingerprint))
+                    continue;
                 var ownerSyntax = property.DeclaringSyntaxReferences[0].GetSyntax(context.CancellationToken) as PropertyDeclarationSyntax;
                 if (ownerSyntax?.ExpressionBody is null || context.Compilation.GetSemanticModel(ownerTree)
                     .GetOperation(ownerSyntax.ExpressionBody.Expression, context.CancellationToken) is not IObjectCreationOperation owner
@@ -51,7 +58,8 @@ internal static class FixedHtmlAnchorAnalysis
                     || constructor.Parameters.Length != 3 || StaticValueFlow.HasBindingError(owner)
                     || constructor.Parameters[0].Type.SpecialType != SpecialType.System_String
                     || constructor.Parameters.Skip(1).Any(parameter => parameter.Type is not IArrayTypeSymbol
-                        { Rank: 1, ElementType.SpecialType: SpecialType.System_String })) continue;
+                    { Rank: 1, ElementType.SpecialType: SpecialType.System_String }))
+                    continue;
                 AnalyzePlan(context, model, fingerprint);
             }
         }
@@ -61,18 +69,22 @@ internal static class FixedHtmlAnchorAnalysis
 
     private static Page? ReadPage(CompilationAnalysisContext context, FixedHtmlPageModel page)
     {
-        if (page.Method.DeclaringSyntaxReferences[0].GetSyntax(context.CancellationToken) is not MethodDeclarationSyntax syntax) return null;
+        if (page.Method.DeclaringSyntaxReferences[0].GetSyntax(context.CancellationToken) is not MethodDeclarationSyntax syntax)
+            return null;
         var expression = syntax.ExpressionBody?.Expression
             ?? (syntax.Body?.Statements.Count == 1 && syntax.Body.Statements[0] is ReturnStatementSyntax statement ? statement.Expression : null);
-        if (expression is null) return null;
+        if (expression is null)
+            return null;
         var semantic = context.Compilation.GetSemanticModel(syntax.SyntaxTree);
         if (semantic.GetOperation(expression, context.CancellationToken) is not IInvocationOperation call
             || !FixedHtmlPlanModel.Core(call.TargetMethod.ContainingType, "LithoSharp.Html")
             || call.TargetMethod.Name != "UnsafeRaw" || !call.TargetMethod.IsStatic || call.TargetMethod.Arity != 0
             || call.Arguments.Length != 1 || call.TargetMethod.Parameters[0].Type.SpecialType != SpecialType.System_String
-            || StaticValueFlow.HasBindingError(call)) return null;
+            || StaticValueFlow.HasBindingError(call))
+            return null;
         var origins = HtmlLiteralAnalysis.LiteralOrigins(call.Arguments[0].Value, context.CancellationToken);
-        if (origins?.Alternatives.Count != 1) return null;
+        if (origins?.Alternatives.Count != 1)
+            return null;
         var origin = origins.Alternatives[0];
         var facts = HtmlLiteralAnalysis.Parse(origin.Value, context.CancellationToken);
         return facts.AllowsClosedAnchors ? new(page, origin, facts) : null;
@@ -86,22 +98,27 @@ internal static class FixedHtmlAnchorAnalysis
         var origin = site.GetLeftPart(UriPartial.Authority);
         foreach (var source in pages.Values)
         {
-            if (source is null) continue;
+            if (source is null)
+                continue;
             var sourceUrl = new Uri(site, source.Model.PublicPath);
             foreach (var reference in source.Facts.Urls)
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
                 if (reference.ElementNamespace != HtmlNamespaces.Html || reference.AttributeNamespace is not null
-                    || reference.ElementName is not ("a" or "area") || reference.AttributeName != "href") continue;
+                    || reference.ElementName is not ("a" or "area") || reference.AttributeName != "href")
+                    continue;
                 var value = reference.Value.Value.Trim();
                 if (!value.StartsWith("/", StringComparison.Ordinal) || value.StartsWith("//", StringComparison.Ordinal)
                     || !Uri.TryCreate(sourceUrl, value, out var address) || address.Query.Length != 0 || address.Fragment.Length <= 1
                     || !SiteQualityUrlRules.TryInternalOutputPath(address, origin, root, out var path)
-                    || !pages.TryGetValue(path, out var target) || target is null) continue;
+                    || !pages.TryGetValue(path, out var target) || target is null)
+                    continue;
                 var fragment = SiteQualityUrlRules.DecodedFragment(address);
-                if (target.Facts.Anchors.Contains(fragment, StringComparer.Ordinal)) continue;
+                if (target.Facts.Anchors.Contains(fragment, StringComparer.Ordinal))
+                    continue;
                 var location = source.Origin.Map(reference.Value.Source);
-                if (location is null || location.SourceTree is null) continue;
+                if (location is null || location.SourceTree is null)
+                    continue;
                 var properties = ImmutableDictionary<string, string?>.Empty.Add("scope", "fixed-html-plan-page")
                     .Add("scopeState", "Closed").Add("freshness", "Fresh").Add("fingerprint", fingerprint)
                     .Add("sourcePage", source.Model.Method.Name).Add("targetPage", target.Model.Method.Name)

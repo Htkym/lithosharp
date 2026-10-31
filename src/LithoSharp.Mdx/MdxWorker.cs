@@ -32,19 +32,26 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
             {
                 var start = new ProcessStartInfo(options.NodeExecutable)
                 {
-                    WorkingDirectory = options.WorkerDirectory, UseShellExecute = false, CreateNoWindow = true,
-                    RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
-                    StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = new UTF8Encoding(false, true),
+                    WorkingDirectory = options.WorkerDirectory,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    StandardInputEncoding = new UTF8Encoding(false),
+                    StandardOutputEncoding = new UTF8Encoding(false, true),
                     StandardErrorEncoding = new UTF8Encoding(false)
                 };
                 start.ArgumentList.Add(Path.Combine(options.WorkerDirectory, "worker.mjs"));
                 start.Environment.Clear();
                 foreach (var name in new[] { "PATH", "SystemRoot", "TEMP", "TMP" })
-                    if (System.Environment.GetEnvironmentVariable(name) is { } value) start.Environment[name] = value;
+                    if (System.Environment.GetEnvironmentVariable(name) is { } value)
+                        start.Environment[name] = value;
                 start.Environment["NODE_ENV"] = "production";
                 foreach (var pair in options.Environment)
                 {
-                    if (pair.Key is "NODE_OPTIONS" or "NODE_PATH") throw new ArgumentException("Node loader overrides must not be passed as MDX environment data.");
+                    if (pair.Key is "NODE_OPTIONS" or "NODE_PATH")
+                        throw new ArgumentException("Node loader overrides must not be passed as MDX environment data.");
                     start.Environment[pair.Key] = pair.Value;
                 }
                 process = StartWorker(start);
@@ -59,7 +66,8 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                     throw Failure("LSMDX003", ReadinessMismatchMessage(ready));
             }
             var json = JsonSerializer.Serialize(request, MdxJson.Options);
-            if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes) throw Failure("LSMDX003", "MDX request exceeds the configured message size.");
+            if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes)
+                throw Failure("LSMDX003", "MDX request exceeds the configured message size.");
             await process.StandardInput.WriteLineAsync(json.AsMemory(), timeout.Token).ConfigureAwait(false);
             await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
             var response = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
@@ -80,10 +88,14 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
         catch (Exception error) when (error is IOException or JsonException or KeyNotFoundException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             await StopAsync(WatchLifecycleReason.ProtocolOrIoFailure).ConfigureAwait(false);
-            if (error is SiteBuildExtensionException) throw;
+            if (error is SiteBuildExtensionException)
+                throw;
             throw Failure("LSMDX003", $"The MDX worker failed: {error.Message}");
         }
-        finally { gate.Release(); }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     private static string ReadinessMismatchMessage(JsonElement ready)
@@ -95,7 +107,8 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
             if (!ready.TryGetProperty(name, out var item) || item.ValueKind != JsonValueKind.String)
                 return "[invalid]";
             var value = item.GetString();
-            if (value is null || value.Length > 11) return "[invalid]";
+            if (value is null || value.Length > 11)
+                return "[invalid]";
             var parts = value.Split('.');
             return parts.Length == 3 && parts.All(part => part.Length is >= 1 and <= 3 && part.All(char.IsAsciiDigit))
                 ? value : "[invalid]";
@@ -120,17 +133,20 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
             {
                 buffered = await process!.StandardOutput.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 offset = 0;
-                if (buffered == 0) throw Failure("LSMDX003", "The worker closed its response stream. " + stderr);
+                if (buffered == 0)
+                    throw Failure("LSMDX003", "The worker closed its response stream. " + stderr);
             }
             var character = buffer[offset++];
             if (character == '\n')
             {
                 var json = message.ToString();
-                if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes) throw Failure("LSMDX003", "Worker response exceeds the configured message size.");
+                if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes)
+                    throw Failure("LSMDX003", "Worker response exceeds the configured message size.");
                 using var document = JsonDocument.Parse(json);
                 return document.RootElement.Clone();
             }
-            if (message.Length >= options.MaximumMessageBytes) throw Failure("LSMDX003", "Worker response exceeds the configured message size.");
+            if (message.Length >= options.MaximumMessageBytes)
+                throw Failure("LSMDX003", "Worker response exceeds the configured message size.");
             message.Append(character);
         }
     }
@@ -148,24 +164,39 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
 
     private async Task StopAsync(WatchLifecycleReason reason)
     {
-        if (process is null) return;
+        if (process is null)
+            return;
         lifecycle.Write(WatchLifecycleEvent.WorkerStopRequested, reason, workerId: workerId);
         startReason = reason;
         try
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync().ConfigureAwait(false);
-            if (stderrTask is not null) await stderrTask.ConfigureAwait(false);
+            if (stderrTask is not null)
+                await stderrTask.ConfigureAwait(false);
             lifecycle.Write(WatchLifecycleEvent.WorkerExited, reason, workerId: workerId, exitCode: process.ExitCode);
         }
-        finally { process.Dispose(); process = null; buffered = offset = 0; stderrTask = null; }
+        finally
+        {
+            process.Dispose();
+            process = null;
+            buffered = offset = 0;
+            stderrTask = null;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         await gate.WaitAsync().ConfigureAwait(false);
-        try { await StopAsync(WatchLifecycleReason.Dispose).ConfigureAwait(false); }
-        finally { gate.Release(); }
+        try
+        {
+            await StopAsync(WatchLifecycleReason.Dispose).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     internal static SiteBuildExtensionException Failure(string id, string message, string? file = null, int? line = null, int? column = null) =>
