@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using LithoSharp.Diagnostics;
@@ -156,18 +157,87 @@ public sealed class ExternalLinkCheckerTests
             },
             new ExternalLinkCheckOptions(path, minimumRequestInterval: TimeSpan.FromMilliseconds(40)), CancellationToken.None, handler);
 
-        await Assert.That(handler.RequestTimes[1] - handler.RequestTimes[0]).IsGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(30));
+        await Assert.That(Stopwatch.GetElapsedTime(handler.RequestTimes[0], handler.RequestTimes[1])).IsGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(30));
         File.Delete(path);
+    }
+
+    [Test]
+    public async Task CheckAsync_SerializesOverlappingChecksAndCancelsQueuedRequests()
+    {
+        using var workspace = new TemporaryWorkspace();
+        using var cancellation = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        long completed = 0;
+        using var firstHandler = new RecordingHandler(async (_, token) =>
+        {
+            started.SetResult();
+            await release.Task.WaitAsync(token);
+            completed = Stopwatch.GetTimestamp();
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        using var queuedHandler = new RecordingHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        using var nextHandler = new RecordingHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        var links = new Dictionary<string, SiteSourceLocation> { ["https://example.test/page"] = new("page.md") };
+        var first = ExternalLinkChecker.CheckAsync(links,
+            new ExternalLinkCheckOptions(Path.Combine(workspace.Root, "first.json"), minimumRequestInterval: TimeSpan.Zero),
+            CancellationToken.None, firstHandler);
+        Task<IReadOnlyList<SiteDiagnostic>>? next = null;
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var queued = ExternalLinkChecker.CheckAsync(links,
+                new ExternalLinkCheckOptions(Path.Combine(workspace.Root, "queued.json"), minimumRequestInterval: TimeSpan.Zero),
+                cancellation.Token, queuedHandler);
+            cancellation.Cancel();
+            await Assert.That(async () => await queued).Throws<OperationCanceledException>();
+            await Assert.That(queuedHandler.Methods).IsEmpty();
+
+            next = ExternalLinkChecker.CheckAsync(links,
+                new ExternalLinkCheckOptions(Path.Combine(workspace.Root, "next.json"), minimumRequestInterval: TimeSpan.FromMilliseconds(40)),
+                CancellationToken.None, nextHandler);
+            await Assert.That(nextHandler.Methods).IsEmpty();
+            release.SetResult();
+            await Assert.That(await first).IsEmpty();
+            await Assert.That(await next).IsEmpty();
+            await Assert.That(Stopwatch.GetElapsedTime(completed, nextHandler.RequestTimes[0])).IsGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(30));
+        }
+        finally
+        {
+            release.TrySetResult();
+            await first;
+            if (next is not null) await next;
+        }
+    }
+
+    [Test]
+    public async Task CheckAsync_RateLimitsHeadFallbackAndRedirects()
+    {
+        using var workspace = new TemporaryWorkspace();
+        using var handler = new RecordingHandler((request, _) => Task.FromResult(
+            request.RequestUri!.AbsolutePath == "/new" ? new HttpResponseMessage(HttpStatusCode.OK)
+            : request.Method == HttpMethod.Head ? new HttpResponseMessage(HttpStatusCode.MethodNotAllowed)
+            : new HttpResponseMessage(HttpStatusCode.Redirect) { Headers = { Location = new Uri("/new", UriKind.Relative) } }));
+        var result = await ExternalLinkChecker.CheckAsync(
+            new Dictionary<string, SiteSourceLocation> { ["https://example.test/old"] = new("page.md") },
+            new ExternalLinkCheckOptions(Path.Combine(workspace.Root, "cache.json"), minimumRequestInterval: TimeSpan.FromMilliseconds(40)),
+            CancellationToken.None, handler);
+
+        await Assert.That(result).IsEmpty();
+        await Assert.That(handler.Methods).IsEquivalentTo(["HEAD", "GET", "HEAD"]);
+        await Assert.That(handler.RequestUris).IsEquivalentTo(["https://example.test/old", "https://example.test/old", "https://example.test/new"]);
+        for (var index = 1; index < handler.RequestTimes.Count; index++)
+            await Assert.That(Stopwatch.GetElapsedTime(handler.RequestTimes[index - 1], handler.RequestTimes[index])).IsGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(30));
     }
 
     private sealed class RecordingHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> callback) : HttpMessageHandler
     {
         public List<string> Methods { get; } = [];
         public List<string> RequestUris { get; } = [];
-        public List<DateTimeOffset> RequestTimes { get; } = [];
+        public List<long> RequestTimes { get; } = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Methods.Add(request.Method.Method); RequestUris.Add(request.RequestUri!.ToString()); RequestTimes.Add(DateTimeOffset.UtcNow);
+            Methods.Add(request.Method.Method); RequestUris.Add(request.RequestUri!.ToString()); RequestTimes.Add(Stopwatch.GetTimestamp());
             return await callback(request, cancellationToken);
         }
     }
