@@ -1,6 +1,7 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
+using LithoSharp.Inspection;
 using LithoSharp.Pages;
 using LithoSharp.Quality;
 using LithoSharp.Routing;
@@ -160,6 +161,24 @@ public sealed class SiteTestHostTests
                 using var document = await host.OpenPageAsync(article.PublicPath);
                 document.AssertElement("picture img[loading='lazy']");
                 document.AssertAttribute("source[type='image/webp']", "srcset", image.PublicPath + " 128w");
+                document.AssertAttribute("a[href='/articles/second/']", "href", "/articles/second/");
+                var sample = Path.Combine(repository.FullName, "samples", folder);
+                var source = await File.ReadAllTextAsync(Path.Combine(sample, "typed-content", "first.md"));
+                var inspected = DocumentInspection.Inspect("typed-content/first.md", source);
+                await Assert.That(inspected.ProjectStatus).IsEqualTo(DocumentProjectStatus.NoContext);
+                await Assert.That(inspected.Headings.Count).IsEqualTo(1);
+                await Assert.That(inspected.SchemaName).IsNull();
+                var report = await GeneratedSiteInspector.InspectAsync(host.OutputDirectory, "https://example.com/");
+                await Assert.That(report.Diagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)).IsFalse();
+                var articlePath = Path.Combine(host.OutputDirectory, article.RelativeOutputPath);
+                var html = await File.ReadAllTextAsync(articlePath);
+                var brokenLink = await File.ReadAllTextAsync(Path.Combine(sample, "examples", "broken-output.html"));
+                await File.WriteAllTextAsync(articlePath, html.Replace("</body>", brokenLink + "</body>", StringComparison.Ordinal));
+                report = await GeneratedSiteInspector.InspectAsync(host.OutputDirectory, "https://example.com/");
+                var error = report.Diagnostics.Single(diagnostic => diagnostic.Id == "LSQ001");
+                await Assert.That(error.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
+                await Assert.That(error.Location!.FilePath).IsEqualTo(article.RelativeOutputPath);
+                await Assert.That(error.Message).Contains("missing-from-example");
             }
         }
     }

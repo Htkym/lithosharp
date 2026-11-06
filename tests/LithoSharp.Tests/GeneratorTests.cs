@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using LithoSharp.Analyzers;
 using LithoSharp.Content;
 using LithoSharp.Generators;
 using Microsoft.CodeAnalysis;
@@ -10,6 +11,82 @@ namespace LithoSharp.Tests;
 
 public sealed class GeneratorTests
 {
+    [Test]
+    public async Task DocsSampleReferencesDistinguishClosedContradictionFromDynamicInput()
+    {
+        var repository = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "LithoSharp.slnx")))
+        {
+            repository = repository.Parent;
+        }
+        if (repository is null)
+            throw new InvalidOperationException("Repository root not found.");
+        var sample = Path.Combine(repository.FullName, "samples", "LithoSharp.DocsSample");
+        var model = "using System;\nusing System.Collections.Generic;\n" +
+            await File.ReadAllTextAsync(Path.Combine(sample, "SampleModels.cs"));
+        var inputs = new[] { "first", "second" }.Select(name => new Input(
+            Path: "C:/site/typed-content/" + name + ".md",
+            Content: File.ReadAllText(Path.Combine(sample, "typed-content", name + ".md")),
+            Id: name + ".md", Route: "articles/" + name + "/", Collection: "articles")).ToArray();
+        foreach (var name in new[] { "conflicting-reference", "dynamic-reference" })
+        {
+            var source = await File.ReadAllTextAsync(Path.Combine(sample, "examples", name + ".cs.txt"));
+            var initial = CreateCompilation(model);
+            var example = CSharpSyntaxTree.ParseText(source, (CSharpParseOptions)initial.SyntaxTrees.First().Options,
+                "C:/site/" + name + ".cs");
+            var (compilation, generated) = Generate(initial.AddSyntaxTrees(example), inputs);
+            await Assert.That(Errors(generated)).IsEqualTo(string.Empty);
+            await Assert.That(Errors(compilation.GetDiagnostics())).IsEqualTo(string.Empty);
+            var diagnostics = await compilation.WithAnalyzers([new StaticUrlAnalyzer()],
+                new AnalyzerOptions(inputs.Select(input => (AdditionalText)new Text(input)).ToImmutableArray(), new OptionsProvider()))
+                .GetAnalyzerDiagnosticsAsync();
+            await Assert.That(diagnostics.Any(item => item.Id == "AD0001")).IsFalse();
+            if (name == "conflicting-reference")
+            {
+                var diagnostic = diagnostics.Single();
+                await Assert.That(diagnostic.Id).IsEqualTo("LSA1402");
+                await Assert.That(diagnostic.Severity).IsEqualTo(DiagnosticSeverity.Error);
+                await Assert.That(diagnostic.Properties["coverage"]).IsEqualTo("Closed");
+            }
+            else
+            {
+                await Assert.That(diagnostics.Any(item => item.Id == "LSA1402")).IsFalse();
+            }
+        }
+    }
+
+    [Test]
+    public async Task DocsSampleSchemaReportsItsPublishedInvalidExamplesBeforeGeneration()
+    {
+        var repository = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "LithoSharp.slnx")))
+        {
+            repository = repository.Parent;
+        }
+        if (repository is null)
+            throw new InvalidOperationException("Repository root not found.");
+        var sample = Path.Combine(repository.FullName, "samples", "LithoSharp.DocsSample");
+        var model = "using System;\nusing System.Collections.Generic;\n" +
+            await File.ReadAllTextAsync(Path.Combine(sample, "SampleModels.cs"));
+        var first = new Input("C:/site/typed-content/first.md",
+            await File.ReadAllTextAsync(Path.Combine(sample, "typed-content", "first.md")),
+            Id: "first.md", Route: "articles/first/", Collection: "articles");
+        var second = new Input("C:/site/typed-content/second.md",
+            await File.ReadAllTextAsync(Path.Combine(sample, "typed-content", "second.md")),
+            Id: "second.md", Route: "articles/second/", Collection: "articles");
+        var (compilation, valid) = Generate(model, first, second);
+        await Assert.That(Errors(valid)).IsEqualTo(string.Empty);
+        await Assert.That(Errors(compilation.GetDiagnostics())).IsEqualTo(string.Empty);
+        foreach (var name in new[] { "missing-title.md", "wrong-type.md" })
+        {
+            var content = await File.ReadAllTextAsync(Path.Combine(sample, "examples", name));
+            var (_, invalid) = Generate(model, first with { Content = content }, second);
+            var diagnostic = invalid.Single(item => item.Severity == DiagnosticSeverity.Error);
+            await Assert.That(diagnostic.Id).IsEqualTo("LSG006");
+            await Assert.That(diagnostic.Location.GetLineSpan().Path).IsEqualTo(first.Path);
+        }
+    }
+
     private const string Model = """
         #nullable enable
         using System.Collections.Generic;
@@ -515,8 +592,10 @@ public sealed class GeneratorTests
         """;
 
     private static (Compilation Compilation, ImmutableArray<Diagnostic> Diagnostics) Generate(string source, params Input[] inputs)
+        => Generate(CreateCompilation(source), inputs);
+
+    private static (Compilation Compilation, ImmutableArray<Diagnostic> Diagnostics) Generate(CSharpCompilation compilation, params Input[] inputs)
     {
-        var compilation = CreateCompilation(source);
         var texts = inputs.Select(input => new Text(input)).ToArray();
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new StaticContentGenerator().AsSourceGenerator()], texts,
             (CSharpParseOptions)compilation.SyntaxTrees.First().Options, new OptionsProvider());
