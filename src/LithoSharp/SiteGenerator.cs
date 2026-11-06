@@ -320,16 +320,6 @@ public sealed partial class SiteGenerator
         var publishedPosts = publishedMarkdownClaims
             .Select(claim => claim.Page.Content)
             .ToArray();
-        // Unsupported-syntax warnings (for example, footnotes kept as literal
-        // text) are reported once per generation from the post bodies directly,
-        // so clean and incremental builds report identically without extra parses.
-        var compilerWarnings = publishedPosts
-            .SelectMany(post => post.CompilerDiagnostics ?? new[]
-            {
-                LithoLimits.FindFootnoteWarning(post.MarkdownBody, post.FilePath),
-                LithoLimits.FindBrowserAssetWarning(post.MarkdownBody, post.FilePath),
-            }.OfType<LithoSharp.Diagnostics.SiteDiagnostic>())
-            .ToArray();
         var publishedExtraPages = publishedExtraPageClaims
             .Select(claim => claim.Page.Content)
             .ToArray();
@@ -604,6 +594,7 @@ public sealed partial class SiteGenerator
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
+        IReadOnlyList<SiteDiagnostic> compilerWarnings = [];
         var committed = false;
         var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
         async Task VerifyQualityOutputAsync(string root)
@@ -738,6 +729,13 @@ public sealed partial class SiteGenerator
 
                 modifiedInStaging.AddRange(generatedInStaging);
             }
+
+            // Reader diagnostics belong to the original, untrimmed source snapshot.
+            // Otherwise reuse the final body's compilation, including on no-op builds
+            // after its persistent cache is attached. Never merge these snapshots.
+            compilerWarnings = publishedPosts
+                .SelectMany(post => post.CompilerDiagnostics ?? CompilePostBody(configuration, post).Diagnostics)
+                .ToArray();
 
             staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
                     currentOwnedPaths, cancellationToken, InScope)
@@ -1185,10 +1183,19 @@ public sealed partial class SiteGenerator
             }
         }
 
-        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, null, cancellation);
+        // Directly constructed posts retain the legacy warning policy: positions
+        // are relative to the supplied body, starting at line one. Reader warnings
+        // retain their separate original-file positions in CompilerDiagnostics.
+        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, new DocumentSource(post.FilePath, 0), cancellation);
         var errors = (analyzed.Semantics?.Diagnostics ?? [])
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)
-            .Select(diagnostic => diagnostic.Location is not null || string.IsNullOrWhiteSpace(post.FilePath)
+            // An incomplete final-body analysis has no mapping through header removal,
+            // inclusions or trimming back to the original file. Keep that position unknown.
+            .Select(diagnostic => diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId
+                ? new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
+                    string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath),
+                    diagnostic.Category, diagnostic.RelatedLocations)
+                : diagnostic.Location is not null || string.IsNullOrWhiteSpace(post.FilePath)
                 ? diagnostic
                 : new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
                     new SiteSourceLocation(post.FilePath), diagnostic.Category, diagnostic.RelatedLocations))
@@ -1247,7 +1254,12 @@ public sealed partial class SiteGenerator
             toc,
             semantics?.PlainText ?? string.Empty,
             semantics?.Links ?? [],
-            semantics?.Assets ?? []);
+            semantics?.Assets ?? [])
+        {
+            Diagnostics = semantics is { Diagnostics.Count: > 0 }
+                ? Array.AsReadOnly(semantics.Diagnostics.ToArray())
+                : [],
+        };
     }
 
     internal string GetSitePath(RenderContext configuration, string relativePath) =>
