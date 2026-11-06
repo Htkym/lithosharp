@@ -17,6 +17,12 @@ public sealed class ContentEntry<TFrontMatter, TBody>
         init => capturedInputs = Array.AsReadOnly(value.ToArray());
     }
 
+    // Built-in Markdown loaders retain one exact, compiler-compatible body
+    // snapshot. Source coordinates apply only to that same raw body text.
+    internal Compilation.MarkdownBodyAnalysisSnapshot? BodyAnalysis { get; init; }
+
+    internal Compilation.DocumentSource? BodySource { get; init; }
+
     /// <summary>Additional dependencies specific to this entry.</summary>
     public IReadOnlyList<ContentDependency> DeclaredDependencies
     {

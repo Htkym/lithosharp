@@ -73,6 +73,9 @@ public sealed class LithoParserLimitsTests
     [Arguments("```text\n$x$\n```\n")]
     public async Task BrowserAssets_AbsentOrLiteral_ReportsNothing(string markdown)
     {
-        await Assert.That(LithoLimits.FindBrowserAssetWarning(markdown, "a.md")).IsNull();
+        var analysis = MarkdownAnalysisAdapter.AnalyzeOriginalBody(markdown, "a.md", default);
+        var diagnostics = MarkdownAnalysisAdapter.BodyDiagnostics(analysis, "a.md");
+
+        await Assert.That(diagnostics).IsEmpty();
     }
 }

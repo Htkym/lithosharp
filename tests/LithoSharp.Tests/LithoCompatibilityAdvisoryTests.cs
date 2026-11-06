@@ -6,7 +6,7 @@ using LithoSharp.Inspection;
 namespace LithoSharp.Tests;
 
 /// <summary>V110-09 advisory: opt-in definition-list, generic-attribute, and grid-table
-/// diagnostics share the footnote scan (fence/inline-code/escape exclusion).</summary>
+/// diagnostics share canonical source candidates (fence/inline-code/escape exclusion).</summary>
 public sealed class LithoCompatibilityAdvisoryTests
 {
     private static DocumentInfo Inspect(string body, bool advisory) =>
@@ -195,23 +195,28 @@ public sealed class LithoCompatibilityAdvisoryTests
     }
 
     [Test]
-    public async Task AdvisoryScan_PathologicalInputCompletes()
+    public async Task AdvisoryAnalysis_PathologicalInputCompletes()
     {
         var body = string.Concat(Enumerable.Repeat("Paragraph with stable text.\n\n", 20000));
-        var diagnostics = LithoLimits.FindCompatibilityAdvisories(body, "a.md");
+        var analysis = MarkdownAnalysisAdapter.InspectDocument(body, "a.md", default);
+        var diagnostics = LithoLimits.MapDiagnostics(analysis, "a.md", includeCompatibilityAdvisories: true);
 
+        await Assert.That(MarkdownAnalysisAdapter.IncompleteDiagnostic(analysis, "a.md")).IsNull();
         await Assert.That(diagnostics.Count).IsEqualTo(0);
     }
 
     [Test]
-    public async Task AdvisoryScan_CancelledTokenThrows()
+    public async Task AdvisoryAnalysis_CancelledTokenThrows()
     {
+        const string body = "Term\n\n: def\n";
+        var analysis = MarkdownAnalysisAdapter.InspectDocument(body, "a.md", default);
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
 
-        await Assert.That(() => LithoLimits.FindCompatibilityAdvisories("Term\n\n: def\n", "a.md", 1, cancelled.Token))
+        await Assert.That(() => MarkdownAnalysisAdapter.InspectDocument(body, "a.md", cancelled.Token))
             .Throws<OperationCanceledException>();
-        await Assert.That(() => LithoLimits.FindDefinitionListAdvisory("Term\n\n: def\n", "a.md", 1, cancelled.Token))
+        await Assert.That(() => LithoLimits.MapDiagnostics(analysis, "a.md",
+                includeCompatibilityAdvisories: true, cancellationToken: cancelled.Token))
             .Throws<OperationCanceledException>();
     }
 

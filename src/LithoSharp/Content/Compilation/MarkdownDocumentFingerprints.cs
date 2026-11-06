@@ -11,6 +11,35 @@ namespace LithoSharp.Content.Compilation;
 /// </summary>
 internal static class MarkdownDocumentFingerprints
 {
+    private static readonly UTF8Encoding StrictCacheUtf8 = new(false, true);
+
+    /// <summary>
+    /// Keeps valid UTF-8 cache hashes unchanged while distinguishing malformed UTF-16
+    /// from literal replacement characters before any successful cache can be reused.
+    /// </summary>
+    internal static string ExactBodyCacheHash(string markdownBody)
+    {
+        ArgumentNullException.ThrowIfNull(markdownBody);
+        byte[] bytes;
+        try
+        {
+            bytes = StrictCacheUtf8.GetBytes(markdownBody);
+        }
+        catch (EncoderFallbackException)
+        {
+            // FF cannot begin valid UTF-8, so this exact little-endian code-unit
+            // domain cannot share an encoded input with a valid body.
+            bytes = new byte[checked(markdownBody.Length * 2 + 1)];
+            bytes[0] = 0xff;
+            for (var index = 0; index < markdownBody.Length; index++)
+            {
+                bytes[index * 2 + 1] = (byte)markdownBody[index];
+                bytes[index * 2 + 2] = (byte)(markdownBody[index] >> 8);
+            }
+        }
+        return Convert.ToHexStringLower(SHA256.HashData(bytes));
+    }
+
     /// <summary>Source fingerprint: SHA-256 over the UTF-8 Markdown body.</summary>
     public static string SourceHash(string markdownBody)
     {

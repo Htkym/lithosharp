@@ -60,6 +60,8 @@ internal sealed class SiteBuildCache
             Inputs = node.Inputs.OrderBy(input => input.Kind).ThenBy(input => input.Key, StringComparer.Ordinal)
                 .ThenBy(input => input.Value, StringComparer.Ordinal).ToArray(),
             Dependencies = node.Dependencies.Order(StringComparer.Ordinal).ToArray(),
+            CollectionDiagnostics = node.CollectionDiagnostics is { } diagnostics && diagnostics.IsValid()
+                ? diagnostics.Snapshot() : node.CollectionDiagnostics,
         }).OrderBy(node => node.NodeId, StringComparer.Ordinal).ToArray();
         if (snapshot.Any(node => !IsValid(node))
             || snapshot.Select(node => node.NodeId).Distinct(StringComparer.Ordinal).Count() != snapshot.Length)
@@ -273,7 +275,8 @@ internal sealed class SiteBuildCache
         && node.Artifacts.Select(artifact => artifact.RelativePath).Distinct(StringComparer.Ordinal).Count() == node.Artifacts.Count
         && node.Inputs is not null && node.Inputs.All(input => input is not null
             && Enum.IsDefined(input.Kind) && !string.IsNullOrWhiteSpace(input.Key))
-        && node.Dependencies is not null && node.Dependencies.All(dependency => !string.IsNullOrWhiteSpace(dependency));
+        && node.Dependencies is not null && node.Dependencies.All(dependency => !string.IsNullOrWhiteSpace(dependency))
+        && (node.CollectionDiagnostics is null || node.CollectionDiagnostics.IsValid());
 
     private static bool IsCacheReadFailure(Exception exception) => exception is IOException
         or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException
@@ -290,6 +293,7 @@ internal sealed record CachedBuildNode(
 {
     public IReadOnlyList<CachedBuildInput> Inputs { get; init; } = [];
     public IReadOnlyList<string> Dependencies { get; init; } = [];
+    public CachedCollectionDiagnostics? CollectionDiagnostics { get; init; }
 }
 
 internal sealed record CachedBuildArtifact(string ArtifactId, string RelativePath, long Length, string Sha256);

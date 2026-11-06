@@ -1,5 +1,6 @@
 using System.Reflection;
 using LithoSharp.Configuration;
+using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Documentation;
 using LithoSharp.Pages;
@@ -19,6 +20,11 @@ public sealed class ContentPageRenderingContext
     private readonly SiteGenerator generator;
     private readonly SiteGenerator.RenderContext configuration;
     private readonly string? socialImageRelativePath;
+    private readonly string? markdownSourcePath;
+    private readonly MarkdownBodyAnalysisSnapshot? bodyAnalysis;
+    private readonly DocumentSource? bodySource;
+    private readonly Dictionary<string, string> renderedMarkdown = new(StringComparer.Ordinal);
+    private readonly List<SiteDiagnostic> markdownDiagnostics = [];
 
     internal string? DerivedContent { get; private set; }
     internal void SetDerivedContent(string html) => DerivedContent = html;
@@ -31,11 +37,17 @@ public sealed class ContentPageRenderingContext
         ContentLayoutId? layoutId,
         string? socialImageRelativePath,
         string environmentName,
-        AssetRegistry assets)
+        AssetRegistry assets,
+        string? markdownSourcePath,
+        MarkdownBodyAnalysisSnapshot? bodyAnalysis,
+        DocumentSource? bodySource)
     {
         this.generator = generator;
         this.configuration = configuration;
         this.socialImageRelativePath = socialImageRelativePath;
+        this.markdownSourcePath = markdownSourcePath;
+        this.bodyAnalysis = bodyAnalysis;
+        this.bodySource = bodySource;
         Route = route;
         Metadata = metadata;
         LayoutId = layoutId;
@@ -63,8 +75,17 @@ public sealed class ContentPageRenderingContext
     public string RenderMarkdown(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        return generator.RenderMarkdown(markdown);
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (renderedMarkdown.TryGetValue(markdown, out var html))
+            return html;
+        html = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
+            bodyAnalysis, bodySource, markdownDiagnostics);
+        renderedMarkdown.Add(markdown, html);
+        return html;
     }
+
+    internal IReadOnlyList<SiteDiagnostic> SnapshotMarkdownDiagnostics() =>
+        Array.AsReadOnly(markdownDiagnostics.ToArray());
 
     public string RenderDocument(string bodyHtml)
     {
@@ -252,6 +273,9 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     IsThreadSafe = this.IsThreadSafe,
                     FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
                     IsUnlisted = entry.FrontMatter is DocumentFrontMatter { Unlisted: true },
+                    MarkdownSourcePath = entry.SourcePath,
+                    BodyAnalysis = entry.BodyAnalysis,
+                    BodySource = entry.BodySource,
                 };
                 pages.Add(page);
                 routeTable.Register(route, ownerId, entry.SourceLocation);
@@ -327,6 +351,15 @@ internal sealed class IntegratedContentPage(
 
     internal bool CanCacheRendering => IsCacheable && RendererFingerprint is not null;
 
+    internal string? MarkdownSourcePath { get; init; }
+
+    internal MarkdownBodyAnalysisSnapshot? BodyAnalysis { get; init; }
+
+    internal DocumentSource? BodySource { get; init; }
+
+    // Null means the renderer has not completed and no verified cache outcome was replayed.
+    internal IReadOnlyList<SiteDiagnostic>? MarkdownDiagnostics { get; private set; }
+
     public IReadOnlyList<ContentDependency> DeclaredDependencies { get; } = declaredDependencies;
 
     public IReadOnlyList<IntegratedContentSource> Sources { get; } = sources;
@@ -362,13 +395,20 @@ internal sealed class IntegratedContentPage(
                 ? configuration.Routes.ContentSocialImage(Route).RelativeOutputPath
                 : null,
             environmentName,
-            assets);
+            assets,
+            MarkdownSourcePath,
+            BodyAnalysis,
+            BodySource);
         Content = renderer(context)
             ?? throw new InvalidOperationException(
                 $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
         derivedContent = context.DerivedContent ?? Content;
+        MarkdownDiagnostics = context.SnapshotMarkdownDiagnostics();
         return new RenderedPage(PageId, Route, Content, Metadata);
     }
+
+    internal void SetMarkdownDiagnostics(IReadOnlyList<SiteDiagnostic> diagnostics) =>
+        MarkdownDiagnostics = Array.AsReadOnly(diagnostics.ToArray());
 
     internal void SetDerivedContentProvider(Func<string?> provider) =>
         derivedContentProvider = provider ?? throw new ArgumentNullException(nameof(provider));

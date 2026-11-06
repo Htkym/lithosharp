@@ -29,7 +29,8 @@ public sealed class SiteQualityReport
             .ThenBy(static value => value.Location?.EndColumn)
             .ThenBy(static value => value.Category, StringComparer.Ordinal)
             .ThenBy(static value => RelatedKey(value), StringComparer.Ordinal)
-            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column, value.Location?.EndLine, value.Location?.EndColumn, value.Category, RelatedKey(value)))
+            .ThenBy(static value => value.SnapshotIdentity, StringComparer.Ordinal)
+            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column, value.Location?.EndLine, value.Location?.EndColumn, value.Category, RelatedKey(value), value.SnapshotIdentity))
             .ToArray());
     }
 

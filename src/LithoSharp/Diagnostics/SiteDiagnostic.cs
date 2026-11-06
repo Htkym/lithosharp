@@ -81,6 +81,10 @@ public sealed class SiteSourceLocation
 
 public sealed class SiteDiagnostic
 {
+    // Distinguishes diagnostics from separate immutable rendering snapshots without
+    // adding invented source positions or exposing provenance in public output.
+    internal string? SnapshotIdentity { get; init; }
+
     // RS0027: preserve optional arguments on the legacy overload; the longer overload has no defaults.
 #pragma warning disable RS0027
     public SiteDiagnostic(

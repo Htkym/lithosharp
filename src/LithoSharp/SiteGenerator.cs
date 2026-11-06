@@ -735,6 +735,7 @@ public sealed partial class SiteGenerator
             // after its persistent cache is attached. Never merge these snapshots.
             compilerWarnings = publishedPosts
                 .SelectMany(post => post.CompilerDiagnostics ?? CompilePostBody(configuration, post).Diagnostics)
+                .Concat(contentPages.SelectMany(page => page.MarkdownDiagnostics ?? []))
                 .ToArray();
 
             staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
@@ -1134,7 +1135,7 @@ public sealed partial class SiteGenerator
             return compiled.PlainText;
         // Search needs no layout HTML or TOC. The same verified parse record is used
         // by page rendering; corrupt or missing records still take the normal compile path.
-        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody))?.PlainText
+        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody))?.PlainText
             ?? CompilePostBody(configuration, post).PlainText;
     }
 
@@ -1151,7 +1152,11 @@ public sealed partial class SiteGenerator
     {
         var cancellation = configuration.Cancellation;
         cancellation.ThrowIfCancellationRequested();
-        var sourceHash = MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody);
+        var sourceHash = MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody);
+        var retained = post.BodyAnalysis is null ? null
+            : MarkdownAnalysisAdapter.RetainForBody(post.BodyAnalysis, post.MarkdownBody, post.FilePath);
+        var originalSource = retained is not null ? post.BodySource : null;
+        var sourceOffset = originalSource?.BodyStartOffset ?? 0;
         var persistent = configuration.CompiledBodies.PersistentParseCache;
         if (persistent is not null)
         {
@@ -1164,37 +1169,43 @@ public sealed partial class SiteGenerator
             {
                 var cachedHeadings = cached.Headings.Select(heading => new DocumentHeading(
                     heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
-                    new SourceSpan(heading.SpanStart, heading.SpanLength))).ToArray();
+                    new SourceSpan(sourceOffset + heading.SpanStart, heading.SpanLength))).ToArray();
                 return BuildCompiledBody(
                     configuration,
                     cached.RawHtml,
                     new DocumentSemantics(
-                        new DocumentSource(null, 0),
+                        originalSource ?? new DocumentSource(null, 0),
                         DocumentSemantics.TitleOf(cachedHeadings),
                         cached.PlainText,
                         cachedHeadings,
                         cached.Links.Select(link => new DocumentLink(
                             link.RawText, link.Url, link.Title, link.IsImage,
-                            new SourceSpan(link.SpanStart, link.SpanLength))).ToArray(),
+                            new SourceSpan(sourceOffset + link.SpanStart, link.SpanLength))).ToArray(),
                         cached.Assets.Select(asset => new DocumentAsset(
-                            asset.Url, new SourceSpan(asset.SpanStart, asset.SpanLength))).ToArray(),
+                            asset.Url, new SourceSpan(sourceOffset + asset.SpanStart, asset.SpanLength))).ToArray(),
                         [],
                         []));
             }
         }
 
-        // Directly constructed posts retain the legacy warning policy: positions
-        // are relative to the supplied body, starting at line one. Reader warnings
-        // retain their separate original-file positions in CompilerDiagnostics.
-        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, new DocumentSource(post.FilePath, 0), cancellation);
-        var errors = (analyzed.Semantics?.Diagnostics ?? [])
+        // Reuse reader blocks only for the exact body, path and compiler contract.
+        // Directly constructed posts retain their body-relative warning policy;
+        // reader warnings keep their original-file channel in CompilerDiagnostics.
+        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody,
+            originalSource ?? new DocumentSource(post.FilePath, 0), cancellation, retained);
+        IReadOnlyList<SiteDiagnostic> finalDiagnostics = analyzed.Semantics?.Diagnostics
+            ?? [new SiteDiagnostic(MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId,
+                SiteDiagnosticSeverity.Error,
+                "Markdown analysis is incomplete; unavailable facts were not validated.",
+                string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath))];
+        var errors = finalDiagnostics
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)
             // An incomplete final-body analysis has no mapping through header removal,
             // inclusions or trimming back to the original file. Keep that position unknown.
-            .Select(diagnostic => diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId
+            .Select(diagnostic => diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId && originalSource is null
                 ? new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
                     string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath),
-                    diagnostic.Category, diagnostic.RelatedLocations)
+                    diagnostic.Category, diagnostic.RelatedLocations.Select(location => new SiteSourceLocation(location.FilePath)))
                 : diagnostic.Location is not null || string.IsNullOrWhiteSpace(post.FilePath)
                 ? diagnostic
                 : new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
@@ -1217,12 +1228,12 @@ public sealed partial class SiteGenerator
                         semantics.PlainText,
                         semantics.Headings.Select(heading => new CachedPostHeading(
                             heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
-                            heading.Span.Start, heading.Span.Length)).ToArray(),
+                            heading.Span.Start - semantics.Source.BodyStartOffset, heading.Span.Length)).ToArray(),
                         semantics.Links.Select(link => new CachedPostLink(
                             link.RawText, link.Url, link.Title, link.IsImage,
-                            link.Span.Start, link.Span.Length)).ToArray(),
+                            link.Span.Start - semantics.Source.BodyStartOffset, link.Span.Length)).ToArray(),
                         semantics.Assets.Select(asset => new CachedPostAsset(
-                            asset.Url, asset.Span.Start, asset.Span.Length)).ToArray()),
+                            asset.Url, asset.Span.Start - semantics.Source.BodyStartOffset, asset.Span.Length)).ToArray()),
                     cancellation).GetAwaiter().GetResult();
             }
             catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))

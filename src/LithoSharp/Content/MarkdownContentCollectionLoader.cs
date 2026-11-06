@@ -254,6 +254,25 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 bindResult.Diagnostics);
         }
 
+        var bodyStartOffset = text.Length - document.Body.Length;
+        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(bodyStartOffset).Line;
+        // Keep eager original-body warnings separate from the included body.
+        // Larger originals use the adapter's explicit 8 Mi UTF-16 warning tier;
+        // unavailable recognition fails the load without another parse attempt.
+        var originalAnalysis = Compilation.MarkdownAnalysisAdapter.AnalyzeOriginalBody(
+            document.Body, relativePath, cancellationToken);
+        var compilerDiagnostics = Compilation.MarkdownAnalysisAdapter.BodyDiagnostics(
+            originalAnalysis, relativePath, bodyStartLine, cancellationToken);
+        if (compilerDiagnostics.Any(static diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
+        {
+            return ContentParseResult<ContentEntry<TFrontMatter, string>>.Failure(
+                [.. bindResult.Diagnostics, .. compilerDiagnostics]);
+        }
+
+        var retainedAnalysis = Compilation.MarkdownAnalysisAdapter.RetainForBody(
+            originalAnalysis, inclusion.Body, relativePath);
+        var bodySource = retainedAnalysis is null ? null
+            : new Compilation.DocumentSource(relativePath, bodyStartOffset) { BodyStartLine = bodyStartLine };
         var fingerprint = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
 
         // Preserve each original read, including repeated targets; conflicting
@@ -291,6 +310,8 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             {
                 DeclaredDependencies = ContentDependency.Snapshot(dependencies),
                 CapturedInputs = capturedInputs,
+                BodyAnalysis = retainedAnalysis,
+                BodySource = bodySource,
             };
         }
         else
@@ -301,19 +322,17 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 fingerprint,
                 bindResult.Value!,
                 inclusion.Body,
-                new SiteSourceLocation(relativePath, 1, 1)) { CapturedInputs = capturedInputs };
+                new SiteSourceLocation(relativePath, 1, 1))
+            {
+                CapturedInputs = capturedInputs,
+                BodyAnalysis = retainedAnalysis,
+                BodySource = bodySource,
+            };
         }
 
-        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(text.Length - document.Body.Length).Line;
         return ContentParseResult<ContentEntry<TFrontMatter, string>>.Success(
             entry,
-            [.. bindResult.Diagnostics,
-                .. (Compilation.LithoLimits.FindFootnoteWarning(document.Body, relativePath, bodyStartLine) is { } footnote
-                    ? (IReadOnlyList<SiteDiagnostic>) [footnote]
-                    : []),
-                .. (Compilation.LithoLimits.FindBrowserAssetWarning(document.Body, relativePath, bodyStartLine) is { } browserAsset
-                    ? (IReadOnlyList<SiteDiagnostic>) [browserAsset]
-                    : [])]);
+            [.. bindResult.Diagnostics, .. compilerDiagnostics]);
     }
 
     private ContentCollection<TFrontMatter, string> CreateCollection(

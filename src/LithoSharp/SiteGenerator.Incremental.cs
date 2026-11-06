@@ -212,7 +212,9 @@ public sealed partial class SiteGenerator
             previous.TryGetValue(node.Id.Value, out var old);
             if (reason is null && old is not null)
             {
-                if (old.Artifacts.Count != node.Artifacts.Count || !old.Artifacts.Zip(node.Artifacts).All(pair =>
+                if (page is not null && old.CollectionDiagnostics is null)
+                    reason = "The collection Markdown diagnostic outcome is unavailable.";
+                else if (old.Artifacts.Count != node.Artifacts.Count || !old.Artifacts.Zip(node.Artifacts).All(pair =>
                         pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
                     reason = "Artifact declarations changed.";
                 else
@@ -234,6 +236,8 @@ public sealed partial class SiteGenerator
             }
             if (reason is null && old is not null)
             {
+                if (page is not null && old.CollectionDiagnostics is { } cachedDiagnostics)
+                    page.SetMarkdownDiagnostics(cachedDiagnostics.Restore());
                 SetBodyProvider(page, old.DerivedBodyHash);
                 return (old, new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheHit = true });
             }
@@ -281,6 +285,8 @@ public sealed partial class SiteGenerator
             {
                 Inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
                 Dependencies = node.Dependencies.Select(id => id.Value).ToArray(),
+                CollectionDiagnostics = page?.MarkdownDiagnostics is { } renderedDiagnostics
+                    ? CachedCollectionDiagnostics.Capture(renderedDiagnostics) : null,
             },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
         }

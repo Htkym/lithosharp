@@ -74,7 +74,7 @@ including when no AdditionalFiles are present.
 
 ## Markdown parsing
 
-The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. See the [current trial scope and provenance](../../docs/migration-2.0.md#package-versions).
+The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. This branch requires the unpublished `2.0.0-preview.202647137865236` runtime/Source pair. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. Formal adoption still requires a reviewed, merged pair and formal publication; see the [current version and body-analysis limits](../../docs/migration-2.0.md#package-versions).
 
 The actual `StaticContentGenerator` path passes the original immutable AdditionalText buffer to `MarkdownSourceHostAdapter`, verifies the parser/profile/options identity, and calls `ScanFrontMatter`. Its separate `frontmatter-scan/1` result contains raw header ranges and status, with no body facts, YAML tree, document hash or full-analysis coverage. It stops recognizing input at a closing delimiter, so malformed, deeply nested or oversized bodies do not consume the header budget. The default header input limit is 1,048,576 UTF-16 code units; cancellation propagates.
 

@@ -60,16 +60,29 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: true);
 
+    /// <summary>Analyzes a body with a compatible result retained by its reader.</summary>
+    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        MarkdownBodyAnalysisSnapshot? retainedAnalysis) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: true, retainedAnalysis);
+
     /// <summary>Analyzes editor information without materializing discarded body HTML.</summary>
     internal MarkdownCompilationResult AnalyzeForInspection(string markdown, DocumentSource? source, CancellationToken cancellationToken = default) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: false);
 
-    private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken, bool renderHtml)
+    private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        bool renderHtml, MarkdownBodyAnalysisSnapshot? retainedAnalysis = null)
     {
         ArgumentNullException.ThrowIfNull(markdown);
+        cancellationToken.ThrowIfCancellationRequested();
         var resolved = source ?? new DocumentSource(null, 0);
-        Interlocked.Increment(ref _parseCount);
-        var analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, cancellationToken);
+        var analysis = retainedAnalysis is not null
+            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath)?.Analysis
+            : null;
+        if (analysis is null)
+        {
+            Interlocked.Increment(ref _parseCount);
+            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, cancellationToken);
+        }
         var prepared = PrepareTree(analysis.Blocks ?? [], cancellationToken);
         var (syntax, semantics) = Map(prepared, analysis, resolved, cancellationToken);
         return new MarkdownCompilationResult(renderHtml ? RenderHtml(prepared) : string.Empty, syntax, semantics);

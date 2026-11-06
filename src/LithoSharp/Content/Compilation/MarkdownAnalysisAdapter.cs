@@ -9,8 +9,17 @@ internal static class MarkdownAnalysisAdapter
     internal const MdAnalysisParts InspectionParts = MdAnalysisParts.FrontMatter | MdAnalysisParts.Headings
         | MdAnalysisParts.Sections | MdAnalysisParts.Links | MdAnalysisParts.Fences | MdAnalysisParts.UnsupportedSyntax;
 
+    private const int BodyInputLimit = 1024 * 1024;
+    private const string BodyScope = "lithosharp";
+    private const MdAnalysisParts BodyParts = MdAnalysisParts.UnsupportedSyntax;
     private static readonly MdOptions BodyOptions = new(MdInputKind.Body);
     internal static string BodyOptionsHash => BodyOptions.Hash;
+
+    // Eager public-reader warnings inspect the original, pre-inclusion body. Choose
+    // its budget up front so larger accepted originals do not inherit the final
+    // compiler's stricter input limit or require a second recognition attempt.
+    private static readonly MdOptions OriginalBodyOptions = new(MdInputKind.Body,
+        maxInputUtf16: 8 * 1024 * 1024, maxOutputItems: 1024 * 1024, maxScanUnits: 512 * 1024 * 1024);
 
     // Editor snapshots already support multi-megabyte documents; compiler hosts keep their stricter defaults.
     private static readonly MdOptions EditorOptions = new(MdFrontMatterRecovery.TreatAsBody,
@@ -20,8 +29,57 @@ internal static class MarkdownAnalysisAdapter
         MdParser.AnalyzeWithBlocks(raw, InspectionParts, "lithosharp", sourcePath, null, EditorOptions, cancellationToken);
 
     internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, CancellationToken cancellationToken) =>
-        MdParser.AnalyzeWithBlocks(body, MdAnalysisParts.UnsupportedSyntax, "lithosharp",
-            string.IsNullOrWhiteSpace(sourcePath) ? "body" : sourcePath, null, BodyOptions, cancellationToken);
+        MdParser.AnalyzeWithBlocks(body, BodyParts, BodyScope,
+            BodySourceId(sourcePath), null, BodyOptions, cancellationToken);
+
+    internal static MarkdownBodyAnalysisSnapshot AnalyzeOriginalBody(
+        string body, string? sourcePath, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        var options = body.Length <= BodyInputLimit ? BodyOptions : OriginalBodyOptions;
+        return new MarkdownBodyAnalysisSnapshot(MdParser.AnalyzeWithBlocks(body, BodyParts, BodyScope,
+            BodySourceId(sourcePath), null, options, cancellationToken));
+    }
+
+    /// <summary>Retains authoritative evidence only for the identical strict body request.</summary>
+    internal static MarkdownBodyAnalysisSnapshot? RetainForBody(
+        MarkdownBodyAnalysisSnapshot snapshot, string body, string? sourcePath)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(body);
+        var analysis = snapshot.Analysis;
+        if (!string.Equals(analysis.RawText, body, StringComparison.Ordinal)
+            || !string.Equals(analysis.ParserVersion, MdParserVersion.Value, StringComparison.Ordinal)
+            || !string.Equals(analysis.ProfileId, BodyOptions.ProfileId, StringComparison.Ordinal)
+            || !string.Equals(analysis.OptionsHash, BodyOptions.Hash, StringComparison.Ordinal)
+            || !string.Equals(analysis.ScopeId, BodyScope, StringComparison.Ordinal)
+            || !string.Equals(analysis.SourceId, BodySourceId(sourcePath), StringComparison.Ordinal)
+            || analysis.SourceVersion is not null
+            || analysis.RequestedParts != BodyParts)
+            return null;
+
+        if (analysis.Blocks is not null)
+            return analysis.BodySpan is { Start: 0 } span && span.Length == body.Length ? snapshot : null;
+
+        // A failed or resource-stopped request is reusable error evidence, not a
+        // successful empty tree. Keeping it avoids retrying the identical request.
+        return analysis.Diagnostics.Any(item => item.Origin is "input" or "resource") ? snapshot : null;
+    }
+
+    internal static IReadOnlyList<SiteDiagnostic> BodyDiagnostics(
+        MarkdownBodyAnalysisSnapshot snapshot, string? sourcePath, int bodyStartLine = 1,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var diagnostics = LithoLimits.MapDiagnostics(snapshot.Analysis, sourcePath, bodyStartLine,
+            cancellationToken: cancellationToken).ToList();
+        if (IncompleteDiagnostic(snapshot.Analysis, sourcePath, bodyStartLine) is { } incomplete)
+            diagnostics.Add(incomplete);
+        return Array.AsReadOnly(diagnostics.ToArray());
+    }
+
+    private static string BodySourceId(string? sourcePath) =>
+        string.IsNullOrWhiteSpace(sourcePath) ? "body" : sourcePath;
 
     internal static SiteDiagnostic? IncompleteDiagnostic(MdAnalysisResult analysis, string? sourcePath, int bodyStartLine = 1)
     {

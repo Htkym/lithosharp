@@ -85,7 +85,9 @@ public sealed class PageRenderingContext : ComponentRenderingContext
     public IHtmlContent RenderMarkdown(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        return Html.UnsafeRaw(Generator.RenderMarkdown(markdown));
+        return Html.UnsafeRaw(legacyContext is null
+            ? Generator.RenderMarkdown(markdown)
+            : legacyContext.RenderMarkdown(markdown));
     }
     /// <summary>Renders a typed page using the existing document renderer.</summary>
     /// <exception cref="ArgumentNullException">The page or body is null.</exception>
