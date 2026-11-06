@@ -459,21 +459,42 @@ public sealed class DocumentWorkspaceGenerationTests
     public async Task SupersededRequestWaitingForAnalysisSlotCancelsImmediately()
     {
         await using var workspace = new DocumentWorkspace();
-        var firstActive = workspace.InspectVersionedAsync("docs/active-a.md", BigText(100000), 1, 1);
-        var secondActive = workspace.InspectVersionedAsync("docs/active-b.md", BigText(100000), 1, 1);
-        var stale = workspace.InspectVersionedAsync("docs/queued.md", EditText(1), 1, 1);
-        var latest = workspace.InspectVersionedAsync("docs/queued.md", SampleA, 2, 1);
+        // Hold admission directly so cancellation cannot depend on parser speed
+        // or on scheduling two large analyses ahead of the queued revisions.
+        var slots = (SemaphoreSlim)typeof(DocumentWorkspace)
+            .GetField("_analysisSlots", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(workspace)!;
+        var acquiredSlots = 0;
+        Task<DocumentInfo> latest;
+        try
+        {
+            await slots.WaitAsync();
+            acquiredSlots++;
+            await slots.WaitAsync();
+            acquiredSlots++;
 
-        var staleCompletion = await Task.WhenAny(stale, Task.Delay(TimeSpan.FromSeconds(2)));
-        await Assert.That(ReferenceEquals(staleCompletion, stale)).IsTrue();
-        await Assert.That(async () => await stale).Throws<OperationCanceledException>();
+            var stale = workspace.InspectVersionedAsync("docs/queued.md", EditText(1), documentVersion: 1, projectGeneration: 1);
+            await Assert.That(stale.IsCompleted).IsFalse();
+            latest = workspace.InspectVersionedAsync("docs/queued.md", SampleA, documentVersion: 2, projectGeneration: 1);
 
-        workspace.Remove("docs/active-a.md");
-        workspace.Remove("docs/active-b.md");
-        try { await firstActive; } catch (OperationCanceledException) { }
-        try { await secondActive; } catch (OperationCanceledException) { }
+            // The pending reservation rejects an older project generation even
+            // when it carries a newer document version, without canceling latest.
+            var olderGeneration = workspace.InspectVersionedAsync("docs/queued.md", EditText(3), documentVersion: 3, projectGeneration: 0);
+            await Assert.That(async () => await olderGeneration.WaitAsync(TimeSpan.FromSeconds(2))).Throws<OperationCanceledException>();
+            await Assert.That(async () => await stale.WaitAsync(TimeSpan.FromSeconds(2))).Throws<OperationCanceledException>();
+            await Assert.That(latest.IsCompleted).IsFalse();
+            await Assert.That(slots.CurrentCount).IsEqualTo(0);
+        }
+        finally
+        {
+            if (acquiredSlots != 0)
+                slots.Release(acquiredSlots);
+        }
+
         var result = await latest;
         await Assert.That(result.Title).IsEqualTo("Alpha");
+        await Assert.That(workspace.TryGet("docs/queued.md", out var published)).IsTrue();
+        await Assert.That(ReferenceEquals(result, published)).IsTrue();
     }
 
     [Test]

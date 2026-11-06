@@ -2,21 +2,24 @@ using System.Text;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
+using LithoSharp.Diagnostics;
+using Syntamark.Compilation;
 
 namespace LithoSharp.Tests;
 
 /// <summary>C04 robustness: deep nesting, long runs, huge input, cancellation,
-/// and malformed documents never crash the Litho frontend.</summary>
+/// and malformed documents never crash the legacy parser. Strict analysis
+/// reports input and resource failures without inventing document facts.</summary>
 public sealed class LithoParserRobustnessTests
 {
     [Test]
     public async Task DeepQuoteNesting_Completes()
     {
         var body = string.Concat(Enumerable.Repeat("> ", 500)) + "deep\n";
-        var result = new LithoMarkdownCompiler().Analyze(body);
+        var blocks = new LithoMarkdownCompiler().Parse(body);
 
-        await Assert.That(result.Syntax!.Blocks.Count).IsEqualTo(1);
-        await Assert.That(result.Syntax.Blocks[0].Kind).IsEqualTo(BlockKind.Quote);
+        await Assert.That(blocks.Count).IsEqualTo(1);
+        await Assert.That(blocks[0] is LithoQuote).IsTrue();
     }
 
     [Test]
@@ -29,10 +32,10 @@ public sealed class LithoParserRobustnessTests
             builder.AppendLine("- item");
         }
 
-        var result = new LithoMarkdownCompiler().Analyze(builder.ToString());
+        var blocks = new LithoMarkdownCompiler().Parse(builder.ToString());
 
-        await Assert.That(result.Syntax!.Blocks.Count).IsEqualTo(1);
-        await Assert.That(result.Syntax.Blocks[0].Kind).IsEqualTo(BlockKind.List);
+        await Assert.That(blocks.Count).IsEqualTo(1);
+        await Assert.That(blocks[0] is LithoList).IsTrue();
     }
 
     [Test]
@@ -45,16 +48,20 @@ public sealed class LithoParserRobustnessTests
     }
 
     [Test]
-    public async Task LongBalancedDelimiterRun_RendersAndAnalyzesWithoutRecursion()
+    public async Task LongBalancedDelimiterRun_RendersAndProjectsTextWithoutRecursion()
     {
         var delimiters = new string('*', 20000);
         var compiler = new LithoMarkdownCompiler();
-        var result = compiler.Analyze("## " + delimiters + "[x](/url)" + delimiters);
+        var body = "## " + delimiters + "[x](/url)" + delimiters;
+        var blocks = compiler.Parse(body);
+        var heading = blocks.OfType<LithoHeading>().Single();
+        var link = LithoInline.Walk(heading.Inlines).Where(item => !item.Exit)
+            .Select(item => item.Node).OfType<LithoLink>().Single();
 
-        await Assert.That(result.Semantics!.PlainText).IsEqualTo("x\n");
-        await Assert.That(result.Semantics.Headings.Single().Text).IsEqualTo("x");
-        await Assert.That(result.Semantics.Links.Single().Url).IsEqualTo("/url");
-        await Assert.That(result.Html).Contains("<a href=\"/url\">x</a>");
+        await Assert.That(LithoLegacyTextPolicy.Plain(blocks)).IsEqualTo("x\n");
+        await Assert.That(LithoLegacyTextPolicy.Heading(heading.Inlines, CancellationToken.None)).IsEqualTo("x");
+        await Assert.That(link.Url).IsEqualTo("/url");
+        await Assert.That(compiler.Compile(body).Html).Contains("<a href=\"/url\">x</a>");
         await Assert.That(compiler.Compile("![" + delimiters + "x" + delimiters + "](img.png)").Html)
             .IsEqualTo("<p><img src=\"img.png\" alt=\"x\" /></p>\n");
     }
@@ -69,10 +76,10 @@ public sealed class LithoParserRobustnessTests
         }
 
         builder.AppendLine("deep");
-        var result = new LithoMarkdownCompiler().Analyze(builder.ToString());
+        var blocks = new LithoMarkdownCompiler().Parse(builder.ToString());
 
-        await Assert.That(result.Syntax!.Blocks.Count).IsEqualTo(1);
-        await Assert.That(result.Syntax.Blocks[0].Kind).IsEqualTo(BlockKind.Admonition);
+        await Assert.That(blocks.Count).IsEqualTo(1);
+        await Assert.That(blocks[0] is LithoAdmonition).IsTrue();
     }
 
     [Test]
@@ -81,7 +88,7 @@ public sealed class LithoParserRobustnessTests
         // CommonMark flanking classes surrogates (Cs) as neither whitespace nor
         // punctuation, so the run opens and closes. Markdig renders this literal
         // (and throws on surrogate headings); Litho follows the spec here.
-        var result = new LithoMarkdownCompiler().Analyze("*\ud800*\n");
+        var result = new LithoMarkdownCompiler().Compile("*\ud800*\n");
 
         await Assert.That(result.Html).Contains("<em>");
     }
@@ -92,10 +99,11 @@ public sealed class LithoParserRobustnessTests
         // The reference throws during heading ID normalization; Litho degrades
         // to code-unit handling and stays a document.
         var body = "## \ud800 head\n\nBody.\n";
-        var result = new LithoMarkdownCompiler().Analyze(body);
+        var compiler = new LithoMarkdownCompiler();
+        var heading = compiler.Parse(body).OfType<LithoHeading>().Single();
 
-        await Assert.That(result.Semantics!.Headings.Count).IsEqualTo(1);
-        await Assert.That(result.Semantics.Headings[0].Span.End <= body.Length).IsTrue();
+        await Assert.That(heading.Span.End <= body.Length).IsTrue();
+        await Assert.That(compiler.Compile(body).Html).Contains("<h2 id=");
     }
 
     [Test]
@@ -109,10 +117,18 @@ public sealed class LithoParserRobustnessTests
         }
 
         var body = builder.ToString();
+        var compiler = new LithoMarkdownCompiler();
         using var source = new CancellationTokenSource();
-        source.CancelAfter(TimeSpan.FromMilliseconds(200));
-        await Assert.That(() => new LithoMarkdownCompiler().Analyze(body, null, source.Token))
+        await Assert.That(() =>
+            {
+                // Arm cancellation at entry to the canonical parser, without the
+                // strict analyzer's input limit rejecting this workload first.
+                source.CancelAfter(TimeSpan.FromMilliseconds(200));
+                return compiler.Parse(body, source.Token);
+            })
             .Throws<OperationCanceledException>();
+        await Assert.That(compiler.ParseCount).IsEqualTo(1);
+        await Assert.That(source.IsCancellationRequested).IsTrue();
     }
 
     [Test]
@@ -125,9 +141,77 @@ public sealed class LithoParserRobustnessTests
             builder.AppendLine();
         }
 
-        var result = new LithoMarkdownCompiler().Analyze(builder.ToString());
+        var blocks = new LithoMarkdownCompiler().Parse(builder.ToString());
 
-        await Assert.That(result.Syntax!.Blocks.Count).IsEqualTo(50000);
+        await Assert.That(blocks.Count).IsEqualTo(50000);
+    }
+
+    [Test]
+    public async Task AnalyzeInputOverOneMiReportsFailureWithoutInventingFacts()
+    {
+        const string prefix = "# Unavailable\n\n[link](target.md) ![image](image.png)\n\n";
+        var body = prefix + new string('x', 1024 * 1024 + 1 - prefix.Length);
+        var diagnostic = await AssertIncompleteWithoutFacts(body);
+
+        await Assert.That(diagnostic.Message).Contains("Input exceeds maxInputUtf16.");
+        await Assert.That(diagnostic.Location!.Line).IsNull();
+        await Assert.That(diagnostic.Location.Column).IsNull();
+    }
+
+    [Test]
+    [Arguments("quote")]
+    [Arguments("list")]
+    [Arguments("directive")]
+    [Arguments("delimiters")]
+    public async Task AnalyzeDepthLimitReportsFailureWithoutInventingFacts(string kind)
+    {
+        var body = kind switch
+        {
+            "quote" => string.Concat(Enumerable.Repeat("> ", 500)) + "deep\n",
+            "list" => string.Concat(Enumerable.Range(0, 300).Select(depth => new string(' ', depth * 2) + "- item\n")),
+            "directive" => string.Concat(Enumerable.Repeat(":::note\n", 300)) + "deep\n",
+            "delimiters" => "## " + new string('*', 20000) + "[x](/url)" + new string('*', 20000),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+        var diagnostic = await AssertIncompleteWithoutFacts(body);
+
+        await Assert.That(diagnostic.Message).Contains("Parsing stopped at a resource limit.");
+        await Assert.That(diagnostic.Location!.Line).IsNull();
+        await Assert.That(diagnostic.Location.Column).IsNull();
+    }
+
+    [Test]
+    [Arguments(0xd800)]
+    [Arguments(0xdc00)]
+    public async Task AnalyzeUnpairedSurrogateReportsFailureWithoutInventingFacts(int codeUnit)
+    {
+        var body = "# Unavailable\n\n*" + (char)codeUnit + "* [link](target.md)\n";
+        var diagnostic = await AssertIncompleteWithoutFacts(body);
+        var (line, column) = new SourceText(body).GetLineAndColumn(body.IndexOf((char)codeUnit));
+
+        await Assert.That(diagnostic.Message).Contains("Input contains an unpaired surrogate.");
+        await Assert.That((diagnostic.Location!.Line, diagnostic.Location.Column))
+            .IsEqualTo(((int?)line, (int?)column));
+    }
+
+    private static async Task<SiteDiagnostic> AssertIncompleteWithoutFacts(string body)
+    {
+        var result = new LithoMarkdownCompiler().Analyze(body, new DocumentSource("robustness.md", 0));
+        var semantics = result.Semantics!;
+        var diagnostic = semantics.Diagnostics.Single();
+
+        await Assert.That(diagnostic.Id).IsEqualTo("LSM011");
+        await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
+        await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("robustness.md");
+        await Assert.That(result.Html).IsEqualTo(string.Empty);
+        await Assert.That(result.Syntax!.Blocks).IsEmpty();
+        await Assert.That(semantics.PlainText).IsEqualTo(string.Empty);
+        await Assert.That(semantics.Title).IsNull();
+        await Assert.That(semantics.Headings).IsEmpty();
+        await Assert.That(semantics.Links).IsEmpty();
+        await Assert.That(semantics.Assets).IsEmpty();
+        await Assert.That(semantics.Components).IsEmpty();
+        return diagnostic;
     }
 
     [Test]
