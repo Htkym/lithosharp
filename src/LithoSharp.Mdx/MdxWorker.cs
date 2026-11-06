@@ -26,6 +26,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(options.Timeout);
+        var phase = "worker-readiness";
         try
         {
             if (process is null)
@@ -58,10 +59,12 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
                     || ready.GetProperty("react").GetString() != "19.2.4" || ready.GetProperty("esbuild").GetString() != "0.28.2")
                     throw Failure("LSMDX003", ReadinessMismatchMessage(ready));
             }
+            phase = "request-write";
             var json = JsonSerializer.Serialize(request, MdxJson.Options);
             if (Encoding.UTF8.GetByteCount(json) > options.MaximumMessageBytes) throw Failure("LSMDX003", "MDX request exceeds the configured message size.");
             await process.StandardInput.WriteLineAsync(json.AsMemory(), timeout.Token).ConfigureAwait(false);
             await process.StandardInput.FlushAsync(timeout.Token).ConfigureAwait(false);
+            phase = "response-read";
             var response = await ReadMessageAsync(timeout.Token).ConfigureAwait(false);
             if (response.GetProperty("protocol").GetInt32() != 1 || response.GetProperty("requestId").GetString() != requestId)
                 throw Failure("LSMDX003", "The worker returned an unexpected protocol or request ID.");
@@ -75,7 +78,7 @@ internal sealed class MdxWorker(MdxOptions options) : IAsyncDisposable
         catch (OperationCanceledException)
         {
             await StopAsync(WatchLifecycleReason.Timeout).ConfigureAwait(false);
-            throw Failure("LSMDX004", "The MDX worker timed out; the existing site was not published over.");
+            throw Failure("LSMDX004", $"The MDX worker timed out during {phase}; the existing site was not published over.");
         }
         catch (Exception error) when (error is IOException or JsonException or KeyNotFoundException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {

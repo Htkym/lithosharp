@@ -23,6 +23,7 @@ public sealed class MdxInspectionTests
         new(workspace.Root, Path.Combine(FindRepository(), "src/LithoSharp.Mdx/worker"));
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task HeadingsLinksImports_StructureWithoutExecution()
     {
         using var workspace = new TemporaryWorkspace();
@@ -53,6 +54,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task UnclosedJsx_ReturnsFatalDiagnosticAndKeepsWorker()
     {
         using var workspace = new TemporaryWorkspace();
@@ -73,6 +75,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task TransformFailureWithoutSourceLocationDoesNotInventOne()
     {
         using var workspace = new TemporaryWorkspace();
@@ -86,6 +89,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task BuildAndAnalysis_AgreeOnSyntaxFailure()
     {
         using var workspace = new TemporaryWorkspace();
@@ -130,6 +134,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CodeFenceAndMdxCodeBlock_DoNotExecute()
     {
         using var workspace = new TemporaryWorkspace();
@@ -145,6 +150,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task TabsBrowserOnlyAndIsland_ListWithoutExecution()
     {
         using var workspace = new TemporaryWorkspace();
@@ -161,6 +167,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task FrontMatterCrlfAndUnicode_MapToOriginalLines()
     {
         using var workspace = new TemporaryWorkspace();
@@ -175,6 +182,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task HugeInput_Completes()
     {
         using var workspace = new TemporaryWorkspace();
@@ -193,6 +201,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CancelledAnalysis_DoesNotKillLaterWork()
     {
         using var workspace = new TemporaryWorkspace();
@@ -236,6 +245,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task UserPluginsAndModules_AreNeverLoaded()
     {
         using var workspace = new TemporaryWorkspace();
@@ -257,6 +267,7 @@ public sealed class MdxInspectionTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MdxIsNotMarkdownFallback()
     {
         using var workspace = new TemporaryWorkspace();
