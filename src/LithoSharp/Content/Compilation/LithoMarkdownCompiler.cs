@@ -29,7 +29,8 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
             Options = Options with { Frontend = "lithosharp" };
         }
 
-        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}";
+        // The component can change independently of LithoSharp's rendering policy.
+        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/profile=lithosharp-markdown/1/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}";
     }
 
     /// <inheritdoc />
