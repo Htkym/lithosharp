@@ -216,12 +216,22 @@ public sealed class LanguageServerTests
     }
 
     [Test]
-    public async Task DocumentSymbols_NestByHeadingLevel()
+    [Arguments("\n", false)]
+    [Arguments("\r\n", true)]
+    public async Task DocumentSymbols_UseSectionHierarchyAndRawSubtreeRanges(string newline, bool bom)
     {
         await using var client = LspTestClient.Start();
         await InitializeAsync(client);
         const string uri = "file:///proj/outline.md";
-        Open(client, uri, "markdown", 1, "---\ntitle: T\n---\n# Top\n\n## Child\n\n# Next\n");
+        var text = (bom ? "\uFEFF" : "") + string.Join(newline,
+        [
+            "---", "title: T", "---", "Preamble.", "",
+            "# Repeat", "Top body.", "",
+            "### Repeat", "Child body.", "",
+            "## Sibling", "Sibling body.", "",
+            "# Next 🎉", "Last body.", "",
+        ]);
+        Open(client, uri, "markdown", 1, text);
         await WaitDiagnosticsAsync(client, uri, 1);
 
         var symbolId = client.NextId();
@@ -230,13 +240,63 @@ public sealed class LanguageServerTests
             message.TryGetProperty("id", out var responseId) && responseId.GetString() == symbolId);
         var roots = response.GetProperty("result").EnumerateArray().ToArray();
         await Assert.That(roots.Length).IsEqualTo(2);
-        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Top");
-        var child = roots[0].GetProperty("children").EnumerateArray().Single();
-        await Assert.That(child.GetProperty("name").GetString()).IsEqualTo("Child");
-        // selectionRange is the original heading; range is the owned accurate range.
-        await Assert.That(child.GetProperty("selectionRange").GetProperty("start").GetProperty("line").GetInt32())
-            .IsEqualTo(child.GetProperty("range").GetProperty("start").GetProperty("line").GetInt32());
+        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Repeat");
+        await AssertRangeAsync(roots[0], "selectionRange", 5, 0, 5, 8);
+        await AssertRangeAsync(roots[0], "range", 5, 0, 14, 0);
+
+        // Identical text still maps to distinct section keys; skipping a heading
+        // level does not change the parser-provided parent relationship.
+        var children = roots[0].GetProperty("children").EnumerateArray().ToArray();
+        await Assert.That(children.Length).IsEqualTo(2);
+        await Assert.That(children[0].GetProperty("name").GetString()).IsEqualTo("Repeat");
+        await AssertRangeAsync(children[0], "selectionRange", 8, 0, 8, 10);
+        await AssertRangeAsync(children[0], "range", 8, 0, 11, 0);
+        await Assert.That(children[1].GetProperty("name").GetString()).IsEqualTo("Sibling");
+        await AssertRangeAsync(children[1], "range", 11, 0, 14, 0);
+
+        await Assert.That(roots[1].GetProperty("name").GetString()).IsEqualTo("Next 🎉");
+        await AssertRangeAsync(roots[1], "selectionRange", 14, 0, 14, 9);
+        await AssertRangeAsync(roots[1], "range", 14, 0, 16, 0);
         await Assert.That(roots[1].GetProperty("children").GetArrayLength()).IsEqualTo(0);
+
+        static async Task AssertRangeAsync(JsonElement symbol, string property, int startLine, int startCharacter, int endLine, int endCharacter)
+        {
+            var range = symbol.GetProperty(property);
+            await Assert.That(range.GetProperty("start").GetProperty("line").GetInt32()).IsEqualTo(startLine);
+            await Assert.That(range.GetProperty("start").GetProperty("character").GetInt32()).IsEqualTo(startCharacter);
+            await Assert.That(range.GetProperty("end").GetProperty("line").GetInt32()).IsEqualTo(endLine);
+            await Assert.That(range.GetProperty("end").GetProperty("character").GetInt32()).IsEqualTo(endCharacter);
+        }
+    }
+
+    [Test]
+    public async Task MdxDocumentSymbols_PreserveHeadingHierarchyAndRanges()
+    {
+        var headings = new (string Text, int Level, LithoSharp.Diagnostics.SiteSourceLocation? Location)[]
+        {
+            ("Parent", 1, new("/proj/outline.mdx", 1, 1, 1, 9)),
+            ("Child", 3, new("/proj/outline.mdx", 3, 1, 3, 10)),
+            ("Sibling", 2, new("/proj/outline.mdx", 5, 1, 5, 11)),
+            ("Next", 1, new("/proj/outline.mdx", 7, 1, 7, 7)),
+        };
+        // Exercise MDX serialization without starting Node or a worker. Sections
+        // are a Markdown-only change; MDX retains its existing heading ranges.
+        var buildSymbols = typeof(LithoSharp.LanguageServer.LspServer).GetMethod(
+            "BuildMdxSymbols", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var symbols = (JsonElement)buildSymbols.Invoke(null, [headings])!;
+        var roots = symbols.EnumerateArray().ToArray();
+        await Assert.That(roots.Length).IsEqualTo(2);
+        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Parent");
+        var children = roots[0].GetProperty("children").EnumerateArray().ToArray();
+        await Assert.That(children.Length).IsEqualTo(2);
+        await Assert.That(children[0].GetProperty("name").GetString()).IsEqualTo("Child");
+        await Assert.That(children[1].GetProperty("name").GetString()).IsEqualTo("Sibling");
+        await Assert.That(roots[1].GetProperty("name").GetString()).IsEqualTo("Next");
+        await Assert.That(roots[1].GetProperty("children").GetArrayLength()).IsEqualTo(0);
+        await Assert.That(roots[0].GetProperty("range").GetProperty("end").GetProperty("line").GetInt32()).IsEqualTo(0);
+        await Assert.That(roots[0].GetProperty("range").GetProperty("end").GetProperty("character").GetInt32()).IsEqualTo(8);
+        await Assert.That(roots[0].GetProperty("selectionRange").GetRawText()).IsEqualTo(roots[0].GetProperty("range").GetRawText());
+        await Assert.That(children[0].GetProperty("selectionRange").GetRawText()).IsEqualTo(children[0].GetProperty("range").GetRawText());
     }
 
     [Test]

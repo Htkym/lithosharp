@@ -26,13 +26,14 @@ internal static class StaticYamlValidation
 
     // false means the frontmatter evidence is unavailable, not successful validation.
     // Known schema errors still report their original LSG005/006 diagnostics.
-    internal static bool Validate(string path, MdDocumentFacts document, INamedTypeSymbol frontMatter, Action<Diagnostic> report,
+    internal static bool Validate(string path, MdAnalysisResult document, INamedTypeSymbol frontMatter, Action<Diagnostic> report,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (document.GetAvailability(MdAnalysisParts.FrontMatter) is not (MdAnalysisAvailability.Complete or MdAnalysisAvailability.Partial)
+            || document.FrontMatter is not { } envelope || envelope.State == MdFrontMatterState.Unknown)
+            return false;
         var markdown = document.RawText;
-        var envelope = document.FrontMatter;
-        if (envelope.State == MdFrontMatterState.Unknown) return false;
         if (envelope.State == MdFrontMatterState.Absent)
         {
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, 0, Math.Min(3, markdown.Length)), "Markdown front matter is required."));
@@ -44,7 +45,8 @@ internal static class StaticYamlValidation
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, start, 3), "Front matter is not closed."));
             return true;
         }
-        if (envelope.YamlSpan is not { } yamlSpan || envelope.OpeningSpan is null || envelope.ClosingSpan is null) return false;
+        if (envelope.YamlSpan is not { } yamlSpan || envelope.OpeningSpan is null || envelope.ClosingSpan is null)
+            return false;
         // YamlSpan excludes both delimiter lines and is already in the full original UTF-16 buffer.
         // Body Partial/Unsupported is unrelated to this bounded schema projection.
         var yaml = markdown.Substring(yamlSpan.Start, yamlSpan.Length);

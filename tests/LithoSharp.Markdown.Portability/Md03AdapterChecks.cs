@@ -70,7 +70,7 @@ internal static class Md03AdapterChecks
         Check(portable.GetType("Syntamark.MarkdownParser") is null, "Source host must exclude the runtime facade");
         var portableParser = portable.GetType("Syntamark.Compilation.MdParser", true)!;
         var optionsType = portable.GetType("Syntamark.Compilation.MdOptions", true)!;
-        var options = optionsType.GetConstructors(portableMembers).Single().Invoke(new object?[]
+        var options = optionsType.GetConstructors(portableMembers).Single(constructor => constructor.GetParameters().Length == 6).Invoke(new object?[]
             { 1048576, 131072, 200, 16777216, "lithosharp-markdown/1", 1 });
         var portableParse = portableParser.GetMethod("Parse", portableMembers)!;
         var portableDoc = portableParse.Invoke(null, new object?[] { delimited, "scope", "source", null, options, CancellationToken.None })!;

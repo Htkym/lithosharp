@@ -130,7 +130,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         }
     }
 
-    private static IEnumerable<LithoHeading> WalkHeadings(IReadOnlyList<LithoBlock> blocks)
+    internal static IEnumerable<LithoHeading> WalkHeadings(IReadOnlyList<LithoBlock> blocks)
     {
         foreach (var block in blocks)
         {

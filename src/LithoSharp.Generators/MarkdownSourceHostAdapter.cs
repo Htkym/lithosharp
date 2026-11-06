@@ -10,7 +10,7 @@ namespace LithoSharp.Generators;
 // SYNTAMARK_SOURCE comes from the pinned source package, not checkout Compile links.
 internal static class MarkdownSourceHostAdapter
 {
-    internal const string ExpectedParserVersion = "1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051";
+    internal const string ExpectedParserVersion = "1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087";
     private const string ContractVersion = "1.0";
     private const string ProfileId = "lithosharp-markdown/1";
     internal static void Verify(string expectedParserVersion, string contractVersion, string profileId,
@@ -31,10 +31,21 @@ internal static class MarkdownSourceHostAdapter
     }
 
 #if SYNTAMARK_SOURCE
-    internal static MdDocumentFacts ParseForCompiler(string raw, string scopeId, string sourceId, CancellationToken cancellationToken)
-        => Parse(raw, scopeId, sourceId, null, new MdOptions(profileId: ProfileId),
+    internal static MdAnalysisResult ParseForCompiler(string raw, string scopeId, string sourceId, CancellationToken cancellationToken)
+        => AnalyzeForCompiler(raw, scopeId, sourceId, null, new MdOptions(profileId: ProfileId),
             ExpectedParserVersion, ContractVersion, ProfileId, MarkdownYamlIdentity.PackageVersion,
             MarkdownYamlIdentity.AssemblyIdentity, MarkdownYamlIdentity.InformationalVersion, cancellationToken);
+
+    internal static MdAnalysisResult AnalyzeForCompiler(string raw, string scopeId, string sourceId, string? sourceVersion,
+        MdOptions options, string expectedParserVersion, string contractVersion, string profileId,
+        string yamlPackage, string yamlAssembly, string yamlInformation, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Verify(expectedParserVersion, contractVersion, profileId, yamlPackage, yamlAssembly, yamlInformation);
+        if (options.ProfileId != profileId || options.FrontMatterRecovery != MdFrontMatterRecovery.None)
+            throw new InvalidOperationException("Markdown compiler options differ from the verified strict profile.");
+        return MdParser.Analyze(raw, MdAnalysisParts.FrontMatter, scopeId, sourceId, sourceVersion, options, cancellationToken);
+    }
 
     internal static MdDocumentFacts Parse(string raw, string scopeId, string sourceId, string? sourceVersion,
         MdOptions options, string expectedParserVersion, string contractVersion, string profileId,

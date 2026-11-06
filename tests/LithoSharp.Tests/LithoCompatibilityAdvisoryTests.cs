@@ -95,7 +95,9 @@ public sealed class LithoCompatibilityAdvisoryTests
         await Assert.That(emoji.Diagnostics.Count(item => item.Id == "LIT004")).IsEqualTo(1);
 
         var surrogate = Inspect("## \ud800 head {#x}\n", advisory: true);
-        await Assert.That(surrogate.Diagnostics.Count(item => item.Id == "LIT004")).IsEqualTo(1);
+        await Assert.That(surrogate.Diagnostics.Any(item => item.Id == "LIT004")).IsFalse();
+        await Assert.That(surrogate.Diagnostics.Any(item =>
+            item.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId && item.Severity == SiteDiagnosticSeverity.Error)).IsTrue();
     }
 
     [Test]
@@ -107,6 +109,52 @@ public sealed class LithoCompatibilityAdvisoryTests
         // Front matter occupies lines 1-3; body starts at line 4.
         await Assert.That(diagnostic.Location?.Line).IsEqualTo(8);
         await Assert.That(diagnostic.Location?.Column).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Inspection_UsesBodyFactsAndOriginalUtf16Positions()
+    {
+        const string raw = "\uFEFF---\r\ntitle: \"[^yaml] $z$\"\r\n---\r\n\U0001F600 [^a] and [^b]\r\n\r\n> Inline $x$ here.\r\n";
+        var diagnostics = DocumentInspection.Inspect("a.md", raw).Diagnostics;
+        var footnote = diagnostics.Single(item => item.Id == "LIT001");
+        var browser = diagnostics.Single(item => item.Id == "LIT002");
+
+        await Assert.That(footnote.Severity).IsEqualTo(SiteDiagnosticSeverity.Warning);
+        await Assert.That(footnote.Location?.Line).IsEqualTo(4);
+        await Assert.That(footnote.Location?.Column).IsEqualTo(4);
+        await Assert.That(browser.Severity).IsEqualTo(SiteDiagnosticSeverity.Info);
+        await Assert.That(browser.Location?.Line).IsEqualTo(6);
+        await Assert.That(browser.Location?.Column).IsEqualTo(10);
+    }
+
+    [Test]
+    public async Task Inspection_DoesNotRediscoverMarkersInYamlOrCode()
+    {
+        const string raw = "---\ntitle: \"[^yaml] $x$\"\n---\n`[^code] $y$`\n\n```mermaid-example\n[^fence] $z$\n```\n";
+
+        await Assert.That(DocumentInspection.Inspect("a.md", raw).Diagnostics).IsEmpty();
+    }
+
+    [Test]
+    public async Task Inspection_DiagramMetadataKeepsBrowserAssetWarning()
+    {
+        const string raw = "---\ntitle: Test\n---\n```mermaid title=\"Graph\"\ngraph TD;\n```\n";
+        var diagnostic = DocumentInspection.Inspect("a.md", raw).Diagnostics.Single();
+
+        await Assert.That(diagnostic.Id).IsEqualTo("LIT002");
+        await Assert.That(diagnostic.Location?.Line).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task Inspection_UnavailableFactsReportAnError()
+    {
+        foreach (var raw in new[] { "\ud800", new string('x', 8 * 1024 * 1024 + 1) })
+        {
+            var diagnostic = DocumentInspection.Inspect("a.md", raw).Diagnostics.Single();
+
+            await Assert.That(diagnostic.Id).IsEqualTo(MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId);
+            await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
+        }
     }
 
     [Test]

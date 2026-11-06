@@ -15,49 +15,49 @@ public static class DocumentInspection
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(text);
 
-        var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
+        var analysis = MarkdownAnalysisAdapter.InspectDocument(text, sourcePath, cancellationToken);
+        var locator = new SourceText(text);
         var diagnostics = new List<SiteDiagnostic>();
-        string body;
-        int bodyStartOffset;
         IReadOnlyDictionary<string, object?> frontMatter = System.Collections.ObjectModel.ReadOnlyDictionary<string, object?>.Empty;
         var parsedMapping = (LocatedYamlMapping?)null;
-        switch (split.Status)
+        var envelope = analysis.FrontMatter;
+        switch (envelope?.State)
         {
-            case FrontMatterSplitStatus.Ok:
-                body = split.Body;
-                bodyStartOffset = split.BodyStartOffset;
-                var parsed = MarkdownContentCollectionLoader<DocumentFrontMatter>.ParseYaml(split.Yaml, sourcePath, 2, cancellationToken);
-                if (parsed.IsSuccess)
+            case MdFrontMatterState.Parsed:
+            case MdFrontMatterState.Invalid:
+                if (envelope.YamlSpan is { } yaml && envelope.ClosingSpan is not null)
                 {
-                    parsedMapping = parsed.Value;
-                    frontMatter = UnwrapMapping(parsed.Value!);
-                }
-                else
-                {
-                    diagnostics.AddRange(parsed.Diagnostics);
+                    var yamlLine = locator.GetLineAndColumn(yaml.Start).Line;
+                    var parsed = MarkdownContentCollectionLoader<DocumentFrontMatter>.ParseYaml(
+                        text.Substring(yaml.Start, yaml.Length), sourcePath, yamlLine, cancellationToken);
+                    if (parsed.IsSuccess)
+                    {
+                        parsedMapping = parsed.Value;
+                        frontMatter = UnwrapMapping(parsed.Value!);
+                    }
+                    else
+                    {
+                        diagnostics.AddRange(parsed.Diagnostics);
+                    }
                 }
                 break;
-            case FrontMatterSplitStatus.MissingFrontMatter:
-                body = text;
-                bodyStartOffset = 0;
+            case MdFrontMatterState.Absent:
                 diagnostics.Add(new SiteDiagnostic(
                     MarkdownContentDiagnosticIds.MissingFrontMatter,
                     SiteDiagnosticSeverity.Error,
                     "Markdown document must start with YAML front matter.",
                     new SiteSourceLocation(sourcePath, 1, 1)));
                 break;
-            case FrontMatterSplitStatus.UnterminatedFrontMatter:
-                body = text;
-                bodyStartOffset = 0;
+            case MdFrontMatterState.Unterminated:
                 diagnostics.Add(new SiteDiagnostic(
                     MarkdownContentDiagnosticIds.UnterminatedFrontMatter,
                     SiteDiagnosticSeverity.Error,
                     "Markdown document has no closing front matter marker.",
-                    new SiteSourceLocation(sourcePath, split.FailureLine, 1)));
+                    envelope.FailureSpan is { } failure
+                        ? Locate(locator, sourcePath, new SourceSpan(failure.Start, failure.Length))
+                        : new SiteSourceLocation(sourcePath)));
                 break;
-            default:
-                body = split.Body;
-                bodyStartOffset = split.BodyStartOffset;
+            case MdFrontMatterState.Empty:
                 diagnostics.Add(new SiteDiagnostic(
                     MarkdownContentDiagnosticIds.EmptyFrontMatter,
                     SiteDiagnosticSeverity.Error,
@@ -66,25 +66,14 @@ public static class DocumentInspection
                 break;
         }
 
-        var locator = new SourceText(text);
-        var analyzed = new LithoMarkdownCompiler().AnalyzeForInspection(body, new DocumentSource(sourcePath, bodyStartOffset)
+        if (MarkdownAnalysisAdapter.IncompleteDiagnostic(analysis, sourcePath) is { } incomplete)
         {
-            BodyStartLine = locator.GetLineAndColumn(bodyStartOffset).Line,
-        }, cancellationToken);
-        var semantics = analyzed.Semantics!;
-        diagnostics.AddRange(semantics.Diagnostics);
-        if (options?.EnableCompatibilityAdvisory == true)
-        {
-            var bodyStartLine = locator.GetLineAndColumn(bodyStartOffset).Line;
-            foreach (var advisory in LithoLimits.FindCompatibilityAdvisories(
-                body, sourcePath, bodyStartLine, cancellationToken))
-            {
-                if (!diagnostics.Any(existing => existing.Id == advisory.Id))
-                {
-                    diagnostics.Add(advisory);
-                }
-            }
+            diagnostics.Add(incomplete);
         }
+        var headings = MarkdownAnalysisAdapter.InspectionHeadings(analysis, cancellationToken);
+        var links = MarkdownAnalysisAdapter.InspectionLinks(analysis, cancellationToken);
+        diagnostics.AddRange(LithoLimits.MapDiagnostics(analysis, sourcePath,
+            includeCompatibilityAdvisories: options?.EnableCompatibilityAdvisory == true, cancellationToken: cancellationToken));
 
         var project = options?.Project;
         var candidates = project is null
@@ -136,19 +125,25 @@ public static class DocumentInspection
         return new DocumentInfo(
             options?.DocumentId ?? sourcePath,
             sourcePath,
-            semantics.Title,
-            semantics.Headings.Select(heading => new DocumentHeadingInfo(heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel, Locate(locator, sourcePath, heading.Span))).ToArray(),
-            semantics.Links.Select(link => new DocumentLinkInfo(link.RawText, link.Url, link.Title, link.IsImage, Locate(locator, sourcePath, link.Span))).ToArray(),
-            semantics.Assets.Select(asset => new DocumentAssetInfo(asset.Url, Locate(locator, sourcePath, asset.Span))).ToArray(),
+            DocumentSemantics.TitleOf(headings),
+            headings.Select(heading => new DocumentHeadingInfo(heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
+                Locate(locator, sourcePath, heading.Span)) { LocalKey = heading.LocalKey }).ToArray(),
+            links.Select(link => new DocumentLinkInfo(link.RawText, link.Url, link.Title, link.IsImage, Locate(locator, sourcePath, link.Span))).ToArray(),
+            links.Where(link => link.IsImage).Select(link => new DocumentAssetInfo(link.Url, Locate(locator, sourcePath, link.Span))).ToArray(),
             route,
-            semantics.Components.Select(component => new DocumentComponentInfo(component.Name, Locate(locator, sourcePath, component.Span))).ToArray(),
+            [],
             frontMatter,
             options?.Version,
             options?.Locale,
             diagnostics.ToArray(),
             candidates,
             status,
-            project?.SchemaName);
+            project?.SchemaName)
+        {
+            Sections = (analysis.Sections ?? []).Select(section => new DocumentSectionInfo(section.LocalKey,
+                section.ParentLocalKey, section.HeadingLocalKey, section.SubtreeSpan is { } span
+                    ? Locate(locator, sourcePath, new SourceSpan(span.Start, span.Length)) : null)).ToArray(),
+        };
     }
 
     private static IReadOnlyList<ProjectRouteCandidate> MatchCandidates(

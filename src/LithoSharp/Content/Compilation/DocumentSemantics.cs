@@ -22,7 +22,10 @@ internal readonly record struct DocumentHeading(
     string? Id,
     int RawLevel,
     int OutputLevel,
-    SourceSpan Span);
+    SourceSpan Span)
+{
+    internal string? LocalKey { get; init; }
+}
 
 /// <summary>A resolved link: raw text is as written, URL is the resolved target.</summary>
 /// <param name="RawText">Original Markdown slice (for example, "[text](url)").</param>

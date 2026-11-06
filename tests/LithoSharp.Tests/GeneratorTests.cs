@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace LithoSharp.Tests;
 
-public sealed class GeneratorTests
+public sealed partial class GeneratorTests
 {
     [Test]
     public async Task DocsSampleReferencesDistinguishClosedContradictionFromDynamicInput()

@@ -52,7 +52,7 @@ public sealed partial class AnalyzerPackageHostTests
             var start = (int)MarkdownProperty(yaml,"Start")!;var length=(int)MarkdownProperty(yaml,"Length")!;
             Check(content.Substring(start,length).StartsWith("title:",StringComparison.Ordinal) && !content.Substring(start,length).Contains("---",StringComparison.Ordinal),"YAML span excludes delimiter lines");
             Check((string)MarkdownProperty(facts,"SourceId")! == "input.md" && (string)MarkdownProperty(facts,"ScopeId")! == "compiler-scope" && MarkdownProperty(facts,"SourceVersion") is null,"Opaque input identity");
-            Check((string)MarkdownProperty(facts,"ParserVersion")! == "1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051", "Pinned parser identity");
+            Check((string)MarkdownProperty(facts,"ParserVersion")! == "1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087", "Pinned parser identity");
             var options = CompilerMarkdownOptions();
             Check((string)MarkdownProperty(facts,"OptionsHash")! == (string)MarkdownProperty(options,"Hash")! && (string)MarkdownProperty(options,"ProfileId")! == "lithosharp-markdown/1","Actual default MdOptions/profile hash");
             if(name=="unsupported-body") Check(MarkdownProperty(facts,"Status")!.ToString()=="Partial" && MarkdownProperty(frontmatter,"State")!.ToString()=="Parsed","Body Partial differs from frontmatter availability");
@@ -101,7 +101,7 @@ public sealed partial class AnalyzerPackageHostTests
         var known=(bool)validator.GetMethod("Validate",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{"input.md",limited,Compile(ManifestModel,true).GetTypeByMetadataName("Front")!,new Action<Diagnostic>(collected.Add),CancellationToken.None})!;
         Check(!known && collected.Count==0,"Unavailable state returns to caller without schema success");
         var adapter=validator.Assembly.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
-        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
+        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
         {
             var rejected=false;
             try{adapter.GetMethod("Verify",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{parser,"1.0","lithosharp-markdown/1","18.1.0",yaml,"18.1.0"});}
@@ -121,13 +121,13 @@ public sealed partial class AnalyzerPackageHostTests
         _=ManifestGenerators.Value;
         return AssemblyLoadContext.Default.Assemblies.Single(a=>a.GetName().Name=="LithoSharp.Generators");
     }
-    private static object CompilerMarkdownOptions(int scan=16777216)=>CompilerMarkdownAssembly().GetType("Syntamark.Compilation.MdOptions")!.GetConstructors(BindingFlags.Instance|BindingFlags.NonPublic).Single().Invoke(new object[]{1048576,131072,200,scan,"lithosharp-markdown/1",1});
+    private static object CompilerMarkdownOptions(int scan=16777216)=>CompilerMarkdownAssembly().GetType("Syntamark.Compilation.MdOptions")!.GetConstructors(BindingFlags.Instance|BindingFlags.NonPublic).Single(constructor=>constructor.GetParameters().Length==6).Invoke(new object[]{1048576,131072,200,scan,"lithosharp-markdown/1",1});
     private static object ParseCompilerMarkdown(string raw,object? options=null,CancellationToken token=default)
     {
         var adapter=CompilerMarkdownAssembly().GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
         return options is null
             ? adapter.GetMethod("ParseForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object[]{raw,"compiler-scope","input.md",token})!
-            : adapter.GetMethod("Parse",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,"compiler-scope","input.md",null,options,"1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
+            : adapter.GetMethod("AnalyzeForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,"compiler-scope","input.md",null,options,"1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
     }
     private static string GeneratedMarkdownSource(CSharpCompilation compilation)=>string.Join("\n",compilation.SyntaxTrees.Where(t=>t.FilePath!="canary.cs").OrderBy(t=>t.FilePath,StringComparer.Ordinal).Select(t=>t.ToString()));
     private static string MarkdownDiagnosticSignature(Diagnostic diagnostic)=>diagnostic.Id+"|"+diagnostic.Severity+"|"+diagnostic.GetMessage()+"|"+diagnostic.Location.GetLineSpan()+"|"+diagnostic.Location.SourceSpan;

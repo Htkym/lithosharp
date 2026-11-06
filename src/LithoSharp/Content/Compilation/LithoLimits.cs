@@ -47,6 +47,7 @@ internal static partial class LithoLimits
     /// <summary>Diagnostic when math or diagram output needs unbundled browser assets.</summary>
     public const string BrowserAssetDiagnosticId = "LIT002";
 
+    // shortcut: fragment scanners remain until Syntamark exposes explicit body-only analysis.
     /// <summary>
     /// Finds math or diagram content whose HTML needs browser assets the Markdown
     /// pipeline does not bundle: <c>mermaid</c>/<c>nomnoml</c> fenced diagrams

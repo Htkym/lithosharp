@@ -36,7 +36,7 @@ var adapter = generator.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter
 var parse = adapter.GetMethod("Parse", staticMembers)
     ?? throw new InvalidOperationException("Source symbol did not compile the MD-04 Parse body.");
 var optionsType = generator.GetType("Syntamark.Compilation.MdOptions", true)!;
-var options = optionsType.GetConstructors(members).Single().Invoke(
+var options = optionsType.GetConstructors(members).Single(constructor => constructor.GetParameters().Length == 6).Invoke(
     new object[] { 1048576, 131072, 200, 16777216, Field("profileId"), 1 });
 object SourceParse(string raw, string expected = "", string assembly = "")
     => parse.Invoke(null, new object?[] { raw, "pair-scope", "same.md", null, options,

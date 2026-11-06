@@ -955,7 +955,7 @@ public sealed class LspServer
             buffer.InspectionContext = context;
         }
 
-        return BuildSymbols(info.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
+        return BuildSymbols(info);
     }
 
     private async Task<JsonElement> MdxSymbolsAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
@@ -1005,42 +1005,73 @@ public sealed class LspServer
 
         cancellationToken.ThrowIfCancellationRequested();
         return result is null ? EmptySymbols()
-            : BuildSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
+            : BuildMdxSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
     }
 
     private static JsonElement EmptySymbols() =>
         JsonSerializer.SerializeToElement(Array.Empty<object>(), JsonOptions);
 
-    private static JsonElement BuildSymbols((string Text, int Level, SiteSourceLocation? Location)[] headings)
+    private static JsonElement BuildSymbols(DocumentInfo info)
+    {
+        var sections = info.Sections
+            .Where(section => section.HeadingLocalKey is not null)
+            .ToDictionary(section => section.HeadingLocalKey!, StringComparer.Ordinal);
+        var nodes = new Dictionary<string, SymbolNode>(StringComparer.Ordinal);
+        var symbols = new List<(DocumentSectionInfo? Section, SymbolNode Node)>();
+        foreach (var heading in info.Headings)
+        {
+            var location = heading.Location;
+            if (location?.Line is null || location.Column is null)
+                continue;
+
+            var section = heading.LocalKey is { } localKey && sections.TryGetValue(localKey, out var found)
+                ? found : null;
+            if (section?.Location is not { Line: not null, Column: not null })
+                section = null;
+
+            var selectionRange = LspRange(location);
+            var node = new SymbolNode
+            {
+                Name = heading.Text,
+                Range = section?.Location is { Line: not null, Column: not null } subtree
+                    ? LspRange(subtree) : selectionRange,
+                SelectionRange = selectionRange,
+            };
+            symbols.Add((section, node));
+            if (section is not null)
+                nodes.Add(section.LocalKey, node);
+        }
+
+        var roots = new List<SymbolNode>();
+        foreach (var (section, node) in symbols)
+        {
+            if (section?.ParentLocalKey is { } parentKey && nodes.TryGetValue(parentKey, out var parent))
+                parent.Children.Add(node);
+            else
+                roots.Add(node);
+        }
+
+        return JsonSerializer.SerializeToElement(roots.Select(node => node.ToJson()).ToArray(), JsonOptions);
+    }
+
+    private static JsonElement BuildMdxSymbols((string Text, int Level, SiteSourceLocation? Location)[] headings)
     {
         var roots = new List<SymbolNode>();
         var stack = new Stack<(int Level, SymbolNode Node)>();
         foreach (var (text, level, location) in headings)
         {
             if (location?.Line is null || location.Column is null)
-            {
                 continue;
-            }
 
-            var node = new SymbolNode
-            {
-                Name = text,
-                Range = LspRange(location),
-                Children = [],
-            };
+            var range = LspRange(location);
+            var node = new SymbolNode { Name = text, Range = range, SelectionRange = range };
             while (stack.Count != 0 && stack.Peek().Level >= level)
-            {
                 stack.Pop();
-            }
 
             if (stack.Count == 0)
-            {
                 roots.Add(node);
-            }
             else
-            {
                 stack.Peek().Node.Children.Add(node);
-            }
 
             stack.Push((level, node));
         }
@@ -1052,6 +1083,7 @@ public sealed class LspServer
     {
         public required string Name;
         public required object Range;
+        public required object SelectionRange;
         public List<SymbolNode> Children = [];
 
         public object ToJson() => new
@@ -1059,7 +1091,7 @@ public sealed class LspServer
             name = Name,
             kind = 3,
             range = Range,
-            selectionRange = Range,
+            selectionRange = SelectionRange,
             children = Children.Select(child => child.ToJson()).ToArray(),
         };
     }

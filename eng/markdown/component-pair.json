@@ -1,8 +1,8 @@
 {
-  "componentVersion": "1.0.0",
-  "sourceCommit": "04729694c11c9c16f8a734b6c78eb46303504bdc",
-  "canonicalSourceHash": "7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051",
-  "parserVersion": "1/7e854150d5cad96e554b90a550251dce74d29b79ceef2964fa9cfa4a226e2051",
+  "componentVersion": "2.0.0-preview.4",
+  "sourceCommit": "956613752b749c794e7b50ab366ef50565bc73d0",
+  "canonicalSourceHash": "297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087",
+  "parserVersion": "1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087",
   "sourceRepository": {
     "kind": "git",
     "url": "https://github.com/Htkym/syntamark",
@@ -11,6 +11,11 @@
   },
   "contractVersion": "1.0",
   "profileId": "lithosharp-markdown/1",
+  "defaultProfileId": "lithosharp-markdown/1",
+  "supportedProfileIds": [
+    "lithosharp-markdown/1",
+    "commonmark/0.31.2"
+  ],
   "hashEncoding": "UTF8 path byte order + uint64 BE path/content lengths + Git blob bytes",
   "excludedGeneratedStamp": "src/Syntamark/Portable/MarkdownParserVersion.g.cs",
   "dependencies": [
@@ -31,18 +36,33 @@
     },
     {
       "path": "src/Syntamark/Contracts/markdown-options.json",
-      "byteLength": 405,
-      "sha256": "a4f217c45e933c8ce94080b79f0621fce7fa243d6794b07ccdeb245e9a17d718"
+      "byteLength": 786,
+      "sha256": "914aa7d2cbb46db4a40ba74943c83cd718911ba197caeedddddeb100a3527526"
     },
     {
       "path": "src/Syntamark/Contracts/markdown-profile.json",
-      "byteLength": 487,
-      "sha256": "4cc7fcc4d7c091040f7439b6708cbdac53759e575f74d477d925cbb00e3dcd31"
+      "byteLength": 1194,
+      "sha256": "5d765b2c676794282e76e01a03e07652508643a8a47d71b9862b8bd7a4e3506c"
+    },
+    {
+      "path": "src/Syntamark/Portable/CommonMarkCaseFolding.cs",
+      "byteLength": 47422,
+      "sha256": "82d31cc6ce69fea0f1e2ed4373904cddbeae6d808aa55e7b335b5b761f5568a7"
+    },
+    {
+      "path": "src/Syntamark/Portable/CommonMarkEntities.cs",
+      "byteLength": 84672,
+      "sha256": "321b07d7ea9f4a9519b791664af2d4cd519d12a25bf32ecb838a8f17f6b597b2"
+    },
+    {
+      "path": "src/Syntamark/Portable/CommonMarkHtml.cs",
+      "byteLength": 8844,
+      "sha256": "f386136da8083aa01e0c230a6cbf27103e200b1685576ff4dd254f003fc93d18"
     },
     {
       "path": "src/Syntamark/Portable/IndexRange.cs",
-      "byteLength": 1502,
-      "sha256": "8ff0c37c32c26d9e3324a67e784759e4d3e340e62928b1b54af013c9eb4addb5"
+      "byteLength": 1538,
+      "sha256": "2d093894d53c56c1e9fa9dc1c15195ca4973d234cc06b3b9ea52632b329d79f7"
     },
     {
       "path": "src/Syntamark/Portable/IsExternalInit.cs",
@@ -50,14 +70,19 @@
       "sha256": "58a23596a504a1cf073911fe514b1ce0bbf8e9e6dfda6c52c857ecc25a0c94f6"
     },
     {
+      "path": "src/Syntamark/Portable/LithoBlockParser.CommonMark.cs",
+      "byteLength": 14562,
+      "sha256": "257618e5975e95042819b6db0178b5378b43212f3212d6d92d7909a37db89222"
+    },
+    {
       "path": "src/Syntamark/Portable/LithoBlockParser.cs",
-      "byteLength": 67969,
-      "sha256": "b9215e418d17427b2dcf60472b7c61331ae13abacddc5902f1ff98daec5f1633"
+      "byteLength": 85368,
+      "sha256": "8d6734722060375918baff83c3238827e7ca262079085cd5f6058b5cd6babd67"
     },
     {
       "path": "src/Syntamark/Portable/LithoCharacters.cs",
-      "byteLength": 363,
-      "sha256": "b2c3996334c519581ce9c0e6090d25b958f3018bfdb92f80d3e3df0d53c5152a"
+      "byteLength": 3457,
+      "sha256": "18dae0108865f4287f555dbca76bde18377f968c8cdf4b640554946a70a9e9d2"
     },
     {
       "path": "src/Syntamark/Portable/LithoDirectives.cs",
@@ -66,8 +91,8 @@
     },
     {
       "path": "src/Syntamark/Portable/LithoInlineParser.cs",
-      "byteLength": 41768,
-      "sha256": "0bd39479f1494560158dc94dccc3bf447ebdb4b1281d019ebaea3dbf7d795d6b"
+      "byteLength": 55510,
+      "sha256": "5c518eda34605eb8f05885ca87707de69736e8ce2c9ee648a52864ff26cee451"
     },
     {
       "path": "src/Syntamark/Portable/LithoLimits.cs",
@@ -76,48 +101,63 @@
     },
     {
       "path": "src/Syntamark/Portable/LithoNodes.cs",
-      "byteLength": 8000,
-      "sha256": "ade4a6857f98a3dac892c18f70e36ac0ce5d164ffe1f64ac9ac167b8a153c2a8"
+      "byteLength": 9108,
+      "sha256": "4beee5050ccce0e1b1111303f4f9276b86809d7dbe3c4c56dabe231037e3131d"
     },
     {
       "path": "src/Syntamark/Portable/LithoSlug.cs",
-      "byteLength": 3429,
-      "sha256": "95624a62ad4407cf9bc9f777e12550ace069e877ce961e6d7fc5e455b9a3dc01"
+      "byteLength": 3481,
+      "sha256": "44b97ae06d6d6ba71c53228550950cd18c08a8bbc55fd14defc3ca5ed734f23d"
+    },
+    {
+      "path": "src/Syntamark/Portable/MarkdownAnalysis.cs",
+      "byteLength": 4708,
+      "sha256": "3efa6d3d04583d75db1698b91ed45e232d3fd19139e9af23ccebf18f1b40f32c"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownFacts.cs",
-      "byteLength": 10260,
-      "sha256": "4ae79205e3c3efb0f5cb7c184494c708ddc8afa263d8a08ce8eb62eea2bca0b2"
+      "byteLength": 12692,
+      "sha256": "92090d679f18247137044296d5a07bc762d4e74f01455ab3cb56a12b698aa4a7"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownFrontMatter.cs",
-      "byteLength": 8307,
-      "sha256": "400099fb980500c824216a217773dd1e1fbab728f7426f52da47f3009cbb52e6"
+      "byteLength": 8989,
+      "sha256": "f54ee50f29d3968a6ef6d92587f116f288980fa546327d4e1a0bf9815de1d5b3"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownFrontMatterScan.cs",
-      "byteLength": 2598,
-      "sha256": "76f73bffa64f741a811aa5407ddaece10f77a643345dd8016ffc01d488e6d8a2"
+      "byteLength": 2738,
+      "sha256": "23b15d3ae99b90307ee5d76c5db3ab8934666ad886e661e7b5f37c8daa2f3c1b"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownOpaqueSyntax.cs",
-      "byteLength": 7872,
-      "sha256": "60dc5a70b9cd3142fb7c5a1d0103705b7cb6c44b96771fe9491a3487bf794d39"
+      "byteLength": 9100,
+      "sha256": "b36bdaeb8f52d3e7e10e2c9eb89b256debe8f4ffb437cdb7930bca1da5fda5ff"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownOptions.cs",
-      "byteLength": 4222,
-      "sha256": "a9392962d13e0ada8349349013326a9cdf242994310ff68d4a14d01eb031eb59"
+      "byteLength": 5911,
+      "sha256": "4c80b25c8ac464b77b201093f547a218a80060705a0d5ba70a2f068cb451923e"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownParser.cs",
-      "byteLength": 25000,
-      "sha256": "cf8f7139dca5094be3cf69c14ddd3ead48ffa87805ea7c5630d767a4f5114a65"
+      "byteLength": 42597,
+      "sha256": "6ce7930beb66dcb673071904b00fd15eea78957325cb7a9cbb79e96bd431ed18"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownSourceMapping.cs",
-      "byteLength": 5522,
-      "sha256": "d48e1ff5fd5d9faff3c542504304772f6046048c777804b1e237cc92d6a22fb7"
+      "byteLength": 8239,
+      "sha256": "c0ec57d1952eb49b2cd0b66483006ed1c6e2aade9ceb433c56cce4cfbedff0a3"
+    },
+    {
+      "path": "src/Syntamark/Portable/MarkdownSyntax.cs",
+      "byteLength": 14817,
+      "sha256": "855e268b8d833dd4c573e6353569d41737a0b488b3b0c694ff48d2d82a806b09"
+    },
+    {
+      "path": "src/Syntamark/Portable/MarkdownUnsupportedSyntax.cs",
+      "byteLength": 17604,
+      "sha256": "e151f22bf0f550bb6b746b9389995a1492f6781d69cc2479d6ae39dc4317a513"
     },
     {
       "path": "src/Syntamark/Portable/NetStandardCompatibility.cs",
@@ -126,18 +166,18 @@
     },
     {
       "path": "src/Syntamark/Portable/SourceSpan.cs",
-      "byteLength": 2351,
-      "sha256": "78e8ef97aea4478778f42af18ed2e59f9d53e8da83d62cfe93f90b39aef63261"
+      "byteLength": 2327,
+      "sha256": "cfe0644fe46b98405292c01154a7eacdc6761c7b24a288571244db569061e2d3"
     },
     {
       "path": "src/Syntamark/Portable/SourceText.cs",
       "byteLength": 2360,
-      "sha256": "080e085fad7512f5c8d46a3a3be64467a71b005fdd67fe00616f52b1513c837d"
+      "sha256": "441cbb946475fbf11f8ac9c17e6bc74cdeaebfdd6ebc24574fb03ded6a4f325d"
     }
   ],
   "generatedStamp": {
     "packagePath": "src/Portable/MarkdownParserVersion.g.cs",
-    "sha256": "b183a83c5e46ce99336d2aa25b1f8d08549b45facff2d21688ce4a3a16d39bce"
+    "sha256": "8bd591088877a60d72627fceb8d0acb0e76c76f744de5f2c7383f26b981ce1e9"
   },
   "licenses": [
     {
@@ -151,8 +191,18 @@
       "sha256": "daea8b7f1b2bab48ea12ad50b0ce91634669d99d7dd0cb64aed8dffeeef69ed3"
     },
     {
+      "sourcePath": "licenses/WHATWG.LICENSE.txt",
+      "packagePath": "licenses/WHATWG.LICENSE.txt",
+      "sha256": "f6d8654778e99cc7fe55a9e72597cdc9b1275ba18623d18c863a772ec8c7c0ae"
+    },
+    {
+      "sourcePath": "licenses/Unicode.LICENSE.txt",
+      "packagePath": "licenses/Unicode.LICENSE.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    {
       "packagePath": "licenses/THIRD-PARTY-NOTICES.md",
-      "sha256": "6ce57e4d96986dacdc6c0a3e11a3bf79a9120747d202e2bf8e4e3d915ef5da88"
+      "sha256": "7de7a1ce90614dc0f5bf0592ff027c007a9533a4192e9d41ae90f2d2dbd75a75"
     }
   ],
   "runtimeFiles": [
@@ -165,52 +215,69 @@
     {
       "path": "src/Syntamark/Public/Markdown.cs",
       "stagePath": "Public/Markdown.cs",
-      "byteLength": 15469,
-      "sha256": "923a11a7f47d0c6e1e30556b104173268c91ac1a6be3c6d8437c6cb2158ab6fe"
+      "byteLength": 18964,
+      "sha256": "0cead9c2641bf1947103dfbb88804e1dd7c13822af005a0aa64b3a7cd3eb0a8a"
+    },
+    {
+      "path": "src/Syntamark/Public/MarkdownAnalysis.cs",
+      "stagePath": "Public/MarkdownAnalysis.cs",
+      "byteLength": 6009,
+      "sha256": "462bf9b72328ab84bfcfe1c4489797d2a83343f105adb69cf09393b3c32215bc"
+    },
+    {
+      "path": "src/Syntamark/Public/MarkdownSyntax.cs",
+      "stagePath": "Public/MarkdownSyntax.cs",
+      "byteLength": 5826,
+      "sha256": "4e041523b4a210d603bd75598c63244481459ecc3ee97cc89505f37a331dc50d"
     }
   ],
   "packagingInputs": [
     {
       "path": "eng/markdown/package/runtime.csproj",
-      "sha256": "cd006eedf0b7cd9ce639a0d8f61c3862d88ef50bf7d2fe1ba14ff25904a36125",
+      "sha256": "d819a41f41b20100cc3591d2ab77ccfc792fec850bf37731e8b49d9193d396c1",
       "stagePath": "runtime/runtime.csproj",
-      "stagedSha256": "485931870293399fa1bad9b3ab7dac645ace2c75ad99ca6f68a076221d8cd0cf"
+      "stagedSha256": "fc77ec520cdb0d48c0c099e0ee5d115a96c187e5a22c8dd22273e012c2935d80"
     },
     {
       "path": "eng/markdown/package/source.csproj",
-      "sha256": "82b5b2b56fd13fd30ad32d03ff19790ba23e5834b1d9308f8492aee56b091f37",
+      "sha256": "c1d7cd7e0310ee592eb77a4fca63f0f0c1dded1a5fbba3675b628b8268721940",
       "stagePath": "source/source.csproj",
-      "stagedSha256": "476d1863eb27f4169791e4a0ce4e0462a51cc8e8245dc5979b02640a66d3897f"
+      "stagedSha256": "52ef6ab228f136a17180d85c2c229d30ebbb37c304d50ceda571be346faf624b"
     },
     {
       "path": "eng/markdown/package/Syntamark.Source.targets",
       "sha256": "d4cf5ff0bbbc6a66b2e8d82b33b6f8a0fd7067d60875f01c96a71d534cf6f1ed",
       "stagePath": "source/build/Syntamark.Source.targets",
-      "stagedSha256": "8af929dfb0fd4093dd1193a152b52fb405151772c7d9e05a5e4e3dfdc018f7fe"
+      "stagedSha256": "3916b6ba25a6b7ea6b0f19c110b48be1fb90716a23d45891ecc9df0595507f29"
     }
   ],
+  "icon": {
+    "sourcePath": "images/icon.png",
+    "packagePath": "icon.png",
+    "sha256": "70871ebf6fef435691c456b380131e7c4866822c22a0b6e0947d6c913ff31e1e"
+  },
   "readme": {
     "sourcePath": "README.md",
     "packagePath": "README.md",
-    "sourceSha256": "4896516ca497e4ffb3799beff94980500066a5275b9bb93c0f47298cbb374dce",
-    "sha256": "ccf74a6564d1e947eaaff58dee36ac6c4e07361fc675e6e65c2c3625638f4379"
+    "sourceSha256": "f07483363447930a6aab5bfb9b7133f0f4495cc5400b3553e95a8bc5cd4be5b6",
+    "sha256": "e168c7169ef0a1fb11a39e3c2a415ef62aa45b80674b6bce3325cb35f403242e"
   },
   "state": "PACKED_NOT_HOST_VERIFIED",
   "artifacts": {
     "runtime": {
       "packageId": "Syntamark",
-      "componentVersion": "1.0.0",
-      "fileName": "Syntamark.1.0.0.nupkg",
-      "sha256": "31e884eeab734c384a9aec30b5680339769d90708ebf2ac20b87af0095cc2bd6",
-      "byteLength": 78225,
-      "assemblySha256": "e2aec0cdab280d8b721ea5142dde20ed0e55a469da7a0d32abf0959fb2978a4b"
+      "componentVersion": "2.0.0-preview.4",
+      "fileName": "Syntamark.2.0.0-preview.4.nupkg",
+      "sha256": "55dd1ca8cdabf15aba03787ba98ae9af356778da6397e27aaec2a9e5ec388e06",
+      "byteLength": 561877,
+      "assemblySha256": "1b50372f05cce88394a52ae7bb6a333c5f321a451ee02346f910d88c692fe071"
     },
     "source": {
       "packageId": "Syntamark.Source",
-      "componentVersion": "1.0.0",
-      "fileName": "Syntamark.Source.1.0.0.nupkg",
-      "sha256": "6036497df9bbd7c3660026fc023b8dcc4b1c34e8b81f37e64aa287024ddedbb3",
-      "byteLength": 55889
+      "componentVersion": "2.0.0-preview.4",
+      "fileName": "Syntamark.Source.2.0.0-preview.4.nupkg",
+      "sha256": "d2ac49f7fde0501dcec5ee78b94ce3e673a77f4f231d2d73669ed17229018e83",
+      "byteLength": 524318
     }
   }
 }
