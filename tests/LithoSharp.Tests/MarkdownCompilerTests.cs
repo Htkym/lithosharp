@@ -72,14 +72,14 @@ public sealed class MarkdownCompilerTests
         await Assert.That(@default.Frontend).IsEqualTo("lithosharp");
         await Assert.That(@default.Fingerprint.StartsWith($"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/", StringComparison.Ordinal)).IsTrue();
         await Assert.That(@default.Fingerprint).Contains($"/spec={LithoMarkdownCompiler.SpecVersion}/");
-        await Assert.That(@default.Fingerprint).Contains($"/parser={MdParserVersion.Value}/profile=lithosharp-markdown/1/");
+        await Assert.That(@default.Fingerprint).Contains($"/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile=lithosharp-markdown/1/");
         await Assert.That(repeated.Fingerprint).IsEqualTo(@default.Fingerprint);
         await Assert.That(changed.Fingerprint == @default.Fingerprint).IsFalse();
     }
 
     [Test]
     [Arguments("unversioned")]
-    [Arguments("previous-parser")]
+    [Arguments("previous-runtime")]
     public async Task PersistentBodyCache_RejectsDifferentParserIdentity(string identity)
     {
         using var workspace = new TemporaryWorkspace();
@@ -87,7 +87,7 @@ public sealed class MarkdownCompilerTests
         var compiler = new LithoMarkdownCompiler();
         var previous = identity == "unversioned"
             ? $"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/spec={LithoMarkdownCompiler.SpecVersion}/syntax=advanced/output=disable-html"
-            : compiler.Fingerprint.Replace(MdParserVersion.Value, "1/" + new string('0', 64), StringComparison.Ordinal);
+            : compiler.Fingerprint.Replace(typeof(LithoBlockParser).Module.ModuleVersionId.ToString("N"), new string('0', 32), StringComparison.Ordinal);
         const string body = "## Current heading\n\nCurrent body.";
         var sourceHash = MarkdownDocumentFingerprints.SourceHash(body);
         var partition = SiteGenerator.MeasureCache(output).CacheDirectory;
