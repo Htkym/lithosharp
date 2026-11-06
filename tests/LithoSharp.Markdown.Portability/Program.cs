@@ -84,6 +84,7 @@ Check(!AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetName(
 Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoads");
 
 Md03AdapterChecks.Run(product, runtime, portable);
+MdBodyAnalysisChecks.Run(runtime, portable);
 await Md04CacheChecks.Run(product, runtime);
 
 static object Parse(Assembly assembly, string input)

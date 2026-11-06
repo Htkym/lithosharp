@@ -9,6 +9,9 @@ internal static class MarkdownAnalysisAdapter
     internal const MdAnalysisParts InspectionParts = MdAnalysisParts.FrontMatter | MdAnalysisParts.Headings
         | MdAnalysisParts.Sections | MdAnalysisParts.Links | MdAnalysisParts.Fences | MdAnalysisParts.UnsupportedSyntax;
 
+    private static readonly MdOptions BodyOptions = new(MdInputKind.Body);
+    internal static string BodyOptionsHash => BodyOptions.Hash;
+
     // Editor snapshots already support multi-megabyte documents; compiler hosts keep their stricter defaults.
     private static readonly MdOptions EditorOptions = new(MdFrontMatterRecovery.TreatAsBody,
         maxInputUtf16: 8 * 1024 * 1024, maxOutputItems: 1024 * 1024, maxScanUnits: 512 * 1024 * 1024);
@@ -16,15 +19,31 @@ internal static class MarkdownAnalysisAdapter
     internal static MdAnalysisResult InspectDocument(string raw, string sourcePath, CancellationToken cancellationToken) =>
         MdParser.AnalyzeWithBlocks(raw, InspectionParts, "lithosharp", sourcePath, null, EditorOptions, cancellationToken);
 
-    internal static SiteDiagnostic? IncompleteDiagnostic(MdAnalysisResult analysis, string sourcePath)
+    internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, CancellationToken cancellationToken) =>
+        MdParser.AnalyzeWithBlocks(body, MdAnalysisParts.UnsupportedSyntax, "lithosharp",
+            string.IsNullOrWhiteSpace(sourcePath) ? "body" : sourcePath, null, BodyOptions, cancellationToken);
+
+    internal static SiteDiagnostic? IncompleteDiagnostic(MdAnalysisResult analysis, string? sourcePath, int bodyStartLine = 1)
     {
         var failure = analysis.Diagnostics.FirstOrDefault(item => item.Origin is "input" or "resource");
         if (analysis.Status != MdParseStatus.Failed && failure is null)
             return null;
-        var source = new SourceText(analysis.RawText);
-        var location = failure?.RawSpan is { } range
-            ? new SourceSpan(range.Start, range.Length).ToSourceLocation(sourcePath, source)
-            : new SiteSourceLocation(sourcePath);
+        SiteSourceLocation? location = null;
+        if (!string.IsNullOrWhiteSpace(sourcePath))
+        {
+            if (failure?.RawSpan is { } range)
+            {
+                var source = new SourceText(analysis.RawText);
+                var (line, column) = source.GetLineAndColumn(range.Start);
+                var (endLine, endColumn) = source.GetLineAndColumn(range.End);
+                location = new SiteSourceLocation(sourcePath, bodyStartLine + line - 1, column,
+                    bodyStartLine + endLine - 1, endColumn);
+            }
+            else
+            {
+                location = new SiteSourceLocation(sourcePath);
+            }
+        }
         return new SiteDiagnostic(IncompleteAnalysisDiagnosticId, SiteDiagnosticSeverity.Error,
             "Markdown analysis is incomplete; unavailable facts were not validated."
                 + (failure is null ? string.Empty : " " + failure.Message), location);

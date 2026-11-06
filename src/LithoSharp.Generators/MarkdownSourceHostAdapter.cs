@@ -10,7 +10,7 @@ namespace LithoSharp.Generators;
 // SYNTAMARK_SOURCE comes from the pinned source package, not checkout Compile links.
 internal static class MarkdownSourceHostAdapter
 {
-    internal const string ExpectedParserVersion = "1/297f56497e33ded69ba45d5a37c9e1584fcb00425fb45f3a9df73c663550d087";
+    internal const string ExpectedParserVersion = "1/52ca40ef0109be65277c25d33aa12b53084bb2bedf5eb62927369b8969c53f01";
     private const string ContractVersion = "1.0";
     private const string ProfileId = "lithosharp-markdown/1";
     internal static void Verify(string expectedParserVersion, string contractVersion, string profileId,
@@ -42,7 +42,8 @@ internal static class MarkdownSourceHostAdapter
     {
         cancellationToken.ThrowIfCancellationRequested();
         Verify(expectedParserVersion, contractVersion, profileId, yamlPackage, yamlAssembly, yamlInformation);
-        if (options.ProfileId != profileId || options.FrontMatterRecovery != MdFrontMatterRecovery.None)
+        if (options.ProfileId != profileId || options.FrontMatterRecovery != MdFrontMatterRecovery.None
+            || options.InputKind != MdInputKind.Document)
             throw new InvalidOperationException("Markdown compiler options differ from the verified strict profile.");
         return MdParser.Analyze(raw, MdAnalysisParts.FrontMatter, scopeId, sourceId, sourceVersion, options, cancellationToken);
     }

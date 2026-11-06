@@ -105,8 +105,8 @@
       },
       "Syntamark": {
         "type": "Transitive",
-        "resolved": "2.0.0-preview.4",
-        "contentHash": "SurTo4WSoviQWY7JuHW+Ny73Fiogl1AtGf4m//gSR51N2vGx/aJjxV1T+qdZt2HVYE6CF+wNbteI3j8ehkPRQQ==",
+        "resolved": "2.0.0-preview.196335332935131",
+        "contentHash": "QoprOqocAnB0c5ycVbCwAcCZpvksoCyKkwd74EHzeJOg26ciZTyRFyPSAcO+N1TF8Zyh6LH34NJ5B2Wo7QPfTg==",
         "dependencies": {
           "YamlDotNet": "[18.1.0]"
         }
@@ -142,7 +142,7 @@
         "dependencies": {
           "SkiaSharp": "[4.153.1, )",
           "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
-          "Syntamark": "[2.0.0-preview.4, 2.0.0-preview.4]",
+          "Syntamark": "[2.0.0-preview.196335332935131, 2.0.0-preview.196335332935131]",
           "YamlDotNet": "[18.1.0, )"
         }
       },

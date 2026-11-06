@@ -1186,6 +1186,15 @@ public sealed partial class SiteGenerator
         }
 
         var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, null, cancellation);
+        var errors = (analyzed.Semantics?.Diagnostics ?? [])
+            .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)
+            .Select(diagnostic => diagnostic.Location is not null || string.IsNullOrWhiteSpace(post.FilePath)
+                ? diagnostic
+                : new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
+                    new SiteSourceLocation(post.FilePath), diagnostic.Category, diagnostic.RelatedLocations))
+            .ToArray();
+        if (errors.Length != 0)
+            throw new SiteQualityValidationException(new SiteQualityReport(errors));
         if (persistent is not null
             && analyzed.Semantics is { Components.Count: 0, Diagnostics.Count: 0 } semantics)
         {
