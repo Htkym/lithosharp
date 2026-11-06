@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using LithoSharp.Build;
+using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Documentation;
 using LithoSharp.Inspection;
@@ -767,6 +768,8 @@ public sealed class LspServer
 
         var diagnostics = documentDiagnostics.Where(diagnostic => diagnostic.Location?.Line is not null)
             .Select(ToLspDiagnostic).ToArray();
+        var incomplete = documentDiagnostics.FirstOrDefault(diagnostic =>
+            diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId);
         lock (stateGate)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -779,6 +782,8 @@ public sealed class LspServer
             buffer.Inspection = info;
             buffer.InspectionContext = entry;
             Publish(uri, version, diagnostics, buffer.OpenGeneration, contextGeneration);
+            PublishAnalysisStatus(buffer, contextGeneration, incomplete is null ? "ready" : "unavailable",
+                incomplete?.Message ?? "Markdown syntax analysis completed.");
         }
     }
 
@@ -863,8 +868,9 @@ public sealed class LspServer
 
     private void PublishAnalysisStatus(DocumentBuffer buffer, long contextGeneration, string state, string message)
     {
+        var language = IsMdx(buffer.LanguageId, buffer.Uri) ? "mdx" : "markdown";
         transport.WriteMessage(JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "lithosharp/analysisStatus",
-            @params = new { uri = buffer.Uri, version = buffer.Version, language = "mdx", state, message,
+            @params = new { uri = buffer.Uri, version = buffer.Version, language, state, message,
                 lithosharpOpenGeneration = buffer.OpenGeneration, lithosharpContextGeneration = contextGeneration } }, JsonOptions));
     }
 

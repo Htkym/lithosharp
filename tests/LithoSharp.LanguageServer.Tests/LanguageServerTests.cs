@@ -106,6 +106,56 @@ public sealed class LanguageServerTests
     }
 
     [Test]
+    public async Task MarkdownInputLimitPublishesUnavailableStatusWithoutInventingARangeAndRecovers()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/limited.md";
+        // This exceeds the editor parser's UTF-16 input limit but fits LSP framing.
+        // The input-level failure has no source range and must stay out of Problems.
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "markdown", version = 1, text = new string('x', 8 * 1024 * 1024 + 1) },
+            lithosharpOpenGeneration = 17,
+        });
+        var first = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(first.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var unavailable = (await WaitStatusAsync(1)).GetProperty("params");
+        await Assert.That(unavailable.GetProperty("language").GetString()).IsEqualTo("markdown");
+        await Assert.That(unavailable.GetProperty("state").GetString()).IsEqualTo("unavailable");
+        await Assert.That(unavailable.GetProperty("message").GetString()).Contains("analysis is incomplete");
+        await Assert.That(unavailable.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(17);
+        await Assert.That(unavailable.GetProperty("lithosharpContextGeneration").GetInt64()).IsEqualTo(0);
+        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+            && line.Contains("no reliable source position", StringComparison.Ordinal));
+
+        var emptyId = client.NextId();
+        client.SendRequest(emptyId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        var empty = await WaitProtocolResponseAsync(client, emptyId);
+        await Assert.That(empty.GetProperty("result").GetArrayLength()).IsEqualTo(0);
+
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 2 },
+            contentChanges = new[] { new { text = "---\ntitle: Recovered\n---\n# Recovered\n" } },
+        });
+        var second = await WaitDiagnosticsAsync(client, uri, 2);
+        await Assert.That(second.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var ready = (await WaitStatusAsync(2)).GetProperty("params");
+        await Assert.That(ready.GetProperty("language").GetString()).IsEqualTo("markdown");
+        await Assert.That(ready.GetProperty("state").GetString()).IsEqualTo("ready");
+        await Assert.That(ready.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(17);
+        var recoveredId = client.NextId();
+        client.SendRequest(recoveredId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        await AssertProtocolSymbolAsync(client, recoveredId, "Recovered");
+
+        Task<JsonElement> WaitStatusAsync(long version) => client.WaitForAsync(message =>
+            message.TryGetProperty("method", out var method) && method.GetString() == "lithosharp/analysisStatus"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri
+            && message.GetProperty("params").GetProperty("version").GetInt64() == version);
+    }
+
+    [Test]
     public async Task Framing_SplitAndConcatenatedMessages()
     {
         await using var client = LspTestClient.Start();

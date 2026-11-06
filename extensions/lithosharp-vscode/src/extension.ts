@@ -820,7 +820,9 @@ export function activate(context: vscode.ExtensionContext): void {
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => { if (!disposed) output.appendLine(line); },
         onCapabilities: (value) => { if (!disposed) output.appendLine(serverCapabilityText(value)); },
-        onAnalysisStatus: (uri, state, message) => { if (!disposed) output.appendLine(`MDX analysis ${state}: ${uri}. ${message}`); },
+        onAnalysisStatus: (uri, state, message, language) => {
+          if (!disposed) output.appendLine(`${language === 'mdx' ? 'MDX' : 'Markdown'} analysis ${state}: ${uri}. ${message}`);
+        },
         onState: (name) => {
           if (!disposed) output.appendLine(`Language server: ${name}.`);
           // Reconnect on the next editing request, never in an exit-triggered loop.

@@ -14,7 +14,9 @@ When an exact version and candidate feed are provided, keep Core, MDX, Tool, Tes
 
 Templates default to `2.1.2`. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The following commands are absent from the published 1.1.0 Tool.
 
-The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. The current fixed pair is Syntamark 1.0.0, published on NuGet. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
+The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. The published baseline pair is Syntamark 1.0.0. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
+
+This branch selects an exact Syntamark 2.0.0-preview.4 runtime/source pair for integration testing. Its [trial provenance](../eng/markdown/trial-provenance.json) identifies the successful producer CI and immutable artifact bytes. This is not formal adoption: the reviewed, merged pair still needs formal publication, and shared body-fragment analysis and resource-partial block retention remain incomplete.
 
 ## Docs settings and existing output
 
