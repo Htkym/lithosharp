@@ -10,7 +10,7 @@ namespace LithoSharp.Generators;
 // SYNTAMARK_SOURCE comes from the pinned source package, not checkout Compile links.
 internal static class MarkdownSourceHostAdapter
 {
-    internal const string ExpectedParserVersion = "1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b";
+    internal const string ExpectedParserVersion = "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa";
     private const string ContractVersion = "1.0";
     private const string ProfileId = "lithosharp-markdown/1";
     internal static void Verify(string expectedParserVersion, string contractVersion, string profileId,

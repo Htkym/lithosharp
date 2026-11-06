@@ -52,7 +52,7 @@ public sealed partial class AnalyzerPackageHostTests
             Check(content.Substring(start,length).StartsWith("title:",StringComparison.Ordinal) && !content.Substring(start,length).Contains("---",StringComparison.Ordinal),"YAML span excludes delimiter lines");
             Check((string)MarkdownProperty(scan,"ContractVersion")! == "frontmatter-scan/1", "Header-only scan contract");
             Check(MarkdownProperty(scan,"State")!.ToString()=="Closed" && MarkdownProperty(scan,"Status")!.ToString()=="Complete", "Known delimiters do not certify YAML/schema: "+name);
-            Check((string)MarkdownProperty(scan,"ParserVersion")! == "1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b", "Pinned parser identity");
+            Check((string)MarkdownProperty(scan,"ParserVersion")! == "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa", "Pinned parser identity");
             var options = CompilerMarkdownOptions();
             Check((string)MarkdownProperty(scan,"OptionsHash")! == (string)MarkdownProperty(options,"Hash")! && (string)MarkdownProperty(scan,"ProfileId")! == "lithosharp-markdown/1","Actual default MdOptions/profile hash");
             foreach(var property in new[]{"RawText","FrontMatter","RequestedParts","Coverage","Headings","Sections","Links","Fences","TextRegions","Root","UnsupportedSyntax","SourceId","ScopeId","SourceVersion"})
@@ -118,7 +118,7 @@ public sealed partial class AnalyzerPackageHostTests
         var known=(bool)validator.GetMethod("Validate",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{"input.md",limitedRaw,limited,Compile(ManifestModel,true).GetTypeByMetadataName("Front")!,new Action<Diagnostic>(collected.Add),CancellationToken.None})!;
         Check(!known && collected.Count==0,"Unavailable state returns to caller without schema success");
         var adapter=validator.Assembly.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
-        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
+        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
         {
             var rejected=false;
             try{adapter.GetMethod("Verify",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{parser,"1.0","lithosharp-markdown/1","18.1.0",yaml,"18.1.0"});}
@@ -178,7 +178,7 @@ public sealed partial class AnalyzerPackageHostTests
         var adapter=CompilerMarkdownAssembly().GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
         return options is null
             ? adapter.GetMethod("ParseForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object[]{raw,token})!
-            : adapter.GetMethod("AnalyzeForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,options,"1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
+            : adapter.GetMethod("AnalyzeForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,options,"1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
     }
     private static string GeneratedMarkdownSource(CSharpCompilation compilation)=>string.Join("\n",compilation.SyntaxTrees.Where(t=>t.FilePath!="canary.cs").OrderBy(t=>t.FilePath,StringComparer.Ordinal).Select(t=>t.ToString()));
     private static string MarkdownDiagnosticSignature(Diagnostic diagnostic)=>diagnostic.Id+"|"+diagnostic.Severity+"|"+diagnostic.GetMessage()+"|"+diagnostic.Location.GetLineSpan()+"|"+diagnostic.Location.SourceSpan;

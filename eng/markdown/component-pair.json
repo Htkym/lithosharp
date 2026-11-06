@@ -1,8 +1,8 @@
 {
-  "componentVersion": "2.0.0-preview.27810571764218",
-  "sourceCommit": "194b274041fa542045272db1d037a52500d7ba21",
-  "canonicalSourceHash": "6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b",
-  "parserVersion": "1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b",
+  "componentVersion": "2.0.0-preview.202647137865236",
+  "sourceCommit": "b84e76aace1415576c4704f70e68496204fe6377",
+  "canonicalSourceHash": "17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
+  "parserVersion": "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
   "sourceRepository": {
     "kind": "git",
     "url": "https://github.com/Htkym/syntamark",
@@ -141,13 +141,13 @@
     },
     {
       "path": "src/Syntamark/Portable/MarkdownParser.cs",
-      "byteLength": 42796,
-      "sha256": "ac392a9547a089621f1f41f926c569e70b1cca1b8066c71429fcf728feca9f21"
+      "byteLength": 43267,
+      "sha256": "9c122ad64da6d993aa96b73f6363eb04b7ed008435c7eae7ca0f4d7f2903ce4a"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownSourceMapping.cs",
-      "byteLength": 8239,
-      "sha256": "c0ec57d1952eb49b2cd0b66483006ed1c6e2aade9ceb433c56cce4cfbedff0a3"
+      "byteLength": 8651,
+      "sha256": "9ac86ca62bd46ed66d2650105ef6b18b7fde4b6e555cf60a88df2169c5c29dd3"
     },
     {
       "path": "src/Syntamark/Portable/MarkdownSyntax.cs",
@@ -177,7 +177,7 @@
   ],
   "generatedStamp": {
     "packagePath": "src/Portable/MarkdownParserVersion.g.cs",
-    "sha256": "d8da943d94821f1ed81089df9e45935bddaff71ff6fccfb4c6659ed537ab5026"
+    "sha256": "cfbb84a65a5e2c097b5edb93ca46458a9aa10b0637ef54c1cef8cb773bc9b6c4"
   },
   "licenses": [
     {
@@ -242,19 +242,19 @@
       "path": "eng/markdown/package/runtime.csproj",
       "sha256": "d819a41f41b20100cc3591d2ab77ccfc792fec850bf37731e8b49d9193d396c1",
       "stagePath": "runtime/runtime.csproj",
-      "stagedSha256": "c21d0d8ce5239f8e999d30bc9d95ca4a1edf030100237fd4964db3594bb240bc"
+      "stagedSha256": "2ca32c77ab6afa6c620e4a6d7c98ed66880bdd0d30aef16a995930896fdb540d"
     },
     {
       "path": "eng/markdown/package/source.csproj",
       "sha256": "c1d7cd7e0310ee592eb77a4fca63f0f0c1dded1a5fbba3675b628b8268721940",
       "stagePath": "source/source.csproj",
-      "stagedSha256": "74b804a3cd186b4ad14bee07f722456bc2cc31518d844a0ca5dd36bed8a62ebe"
+      "stagedSha256": "8b208e9efaebf5d33832204373ab7a87eea374d5e80ad0d31d551f67c6749059"
     },
     {
       "path": "eng/markdown/package/Syntamark.Source.targets",
       "sha256": "d4cf5ff0bbbc6a66b2e8d82b33b6f8a0fd7067d60875f01c96a71d534cf6f1ed",
       "stagePath": "source/build/Syntamark.Source.targets",
-      "stagedSha256": "a0999c29674fa8f3b611a86f5a9b58040369dec02e9a7762e2bad23c5ef7fb95"
+      "stagedSha256": "21ec4e8c073792d49f1d92e7c2fd5ea6262dea365fa0a03f82da9ad07c14489e"
     }
   ],
   "icon": {
@@ -266,24 +266,24 @@
     "sourcePath": "README.md",
     "packagePath": "README.md",
     "sourceSha256": "f07483363447930a6aab5bfb9b7133f0f4495cc5400b3553e95a8bc5cd4be5b6",
-    "sha256": "7dfd791e634825e0ae691e99e26e811d00739f0d04044a415b02ec476d54608e"
+    "sha256": "4c13b19841daae9d1486e30d8f902981d4ec4e32ffe2c064e774eeae0f4f5b9a"
   },
   "state": "PACKED_NOT_HOST_VERIFIED",
   "artifacts": {
     "runtime": {
       "packageId": "Syntamark",
-      "componentVersion": "2.0.0-preview.27810571764218",
-      "fileName": "Syntamark.2.0.0-preview.27810571764218.nupkg",
-      "sha256": "6aeea4a4c661f700d7eb176d6319fdd388653bc931b78f7b11063f38865c7302",
-      "byteLength": 564060,
-      "assemblySha256": "c450e267c4e0dbc0b0ac4d69403571f80c3d13fe02ee278537dd4176e453edb5"
+      "componentVersion": "2.0.0-preview.202647137865236",
+      "fileName": "Syntamark.2.0.0-preview.202647137865236.nupkg",
+      "sha256": "de567296a076e553b2df43df6d33f4b1ef85cf51e9f84e41389a4ab8c5e0e622",
+      "byteLength": 564175,
+      "assemblySha256": "c9ea260b1d2528c429cc6b20a93639cc1811835e14a73135d12cc3cefb3fa061"
     },
     "source": {
       "packageId": "Syntamark.Source",
-      "componentVersion": "2.0.0-preview.27810571764218",
-      "fileName": "Syntamark.Source.2.0.0-preview.27810571764218.nupkg",
-      "sha256": "ff9085f85ffba7ec37dee8339c5f3362340791506c9f1ce5412d44f057bd9338",
-      "byteLength": 525966
+      "componentVersion": "2.0.0-preview.202647137865236",
+      "fileName": "Syntamark.Source.2.0.0-preview.202647137865236.nupkg",
+      "sha256": "08b6e46f4a9f5640f5ef3d0e2ea46f9f17869cad0a80d8b7a235b1cd5ceed5cf",
+      "byteLength": 526155
     }
   }
 }
