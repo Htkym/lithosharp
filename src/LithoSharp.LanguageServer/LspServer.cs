@@ -862,7 +862,11 @@ public sealed class LspServer
             buffer.MdxInspectionCompleted = true;
             buffer.InspectionContext = entry;
             Publish(buffer.Uri, buffer.Version, diagnostics, buffer.OpenGeneration, contextGeneration);
-            PublishAnalysisStatus(buffer, contextGeneration, "ready", "MDX syntax analysis completed; modules, plugins and SSR were not executed.");
+            var unavailable = result.Stage == "unavailable";
+            PublishAnalysisStatus(buffer, contextGeneration, unavailable ? "unavailable" : "ready",
+                unavailable ? result.Diagnostics.FirstOrDefault()?.Message
+                    ?? "MDX header analysis is incomplete; unavailable facts were not validated."
+                    : "MDX syntax analysis completed; modules, plugins and SSR were not executed.");
         }
     }
 

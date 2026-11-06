@@ -65,6 +65,7 @@ public sealed class MdxAnalysisResult
 
     public long ProjectGeneration { get; }
 
+    /// <summary>Syntax analysis stage, or unavailable when source boundaries could not be established.</summary>
     public string Stage { get; }
 
     public string? Title { get; }
@@ -144,6 +145,18 @@ public sealed class MdxInspectionSession : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         var split = FrontMatterSplitter.TrySplit(text, cancellationToken);
+        if (split.Status == FrontMatterSplitStatus.Incomplete)
+        {
+            return new MdxAnalysisResult(
+                sourcePath,
+                analysisOptions?.DocumentVersion ?? 0,
+                analysisOptions?.ProjectGeneration ?? 0,
+                "unavailable",
+                null,
+                string.Empty,
+                [], [], [], [], [],
+                [FrontMatterSplitter.IncompleteDiagnostic(split, text, sourcePath)]);
+        }
         var frontMatterDiagnostics = new List<SiteDiagnostic>();
         if (split.Status == FrontMatterSplitStatus.Ok)
         {

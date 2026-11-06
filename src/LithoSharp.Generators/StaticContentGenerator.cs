@@ -170,12 +170,12 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                 continue;
             }
             routes.Add((collection.Site, collection.Variant, route));
-            var markdown = MarkdownSourceHostAdapter.ParseForCompiler(input.Text.ToString(),
-                collection.Site + "|" + collection.Variant + "|" + collection.Id, input.Path, output.CancellationToken);
-            if (!StaticYamlValidation.Validate(input.Path, markdown, collection.Front, diagnostic =>
+            var raw = input.Text.ToString();
+            var markdown = MarkdownSourceHostAdapter.ParseForCompiler(raw, output.CancellationToken);
+            if (!StaticYamlValidation.Validate(input.Path, raw, markdown, collection.Front, diagnostic =>
                 { if (diagnostic.Severity == DiagnosticSeverity.Error) complete = false; output.ReportDiagnostic(diagnostic); }, output.CancellationToken))
                 Fail(MissingInput, input.Location, "Markdown front matter could not be verified ("
-                    + string.Join(", ", markdown.Coverage.Reasons) + ").");
+                    + string.Join(", ", markdown.Diagnostics.Select(diagnostic => diagnostic.Id)) + ").");
             collection.Entries.Add(new Entry(name, entryId, sourcePath, input.Route, route.PublicPath.EndsWith("/", StringComparison.Ordinal)));
         }
         foreach (var collection in collections)

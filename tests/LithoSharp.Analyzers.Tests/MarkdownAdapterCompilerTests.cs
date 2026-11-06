@@ -46,16 +46,19 @@ public sealed partial class AnalyzerPackageHostTests
                 var missing=diagnostics.Single(d=>d.Id=="LSA1201");
                 Check(missing.Properties["currentFingerprint"]==missing.Properties["expectedFingerprint"],"Original input fingerprint fresh: "+name);
             }
-            var facts = ParseCompilerMarkdown(content);
-            var frontmatter = MarkdownProperty(facts,"FrontMatter")!;
-            var yaml = MarkdownProperty(frontmatter,"YamlSpan")!;
+            var scan = ParseCompilerMarkdown(content);
+            var yaml = MarkdownProperty(scan,"YamlSpan")!;
             var start = (int)MarkdownProperty(yaml,"Start")!;var length=(int)MarkdownProperty(yaml,"Length")!;
             Check(content.Substring(start,length).StartsWith("title:",StringComparison.Ordinal) && !content.Substring(start,length).Contains("---",StringComparison.Ordinal),"YAML span excludes delimiter lines");
-            Check((string)MarkdownProperty(facts,"SourceId")! == "input.md" && (string)MarkdownProperty(facts,"ScopeId")! == "compiler-scope" && MarkdownProperty(facts,"SourceVersion") is null,"Opaque input identity");
-            Check((string)MarkdownProperty(facts,"ParserVersion")! == "1/52ca40ef0109be65277c25d33aa12b53084bb2bedf5eb62927369b8969c53f01", "Pinned parser identity");
+            Check((string)MarkdownProperty(scan,"ContractVersion")! == "frontmatter-scan/1", "Header-only scan contract");
+            Check(MarkdownProperty(scan,"State")!.ToString()=="Closed" && MarkdownProperty(scan,"Status")!.ToString()=="Complete", "Known delimiters do not certify YAML/schema: "+name);
+            Check((string)MarkdownProperty(scan,"ParserVersion")! == "1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b", "Pinned parser identity");
             var options = CompilerMarkdownOptions();
-            Check((string)MarkdownProperty(facts,"OptionsHash")! == (string)MarkdownProperty(options,"Hash")! && (string)MarkdownProperty(options,"ProfileId")! == "lithosharp-markdown/1","Actual default MdOptions/profile hash");
-            if(name=="unsupported-body") Check(MarkdownProperty(facts,"Status")!.ToString()=="Partial" && MarkdownProperty(frontmatter,"State")!.ToString()=="Parsed","Body Partial differs from frontmatter availability");
+            Check((string)MarkdownProperty(scan,"OptionsHash")! == (string)MarkdownProperty(options,"Hash")! && (string)MarkdownProperty(scan,"ProfileId")! == "lithosharp-markdown/1","Actual default MdOptions/profile hash");
+            foreach(var property in new[]{"RawText","FrontMatter","RequestedParts","Coverage","Headings","Sections","Links","Fences","TextRegions","Root","UnsupportedSyntax","SourceId","ScopeId","SourceVersion"})
+                Check(scan.GetType().GetProperty(property,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance) is null,"Header result carries no full-document projection: "+property);
+            Check(scan.GetType().GetProperties(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance).Where(property=>property.Name.EndsWith("Hash",StringComparison.Ordinal)).All(property=>property.Name=="OptionsHash"),"Header result carries no document/body hash");
+            Check(CompilerScanDiagnosticIds(scan)==string.Empty,"Body syntax does not produce header diagnostics: "+name);
             evidence.Add(new{name,content,yamlStart=start,yamlLength=length,generatedSha=Sha(System.Text.Encoding.UTF8.GetBytes(GeneratedMarkdownSource(current.Compilation))),generator=current.Diagnostics.Select(ManifestDiagnostic).ToArray(),analyzer=diagnostics.Select(ManifestDiagnostic).ToArray()});
         }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a=>Forbidden(a.GetName().Name!)),"Compiler host never loads Core or runtime Markdown facade");
@@ -63,7 +66,7 @@ public sealed partial class AnalyzerPackageHostTests
     }
 
     [Test]
-    public async Task MarkdownAdapterUnavailableFrontMatterCannotClaimClosedCoverage()
+    public async Task MarkdownAdapterUnavailableFrontMatterCannotClaimClosedManifest()
     {
         var source=ManifestModel+"\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }";
         var evidence=new List<object>();
@@ -75,8 +78,8 @@ public sealed partial class AnalyzerPackageHostTests
             ("header-only","---","LSG005",true),
             ("empty","---\n---\nBody","LSG005",true),
             ("invalid-yaml","---\ntitle: [\n---\nBody","LSG005",true),
-            ("input-budget","---\ntitle: Hello\n---\n"+new string('a',1048576),"LSG002",false),
-            ("invalid-unicode","---\ntitle: Hello\n---\n\uD800","LSG002",false),
+            ("header-input-budget","---\ntitle: "+new string('a',1048576)+"\n---\nBody","LSG002",false),
+            ("header-invalid-unicode","---\ntitle: \uD800\n---\nBody","LSG002",false),
         })
         {
             ManifestInput[] inputs=[new(Content:content)];
@@ -85,6 +88,19 @@ public sealed partial class AnalyzerPackageHostTests
             Check(!GeneratedMarkdownSource(current.Compilation).Contains("StaticSiteManifest.Create",StringComparison.Ordinal),"No silent Closed after unavailable frontmatter: "+name);
             var diagnostics=await ManifestAnalyze(current.Compilation,inputs);
             Check(!diagnostics.Any(d=>d.Id=="LSA1201"),"Unavailable source cannot prove missing route: "+name);
+            var scan=ParseCompilerMarkdown(content);
+            if(name is "header-input-budget" or "header-invalid-unicode")
+                CheckUnknownCompilerScan(scan,"Failed",name=="header-input-budget"?"LMD002":"LMD001",name);
+            else if(name is "unterminated-bom-crlf" or "header-only")
+            {
+                Check(MarkdownProperty(scan,"State")!.ToString()=="Unterminated" && MarkdownProperty(scan,"Status")!.ToString()=="Partial" && CompilerScanDiagnosticIds(scan)=="LMD004","Confirmed EOF untermination: "+name);
+                var failure=MarkdownProperty(scan,"FailureSpan")!;
+                Check((int)MarkdownProperty(failure,"Start")! == content.Length && (int)MarkdownProperty(failure,"Length")! == 0 && (int)MarkdownProperty(scan,"FailureLine")! == (name=="header-only"?2:3),"Confirmed EOF retains original failure position: "+name);
+            }
+            else if(name is "empty" or "invalid-yaml")
+                Check(MarkdownProperty(scan,"State")!.ToString()=="Closed" && MarkdownProperty(scan,"Status")!.ToString()=="Complete" && CompilerScanDiagnosticIds(scan)==string.Empty,"Closed delimiters still require strict YAML validation: "+name);
+            if(name=="invalid-yaml")
+                Check(current.Diagnostics.Single(d=>d.Id=="LSG005").Location.SourceSpan == new TextSpan(content.IndexOf("title",StringComparison.Ordinal),1),"Malformed YAML reports original YAML range");
             if(compare)
             {
                 var previous=baseline.Generate(source,inputs);
@@ -94,14 +110,15 @@ public sealed partial class AnalyzerPackageHostTests
             evidence.Add(new{name,utf16Length=content.Length,generator=current.Diagnostics.Select(ManifestDiagnostic).ToArray(),analyzer=diagnostics.Select(ManifestDiagnostic).ToArray()});
         }
         // Exhaust work while reading frontmatter, rather than treating a published prefix as Complete.
-        var limited=ParseCompilerMarkdown("---\ntitle: Hello\n---\n",CompilerMarkdownOptions(scan:4));
-        Check(MarkdownProperty(MarkdownProperty(limited,"FrontMatter")!,"State")!.ToString()=="Unknown","Frontmatter scan-budget state");
+        const string limitedRaw="---\ntitle: Hello\n---\n";
+        var limited=ParseCompilerMarkdown(limitedRaw,CompilerMarkdownOptions(scan:4));
+        CheckUnknownCompilerScan(limited,"Partial","LMD003","scan-budget");
         var validator=CompilerMarkdownAssembly().GetType("LithoSharp.Generators.StaticYamlValidation")!;
         var collected=new List<Diagnostic>();
-        var known=(bool)validator.GetMethod("Validate",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{"input.md",limited,Compile(ManifestModel,true).GetTypeByMetadataName("Front")!,new Action<Diagnostic>(collected.Add),CancellationToken.None})!;
+        var known=(bool)validator.GetMethod("Validate",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{"input.md",limitedRaw,limited,Compile(ManifestModel,true).GetTypeByMetadataName("Front")!,new Action<Diagnostic>(collected.Add),CancellationToken.None})!;
         Check(!known && collected.Count==0,"Unavailable state returns to caller without schema success");
         var adapter=validator.Assembly.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
-        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/52ca40ef0109be65277c25d33aa12b53084bb2bedf5eb62927369b8969c53f01","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
+        foreach(var (name,parser,yaml) in new[]{("parser","1/"+new string('0',64),"YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"),("yaml","1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b","YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null")})
         {
             var rejected=false;
             try{adapter.GetMethod("Verify",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{parser,"1.0","lithosharp-markdown/1","18.1.0",yaml,"18.1.0"});}
@@ -115,7 +132,41 @@ public sealed partial class AnalyzerPackageHostTests
         ManifestEvidence("adapter-frontmatter-boundaries",new{cases=evidence,scanUnavailable=true,identityRejected=true,cancelled});
     }
 
+    [Test]
+    public async Task MarkdownAdapterClosedHeaderIgnoresOversizedAndInvalidUnicodeBodies()
+    {
+        const string header="---\ntitle: Hello\n---\n";
+        var source=ManifestModel+"\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }";
+        var evidence=new List<object>();
+        foreach(var (name,body,closed) in new[]{("oversized-body",new string('a',1048576),true),("invalid-unicode-body","\uD800",false)})
+        {
+            var content=header+body;
+            foreach(var options in new object?[]{null,CompilerMarkdownOptions(scan:256)})
+            {
+                var scan=ParseCompilerMarkdown(content,options);
+                Check(MarkdownProperty(scan,"State")!.ToString()=="Closed" && MarkdownProperty(scan,"Status")!.ToString()=="Complete" && CompilerScanDiagnosticIds(scan)==string.Empty,"Body does not consume header input/scan/Unicode budget: "+name);
+                var range=MarkdownProperty(scan,"BodySpan")!;
+                Check((int)MarkdownProperty(range,"Start")! == header.Length && (int)MarkdownProperty(range,"Length")! == body.Length,"Body remains an original raw range: "+name);
+            }
+            ManifestInput[] inputs=[new(Content:content)];
+            var current=ManifestGenerate(source,inputs);
+            Check(current.Diagnostics.Length==0,"Known valid header reports no YAML/schema or LSG002 diagnostics: "+name);
+            Check(GeneratedMarkdownSource(current.Compilation).Contains("StaticSiteManifest.Create",StringComparison.Ordinal)==closed,"Manifest preserves strict whole-input fingerprint ownership: "+name);
+            var diagnostics=await ManifestAnalyze(current.Compilation,inputs);
+            Check(diagnostics.Any(d=>d.Id=="LSA1201")==closed,"Only a valid whole-input fingerprint certifies the route lookup: "+name);
+            evidence.Add(new{name,bodyLength=body.Length,closed,generator=current.Diagnostics.Select(ManifestDiagnostic).ToArray(),analyzer=diagnostics.Select(ManifestDiagnostic).ToArray()});
+        }
+        ManifestEvidence("adapter-frontmatter-body-isolation",evidence);
+    }
+
     private static object? MarkdownProperty(object value,string name)=>value.GetType().GetProperty(name,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(value);
+    private static string CompilerScanDiagnosticIds(object scan)=>string.Join(",",((IEnumerable)MarkdownProperty(scan,"Diagnostics")!).Cast<object>().Select(diagnostic=>(string)MarkdownProperty(diagnostic,"Id")!));
+    private static void CheckUnknownCompilerScan(object scan,string status,string diagnostic,string name)
+    {
+        Check(MarkdownProperty(scan,"State")!.ToString()=="Unknown" && MarkdownProperty(scan,"Status")!.ToString()==status && CompilerScanDiagnosticIds(scan)==diagnostic,"Unavailable header scan retains its cause: "+name);
+        foreach(var property in new[]{"OpeningSpan","YamlSpan","ClosingSpan","BodySpan","HeaderSpan","FailureSpan","FailureLine"})
+            Check(MarkdownProperty(scan,property) is null,"Unavailable scan does not claim a delimiter or EOF range: "+name+" "+property);
+    }
     private static Assembly CompilerMarkdownAssembly()
     {
         _=ManifestGenerators.Value;
@@ -126,8 +177,8 @@ public sealed partial class AnalyzerPackageHostTests
     {
         var adapter=CompilerMarkdownAssembly().GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
         return options is null
-            ? adapter.GetMethod("ParseForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object[]{raw,"compiler-scope","input.md",token})!
-            : adapter.GetMethod("AnalyzeForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,"compiler-scope","input.md",null,options,"1/52ca40ef0109be65277c25d33aa12b53084bb2bedf5eb62927369b8969c53f01","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
+            ? adapter.GetMethod("ParseForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object[]{raw,token})!
+            : adapter.GetMethod("AnalyzeForCompiler",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,new object?[]{raw,options,"1/6315e352f3539311c306929ba34ac3d77990e352c95cf7bfc05600c7dea50d7b","1.0","lithosharp-markdown/1","18.1.0","YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e","18.1.0",token})!;
     }
     private static string GeneratedMarkdownSource(CSharpCompilation compilation)=>string.Join("\n",compilation.SyntaxTrees.Where(t=>t.FilePath!="canary.cs").OrderBy(t=>t.FilePath,StringComparer.Ordinal).Select(t=>t.ToString()));
     private static string MarkdownDiagnosticSignature(Diagnostic diagnostic)=>diagnostic.Id+"|"+diagnostic.Severity+"|"+diagnostic.GetMessage()+"|"+diagnostic.Location.GetLineSpan()+"|"+diagnostic.Location.SourceSpan;

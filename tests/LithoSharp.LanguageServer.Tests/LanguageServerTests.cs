@@ -156,6 +156,34 @@ public sealed class LanguageServerTests
     }
 
     [Test]
+    public async Task MdxUnknownHeaderPublishesUnavailableWithoutInventingSourcePositionsOrSymbols()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/unknown-header.mdx";
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "mdx", version = 1,
+                text = "---\ntitle: " + new string('x', 1024 * 1024) + "\n---\n# Hidden\n" },
+            lithosharpOpenGeneration = 23,
+        });
+        var diagnostics = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(diagnostics.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var status = (await client.WaitForAsync(message => message.TryGetProperty("method", out var method)
+            && method.GetString() == "lithosharp/analysisStatus"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri)).GetProperty("params");
+        await Assert.That(status.GetProperty("language").GetString()).IsEqualTo("mdx");
+        await Assert.That(status.GetProperty("state").GetString()).IsEqualTo("unavailable");
+        await Assert.That(status.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(23);
+        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+            && line.Contains("no reliable source position", StringComparison.Ordinal));
+        var symbolsId = client.NextId();
+        client.SendRequest(symbolsId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        var symbols = await WaitProtocolResponseAsync(client, symbolsId);
+        await Assert.That(symbols.GetProperty("result").GetArrayLength()).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Framing_SplitAndConcatenatedMessages()
     {
         await using var client = LspTestClient.Start();

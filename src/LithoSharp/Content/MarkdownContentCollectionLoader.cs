@@ -707,12 +707,14 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                     relativePath,
                     split.FailureLine,
                     1),
-                _ => DocumentFailure(
+                Compilation.FrontMatterSplitStatus.EmptyFrontMatter => DocumentFailure(
                     MarkdownContentDiagnosticIds.EmptyFrontMatter,
                     "YAML front matter must not be empty.",
                     relativePath,
                     2,
                     1),
+                _ => ContentParseResult<MarkdownSourceDocument>.Failure(
+                    [Compilation.FrontMatterSplitter.IncompleteDiagnostic(split, text, relativePath)]),
             };
         }
 

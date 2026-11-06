@@ -85,6 +85,7 @@ Console.WriteLine("PASS existing C01 compiler assertions / NoMarkdigAssemblyLoad
 
 Md03AdapterChecks.Run(product, runtime, portable);
 MdBodyAnalysisChecks.Run(runtime, portable);
+MdHeaderScanChecks.Run(runtime, portable);
 await Md04CacheChecks.Run(product, runtime);
 
 static object Parse(Assembly assembly, string input)

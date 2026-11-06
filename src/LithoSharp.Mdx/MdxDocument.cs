@@ -87,6 +87,11 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
             // start comes from re-splitting the original text (front matter
             // only), not from the resolved length.
             var split = Content.Compilation.FrontMatterSplitter.TrySplit(original, cancellationToken);
+            if (split.Status == Content.Compilation.FrontMatterSplitStatus.Incomplete)
+            {
+                diagnostics.Add(Content.Compilation.FrontMatterSplitter.IncompleteDiagnostic(split, original, file.FullPath));
+                continue;
+            }
             if (split.Status != Content.Compilation.FrontMatterSplitStatus.Ok)
                 throw new IOException("MDX source changed while loading; retry the build.");
             var bodyOffset = split.BodyStartOffset;

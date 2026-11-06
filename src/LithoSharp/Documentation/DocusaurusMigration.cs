@@ -24,13 +24,13 @@ internal enum DocusaurusMigrationVerdict
 }
 
 /// <summary>One migration finding. Compatible (from the tooling plan) is the same no-change category as Automatic.</summary>
-/// <param name="Id">A stable LSMIG diagnostic code.</param>
+/// <param name="Id">A stable diagnostic code.</param>
 /// <param name="Severity">How the finding blocks publication.</param>
 /// <param name="Message">What was found and why.</param>
-/// <param name="Line">The 1-based source line.</param>
+/// <param name="Line">The 1-based source line, when known.</param>
 /// <param name="Replacement">The safe automatic rewrite, when the file is convertible.</param>
 /// <param name="ManualStep">The required human operation, when the file needs one.</param>
-internal sealed record DocusaurusMigrationIssue(string Id, SiteDiagnosticSeverity Severity, string Message, int Line, string? Replacement, string? ManualStep);
+internal sealed record DocusaurusMigrationIssue(string Id, SiteDiagnosticSeverity Severity, string Message, int? Line, string? Replacement, string? ManualStep);
 
 /// <summary>One analyzed input file and its conversion.</summary>
 /// <param name="SourcePath">The source-relative forward-slash path.</param>
@@ -748,6 +748,15 @@ internal static class DocusaurusMigration
             raise(DocusaurusMigrationVerdict.Convertible, new(NeedsManualAction, SiteDiagnosticSeverity.Info,
                 $"Front matter title is derived: '{derived}'.", 1,
                 $"Set title '{derived}'.", null));
+        }
+
+        if (split.Status == FrontMatterSplitStatus.Incomplete)
+        {
+            var diagnostic = FrontMatterSplitter.IncompleteDiagnostic(split, text, relative);
+            raise(DocusaurusMigrationVerdict.Unsupported, new(diagnostic.Id, diagnostic.Severity,
+                diagnostic.Message, diagnostic.Location?.Line, null,
+                "Resolve the front matter scan failure, then retry the migration."));
+            return new(relative, bytes, kind, null, Edits: [], componentChanges);
         }
 
         if (split.Status != FrontMatterSplitStatus.Ok)
