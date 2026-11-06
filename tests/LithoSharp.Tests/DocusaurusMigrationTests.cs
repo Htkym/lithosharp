@@ -210,6 +210,7 @@ public sealed class DocusaurusMigrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task ConvertedTree_Builds()
     {
         using var workspace = new TemporaryWorkspace();

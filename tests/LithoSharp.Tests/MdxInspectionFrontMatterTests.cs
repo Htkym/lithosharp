@@ -16,6 +16,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MalformedYamlRetainsStrictParserDiagnosticAndBodyLocations()
     {
         using var workspace = new TemporaryWorkspace();
@@ -35,6 +36,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task EmptyFrontMatterBomCrlfAndUnicodeKeepOriginalBodyOffsets()
     {
         using var workspace = new TemporaryWorkspace();
@@ -52,6 +54,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task HeaderlessMdxRemainsSupported()
     {
         using var workspace = new TemporaryWorkspace();
@@ -64,6 +67,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task YamlValidationDoesNotExecuteImportsComponentsOrPlugins()
     {
         using var workspace = new TemporaryWorkspace();
@@ -84,6 +88,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CrOnlyFrontMatterKeepsWorkerImportPositionsInOriginalLines()
     {
         using var workspace = new TemporaryWorkspace();
@@ -98,6 +103,7 @@ public sealed class MdxInspectionFrontMatterTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task UnterminatedPresentFrontMatterRetainsExistingCoreDiagnostic()
     {
         using var workspace = new TemporaryWorkspace();
