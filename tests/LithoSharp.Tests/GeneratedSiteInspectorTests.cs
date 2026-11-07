@@ -87,7 +87,10 @@ public sealed class GeneratedSiteInspectorTests
             await Assert.That(async () => await GeneratedSiteInspector.InspectAsync(Path.Combine(link, "site"), BaseUrl)).Throws<InvalidOperationException>();
             await Assert.That(Snapshot(outside.Root).SequenceEqual(before)).IsTrue();
         }
-        finally { Directory.Delete(link); }
+        finally
+        {
+            Directory.Delete(link);
+        }
     }
 
     [Test]
@@ -170,15 +173,24 @@ public sealed class GeneratedSiteInspectorTests
                     if (child.ExitCode != 0)
                         throw new InvalidOperationException(string.Concat(await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(5))));
                 }
-                finally { await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(5)); }
+                finally
+                {
+                    await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(5));
+                }
             }
-            finally { File.Delete(fifo); }
+            finally
+            {
+                File.Delete(fifo);
+            }
         }
     }
 
     private static async Task WaitOwnedProcessAsync(System.Diagnostics.Process process, TimeSpan timeout)
     {
-        try { await process.WaitForExitAsync().WaitAsync(timeout); }
+        try
+        {
+            await process.WaitForExitAsync().WaitAsync(timeout);
+        }
         finally
         {
             if (!process.HasExited)
@@ -201,10 +213,17 @@ public sealed class GeneratedSiteInspectorTests
 
     private static async Task CreateDirectoryLink(string path, string target)
     {
-        if (!OperatingSystem.IsWindows()) { Directory.CreateSymbolicLink(path, target); return; }
+        if (!OperatingSystem.IsWindows())
+        {
+            Directory.CreateSymbolicLink(path, target);
+            return;
+        }
         var start = new System.Diagnostics.ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true };
-        start.ArgumentList.Add("/c"); start.ArgumentList.Add("mklink"); start.ArgumentList.Add("/J");
-        start.ArgumentList.Add(path); start.ArgumentList.Add(target);
+        start.ArgumentList.Add("/c");
+        start.ArgumentList.Add("mklink");
+        start.ArgumentList.Add("/J");
+        start.ArgumentList.Add(path);
+        start.ArgumentList.Add(target);
         using var process = System.Diagnostics.Process.Start(start)!;
         await process.WaitForExitAsync();
         await Assert.That(process.ExitCode).IsEqualTo(0);

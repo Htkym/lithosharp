@@ -37,7 +37,8 @@ public sealed class SiteBuildTimingRecorderTests
         var allAdmitted = admitted.Wait(TimeSpan.FromSeconds(10));
         start.Set();
         var allJoined = true;
-        foreach (var worker in workers) allJoined &= worker.Join(TimeSpan.FromSeconds(10));
+        foreach (var worker in workers)
+            allJoined &= worker.Join(TimeSpan.FromSeconds(10));
         await Assert.That(allAdmitted && allJoined).IsTrue();
 
         await Assert.That(recorder.VerificationTimestampTicks).IsEqualTo(expectedTicks);

@@ -43,19 +43,23 @@ public sealed partial class SiteGenerator
                     ?? throw new InvalidOperationException("A catalog inspector returned no contribution.");
                 deferred.Add($"Extension '{extension.GetType().FullName}' has no catalog snapshot handoff; its preparation is checked again after acquisition.");
             }
-            else deferred.Add($"Extension '{extension.GetType().FullName}' has no nonrendering catalog inspector; its preparation remains Deferred.");
+            else
+                deferred.Add($"Extension '{extension.GetType().FullName}' has no nonrendering catalog inspector; its preparation remains Deferred.");
             catalogs.Add(snapshot);
             cancellationToken.ThrowIfCancellationRequested();
-            if (contribution is null) continue;
+            if (contribution is null)
+                continue;
             snapshot?.ThrowIfSourceFailed();
             diagnostics.AddRange(contribution.Diagnostics);
             new SitePreflightReport("trusted-catalog", "catalog", diagnostics, deferred).ThrowIfFailed();
-            foreach (var claim in contribution.Routes) routes.Register(claim.Route, claim.OwnerId, claim.Location);
+            foreach (var claim in contribution.Routes)
+                routes.Register(claim.Route, claim.OwnerId, claim.Location);
             routes.ValidateOrThrow();
         }
         // Detect changes caused by a later inspector before *any* prepare hook.
         foreach (var snapshot in catalogs)
-            if (snapshot is not null) await snapshot.ValidateInputsAsync(cancellationToken).ConfigureAwait(false);
+            if (snapshot is not null)
+                await snapshot.ValidateInputsAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         return (catalogs, new("trusted-catalog", "catalog", diagnostics, deferred));
     }
@@ -68,7 +72,8 @@ public sealed partial class SiteGenerator
     {
         ArgumentNullException.ThrowIfNull(createDefinition);
         ArgumentNullException.ThrowIfNull(sourceReport);
-        if (sourceReport.Mode != "static-inputs") throw new ArgumentException("A source preflight snapshot is required.", nameof(sourceReport));
+        if (sourceReport.Mode != "static-inputs")
+            throw new ArgumentException("A source preflight snapshot is required.", nameof(sourceReport));
         cancellationToken.ThrowIfCancellationRequested();
         sourceReport.ThrowIfFailed();
         var definition = await createDefinition(cancellationToken).ConfigureAwait(false)
@@ -130,7 +135,8 @@ public sealed partial class SiteGenerator
                     routes.Register(claim.Route, claim.OwnerId, claim.Location);
                 }
                 diagnostics.AddRange(routes.Validate().Diagnostics);
-                if (diagnostics.Any(d => d.Severity == SiteDiagnosticSeverity.Error)) break;
+                if (diagnostics.Any(d => d.Severity == SiteDiagnosticSeverity.Error))
+                    break;
             }
         }
         cancellationToken.ThrowIfCancellationRequested();

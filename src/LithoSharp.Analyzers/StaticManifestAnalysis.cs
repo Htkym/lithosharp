@@ -41,7 +41,8 @@ internal sealed class StaticManifestAnalysis
         this.compilation = compilation;
         this.lookup = lookup;
         var reference = compilation.GetTypeByMetadataName("LithoSharp.Content.ContentRef`1");
-        if (Core(reference)) contentReference = reference!.InstanceConstructors.SingleOrDefault(method =>
+        if (Core(reference))
+            contentReference = reference!.InstanceConstructors.SingleOrDefault(method =>
             method.DeclaredAccessibility == Accessibility.Public && method.Parameters.Length == 3
             && method.Parameters.All(parameter => parameter.RefKind == RefKind.None)
             && Named(method.Parameters[0].Type, "LithoSharp.Content.ContentCollectionId")
@@ -54,7 +55,8 @@ internal sealed class StaticManifestAnalysis
     internal static StaticManifestAnalysis? Create(Compilation compilation, AnalyzerOptions options, CancellationToken cancellation)
     {
         var type = compilation.GetTypeByMetadataName("LithoSharp.Content.StaticSiteManifest");
-        if (!Core(type)) return null;
+        if (!Core(type))
+            return null;
         var method = type!.GetMembers("GetUrl").OfType<IMethodSymbol>().SingleOrDefault(m => !m.IsStatic && m.Arity == 0
             && m.Parameters.Length == 1 && m.Parameters[0].Type.SpecialType == SpecialType.System_String);
         return method is null ? null : new(compilation, options, cancellation, method);
@@ -73,32 +75,50 @@ internal sealed class StaticManifestAnalysis
             AnalyzeContentReference(context, creation);
             return;
         }
-        if (operation is not IInvocationOperation call || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup)) return;
+        if (operation is not IInvocationOperation call || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup))
+            return;
         void Proof(string state, string reason) => coverage.Record(call, call.Syntax.GetLocation(), CoverageScope, state, reason);
-        if (StaticValueFlow.HasBindingError(call)) { Proof("Unavailable", "unsupported-binding-or-conversion"); return; }
+        if (StaticValueFlow.HasBindingError(call))
+        {
+            Proof("Unavailable", "unsupported-binding-or-conversion");
+            return;
+        }
         var property = Unwrap(call.Instance) as IPropertyReferenceOperation;
         // CFG captures the receiver before evaluating a conditional argument. Recover only the
         // original direct property expression; Read still verifies an immutable generated getter.
         if (property is null && call.Syntax is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access })
             property = compilation.GetSemanticModel(access.SyntaxTree).GetOperation(access.Expression, context.CancellationToken) as IPropertyReferenceOperation;
-        if (property is null || !property.Property.IsStatic) { Proof("Unavailable", "manifest-receiver-unavailable"); return; }
+        if (property is null || !property.Property.IsStatic)
+        {
+            Proof("Unavailable", "manifest-receiver-unavailable");
+            return;
+        }
         var scope = facts.GetOrAdd(property.Property, p => Read(p, context.CancellationToken));
-        if (scope.State != "Closed") Proof(scope.State, "manifest-" + scope.State.ToLowerInvariant());
+        if (scope.State != "Closed")
+            Proof(scope.State, "manifest-" + scope.State.ToLowerInvariant());
         if (scope.State == "Stale")
         {
             context.ReportDiagnostic(Diagnostic.Create(Stale, property.Syntax.GetLocation(), Properties(scope)));
             return;
         }
-        if (scope.State != "Closed") return;
+        if (scope.State != "Closed")
+            return;
         var argument = call.Arguments.SingleOrDefault(a => a.Parameter?.Ordinal == 0);
         // Null-forgiving syntax can make an explicit CFG argument IsImplicit.
-        if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit) { Proof("Unavailable", "manifest-argument-unavailable"); return; }
+        if (argument is null || argument.ArgumentKind != ArgumentKind.Explicit)
+        {
+            Proof("Unavailable", "manifest-argument-unavailable");
+            return;
+        }
         if (argument.Value.Syntax is LiteralExpressionSyntax literal && TryGetTypedReference(literal, context.CancellationToken) is not null)
             context.ReportDiagnostic(Diagnostic.Create(TypedReference, literal.GetLocation(), Properties(scope)));
         var values = evaluate(argument.Value);
-        if (values.Values is { Length: > 0 } && values.Values.All(v => v is string)) Proof("Complete", "fresh-closed-known-values");
-        else Proof(values.Values is null ? "Unknown" : "Unavailable", values.Reason ?? "unsupported-route-value");
-        if (values.Values is null || values.Values.Length == 0 || !values.Values.All(v => v is string path && !scope.Paths.Contains(path))) return;
+        if (values.Values is { Length: > 0 } && values.Values.All(v => v is string))
+            Proof("Complete", "fresh-closed-known-values");
+        else
+            Proof(values.Values is null ? "Unknown" : "Unavailable", values.Reason ?? "unsupported-route-value");
+        if (values.Values is null || values.Values.Length == 0 || !values.Values.All(v => v is string path && !scope.Paths.Contains(path)))
+            return;
         var sourceArgument = argument.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
         var sourceOwner = sourceArgument?.Parent?.Parent;
         var expression = sourceOwner is not null && sourceOwner.SyntaxTree == call.Syntax.SyntaxTree && sourceOwner.Span == call.Syntax.Span
@@ -108,13 +128,15 @@ internal sealed class StaticManifestAnalysis
     }
     private void AnalyzeContentReference(OperationBlockAnalysisContext context, IObjectCreationOperation creation)
     {
-        if (contentReference is null || !SymbolEqualityComparer.Default.Equals(creation.Constructor?.OriginalDefinition, contentReference)) return;
+        if (contentReference is null || !SymbolEqualityComparer.Default.Equals(creation.Constructor?.OriginalDefinition, contentReference))
+            return;
         // Read the original operation: CFG may capture named arguments in source order.
         // This subset proves direct constants/selectors only, without following captured aliases.
         if (compilation.GetSemanticModel(creation.Syntax.SyntaxTree).GetOperation(creation.Syntax, context.CancellationToken)
             is not IObjectCreationOperation original || StaticValueFlow.HasBindingError(original)
             || !SymbolEqualityComparer.Default.Equals(original.Constructor?.OriginalDefinition, contentReference)
-            || original.Initializer is not null || original.Arguments.Length != 3) return;
+            || original.Initializer is not null || original.Arguments.Length != 3)
+            return;
         var collection = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0);
         var entry = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1);
         var route = original.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 2);
@@ -133,35 +155,46 @@ internal sealed class StaticManifestAnalysis
             || address.TargetMethod.Name is not ("ForFile" or "ForDirectoryIndex") || address.TargetMethod.Arity != 0
             || address.TargetMethod.Parameters.Length != 2
             || address.TargetMethod.Parameters.Any(parameter => parameter.Type.SpecialType != SpecialType.System_String || parameter.RefKind != RefKind.None)
-            || !SymbolEqualityComparer.Default.Equals(address.TargetMethod.ReturnType, address.TargetMethod.ContainingType)) return;
+            || !SymbolEqualityComparer.Default.Equals(address.TargetMethod.ReturnType, address.TargetMethod.ContainingType))
+            return;
         var key = id.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
         var path = address.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
         var basis = address.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
         // Unknown has Value=null too; HasValue is mandatory before treating base as known null.
         if (key is null || path is null || basis is null || !basis.ConstantValue.HasValue || basis.ConstantValue.Value is not null
-            || !key.ConstantValue.HasValue || !path.ConstantValue.HasValue) return;
+            || !key.ConstantValue.HasValue || !path.ConstantValue.HasValue)
+            return;
         if (key.ConstantValue.Value is not string entryId || path.ConstantValue.Value is not string routeText
-            || entryId.Length > StaticValueFlow.MaxStringLength || routeText.Length > StaticValueFlow.MaxStringLength) return;
+            || entryId.Length > StaticValueFlow.MaxStringLength || routeText.Length > StaticValueFlow.MaxStringLength)
+            return;
         Facts? scope = null;
         foreach (var property in selected.Property.ContainingType.GetMembers().OfType<IPropertySymbol>()
             .Where(property => property.IsStatic && Named(property.Type, "LithoSharp.Content.StaticSiteManifest")))
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             var candidate = facts.GetOrAdd(property, p => Read(p, context.CancellationToken));
-            if (candidate.State != "Closed" || !SymbolEqualityComparer.Default.Equals(candidate.Catalog, selected.Property)) continue;
-            if (scope is not null) return; // More than one proved manifest is ambiguous.
+            if (candidate.State != "Closed" || !SymbolEqualityComparer.Default.Equals(candidate.Catalog, selected.Property))
+                continue;
+            if (scope is not null)
+                return; // More than one proved manifest is ambiguous.
             scope = candidate;
         }
-        if (scope?.Entries is null) return;
+        if (scope?.Entries is null)
+            return;
         string actual;
         try
         {
-            if (entryId.Length == 0 || entryId != entryId.Trim() || entryId.Any(char.IsControl)) return;
+            if (entryId.Length == 0 || entryId != entryId.Trim() || entryId.Any(char.IsControl))
+                return;
             entryId = entryId.Normalize(System.Text.NormalizationForm.FormC);
             actual = address.TargetMethod.Name == "ForFile" ? SiteRoute.ForFile(routeText).PublicPath : SiteRoute.ForDirectoryIndex(routeText).PublicPath;
         }
-        catch (Exception exception) when (exception is ArgumentException or UriFormatException) { return; }
-        if (!scope.Entries.TryGetValue(entryId, out var expected) || StringComparer.Ordinal.Equals(expected, actual)) return;
+        catch (Exception exception) when (exception is ArgumentException or UriFormatException)
+        {
+            return;
+        }
+        if (!scope.Entries.TryGetValue(entryId, out var expected) || StringComparer.Ordinal.Equals(expected, actual))
+            return;
         static Location ArgumentLocation(IOperation value, SyntaxNode owner)
         {
             var argument = value.Syntax.FirstAncestorOrSelf<ArgumentSyntax>();
@@ -183,20 +216,25 @@ internal sealed class StaticManifestAnalysis
             || model.GetOperation(invocation, cancellation) is not IInvocationOperation call
             || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.OriginalDefinition, lookup)
             || StaticValueFlow.HasBindingError(call) || Unwrap(call.Instance) is not IPropertyReferenceOperation receiver
-            || !receiver.Property.IsStatic || literal.Token.Value is not string path) return null;
+            || !receiver.Property.IsStatic || literal.Token.Value is not string path)
+            return null;
         var scope = facts.GetOrAdd(receiver.Property, p => Read(p, cancellation));
-        if (scope.State != "Closed" || scope.Catalog is null || scope.Entries is null || !scope.Paths.Contains(path)) return null;
+        if (scope.State != "Closed" || scope.Catalog is null || scope.Entries is null || !scope.Paths.Contains(path))
+            return null;
         // A user initializer can reenter a lookup while Catalog is still null. The
         // added Pages initializer must not become permanently faulted in that case.
         foreach (var member in receiver.Property.ContainingType.GetMembers().Where(m => m.IsStatic && !m.IsImplicitlyDeclared))
         {
             if (member is IFieldSymbol { IsConst: false } field && field.DeclaringSyntaxReferences.Any(r =>
-                r.GetSyntax(cancellation) is VariableDeclaratorSyntax { Initializer: not null })) return null;
+                r.GetSyntax(cancellation) is VariableDeclaratorSyntax { Initializer: not null }))
+                return null;
             if (member is not IPropertySymbol rootProperty || SymbolEqualityComparer.Default.Equals(rootProperty, receiver.Property)
-                || SymbolEqualityComparer.Default.Equals(rootProperty, scope.Catalog)) continue;
+                || SymbolEqualityComparer.Default.Equals(rootProperty, scope.Catalog))
+                continue;
             foreach (var syntax in rootProperty.DeclaringSyntaxReferences)
             {
-                if (syntax.GetSyntax(cancellation) is not PropertyDeclarationSyntax { Initializer: not null } rootNode) continue;
+                if (syntax.GetSyntax(cancellation) is not PropertyDeclarationSyntax { Initializer: not null } rootNode)
+                    continue;
                 var rootModel = compilation.GetSemanticModel(rootNode.SyntaxTree);
                 if (rootProperty.Name != "Binder" || !StaticManifestFingerprint.OwnGenerated(rootNode.SyntaxTree)
                     || Unwrap(rootModel.GetOperation(rootNode.Initializer!.Value, cancellation)) is not IObjectCreationOperation binder
@@ -205,11 +243,13 @@ internal sealed class StaticManifestAnalysis
                     || binderType.StaticConstructors.Length != 0
                     || binderType.GetMembers().OfType<IFieldSymbol>().Any(f => !f.IsImplicitlyDeclared && !f.IsConst)
                     || binderType.GetMembers().OfType<IPropertySymbol>().Any(p => p.DeclaringSyntaxReferences.Any(r =>
-                        r.GetSyntax(cancellation) is PropertyDeclarationSyntax { Initializer: not null }))) return null;
+                        r.GetSyntax(cancellation) is PropertyDeclarationSyntax { Initializer: not null })))
+                    return null;
             }
         }
         var pages = receiver.Property.ContainingType.GetTypeMembers("Pages");
-        if (pages.Length != 1 || !pages[0].IsStatic || pages[0].StaticConstructors.Any(c => !c.IsImplicitlyDeclared)) return null;
+        if (pages.Length != 1 || !pages[0].IsStatic || pages[0].StaticConstructors.Any(c => !c.IsImplicitlyDeclared))
+            return null;
         var candidates = new List<IPropertySymbol>();
         foreach (var member in pages[0].GetMembers().Where(m => !m.IsImplicitlyDeclared && m is not IMethodSymbol { MethodKind: MethodKind.PropertyGet }))
         {
@@ -221,7 +261,8 @@ internal sealed class StaticManifestAnalysis
                 || page.DeclaringSyntaxReferences[0].GetSyntax(cancellation) is not PropertyDeclarationSyntax node
                 || !StaticManifestFingerprint.OwnGenerated(node.SyntaxTree) || node.Initializer is null
                 || node.AccessorList?.Accessors.Count != 1 || node.AccessorList.Accessors[0].Body is not null
-                || node.AccessorList.Accessors[0].ExpressionBody is not null) return null;
+                || node.AccessorList.Accessors[0].ExpressionBody is not null)
+                return null;
             var pageModel = compilation.GetSemanticModel(node.SyntaxTree);
             if (Unwrap(pageModel.GetOperation(node.Initializer.Value, cancellation)) is not IObjectCreationOperation create
                 || create.Arguments.Length != 2 || create.Initializer is not null
@@ -237,10 +278,13 @@ internal sealed class StaticManifestAnalysis
                 || !Named(entryId.Type, "LithoSharp.Content.ContentEntryId") || entryId.Arguments.Length != 1 || entryId.Initializer is not null
                 || entryId.Arguments[0].Value.ConstantValue.Value is not string key
                 || !scope.Entries.TryGetValue(key, out var entryPath)
-                || id.Arguments[0].Value.ConstantValue.Value as string != $"page:collection:{scope.CollectionId.Length}:{scope.CollectionId}:{key.Length}:{key}") return null;
-            if (entryPath == path) candidates.Add(page);
+                || id.Arguments[0].Value.ConstantValue.Value as string != $"page:collection:{scope.CollectionId.Length}:{scope.CollectionId}:{key.Length}:{key}")
+                return null;
+            if (entryPath == path)
+                candidates.Add(page);
         }
-        if (candidates.Count != 1) return null;
+        if (candidates.Count != 1)
+            return null;
         var candidate = candidates[0];
         var name = SyntaxFacts.GetKeywordKind(candidate.Name) != SyntaxKind.None || SyntaxFacts.GetContextualKeywordKind(candidate.Name) != SyntaxKind.None
             ? "@" + candidate.Name : candidate.Name;
@@ -256,54 +300,74 @@ internal sealed class StaticManifestAnalysis
         // A get-only static auto-property may be reassigned by an explicit static constructor,
         // including one in another partial declaration. This applies to both Manifest and Catalog.
         // Do not execute or attempt to prove arbitrary constructor bodies safe.
-        if (property.ContainingType.StaticConstructors.Any(constructor => !constructor.IsImplicitlyDeclared)) return unavailable;
-        if (property.DeclaringSyntaxReferences.Length != 1) return unavailable;
+        if (property.ContainingType.StaticConstructors.Any(constructor => !constructor.IsImplicitlyDeclared))
+            return unavailable;
+        if (property.DeclaringSyntaxReferences.Length != 1)
+            return unavailable;
         var node = property.DeclaringSyntaxReferences[0].GetSyntax(cancellation) as PropertyDeclarationSyntax;
-        if (node?.Initializer is null || !StaticManifestFingerprint.OwnGenerated(node.SyntaxTree) || property.SetMethod is not null) return unavailable;
+        if (node?.Initializer is null || !StaticManifestFingerprint.OwnGenerated(node.SyntaxTree) || property.SetMethod is not null)
+            return unavailable;
         var sources = property.GetAttributes().Where(a => Named(a.AttributeClass, "LithoSharp.Content.StaticSiteManifestSourceAttribute")).ToArray();
         var declarations = property.ContainingType.GetAttributes().Where(a => Named(a.AttributeClass, "LithoSharp.Content.StaticContentCollectionAttribute")).ToArray();
-        if (sources.Length != 1 || declarations.Length != 1) return unavailable;
+        if (sources.Length != 1 || declarations.Length != 1)
+            return unavailable;
         var source = sources[0];
         var declaration = declarations[0];
         if (source is null || declaration is null || source.ConstructorArguments.Length != 6 || declaration.ConstructorArguments.Length != 3
-            || !declaration.NamedArguments.Any(a => a.Key == "EmitStaticSiteManifest" && a.Value.Value is true)) return unavailable;
+            || !declaration.NamedArguments.Any(a => a.Key == "EmitStaticSiteManifest" && a.Value.Value is true))
+            return unavailable;
         var args = source.ConstructorArguments;
         if (args[0].Value as string != StaticManifestFingerprint.Contract || args[1].Value is not string expected
             || args[2].Value is not string state || args[3].Value is not string site || args[4].Value is not string variant
-            || args[5].Kind != TypedConstantKind.Array || args[5].IsNull || args[5].Values.Any(v => v.Value is not string)) return unavailable;
+            || args[5].Kind != TypedConstantKind.Array || args[5].IsNull || args[5].Values.Any(v => v.Value is not string))
+            return unavailable;
         string Scope(string name) => declaration.NamedArguments.FirstOrDefault(a => a.Key == name).Value.Value as string ?? "";
-        if (site != Scope("Site") || variant != Scope("Variant")) return unavailable;
-        if (state != "Closed") return new("Open", site, variant, expected, "", unavailable.Paths);
+        if (site != Scope("Site") || variant != Scope("Variant"))
+            return unavailable;
+        if (state != "Closed")
+            return new("Open", site, variant, expected, "", unavailable.Paths);
         var current = fingerprint.Value;
-        if (current is null) return unavailable;
-        if (expected != current) return new("Stale", site, variant, expected, current, unavailable.Paths);
+        if (current is null)
+            return unavailable;
+        if (expected != current)
+            return new("Stale", site, variant, expected, current, unavailable.Paths);
         var paths = new HashSet<string>(args[5].Values.Select(v => (string)v.Value!), StringComparer.Ordinal);
-        if (paths.Count != args[5].Values.Length) return unavailable;
+        if (paths.Count != args[5].Values.Length)
+            return unavailable;
         var declaredPaths = new HashSet<string>(StringComparer.Ordinal);
         foreach (var file in files)
         {
             string Get(string key) => options.GetOptions(file).TryGetValue("build_metadata.AdditionalFiles." + key, out var value) ? value : "";
             if (Get("LithoSharpCollection") != declaration.ConstructorArguments[2].Value as string
-                || Get("LithoSharpSite") != site || Get("LithoSharpVariant") != variant) continue;
+                || Get("LithoSharpSite") != site || Get("LithoSharpVariant") != variant)
+                continue;
             var routeText = Get("LithoSharpRoute");
             try
             {
                 var route = routeText.EndsWith("/", StringComparison.Ordinal) ? SiteRoute.ForDirectoryIndex(routeText) : SiteRoute.ForFile(routeText);
-                if (!declaredPaths.Add(route.PublicPath)) return unavailable;
+                if (!declaredPaths.Add(route.PublicPath))
+                    return unavailable;
             }
-            catch (Exception e) when (e is ArgumentException or UriFormatException) { return unavailable; }
+            catch (Exception e) when (e is ArgumentException or UriFormatException)
+            {
+                return unavailable;
+            }
         }
-        if (!declaredPaths.SetEquals(paths)) return unavailable;
+        if (!declaredPaths.SetEquals(paths))
+            return unavailable;
         // Verify that the generated runtime initializer actually uses the same catalog and paths.
         var model = compilation.GetSemanticModel(node.SyntaxTree);
         if (Unwrap(model.GetOperation(node.Initializer.Value, cancellation)) is not IInvocationOperation create
             || !Named(create.TargetMethod.ContainingType, "LithoSharp.Content.StaticSiteManifest") || create.TargetMethod.Name != "Create"
             || create.Arguments.Length != 2 || create.Arguments[1].Value.ConstantValue.Value as string != expected
             || Unwrap(create.Arguments[0].Value) is not IPropertyReferenceOperation catalog || !catalog.Property.IsStatic
-            || !SymbolEqualityComparer.Default.Equals(catalog.Property.ContainingType, property.ContainingType)) return unavailable;
-        if (catalog.Property.DeclaringSyntaxReferences.Length != 1) return unavailable;
+            || !SymbolEqualityComparer.Default.Equals(catalog.Property.ContainingType, property.ContainingType))
+            return unavailable;
+        if (catalog.Property.DeclaringSyntaxReferences.Length != 1)
+            return unavailable;
         var catalogNode = catalog.Property.DeclaringSyntaxReferences[0].GetSyntax(cancellation) as PropertyDeclarationSyntax;
-        if (catalogNode?.Initializer is null || !StaticManifestFingerprint.OwnGenerated(catalogNode.SyntaxTree) || catalog.Property.SetMethod is not null) return unavailable;
+        if (catalogNode?.Initializer is null || !StaticManifestFingerprint.OwnGenerated(catalogNode.SyntaxTree) || catalog.Property.SetMethod is not null)
+            return unavailable;
         var catalogModel = compilation.GetSemanticModel(catalogNode.SyntaxTree);
         if (Unwrap(catalogModel.GetOperation(catalogNode.Initializer.Value, cancellation)) is not IObjectCreationOperation catalogCreate
             || !Named(catalogCreate.Type, "LithoSharp.Content.StaticContentCatalog") || catalogCreate.Arguments.Length != 4 || catalogCreate.Initializer is not null
@@ -311,7 +375,8 @@ internal sealed class StaticManifestAnalysis
             || !Named(id.Type, "LithoSharp.Content.ContentCollectionId") || id.Arguments.Length != 1
             || !Equals(id.Arguments[0].Value.ConstantValue.Value, declaration.ConstructorArguments[2].Value)
             || !Equals(catalogCreate.Arguments[2].Value.ConstantValue.Value, site) || !Equals(catalogCreate.Arguments[3].Value.ConstantValue.Value, variant)
-            || Unwrap(catalogCreate.Arguments[1].Value) is not IArrayCreationOperation entries || entries.Initializer is null) return unavailable;
+            || Unwrap(catalogCreate.Arguments[1].Value) is not IArrayCreationOperation entries || entries.Initializer is null)
+            return unavailable;
         var actualPaths = new HashSet<string>(StringComparer.Ordinal);
         var actualEntries = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var value in entries.Initializer.ElementValues)
@@ -323,32 +388,55 @@ internal sealed class StaticManifestAnalysis
                 || !Named(route.TargetMethod.ContainingType, "LithoSharp.Routing.SiteRoute")
                 || route.Arguments[0].Value.ConstantValue.Value is not string path
                 || route.Arguments.SingleOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value is not { } catalogBase
-                || !catalogBase.ConstantValue.HasValue || catalogBase.ConstantValue.Value is not null) return unavailable;
+                || !catalogBase.ConstantValue.HasValue || catalogBase.ConstantValue.Value is not null)
+                return unavailable;
             if (Unwrap(entry.Arguments[0].Value) is not IObjectCreationOperation entryId || !Named(entryId.Type, "LithoSharp.Content.ContentEntryId")
-                || entryId.Arguments.Length != 1 || entryId.Arguments[0].Value.ConstantValue.Value is not string key) return unavailable;
+                || entryId.Arguments.Length != 1 || entryId.Arguments[0].Value.ConstantValue.Value is not string key)
+                return unavailable;
             try
             {
                 string publicPath;
-                if (route.TargetMethod.Name == "ForFile") publicPath = SiteRoute.ForFile(path).PublicPath;
-                else if (route.TargetMethod.Name == "ForDirectoryIndex") publicPath = SiteRoute.ForDirectoryIndex(path).PublicPath;
-                else return unavailable;
-                if (!actualPaths.Add(publicPath) || actualEntries.ContainsKey(key)) return unavailable;
+                if (route.TargetMethod.Name == "ForFile")
+                    publicPath = SiteRoute.ForFile(path).PublicPath;
+                else if (route.TargetMethod.Name == "ForDirectoryIndex")
+                    publicPath = SiteRoute.ForDirectoryIndex(path).PublicPath;
+                else
+                    return unavailable;
+                if (!actualPaths.Add(publicPath) || actualEntries.ContainsKey(key))
+                    return unavailable;
                 actualEntries.Add(key, publicPath);
             }
-            catch (Exception e) when (e is ArgumentException or UriFormatException) { return unavailable; }
+            catch (Exception e) when (e is ArgumentException or UriFormatException)
+            {
+                return unavailable;
+            }
         }
         return actualPaths.SetEquals(paths) ? new("Closed", site, variant, expected, current, paths,
             catalog.Property, actualEntries, (string)declaration.ConstructorArguments[2].Value!) : unavailable;
     }
     private static IOperation? Unwrap(IOperation? operation)
-    { while (operation is IConversionOperation { OperatorMethod: null } conversion) operation = conversion.Operand; return operation; }
+    {
+        while (operation is IConversionOperation { OperatorMethod: null } conversion)
+            operation = conversion.Operand;
+        return operation;
+    }
     private static bool Core(INamedTypeSymbol? symbol) => symbol?.ContainingAssembly.Identity.Name == "LithoSharp" && !symbol.Locations.Any(l => l.IsInSource);
     private static bool Named(ITypeSymbol? symbol, string name) => symbol is INamedTypeSymbol named && Core(named) && named.ToDisplayString() == name;
     private sealed class Facts
     {
         internal Facts(string state, string site, string variant, string expected, string current, HashSet<string> paths,
             IPropertySymbol? catalog = null, Dictionary<string, string>? entries = null, string collectionId = "")
-        { State = state; Site = site; Variant = variant; Expected = expected; Current = current; Paths = paths; Catalog = catalog; Entries = entries; CollectionId = collectionId; }
+        {
+            State = state;
+            Site = site;
+            Variant = variant;
+            Expected = expected;
+            Current = current;
+            Paths = paths;
+            Catalog = catalog;
+            Entries = entries;
+            CollectionId = collectionId;
+        }
         internal IPropertySymbol? Catalog { get; }
         internal Dictionary<string, string>? Entries { get; }
         internal string CollectionId { get; }

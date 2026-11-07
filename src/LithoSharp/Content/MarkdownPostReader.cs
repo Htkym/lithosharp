@@ -99,13 +99,17 @@ public sealed class MarkdownPostReader
                         $"{diagnostic.Id} ({diagnostic.Location?.Line}:{diagnostic.Location?.Column}): {diagnostic.Message}")));
         }
 
-        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(text.Length - body.Length).Line;
-        var compilerDiagnostics = new[]
-        {
-            Compilation.LithoLimits.FindFootnoteWarning(body, path, bodyStartLine),
-            Compilation.LithoLimits.FindBrowserAssetWarning(body, path, bodyStartLine),
-        }.OfType<Diagnostics.SiteDiagnostic>().ToArray();
-        body = inclusion.Body;
+        var bodyStartOffset = text.Length - body.Length;
+        var bodyStartLine = new Syntamark.Compilation.SourceText(text).GetLineAndColumn(bodyStartOffset).Line;
+        // Eager warnings describe the original body, independently of includes
+        // and trimming. The adapter selects strict options up to 1 Mi UTF-16
+        // units and an explicit 8 Mi tier for larger originals, without retries.
+        // Unavailable analysis remains an explicit diagnostic.
+        var originalAnalysis = Compilation.MarkdownAnalysisAdapter.AnalyzeOriginalBody(body, path, cancellationToken);
+        var compilerDiagnostics = Compilation.MarkdownAnalysisAdapter.BodyDiagnostics(
+            originalAnalysis, path, bodyStartLine, cancellationToken);
+        body = inclusion.Body.Trim();
+        var retainedAnalysis = Compilation.MarkdownAnalysisAdapter.RetainForBody(originalAnalysis, body, path);
 
         var relative = Path.GetRelativePath(contentRoot, path);
         var normalizedOutput = Path.ChangeExtension(relative, ".html")
@@ -115,10 +119,13 @@ public sealed class MarkdownPostReader
             path,
             SlugHelper.ToSlug(Path.GetFileNameWithoutExtension(path)),
             frontMatter,
-            body.Trim(),
+            body,
             $"posts/{normalizedOutput}")
         {
             CompilerDiagnostics = compilerDiagnostics,
+            BodyAnalysis = retainedAnalysis,
+            BodySource = retainedAnalysis is null ? null
+                : new Compilation.DocumentSource(path, bodyStartOffset) { BodyStartLine = bodyStartLine },
         };
     }
 

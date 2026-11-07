@@ -19,7 +19,8 @@ internal sealed class CompilerDiagnosticCapture : IDisposable
                 "msbuild", project, "-nologo", "-t:GenerateRestoreGraphFile",
                 "-p:Configuration=" + configuration, "-p:RestoreGraphOutputPath=" + Escape(graphPath)
             ], token, workingDirectory);
-            if (graph.ExitCode != 0 || !File.Exists(graphPath)) return capture;
+            if (graph.ExitCode != 0 || !File.Exists(graphPath))
+                return capture;
             using var json = JsonDocument.Parse(File.ReadAllBytes(graphPath));
             foreach (var item in json.RootElement.GetProperty("projects").EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal))
             {
@@ -44,7 +45,11 @@ internal sealed class CompilerDiagnosticCapture : IDisposable
             }
             return capture;
         }
-        catch { capture.Dispose(); throw; }
+        catch
+        {
+            capture.Dispose();
+            throw;
+        }
     }
 
     internal IEnumerable<(string Path, string WorkingDirectory)> Reports()
@@ -60,6 +65,7 @@ internal sealed class CompilerDiagnosticCapture : IDisposable
 
     public void Dispose()
     {
-        foreach (var project in projects) File.Delete(project.Hook);
+        foreach (var project in projects)
+            File.Delete(project.Hook);
     }
 }

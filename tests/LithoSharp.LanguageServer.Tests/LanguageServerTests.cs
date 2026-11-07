@@ -106,6 +106,89 @@ public sealed class LanguageServerTests
     }
 
     [Test]
+    public async Task MarkdownInputLimitPublishesUnavailableStatusWithoutInventingARangeAndRecovers()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/limited.md";
+        // This exceeds the editor parser's UTF-16 input limit but fits LSP framing.
+        // The input-level failure has no source range and must stay out of Problems.
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new { uri, languageId = "markdown", version = 1, text = new string('x', 8 * 1024 * 1024 + 1) },
+            lithosharpOpenGeneration = 17,
+        });
+        var first = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(first.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var unavailable = (await WaitStatusAsync(1)).GetProperty("params");
+        await Assert.That(unavailable.GetProperty("language").GetString()).IsEqualTo("markdown");
+        await Assert.That(unavailable.GetProperty("state").GetString()).IsEqualTo("unavailable");
+        await Assert.That(unavailable.GetProperty("message").GetString()).Contains("analysis is incomplete");
+        await Assert.That(unavailable.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(17);
+        await Assert.That(unavailable.GetProperty("lithosharpContextGeneration").GetInt64()).IsEqualTo(0);
+        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+            && line.Contains("no reliable source position", StringComparison.Ordinal));
+
+        var emptyId = client.NextId();
+        client.SendRequest(emptyId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        var empty = await WaitProtocolResponseAsync(client, emptyId);
+        await Assert.That(empty.GetProperty("result").GetArrayLength()).IsEqualTo(0);
+
+        client.SendNotification("textDocument/didChange", new
+        {
+            textDocument = new { uri, version = 2 },
+            contentChanges = new[] { new { text = "---\ntitle: Recovered\n---\n# Recovered\n" } },
+        });
+        var second = await WaitDiagnosticsAsync(client, uri, 2);
+        await Assert.That(second.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var ready = (await WaitStatusAsync(2)).GetProperty("params");
+        await Assert.That(ready.GetProperty("language").GetString()).IsEqualTo("markdown");
+        await Assert.That(ready.GetProperty("state").GetString()).IsEqualTo("ready");
+        await Assert.That(ready.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(17);
+        var recoveredId = client.NextId();
+        client.SendRequest(recoveredId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        await AssertProtocolSymbolAsync(client, recoveredId, "Recovered");
+
+        Task<JsonElement> WaitStatusAsync(long version) => client.WaitForAsync(message =>
+            message.TryGetProperty("method", out var method) && method.GetString() == "lithosharp/analysisStatus"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri
+            && message.GetProperty("params").GetProperty("version").GetInt64() == version);
+    }
+
+    [Test]
+    public async Task MdxUnknownHeaderPublishesUnavailableWithoutInventingSourcePositionsOrSymbols()
+    {
+        await using var client = LspTestClient.Start();
+        await InitializeAsync(client);
+        const string uri = "file:///proj/unknown-header.mdx";
+        client.SendNotification("textDocument/didOpen", new
+        {
+            textDocument = new
+            {
+                uri,
+                languageId = "mdx",
+                version = 1,
+                text = "---\ntitle: " + new string('x', 1024 * 1024) + "\n---\n# Hidden\n"
+            },
+            lithosharpOpenGeneration = 23,
+        });
+        var diagnostics = await WaitDiagnosticsAsync(client, uri, 1);
+        await Assert.That(diagnostics.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var status = (await client.WaitForAsync(message => message.TryGetProperty("method", out var method)
+            && method.GetString() == "lithosharp/analysisStatus"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri)).GetProperty("params");
+        await Assert.That(status.GetProperty("language").GetString()).IsEqualTo("mdx");
+        await Assert.That(status.GetProperty("state").GetString()).IsEqualTo("unavailable");
+        await Assert.That(status.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(23);
+        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+            && line.Contains("no reliable source position", StringComparison.Ordinal));
+        var symbolsId = client.NextId();
+        client.SendRequest(symbolsId, "textDocument/documentSymbol", new { textDocument = new { uri } });
+        var symbols = await WaitProtocolResponseAsync(client, symbolsId);
+        await Assert.That(symbols.GetProperty("result").GetArrayLength()).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Framing_SplitAndConcatenatedMessages()
     {
         await using var client = LspTestClient.Start();
@@ -216,12 +299,22 @@ public sealed class LanguageServerTests
     }
 
     [Test]
-    public async Task DocumentSymbols_NestByHeadingLevel()
+    [Arguments("\n", false)]
+    [Arguments("\r\n", true)]
+    public async Task DocumentSymbols_UseSectionHierarchyAndRawSubtreeRanges(string newline, bool bom)
     {
         await using var client = LspTestClient.Start();
         await InitializeAsync(client);
         const string uri = "file:///proj/outline.md";
-        Open(client, uri, "markdown", 1, "---\ntitle: T\n---\n# Top\n\n## Child\n\n# Next\n");
+        var text = (bom ? "\uFEFF" : "") + string.Join(newline,
+        [
+            "---", "title: T", "---", "Preamble.", "",
+            "# Repeat", "Top body.", "",
+            "### Repeat", "Child body.", "",
+            "## Sibling", "Sibling body.", "",
+            "# Next 🎉", "Last body.", "",
+        ]);
+        Open(client, uri, "markdown", 1, text);
         await WaitDiagnosticsAsync(client, uri, 1);
 
         var symbolId = client.NextId();
@@ -230,13 +323,63 @@ public sealed class LanguageServerTests
             message.TryGetProperty("id", out var responseId) && responseId.GetString() == symbolId);
         var roots = response.GetProperty("result").EnumerateArray().ToArray();
         await Assert.That(roots.Length).IsEqualTo(2);
-        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Top");
-        var child = roots[0].GetProperty("children").EnumerateArray().Single();
-        await Assert.That(child.GetProperty("name").GetString()).IsEqualTo("Child");
-        // selectionRange is the original heading; range is the owned accurate range.
-        await Assert.That(child.GetProperty("selectionRange").GetProperty("start").GetProperty("line").GetInt32())
-            .IsEqualTo(child.GetProperty("range").GetProperty("start").GetProperty("line").GetInt32());
+        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Repeat");
+        await AssertRangeAsync(roots[0], "selectionRange", 5, 0, 5, 8);
+        await AssertRangeAsync(roots[0], "range", 5, 0, 14, 0);
+
+        // Identical text still maps to distinct section keys; skipping a heading
+        // level does not change the parser-provided parent relationship.
+        var children = roots[0].GetProperty("children").EnumerateArray().ToArray();
+        await Assert.That(children.Length).IsEqualTo(2);
+        await Assert.That(children[0].GetProperty("name").GetString()).IsEqualTo("Repeat");
+        await AssertRangeAsync(children[0], "selectionRange", 8, 0, 8, 10);
+        await AssertRangeAsync(children[0], "range", 8, 0, 11, 0);
+        await Assert.That(children[1].GetProperty("name").GetString()).IsEqualTo("Sibling");
+        await AssertRangeAsync(children[1], "range", 11, 0, 14, 0);
+
+        await Assert.That(roots[1].GetProperty("name").GetString()).IsEqualTo("Next 🎉");
+        await AssertRangeAsync(roots[1], "selectionRange", 14, 0, 14, 9);
+        await AssertRangeAsync(roots[1], "range", 14, 0, 16, 0);
         await Assert.That(roots[1].GetProperty("children").GetArrayLength()).IsEqualTo(0);
+
+        static async Task AssertRangeAsync(JsonElement symbol, string property, int startLine, int startCharacter, int endLine, int endCharacter)
+        {
+            var range = symbol.GetProperty(property);
+            await Assert.That(range.GetProperty("start").GetProperty("line").GetInt32()).IsEqualTo(startLine);
+            await Assert.That(range.GetProperty("start").GetProperty("character").GetInt32()).IsEqualTo(startCharacter);
+            await Assert.That(range.GetProperty("end").GetProperty("line").GetInt32()).IsEqualTo(endLine);
+            await Assert.That(range.GetProperty("end").GetProperty("character").GetInt32()).IsEqualTo(endCharacter);
+        }
+    }
+
+    [Test]
+    public async Task MdxDocumentSymbols_PreserveHeadingHierarchyAndRanges()
+    {
+        var headings = new (string Text, int Level, LithoSharp.Diagnostics.SiteSourceLocation? Location)[]
+        {
+            ("Parent", 1, new("/proj/outline.mdx", 1, 1, 1, 9)),
+            ("Child", 3, new("/proj/outline.mdx", 3, 1, 3, 10)),
+            ("Sibling", 2, new("/proj/outline.mdx", 5, 1, 5, 11)),
+            ("Next", 1, new("/proj/outline.mdx", 7, 1, 7, 7)),
+        };
+        // Exercise MDX serialization without starting Node or a worker. Sections
+        // are a Markdown-only change; MDX retains its existing heading ranges.
+        var buildSymbols = typeof(LithoSharp.LanguageServer.LspServer).GetMethod(
+            "BuildMdxSymbols", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var symbols = (JsonElement)buildSymbols.Invoke(null, [headings])!;
+        var roots = symbols.EnumerateArray().ToArray();
+        await Assert.That(roots.Length).IsEqualTo(2);
+        await Assert.That(roots[0].GetProperty("name").GetString()).IsEqualTo("Parent");
+        var children = roots[0].GetProperty("children").EnumerateArray().ToArray();
+        await Assert.That(children.Length).IsEqualTo(2);
+        await Assert.That(children[0].GetProperty("name").GetString()).IsEqualTo("Child");
+        await Assert.That(children[1].GetProperty("name").GetString()).IsEqualTo("Sibling");
+        await Assert.That(roots[1].GetProperty("name").GetString()).IsEqualTo("Next");
+        await Assert.That(roots[1].GetProperty("children").GetArrayLength()).IsEqualTo(0);
+        await Assert.That(roots[0].GetProperty("range").GetProperty("end").GetProperty("line").GetInt32()).IsEqualTo(0);
+        await Assert.That(roots[0].GetProperty("range").GetProperty("end").GetProperty("character").GetInt32()).IsEqualTo(8);
+        await Assert.That(roots[0].GetProperty("selectionRange").GetRawText()).IsEqualTo(roots[0].GetProperty("range").GetRawText());
+        await Assert.That(children[0].GetProperty("selectionRange").GetRawText()).IsEqualTo(children[0].GetProperty("range").GetRawText());
     }
 
     [Test]
@@ -251,11 +394,14 @@ public sealed class LanguageServerTests
         // Both frames are available together, with no diagnostics wait or sleep.
         client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", method = "textDocument/didOpen",
+            jsonrpc = "2.0",
+            method = "textDocument/didOpen",
             @params = new { textDocument = new { uri, languageId = "markdown", version = 1, text } },
         })) + LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            jsonrpc = "2.0",
+            id = symbolId,
+            method = "textDocument/documentSymbol",
             @params = new { textDocument = new { uri } },
         })));
 
@@ -281,11 +427,14 @@ public sealed class LanguageServerTests
         var symbolId = client.NextId();
         client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", method = "textDocument/didChange",
+            jsonrpc = "2.0",
+            method = "textDocument/didChange",
             @params = new { textDocument = new { uri, version = 2 }, contentChanges = new[] { new { text } } },
         })) + LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            jsonrpc = "2.0",
+            id = symbolId,
+            method = "textDocument/documentSymbol",
             @params = new { textDocument = new { uri } },
         })));
 
@@ -308,15 +457,20 @@ public sealed class LanguageServerTests
         var symbolId = client.NextId();
         client.SendRaw(LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", method = "textDocument/didOpen",
+            jsonrpc = "2.0",
+            method = "textDocument/didOpen",
             @params = new { textDocument = new { uri, languageId = "markdown", version = 1, text } },
         })) + LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", id = symbolId, method = "textDocument/documentSymbol",
+            jsonrpc = "2.0",
+            id = symbolId,
+            method = "textDocument/documentSymbol",
             @params = new { textDocument = new { uri } },
         })) + LspTestClient.Frame(JsonSerializer.Serialize(new
         {
-            jsonrpc = "2.0", method = "$/cancelRequest", @params = new { id = symbolId },
+            jsonrpc = "2.0",
+            method = "$/cancelRequest",
+            @params = new { id = symbolId },
         })));
         await client.WaitForAsync(message => message.TryGetProperty("id", out var id) && id.GetString() == symbolId);
         var diagnostics = await WaitDiagnosticsAsync(client, uri, 1);
@@ -565,14 +719,25 @@ public sealed class LanguageServerTests
             folders = new[] { "file:///proj" },
             snapshot = new
             {
-                schemaVersion = "1.0", projectId, projectGeneration = (long)1,
+                schemaVersion = "1.0",
+                projectId,
+                projectGeneration = (long)1,
                 coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version?.ToString(3),
-                collection = "docs", language = "markdown", schema, version = "current", locale = "default",
+                collection = "docs",
+                language = "markdown",
+                schema,
+                version = "current",
+                locale = "default",
                 acquiredAt = "2026-10-05T00:00:00Z",
                 routes = sources.Select(sourcePath => new
                 {
-                    sourcePath, publicPath = "/intro/", projectId, collection = "docs",
-                    version = "current", locale = "default", publication = "Published",
+                    sourcePath,
+                    publicPath = "/intro/",
+                    projectId,
+                    collection = "docs",
+                    version = "current",
+                    locale = "default",
+                    publication = "Published",
                 }).ToArray(),
             },
         });
@@ -632,12 +797,15 @@ public sealed class LanguageServerTests
             const string uri = "file:///proj/shared.mdx";
             Open(client, uri, "mdx", 1, "# Shared\n");
             await worker.WaitForRequestAsync(1);
-            var first = client.NextId(); var second = client.NextId();
+            var first = client.NextId();
+            var second = client.NextId();
             client.SendRequest(first, "textDocument/documentSymbol", new { textDocument = new { uri } });
             client.SendRequest(second, "textDocument/documentSymbol", new { textDocument = new { uri } });
             // Release possible extra requests too: the old implementation must fail
             // by its actual duplicate count, rather than an unreleased-fixture timeout.
-            worker.Release(2); worker.Release(3); worker.Release(1);
+            worker.Release(2);
+            worker.Release(3);
+            worker.Release(1);
             await WaitProtocolDiagnosticsAsync(client, uri, 1, 1);
             await AssertProtocolSymbolAsync(client, first, "Shared");
             await AssertProtocolSymbolAsync(client, second, "Shared");
@@ -655,7 +823,8 @@ public sealed class LanguageServerTests
             const string uri = "file:///proj/cancel-shared.mdx";
             Open(client, uri, "mdx", 1, "# Survives\n");
             await worker.WaitForRequestAsync(1);
-            var cancelled = client.NextId(); var surviving = client.NextId();
+            var cancelled = client.NextId();
+            var surviving = client.NextId();
             client.SendRequest(cancelled, "textDocument/documentSymbol", new { textDocument = new { uri } });
             client.SendRequest(surviving, "textDocument/documentSymbol", new { textDocument = new { uri } });
             // Unknown IDs must not disturb either held waiter or the shared analysis.
@@ -663,7 +832,9 @@ public sealed class LanguageServerTests
             client.SendNotification("$/cancelRequest", new { id = cancelled });
             var response = await WaitProtocolResponseAsync(client, cancelled);
             await Assert.That(response.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32800);
-            worker.Release(2); worker.Release(3); worker.Release(1);
+            worker.Release(2);
+            worker.Release(3);
+            worker.Release(1);
             await WaitProtocolDiagnosticsAsync(client, uri, 1, 1);
             await AssertProtocolSymbolAsync(client, surviving, "Survives");
             await Assert.That(worker.RequestCount).IsEqualTo(1);
@@ -681,7 +852,8 @@ public sealed class LanguageServerTests
         {
             await InitializeAsync(client, new { workerDirectory = worker.Root });
             const string uri = "file:///proj/revision.mdx";
-            if (change == "context") SendOwnershipContext(client, "owner", "custom", ["/proj/revision.mdx"]);
+            if (change == "context")
+                SendOwnershipContext(client, "owner", "custom", ["/proj/revision.mdx"]);
             Open(client, uri, "mdx", 1, "# Original\n");
             await worker.WaitForRequestAsync(1);
             var obsolete = client.NextId();
@@ -699,7 +871,10 @@ public sealed class LanguageServerTests
             await worker.WaitForRequestAsync(2);
             var current = client.NextId();
             client.SendRequest(current, "textDocument/documentSymbol", new { textDocument = new { uri } });
-            worker.Release(1); worker.Release(2); worker.Release(3); worker.Release(4);
+            worker.Release(1);
+            worker.Release(2);
+            worker.Release(3);
+            worker.Release(4);
             var rejected = await WaitProtocolResponseAsync(client, obsolete);
             await Assert.That(rejected.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32800);
             await AssertProtocolSymbolAsync(client, current, change == "context" ? "Original" : "Current");
@@ -721,7 +896,8 @@ public sealed class LanguageServerTests
             await InitializeAsync(client, new { workerDirectory = worker.Root });
             const string uri = "file:///proj/unavailable.mdx";
             Open(client, uri, "mdx", 1, "# Restored\n");
-            await worker.WaitForRequestAsync(1); worker.Release(1);
+            await worker.WaitForRequestAsync(1);
+            worker.Release(1);
             var unavailable = await WaitDiagnosticsAsync(client, uri, 1);
             await Assert.That(unavailable.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
             worker.Release(2);
@@ -732,7 +908,8 @@ public sealed class LanguageServerTests
             await Assert.That(worker.RequestCount).IsEqualTo(1);
             File.Delete(Path.Combine(worker.Root, "unavailable"));
             client.SendNotification("textDocument/didSave", new { textDocument = new { uri } });
-            await worker.WaitForRequestAsync(2); worker.Release(2);
+            await worker.WaitForRequestAsync(2);
+            worker.Release(2);
             await WaitProtocolDiagnosticsAsync(client, uri, 1, 2);
             var restored = client.NextId();
             client.SendRequest(restored, "textDocument/documentSymbol", new { textDocument = new { uri } });
@@ -760,11 +937,23 @@ public sealed class LanguageServerTests
         {
             if (client is not null)
             {
-                try { await client.DisposeAsync(); }
-                catch (Exception error) { cleanupFailures.Add(error); }
+                try
+                {
+                    await client.DisposeAsync();
+                }
+                catch (Exception error)
+                {
+                    cleanupFailures.Add(error);
+                }
             }
-            try { worker.Dispose(); }
-            catch (Exception error) { cleanupFailures.Add(error); }
+            try
+            {
+                worker.Dispose();
+            }
+            catch (Exception error)
+            {
+                cleanupFailures.Add(error);
+            }
         }
 
         if (failure is not null)
@@ -980,12 +1169,15 @@ public sealed class LanguageServerTests
         await GenerationDiagnostics(1, 11, 0);
         client.SendNotification("textDocument/didChange", new
         {
-            textDocument = new { uri, version = 2 }, contentChanges = new[] { new { text = "---\ntitle: T\n---\n# Changed\n" } },
+            textDocument = new { uri, version = 2 },
+            contentChanges = new[] { new { text = "---\ntitle: T\n---\n# Changed\n" } },
         });
         await GenerationDiagnostics(2, 11, 0);
         client.SendNotification("lithosharp/projectContext", new
         {
-            projectId = "docs", folders = new[] { "file:///proj" }, snapshot = (object?)null,
+            projectId = "docs",
+            folders = new[] { "file:///proj" },
+            snapshot = (object?)null,
             lithosharpContextGeneration = 1,
         });
         await GenerationDiagnostics(2, 11, 1); // Even syntax-only ownership needs a fresh verifiable publication.
@@ -1009,14 +1201,24 @@ public sealed class LanguageServerTests
         const string uri = "file:///proj/rejected-context.md";
         object Snapshot(string id, string core) => new
         {
-            schemaVersion = "1.0", projectId = id, projectGeneration = (long)1, coreVersion = core,
-            collection = "docs", language = "markdown", schema = "document", version = "v1", locale = "en",
-            acquiredAt = "2026-10-05T00:00:00Z", routes = Array.Empty<object>(),
+            schemaVersion = "1.0",
+            projectId = id,
+            projectGeneration = (long)1,
+            coreVersion = core,
+            collection = "docs",
+            language = "markdown",
+            schema = "document",
+            version = "v1",
+            locale = "en",
+            acquiredAt = "2026-10-05T00:00:00Z",
+            routes = Array.Empty<object>(),
         };
         var ownCore = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version!.ToString(3);
         client.SendNotification("lithosharp/projectContext", new
         {
-            projectId = "docs", folders = new[] { "file:///proj" }, snapshot = Snapshot("docs", ownCore),
+            projectId = "docs",
+            folders = new[] { "file:///proj" },
+            snapshot = Snapshot("docs", ownCore),
             lithosharpContextGeneration = 1,
         });
         client.SendNotification("textDocument/didOpen", new
@@ -1047,7 +1249,9 @@ public sealed class LanguageServerTests
         await Assert.That(HasCode(edited, "LIT001")).IsTrue(); // Genuine current edit remains observable.
         client.SendNotification("lithosharp/projectContext", new
         {
-            projectId = "docs", snapshot = (object?)null, lithosharpContextGeneration = 3,
+            projectId = "docs",
+            snapshot = (object?)null,
+            lithosharpContextGeneration = 3,
         });
         var withdrawn = await WaitContextEpochDiagnosticsAsync(client, uri, 2, 17, 3);
         await Assert.That(HasCode(withdrawn, "LSC101")).IsFalse();
@@ -1076,14 +1280,22 @@ public sealed class LanguageServerTests
         await WaitContextEpochDiagnosticsAsync(client, uri, 1, 19, 0);
         client.SendNotification("lithosharp/projectContext", new
         {
-            projectId = "docs", lithosharpContextGeneration = -1,
+            projectId = "docs",
+            lithosharpContextGeneration = -1,
             folders = new[] { "file:///proj" },
             snapshot = new
             {
-                schemaVersion = "1.0", projectId = "docs", projectGeneration = (long)1,
+                schemaVersion = "1.0",
+                projectId = "docs",
+                projectGeneration = (long)1,
                 coreVersion = typeof(LithoSharp.Inspection.DocumentWorkspace).Assembly.GetName().Version!.ToString(3),
-                collection = "docs", language = "markdown", schema = "document", version = "v1", locale = "en",
-                acquiredAt = "2026-10-05T00:00:00Z", routes = Array.Empty<object>(),
+                collection = "docs",
+                language = "markdown",
+                schema = "document",
+                version = "v1",
+                locale = "en",
+                acquiredAt = "2026-10-05T00:00:00Z",
+                routes = Array.Empty<object>(),
             },
         });
         client.SendNotification("textDocument/didChange", new
@@ -1105,17 +1317,21 @@ public sealed class LanguageServerTests
             const string uri = "file:///proj/rejected-context.mdx";
             client.SendNotification("lithosharp/projectContext", new
             {
-                projectId = "docs", snapshot = (object?)null, lithosharpContextGeneration = 1,
+                projectId = "docs",
+                snapshot = (object?)null,
+                lithosharpContextGeneration = 1,
             });
             Open(client, uri, "mdx", 1, "# Unchanged\n");
             await worker.WaitForRequestAsync(1);
             client.SendNotification("lithosharp/projectContext", new
             {
-                projectId = "docs", snapshot = new { schemaVersion = "999.0", projectId = "docs" },
+                projectId = "docs",
+                snapshot = new { schemaVersion = "999.0", projectId = "docs" },
                 lithosharpContextGeneration = 2,
             });
             await worker.WaitForRequestAsync(2);
-            worker.Release(1); worker.Release(2);
+            worker.Release(1);
+            worker.Release(2);
             var current = await WaitProtocolDiagnosticsAsync(client, uri, 1, 2);
             await Assert.That(current.GetProperty("params").GetProperty("lithosharpContextGeneration").GetInt64()).IsEqualTo(2);
             await Assert.That(client.Received.Any(message => IsProtocolDiagnostics(message, uri, 1, 1))).IsFalse();

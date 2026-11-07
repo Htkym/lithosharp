@@ -77,7 +77,8 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
         {
             var result = await markdown.LoadEntryAsync(file.FullPath, cancellationToken).ConfigureAwait(false);
             diagnostics.AddRange(result.Diagnostics);
-            if (!result.IsSuccess) continue;
+            if (!result.IsSuccess)
+                continue;
             var entry = result.Value!;
             var bytes = await ContentPath.ReadAllBytesAsync(inputRoot, file.FullPath, cancellationToken).ConfigureAwait(false);
             if (entry.SourceFingerprint != "sha256:" + Convert.ToHexStringLower(SHA256.HashData(bytes)))
@@ -87,6 +88,11 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
             // start comes from re-splitting the original text (front matter
             // only), not from the resolved length.
             var split = Content.Compilation.FrontMatterSplitter.TrySplit(original, cancellationToken);
+            if (split.Status == Content.Compilation.FrontMatterSplitStatus.Incomplete)
+            {
+                diagnostics.Add(Content.Compilation.FrontMatterSplitter.IncompleteDiagnostic(split, original, file.FullPath));
+                continue;
+            }
             if (split.Status != Content.Compilation.FrontMatterSplitStatus.Ok)
                 throw new IOException("MDX source changed while loading; retry the build.");
             var bodyOffset = split.BodyStartOffset;

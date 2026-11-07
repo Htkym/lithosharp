@@ -59,7 +59,8 @@ public sealed class MigrationRouteOracleEntry
         string? exclusionReason = null)
     {
         ArgumentNullException.ThrowIfNull(path);
-        if (!Enum.IsDefined(category)) throw new ArgumentOutOfRangeException(nameof(category));
+        if (!Enum.IsDefined(category))
+            throw new ArgumentOutOfRangeException(nameof(category));
         if (exclusionReason is not null && string.IsNullOrWhiteSpace(exclusionReason))
             throw new ArgumentException("An explicit exclusion reason cannot be empty.", nameof(exclusionReason));
         Path = path;
@@ -86,7 +87,8 @@ public sealed class MigrationRouteOracle
     {
         ArgumentNullException.ThrowIfNull(routes);
         var snapshot = routes.ToArray();
-        if (snapshot.Any(route => route is null)) throw new ArgumentException("A route oracle cannot contain null entries.", nameof(routes));
+        if (snapshot.Any(route => route is null))
+            throw new ArgumentException("A route oracle cannot contain null entries.", nameof(routes));
         foreach (var group in snapshot.GroupBy(route => route.Path, StringComparer.Ordinal))
         {
             var classifications = group.Select(route => (route.Category, route.Locale, route.ExclusionReason)).Distinct().Take(2).Count();
@@ -753,9 +755,11 @@ public sealed class DocusaurusMigrationReport
 
     private static void ValidateNormalizedInputs(MigrationRouteOracle? routeOracle, DocusaurusMigrationOptions options)
     {
-        if (!options.CompareNormalizedPageSet || routeOracle is null) return;
+        if (!options.CompareNormalizedPageSet || routeOracle is null)
+            return;
         _ = SiteRoute.ForDirectoryIndex(string.Empty, options.BaseUrl);
-        if (routeOracle.BasePath is not null) _ = CanonicalBasePath(routeOracle.BasePath);
+        if (routeOracle.BasePath is not null)
+            _ = CanonicalBasePath(routeOracle.BasePath);
         foreach (var route in routeOracle.Routes.Where(route => route.Category == MigrationRouteCategory.Document
             && route.ExclusionReason is null))
             _ = NormalizePublicPagePath(route.Path, routeOracle.BasePath);

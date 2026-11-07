@@ -93,7 +93,8 @@ public sealed partial class AnalyzerPackageHostTests
                 && policies.Length == (state == "None" ? 0 : 1) && !enabled.Any(d => d.Id is "LSA1201" or "LSA1401"), "Unknown/Open/Stale never prove absence or a typed fix: " + name + " " + string.Join(";", enabled));
             if (policies.Length == 1)
             {
-                var policy = policies[0]; var request = ManifestExplicitRequest(generated.Compilation);
+                var policy = policies[0];
+                var request = ManifestExplicitRequest(generated.Compilation);
                 Check(policy.Severity == DiagnosticSeverity.Error && policy.Location.SourceSpan == request.Span
                     && policy.Properties["scope"] == "manifest-route-lookup" && policy.Properties["scopeState"] == state
                     && policy.Properties["reason"] is { Length: > 0 } && policy.Properties["origin"] == "original-coverage-request-utf16-span", "Original whole-call coverage location/key and state: " + name);

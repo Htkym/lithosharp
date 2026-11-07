@@ -42,7 +42,8 @@ public sealed partial class AnalyzerPackageHostTests
             var argument = creation.ArgumentList!.Arguments.SingleOrDefault(a => a.NameColon?.Name.Identifier.ValueText == "route")
                 ?? creation.ArgumentList.Arguments[2];
             var expression = argument.Expression;
-            var position = d.Location.GetLineSpan().StartLinePosition;var at = expression.SpanStart;
+            var position = d.Location.GetLineSpan().StartLinePosition;
+            var at = expression.SpanStart;
             Check(op.Constructor!.ContainingAssembly.Identity.Name == "LithoSharp"
                 && op.Constructor.OriginalDefinition.ContainingType.TypeParameters.Length == 1
                 && boundRoute.ArgumentKind == ArgumentKind.Explicit, "Actual generic metadata ctor binding: " + name);
@@ -55,8 +56,13 @@ public sealed partial class AnalyzerPackageHostTests
                 && position.Character + 1 == at - source.LastIndexOf('\n', at - 1), "Original whole UTF16/CRLF route expression: " + name);
             Check(d.Properties["staticState"] == "Known" && d.Properties["candidateCount"] == "1"
                 && d.Properties["origin"] == "original-argument-utf16-span", "Existing ordinal2 evaluation snapshot: " + name);
-            proof.Add(new { name, source, originalDefinition = op.Constructor.OriginalDefinition.ToDisplayString(),
-                diagnostics = diagnostics.Select(ContentRefNullDiagnostic).ToArray() });
+            proof.Add(new
+            {
+                name,
+                source,
+                originalDefinition = op.Constructor.OriginalDefinition.ToDisplayString(),
+                diagnostics = diagnostics.Select(ContentRefNullDiagnostic).ToArray()
+            });
         }
         var standardSource = ContentRefNullSource("new Ref(collection,entry,null!);");
         var standard = Compile(standardSource, true, "standard.cs");
@@ -129,7 +135,8 @@ public sealed partial class AnalyzerPackageHostTests
         {
             var source = "// 😀 UTF16\r\n" + ManifestModel + "\r\nclass Calls {void M(){new ContentRef<string>(Guides.Catalog.CollectionId,new ContentEntryId(\"intro\")," + route + ");}}";
             var generated = ManifestGenerate(source);
-            ContentRefNullBinds(generated.Compilation, name);Check(generated.Diagnostics.Length == 0, "Actual Generator remains valid: " + name);
+            ContentRefNullBinds(generated.Compilation, name);
+            Check(generated.Diagnostics.Length == 0, "Actual Generator remains valid: " + name);
             var diagnostics = await ManifestAnalyze(generated.Compilation);
             Check(expected.Length == 0 ? diagnostics.Length == 0 : diagnostics.Length == 1 && diagnostics[0].Id == expected,
                 "Existing diagnostic ownership: " + name + " " + string.Join(";", diagnostics));
@@ -166,9 +173,14 @@ public sealed partial class AnalyzerPackageHostTests
             "Actual Core fixture binds: " + name + " " + string.Join(";", compilation.GetDiagnostics()));
     private static object ContentRefNullDiagnostic(Diagnostic d) => new
     {
-        d.Id, severity = d.Severity.ToString(), message = d.GetMessage(), start = d.Location.SourceSpan.Start,
-        length = d.Location.SourceSpan.Length, expression = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan),
-        related = d.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray(), d.Properties
+        d.Id,
+        severity = d.Severity.ToString(),
+        message = d.GetMessage(),
+        start = d.Location.SourceSpan.Start,
+        length = d.Location.SourceSpan.Length,
+        expression = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan),
+        related = d.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray(),
+        d.Properties
     };
 }
 

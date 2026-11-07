@@ -28,7 +28,8 @@ internal sealed class StaticCoveragePolicy(Compilation compilation)
 
     private static Root OriginalRoot(IOperation operation)
     {
-        while (operation.Parent is { } parent) operation = parent;
+        while (operation.Parent is { } parent)
+            operation = parent;
         return new(operation.Syntax.SyntaxTree, operation.Syntax.Span);
     }
     internal void Discover(IOperation operation, Location location, string scope, bool empty = false)
@@ -60,10 +61,12 @@ internal sealed class StaticCoveragePolicy(Compilation compilation)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             // A source-proven empty selection does not need registration, fingerprint or CFG proof.
-            if (item.Value.Empty) continue;
+            if (item.Value.Empty)
+                continue;
             var proof = proofs.TryGetValue(item.Key, out var found) ? found : new Proof("Unavailable",
                 interruptions.TryGetValue(item.Value.Root, out var reason) ? reason : "flow-proof-unavailable");
-            if (proof.State == "Complete") continue;
+            if (proof.State == "Complete")
+                continue;
             var properties = ImmutableDictionary<string, string?>.Empty.Add("scope", item.Key.Scope)
                 .Add("scopeState", proof.State).Add("reason", proof.Reason).Add("stage", "compiler")
                 .Add("ruleOwner", "Analyzer").Add("origin", "original-coverage-request-utf16-span")

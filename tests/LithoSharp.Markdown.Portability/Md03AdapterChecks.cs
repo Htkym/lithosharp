@@ -70,7 +70,7 @@ internal static class Md03AdapterChecks
         Check(portable.GetType("Syntamark.MarkdownParser") is null, "Source host must exclude the runtime facade");
         var portableParser = portable.GetType("Syntamark.Compilation.MdParser", true)!;
         var optionsType = portable.GetType("Syntamark.Compilation.MdOptions", true)!;
-        var options = optionsType.GetConstructors(portableMembers).Single().Invoke(new object?[]
+        var options = optionsType.GetConstructors(portableMembers).Single(constructor => constructor.GetParameters().Length == 6).Invoke(new object?[]
             { 1048576, 131072, 200, 16777216, "lithosharp-markdown/1", 1 });
         var portableParse = portableParser.GetMethod("Parse", portableMembers)!;
         var portableDoc = portableParse.Invoke(null, new object?[] { delimited, "scope", "source", null, options, CancellationToken.None })!;
@@ -80,14 +80,29 @@ internal static class Md03AdapterChecks
                 == (string)generic.GetType().GetProperty(property)!.GetValue(generic)!, "Runtime/portable generic " + property + " agreement");
         Check(portableDoc.GetType().GetProperty("Status", portableMembers)!.GetValue(portableDoc)!.ToString() == "Complete",
             "Portable generic facts can parse YAML in a separate load context");
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        try { DocumentInspection.Inspect("doc.md", body, cancellationToken: cancelled.Token); throw new InvalidOperationException("Site cancellation swallowed"); }
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        try
+        {
+            DocumentInspection.Inspect("doc.md", body, cancellationToken: cancelled.Token);
+            throw new InvalidOperationException("Site cancellation swallowed");
+        }
         catch (OperationCanceledException) { }
 
-        Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-03", status = "PASS", checks =
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            task = "MD-03",
+            status = "PASS",
+            checks =
             "shared runtime assembly/one parse/no body HTML/heading legacy parity/frontmatter site policy and LSM001-008/offsets/runtime-portable facts/cancellation",
-            parserVersion = generic.ParserVersion, actualRoslynHost = "NOT_RUN; MD-04/IN-01" }));
+            parserVersion = generic.ParserVersion,
+            actualRoslynHost = "NOT_RUN; MD-04/IN-01"
+        }));
     }
 
-    private static void Check(bool valid, string message) { if (!valid) throw new InvalidOperationException(message); }
+    private static void Check(bool valid, string message)
+    {
+        if (!valid)
+            throw new InvalidOperationException(message);
+    }
 }

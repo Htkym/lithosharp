@@ -101,8 +101,11 @@ public sealed class SiteFactoryTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new SiteDefinition(new SiteSettings
             {
-                Title = "Factory test", BaseUrl = "https://example.com/", TimeZone = "UTC"
-            }, []) { Options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch } });
+                Title = "Factory test",
+                BaseUrl = "https://example.com/",
+                TimeZone = "UTC"
+            }, [])
+            { Options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch } });
         }
     }
 }

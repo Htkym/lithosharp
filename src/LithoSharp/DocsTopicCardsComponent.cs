@@ -6,7 +6,8 @@ internal static class DocsTopicCardsComponent
 {
     internal static string RenderCore(SiteTemplateNavigationNode root)
     {
-        if (root.Children.Count == 0) return string.Empty;
+        if (root.Children.Count == 0)
+            return string.Empty;
         var body = new StringBuilder("<div class=\"docs-topic-cards\">\n");
         foreach (var node in root.Children)
         {
@@ -26,7 +27,8 @@ internal static class DocsTopicCardsComponent
 
     private static void AppendChildren(StringBuilder body, SiteTemplateNavigationNode parent)
     {
-        if (parent.Children.Count == 0) return;
+        if (parent.Children.Count == 0)
+            return;
         body.AppendLine("<ul>");
         foreach (var node in parent.Children)
         {

@@ -21,7 +21,8 @@ public sealed class ExternalAvifEncoder
         ArgumentException.ThrowIfNullOrWhiteSpace(dependencyFingerprint);
         ExecutablePath = Path.GetFullPath(executablePath);
         Timeout = timeout ?? TimeSpan.FromMinutes(2);
-        if (Timeout <= TimeSpan.Zero || Timeout > TimeSpan.FromHours(1)) throw new ArgumentOutOfRangeException(nameof(timeout));
+        if (Timeout <= TimeSpan.Zero || Timeout > TimeSpan.FromHours(1))
+            throw new ArgumentOutOfRangeException(nameof(timeout));
         binaryHash = HashExecutable();
         Fingerprint = $"avifenc-adapter/1:{binaryHash}:{dependencyFingerprint}:speed=6:jobs=1:alpha=100";
     }
@@ -44,8 +45,10 @@ public sealed class ExternalAvifEncoder
             await File.WriteAllBytesAsync(input, png, cancellationToken).ConfigureAwait(false);
             var start = new ProcessStartInfo(ExecutablePath)
             {
-                UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 WorkingDirectory = directory
             };
             foreach (var argument in new[] { "--no-overwrite", "--qcolor", quality.ToString(CultureInfo.InvariantCulture),
@@ -63,14 +66,23 @@ public sealed class ExternalAvifEncoder
             }
             catch (OperationCanceledException)
             {
-                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (InvalidOperationException) { }
                 await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                try { await Task.WhenAll(stdout, stderr).ConfigureAwait(false); } catch (OperationCanceledException) { }
+                try
+                {
+                    await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { }
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new TimeoutException($"avifenc exceeded {Timeout}.");
             }
             await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
-            if (process.ExitCode != 0) throw new IOException($"avifenc failed with exit code {process.ExitCode}.");
+            if (process.ExitCode != 0)
+                throw new IOException($"avifenc failed with exit code {process.ExitCode}.");
             if ((File.GetAttributes(output) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0)
                 throw new IOException("avifenc output must be a regular file.");
             var bytes = await File.ReadAllBytesAsync(output, cancellationToken).ConfigureAwait(false);
@@ -78,26 +90,34 @@ public sealed class ExternalAvifEncoder
                 throw new InvalidDataException("avifenc did not produce an AVIF container.");
             return bytes;
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     internal Task ValidateAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (HashExecutable() != binaryHash) throw new InvalidOperationException("The AVIF executable changed. Create a new encoder declaration.");
+        if (HashExecutable() != binaryHash)
+            throw new InvalidOperationException("The AVIF executable changed. Create a new encoder declaration.");
         return Task.CompletedTask;
     }
 
     private static bool HasAvifBrand(ReadOnlySpan<byte> bytes)
     {
-        if (bytes.Length < 16 || !bytes.Slice(4, 4).SequenceEqual("ftyp"u8)) return false;
+        if (bytes.Length < 16 || !bytes.Slice(4, 4).SequenceEqual("ftyp"u8))
+            return false;
         var size = BinaryPrimitives.ReadUInt32BigEndian(bytes);
-        if (size < 16 || size > bytes.Length || size % 4 != 0) return false;
+        if (size < 16 || size > bytes.Length || size % 4 != 0)
+            return false;
         for (var offset = 8; offset < size; offset += 4)
         {
-            if (offset == 12) continue;
+            if (offset == 12)
+                continue;
             var brand = bytes.Slice(offset, 4);
-            if (brand.SequenceEqual("avif"u8) || brand.SequenceEqual("avis"u8)) return true;
+            if (brand.SequenceEqual("avif"u8) || brand.SequenceEqual("avis"u8))
+                return true;
         }
         return false;
     }
@@ -114,6 +134,8 @@ public sealed class ExternalAvifEncoder
     private static async Task DrainAsync(StreamReader reader, CancellationToken cancellationToken)
     {
         var buffer = new char[4096];
-        while (await reader.ReadAsync(buffer, cancellationToken).ConfigureAwait(false) != 0) { }
+        while (await reader.ReadAsync(buffer, cancellationToken).ConfigureAwait(false) != 0)
+        {
+        }
     }
 }

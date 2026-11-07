@@ -382,7 +382,11 @@ public sealed class StructuredContentLoaderTests
         JsonElement body = default;
         var loader = new JsonContentCollectionLoader<NestedRow, JsonElement>(
             workspace.Root, new ContentCollectionId("items"), new NestedBinder(),
-            element => { body = element; return element; },
+            element =>
+            {
+                body = element;
+                return element;
+            },
             static entry => SiteRoute.ForFile(entry.Id.Value + ".html"),
             static entry => new PageMetadata(entry.FrontMatter.Title));
 

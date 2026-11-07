@@ -140,7 +140,7 @@ public sealed class MigrationReportTests
         var action0 = custom.SuggestedActions[0];
         await Assert.That(action0.MatchesSource(source)).IsTrue();
         await Assert.That(action0.MatchesSourceText(Encoding.UTF8.GetString(source))).IsTrue();
-        var edited = source.Concat([ (byte)'\n' ]).ToArray();
+        var edited = source.Concat([(byte)'\n']).ToArray();
         await Assert.That(action0.MatchesSource(edited)).IsFalse();
     }
 

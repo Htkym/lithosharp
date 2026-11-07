@@ -17,4 +17,11 @@ public sealed record MarkdownPost(
 {
     // The reader retains diagnostics before trimming or expanding code inclusions.
     internal IReadOnlyList<Diagnostics.SiteDiagnostic>? CompilerDiagnostics { get; init; }
+
+    // Retained only when the final body exactly matches the analyzed raw body and
+    // its options match strict compilation. A record with a replaced body must
+    // pass the compiler's identity gate again before reusing either property.
+    internal Compilation.MarkdownBodyAnalysisSnapshot? BodyAnalysis { get; init; }
+
+    internal Compilation.DocumentSource? BodySource { get; init; }
 }

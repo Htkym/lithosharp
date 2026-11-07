@@ -84,6 +84,9 @@ sources; see [generated output checks](../../docs/generated-output-checks.md).
 | Known entry ID paired with the wrong declared route | Analyzer: `LSA1402` | A contradiction in a complete, current catalog (`Closed`). Dynamic values remain unproven. |
 | Headings and source diagnostics | Editor/LSP | Syntax information for the current document. `NoContext` means project/schema/route checks are unavailable. |
 | Incomplete analysis (`Partial`) | Parsing or editing | Only available facts can be used; missing facts are not evidence that content is absent or valid. |
+| Unavailable facts after an input or resource limit | Editor: `LSM011` | Analysis stopped; unavailable facts were not validated. Editor input is limited to 8 Mi UTF-16 code units. |
+| Unavailable facts in an analyzed post body | Generation: `LSM011` | The body input limit is 1 Mi UTF-16 code units. Failure stops publication and preserves the previous output. Render-only snippets do not use this analysis path. |
+| Unavailable header boundaries | Generator: `LSG002`; runtime: `LSM011` | The header-only scan has a 1 Mi UTF-16 header budget. `Unknown` does not prove a missing or unterminated header; a body after a closing delimiter is excluded from that budget. |
 | Missing internal output target or anchor | Generation quality checks or `check-output`: `LSQ001`/`LSQ002` | The inspected local artifacts and anchors exist. External HTTP checks are off by default. |
 
 CI builds the normal sample, runs it with `--check`, and exercises these published

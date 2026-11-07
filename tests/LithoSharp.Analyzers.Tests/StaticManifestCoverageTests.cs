@@ -194,7 +194,8 @@ public sealed partial class AnalyzerPackageHostTests
             var compilation = ProducerCompilation(code);
             Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Producer fixture binds actual Core/MDX metadata: " + name
                 + "\n" + string.Join("\n", compilation.GetDiagnostics()));
-            if (policy is { } specific) compilation = compilation.WithOptions(compilation.Options.WithSpecificDiagnosticOptions(
+            if (policy is { } specific)
+                compilation = compilation.WithOptions(compilation.Options.WithSpecificDiagnosticOptions(
                 new Dictionary<string, ReportDiagnostic> { ["LSA1403"] = specific }));
             var observations = await ManifestAnalyze(compilation, []);
             Check(observations.Count(d => d.Id == "LSA1403") == expectedInfo && observations.Count(d => d.Id == "LSA1002") == expectedRoute
@@ -273,7 +274,8 @@ public sealed partial class AnalyzerPackageHostTests
             Check(compilation.Emit(stream).Success, "Dependency canary emits");
             return MetadataReference.CreateFromImage(stream.ToArray());
         }
-        var left = Dependency(1); var right = Dependency(2);
+        var left = Dependency(1);
+        var right = Dependency(2);
         var dependent = ManifestGenerate(source, dependency: left);
         Check((await ManifestAnalyze(dependent.Compilation)).Single().Id == "LSA1201", "Dependency canary fresh before MVID change");
         await StaleCase("same-identity-different-MVID", dependent.Compilation.ReplaceReference(left, right), [input]);
@@ -387,8 +389,10 @@ public sealed partial class AnalyzerPackageHostTests
             var generated = ManifestGenerate(source);
             Check(generated.Diagnostics.Length == 0 && !generated.Compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Valid fresh constructor reassignment: " + name);
             var ds = await ManifestAnalyze(generated.Compilation);
-            if (expectedRed) Check(ds.Length == 1 && ds[0].Id == "LSA1201" && ds[0].Properties["expectedFingerprint"] == ds[0].Properties["currentFingerprint"], "Old package falsely trusts original initializer: " + name);
-            else Check(ds.Length == 0, "Explicit static constructor makes membership Unavailable: " + name);
+            if (expectedRed)
+                Check(ds.Length == 1 && ds[0].Id == "LSA1201" && ds[0].Properties["expectedFingerprint"] == ds[0].Properties["currentFingerprint"], "Old package falsely trusts original initializer: " + name);
+            else
+                Check(ds.Length == 0, "Explicit static constructor makes membership Unavailable: " + name);
             cases.Add(new { name, expectedRed, diagnostics = ds.Select(ManifestDiagnostic).ToArray() });
         }
         var ordinary = ManifestGenerate(ManifestModel + "\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }");

@@ -257,44 +257,44 @@ async Task<(WorkloadMeasurement Measurement, SiteGenerationResult Result)> Measu
 
 if (selectedScenario is "all")
 {
-var noOpRun = await MeasureWorkloadAsync("no-op", posts, site, clean: false, result.BuildPlan);
-workloads.Add(noOpRun.Measurement);
-var changedPost = Path.Combine(corpusDirectory, "section-000", "page-00001.md");
-File.AppendAllText(changedPost, Environment.NewLine + "Changed for the single-page workload.", Encoding.UTF8);
-var changedPosts = await new MarkdownPostReader().ReadAllAsync(corpusDirectory);
-var singlePageRun = await MeasureWorkloadAsync("single-page-change", changedPosts, site, clean: false, noOpRun.Result.BuildPlan);
-workloads.Add(singlePageRun.Measurement);
-var layoutCustomization = customization with
-{
-    Theme = new SiteThemeOptions
+    var noOpRun = await MeasureWorkloadAsync("no-op", posts, site, clean: false, result.BuildPlan);
+    workloads.Add(noOpRun.Measurement);
+    var changedPost = Path.Combine(corpusDirectory, "section-000", "page-00001.md");
+    File.AppendAllText(changedPost, Environment.NewLine + "Changed for the single-page workload.", Encoding.UTF8);
+    var changedPosts = await new MarkdownPostReader().ReadAllAsync(corpusDirectory);
+    var singlePageRun = await MeasureWorkloadAsync("single-page-change", changedPosts, site, clean: false, noOpRun.Result.BuildPlan);
+    workloads.Add(singlePageRun.Measurement);
+    var layoutCustomization = customization with
     {
-        ThemeColor = "#7c3aed"
+        Theme = new SiteThemeOptions
+        {
+            ThemeColor = "#7c3aed"
+        }
+    };
+    var layoutRun = await MeasureWorkloadAsync(
+        "layout-change",
+        changedPosts,
+        site,
+        clean: false,
+        singlePageRun.Result.BuildPlan,
+        layoutCustomization);
+    workloads.Add(layoutRun.Measurement);
+
+    if (noOpRun.Result.BuildReport.Invalidations.Count != 0)
+    {
+        throw new InvalidOperationException("The no-op workload must not invalidate any nodes.");
     }
-};
-var layoutRun = await MeasureWorkloadAsync(
-    "layout-change",
-    changedPosts,
-    site,
-    clean: false,
-    singlePageRun.Result.BuildPlan,
-    layoutCustomization);
-workloads.Add(layoutRun.Measurement);
+    if (noOpRun.Result.BuildReport.CacheMissCount != 0)
+        throw new InvalidOperationException("The no-op workload must reuse every cacheable node.");
 
-if (noOpRun.Result.BuildReport.Invalidations.Count != 0)
-{
-    throw new InvalidOperationException("The no-op workload must not invalidate any nodes.");
-}
-if (noOpRun.Result.BuildReport.CacheMissCount != 0)
-    throw new InvalidOperationException("The no-op workload must reuse every cacheable node.");
-
-var expectedLayoutRenderingNodes = layoutRun.Result.BuildPlan.Nodes.Count(node =>
-    node.Inputs.Any(input => input.Key == "theme.themeColor"));
-if (layoutRun.Result.BuildReport.Invalidations.Count != expectedLayoutRenderingNodes)
-{
-    throw new InvalidOperationException(
-        $"The layout workload invalidated {layoutRun.Result.BuildReport.Invalidations.Count} nodes; " +
-        $"expected the {expectedLayoutRenderingNodes} rendering nodes that consume theme.themeColor.");
-}
+    var expectedLayoutRenderingNodes = layoutRun.Result.BuildPlan.Nodes.Count(node =>
+        node.Inputs.Any(input => input.Key == "theme.themeColor"));
+    if (layoutRun.Result.BuildReport.Invalidations.Count != expectedLayoutRenderingNodes)
+    {
+        throw new InvalidOperationException(
+            $"The layout workload invalidated {layoutRun.Result.BuildReport.Invalidations.Count} nodes; " +
+            $"expected the {expectedLayoutRenderingNodes} rendering nodes that consume theme.themeColor.");
+    }
 }
 measurement.Workloads = workloads;
 
@@ -484,18 +484,18 @@ internal sealed class WorkloadMeasurement
     public static WorkloadMeasurement From(
         string name, double elapsed, long allocated, long start, long end, long peak,
         SiteGenerationResult result, int artifacts) => new()
-    {
-        Name = name,
-        ElapsedMilliseconds = elapsed,
-        AllocatedBytes = Math.Max(0, allocated),
-        StartWorkingSetBytes = start,
-        EndWorkingSetBytes = end,
-        PeakWorkingSetBytes = Math.Max(peak, end),
-        GeneratedNodeCount = result.BuildReport.CacheMissCount,
-        InvalidatedNodeCount = result.BuildReport.Invalidations.Count,
-        ArtifactCount = artifacts,
-        Timings = result.Timings
-    };
+        {
+            Name = name,
+            ElapsedMilliseconds = elapsed,
+            AllocatedBytes = Math.Max(0, allocated),
+            StartWorkingSetBytes = start,
+            EndWorkingSetBytes = end,
+            PeakWorkingSetBytes = Math.Max(peak, end),
+            GeneratedNodeCount = result.BuildReport.CacheMissCount,
+            InvalidatedNodeCount = result.BuildReport.Invalidations.Count,
+            ArtifactCount = artifacts,
+            Timings = result.Timings
+        };
 }
 
 internal sealed class WorkingSetMonitor(Process process, TimeSpan samplingInterval) : IDisposable
@@ -617,7 +617,8 @@ internal sealed record ProvenanceMetadata(
                 {
                     var output = process.StandardOutput.ReadToEnd().Trim();
                     process.WaitForExit(5000);
-                    if (process.ExitCode == 0 && output.Length > 0) return output;
+                    if (process.ExitCode == 0 && output.Length > 0)
+                        return output;
                 }
             }
             catch
@@ -645,7 +646,8 @@ internal sealed record ProvenanceMetadata(
                     CreateNoWindow = true,
                 };
                 using var process = Process.Start(start);
-                if (process is null) return "unknown";
+                if (process is null)
+                    return "unknown";
                 var output = process.StandardOutput.ReadToEnd().Trim();
                 process.WaitForExit(5000);
                 return process.ExitCode == 0 && output.Length >= 7 ? output : "unknown";

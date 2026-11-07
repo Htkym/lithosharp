@@ -852,7 +852,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     [Arguments(true, false)]
     public async Task Lsr22_RegisteredStagingRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
         await GenerateAsync(output, true, new SingleFileTemplate("initial.txt", "initial"));
@@ -880,7 +881,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     [Arguments(true, false)]
     public async Task Lsr22_RegisteredBackupRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
         await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
@@ -909,7 +911,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     [Arguments(true, false)]
     public async Task Lsr22_PendingOwnershipRestartsAcrossNamespace(bool recordedExtended, bool restartExtended)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
         await GenerateAsync(output, true, new SingleFileTemplate("initial.txt", "initial"));
@@ -948,7 +951,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     [Arguments("ownership", true, true)]
     public async Task Lsr22_RecoveryRejectsWrongParentOrTamperedName(string kind, bool wrongParent, bool recordedExtended)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
         await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
@@ -961,11 +965,18 @@ public sealed class SiteGeneratorAtomicOutputTests
         var name = kind == "ownership"
             ? $".lithosharp-ownership-pending-{identity}-{outputIdentity}-{Guid.NewGuid():N}.json"
             : $".lithosharp-{kind}-{identity}-{Guid.NewGuid():N}";
-        if (!wrongParent) name = "tampered-" + name;
+        if (!wrongParent)
+            name = "tampered-" + name;
         var registered = Path.Combine(parent, name);
-        if (kind == "ownership") File.Copy(state, registered);
-        else if (kind == "backup") Directory.Move(output, registered);
-        else { Directory.CreateDirectory(registered); await File.WriteAllTextAsync(Path.Combine(registered, "keep.txt"), "untouched"); }
+        if (kind == "ownership")
+            File.Copy(state, registered);
+        else if (kind == "backup")
+            Directory.Move(output, registered);
+        else
+        {
+            Directory.CreateDirectory(registered);
+            await File.WriteAllTextAsync(Path.Combine(registered, "keep.txt"), "untouched");
+        }
         var journal = Lsr22WriteJournal(workspace.Root, output, kind == "staging" ? "S" : kind == "backup" ? "B" : "O", registered, recordedExtended);
         var beforeJournal = await File.ReadAllBytesAsync(journal);
         var beforeState = await File.ReadAllBytesAsync(state);
@@ -975,11 +986,15 @@ public sealed class SiteGeneratorAtomicOutputTests
             .Throws<InvalidOperationException>();
         await Assert.That(await File.ReadAllBytesAsync(journal)).IsEquivalentTo(beforeJournal);
         await Assert.That(await File.ReadAllBytesAsync(state)).IsEquivalentTo(beforeState);
-        if (kind == "ownership") await Assert.That(await File.ReadAllBytesAsync(registered)).IsEquivalentTo(beforeState);
-        else await Assert.That(await File.ReadAllTextAsync(Path.Combine(registered, kind == "backup" ? "index.html" : "keep.txt"))).IsEqualTo(kind == "backup" ? "initial" : "untouched");
+        if (kind == "ownership")
+            await Assert.That(await File.ReadAllBytesAsync(registered)).IsEquivalentTo(beforeState);
+        else
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(registered, kind == "backup" ? "index.html" : "keep.txt"))).IsEqualTo(kind == "backup" ? "initial" : "untouched");
         await Assert.That(File.Exists(Path.Combine(output, "current.txt"))).IsFalse();
-        if (kind != "backup") await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
-        else await Assert.That(Directory.Exists(output)).IsFalse();
+        if (kind != "backup")
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).IsEqualTo("initial");
+        else
+            await Assert.That(Directory.Exists(output)).IsFalse();
     }
 
     [Test]
@@ -987,7 +1002,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     [Arguments(true)]
     public async Task Lsr22_PendingRecoveryRejectsWrongOutputIdentity(bool recordedExtended)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "output");
         await GenerateAsync(output, true, new SingleFileTemplate("index.html", "initial"));
@@ -1040,7 +1056,8 @@ public sealed class SiteGeneratorAtomicOutputTests
     private static string Lsr22Namespace(string path, bool extended)
     {
         var full = Path.GetFullPath(path);
-        if (!extended) return full;
+        if (!extended)
+            return full;
         return full.StartsWith(@"\\", StringComparison.Ordinal)
             ? @"\\?\UNC\" + full[2..]
             : @"\\?\" + full;
@@ -1062,8 +1079,10 @@ public sealed class SiteGeneratorAtomicOutputTests
         {
             async Task<object> Tree(string path)
             {
-                if (File.Exists(path)) return new { exists = true, file = true, sha256 = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(path))) };
-                if (!Directory.Exists(path)) return new { exists = false };
+                if (File.Exists(path))
+                    return new { exists = true, file = true, sha256 = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(path))) };
+                if (!Directory.Exists(path))
+                    return new { exists = false };
                 var rows = new List<object>();
                 foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
                     rows.Add(new { relative = Path.GetRelativePath(path, file), sha256 = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(file))) });
@@ -1071,18 +1090,40 @@ public sealed class SiteGeneratorAtomicOutputTests
             }
             Console.WriteLine("LSR_RECOVERY " + JsonSerializer.Serialize(new
             {
-                kind, phase, recordedExtended, restartExtended, error = failure?.GetType().FullName,
-                output = await Tree(output), registered = await Tree(registered), journal = await Tree(journal),
+                kind,
+                phase,
+                recordedExtended,
+                restartExtended,
+                error = failure?.GetType().FullName,
+                output = await Tree(output),
+                registered = await Tree(registered),
+                journal = await Tree(journal),
                 staging = FindTransactionDirectories(root, "staging").Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray(),
                 backup = FindTransactionDirectories(root, "backup").Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray()
             }));
         }
         await Snapshot("before-recovery", null);
         Exception? primary = null;
-        try { await action(); } catch (Exception exception) { primary = exception; }
-        try { await Snapshot("after-recovery-before-assertions", primary); }
-        catch (Exception secondary) { if (primary is not null) throw new AggregateException(primary, secondary); throw; }
-        if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+        {
+            primary = exception;
+        }
+        try
+        {
+            await Snapshot("after-recovery-before-assertions", primary);
+        }
+        catch (Exception secondary)
+        {
+            if (primary is not null)
+                throw new AggregateException(primary, secondary);
+            throw;
+        }
+        if (primary is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
     }
 
     [Test]

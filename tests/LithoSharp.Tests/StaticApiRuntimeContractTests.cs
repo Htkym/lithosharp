@@ -29,8 +29,15 @@ public sealed class StaticApiRuntimeContractTests
         await Assert.That(Fixtures.StaticApiArgumentEvaluationCases.OutputNamedReversedInvalidFirst).Throws<ArgumentException>();
         if (Environment.GetEnvironmentVariable("RA03_EVIDENCE_DIR") is { Length: > 0 } directory)
             File.WriteAllText(Path.Combine(directory, "argument-evaluation-runtime.json"), JsonSerializer.Serialize(new
-            { status = "PASS", validCases = 5, rejectedCases = 5, relativeOutput = "ok.html", publicPath = "/ok.html", failureThreshold = "Warning",
-                sharedSource = "tests/LithoSharp.Tests/Fixtures/StaticApiArgumentEvaluationCases.cs" }, new JsonSerializerOptions { WriteIndented = true }));
+            {
+                status = "PASS",
+                validCases = 5,
+                rejectedCases = 5,
+                relativeOutput = "ok.html",
+                publicPath = "/ok.html",
+                failureThreshold = "Warning",
+                sharedSource = "tests/LithoSharp.Tests/Fixtures/StaticApiArgumentEvaluationCases.cs"
+            }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]
@@ -40,8 +47,16 @@ public sealed class StaticApiRuntimeContractTests
         void Reject(string sink, string? input, Action invoke)
         {
             Exception? failure = null;
-            try { invoke(); } catch (Exception e) when (e is ArgumentException or UriFormatException) { failure = e; }
-            if (failure is null) throw new InvalidOperationException("Runtime accepted bad " + sink + ": " + input);
+            try
+            {
+                invoke();
+            }
+            catch (Exception e) when (e is ArgumentException or UriFormatException)
+            {
+                failure = e;
+            }
+            if (failure is null)
+                throw new InvalidOperationException("Runtime accepted bad " + sink + ": " + input);
             results.Add(new { sink, input, exception = failure.GetType().Name, parameter = (failure as ArgumentException)?.ParamName });
         }
         foreach (var input in new[] { null, "relative", "/tmp/private", " file:///tmp", "file:///tmp", "https://a/a b", "https://a/\\b", "https://a/\0" })
@@ -61,7 +76,12 @@ public sealed class StaticApiRuntimeContractTests
         await Assert.That(new SiteAssetOutput("a", "%2e%2e.html").RelativeOutputPath).IsEqualTo("%2e%2e.html");
         // Output paths are filesystem names, not URI segments: percent text stays literal.
         if (Environment.GetEnvironmentVariable("RA03_RUNTIME_PROOF") is { Length: > 0 } path)
-            File.WriteAllText(path, JsonSerializer.Serialize(new { status = "PASS", results, validSeverities = Enum.GetValues<SiteDiagnosticSeverity>(),
-                analysisSuppressionCannotDisableRuntimeGuard = true }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(path, JsonSerializer.Serialize(new
+            {
+                status = "PASS",
+                results,
+                validSeverities = Enum.GetValues<SiteDiagnosticSeverity>(),
+                analysisSuppressionCannotDisableRuntimeGuard = true
+            }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

@@ -56,7 +56,10 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
                 diagnostic.Message,
                 diagnostic.Location is null ? null : CopyLocation(diagnostic.Location),
                 diagnostic.Category,
-                diagnostic.RelatedLocations.Select(static related => CopyLocation(related))))
+                diagnostic.RelatedLocations.Select(static related => CopyLocation(related)))
+            {
+                SnapshotIdentity = diagnostic.SnapshotIdentity,
+            })
             .OrderBy(diagnostic => diagnostic.Id, StringComparer.Ordinal)
             .ThenBy(diagnostic => diagnostic.Severity)
             .ThenBy(diagnostic => diagnostic.Message, StringComparer.Ordinal)
@@ -67,6 +70,7 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
             .ThenBy(diagnostic => diagnostic.Location?.EndColumn)
             .ThenBy(diagnostic => diagnostic.Category, StringComparer.Ordinal)
             .ThenBy(diagnostic => RelatedKey(diagnostic), StringComparer.Ordinal)
+            .ThenBy(diagnostic => diagnostic.SnapshotIdentity, StringComparer.Ordinal)
             .DistinctBy(static diagnostic => (
                 diagnostic.Id,
                 diagnostic.Severity,
@@ -77,7 +81,8 @@ public sealed class SiteBuildReport : IEquatable<SiteBuildReport>
                 diagnostic.Location?.EndLine,
                 diagnostic.Location?.EndColumn,
                 diagnostic.Category,
-                RelatedKey(diagnostic))));
+                RelatedKey(diagnostic),
+                diagnostic.SnapshotIdentity)));
         TransactionOutcome = transactionOutcome;
         RetainedRecoveryState = retainedRecoveryState;
     }

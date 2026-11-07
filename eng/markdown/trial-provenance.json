@@ -1,0 +1,20 @@
+{
+  "scope": "TRIAL_PAIR_NOT_FORMAL_ADOPTION",
+  "published": false,
+  "formalAdoptionRequires": "Reviewed and merged Syntamark runtime/Source pair published through the formal release workflow.",
+  "sourceRepository": "https://github.com/Htkym/syntamark",
+  "sourceCommit": "b84e76aace1415576c4704f70e68496204fe6377",
+  "componentVersion": "2.0.0-preview.202647137865236",
+  "workflowRunId": 42283292939,
+  "workflowRunUrl": "https://github.com/Htkym/syntamark/actions/runs/42283292939",
+  "artifactId": 13536651326,
+  "artifactName": "syntamark-private-pair-42283292939",
+  "artifactSha256": "1fdfe8ec70bbc4e466a31ed7e241747f7f9fc7ef7460317005290041d0c061cf",
+  "pairManifestPath": "eng/markdown/component-pair.json",
+  "pairManifestSha256": "93ceb97dfe840c0875c5cd3165578c9a76085cbe3da3dd4041538d675fdf4aed",
+  "canonicalSourceHash": "17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
+  "parserVersion": "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
+  "producerReceiptScope": "PRIVATE_LOCAL_TEST_PAIR_NOT_FORMAL_ISSUANCE",
+  "producerWorkflowDispatched": false,
+  "producerHostVerificationIncluded": false
+}

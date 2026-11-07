@@ -27,7 +27,11 @@ public sealed class StaticManifestRuntimeTests
     {
         var catalog = new StaticContentCatalog(new("guides"), []);
         var calls = 0;
-        var manifest = StaticSiteManifest.Open(catalog, path => { calls++; return SiteUrl.FromRoute(SiteRoute.ForDirectoryIndex(path.Trim('/'))); });
+        var manifest = StaticSiteManifest.Open(catalog, path =>
+        {
+            calls++;
+            return SiteUrl.FromRoute(SiteRoute.ForDirectoryIndex(path.Trim('/')));
+        });
         await Assert.That(manifest.GetUrl("/missing/").ToString()).IsEqualTo("/missing/");
         await Assert.That(calls).IsEqualTo(1);
         await Assert.That(manifest.RouteCoverage).IsEqualTo(StaticCoverageState.Open);

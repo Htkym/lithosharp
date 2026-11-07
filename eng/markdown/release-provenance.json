@@ -1,0 +1,41 @@
+{
+  "scope": "PUBLISHED_FORMAL_PAIR",
+  "published": true,
+  "componentVersion": "1.2.0",
+  "sourceRepository": "https://github.com/Htkym/syntamark",
+  "sourceCommit": "a4038bf8156987dd0a00cb7f646a91c62a7c5fb0",
+  "releaseUrl": "https://github.com/Htkym/syntamark/releases/tag/v1.2.0",
+  "producerRunUrl": "https://github.com/Htkym/syntamark/actions/runs/42319413160",
+  "sealedManifestUrl": "https://github.com/Htkym/syntamark/releases/download/v1.2.0/pair-manifest.json",
+  "sealedManifestSha256": "b69f12b356d28c6d4d38adfdf8b57e7334673644510c0709bb764c4e805da4f9",
+  "pairManifestPath": "eng/markdown/component-pair.json",
+  "pairManifestSha256": "192af565d08b758f31cb23f5138556af83db357a5d24ce11dfe0addbe0a74fdb",
+  "canonicalSourceHash": "17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
+  "parserVersion": "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
+  "canonicalSourceMatchesQualifiedTrial": true,
+  "qualifiedTrialCommit": "62000d159bde45a4145dd04154caddbbaf2a7249",
+  "packStateNote": "The producer manifest preserves its pack-stage state. Formal publication and package-host verification are documented by the release and producer run; the consumer does not rewrite that state.",
+  "selectedPackageBytes": "NuGet repository-signed packages. Every original ZIP entry is byte-identical to the sealed release; only .signature.p7s is added.",
+  "artifacts": {
+    "runtime": {
+      "packageId": "Syntamark",
+      "sealedReleaseSha256": "ea5f4e2afff263bb8ee7d2a3816727f713fa696cdbb9fa757c600099f296c4ef",
+      "sealedReleaseByteLength": 563991,
+      "nugetUrl": "https://api.nuget.org/v3-flatcontainer/syntamark/1.2.0/syntamark.1.2.0.nupkg",
+      "nugetSha256": "989ab1f37693753e77f9cd03dc5ea2958da7ce0bfb735bf41015cb5f325dabb7",
+      "nugetByteLength": 577074,
+      "packagePayloadMatchesSealedRelease": true,
+      "additionalNugetEntry": ".signature.p7s"
+    },
+    "source": {
+      "packageId": "Syntamark.Source",
+      "sealedReleaseSha256": "f1027d0eab0c1ded4accef832b57bb853c84cdff927f9ee968a7cbe85bfcff71",
+      "sealedReleaseByteLength": 526041,
+      "nugetUrl": "https://api.nuget.org/v3-flatcontainer/syntamark.source/1.2.0/syntamark.source.1.2.0.nupkg",
+      "nugetSha256": "b9bbde1be51ced28bf06c44d684d32aec81d20ce219236c247053d9046b05588",
+      "nugetByteLength": 539124,
+      "packagePayloadMatchesSealedRelease": true,
+      "additionalNugetEntry": ".signature.p7s"
+    }
+  }
+}

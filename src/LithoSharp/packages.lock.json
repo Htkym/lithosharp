@@ -26,9 +26,9 @@
       },
       "Syntamark": {
         "type": "Direct",
-        "requested": "[1.0.0, 1.0.0]",
-        "resolved": "1.0.0",
-        "contentHash": "FMro+EXX2o6lQJldBkrUy+g9CmfnvAXsLNPPQIjf/rCe1xubHwThfvQaySyrjNput7Tf693lJXyU8+wPbm+aZg==",
+        "requested": "[1.2.0, 1.2.0]",
+        "resolved": "1.2.0",
+        "contentHash": "JZy4lHGP+Z8XW/EWcXeh86jm6Dm5gSarXRG49D6iONyB5DlcTOF/xanG4RC6WUwGF6+6JwBxo6Lc2F4VYD4H1Q==",
         "dependencies": {
           "YamlDotNet": "[18.1.0]"
         }

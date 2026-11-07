@@ -17,14 +17,17 @@ public static class DocumentSnapshot
         var source = Path.GetFullPath(sourceDirectory);
         var destination = Path.GetFullPath(destinationDirectory);
         _ = new ContentEntryId(version);
-        if (Within(source, destination) || Within(destination, source)) throw new ArgumentException("Snapshot inputs and destination must not overlap.");
-        if (Path.Exists(destination)) throw new IOException("The version destination already exists; snapshots never overwrite it.");
+        if (Within(source, destination) || Within(destination, source))
+            throw new ArgumentException("Snapshot inputs and destination must not overlap.");
+        if (Path.Exists(destination))
+            throw new IOException("The version destination already exists; snapshots never overwrite it.");
         CheckParents(destination);
         var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             var relative = Path.GetRelativePath(source, file).Replace('\\', '/');
-            if (relative.Split('/').Any(segment => segment is "node_modules" or ".git" or "bin" or "obj")) continue;
+            if (relative.Split('/').Any(segment => segment is "node_modules" or ".git" or "bin" or "obj"))
+                continue;
             var bytes = await ContentPath.ReadAllBytesAsync(source, file, cancellationToken).ConfigureAwait(false);
             if (Path.GetExtension(file) is ".mdx" or ".md" or ".jsx" or ".tsx" or ".js" or ".ts" or ".css")
             {
@@ -32,7 +35,8 @@ public static class DocumentSnapshot
                 foreach (Match match in Regex.Matches(text, "(?:from\\s*|import\\s*(?:\\(\\s*)?|source=|src=)[\"'](?<path>\\.[^\"']+)[\"']"))
                 {
                     var target = Path.GetFullPath(match.Groups["path"].Value.Split('?', '#')[0], Path.GetDirectoryName(file)!);
-                    if (!Within(source, target)) throw new IOException($"Snapshot reference escapes its inputs: {relative}: {match.Groups["path"].Value}. Use an explicit @site shared input or include the dependency.");
+                    if (!Within(source, target))
+                        throw new IOException($"Snapshot reference escapes its inputs: {relative}: {match.Groups["path"].Value}. Use an explicit @site shared input or include the dependency.");
                     if (!File.Exists(target) && !Directory.Exists(target) && !new[] { ".js", ".jsx", ".ts", ".tsx", ".mdx" }.Any(extension => File.Exists(target + extension)))
                         throw new IOException($"Snapshot contains a missing reference: {relative}: {match.Groups["path"].Value}.");
                 }
@@ -76,7 +80,8 @@ public static class DocumentSnapshot
     private static void CheckParents(string path)
     {
         for (var directory = new DirectoryInfo(path); directory is not null; directory = directory.Parent)
-            if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException("Snapshot paths must not traverse symbolic directories.");
+            if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Snapshot paths must not traverse symbolic directories.");
     }
 }
 
@@ -100,13 +105,18 @@ public sealed class TranslationCatalog
     {
         _ = System.Globalization.CultureInfo.GetCultureInfo(sourceLocale);
         ArgumentNullException.ThrowIfNull(messages);
-        if (!messages.ContainsKey(sourceLocale)) throw new ArgumentException("The source language catalog is required.");
+        if (!messages.ContainsKey(sourceLocale))
+            throw new ArgumentException("The source language catalog is required.");
         SourceLocale = sourceLocale;
         this.messages = messages.ToDictionary(pair => pair.Key, pair => (IReadOnlyDictionary<string, string>)pair.Value.ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         foreach (var pair in this.messages)
         {
             _ = System.Globalization.CultureInfo.GetCultureInfo(pair.Key);
-            foreach (var value in pair.Value) { ArgumentException.ThrowIfNullOrWhiteSpace(value.Key); ArgumentNullException.ThrowIfNull(value.Value); }
+            foreach (var value in pair.Value)
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(value.Key);
+                ArgumentNullException.ThrowIfNull(value.Value);
+            }
         }
     }
     /// <summary>The language used by the explicit source fallback.</summary>
@@ -114,7 +124,8 @@ public sealed class TranslationCatalog
     /// <summary>Resolves a message using an explicit missing-translation policy.</summary>
     public string? Get(string locale, string key, MissingTranslationPolicy policy = MissingTranslationPolicy.Error)
     {
-        if (messages.TryGetValue(locale, out var selected) && selected.TryGetValue(key, out var translated)) return translated;
+        if (messages.TryGetValue(locale, out var selected) && selected.TryGetValue(key, out var translated))
+            return translated;
         return policy switch
         {
             MissingTranslationPolicy.Exclude => null,

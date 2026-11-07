@@ -22,7 +22,8 @@ public sealed class WatchLifecycleSidecarTests
             writer.Write(WatchLifecycleEvent.HostBuildReturned);
             await File.WriteAllTextAsync(Path.Combine(childRoot, slot + ".ready"), "");
             await WaitForFileAsync(Path.Combine(childRoot, "go"));
-            for (var i = 0; i < 2000; i++) writer.Write(WatchLifecycleEvent.HostBuildReturned, generation: i);
+            for (var i = 0; i < 2000; i++)
+                writer.Write(WatchLifecycleEvent.HostBuildReturned, generation: i);
             return;
         }
         using var workspace = new TemporaryWorkspace();
@@ -56,7 +57,8 @@ public sealed class WatchLifecycleSidecarTests
             foreach (var child in children)
             {
                 await child.Process.WaitForExitAsync(timeout.Token);
-                if (child.Process.ExitCode != 0) throw new InvalidOperationException(await child.Output + await child.Error);
+                if (child.Process.ExitCode != 0)
+                    throw new InvalidOperationException(await child.Output + await child.Error);
             }
             await Assert.That(new FileInfo(file).Length).IsGreaterThan(0);
             await Assert.That(new FileInfo(file).Length).IsLessThanOrEqualTo(WatchLifecycleSidecar.MaximumBytes);
@@ -68,8 +70,13 @@ public sealed class WatchLifecycleSidecarTests
         {
             foreach (var child in children)
             {
-                if (!child.Process.HasExited) { child.Process.Kill(entireProcessTree: true); await child.Process.WaitForExitAsync(); }
-                await child.Output; await child.Error;
+                if (!child.Process.HasExited)
+                {
+                    child.Process.Kill(entireProcessTree: true);
+                    await child.Process.WaitForExitAsync();
+                }
+                await child.Output;
+                await child.Error;
                 child.Process.Dispose();
             }
         }
@@ -78,7 +85,8 @@ public sealed class WatchLifecycleSidecarTests
     private static async Task WaitForFileAsync(string path)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        while (!File.Exists(path)) await Task.Delay(25, timeout.Token);
+        while (!File.Exists(path))
+            await Task.Delay(25, timeout.Token);
     }
 
     [Test]
@@ -119,7 +127,8 @@ public sealed class WatchLifecycleSidecarTests
         var writers = Enumerable.Range(0, 4).Select(_ => new WatchLifecycleSidecar(file, deadline, Guid.NewGuid())).ToArray();
         await Task.WhenAll(writers.Select(writer => Task.Run(() =>
         {
-            for (var i = 0; i < 2000; i++) writer.Write(WatchLifecycleEvent.HostBuildReturned, generation: i);
+            for (var i = 0; i < 2000; i++)
+                writer.Write(WatchLifecycleEvent.HostBuildReturned, generation: i);
         })));
         var bytes = new FileInfo(file).Length;
         await Assert.That(bytes).IsGreaterThan(0);
@@ -155,7 +164,8 @@ public sealed class WatchLifecycleSidecarTests
         using var workspace = new TemporaryWorkspace();
         var file = Path.Combine(workspace.Root, "PRIVATE_PATH_SENTINEL.jsonl");
         await File.WriteAllTextAsync(file, "");
-        var host = Guid.NewGuid(); var worker = Guid.NewGuid();
+        var host = Guid.NewGuid();
+        var worker = Guid.NewGuid();
         var sidecar = new WatchLifecycleSidecar(file, DateTimeOffset.UtcNow.AddMinutes(1).ToUnixTimeMilliseconds(), host);
         sidecar.Write(WatchLifecycleEvent.WorkerExited, WatchLifecycleReason.ProtocolOrIoFailure, 3, 0, workerId: worker, exitCode: 1);
         var errors = new (Exception Error, string Type, int? Native)[]
@@ -187,7 +197,8 @@ public sealed class WatchLifecycleSidecarTests
             await Assert.That(row.GetProperty(key).ValueKind).IsEqualTo(JsonValueKind.Null);
         for (var i = 0; i < errors.Length; i++)
         {
-            var requested = rows[1 + i * 2]; var consumed = rows[2 + i * 2];
+            var requested = rows[1 + i * 2];
+            var consumed = rows[2 + i * 2];
             await Assert.That(requested.GetProperty("event").GetString()).IsEqualTo("RestartRequested");
             await Assert.That(consumed.GetProperty("event").GetString()).IsEqualTo("RestartConsumed");
             await Assert.That(requested.GetProperty("watcherErrorType").GetString()).IsEqualTo(errors[i].Type);

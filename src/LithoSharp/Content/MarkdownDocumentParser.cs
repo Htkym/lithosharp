@@ -11,6 +11,8 @@ public static class MarkdownDocumentParser
     /// <param name="text">Full Markdown text.</param>
     /// <param name="path">Path used in error messages.</param>
     /// <returns>The YAML front matter and the body.</returns>
+    /// <remarks>Scans only the header, with a default limit of 1,048,576 UTF-16 code units.
+    /// An incomplete header scan throws with diagnostic code LSM011.</remarks>
     public static (string Yaml, string Body) SplitFrontMatter(string text, string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -28,7 +30,9 @@ public static class MarkdownDocumentParser
             FrontMatterSplitStatus.EmptyFrontMatter => (split.Yaml, split.Body),
             FrontMatterSplitStatus.UnterminatedFrontMatter =>
                 throw new InvalidOperationException($"Markdown document '{path}' has no closing front matter marker."),
-            _ => throw new InvalidOperationException($"Markdown document '{path}' must start with YAML front matter."),
+            FrontMatterSplitStatus.MissingFrontMatter =>
+                throw new InvalidOperationException($"Markdown document '{path}' must start with YAML front matter."),
+            _ => throw new InvalidOperationException($"{MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId}: Markdown document '{path}' front matter scanning is incomplete."),
         };
     }
 }

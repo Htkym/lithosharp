@@ -139,7 +139,8 @@ public sealed partial class SiteGenerator
             renders.Add(routes.Llms.RelativeOutputPath, _ => Task.FromResult(GetTextContentBytes(BuildLlmsTxt(configuration, context.Posts, pages))));
         var declaredPaths = plan.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToHashSet(StringComparer.Ordinal);
         if (subset)
-            foreach (var path in renders.Keys.Where(path => !declaredPaths.Contains(path)).ToArray()) renders.Remove(path);
+            foreach (var path in renders.Keys.Where(path => !declaredPaths.Contains(path)).ToArray())
+                renders.Remove(path);
         if (!declaredPaths.SetEquals(renders.Keys))
             throw new InvalidOperationException("Render actions must exactly match the validated build artifacts.");
         var textPaths = textRenders.Keys.Concat(pages.Select(page => page.Route.RelativeOutputPath))
@@ -151,7 +152,8 @@ public sealed partial class SiteGenerator
         {
             cancellationToken.ThrowIfCancellationRequested();
             var ready = remaining.Values.Where(node => node.Dependencies.All(id => completed.ContainsKey(id.Value))).ToArray();
-            if (ready.Length == 0) throw new InvalidOperationException("The build plan cannot make progress.");
+            if (ready.Length == 0)
+                throw new InvalidOperationException("The build plan cannot make progress.");
             var results = new System.Collections.Concurrent.ConcurrentBag<(CachedBuildNode Cache, SiteBuildReportNode Report)>();
             await Parallel.ForEachAsync(ready.Where(node => !pagesByNode.TryGetValue(node.Id.Value, out var page) || page.IsThreadSafe),
                 new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = cancellationToken },
@@ -212,7 +214,9 @@ public sealed partial class SiteGenerator
             previous.TryGetValue(node.Id.Value, out var old);
             if (reason is null && old is not null)
             {
-                if (old.Artifacts.Count != node.Artifacts.Count || !old.Artifacts.Zip(node.Artifacts).All(pair =>
+                if (page is not null && old.CollectionDiagnostics is null)
+                    reason = "The collection Markdown diagnostic outcome is unavailable.";
+                else if (old.Artifacts.Count != node.Artifacts.Count || !old.Artifacts.Zip(node.Artifacts).All(pair =>
                         pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
                     reason = "Artifact declarations changed.";
                 else
@@ -234,6 +238,8 @@ public sealed partial class SiteGenerator
             }
             if (reason is null && old is not null)
             {
+                if (page is not null && old.CollectionDiagnostics is { } cachedDiagnostics)
+                    page.SetMarkdownDiagnostics(cachedDiagnostics.Restore());
                 SetBodyProvider(page, old.DerivedBodyHash);
                 return (old, new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheHit = true });
             }
@@ -281,6 +287,8 @@ public sealed partial class SiteGenerator
             {
                 Inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
                 Dependencies = node.Dependencies.Select(id => id.Value).ToArray(),
+                CollectionDiagnostics = page?.MarkdownDiagnostics is { } renderedDiagnostics
+                    ? CachedCollectionDiagnostics.Capture(renderedDiagnostics) : null,
             },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
         }
@@ -305,7 +313,9 @@ public sealed partial class SiteGenerator
             return stream.Length == artifact.Length && Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)) == artifact.Sha256;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
-        { return false; }
+        {
+            return false;
+        }
     }
 
 }

@@ -30,10 +30,12 @@ internal static class CompilerDiagnosticReader
                     var resolver = new Locations(run, DirectoryUri(compilerWorkingDirectory));
                     foreach (var result in Items(run, "results"))
                     {
-                        if (Items(result, "suppressions").Any(Suppressed)) continue;
+                        if (Items(result, "suppressions").Any(Suppressed))
+                            continue;
                         var id = Text(result, "ruleId");
                         var message = Text(Property(result, "message"), "text");
-                        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(message)) continue;
+                        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(message))
+                            continue;
                         var severity = Text(result, "level") switch
                         { "error" => SiteDiagnosticSeverity.Error, "warning" => SiteDiagnosticSeverity.Warning, _ => SiteDiagnosticSeverity.Info };
                         var primary = Items(result, "locations").FirstOrDefault();
@@ -58,14 +60,17 @@ internal static class CompilerDiagnosticReader
     private static string? Category(JsonElement run, JsonElement result, string id)
     {
         var direct = Text(Property(result, "properties"), "category");
-        if (!string.IsNullOrWhiteSpace(direct)) return direct;
+        if (!string.IsNullOrWhiteSpace(direct))
+            return direct;
         var rules = Items(Property(Property(run, "tool"), "driver"), "rules").ToArray();
         JsonElement rule = default;
-        if (Integer(result, "ruleIndex") is { } index && index >= 0 && index < rules.Length && Text(rules[index], "id") == id) rule = rules[index];
+        if (Integer(result, "ruleIndex") is { } index && index >= 0 && index < rules.Length && Text(rules[index], "id") == id)
+            rule = rules[index];
         else
         {
             var matching = rules.Where(r => Text(r, "id") == id).Take(2).ToArray();
-            if (matching.Length == 1) rule = matching[0];
+            if (matching.Length == 1)
+                rule = matching[0];
         }
         var category = Text(Property(rule, "properties"), "category");
         return string.IsNullOrWhiteSpace(category) ? null : category;
@@ -77,22 +82,35 @@ internal static class CompilerDiagnosticReader
         {
             var physical = Property(location, "physicalLocation");
             var uri = Resolve(Property(physical, "artifactLocation"), WorkingDirectory(result), 0);
-            if (uri is null) return null;
+            if (uri is null)
+                return null;
             var region = Property(physical, "region");
-            if (region.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return new(uri.LocalPath);
-            if (region.ValueKind != JsonValueKind.Object) return null;
+            if (region.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                return new(uri.LocalPath);
+            if (region.ValueKind != JsonValueKind.Object)
+                return null;
             if (!Position(region, "startLine", out var line) || !Position(region, "startColumn", out var column)
-                || !Position(region, "endLine", out var endLine) || !Position(region, "endColumn", out var endColumn)) return null;
+                || !Position(region, "endLine", out var endLine) || !Position(region, "endColumn", out var endColumn))
+                return null;
             // Missing start/end context stays missing, rather than becoming line/column 1.
-            if (line is null) { column = null; endLine = null; endColumn = null; }
-            if (endLine is null) endColumn = null;
+            if (line is null)
+            {
+                column = null;
+                endLine = null;
+                endColumn = null;
+            }
+            if (endLine is null)
+                endColumn = null;
             try
             {
                 var mapped = new SiteSourceLocation(uri.LocalPath, line, column, endLine, endColumn);
                 return Text(run, "columnKind") is null or "utf16CodeUnits" ? mapped
                     : new(uri.LocalPath, line, null, endLine, null);
             }
-            catch (ArgumentException) { return null; } // Only this unusable location is excluded.
+            catch (ArgumentException)
+            {
+                return null;
+            } // Only this unusable location is excluded.
         }
 
         private Uri? WorkingDirectory(JsonElement result)
@@ -101,33 +119,41 @@ internal static class CompilerDiagnosticReader
             JsonElement invocation = default;
             if (Integer(Property(result, "provenance"), "invocationIndex") is { } index)
             {
-                if (index < 0 || index >= invocations.Length) return null;
+                if (index < 0 || index >= invocations.Length)
+                    return null;
                 invocation = invocations[index];
             }
-            else if (invocations.Length == 1) invocation = invocations[0];
-            else if (invocations.Length > 1) return null;
+            else if (invocations.Length == 1)
+                invocation = invocations[0];
+            else if (invocations.Length > 1)
+                return null;
             var directory = Property(invocation, "workingDirectory");
-            if (directory.ValueKind == JsonValueKind.Undefined) return launchDirectory;
+            if (directory.ValueKind == JsonValueKind.Undefined)
+                return launchDirectory;
             var resolved = Resolve(directory, launchDirectory, 0);
             return resolved is null ? null : new Uri(resolved.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
         }
 
         private Uri? Resolve(JsonElement artifact, Uri? fallback, int depth)
         {
-            if (depth >= 32 || artifact.ValueKind != JsonValueKind.Object) return null;
+            if (depth >= 32 || artifact.ValueKind != JsonValueKind.Object)
+                return null;
             var text = Text(artifact, "uri");
             if (text is null)
             {
                 var entries = Property(run, "artifacts");
-                if (Integer(artifact, "index") is not { } index || index < 0 || entries.ValueKind != JsonValueKind.Array || index >= entries.GetArrayLength()) return null;
+                if (Integer(artifact, "index") is not { } index || index < 0 || entries.ValueKind != JsonValueKind.Array || index >= entries.GetArrayLength())
+                    return null;
                 return Resolve(Property(entries[index], "location"), fallback, depth + 1);
             }
-            if (string.IsNullOrWhiteSpace(text) || !Uri.TryCreate(text, UriKind.RelativeOrAbsolute, out var uri)) return null;
+            if (string.IsNullOrWhiteSpace(text) || !Uri.TryCreate(text, UriKind.RelativeOrAbsolute, out var uri))
+                return null;
             if (!uri.IsAbsoluteUri)
             {
                 var baseId = Text(artifact, "uriBaseId");
                 var baseUri = baseId is null ? fallback : Resolve(Property(Property(run, "originalUriBaseIds"), baseId), fallback, depth + 1);
-                if (baseUri is null || !Uri.TryCreate(baseUri, uri, out uri)) return null;
+                if (baseUri is null || !Uri.TryCreate(baseUri, uri, out uri))
+                    return null;
             }
             return uri.IsFile && uri.Query.Length == 0 && uri.Fragment.Length == 0 ? uri : null;
         }
@@ -136,10 +162,14 @@ internal static class CompilerDiagnosticReader
     private static Uri DirectoryUri(string directory) => new(Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar);
     private static bool Position(JsonElement region, string key, out int? value)
     {
-        var node = Property(region, key); value = null;
-        if (node.ValueKind == JsonValueKind.Undefined) return true;
-        if (node.ValueKind != JsonValueKind.Number || !node.TryGetInt32(out var number) || number < 1) return false;
-        value = number; return true;
+        var node = Property(region, key);
+        value = null;
+        if (node.ValueKind == JsonValueKind.Undefined)
+            return true;
+        if (node.ValueKind != JsonValueKind.Number || !node.TryGetInt32(out var number) || number < 1)
+            return false;
+        value = number;
+        return true;
     }
     private static JsonElement Property(JsonElement node, string name) => node.ValueKind == JsonValueKind.Object && node.TryGetProperty(name, out var value) ? value : default;
     private static string? Text(JsonElement node, string name) => Property(node, name) is { ValueKind: JsonValueKind.String } value ? value.GetString() : null;

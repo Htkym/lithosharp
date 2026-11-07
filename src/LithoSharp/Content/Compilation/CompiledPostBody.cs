@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using LithoSharp.Build;
+using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content.Compilation;
 
@@ -14,7 +15,11 @@ internal sealed record CompiledPostBody(
     IReadOnlyList<SiteTemplateHeading> TocHeadings,
     string PlainText,
     IReadOnlyList<DocumentLink> Links,
-    IReadOnlyList<DocumentAsset> Assets);
+    IReadOnlyList<DocumentAsset> Assets)
+{
+    /// <summary>Diagnostics from the same final-body snapshot as the rendered content.</summary>
+    internal IReadOnlyList<SiteDiagnostic> Diagnostics { get; init; } = [];
+}
 
 /// <summary>Per-build cache so post HTML, TOC, search text, and links share one parse.</summary>
 internal sealed class CompiledPostBodyCache

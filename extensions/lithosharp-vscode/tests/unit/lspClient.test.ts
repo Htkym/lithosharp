@@ -4,25 +4,57 @@ import { LspClient } from '../../src/lspClient.js';
 import type { LspProcess } from '../../src/lspConnection.js';
 import type { LspDiagnosticData } from '../../src/diagnostics.js';
 
-test('analysis status ignores stale buffer and context generations without inventing Problems', async () => {
-  const script = scripted();
-  const statuses: string[] = [];
-  const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn,
-    isTrusted: () => true, onAnalysisStatus: (_uri, state) => statuses.push(state) },
-    { set: () => {}, delete: () => {}, clear: () => {} });
-  await client.start();
-  const uri = 'file:///project/one.mdx';
-  client.didOpen({ uri, languageId: 'mdx', version: 1, text: '<Unclosed>' });
-  const notify = (version: number, open: number, context: number, state: string): void => script.child.reply(frame(JSON.stringify({
-    jsonrpc: '2.0', method: 'lithosharp/analysisStatus', params: { uri, version, language: 'mdx', state, message: 'worker state',
-      lithosharpOpenGeneration: open, lithosharpContextGeneration: context } })));
-  notify(1, 1, 0, 'unavailable');
-  client.didChange(uri, 2, '# fixed');
-  notify(1, 1, 0, 'ready'); notify(2, 0, 0, 'ready');
-  client.sendProjectContext('site', ['/project'], null);
-  notify(2, 1, 0, 'ready'); notify(2, 1, 1, 'ready');
-  assert.deepEqual(statuses, ['unavailable', 'ready']);
-  client.stop();
+for (const language of ['markdown', 'mdx'] as const) {
+  test(`${language} analysis status recovers and ignores stale generations and mismatched languages`, async () => {
+    const script = scripted();
+    const statuses: string[] = [];
+    const problems: LspDiagnosticData[][] = [];
+    const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn,
+      isTrusted: () => true, onAnalysisStatus: (_uri, state, _message, reportedLanguage) => statuses.push(`${reportedLanguage}:${state}`) },
+      { set: (_uri, diagnostics) => problems.push(diagnostics), delete: () => {}, clear: () => {} });
+    await client.start();
+    const uri = `file:///project/one.${language === 'mdx' ? 'mdx' : 'md'}`;
+    client.didOpen({ uri, languageId: language, version: 1, text: 'incomplete' });
+    const notify = (version: number, open: number, context: number, state: string, reportedLanguage: string = language): void => script.child.reply(frame(JSON.stringify({
+      jsonrpc: '2.0', method: 'lithosharp/analysisStatus', params: { uri, version, language: reportedLanguage, state, message: 'analysis state',
+        lithosharpOpenGeneration: open, lithosharpContextGeneration: context } })));
+    notify(1, 1, 0, 'unavailable');
+    notify(1, 1, 0, 'ready', language === 'mdx' ? 'markdown' : 'mdx');
+    client.didChange(uri, 2, '# fixed');
+    notify(1, 1, 0, 'ready'); notify(2, 0, 0, 'ready');
+    client.sendProjectContext('site', ['/project'], null);
+    notify(2, 1, 0, 'ready'); notify(2, 1, 1, 'ready');
+    assert.deepEqual(statuses, [`${language}:unavailable`, `${language}:ready`]);
+    assert.deepEqual(problems, []);
+    client.stop();
+  });
+}
+
+test('analysis status language follows explicit document identity and only falls back for blank identities', async () => {
+  const cases = [
+    { languageId: 'MARKDOWN', path: 'one.mdx', expected: 'markdown' },
+    { languageId: 'mdx', path: 'one.md', expected: 'mdx' },
+    { languageId: '', path: 'one.md', expected: 'markdown' },
+    { languageId: ' \t', path: 'one.MDX', expected: 'mdx' },
+    { languageId: 'plaintext', path: 'one.md', expected: undefined },
+  ];
+  for (const { languageId, path, expected } of cases) {
+    const script = scripted();
+    const statuses: string[] = [];
+    const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn,
+      isTrusted: () => true, onAnalysisStatus: (_uri, _state, _message, language) => statuses.push(language) },
+      { set: () => {}, delete: () => {}, clear: () => {} });
+    await client.start();
+    const uri = `file:///project/${path}`;
+    client.didOpen({ uri, languageId, version: 1, text: '# Heading' });
+    for (const language of ['markdown', 'mdx', 'plaintext']) {
+      script.child.reply(frame(JSON.stringify({ jsonrpc: '2.0', method: 'lithosharp/analysisStatus',
+        params: { uri, version: 1, language, state: 'ready', message: 'analysis state',
+          lithosharpOpenGeneration: 1, lithosharpContextGeneration: 0 } })));
+    }
+    assert.deepEqual(statuses, expected === undefined ? [] : [expected]);
+    client.stop();
+  }
 });
 
 interface ScriptedChild extends LspProcess {

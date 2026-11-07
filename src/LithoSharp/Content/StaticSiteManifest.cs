@@ -64,7 +64,8 @@ public sealed class StaticSiteManifest
     public SiteUrl GetUrl(string publicPath)
     {
         ArgumentNullException.ThrowIfNull(publicPath);
-        if (routes.TryGetValue(publicPath, out var route)) return SiteUrl.FromRoute(route);
+        if (routes.TryGetValue(publicPath, out var route))
+            return SiteUrl.FromRoute(route);
         return resolver?.Invoke(publicPath) ?? throw new KeyNotFoundException($"Route '{publicPath}' is not present in manifest '{Site}/{Variant}/{CollectionId.Value}'.");
     }
 }

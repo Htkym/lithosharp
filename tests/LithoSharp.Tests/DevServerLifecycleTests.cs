@@ -179,7 +179,10 @@ public sealed class DevServerLifecycleTests
             await serve.WaitForExitAsync();
             await Assert.That(serve.ExitCode).IsEqualTo(0);
         }
-        catch (Exception failure) { primary = failure; }
+        catch (Exception failure)
+        {
+            primary = failure;
+        }
         finally
         {
             if (fixture is not null)
@@ -189,12 +192,29 @@ public sealed class DevServerLifecycleTests
                     await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, "startup-output-release"), "cleanup-only");
                     fixture.ReleaseForCleanup();
                 }
-                catch (Exception failure) { cleanupFailures.Add(failure); }
+                catch (Exception failure)
+                {
+                    cleanupFailures.Add(failure);
+                }
             }
             if (releaseStartup is not null)
-                try { await releaseStartup; } catch (Exception failure) { cleanupFailures.Add(failure); }
+                try
+                {
+                    await releaseStartup;
+                }
+                catch (Exception failure)
+                {
+                    cleanupFailures.Add(failure);
+                }
             if (serve is not null)
-                try { await serve.DisposeAsync(); } catch (Exception failure) { cleanupFailures.Add(failure); }
+                try
+                {
+                    await serve.DisposeAsync();
+                }
+                catch (Exception failure)
+                {
+                    cleanupFailures.Add(failure);
+                }
             try
             {
                 Console.WriteLine("STARTUP_ORDER_OBSERVATION " + JsonSerializer.Serialize(new
@@ -211,14 +231,26 @@ public sealed class DevServerLifecycleTests
                     cleanupFailures = cleanupFailures.Select(value => value.GetType().Name).ToArray(),
                 }));
             }
-            catch (Exception failure) { cleanupFailures.Add(failure); }
+            catch (Exception failure)
+            {
+                cleanupFailures.Add(failure);
+            }
             if (fixture is not null)
-                try { fixture.Dispose(); } catch (Exception failure) { cleanupFailures.Add(failure); }
+                try
+                {
+                    fixture.Dispose();
+                }
+                catch (Exception failure)
+                {
+                    cleanupFailures.Add(failure);
+                }
         }
         if (primary is not null && cleanupFailures.Count != 0)
             throw new AggregateException("Startup-order assertion and owned cleanup failed.", new[] { primary }.Concat(cleanupFailures));
-        if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
-        if (cleanupFailures.Count != 0) throw new AggregateException("Startup-order owned cleanup failed.", cleanupFailures);
+        if (primary is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
+        if (cleanupFailures.Count != 0)
+            throw new AggregateException("Startup-order owned cleanup failed.", cleanupFailures);
     }
 
     private static bool IsEvent(JsonElement value, string name) => value.TryGetProperty("event", out var field)
@@ -227,7 +259,8 @@ public sealed class DevServerLifecycleTests
     private static async Task WaitForFileAsync(string file)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
-        while (!File.Exists(file)) await Task.Delay(10, timeout.Token);
+        while (!File.Exists(file))
+            await Task.Delay(10, timeout.Token);
         // Polling only waits for an explicit positive barrier; no fixed delay
         // is used to assume that a compile or source read has happened.
     }
@@ -248,12 +281,14 @@ public sealed class DevServerLifecycleTests
             {
                 Directory.CreateDirectory(fixture.ProjectDirectory);
                 Directory.CreateDirectory(fixture.Barriers);
-                if (blockedPhase is not null) await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, blockedPhase + "-arm"), "arm");
+                if (blockedPhase is not null)
+                    await File.WriteAllTextAsync(Path.Combine(fixture.Barriers, blockedPhase + "-arm"), "arm");
                 var contentFile = delayStartupOutput ? "content.mdx" : "content.txt";
                 await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, contentFile), "before-initial-read");
                 await File.WriteAllTextAsync(Path.Combine(fixture.ProjectDirectory, "Factory.cs"), delayStartupOutput
                     ? FactorySource.Replace("content.txt", "content.mdx", StringComparison.Ordinal) : FactorySource);
-                if (delayStartupOutput) fixture.StartupOutputHook = await BuildStartupOutputHookAsync(Path.Combine(fixture.workspace.Root, "startup-output-hook"));
+                if (delayStartupOutput)
+                    fixture.StartupOutputHook = await BuildStartupOutputHookAsync(Path.Combine(fixture.workspace.Root, "startup-output-hook"));
                 var project = new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
                     new XElement("PropertyGroup", new XElement("TargetFramework", "net10.0"),
                         new XElement("ImplicitUsings", "enable"), new XElement("Nullable", "enable"),
@@ -275,7 +310,11 @@ public sealed class DevServerLifecycleTests
                 await File.WriteAllTextAsync(fixture.Project, project.ToString());
                 return fixture;
             }
-            catch { fixture.Dispose(); throw; }
+            catch
+            {
+                fixture.Dispose();
+                throw;
+            }
         }
 
         public void ReleaseForCleanup()
@@ -294,9 +333,15 @@ public sealed class DevServerLifecycleTests
             await File.WriteAllTextAsync(Path.Combine(directory, "NuGet.Config"), "<configuration><packageSources><clear /></packageSources></configuration>");
             await File.WriteAllTextAsync(Path.Combine(directory, "StartupHook.cs"), StartupOutputHookSource);
             var start = new ProcessStartInfo("dotnet")
-            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
-                RedirectStandardError = true, WorkingDirectory = directory };
-            foreach (var argument in new[] { "build", project, "--nologo", "-c", "Release", "-m:1", "-p:UseSharedCompilation=false" }) start.ArgumentList.Add(argument);
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = directory
+            };
+            foreach (var argument in new[] { "build", project, "--nologo", "-c", "Release", "-m:1", "-p:UseSharedCompilation=false" })
+                start.ArgumentList.Add(argument);
             start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
             start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Cannot build owned startup-output fixture hook.");
@@ -311,22 +356,56 @@ public sealed class DevServerLifecycleTests
                 if (process.ExitCode != 0)
                     throw new InvalidOperationException("Owned startup-output hook build failed. " + await output + await error);
             }
-            catch (Exception failure) { primary = failure; }
+            catch (Exception failure)
+            {
+                primary = failure;
+            }
             finally
             {
-                try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-                catch (Exception failure) { secondary.Add(failure); }
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(entireProcessTree: true);
+                }
+                catch (Exception failure)
+                {
+                    secondary.Add(failure);
+                }
                 using var drain = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                try { await process.WaitForExitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
-                try { await output.WaitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
-                try { await error.WaitAsync(drain.Token); } catch (Exception failure) { secondary.Add(failure); }
+                try
+                {
+                    await process.WaitForExitAsync(drain.Token);
+                }
+                catch (Exception failure)
+                {
+                    secondary.Add(failure);
+                }
+                try
+                {
+                    await output.WaitAsync(drain.Token);
+                }
+                catch (Exception failure)
+                {
+                    secondary.Add(failure);
+                }
+                try
+                {
+                    await error.WaitAsync(drain.Token);
+                }
+                catch (Exception failure)
+                {
+                    secondary.Add(failure);
+                }
             }
             if (primary is not null && secondary.Count != 0)
                 throw new AggregateException("Startup-output hook build and owned cleanup failed.", new[] { primary }.Concat(secondary));
-            if (primary is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
-            if (secondary.Count != 0) throw new AggregateException("Startup-output hook cleanup failed.", secondary);
+            if (primary is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();
+            if (secondary.Count != 0)
+                throw new AggregateException("Startup-output hook cleanup failed.", secondary);
             var assembly = Path.Combine(directory, "bin", "Release", "net10.0", "StartupOrderBarrierHook.dll");
-            if (!File.Exists(assembly)) throw new InvalidOperationException("Owned startup-output hook assembly missing.");
+            if (!File.Exists(assembly))
+                throw new InvalidOperationException("Owned startup-output hook assembly missing.");
             return assembly;
         }
 
@@ -398,11 +477,19 @@ public sealed class DevServerLifecycleTests
         private readonly List<JsonElement> observed = [];
         private Exception? parseFailure;
         public int ExitCode => process.ExitCode;
-        public IReadOnlyList<JsonElement> Events { get { lock (observed) return observed.ToArray(); } }
+        public IReadOnlyList<JsonElement> Events
+        {
+            get
+            {
+                lock (observed)
+                    return observed.ToArray();
+            }
+        }
 
         private ServeProcess(Process process, Fixture fixture)
         {
-            this.process = process; this.fixture = fixture;
+            this.process = process;
+            this.fixture = fixture;
             error = process.StandardError.ReadToEndAsync();
             output = ReadOutputAsync();
         }
@@ -411,10 +498,17 @@ public sealed class DevServerLifecycleTests
         {
             var tool = FindExactTool();
             var start = new ProcessStartInfo("dotnet")
-            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
-                RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = fixture.ProjectDirectory };
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = fixture.ProjectDirectory
+            };
             foreach (var arg in new[] { tool, "serve", fixture.Project, "--configuration", "Release", "--format", "json",
-                "--control-stdin", "--host", "127.0.0.1", "--port", "0", "--output", fixture.Output }) start.ArgumentList.Add(arg);
+                "--control-stdin", "--host", "127.0.0.1", "--port", "0", "--output", fixture.Output })
+                start.ArgumentList.Add(arg);
             if (fixture.StartupOutputHook is not null)
             {
                 start.Environment["DOTNET_STARTUP_HOOKS"] = fixture.StartupOutputHook;
@@ -440,19 +534,26 @@ public sealed class DevServerLifecycleTests
                 {
                     using var json = JsonDocument.Parse(line);
                     var value = json.RootElement.Clone();
-                    lock (observed) observed.Add(value);
+                    lock (observed)
+                        observed.Add(value);
                     await events.Writer.WriteAsync(value);
                 }
                 events.Writer.TryComplete();
             }
-            catch (Exception failure) { parseFailure = failure; events.Writer.TryComplete(failure); }
+            catch (Exception failure)
+            {
+                parseFailure = failure;
+                events.Writer.TryComplete(failure);
+            }
         }
 
         public async Task<JsonElement> WaitForEventAsync(Func<JsonElement, bool> predicate)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             while (await events.Reader.WaitToReadAsync(timeout.Token))
-                while (events.Reader.TryRead(out var value)) if (predicate(value)) return value;
+                while (events.Reader.TryRead(out var value))
+                    if (predicate(value))
+                        return value;
             throw new InvalidOperationException("Serve event missing. "
                 + (error.IsCompletedSuccessfully ? error.Result : "stderr remains open; owned cleanup follows"), parseFailure);
         }
@@ -468,7 +569,8 @@ public sealed class DevServerLifecycleTests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             await process.WaitForExitAsync(timeout.Token);
             await output;
-            if (parseFailure is not null) throw new InvalidOperationException("Serve stdout was not JSON Lines.", parseFailure);
+            if (parseFailure is not null)
+                throw new InvalidOperationException("Serve stdout was not JSON Lines.", parseFailure);
         }
 
         public async ValueTask DisposeAsync()
@@ -479,18 +581,37 @@ public sealed class DevServerLifecycleTests
                 if (!process.HasExited)
                 {
                     Exception? shutdownFailure = null;
-                    try { await ShutdownAsync("cleanup-owned-fixture"); }
-                    catch (Exception exception) { shutdownFailure = exception; }
+                    try
+                    {
+                        await ShutdownAsync("cleanup-owned-fixture");
+                    }
+                    catch (Exception exception)
+                    {
+                        shutdownFailure = exception;
+                    }
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    try { await process.WaitForExitAsync(timeout.Token); }
-                    catch (OperationCanceledException) { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
-                    await output; await error;
+                    try
+                    {
+                        await process.WaitForExitAsync(timeout.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        if (!process.HasExited)
+                            process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync();
+                    }
+                    await output;
+                    await error;
                     if (shutdownFailure is not null)
                         System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(shutdownFailure).Throw();
                 }
-                await output; await error;
+                await output;
+                await error;
             }
-            finally { process.Dispose(); }
+            finally
+            {
+                process.Dispose();
+            }
         }
 
         private static string FindExactTool()
@@ -508,7 +629,8 @@ public sealed class DevServerLifecycleTests
                     if (File.Exists(candidate) && File.Exists(core)
                         && File.Exists(Path.ChangeExtension(candidate, ".deps.json"))
                         && File.Exists(Path.ChangeExtension(candidate, ".runtimeconfig.json"))
-                        && SHA256.HashData(File.ReadAllBytes(core)).AsSpan().SequenceEqual(expectedCore)) return candidate;
+                        && SHA256.HashData(File.ReadAllBytes(core)).AsSpan().SequenceEqual(expectedCore))
+                        return candidate;
                 }
             }
             throw new InvalidOperationException("Build the Release Tool against exactly the test Core bytes before running DevServer lifecycle tests.");

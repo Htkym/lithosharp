@@ -6,7 +6,8 @@ internal sealed partial class CompactHtmlTreeBuilder
     // https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
     private static HtmlDocumentMode ClassifyDoctype(HtmlToken doctype)
     {
-        if (doctype.ForceQuirks || doctype.Name?.Value != "html") return HtmlDocumentMode.Quirks;
+        if (doctype.ForceQuirks || doctype.Name?.Value != "html")
+            return HtmlDocumentMode.Quirks;
         var publicId = doctype.PublicIdentifier?.Value;
         var systemId = doctype.SystemIdentifier?.Value;
         if (DoctypeIdMatches(publicId, "-//W3O//DTD W3 HTML Strict 3.0//EN//") ||
@@ -15,12 +16,14 @@ internal sealed partial class CompactHtmlTreeBuilder
             DoctypeIdMatches(systemId, "http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd"))
             return HtmlDocumentMode.Quirks;
         foreach (var prefix in QuirksPublicIdPrefixes)
-            if (DoctypeIdMatches(publicId, prefix, prefix: true)) return HtmlDocumentMode.Quirks;
+            if (DoctypeIdMatches(publicId, prefix, prefix: true))
+                return HtmlDocumentMode.Quirks;
 
         var html401 = DoctypeIdMatches(publicId, "-//W3C//DTD HTML 4.01 Frameset//", prefix: true) ||
             DoctypeIdMatches(publicId, "-//W3C//DTD HTML 4.01 Transitional//", prefix: true);
         // The current algorithm groups a missing AND an empty system ID for HTML 4.01.
-        if (html401) return string.IsNullOrEmpty(systemId) ? HtmlDocumentMode.Quirks : HtmlDocumentMode.LimitedQuirks;
+        if (html401)
+            return string.IsNullOrEmpty(systemId) ? HtmlDocumentMode.Quirks : HtmlDocumentMode.LimitedQuirks;
         if (DoctypeIdMatches(publicId, "-//W3C//DTD XHTML 1.0 Frameset//", prefix: true) ||
             DoctypeIdMatches(publicId, "-//W3C//DTD XHTML 1.0 Transitional//", prefix: true))
             return HtmlDocumentMode.LimitedQuirks;
@@ -29,15 +32,20 @@ internal sealed partial class CompactHtmlTreeBuilder
 
     private static bool DoctypeIdMatches(string? value, string expected, bool prefix = false)
     {
-        if (value is null || value.Length < expected.Length || !prefix && value.Length != expected.Length) return false;
+        if (value is null || value.Length < expected.Length || !prefix && value.Length != expected.Length)
+            return false;
         // OrdinalIgnoreCase also folds non-ASCII letters. HTML requires ASCII-only folding.
         // Compare only the bounded expected ID/prefix; no copy of the input identifier.
         for (var i = 0; i < expected.Length; i++)
         {
-            var actual = value[i]; var wanted = expected[i];
-            if (actual is >= 'A' and <= 'Z') actual = (char)(actual + 32);
-            if (wanted is >= 'A' and <= 'Z') wanted = (char)(wanted + 32);
-            if (actual != wanted) return false;
+            var actual = value[i];
+            var wanted = expected[i];
+            if (actual is >= 'A' and <= 'Z')
+                actual = (char)(actual + 32);
+            if (wanted is >= 'A' and <= 'Z')
+                wanted = (char)(wanted + 32);
+            if (actual != wanted)
+                return false;
         }
         return true;
     }

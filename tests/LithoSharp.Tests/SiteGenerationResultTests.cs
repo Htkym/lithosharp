@@ -80,9 +80,11 @@ public sealed class SiteGenerationResultTests
         await Assert.That(first.Nodes[0].OwnedArtifacts).IsEquivalentTo(["a.html", "z.html"]);
         IReadOnlyList<string> generatedFiles = ["index.html"];
         await Assert.That(new SiteGenerationResult("output", 1, generatedFiles)
-            with { BuildReport = first }
+            with
+        { BuildReport = first }
             == new SiteGenerationResult("output", 1, generatedFiles)
-            with { BuildReport = second }).IsTrue();
+            with
+            { BuildReport = second }).IsTrue();
     }
 
     [Test]

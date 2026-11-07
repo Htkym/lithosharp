@@ -137,9 +137,11 @@ internal static class BuildInputFingerprint
             var result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
                 ? GetMacPathArm64(handle, getPath, 0, 0, 0, 0, 0, 0, buffer)
                 : GetMacPath(handle, getPath, buffer);
-            if (result == -1) throw new Win32Exception(Marshal.GetLastPInvokeError());
+            if (result == -1)
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
             var length = Array.IndexOf(buffer, (byte)0);
-            if (length <= 0) throw new IOException("The opened dependency handle returned an invalid path.");
+            if (length <= 0)
+                throw new IOException("The opened dependency handle returned an invalid path.");
             return Encoding.UTF8.GetString(buffer, 0, length);
         }
 

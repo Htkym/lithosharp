@@ -21,7 +21,8 @@ internal sealed class SiteBuildCache
         string? digest, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsDigest(digest)) return new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
+        if (!IsDigest(digest))
+            return new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
         try
         {
             var path = Path.Combine(_directory, "builds", digest + ".json");
@@ -60,6 +61,8 @@ internal sealed class SiteBuildCache
             Inputs = node.Inputs.OrderBy(input => input.Kind).ThenBy(input => input.Key, StringComparer.Ordinal)
                 .ThenBy(input => input.Value, StringComparer.Ordinal).ToArray(),
             Dependencies = node.Dependencies.Order(StringComparer.Ordinal).ToArray(),
+            CollectionDiagnostics = node.CollectionDiagnostics is { } diagnostics && diagnostics.IsValid()
+                ? diagnostics.Snapshot() : node.CollectionDiagnostics,
         }).OrderBy(node => node.NodeId, StringComparer.Ordinal).ToArray();
         if (snapshot.Any(node => !IsValid(node))
             || snapshot.Select(node => node.NodeId).Distinct(StringComparer.Ordinal).Count() != snapshot.Length)
@@ -109,7 +112,8 @@ internal sealed class SiteBuildCache
     internal async Task<string?> ReadBodyAsync(string hash, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsDigest(hash)) return null;
+        if (!IsDigest(hash))
+            return null;
         try
         {
             var bytes = await ReadVerifiedAsync("blobs", hash, ".utf8", cancellationToken).ConfigureAwait(false);
@@ -176,7 +180,8 @@ internal sealed class SiteBuildCache
         string compiler, string sourceHash, int sourceLength, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(compiler) || !IsDigest(sourceHash)) return null;
+        if (string.IsNullOrWhiteSpace(compiler) || !IsDigest(sourceHash))
+            return null;
         try
         {
             var path = Path.Combine(_directory, "parses", CachedPostParse.CacheKey(compiler, sourceHash) + ".json");
@@ -213,7 +218,8 @@ internal sealed class SiteBuildCache
         await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
         var bytes = new ArraySegment<byte>(buffer.GetBuffer(), 0, (int)buffer.Length);
         cancellationToken.ThrowIfCancellationRequested();
-        if (Convert.ToHexStringLower(SHA256.HashData(bytes.AsSpan())) != digest) return null;
+        if (Convert.ToHexStringLower(SHA256.HashData(bytes.AsSpan())) != digest)
+            return null;
         return bytes;
     }
 
@@ -273,7 +279,8 @@ internal sealed class SiteBuildCache
         && node.Artifacts.Select(artifact => artifact.RelativePath).Distinct(StringComparer.Ordinal).Count() == node.Artifacts.Count
         && node.Inputs is not null && node.Inputs.All(input => input is not null
             && Enum.IsDefined(input.Kind) && !string.IsNullOrWhiteSpace(input.Key))
-        && node.Dependencies is not null && node.Dependencies.All(dependency => !string.IsNullOrWhiteSpace(dependency));
+        && node.Dependencies is not null && node.Dependencies.All(dependency => !string.IsNullOrWhiteSpace(dependency))
+        && (node.CollectionDiagnostics is null || node.CollectionDiagnostics.IsValid());
 
     private static bool IsCacheReadFailure(Exception exception) => exception is IOException
         or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException
@@ -290,6 +297,7 @@ internal sealed record CachedBuildNode(
 {
     public IReadOnlyList<CachedBuildInput> Inputs { get; init; } = [];
     public IReadOnlyList<string> Dependencies { get; init; } = [];
+    public CachedCollectionDiagnostics? CollectionDiagnostics { get; init; }
 }
 
 internal sealed record CachedBuildArtifact(string ArtifactId, string RelativePath, long Length, string Sha256);

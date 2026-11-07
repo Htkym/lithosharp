@@ -21,14 +21,22 @@ internal static class Md04CacheChecks
             task = (Task)typeof(DocumentWorkspace).GetMethod("ParseMarkdownAsync", All)!
                 .Invoke(workspace, new object?[] { id, text, version, revision, generation, options, cancellation })!;
         }
-        catch (TargetInvocationException error) { ExceptionDispatchInfo.Capture(error.InnerException!).Throw(); throw; }
+        catch (TargetInvocationException error)
+        {
+            ExceptionDispatchInfo.Capture(error.InnerException!).Throw();
+            throw;
+        }
         await task;
         return Get(task, "Result");
     }
     private static void Clear(DocumentWorkspace workspace) => typeof(DocumentWorkspace).GetMethod("ClearMarkdownFacts", All)!.Invoke(workspace, null);
     private static async Task Cancelled(Task task)
     {
-        try { await task; throw new InvalidOperationException("Old Markdown request was published"); }
+        try
+        {
+            await task;
+            throw new InvalidOperationException("Old Markdown request was published");
+        }
         catch (OperationCanceledException) { }
     }
     private static object FirstHeading(object facts) => ((System.Collections.IEnumerable)Get(facts, "Headings")).Cast<object>().First();
@@ -61,27 +69,37 @@ internal static class Md04CacheChecks
         var failed = await Parse(workspace, "failed", "\uD800", "f");
         Check(Get(partial, "Status").ToString() == "Partial" && Get(failed, "Status").ToString() == "Failed"
             && Count(workspace) == before, "Partial and Failed facts are not cached");
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
         await Cancelled(Parse(workspace, "cancelled", raw, null, cancellation: cancelled.Token));
         Check(Count(workspace) == before, "Cancellation does not populate cache");
 
         // No sleeps or large input: block the two shared slots to make reservation races deterministic.
         var slots = (SemaphoreSlim)Field(workspace, "_analysisSlots");
-        await slots.WaitAsync(); await slots.WaitAsync();
+        await slots.WaitAsync();
+        await slots.WaitAsync();
         var old = Parse(workspace, "race", "# Old\n", "old", revision: 1);
         var newer = Parse(workspace, "race", "# New\n", "new", revision: 2);
         slots.Release(2);
-        await Cancelled(old); var newest = await newer;
+        await Cancelled(old);
+        var newest = await newer;
         Check((string)Get(newest, "SourceVersion") == "new", "New reservation rejects delayed old publication");
-        await slots.WaitAsync(); await slots.WaitAsync();
+        await slots.WaitAsync();
+        await slots.WaitAsync();
         var removed = Parse(workspace, "removed", raw, null);
-        workspace.Remove("removed"); slots.Release(2); await Cancelled(removed);
-        await slots.WaitAsync(); await slots.WaitAsync();
+        workspace.Remove("removed");
+        slots.Release(2);
+        await Cancelled(removed);
+        await slots.WaitAsync();
+        await slots.WaitAsync();
         var cleared = Parse(workspace, "cleared", raw, null);
-        Clear(workspace); slots.Release(2); await Cancelled(cleared);
+        Clear(workspace);
+        slots.Release(2);
+        await Cancelled(cleared);
         Check(Count(workspace) == 0 && Bytes(workspace) == 0, "Remove/Clear epoch prevents resurrection and clears retained facts");
 
-        for (var i = 0; i < 64; i++) await Parse(workspace, "lru-" + i, raw, null);
+        for (var i = 0; i < 64; i++)
+            await Parse(workspace, "lru-" + i, raw, null);
         var recent = await Parse(workspace, "lru-0", raw, null);
         await Parse(workspace, "lru-64", raw, null);
         Check(Count(workspace) == 64 && Bytes(workspace) <= 16 * 1024 * 1024, "Default cache remains bounded after65 documents");
@@ -125,9 +143,19 @@ internal static class Md04CacheChecks
         verify.Invoke(null, new[] { parserVersion, "1.0", "lithosharp-markdown/1", "18.1.0", yamlIdentity, "18.1.0" });
         Check(!host.GetReferencedAssemblies().Any(a => a.Name == "LithoSharp" || a.Name == "Syntamark"),
             "Prepared netstandard host contract does not reference the net10 facade");
-        Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-04", status = "PASS",
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            task = "MD-04",
+            status = "PASS",
             checks = "identity/raw positions/LRU-entry-byte limits/Partial-Failed-cancel exclusion/generation reservation/Remove-Clear-Dispose/legacy separation/loaded YAML metadata",
-            parserVersion, preparedHostContract = "netstandard2.0 metadata only", actualSourceArtifactRoslynHost = "NOT_RUN; MD-05/IN-01" }));
+            parserVersion,
+            preparedHostContract = "netstandard2.0 metadata only",
+            actualSourceArtifactRoslynHost = "NOT_RUN; MD-05/IN-01"
+        }));
     }
-    private static void Check(bool valid, string message) { if (!valid) throw new InvalidOperationException(message); }
+    private static void Check(bool valid, string message)
+    {
+        if (!valid)
+            throw new InvalidOperationException(message);
+    }
 }

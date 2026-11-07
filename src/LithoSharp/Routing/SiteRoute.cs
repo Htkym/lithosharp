@@ -29,7 +29,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     /// <summary>Requires a safe relative file URL; a null base URL uses the site root.</summary>
     public static SiteRoute ForFile(string relativePath, string? baseUrl = null)
     {
-        if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
+        if (relativePath is null)
+            throw new ArgumentNullException(nameof(relativePath));
 
         if (relativePath.Length == 0)
         {
@@ -56,7 +57,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
     /// <summary>Uses a trailing-slash URL and index.html output; an empty path or slash denotes the site root. A null base URL uses the site root.</summary>
     public static SiteRoute ForDirectoryIndex(string relativePath, string? baseUrl = null)
     {
-        if (relativePath is null) throw new ArgumentNullException(nameof(relativePath));
+        if (relativePath is null)
+            throw new ArgumentNullException(nameof(relativePath));
 
         var isRoot = relativePath.Length == 0 || IsOnlySeparators(relativePath);
         var route = isRoot
@@ -90,7 +92,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
     internal SiteRoute WithBaseUrl(string baseUrl)
     {
-        if (baseUrl is null) throw new ArgumentNullException(nameof(baseUrl));
+        if (baseUrl is null)
+            throw new ArgumentNullException(nameof(baseUrl));
         var encodedOutputPath = string.Join("/", RelativeOutputPath.Split('/').Select(EncodeSegment));
         if (PublicPath.EndsWith("/", StringComparison.Ordinal))
         {
@@ -105,7 +108,8 @@ public sealed class SiteRoute : IEquatable<SiteRoute>
 
     internal static string NormalizeRelativeOutputPath(string relativeOutputPath)
     {
-        if (relativeOutputPath is null) throw new ArgumentNullException(nameof(relativeOutputPath));
+        if (relativeOutputPath is null)
+            throw new ArgumentNullException(nameof(relativeOutputPath));
 
         if (relativeOutputPath.Length == 0)
         {

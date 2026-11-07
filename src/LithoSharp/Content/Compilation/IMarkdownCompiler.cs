@@ -35,6 +35,10 @@ internal interface IMarkdownCompiler
     /// <param name="cancellationToken">Cancellation token.</param>
     MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken);
 
+    /// <summary>Analyzes a body, reusing matching authoritative evidence when supported.</summary>
+    MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        MarkdownBodyAnalysisSnapshot? retainedAnalysis) => Analyze(markdown, source, cancellationToken);
+
     /// <summary>Renders Markdown to plain text for search indexing.</summary>
     string RenderPlainText(string markdown);
 

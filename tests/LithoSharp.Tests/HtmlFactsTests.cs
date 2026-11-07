@@ -42,7 +42,8 @@ public sealed class HtmlFactsTests
     {
         const int headingCount = 12_000;
         var html = new System.Text.StringBuilder("<!doctype html><body>");
-        for (var i = 0; i < headingCount; i++) html.Append($"<h2 id=h{i}>Title {i}</h2>");
+        for (var i = 0; i < headingCount; i++)
+            html.Append($"<h2 id=h{i}>Title {i}</h2>");
         html.Append("<p>Final body</p>");
         using var cancel = new CancellationTokenSource();
         var facts = HtmlFacts.Parse(html.ToString(), cancel.Token);
@@ -70,8 +71,11 @@ public sealed class HtmlFactsTests
         var output = Path.Combine(workspace.Root, "output");
         await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings { BaseUrl = "https://example.test/sub/" }, [], output, true,
             new SiteCustomization { Template = new BlogSiteTemplate() },
-            new() { ContentCollections = [new SiteContentCollection<string, string>(collection, (entry, rendering) => rendering.RenderDocument(entry.Body))],
-                BuildTimestamp = DateTimeOffset.UnixEpoch }, default);
+            new()
+            {
+                ContentCollections = [new SiteContentCollection<string, string>(collection, (entry, rendering) => rendering.RenderDocument(entry.Body))],
+                BuildTimestamp = DateTimeOffset.UnixEpoch
+            }, default);
         using var index = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "search-index.json")));
         var document = index.RootElement.GetProperty("documents").EnumerateArray()
             .Single(item => item.TryGetProperty("collection", out var value) && value.GetString() == "guide");

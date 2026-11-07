@@ -262,7 +262,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                     // Source fingerprint, not raw text: the same change detection
                     // with small execution keys. Semantic and render fingerprints
                     // stay separate (compiler fingerprint, layout inputs).
-                    Value("page.body", MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody)),
+                    Value("page.body", MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody)),
                     Configuration(
                         "text.tableOfContents",
                         Json(new
@@ -449,7 +449,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                     Value("page.tags", Json(post.FrontMatter.Tags)),
                     // Source fingerprint, not raw text: the same change detection
                     // with small execution keys (see the docs-site node above).
-                    Value("page.body", MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody)),
+                    Value("page.body", MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody)),
                 ],
                 [navigationNodeId]);
         }
@@ -687,13 +687,13 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             ContentPages = contentPages
                 .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
                 .Select(page => new
-            {
-                Collection = page.CollectionId.Value,
-                Entry = page.EntryId.Value,
-                page.Route.RelativeOutputPath,
-                page.Metadata.Title,
-                Layout = page.LayoutId?.Value,
-            }),
+                {
+                    Collection = page.CollectionId.Value,
+                    Entry = page.EntryId.Value,
+                    page.Route.RelativeOutputPath,
+                    page.Metadata.Title,
+                    Layout = page.LayoutId?.Value,
+                }),
         });
 
     private static string BlogNavigationValue(
@@ -712,13 +712,13 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             ContentPages = contentPages
                 .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
                 .Select(page => new
-            {
-                Collection = page.CollectionId.Value,
-                Entry = page.EntryId.Value,
-                page.Route.RelativeOutputPath,
-                page.Metadata.Title,
-                Layout = page.LayoutId?.Value,
-            }),
+                {
+                    Collection = page.CollectionId.Value,
+                    Entry = page.EntryId.Value,
+                    page.Route.RelativeOutputPath,
+                    page.Metadata.Title,
+                    Layout = page.LayoutId?.Value,
+                }),
             Text = new
             {
                 text.MenuLabel,
@@ -754,7 +754,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             post.FrontMatter.Summary,
             post.FrontMatter.Tags,
             Date = SiteFormatting.FormatDateTime(site, post.FrontMatter.Date),
-            BodyHash = MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody),
+            BodyHash = MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody),
         }));
 
     private static string ResolveAnalyticsMeasurementId(SiteSettings site)

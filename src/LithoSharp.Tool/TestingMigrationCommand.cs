@@ -24,14 +24,22 @@ internal static class TestingMigrationCommand
         var format = false;
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--dry-run" && !dryRun) { dryRun = true; continue; }
+            if (args[i] == "--dry-run" && !dryRun)
+            {
+                dryRun = true;
+                continue;
+            }
             if (args[i] is not ("--source" or "--reference" or "--format") || i + 1 == args.Length)
                 throw new CliUsageException("Testing migration requires --dry-run, explicit --source and --reference files; write/project options are unsupported.");
             var name = args[i++];
-            if (name == "--source") files.Add(Path.GetFullPath(args[i]));
-            else if (name == "--reference") references.Add(Path.GetFullPath(args[i]));
-            else if (args[i] != "json" || format) throw new CliUsageException("Testing migration supports one --format json option.");
-            else format = true;
+            if (name == "--source")
+                files.Add(Path.GetFullPath(args[i]));
+            else if (name == "--reference")
+                references.Add(Path.GetFullPath(args[i]));
+            else if (args[i] != "json" || format)
+                throw new CliUsageException("Testing migration supports one --format json option.");
+            else
+                format = true;
         }
         if (!dryRun || files.Count == 0 || references.Count == 0)
             throw new CliUsageException("Usage: migrate testing --dry-run --source file.cs --reference metadata.dll [--format json]");
@@ -77,7 +85,8 @@ internal static class TestingMigrationCommand
             foreach (var syntax in root.DescendantNodes().Where(node => node is MemberAccessExpressionSyntax or MemberBindingExpressionSyntax))
             {
                 if (legacy is null || model.GetSymbolInfo(syntax, token).Symbol is not IPropertySymbol property
-                    || !SymbolEqualityComparer.Default.Equals(property.OriginalDefinition, legacy)) continue;
+                    || !SymbolEqualityComparer.Default.Equals(property.OriginalDefinition, legacy))
+                    continue;
                 if (syntax is not MemberAccessExpressionSyntax access)
                 {
                     findings.Add(Finding(input, syntax.Span, syntax.Span,
@@ -109,7 +118,9 @@ internal static class TestingMigrationCommand
         var succeeded = !compilerDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
         var response = new HostResponse
         {
-            Success = succeeded, ExitCode = succeeded ? 0 : 1, Diagnostics = diagnostics,
+            Success = succeeded,
+            ExitCode = succeeded ? 0 : 1,
+            Diagnostics = diagnostics,
             Migration = new(inputs.Select(input => new HostTestingMigrationInput(input.File, input.Hash)).ToArray(),
                 metadataInputs.ToArray(), findings.OrderBy(finding => finding.File, StringComparer.Ordinal).ThenBy(finding => finding.Start).ToArray(),
                 succeeded && findings.All(finding => finding.Classification != "Unknown") ? "Complete" : "Partial")
@@ -132,7 +143,8 @@ internal static class TestingMigrationCommand
             ParenthesizedExpressionSyntax parentheses => parentheses.Expression == expression,
             PostfixUnaryExpressionSyntax suppression => suppression.IsKind(SyntaxKind.SuppressNullableWarningExpression),
             _ => false,
-        })) expression = parent;
+        }))
+            expression = parent;
         if (expression.Parent is CastExpressionSyntax or IsPatternExpressionSyntax
             || expression.Parent is BinaryExpressionSyntax binary && binary.Kind() is SyntaxKind.AsExpression or SyntaxKind.IsExpression)
             return ("Manual", "dom_cast", null, expression);
@@ -140,7 +152,8 @@ internal static class TestingMigrationCommand
             || expression.Parent is PrefixUnaryExpressionSyntax prefix && prefix.Kind() is SyntaxKind.PreIncrementExpression or SyntaxKind.PreDecrementExpression
             || expression.Parent is PostfixUnaryExpressionSyntax postfix && postfix.Kind() is SyntaxKind.PostIncrementExpression or SyntaxKind.PostDecrementExpression)
             return ("Manual", "dom_mutation", null, expression);
-        if (expression == access) return ("Manual", "dom_alias_or_escape", null, expression);
+        if (expression == access)
+            return ("Manual", "dom_alias_or_escape", null, expression);
         // QueryAll's collection/indexer contract is not a proved read mapping; retain the full outer use for review.
         if (expression.DescendantNodesAndSelf().Any(node => node is ElementAccessExpressionSyntax or ElementBindingExpressionSyntax))
             return ("Manual", "read_shape_not_supported", null, expression);
@@ -156,7 +169,8 @@ internal static class TestingMigrationCommand
             token.ThrowIfCancellationRequested();
             var name = member is MemberAccessExpressionSyntax qualified ? qualified.Name : ((MemberBindingExpressionSyntax)member).Name;
             var symbol = model.GetSymbolInfo(member, token).Symbol;
-            if (symbol is null) return ("Unknown", "legacy_binding_unavailable", null, expression);
+            if (symbol is null)
+                return ("Unknown", "legacy_binding_unavailable", null, expression);
             if (symbol?.ContainingAssembly?.Identity.Name != "AngleSharp" || symbol.Locations.Any(location => location.IsInSource))
                 return ("Manual", "custom_or_unproved_dom_use", null, expression);
             if (name.Identifier.ValueText is "SetAttribute" or "RemoveAttribute" or "AppendChild" or "RemoveChild" or "InsertBefore" or "ReplaceChild")
@@ -174,28 +188,45 @@ internal static class TestingMigrationCommand
                     renames.Add(named.Name, name.Identifier.ValueText == "GetAttribute" ? "name" : "selector");
                 if (name.Identifier.ValueText != "GetAttribute")
                 {
-                    try { grammar.Query(text, token); }
-                    catch (HtmlSelectorUnsupportedException) { return ("Manual", "selector_unsupported", null, expression); }
-                    catch (ArgumentException) { return ("Manual", "selector_invalid", null, expression); }
+                    try
+                    {
+                        grammar.Query(text, token);
+                    }
+                    catch (HtmlSelectorUnsupportedException)
+                    {
+                        return ("Manual", "selector_unsupported", null, expression);
+                    }
+                    catch (ArgumentException)
+                    {
+                        return ("Manual", "selector_invalid", null, expression);
+                    }
                     renames.Add(name, name.Identifier.ValueText == "QuerySelector" ? "Query" : "QueryAll");
                     queried = true;
                 }
-                else if (!queried) return ("Manual", "read_shape_not_supported", null, expression);
+                else if (!queried)
+                    return ("Manual", "read_shape_not_supported", null, expression);
             }
             else if (symbol is IPropertySymbol)
             {
-                if (name.Identifier.ValueText is "TextContent" or "Children") continue;
-                if (name.Identifier.ValueText == "Title" && !queried) continue;
-                if (!queried) return ("Manual", "read_shape_not_supported", null, expression);
+                if (name.Identifier.ValueText is "TextContent" or "Children")
+                    continue;
+                if (name.Identifier.ValueText == "Title" && !queried)
+                    continue;
+                if (!queried)
+                    return ("Manual", "read_shape_not_supported", null, expression);
                 var replacement = name.Identifier.ValueText switch
                 {
-                    "ParentElement" => "Parent", "PreviousElementSibling" => "PreviousSibling",
-                    "NextElementSibling" => "NextSibling", _ => null,
+                    "ParentElement" => "Parent",
+                    "PreviousElementSibling" => "PreviousSibling",
+                    "NextElementSibling" => "NextSibling",
+                    _ => null,
                 };
-                if (replacement is null) return ("Manual", "read_shape_not_supported", null, expression);
+                if (replacement is null)
+                    return ("Manual", "read_shape_not_supported", null, expression);
                 renames.Add(name, replacement);
             }
-            else return ("Unknown", "legacy_binding_unavailable", null, expression);
+            else
+                return ("Unknown", "legacy_binding_unavailable", null, expression);
         }
         // Only a directly initialized ordinary local is a recognized read boundary.
         // Unknown surrounding operators/calls must not inherit a candidate from an inner DOM read.
@@ -204,7 +235,8 @@ internal static class TestingMigrationCommand
             || declaration.Parent?.Parent is not LocalDeclarationStatementSyntax local
             || local.UsingKeyword.RawKind != 0)
         {
-            while (expression.Parent is ExpressionSyntax outer) expression = outer;
+            while (expression.Parent is ExpressionSyntax outer)
+                expression = outer;
             return ("Manual", "outer_use_not_supported", null, expression);
         }
         var preview = expression.ReplaceNodes(renames.Keys,

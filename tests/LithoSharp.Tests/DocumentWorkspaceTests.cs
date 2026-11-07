@@ -47,7 +47,8 @@ public sealed class DocumentWorkspaceTests
     {
         await using var workspace = new DocumentWorkspace();
         var slots = AnalysisSlots(workspace);
-        await slots.WaitAsync(); await slots.WaitAsync();
+        await slots.WaitAsync();
+        await slots.WaitAsync();
         Task<DocumentInfo>? obsolete = null;
         Task<DocumentInfo>? current = null;
         try
@@ -63,7 +64,10 @@ public sealed class DocumentWorkspaceTests
             // Reopening starts a new lifetime and may use a lower version/gen.
             current = workspace.InspectVersionedAsync("docs/reopen.md", SampleB, 1, 1);
         }
-        finally { slots.Release(2); }
+        finally
+        {
+            slots.Release(2);
+        }
         var latest = await current!.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(latest.Title).IsEqualTo("Beta");
         await Assert.That(workspace.TryGet("docs/reopen.md", out var saved)).IsTrue();
@@ -79,7 +83,8 @@ public sealed class DocumentWorkspaceTests
     {
         var workspace = new DocumentWorkspace();
         var slots = AnalysisSlots(workspace);
-        await slots.WaitAsync(); await slots.WaitAsync();
+        await slots.WaitAsync();
+        await slots.WaitAsync();
         Task<DocumentInfo>? pending = null;
         try
         {
@@ -91,7 +96,11 @@ public sealed class DocumentWorkspaceTests
             await Assert.That(OwnedMetadataCount(workspace)).IsEqualTo(0);
             await Assert.That(OwnedActiveAnalysisCount(workspace)).IsEqualTo(0);
         }
-        finally { slots.Release(2); await workspace.DisposeAsync(); }
+        finally
+        {
+            slots.Release(2);
+            await workspace.DisposeAsync();
+        }
     }
 
     private static object OwnedField(DocumentWorkspace workspace, string name) =>

@@ -35,7 +35,8 @@ internal sealed class MemberModel
     private static bool HasInitializer(EqualsValueClauseSyntax? initializer)
     {
         var expression = initializer?.Value;
-        while (expression is PostfixUnaryExpressionSyntax suppression) expression = suppression.Operand;
+        while (expression is PostfixUnaryExpressionSyntax suppression)
+            expression = suppression.Operand;
         return expression is not null && !expression.IsKind(SyntaxKind.NullLiteralExpression)
             && !expression.IsKind(SyntaxKind.DefaultLiteralExpression) && expression is not DefaultExpressionSyntax;
     }
@@ -71,14 +72,17 @@ internal static class GeneratorModel
         {
             foreach (var member in current.GetMembers())
             {
-                if (member.IsStatic) continue;
+                if (member.IsStatic)
+                    continue;
                 if (member is IPropertySymbol property)
                 {
                     // Reflection hides a base property by signature before filtering its accessors or YAML attributes.
                     // Private properties participate only when declared on the reflected type.
                     if (property.DeclaredAccessibility == Accessibility.Private
-                        && !SymbolEqualityComparer.Default.Equals(current, type)) continue;
-                    if (propertySlots.Any(slot => SamePropertySignature(slot, property))) continue;
+                        && !SymbolEqualityComparer.Default.Equals(current, type))
+                        continue;
+                    if (propertySlots.Any(slot => SamePropertySignature(slot, property)))
+                        continue;
                     propertySlots.Add(property);
                     if (!property.IsIndexer && property.SetMethod?.DeclaredAccessibility == Accessibility.Public
                         && GetYamlAttribute(property, "YamlDotNet.Serialization.YamlIgnoreAttribute") is null)
@@ -105,7 +109,8 @@ internal static class GeneratorModel
              current = current is IPropertySymbol property ? property.OverriddenProperty : null)
         {
             var attribute = current.GetAttributes().FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == metadataName);
-            if (attribute is not null) return attribute;
+            if (attribute is not null)
+                return attribute;
         }
         return null;
     }
@@ -114,7 +119,8 @@ internal static class GeneratorModel
     {
         for (var current = type; current is not null; current = current.BaseType)
             if (current.GetMembers().Any(member => member is IPropertySymbol { IsRequired: true }
-                or IFieldSymbol { IsRequired: true })) return true;
+                or IFieldSymbol { IsRequired: true }))
+                return true;
         return false;
     }
 

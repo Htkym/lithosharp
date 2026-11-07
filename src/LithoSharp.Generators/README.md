@@ -72,15 +72,15 @@ not use these names. `WriteJsonSchema` is also reserved when `EmitJsonSchema` is
 enabled. Conflicts produce `LSG001` at the source declaration before generation,
 including when no AdditionalFiles are present.
 
-## Markdownの解析
+## Markdown parsing
 
-Syntamark.Source [1.0.0]のportable sourceを既定でコンパイルします。解析に使うYamlDotNet [18.1.0]もanalyzer payloadに同梱します。Core runtimeやSyntamarkのruntime DLLをcompiler hostへ読み込ませません。
+The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. This branch uses the published `1.2.0` runtime/Source pair from NuGet. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. See the [current version and body-analysis limits](../../docs/migration-2.0.md#package-versions).
 
-source-treeからビルドする場合、Directory.Build.propsが固定版を選びます。SyntamarkSourceVersionは選択済みのruntime/source pairと同じ版にする必要があり、不一致はビルド時に拒否されます。
+The actual `StaticContentGenerator` path passes the original immutable AdditionalText buffer to `MarkdownSourceHostAdapter`, verifies the parser/profile/options identity, and calls `ScanFrontMatter`. Its separate `frontmatter-scan/1` result contains raw header ranges and status, with no body facts, YAML tree, document hash or full-analysis coverage. It stops recognizing input at a closing delimiter, so malformed, deeply nested or oversized bodies do not consume the header budget. The default header input limit is 1,048,576 UTF-16 code units; cancellation propagates.
 
-通常のStaticContentGenerator経路も、同じAdditionalText原文をMarkdownSourceHostAdapterへ渡します。固定parser identity・profileと実MdOptionsを照合し、元のUTF-16区間を保つfrontmatter factsを既存LSG005/006検査に使います。YamlSpanは区切り行を含まず、YAML node位置の基準はその開始offsetです。BOM・CRLFを取り除いた別bufferへ位置を付け替えず、独自のfrontmatter境界抽出は行いません。
+`Closed` establishes header delimiters and Unicode, not valid YAML or schema. Existing YamlDotNet validation reads the original `YamlSpan`, excluding delimiter lines, and reports `LSG005/006` in the original BOM/CRLF-aware UTF-16 coordinates. `Unknown` or missing required ranges report `LSG002` and keep the generated lookup Open; known absence or confirmed EOF untermination retains its existing strict diagnostic. No separate normalized buffer or local boundary scanner is used.
 
-frontmatterのUnknownや区間欠落は検証成功とせず、LSG002を報告して生成lookupをOpenにします。既知のAbsent・未閉鎖・YAML/schemaエラーは従来のLSG005/006へ渡します。本文のUnsupported/Partialだけを理由にfrontmatter失敗とはしません。既定MdOptionsの入力上限1048576 UTF-16などの有限budgetを使い、取消は伝播します。原入力から作るfingerprintの対象・方式、公開API、runtime/MDX経路、固定pairのbytesは変更しません。
+The manifest fingerprint still covers the original input independently. Invalid body Unicode can leave that fingerprint unavailable even when header/schema validation succeeds, so this does not certify a Closed lookup or validate the body. The compatibility full-facts adapter remains separate from the header-only path.
 
 ## Fixed full HTML plans
 

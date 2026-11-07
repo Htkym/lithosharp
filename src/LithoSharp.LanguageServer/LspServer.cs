@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using LithoSharp.Build;
+using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Documentation;
 using LithoSharp.Inspection;
@@ -236,12 +237,19 @@ public sealed class LspServer
                     save = new { includeText = false },
                 },
                 documentSymbolProvider = true,
-                experimental = new { lithosharp = new {
-                    schemaVersion = "1.0", coreVersion,
-                    markdownInspection = true, mdxInspection = "on-demand-worker",
-                    preflightStaticInputs = false, preflightTrustedCatalog = false,
-                    project = ToolingCapabilities.NotEvaluatedProject,
-                } },
+                experimental = new
+                {
+                    lithosharp = new
+                    {
+                        schemaVersion = "1.0",
+                        coreVersion,
+                        markdownInspection = true,
+                        mdxInspection = "on-demand-worker",
+                        preflightStaticInputs = false,
+                        preflightTrustedCatalog = false,
+                        project = ToolingCapabilities.NotEvaluatedProject,
+                    }
+                },
             },
             serverInfo = new { name = "lithosharp", version = coreVersion },
         }, JsonOptions);
@@ -419,7 +427,10 @@ public sealed class LspServer
             };
             if (id is not null && requests.TryGetValue(id, out var source))
             {
-                try { source.Cancel(); }
+                try
+                {
+                    source.Cancel();
+                }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -515,7 +526,8 @@ public sealed class LspServer
                 return;
             }
             var generationChanged = contextGeneration is { } nextGeneration && nextGeneration != clientContextGeneration;
-            if (contextGeneration is { } generation) clientContextGeneration = generation;
+            if (contextGeneration is { } generation)
+                clientContextGeneration = generation;
             var previousOwners = buffers.Values.ToDictionary(buffer => buffer.Uri, buffer => ContextFor(buffer.Uri));
             contexts.RemoveAll(entry => entry.ProjectId == projectId);
             if (snapshot is not null)
@@ -533,8 +545,10 @@ public sealed class LspServer
                 var path = UriPath(uri);
                 workspace.Remove(path);
                 workspace.Remove(projectId, path);
-                if (previousOwners[uri] is { } previous) workspace.Remove(previous.ProjectId, path);
-                if (ContextFor(uri) is { } current) workspace.Remove(current.ProjectId, path);
+                if (previousOwners[uri] is { } previous)
+                    workspace.Remove(previous.ProjectId, path);
+                if (ContextFor(uri) is { } current)
+                    workspace.Remove(current.ProjectId, path);
             }
             foreach (var (uri, version) in affected)
             {
@@ -547,7 +561,8 @@ public sealed class LspServer
     {
         lock (stateGate)
         {
-            if (generation is not { } next || next <= clientContextGeneration) return;
+            if (generation is not { } next || next <= clientContextGeneration)
+                return;
             clientContextGeneration = next;
             // Retain the last valid snapshots. Invalidate owned work before new
             // publication so an obsolete analysis cannot acquire the new tag.
@@ -555,9 +570,11 @@ public sealed class LspServer
             {
                 var path = UriPath(buffer.Uri);
                 workspace.Remove(path);
-                if (ContextFor(buffer.Uri) is { } owner) workspace.Remove(owner.ProjectId, path);
+                if (ContextFor(buffer.Uri) is { } owner)
+                    workspace.Remove(owner.ProjectId, path);
             }
-            foreach (var buffer in buffers.Values) TrackDocumentAnalysis(buffer.Uri, buffer.Version);
+            foreach (var buffer in buffers.Values)
+                TrackDocumentAnalysis(buffer.Uri, buffer.Version);
         }
     }
 
@@ -586,11 +603,13 @@ public sealed class LspServer
         foreach (var route in entry.Snapshot.Routes)
         {
             var source = route.SourcePath.Replace('\\', '/');
-            if (string.Equals(source, path, comparison)) return true;
+            if (string.Equals(source, path, comparison))
+                return true;
             // Relative sources are scoped to the declared folders, never matched
             // by filename alone across unrelated roots.
             if (!Path.IsPathRooted(source) && entry.Folders.Any(folder =>
-                string.Equals(UriPath(folder).TrimEnd('/') + "/" + source, path, comparison))) return true;
+                string.Equals(UriPath(folder).TrimEnd('/') + "/" + source, path, comparison)))
+                return true;
         }
         return false;
     }
@@ -602,10 +621,12 @@ public sealed class LspServer
             ProjectContextEntry? sourceOwner = null;
             foreach (var entry in contexts.Where(entry => ClaimsSource(entry, uri)))
             {
-                if (sourceOwner is not null) return null;
+                if (sourceOwner is not null)
+                    return null;
                 sourceOwner = entry;
             }
-            if (sourceOwner is not null) return sourceOwner;
+            if (sourceOwner is not null)
+                return sourceOwner;
 
             ProjectContextEntry? best = null;
             var bestFolderLength = -1;
@@ -767,6 +788,8 @@ public sealed class LspServer
 
         var diagnostics = documentDiagnostics.Where(diagnostic => diagnostic.Location?.Line is not null)
             .Select(ToLspDiagnostic).ToArray();
+        var incomplete = documentDiagnostics.FirstOrDefault(diagnostic =>
+            diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId);
         lock (stateGate)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -779,6 +802,8 @@ public sealed class LspServer
             buffer.Inspection = info;
             buffer.InspectionContext = entry;
             Publish(uri, version, diagnostics, buffer.OpenGeneration, contextGeneration);
+            PublishAnalysisStatus(buffer, contextGeneration, incomplete is null ? "ready" : "unavailable",
+                incomplete?.Message ?? "Markdown syntax analysis completed.");
         }
     }
 
@@ -857,15 +882,32 @@ public sealed class LspServer
             buffer.MdxInspectionCompleted = true;
             buffer.InspectionContext = entry;
             Publish(buffer.Uri, buffer.Version, diagnostics, buffer.OpenGeneration, contextGeneration);
-            PublishAnalysisStatus(buffer, contextGeneration, "ready", "MDX syntax analysis completed; modules, plugins and SSR were not executed.");
+            var unavailable = result.Stage == "unavailable";
+            PublishAnalysisStatus(buffer, contextGeneration, unavailable ? "unavailable" : "ready",
+                unavailable ? result.Diagnostics.FirstOrDefault()?.Message
+                    ?? "MDX header analysis is incomplete; unavailable facts were not validated."
+                    : "MDX syntax analysis completed; modules, plugins and SSR were not executed.");
         }
     }
 
     private void PublishAnalysisStatus(DocumentBuffer buffer, long contextGeneration, string state, string message)
     {
-        transport.WriteMessage(JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "lithosharp/analysisStatus",
-            @params = new { uri = buffer.Uri, version = buffer.Version, language = "mdx", state, message,
-                lithosharpOpenGeneration = buffer.OpenGeneration, lithosharpContextGeneration = contextGeneration } }, JsonOptions));
+        var language = IsMdx(buffer.LanguageId, buffer.Uri) ? "mdx" : "markdown";
+        transport.WriteMessage(JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method = "lithosharp/analysisStatus",
+            @params = new
+            {
+                uri = buffer.Uri,
+                version = buffer.Version,
+                language,
+                state,
+                message,
+                lithosharpOpenGeneration = buffer.OpenGeneration,
+                lithosharpContextGeneration = contextGeneration
+            }
+        }, JsonOptions));
     }
 
     private async Task<JsonElement> SymbolsForAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
@@ -901,7 +943,7 @@ public sealed class LspServer
         }
 
         DocumentInfo info;
-        for (;;)
+        for (; ; )
         {
             Task pending;
             lock (stateGate)
@@ -955,13 +997,13 @@ public sealed class LspServer
             buffer.InspectionContext = context;
         }
 
-        return BuildSymbols(info.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
+        return BuildSymbols(info);
     }
 
     private async Task<JsonElement> MdxSymbolsAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
     {
         MdxAnalysisResult? result;
-        for (;;)
+        for (; ; )
         {
             Task pending;
             lock (stateGate)
@@ -1005,42 +1047,73 @@ public sealed class LspServer
 
         cancellationToken.ThrowIfCancellationRequested();
         return result is null ? EmptySymbols()
-            : BuildSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
+            : BuildMdxSymbols(result.Headings.Select(heading => (heading.Text, heading.RawLevel, heading.Location)).ToArray());
     }
 
     private static JsonElement EmptySymbols() =>
         JsonSerializer.SerializeToElement(Array.Empty<object>(), JsonOptions);
 
-    private static JsonElement BuildSymbols((string Text, int Level, SiteSourceLocation? Location)[] headings)
+    private static JsonElement BuildSymbols(DocumentInfo info)
+    {
+        var sections = info.Sections
+            .Where(section => section.HeadingLocalKey is not null)
+            .ToDictionary(section => section.HeadingLocalKey!, StringComparer.Ordinal);
+        var nodes = new Dictionary<string, SymbolNode>(StringComparer.Ordinal);
+        var symbols = new List<(DocumentSectionInfo? Section, SymbolNode Node)>();
+        foreach (var heading in info.Headings)
+        {
+            var location = heading.Location;
+            if (location?.Line is null || location.Column is null)
+                continue;
+
+            var section = heading.LocalKey is { } localKey && sections.TryGetValue(localKey, out var found)
+                ? found : null;
+            if (section?.Location is not { Line: not null, Column: not null })
+                section = null;
+
+            var selectionRange = LspRange(location);
+            var node = new SymbolNode
+            {
+                Name = heading.Text,
+                Range = section?.Location is { Line: not null, Column: not null } subtree
+                    ? LspRange(subtree) : selectionRange,
+                SelectionRange = selectionRange,
+            };
+            symbols.Add((section, node));
+            if (section is not null)
+                nodes.Add(section.LocalKey, node);
+        }
+
+        var roots = new List<SymbolNode>();
+        foreach (var (section, node) in symbols)
+        {
+            if (section?.ParentLocalKey is { } parentKey && nodes.TryGetValue(parentKey, out var parent))
+                parent.Children.Add(node);
+            else
+                roots.Add(node);
+        }
+
+        return JsonSerializer.SerializeToElement(roots.Select(node => node.ToJson()).ToArray(), JsonOptions);
+    }
+
+    private static JsonElement BuildMdxSymbols((string Text, int Level, SiteSourceLocation? Location)[] headings)
     {
         var roots = new List<SymbolNode>();
         var stack = new Stack<(int Level, SymbolNode Node)>();
         foreach (var (text, level, location) in headings)
         {
             if (location?.Line is null || location.Column is null)
-            {
                 continue;
-            }
 
-            var node = new SymbolNode
-            {
-                Name = text,
-                Range = LspRange(location),
-                Children = [],
-            };
+            var range = LspRange(location);
+            var node = new SymbolNode { Name = text, Range = range, SelectionRange = range };
             while (stack.Count != 0 && stack.Peek().Level >= level)
-            {
                 stack.Pop();
-            }
 
             if (stack.Count == 0)
-            {
                 roots.Add(node);
-            }
             else
-            {
                 stack.Peek().Node.Children.Add(node);
-            }
 
             stack.Push((level, node));
         }
@@ -1052,6 +1125,7 @@ public sealed class LspServer
     {
         public required string Name;
         public required object Range;
+        public required object SelectionRange;
         public List<SymbolNode> Children = [];
 
         public object ToJson() => new
@@ -1059,7 +1133,7 @@ public sealed class LspServer
             name = Name,
             kind = 3,
             range = Range,
-            selectionRange = Range,
+            selectionRange = SelectionRange,
             children = Children.Select(child => child.ToJson()).ToArray(),
         };
     }
@@ -1163,7 +1237,10 @@ public sealed class LspServer
 
             foreach (var source in requests.Values)
             {
-                try { source.Cancel(); }
+                try
+                {
+                    source.Cancel();
+                }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -1259,9 +1336,11 @@ public sealed class LspServer
     private static bool TryClientGeneration(JsonElement element, string name, out long? generation)
     {
         generation = null;
-        if (!element.TryGetProperty(name, out var value)) return true;
+        if (!element.TryGetProperty(name, out var value))
+            return true;
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var number)
-            || number < 0 || number > 9007199254740991) return false;
+            || number < 0 || number > 9007199254740991)
+            return false;
         generation = number;
         return true;
     }

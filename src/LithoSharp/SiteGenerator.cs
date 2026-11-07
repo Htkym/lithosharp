@@ -250,7 +250,8 @@ public sealed partial class SiteGenerator
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
         var sourceErrors = posts.SelectMany(post => post.CompilerDiagnostics ?? [])
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
-        if (sourceErrors.Length != 0) throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
+        if (sourceErrors.Length != 0)
+            throw new SiteQualityValidationException(new SiteQualityReport(sourceErrors));
         ArgumentNullException.ThrowIfNull(options.Extensions);
         ArgumentNullException.ThrowIfNull(options.GeneratedAssets);
         options = options with
@@ -319,16 +320,6 @@ public sealed partial class SiteGenerator
             .WithGenerated(options.GeneratedAssets, site.BaseUrl);
         var publishedPosts = publishedMarkdownClaims
             .Select(claim => claim.Page.Content)
-            .ToArray();
-        // Unsupported-syntax warnings (for example, footnotes kept as literal
-        // text) are reported once per generation from the post bodies directly,
-        // so clean and incremental builds report identically without extra parses.
-        var compilerWarnings = publishedPosts
-            .SelectMany(post => post.CompilerDiagnostics ?? new[]
-            {
-                LithoLimits.FindFootnoteWarning(post.MarkdownBody, post.FilePath),
-                LithoLimits.FindBrowserAssetWarning(post.MarkdownBody, post.FilePath),
-            }.OfType<LithoSharp.Diagnostics.SiteDiagnostic>())
             .ToArray();
         var publishedExtraPages = publishedExtraPageClaims
             .Select(claim => claim.Page.Content)
@@ -582,7 +573,8 @@ public sealed partial class SiteGenerator
         bool InScope(string path) => outputScope.Length == 0 || outputScope.Any(prefix => path == prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal));
         if (outputScope.Length > 0)
         {
-            if (!builtInTemplate) throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
+            if (!builtInTemplate)
+                throw new ArgumentException("Subset builds require a built-in template.", nameof(options));
             buildPlan = SiteBuildPlan.Create(buildPlan.Nodes.Select(node => new BuildNode(node.Id, node.Inputs, node.Dependencies,
                 node.Artifacts.Where(artifact => InScope(artifact.RelativeOutputPath) || node.Id.Value.StartsWith("asset:", StringComparison.Ordinal)))));
             ownedArtifactPaths = buildPlan.Artifacts.Select(artifact => artifact.RelativeOutputPath).Order(StringComparer.Ordinal).ToArray();
@@ -604,6 +596,7 @@ public sealed partial class SiteGenerator
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
+        IReadOnlyList<SiteDiagnostic> compilerWarnings = [];
         var committed = false;
         var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
         async Task VerifyQualityOutputAsync(string root)
@@ -739,6 +732,14 @@ public sealed partial class SiteGenerator
                 modifiedInStaging.AddRange(generatedInStaging);
             }
 
+            // Reader diagnostics belong to the original, untrimmed source snapshot.
+            // Otherwise reuse the final body's compilation, including on no-op builds
+            // after its persistent cache is attached. Never merge these snapshots.
+            compilerWarnings = publishedPosts
+                .SelectMany(post => post.CompilerDiagnostics ?? CompilePostBody(configuration, post).Diagnostics)
+                .Concat(contentPages.SelectMany(page => page.MarkdownDiagnostics ?? []))
+                .ToArray();
+
             staleRemovedArtifacts = await outputTransaction.RemoveStaleOwnedFilesAsync(
                     currentOwnedPaths, cancellationToken, InScope)
                 .ConfigureAwait(false);
@@ -801,8 +802,10 @@ public sealed partial class SiteGenerator
                 committed = true;
                 timing.MarkCommit();
             }
-            else await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
-            if (htmlFactsCache is not null) await htmlFactsCache.PublishAsync().ConfigureAwait(false);
+            else
+                await VerifyQualityOutputAsync(outputRoot).ConfigureAwait(false);
+            if (htmlFactsCache is not null)
+                await htmlFactsCache.PublishAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -1136,14 +1139,15 @@ public sealed partial class SiteGenerator
             return compiled.PlainText;
         // Search needs no layout HTML or TOC. The same verified parse record is used
         // by page rendering; corrupt or missing records still take the normal compile path.
-        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody))?.PlainText
+        return ReadCachedPostParse(configuration, post, MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody))?.PlainText
             ?? CompilePostBody(configuration, post).PlainText;
     }
 
     private static CachedPostParse? ReadCachedPostParse(RenderContext configuration, MarkdownPost post, string sourceHash)
     {
         configuration.Cancellation.ThrowIfCancellationRequested();
-        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent) return null;
+        if (configuration.CompiledBodies.PersistentParseCache is not { } persistent)
+            return null;
         return persistent.Cache.ReadPostParseAsync(persistent.CompilerFingerprint,
             sourceHash, post.MarkdownBody.Length,
             configuration.Cancellation).GetAwaiter().GetResult();
@@ -1153,7 +1157,11 @@ public sealed partial class SiteGenerator
     {
         var cancellation = configuration.Cancellation;
         cancellation.ThrowIfCancellationRequested();
-        var sourceHash = MarkdownDocumentFingerprints.SourceHash(post.MarkdownBody);
+        var sourceHash = MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody);
+        var retained = post.BodyAnalysis is null ? null
+            : MarkdownAnalysisAdapter.RetainForBody(post.BodyAnalysis, post.MarkdownBody, post.FilePath);
+        var originalSource = retained is not null ? post.BodySource : null;
+        var sourceOffset = originalSource?.BodyStartOffset ?? 0;
         var persistent = configuration.CompiledBodies.PersistentParseCache;
         if (persistent is not null)
         {
@@ -1166,26 +1174,50 @@ public sealed partial class SiteGenerator
             {
                 var cachedHeadings = cached.Headings.Select(heading => new DocumentHeading(
                     heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
-                    new SourceSpan(heading.SpanStart, heading.SpanLength))).ToArray();
+                    new SourceSpan(sourceOffset + heading.SpanStart, heading.SpanLength))).ToArray();
                 return BuildCompiledBody(
                     configuration,
                     cached.RawHtml,
                     new DocumentSemantics(
-                        new DocumentSource(null, 0),
+                        originalSource ?? new DocumentSource(null, 0),
                         DocumentSemantics.TitleOf(cachedHeadings),
                         cached.PlainText,
                         cachedHeadings,
                         cached.Links.Select(link => new DocumentLink(
                             link.RawText, link.Url, link.Title, link.IsImage,
-                            new SourceSpan(link.SpanStart, link.SpanLength))).ToArray(),
+                            new SourceSpan(sourceOffset + link.SpanStart, link.SpanLength))).ToArray(),
                         cached.Assets.Select(asset => new DocumentAsset(
-                            asset.Url, new SourceSpan(asset.SpanStart, asset.SpanLength))).ToArray(),
+                            asset.Url, new SourceSpan(sourceOffset + asset.SpanStart, asset.SpanLength))).ToArray(),
                         [],
                         []));
             }
         }
 
-        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody, null, cancellation);
+        // Reuse reader blocks only for the exact body, path and compiler contract.
+        // Directly constructed posts retain their body-relative warning policy;
+        // reader warnings keep their original-file channel in CompilerDiagnostics.
+        var analyzed = _markdownCompiler.Analyze(post.MarkdownBody,
+            originalSource ?? new DocumentSource(post.FilePath, 0), cancellation, retained);
+        IReadOnlyList<SiteDiagnostic> finalDiagnostics = analyzed.Semantics?.Diagnostics
+            ?? [new SiteDiagnostic(MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId,
+                SiteDiagnosticSeverity.Error,
+                "Markdown analysis is incomplete; unavailable facts were not validated.",
+                string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath))];
+        var errors = finalDiagnostics
+            .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)
+            // An incomplete final-body analysis has no mapping through header removal,
+            // inclusions or trimming back to the original file. Keep that position unknown.
+            .Select(diagnostic => diagnostic.Id == MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId && originalSource is null
+                ? new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
+                    string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath),
+                    diagnostic.Category, diagnostic.RelatedLocations.Select(location => new SiteSourceLocation(location.FilePath)))
+                : diagnostic.Location is not null || string.IsNullOrWhiteSpace(post.FilePath)
+                ? diagnostic
+                : new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
+                    new SiteSourceLocation(post.FilePath), diagnostic.Category, diagnostic.RelatedLocations))
+            .ToArray();
+        if (errors.Length != 0)
+            throw new SiteQualityValidationException(new SiteQualityReport(errors));
         if (persistent is not null
             && analyzed.Semantics is { Components.Count: 0, Diagnostics.Count: 0 } semantics)
         {
@@ -1201,12 +1233,12 @@ public sealed partial class SiteGenerator
                         semantics.PlainText,
                         semantics.Headings.Select(heading => new CachedPostHeading(
                             heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
-                            heading.Span.Start, heading.Span.Length)).ToArray(),
+                            heading.Span.Start - semantics.Source.BodyStartOffset, heading.Span.Length)).ToArray(),
                         semantics.Links.Select(link => new CachedPostLink(
                             link.RawText, link.Url, link.Title, link.IsImage,
-                            link.Span.Start, link.Span.Length)).ToArray(),
+                            link.Span.Start - semantics.Source.BodyStartOffset, link.Span.Length)).ToArray(),
                         semantics.Assets.Select(asset => new CachedPostAsset(
-                            asset.Url, asset.Span.Start, asset.Span.Length)).ToArray()),
+                            asset.Url, asset.Span.Start - semantics.Source.BodyStartOffset, asset.Span.Length)).ToArray()),
                     cancellation).GetAwaiter().GetResult();
             }
             catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
@@ -1238,7 +1270,12 @@ public sealed partial class SiteGenerator
             toc,
             semantics?.PlainText ?? string.Empty,
             semantics?.Links ?? [],
-            semantics?.Assets ?? []);
+            semantics?.Assets ?? [])
+        {
+            Diagnostics = semantics is { Diagnostics.Count: > 0 }
+                ? Array.AsReadOnly(semantics.Diagnostics.ToArray())
+                : [],
+        };
     }
 
     internal string GetSitePath(RenderContext configuration, string relativePath) =>
@@ -1689,7 +1726,8 @@ public sealed partial class SiteGenerator
         body.AppendLine($"<p class=\"docs-kicker\">Documentation</p>");
         body.AppendLine($"<h1>{Html.Encode(configuration.Site.Title)}</h1>");
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
-        if (enableSearch) body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
+        if (enableSearch)
+            body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
         if (orderedPosts.Count > 0 && configuration.DocsTemplate?.ShowStartLink != false)
         {
             var first = orderedPosts[0];
@@ -2140,7 +2178,9 @@ public sealed partial class SiteGenerator
                     : string.Empty,
                 NormalizeForIndex(facts.SearchText))
             {
-                Collection = page.Metadata.Document?.Collection, Version = page.Metadata.Document?.Version, Locale = page.Metadata.Document?.Locale,
+                Collection = page.Metadata.Document?.Collection,
+                Version = page.Metadata.Document?.Version,
+                Locale = page.Metadata.Document?.Locale,
                 Sections = page.Metadata.Document is null ? null : facts.SearchSections()
             });
         }
@@ -2323,7 +2363,8 @@ public sealed partial class SiteGenerator
     // This catches case/Unicode aliases on insensitive volumes without conflating distinct inputs.
     private static bool ContainsInputDirectory(string root, string path)
     {
-        if (ContainsDirectory(root, path)) return true;
+        if (ContainsDirectory(root, path))
+            return true;
         return ContainsDirectory(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
     }
 
@@ -2374,7 +2415,8 @@ public sealed partial class SiteGenerator
         {
             writer.WriteStartObject();
             writer.WriteNumber("version", OutputManifestVersion);
-            if (buildCacheKey is not null) writer.WriteString("buildCache", buildCacheKey);
+            if (buildCacheKey is not null)
+                writer.WriteString("buildCache", buildCacheKey);
             writer.WritePropertyName("files");
             writer.WriteStartArray();
             foreach (var path in ownedArtifactPaths)
@@ -2892,7 +2934,8 @@ public sealed partial class SiteGenerator
 
         private void Advance(ref long field)
         {
-            if (!enabled) return;
+            if (!enabled)
+                return;
             var now = Stopwatch.GetTimestamp();
             field += (long)Stopwatch.GetElapsedTime(last, now).TotalMilliseconds;
             last = now;
@@ -2912,12 +2955,14 @@ public sealed partial class SiteGenerator
 
         internal void AddVerificationTimestampTicks(long timestampTicks)
         {
-            if (enabled) Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
+            if (enabled)
+                Interlocked.Add(ref verificationTimestampTicks, timestampTicks);
         }
 
         internal void CountVerifiedArtifact()
         {
-            if (enabled) Interlocked.Increment(ref verifiedArtifacts);
+            if (enabled)
+                Interlocked.Increment(ref verifiedArtifacts);
         }
 
         internal long VerificationTimestampTicks => Interlocked.Read(ref verificationTimestampTicks);
@@ -2990,7 +3035,8 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             var owned = _previousOwnershipState?.Artifacts.FirstOrDefault(artifact =>
                 string.Equals(artifact.Path, OutputManifestRelativePath, StringComparison.Ordinal));
-            if (owned is null) return null;
+            if (owned is null)
+                return null;
             try
             {
                 var manifestRoot = _existingOutputCopied ? StagingRoot : _outputRoot;
@@ -3000,12 +3046,14 @@ public sealed partial class SiteGenerator
                 using var buffer = new MemoryStream();
                 await file.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bytes = buffer.ToArray();
-                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256) return null;
+                if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != owned.Sha256)
+                    return null;
                 using var document = JsonDocument.Parse(bytes);
                 var root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object
                     || !root.TryGetProperty("version", out var version) || !version.TryGetInt32(out var number) || number != OutputManifestVersion
-                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String) return null;
+                    || !root.TryGetProperty("buildCache", out var cache) || cache.ValueKind != JsonValueKind.String)
+                    return null;
                 var digest = cache.GetString();
                 return digest is not null && IsSha256(digest) && digest == digest.ToLowerInvariant() ? digest : null;
             }
@@ -3046,7 +3094,8 @@ public sealed partial class SiteGenerator
         /// </summary>
         internal bool CanBypassPublishedOutput(IEnumerable<string> currentOwnedPaths)
         {
-            if (_previousOwnershipState is null) return false;
+            if (_previousOwnershipState is null)
+                return false;
             var current = currentOwnedPaths.Select(ArtifactPathIdentity).ToHashSet(StringComparer.Ordinal);
             return _previousOwnershipState.Artifacts.All(artifact => current.Contains(ArtifactPathIdentity(artifact.Path)));
         }
@@ -3098,7 +3147,8 @@ public sealed partial class SiteGenerator
                 throw new InvalidOperationException("The file system root cannot be used as the output directory.");
             }
 
-            if (cacheOptions is not null) ValidateCachePathAncestry(outputRoot, cacheOptions);
+            if (cacheOptions is not null)
+                ValidateCachePathAncestry(outputRoot, cacheOptions);
             CreateSafeAbsoluteDirectory(parentRoot);
             var ownershipScope = CreateOwnershipScope(parentRoot, outputName);
             var lockIdentity = CreateLockIdentity(outputRoot);
@@ -4204,7 +4254,8 @@ public sealed partial class SiteGenerator
 
         private static string CreateLockIdentity(string outputRoot)
         {
-            if (OperatingSystem.IsWindows()) outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
+            if (OperatingSystem.IsWindows())
+                outputRoot = NormalizeWindowsCacheNamespacePath(outputRoot);
             var normalizedPath = outputRoot
                 .Normalize(NormalizationForm.FormC)
                 .ToUpperInvariant();
@@ -4217,7 +4268,8 @@ public sealed partial class SiteGenerator
         // parent is resolved read-only through its closest existing ancestor.
         internal static string CreateProspectiveOwnershipScope(string parentRoot, string outputName)
         {
-            if (Directory.Exists(parentRoot)) return CreateOwnershipScope(parentRoot, outputName);
+            if (Directory.Exists(parentRoot))
+                return CreateOwnershipScope(parentRoot, outputName);
             var canonicalParent = CanonicalizeCacheBoundaryPath(parentRoot);
             var prospectiveName = OperatingSystem.IsMacOS()
                 ? outputName.Normalize(NormalizationForm.FormD)
@@ -4431,7 +4483,7 @@ public sealed partial class SiteGenerator
             }
         }
 
-        private static async Task MoveDirectoryWithRetriesAsync(            string source,
+        private static async Task MoveDirectoryWithRetriesAsync(string source,
             string destination)
         {
             // Directory.Move compares roots before reaching Win32. Equivalent

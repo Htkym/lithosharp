@@ -26,7 +26,8 @@ public sealed class LiteralHtmlUrlRuntimeTests
             await Assert.That(issues.Length != 0).IsEqualTo(row.GetProperty("runtimeLsq001").GetBoolean());
             var facts = HtmlLiteralFacts.Parse(html);
             await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
-            if (name == "canonical-excluded") await Assert.That(facts.Urls.Single().Rel).IsEqualTo("alternate CANONICAL");
+            if (name == "canonical-excluded")
+                await Assert.That(facts.Urls.Single().Rel).IsEqualTo("alternate CANONICAL");
             proof.Add(new
             {
                 name,
@@ -49,7 +50,8 @@ public sealed class LiteralHtmlUrlRuntimeTests
         foreach (var value in new[] { "", " ", "javascript:alert(1)", "ftp://external.test/file", "http://[", "https://user:pass@external.test/", "file:///private", "https://[bad]", "http://", "http:\\bad" })
         {
             var independent = SiteQualityUrlRules.IndependentIssue(value, resource: true);
-            if (independent == SiteQualityUrlIssue.None) continue;
+            if (independent == SiteQualityUrlIssue.None)
+                continue;
             foreach (var baseUrl in bases)
             {
                 var actual = SiteQualityUrlRules.Resolve(value, true, new Uri(baseUrl), out _);

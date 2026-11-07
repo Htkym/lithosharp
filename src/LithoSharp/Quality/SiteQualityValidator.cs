@@ -45,7 +45,8 @@ internal static class SiteQualityValidator
                 css.RequireComplete();
                 cssFiles[path] = css;
             }
-            if (!IsHtml(path, content)) continue;
+            if (!IsHtml(path, content))
+                continue;
             var route = artifactRoutes[path];
             var pageUri = new Uri(origin + route.PublicPath);
             var identity = pageIdentities is not null && pageIdentities.TryGetValue(path, out var registered)
@@ -58,13 +59,15 @@ internal static class SiteQualityValidator
                 var facts = await factsCache.GetAsync(content, cancellationToken).ConfigureAwait(false);
                 if (sharedFacts?.RequiresQualityRaw == true)
                     snapshot = (await sharedFacts.GetQualitySnapshotAsync(content, identity, pageUri, cancellationToken).ConfigureAwait(false)).Snapshot;
-                else snapshot = LithoSharp.Build.BuildHtmlFacts.BindDecodedQuality(facts, identity, pageUri, cancellationToken);
+                else
+                    snapshot = LithoSharp.Build.BuildHtmlFacts.BindDecodedQuality(facts, identity, pageUri, cancellationToken);
             }
             else if (sharedFacts is not null)
             {
                 var bound = await sharedFacts.GetQualitySnapshotAsync(content, identity, pageUri, cancellationToken).ConfigureAwait(false);
                 snapshot = bound.Snapshot;
-                if (bound.NewParse) parseCount++;
+                if (bound.NewParse)
+                    parseCount++;
             }
             else
             {
@@ -99,15 +102,18 @@ internal static class SiteQualityValidator
 
             if (!redirects.ContainsKey(path))
             {
-                if (string.IsNullOrWhiteSpace(snapshot.Title)) AddMissing("title");
+                if (string.IsNullOrWhiteSpace(snapshot.Title))
+                    AddMissing("title");
                 foreach (var (attribute, name) in new[] { ("name", "description"), ("property", "og:title"), ("property", "og:description"), ("property", "og:url") })
                     if (!snapshot.Metadata.Any(meta => string.Equals(attribute == "name" ? meta.Name : meta.Property,
-                        name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(meta.Content))) AddMissing(name);
+                        name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(meta.Content)))
+                        AddMissing(name);
             }
 
             foreach (var reference in snapshot.References)
             {
-                if (reference.Role is HtmlReferenceRole.Base or HtmlReferenceRole.Canonical) continue;
+                if (reference.Role is HtmlReferenceRole.Base or HtmlReferenceRole.Canonical)
+                    continue;
                 CheckReference(reference, path, snapshot.Positions[reference.ElementOrdinal]);
             }
             foreach (var reference in snapshot.CssReferences)
@@ -117,12 +123,14 @@ internal static class SiteQualityValidator
         }
 
         foreach (var path in textFilePaths.Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal))
-            foreach (var reference in cssFiles[path].References) CheckReference(reference, path, null);
+            foreach (var reference in cssFiles[path].References)
+                CheckReference(reference, path, null);
 
         foreach (var group in pages.Where(pair => !redirects.ContainsKey(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value.Snapshot.Title))
                 .GroupBy(pair => Regex.Replace(pair.Value.Snapshot.Title.Trim(), "\\s+", " "), StringComparer.OrdinalIgnoreCase)
                 .Where(group => group.Count() > 1))
-                foreach (var page in group) Add("LSQ009", SiteDiagnosticSeverity.Warning, $"Page title '{group.Key}' is duplicated.", page.Key);
+            foreach (var page in group)
+                Add("LSQ009", SiteDiagnosticSeverity.Warning, $"Page title '{group.Key}' is duplicated.", page.Key);
 
         if (options.CheckOrphans)
         {
@@ -137,31 +145,42 @@ internal static class SiteQualityValidator
                 while (resources.TryDequeue(out var resource))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (registeredAssets.Contains(resource)) referencedAssets.Add(resource);
+                    if (registeredAssets.Contains(resource))
+                        referencedAssets.Add(resource);
                     if (cssReferences.TryGetValue(resource, out var references))
-                        foreach (var reference in references) Reach(reference);
-                    if (owners is not null && owners.TryGetValue(resource, out var owner)) assetQueue.Enqueue(owner);
+                        foreach (var reference in references)
+                            Reach(reference);
+                    if (owners is not null && owners.TryGetValue(resource, out var owner))
+                        assetQueue.Enqueue(owner);
                 }
                 while (assetQueue.TryDequeue(out var node))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!visitedNodes.Add(node.Id)) continue;
-                    foreach (var artifact in node.Artifacts) Reach(artifact.RelativeOutputPath);
+                    if (!visitedNodes.Add(node.Id))
+                        continue;
+                    foreach (var artifact in node.Artifacts)
+                        Reach(artifact.RelativeOutputPath);
                     foreach (var dependency in node.Dependencies)
-                        if (byId!.TryGetValue(dependency, out var target)) assetQueue.Enqueue(target);
+                        if (byId!.TryGetValue(dependency, out var target))
+                            assetQueue.Enqueue(target);
                 }
             }
             void Reach(string path)
             {
-                if (resourceRoots.Add(path)) resources.Enqueue(path);
+                if (resourceRoots.Add(path))
+                    resources.Enqueue(path);
             }
             var reachable = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<string>();
-            if (pages.ContainsKey("index.html")) pending.Enqueue("index.html");
+            if (pages.ContainsKey("index.html"))
+                pending.Enqueue("index.html");
             while (pending.TryDequeue(out var path))
             {
-                if (!reachable.Add(path)) continue;
-                if (links.TryGetValue(path, out var targets)) foreach (var target in targets) pending.Enqueue(target);
+                if (!reachable.Add(path))
+                    continue;
+                if (links.TryGetValue(path, out var targets))
+                    foreach (var target in targets)
+                        pending.Enqueue(target);
             }
             foreach (var path in pages.Keys.Where(path => !reachable.Contains(path) && !redirects.ContainsKey(path)))
                 Add("LSQ007", SiteDiagnosticSeverity.Warning, "Page is not reachable from the site's home page.", path);
@@ -197,7 +216,8 @@ internal static class SiteQualityValidator
                 Add("LSQ001", SiteDiagnosticSeverity.Error, message, path, element);
                 return;
             }
-            if (address.Scheme is "mailto" or "tel" or "data") return;
+            if (address.Scheme is "mailto" or "tel" or "data")
+                return;
             if (!string.Equals(address.GetLeftPart(UriPartial.Authority), origin, StringComparison.OrdinalIgnoreCase))
             {
                 externalLinks.TryAdd(new UriBuilder(address) { Fragment = string.Empty }.Uri.AbsoluteUri, Location(path, element));
@@ -214,8 +234,10 @@ internal static class SiteQualityValidator
                     cssReferences.Add(path, references = new HashSet<string>(StringComparer.Ordinal));
                 references.Add(targetPath);
             }
-            else resourceRoots.Add(targetPath);
-            if (reference.Navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets)) targets.Add(targetPath);
+            else
+                resourceRoots.Add(targetPath);
+            if (reference.Navigation && pages.ContainsKey(targetPath) && links.TryGetValue(path, out var targets))
+                targets.Add(targetPath);
             if (address.Fragment.Length > 1 && pages.TryGetValue(targetPath, out var targetPage))
             {
                 var fragment = SiteQualityUrlRules.DecodedFragment(address);

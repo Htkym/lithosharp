@@ -30,15 +30,20 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
     public MdxSite(MdxOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        this.options = options with { Environment = new Dictionary<string, string>(options.Environment, StringComparer.Ordinal),
-            DeclaredInputFiles = options.DeclaredInputFiles.ToArray(), StaticComponents = options.StaticComponents.ToArray(),
+        this.options = options with
+        {
+            Environment = new Dictionary<string, string>(options.Environment, StringComparer.Ordinal),
+            DeclaredInputFiles = options.DeclaredInputFiles.ToArray(),
+            StaticComponents = options.StaticComponents.ToArray(),
             Plugins = options.Plugins.Select(plugin => plugin with { Options = plugin.Options.Clone() }).ToArray(),
-            CrossReferences = new Dictionary<string, SiteUrl>(options.CrossReferences, StringComparer.Ordinal) };
+            CrossReferences = new Dictionary<string, SiteUrl>(options.CrossReferences, StringComparer.Ordinal)
+        };
         if (options.Timeout <= TimeSpan.Zero || options.MaximumMessageBytes < 1024)
             throw new ArgumentException("Worker timeout and message size must be positive.", nameof(options));
         if (options.Plugins.Any(plugin => plugin.Stage is not ("remark" or "rehype") || string.IsNullOrWhiteSpace(plugin.Module)))
             throw new ArgumentException("MDX plugins require a remark or rehype stage and an explicit module.", nameof(options));
-        if (options.Hydration is not ("page" or "selective")) throw new ArgumentException("Hydration must be page or selective.", nameof(options));
+        if (options.Hydration is not ("page" or "selective"))
+            throw new ArgumentException("Hydration must be page or selective.", nameof(options));
         worker = new(this.options);
     }
 
@@ -58,7 +63,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         loaders.Add(async (context, cancellationToken) =>
         {
             var loaded = await loader.LoadAsync(cancellationToken).ConfigureAwait(false);
-            if (!loaded.IsSuccess) throw new SiteBuildExtensionException(loaded.Diagnostics);
+            if (!loaded.IsSuccess)
+                throw new SiteBuildExtensionException(loaded.Diagnostics);
             var loadDiagnostics = loaded.Diagnostics;
             var collection = loaded.Collection!;
             var metadata = collection.Entries.ToDictionary(entry => entry.Id, entry => collection.PublicationMapper(entry));
@@ -72,7 +78,7 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 routes[entry.Id].PublicPath, metadata[entry.Id].Title ?? string.Empty, metadata[entry.Id].Description,
                 (publicData?.Invoke(entry) ?? MdxPublicData.Empty).Value, metadata[entry.Id].Language ?? context.Site.Language,
                 entry.DerivedSurfaces != GeneratedPageDerivedSurfaces.None, entry.Body.CapturedInputs)
-                { Route = routes[entry.Id] }).ToArray();
+            { Route = routes[entry.Id] }).ToArray();
             ContentCollection<TFrontMatter, MdxDocument> Pinned(IEnumerable<ContentEntry<TFrontMatter, MdxDocument>> entries) =>
                 new(collection.Id, collection.InputRoot, entries, entry => routes[entry.Id], entry => metadata[entry.Id],
                     collection.LayoutId, collection.OrderingComparer, collection.DeclaredDependencies,
@@ -106,7 +112,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                         .Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { ContentDependency.FromAsset(AssetId(page.GetProperty("entry").GetString()!)) })
                         .Append(ContentDependency.FromValue("mdx-render", Hash(Encoding.UTF8.GetBytes(html)))).ToArray();
                     return new ContentEntry<TFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint,
-                        entry.FrontMatter, body, entry.SourceLocation) { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces, CapturedInputs = entry.CapturedInputs };
+                        entry.FrontMatter, body, entry.SourceLocation)
+                    { DeclaredDependencies = dependencies, DerivedSurfaces = entry.DerivedSurfaces, CapturedInputs = entry.CapturedInputs };
                 });
                 var prepared = Pinned(entries);
                 return new SiteContentCollection<TFrontMatter, MdxDocument>(prepared,
@@ -131,7 +138,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var loaded = new List<Loaded>();
-            foreach (var loader in loaders) loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
+            foreach (var loader in loaders)
+                loaded.Add(await loader(context, cancellationToken).ConfigureAwait(false));
             var diagnostics = loaded.SelectMany(value => value.Diagnostics).ToList();
             await using var analysis = new MdxInspectionSession(options);
             foreach (var page in loaded.SelectMany(value => value.Pages))
@@ -147,7 +155,10 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 ["MDX catalog analysis does not execute or certify imported modules, JavaScript configuration or plugins."],
                 diagnostics.Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error));
         }
-        finally { gate.Release(); }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     private Dictionary<string, string> CaptureInputs(IReadOnlyList<Loaded> loaded)
@@ -183,9 +194,11 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             await ValidateCapturedInputsAsync(CaptureInputs(loaded), cancellationToken).ConfigureAwait(false);
             var pages = loaded.SelectMany(value => value.Pages).ToArray();
             var loadDiagnostics = loaded.SelectMany(value => value.Diagnostics).ToArray();
-            if (pages.Length == 0) return new() { Diagnostics = loadDiagnostics };
+            if (pages.Length == 0)
+                return new() { Diagnostics = loadDiagnostics };
             var routes = new SiteRouteTable();
-            foreach (var page in pages) routes.Register(SiteRoute.ForDirectoryIndex(page.Url.Trim('/')), page.Id);
+            foreach (var page in pages)
+                routes.Register(SiteRoute.ForDirectoryIndex(page.Url.Trim('/')), page.Id);
             routes.ValidateOrThrow();
             var sources = pages.ToDictionary(page => page.Source, page => page.Code, StringComparer.Ordinal);
             var capturedInputs = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -193,11 +206,12 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 AddCapturedInput(capturedInputs, input.File, input.Hash);
             var linkMap = pages.ToDictionary(page => page.Source, page => page.Url, StringComparer.Ordinal);
             var tools = await ToolFingerprintAsync(cancellationToken).ConfigureAwait(false);
-            if (previousTools is not null && previousTools != tools) await worker.DisposeAsync().ConfigureAwait(false);
+            if (previousTools is not null && previousTools != tools)
+                await worker.DisposeAsync().ConfigureAwait(false);
             previousTools = tools;
             executionDependencies = [ContentDependency.FromValue("mdx-toolchain", tools), ContentDependency.FromValue("mdx-options", Hash(JsonSerializer.SerializeToUtf8Bytes(options, MdxJson.Options)))];
             var resolutionFiles = Directory.EnumerateFiles(options.ProjectDirectory, "*", new EnumerationOptions
-                { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
                 .Where(file => !IsWithin(context.OutputDirectory, file) && !IsWithin(context.CacheDirectory, file)
                     && !Path.GetFileName(file).StartsWith(".lithosharp-", StringComparison.Ordinal))
                 .Where(file => !Path.GetRelativePath(options.ProjectDirectory, file).Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj" or ".git"))
@@ -209,8 +223,21 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 resolutionCandidates.Add(relative + (Path.GetFileName(file) is "package.json" or "package-lock.json" or "tsconfig.json" or "jsconfig.json"
                     ? ":" + Hash(await ContentPath.ReadAllBytesAsync(options.ProjectDirectory, file, cancellationToken).ConfigureAwait(false)) : ""));
             }
-            var signature = Hash(JsonSerializer.SerializeToUtf8Bytes(new { pages, context.Site.BaseUrl, context.BuildTimestamp,
-                tools, resolutionCandidates, options.Environment, options.DeclaredInputFiles, options.Plugins, options.ComponentsModule, options.Hydration, options.StaticComponents, options.CrossReferences }, MdxJson.Options));
+            var signature = Hash(JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                pages,
+                context.Site.BaseUrl,
+                context.BuildTimestamp,
+                tools,
+                resolutionCandidates,
+                options.Environment,
+                options.DeclaredInputFiles,
+                options.Plugins,
+                options.ComponentsModule,
+                options.Hydration,
+                options.StaticComponents,
+                options.CrossReferences
+            }, MdxJson.Options));
             var cacheRoot = Path.Combine(context.CacheDirectory, "mdx");
             EnsureSafeDirectory(cacheRoot);
             CleanupStaleScratch(cacheRoot);
@@ -253,22 +280,43 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                         var received = false;
                         try
                         {
-                        response = await worker.SendAsync(new { protocol = 1, type = "compile", requestId,
-                            projectRoot = options.ProjectDirectory, workRoot = scratch, allowWorkWithinProject = true,
-                            assetBaseUrl = AssetUrl(context, ""), basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
-                            timestamp = context.BuildTimestamp, cacheable = options.Cacheable,
-                            resolutionFingerprint = Hash(JsonSerializer.SerializeToUtf8Bytes(resolutionCandidates, MdxJson.Options)),
-                            pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
-                            sources, capturedInputs, linkMap, crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value), plugins = options.Plugins, componentsModule = options.ComponentsModule, hydration = options.Hydration, staticComponents = options.StaticComponents }, requestId, cancellationToken).ConfigureAwait(false);
-                        work.Observe(response);
-                        received = true;
+                            response = await worker.SendAsync(new
+                            {
+                                protocol = 1,
+                                type = "compile",
+                                requestId,
+                                projectRoot = options.ProjectDirectory,
+                                workRoot = scratch,
+                                allowWorkWithinProject = true,
+                                assetBaseUrl = AssetUrl(context, ""),
+                                basePath = new Uri(context.Site.BaseUrl).AbsolutePath,
+                                timestamp = context.BuildTimestamp,
+                                cacheable = options.Cacheable,
+                                resolutionFingerprint = Hash(JsonSerializer.SerializeToUtf8Bytes(resolutionCandidates, MdxJson.Options)),
+                                pages = pages.Select(page => new { page.Id, page.Source, page.Url, page.Title, page.Description, page.Props, page.Locale, page.Discoverable }),
+                                sources,
+                                capturedInputs,
+                                linkMap,
+                                crossReferences = options.CrossReferences.ToDictionary(pair => pair.Key, pair => pair.Value.Value),
+                                plugins = options.Plugins,
+                                componentsModule = options.ComponentsModule,
+                                hydration = options.Hydration,
+                                staticComponents = options.StaticComponents
+                            }, requestId, cancellationToken).ConfigureAwait(false);
+                            work.Observe(response);
+                            received = true;
                         }
                         finally
                         {
                             work.RequestMilliseconds += Stopwatch.GetElapsedTime(attemptStarted).TotalMilliseconds;
-                            if (!received) work.Complete = false;
+                            if (!received)
+                                work.Complete = false;
                         }
-                        if (response.GetProperty("success").GetBoolean()) { result = response.GetProperty("result").Clone(); break; }
+                        if (response.GetProperty("success").GetBoolean())
+                        {
+                            result = response.GetProperty("result").Clone();
+                            break;
+                        }
                         if (!await CapturedInputsMatchAsync(capturedInputs, cancellationToken).ConfigureAwait(false))
                             throw MdxWorker.Failure("LSMDX005", "An MDX input changed after its source snapshot was captured; retry the build.");
                         var missing = response.GetProperty("requiredSources").EnumerateArray().Select(value => value.GetString()!).ToArray();
@@ -278,7 +326,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                         foreach (var file in missing)
                         {
                             var relative = RelativeSource(file);
-                            if (sources.ContainsKey(relative)) throw MdxWorker.Failure("LSMDX003", "Worker requested an already validated source.");
+                            if (sources.ContainsKey(relative))
+                                throw MdxWorker.Failure("LSMDX003", "Worker requested an already validated source.");
                             var partial = await ReadPartialAsync(file, relative, cancellationToken).ConfigureAwait(false);
                             sources.Add(relative, partial.Code);
                             AddCapturedInput(capturedInputs, file, partial.Hash);
@@ -287,7 +336,10 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                     if (!await InputsMatchAsync(result, capturedInputs, cancellationToken).ConfigureAwait(false))
                         throw MdxWorker.Failure("LSMDX005", "An MDX input changed during compilation; retry the build.");
                 }
-                finally { DeleteScratch(scratch); }
+                finally
+                {
+                    DeleteScratch(scratch);
+                }
             }
             var assets = cachedAssets ?? ValidateAssets(result);
             var inputPages = pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
@@ -312,7 +364,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 {
                     try
                     {
-                        if (File.Exists(temporary)) File.Delete(temporary);
+                        if (File.Exists(temporary))
+                            File.Delete(temporary);
                     }
                     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
                 }
@@ -322,21 +375,48 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 || rebundled.ValueKind != JsonValueKind.Array
                 ? []
                 : rebundled.EnumerateArray().Select(value => value.GetString()!).ToArray();
-            Metrics = new() { WorkerStarts = worker.Starts - starts, CacheHit = hit, CompiledModules = hit ? 0 : result.GetProperty("compiledModules").GetInt32(),
-                RenderedPages = hit ? 0 : result.GetProperty("renderedPages").GetInt32(), BundledPages = hit ? 0 : result.GetProperty("bundledPages").GetInt32(),
-                RebundledPages = rebundledPageIds.Count, RebundledPageIds = rebundledPageIds,
+            Metrics = new()
+            {
+                WorkerStarts = worker.Starts - starts,
+                CacheHit = hit,
+                CompiledModules = hit ? 0 : result.GetProperty("compiledModules").GetInt32(),
+                RenderedPages = hit ? 0 : result.GetProperty("renderedPages").GetInt32(),
+                BundledPages = hit ? 0 : result.GetProperty("bundledPages").GetInt32(),
+                RebundledPages = rebundledPageIds.Count,
+                RebundledPageIds = rebundledPageIds,
                 WorkerMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("totalMilliseconds").GetDouble(),
                 ServerBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("serverBundleMilliseconds").GetDouble(),
                 RenderMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("renderMilliseconds").GetDouble(),
                 BrowserBundleMilliseconds = hit ? 0 : result.GetProperty("timings").GetProperty("browserBundleMilliseconds").GetDouble(),
                 NodeHeapUsedBytes = hit ? 0 : result.GetProperty("memory").GetProperty("heapUsed").GetInt64(),
-                Work = work.Snapshot(worker.Starts - starts) };
-            inspection = JsonSerializer.SerializeToElement(new { kind = "mdx", protocol = 1, node = "24.13.0", mdx = "3.1.1", react = "19.2.4", esbuild = "0.28.2", metrics = Metrics,
-                pages = results.Values.Select(page => new { id = page.GetProperty("id").GetString(), entry = page.GetProperty("entry"), hydration = page.GetProperty("hydration"),
-                    fallback = page.GetProperty("fallback"), islands = page.GetProperty("islands"), publicProps = inputPages[page.GetProperty("id").GetString()!].Props }),
+                Work = work.Snapshot(worker.Starts - starts)
+            };
+            inspection = JsonSerializer.SerializeToElement(new
+            {
+                kind = "mdx",
+                protocol = 1,
+                node = "24.13.0",
+                mdx = "3.1.1",
+                react = "19.2.4",
+                esbuild = "0.28.2",
+                metrics = Metrics,
+                pages = results.Values.Select(page => new
+                {
+                    id = page.GetProperty("id").GetString(),
+                    entry = page.GetProperty("entry"),
+                    hydration = page.GetProperty("hydration"),
+                    fallback = page.GetProperty("fallback"),
+                    islands = page.GetProperty("islands"),
+                    publicProps = inputPages[page.GetProperty("id").GetString()!].Props
+                }),
                 assets = assets.Select(asset => new { asset.Id, asset.RelativeOutputPath, asset.ReferencedAssetIds }),
-                modules = result.GetProperty("inputs").EnumerateArray().Select(input => new { file = IsWithin(options.ProjectDirectory, input.GetProperty("file").GetString()!)
-                    ? RelativeSource(input.GetProperty("file").GetString()!) : "@worker/" + Path.GetRelativePath(options.WorkerDirectory, input.GetProperty("file").GetString()!).Replace('\\', '/'), hash = input.GetProperty("hash").GetString() }) }, MdxJson.Options);
+                modules = result.GetProperty("inputs").EnumerateArray().Select(input => new
+                {
+                    file = IsWithin(options.ProjectDirectory, input.GetProperty("file").GetString()!)
+                    ? RelativeSource(input.GetProperty("file").GetString()!) : "@worker/" + Path.GetRelativePath(options.WorkerDirectory, input.GetProperty("file").GetString()!).Replace('\\', '/'),
+                    hash = input.GetProperty("hash").GetString()
+                })
+            }, MdxJson.Options);
             return new() { Assets = assets, ContentCollections = loaded.Select(value => value.Create(results)).ToArray(), Diagnostics = loadDiagnostics };
         }
         finally
@@ -357,22 +437,26 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             Has(value, name, JsonValueKind.String) || Has(value, name, JsonValueKind.Null);
 
         if (!Has(result, "inputs", JsonValueKind.Array) || !Has(result, "assets", JsonValueKind.Array)
-            || !Has(result, "pages", JsonValueKind.Array)) return false;
+            || !Has(result, "pages", JsonValueKind.Array))
+            return false;
         foreach (var input in result.GetProperty("inputs").EnumerateArray())
-            if (!Has(input, "file", JsonValueKind.String) || !Has(input, "hash", JsonValueKind.String)) return false;
+            if (!Has(input, "file", JsonValueKind.String) || !Has(input, "hash", JsonValueKind.String))
+                return false;
         foreach (var asset in result.GetProperty("assets").EnumerateArray())
             if (!Has(asset, "path", JsonValueKind.String) || !Has(asset, "bytes", JsonValueKind.String)
                 || !Has(asset, "hash", JsonValueKind.String) || !Has(asset, "imports", JsonValueKind.Array)
                 || !Strings(asset.GetProperty("imports"))
                 || !asset.GetProperty("bytes").TryGetBytesFromBase64(out var bytes)
-                || Hash(bytes) != asset.GetProperty("hash").GetString()) return false;
+                || Hash(bytes) != asset.GetProperty("hash").GetString())
+                return false;
         foreach (var page in result.GetProperty("pages").EnumerateArray())
             if (!Has(page, "id", JsonValueKind.String) || !Has(page, "html", JsonValueKind.String)
                 || !NullableString(page, "text") || !NullableString(page, "entry")
                 || !Has(page, "css", JsonValueKind.Array) || !Strings(page.GetProperty("css"))
                 || !Has(page, "headings", JsonValueKind.Array) || !Has(page, "links", JsonValueKind.Array)
                 || !Has(page, "islands", JsonValueKind.Array) || !Has(page, "hydration", JsonValueKind.String)
-                || !NullableString(page, "fallback")) return false;
+                || !NullableString(page, "fallback"))
+                return false;
         return true;
     }
 
@@ -404,7 +488,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             throw MdxWorker.Failure("LSMDX003", "Worker page identities do not match the request.");
         foreach (var page in results.Values)
             foreach (var path in page.GetProperty("css").EnumerateArray().Select(value => value.GetString()!).Concat(page.GetProperty("entry").ValueKind == JsonValueKind.Null ? [] : new[] { page.GetProperty("entry").GetString()! }))
-                if (!assetIds.Contains(AssetId(path))) throw MdxWorker.Failure("LSMDX003", "A page references an unknown bundle.");
+                if (!assetIds.Contains(AssetId(path)))
+                    throw MdxWorker.Failure("LSMDX003", "A page references an unknown bundle.");
         return results;
     }
 
@@ -413,9 +498,11 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         var assets = result.GetProperty("assets").EnumerateArray().Select(asset =>
         {
             var path = asset.GetProperty("path").GetString()!;
-            if (SiteRoute.NormalizeRelativeOutputPath(path) != path) throw MdxWorker.Failure("LSMDX003", "Worker returned a noncanonical asset path.");
+            if (SiteRoute.NormalizeRelativeOutputPath(path) != path)
+                throw MdxWorker.Failure("LSMDX003", "Worker returned a noncanonical asset path.");
             var bytes = asset.GetProperty("bytes").GetBytesFromBase64();
-            if (Hash(bytes) != asset.GetProperty("hash").GetString()) throw MdxWorker.Failure("LSMDX003", "Worker asset hash mismatch.");
+            if (Hash(bytes) != asset.GetProperty("hash").GetString())
+                throw MdxWorker.Failure("LSMDX003", "Worker asset hash mismatch.");
             return new SiteGeneratedAsset(AssetId(path), "_mdx/" + path, bytes,
                 [BuildInput.FromValue("mdx-bytes", Hash(bytes))], asset.GetProperty("imports").EnumerateArray().Select(value => AssetId(value.GetString()!)));
         }).ToArray();
@@ -462,9 +549,13 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
             {
                 var bytes = await ContentPath.ReadAllBytesAsync(options.ProjectDirectory,
                     Path.GetFullPath(relative, options.ProjectDirectory), cancellationToken).ConfigureAwait(false);
-                if (Hash(bytes) != hash) return false;
+                if (Hash(bytes) != hash)
+                    return false;
             }
-            catch (IOException) { return false; }
+            catch (IOException)
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -476,15 +567,21 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         {
             var file = input.GetProperty("file").GetString()!;
             var root = IsWithin(options.ProjectDirectory, file) ? options.ProjectDirectory : options.WorkerDirectory;
-            if (!IsWithin(root, file)) throw MdxWorker.Failure("LSMDX003", "Worker input is outside its declared roots.");
+            if (!IsWithin(root, file))
+                throw MdxWorker.Failure("LSMDX003", "Worker input is outside its declared roots.");
             if (IsWithin(options.ProjectDirectory, file) && remaining.Remove(RelativeSource(file), out var captured)
-                && captured != input.GetProperty("hash").GetString()) return false;
+                && captured != input.GetProperty("hash").GetString())
+                return false;
             try
             {
                 await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(root, file, asynchronous: true);
-                if (Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)) != input.GetProperty("hash").GetString()) return false;
+                if (Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)) != input.GetProperty("hash").GetString())
+                    return false;
             }
-            catch (IOException) { return false; }
+            catch (IOException)
+            {
+                return false;
+            }
         }
         return remaining.Count == 0;
     }
@@ -511,18 +608,22 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
         var bytes = await ContentPath.ReadAllBytesAsync(options.ProjectDirectory, file, cancellationToken).ConfigureAwait(false);
         var hash = Hash(bytes);
         var text = new UTF8Encoding(false, true).GetString(bytes);
-        if (!text.TrimStart('\uFEFF').StartsWith("---", StringComparison.Ordinal)) return (text, hash);
+        if (!text.TrimStart('\uFEFF').StartsWith("---", StringComparison.Ordinal))
+            return (text, hash);
         var parsed = MarkdownContentCollectionLoader<object>.MarkdownSourceDocument.Parse(text, relative, cancellationToken);
-        if (!parsed.IsSuccess) throw new SiteBuildExtensionException(parsed.Diagnostics);
+        if (!parsed.IsSuccess)
+            throw new SiteBuildExtensionException(parsed.Diagnostics);
         var document = parsed.Value!;
         var yaml = MarkdownContentCollectionLoader<object>.ParseYaml(document.Yaml, relative, document.YamlStartLine, cancellationToken);
-        if (!yaml.IsSuccess) throw new SiteBuildExtensionException(yaml.Diagnostics);
+        if (!yaml.IsSuccess)
+            throw new SiteBuildExtensionException(yaml.Diagnostics);
         return (new string('\n', text.AsSpan(0, text.Length - document.Body.Length).Count('\n')) + document.Body, hash);
     }
 
     private string RelativeSource(string file)
     {
-        if (!IsWithin(options.ProjectDirectory, file)) throw new ArgumentException("MDX sources must be inside the project directory.");
+        if (!IsWithin(options.ProjectDirectory, file))
+            throw new ArgumentException("MDX sources must be inside the project directory.");
         return Path.GetRelativePath(options.ProjectDirectory, file).Replace('\\', '/');
     }
     private static bool IsWithin(string root, string file)
@@ -536,7 +637,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
     private static void EnsureSafeDirectory(string directory)
     {
         for (var current = new DirectoryInfo(directory); current is not null; current = current.Parent)
-            if (current.Exists && (current.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException("MDX cache must not traverse symbolic directories.");
+            if (current.Exists && (current.Attributes & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("MDX cache must not traverse symbolic directories.");
         Directory.CreateDirectory(directory);
     }
     private static void DeleteScratch(string directory)
@@ -624,8 +726,18 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
     public async ValueTask DisposeAsync()
     {
         await gate.WaitAsync().ConfigureAwait(false);
-        try { if (!disposed) { disposed = true; await worker.DisposeAsync().ConfigureAwait(false); } }
-        finally { gate.Release(); }
+        try
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                await worker.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
     private sealed class WorkAccumulator
     {
@@ -645,19 +757,26 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 if (response.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.True
                     && response.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object)
                     result.TryGetProperty("workMetrics", out report);
-                else response.TryGetProperty("workMetrics", out report);
+                else
+                    response.TryGetProperty("workMetrics", out report);
             }
             if (report.ValueKind != JsonValueKind.Object || !report.TryGetProperty("schema", out var schema)
                 || schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version) || version != 1
                 || !report.TryGetProperty("complete", out var complete) || complete.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-            { Complete = false; return; }
+            {
+                Complete = false;
+                return;
+            }
             var nextCounts = new long[counts.Length];
             var nextDurations = new double[durations.Length];
             for (var i = 0; i < CountKeys.Length; i++)
             {
                 if (!report.TryGetProperty(CountKeys[i], out var value) || value.ValueKind != JsonValueKind.Number
                     || !value.TryGetInt64(out var count) || count < 0 || count > int.MaxValue)
-                { Complete = false; return; }
+                {
+                    Complete = false;
+                    return;
+                }
                 nextCounts[i] = counts[i] + count;
             }
             for (var i = 0; i < DurationKeys.Length; i++)
@@ -665,7 +784,10 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 if (!report.TryGetProperty(DurationKeys[i], out var value) || value.ValueKind != JsonValueKind.Number
                     || !value.TryGetDouble(out var elapsed) || elapsed < 0 || !double.IsFinite(elapsed)
                     || !double.IsFinite(durations[i] + elapsed))
-                { Complete = false; return; }
+                {
+                    Complete = false;
+                    return;
+                }
                 nextDurations[i] = durations[i] + elapsed;
             }
             Array.Copy(nextCounts, counts, counts.Length);
@@ -675,12 +797,23 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
 
         internal MdxWorkerWorkMetrics Snapshot(int starts) => new()
         {
-            RequestAttempts = RequestAttempts, RequestMilliseconds = RequestMilliseconds,
-            WorkerStarts = starts, HasCompleteReports = Complete,
-            CompiledModules = counts[0], RenderedPages = counts[1], MdxCompileInvocations = counts[2], RenderInvocations = counts[3],
-            EsbuildInvocations = counts[4], BrowserBuildInvocations = counts[5], BrowserEntryBuildAttempts = counts[6],
-            WorkerMilliseconds = durations[0], ServerBundleMilliseconds = durations[1], BrowserBundleMilliseconds = durations[2],
-            LiveRuntimeMilliseconds = durations[3], PluginBundleMilliseconds = durations[4], RenderMilliseconds = durations[5],
+            RequestAttempts = RequestAttempts,
+            RequestMilliseconds = RequestMilliseconds,
+            WorkerStarts = starts,
+            HasCompleteReports = Complete,
+            CompiledModules = counts[0],
+            RenderedPages = counts[1],
+            MdxCompileInvocations = counts[2],
+            RenderInvocations = counts[3],
+            EsbuildInvocations = counts[4],
+            BrowserBuildInvocations = counts[5],
+            BrowserEntryBuildAttempts = counts[6],
+            WorkerMilliseconds = durations[0],
+            ServerBundleMilliseconds = durations[1],
+            BrowserBundleMilliseconds = durations[2],
+            LiveRuntimeMilliseconds = durations[3],
+            PluginBundleMilliseconds = durations[4],
+            RenderMilliseconds = durations[5],
         };
     }
 

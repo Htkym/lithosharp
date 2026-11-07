@@ -22,7 +22,15 @@ public sealed class DocumentHeadingInfo
     public int OutputLevel { get; }
 
     public SiteSourceLocation? Location { get; }
+
+    internal string? LocalKey { get; init; }
 }
+
+internal sealed record DocumentSectionInfo(
+    string LocalKey,
+    string? ParentLocalKey,
+    string? HeadingLocalKey,
+    SiteSourceLocation? Location);
 
 public sealed class DocumentLinkInfo
 {
@@ -157,6 +165,8 @@ public sealed class DocumentInfo
     public string? Title { get; }
 
     public IReadOnlyList<DocumentHeadingInfo> Headings { get; }
+
+    internal IReadOnlyList<DocumentSectionInfo> Sections { get; init; } = [];
 
     public IReadOnlyList<DocumentLinkInfo> Links { get; }
 

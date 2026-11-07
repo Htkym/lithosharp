@@ -117,7 +117,10 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
             }
 
             string yaml;
-            try { yaml = StrictUtf8.GetString(bytes); }
+            try
+            {
+                yaml = StrictUtf8.GetString(bytes);
+            }
             catch (DecoderFallbackException)
             {
                 diagnostics.Add(ContentDiagnostic.Error(YamlContentDiagnosticIds.InvalidUtf8,
@@ -128,7 +131,8 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
             var parsed = MarkdownContentCollectionLoader<TFrontMatter>.ParseYamlDocument(
                 yaml, file.RelativePath, 1, cancellationToken);
             diagnostics.AddRange(parsed.Diagnostics);
-            if (!parsed.IsSuccess) continue;
+            if (!parsed.IsSuccess)
+                continue;
 
             IReadOnlyList<object?> roots = parsed.Value is LocatedYamlSequence sequence
                 ? sequence
@@ -153,7 +157,8 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
                     : materialized;
                 var bound = binder.Bind(bindingValues, location);
                 diagnostics.AddRange(bound.Diagnostics);
-                if (!bound.IsSuccess) continue;
+                if (!bound.IsSuccess)
+                    continue;
                 try
                 {
                     entries.Add(new ContentEntry<TFrontMatter, TBody>(

@@ -25,32 +25,40 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
     {
         context.CancellationToken.ThrowIfCancellationRequested();
         var solution = context.Document.Project.Solution;
-        if (solution.Workspace.CurrentSolution != solution) return;
+        if (solution.Workspace.CurrentSolution != solution)
+            return;
         var version = await context.Document.GetTextVersionAsync(context.CancellationToken).ConfigureAwait(false);
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         context.CancellationToken.ThrowIfCancellationRequested();
-        if (solution.Workspace.CurrentSolution != solution) return;
+        if (solution.Workspace.CurrentSolution != solution)
+            return;
         var literal = root?.FindNode(context.Span, getInnermostNodeForTie: true) as LiteralExpressionSyntax;
-        if (literal is null) return;
+        if (literal is null)
+            return;
         var offered = await Replacement(context.Document, literal, context.CancellationToken).ConfigureAwait(false);
         context.CancellationToken.ThrowIfCancellationRequested();
-        if (offered is null || solution.Workspace.CurrentSolution != solution) return;
+        if (offered is null || solution.Workspace.CurrentSolution != solution)
+            return;
         context.RegisterCodeFix(CodeAction.Create("Use the generated page reference path", async cancellation =>
         {
             // Standard workspace actions use the original solution. Reject stale actions
             // rather than silently applying a span to another document version.
             cancellation.ThrowIfCancellationRequested();
             var current = solution.Workspace.CurrentSolution.GetDocument(context.Document.Id);
-            if (current is null || current.Project.Solution != solution) return solution.Workspace.CurrentSolution;
+            if (current is null || current.Project.Solution != solution)
+                return solution.Workspace.CurrentSolution;
             var currentVersion = await current.GetTextVersionAsync(cancellation).ConfigureAwait(false);
             cancellation.ThrowIfCancellationRequested();
-            if (currentVersion != version || solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+            if (currentVersion != version || solution.Workspace.CurrentSolution != solution)
+                return solution.Workspace.CurrentSolution;
             var replacement = await Replacement(current, literal, cancellation).ConfigureAwait(false);
             cancellation.ThrowIfCancellationRequested();
-            if (replacement is null || solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+            if (replacement is null || solution.Workspace.CurrentSolution != solution)
+                return solution.Workspace.CurrentSolution;
             var editor = await DocumentEditor.CreateAsync(current, cancellation).ConfigureAwait(false);
             cancellation.ThrowIfCancellationRequested();
-            if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+            if (solution.Workspace.CurrentSolution != solution)
+                return solution.Workspace.CurrentSolution;
             editor.ReplaceNode(literal, SyntaxFactory.ParseExpression(replacement).WithTriviaFrom(literal));
             cancellation.ThrowIfCancellationRequested();
             var changed = editor.GetChangedDocument().Project.Solution;
@@ -78,20 +86,25 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
             var document = context.Document;
             if (context.Scope != FixAllScope.Document || document is null
                 || context.CodeActionEquivalenceKey != "LSA1401.GeneratedPagePath"
-                || document.Project.Solution.Workspace.CurrentSolution != document.Project.Solution) return null;
+                || document.Project.Solution.Workspace.CurrentSolution != document.Project.Solution)
+                return null;
             var diagnostics = await context.GetDocumentDiagnosticsAsync(document).ConfigureAwait(false);
-            if ((await Replacements(document, diagnostics, context.CancellationToken).ConfigureAwait(false)).IsDefaultOrEmpty) return null;
+            if ((await Replacements(document, diagnostics, context.CancellationToken).ConfigureAwait(false)).IsDefaultOrEmpty)
+                return null;
             var solution = document.Project.Solution;
-            if (solution.Workspace.CurrentSolution != solution) return null;
+            if (solution.Workspace.CurrentSolution != solution)
+                return null;
             return CodeAction.Create("Use generated page reference paths in this document", async cancellation =>
             {
                 cancellation.ThrowIfCancellationRequested();
                 var current = solution.Workspace.CurrentSolution;
                 // Any source, AdditionalFile, analyzer config or project-context edit
                 // invalidates the whole action, including edits outside this document.
-                if (current != solution) return current;
+                if (current != solution)
+                    return current;
                 var replacements = await Replacements(document, diagnostics, cancellation).ConfigureAwait(false);
-                if (replacements.IsDefaultOrEmpty) return solution.Workspace.CurrentSolution;
+                if (replacements.IsDefaultOrEmpty)
+                    return solution.Workspace.CurrentSolution;
                 var editor = await DocumentEditor.CreateAsync(document, cancellation).ConfigureAwait(false);
                 foreach (var replacement in replacements)
                 {
@@ -109,7 +122,8 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
         {
             var solution = context.Solution;
             if (context.CodeActionEquivalenceKey != "LSA1401.GeneratedPagePath"
-                || solution.Workspace.CurrentSolution != solution) return null;
+                || solution.Workspace.CurrentSolution != solution)
+                return null;
             var projects = context.Scope == FixAllScope.Project
                 ? new[] { context.Project } : solution.Projects.Where(project => project.Language == LanguageNames.CSharp);
             var targets = new List<(Document Document, ImmutableArray<Diagnostic> Diagnostics)>();
@@ -123,27 +137,32 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
                     // files can require incompatible edits in different compilations.
                     var document = group.Key is null ? null : project.GetDocument(group.Key);
                     if (document is null || !project.DocumentIds.Contains(document.Id)
-                        || document.GetLinkedDocumentIds().Length != 0) return null;
+                        || document.GetLinkedDocumentIds().Length != 0)
+                        return null;
                     var originalDiagnostics = group.ToImmutableArray();
                     if ((await Replacements(document, originalDiagnostics, context.CancellationToken).ConfigureAwait(false)).IsDefaultOrEmpty)
                         return null;
                     targets.Add((document, originalDiagnostics));
                 }
             }
-            if (targets.Count == 0 || solution.Workspace.CurrentSolution != solution) return null;
+            if (targets.Count == 0 || solution.Workspace.CurrentSolution != solution)
+                return null;
             return CodeAction.Create("Use generated page reference paths in this "
                 + (context.Scope == FixAllScope.Project ? "project" : "solution"), async cancellation =>
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+                if (solution.Workspace.CurrentSolution != solution)
+                    return solution.Workspace.CurrentSolution;
                 var plans = new List<(Document Document, ImmutableArray<(LiteralExpressionSyntax Literal, string Path)> Replacements)>();
                 foreach (var target in targets)
                 {
                     var replacements = await Replacements(target.Document, target.Diagnostics, cancellation).ConfigureAwait(false);
-                    if (replacements.IsDefaultOrEmpty) return solution.Workspace.CurrentSolution;
+                    if (replacements.IsDefaultOrEmpty)
+                        return solution.Workspace.CurrentSolution;
                     plans.Add((target.Document, replacements));
                 }
-                if (solution.Workspace.CurrentSolution != solution) return solution.Workspace.CurrentSolution;
+                if (solution.Workspace.CurrentSolution != solution)
+                    return solution.Workspace.CurrentSolution;
                 // Every proof used the original immutable project compilation. Construct
                 // one solution only after proving all targets; never chain single fixes.
                 var editor = new SolutionEditor(solution);
@@ -169,9 +188,11 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
             cancellation.ThrowIfCancellationRequested();
             var root = await document.GetSyntaxRootAsync(cancellation).ConfigureAwait(false);
             var compilation = await document.Project.GetCompilationAsync(cancellation).ConfigureAwait(false);
-            if (root is null || compilation is null) return default;
+            if (root is null || compilation is null)
+                return default;
             var analysis = StaticManifestAnalysis.Create(compilation, document.Project.AnalyzerOptions, cancellation);
-            if (analysis is null) return default;
+            if (analysis is null)
+                return default;
             var spans = new HashSet<TextSpan>();
             var replacements = ImmutableArray.CreateBuilder<(LiteralExpressionSyntax Literal, string Path)>();
             // Prove every independent literal against the same original compilation.
@@ -183,8 +204,10 @@ public sealed class GeneratedPageReferenceCodeFix : CodeFixProvider
                 if (diagnostic.Id != "LSA1401" || diagnostic.IsSuppressed
                     || diagnostic.Location.SourceTree != root.SyntaxTree || !root.FullSpan.Contains(span)
                     || root.FindNode(span, getInnermostNodeForTie: true) is not LiteralExpressionSyntax literal
-                    || literal.Span != span || analysis.TryGetTypedReference(literal, cancellation) is not string path) return default;
-                if (spans.Add(span)) replacements.Add((literal, path));
+                    || literal.Span != span || analysis.TryGetTypedReference(literal, cancellation) is not string path)
+                    return default;
+                if (spans.Add(span))
+                    replacements.Add((literal, path));
             }
             return replacements.ToImmutable();
         }

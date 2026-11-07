@@ -13,9 +13,12 @@ internal static class LithoLegacyTextPolicy
         var writer = new StringBuilder();
         foreach (var (inline, exit) in LithoInline.Walk(inlines, includeImageLabels: false, cancellationToken: cancellationToken))
         {
-            if (exit) continue;
-            if (inline is LithoMathInline math) writer.Append(@"\(").Append(math.Content).Append(@"\)");
-            else writer.Append(MdInlineFacts.LeafText(inline));
+            if (exit)
+                continue;
+            if (inline is LithoMathInline math)
+                writer.Append(@"\(").Append(math.Content).Append(@"\)");
+            else
+                writer.Append(MdInlineFacts.LeafText(inline));
         }
         return writer.ToString();
     }
@@ -31,14 +34,16 @@ internal static class LithoLegacyTextPolicy
     {
         ArgumentNullException.ThrowIfNull(blocks);
         var writer = new StringBuilder();
-        foreach (var block in blocks) BlockInto(block, writer);
+        foreach (var block in blocks)
+            BlockInto(block, writer);
         return writer.ToString();
     }
 
     private static void LabelInto(IReadOnlyList<LithoInline> inlines, StringBuilder writer)
     {
         foreach (var (inline, exit) in LithoInline.Walk(inlines))
-            if (!exit) writer.Append(MdInlineFacts.LeafText(inline));
+            if (!exit)
+                writer.Append(MdInlineFacts.LeafText(inline));
     }
 
     private static void BlockInto(LithoBlock block, StringBuilder writer)

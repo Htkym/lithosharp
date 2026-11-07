@@ -27,7 +27,8 @@ public sealed class HtmlPortableBridgeTests
                 await Assert.That(facts.Urls.Count).IsEqualTo(0);
                 await Assert.That(facts.TokenizerDiagnostics.Any(d => d.Code == "input-char-budget")).IsTrue();
             }
-            else await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
+            else
+                await Assert.That(facts.Status).IsEqualTo(HtmlTokenizationStatus.Complete);
             if (input.Id == "raw-entity-position")
             {
                 await Assert.That(facts.Urls.Count).IsEqualTo(3);
@@ -89,7 +90,8 @@ public sealed class HtmlPortableBridgeTests
             }
             observations.Add(new { input.Id, facts = JsonSerializer.SerializeToElement(facts) });
         }
-        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
         await Assert.That(() => HtmlLiteralFacts.Parse("<a href='x'>X</a>", cancellationToken: cancellation.Token)).Throws<OperationCanceledException>();
         await Assert.That(() => HtmlLiteralFacts.Parse(null!)).Throws<ArgumentNullException>();
         if (Environment.GetEnvironmentVariable("HT07_RUNTIME_PROOF") is { Length: > 0 } proof)

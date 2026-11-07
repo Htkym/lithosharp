@@ -21,7 +21,7 @@ export interface LspClientOptions {
   onLog?: (line: string) => void;
   onState?: (state: string) => void;
   onCapabilities?: (result: unknown) => void;
-  onAnalysisStatus?: (uri: string, state: 'ready' | 'unavailable', message: string) => void;
+  onAnalysisStatus?: (uri: string, state: 'ready' | 'unavailable', message: string, language: 'markdown' | 'mdx') => void;
 }
 
 /**
@@ -309,10 +309,12 @@ export class LspClient {
     if (method === 'lithosharp/analysisStatus' && typeof params === 'object' && params !== null) {
       const status = params as Record<string, unknown>;
       const buffer = typeof status['uri'] === 'string' ? this.buffers.get(status['uri']) : undefined;
+      const language = status['language'];
       if (buffer && status['version'] === buffer.version && status['lithosharpOpenGeneration'] === buffer.generation &&
-          status['lithosharpContextGeneration'] === this.contextGeneration && status['language'] === 'mdx' &&
+          status['lithosharpContextGeneration'] === this.contextGeneration && (language === 'markdown' || language === 'mdx') &&
+          language === analysisLanguage(status['uri'] as string, buffer.languageId) &&
           (status['state'] === 'ready' || status['state'] === 'unavailable') && typeof status['message'] === 'string') {
-        this.options.onAnalysisStatus?.(status['uri'] as string, status['state'], status['message']);
+        this.options.onAnalysisStatus?.(status['uri'] as string, status['state'], status['message'], language);
       }
       return;
     }
@@ -344,6 +346,18 @@ export class LspClient {
     this.requestSequence += 1;
     return `lsp-${this.requestSequence}`;
   }
+}
+
+function analysisLanguage(uri: string, languageId: string): 'markdown' | 'mdx' | undefined {
+  const language = languageId.toLowerCase();
+  if (language === 'markdown' || language === 'mdx') {
+    return language;
+  }
+  if (language.trim() !== '') {
+    return undefined;
+  }
+  const path = uri.toLowerCase();
+  return path.endsWith('.mdx') ? 'mdx' : path.endsWith('.md') ? 'markdown' : undefined;
 }
 
 function mapDiagnostic(item: unknown): LspDiagnosticData | null {

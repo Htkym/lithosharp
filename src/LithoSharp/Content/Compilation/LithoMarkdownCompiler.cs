@@ -15,7 +15,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// Bump on any output or semantics behavior change so persistent parse
     /// records from older implementations miss instead of rendering stale HTML.
     /// </summary>
-    internal const string ImplementationVersion = "2";
+    internal const string ImplementationVersion = "3";
 
     /// <summary>Pinned CommonMark/GFM specification versions (C04).</summary>
     internal const string SpecVersion = "commonmark-0.31.2+gfm-0.29";
@@ -30,7 +30,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         }
 
         // The stamp is a const; the loaded module also distinguishes runtime-only upgrades.
-        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile=lithosharp-markdown/1/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}";
+        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile=lithosharp-markdown/1/options={MarkdownAnalysisAdapter.BodyOptionsHash}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}";
     }
 
     /// <inheritdoc />
@@ -48,7 +48,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// <inheritdoc />
     public MarkdownCompilationResult Compile(string markdown)
     {
-        var prepared = PrepareTree(markdown, default);
+        var prepared = PrepareTree(Parse(markdown), default);
         return new MarkdownCompilationResult(RenderHtml(prepared));
     }
 
@@ -60,16 +60,31 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: true);
 
+    /// <summary>Analyzes a body with a compatible result retained by its reader.</summary>
+    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        MarkdownBodyAnalysisSnapshot? retainedAnalysis) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: true, retainedAnalysis);
+
     /// <summary>Analyzes editor information without materializing discarded body HTML.</summary>
     internal MarkdownCompilationResult AnalyzeForInspection(string markdown, DocumentSource? source, CancellationToken cancellationToken = default) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: false);
 
-    private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken, bool renderHtml)
+    private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        bool renderHtml, MarkdownBodyAnalysisSnapshot? retainedAnalysis = null)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        var prepared = PrepareTree(markdown, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         var resolved = source ?? new DocumentSource(null, 0);
-        var (syntax, semantics) = Map(prepared, markdown, resolved);
+        var analysis = retainedAnalysis is not null
+            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath)?.Analysis
+            : null;
+        if (analysis is null)
+        {
+            Interlocked.Increment(ref _parseCount);
+            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, cancellationToken);
+        }
+        var prepared = PrepareTree(analysis.Blocks ?? [], cancellationToken);
+        var (syntax, semantics) = Map(prepared, analysis, resolved, cancellationToken);
         return new MarkdownCompilationResult(renderHtml ? RenderHtml(prepared) : string.Empty, syntax, semantics);
     }
 
@@ -78,9 +93,8 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         List<string> HeadingTexts,
         IReadOnlyList<string> HeadingIds);
 
-    private PreparedTree PrepareTree(string markdown, CancellationToken cancellationToken)
+    private static PreparedTree PrepareTree(IReadOnlyList<LithoBlock> blocks, CancellationToken cancellationToken)
     {
-        var blocks = Parse(markdown, cancellationToken);
         var texts = new List<string>();
         CollectHeadingTexts(blocks, texts, cancellationToken);
         return new PreparedTree(blocks, texts, AssignIds(texts));
@@ -126,11 +140,12 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     {
         foreach (var heading in WalkHeadings(blocks))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             texts.Add(LithoLegacyTextPolicy.Heading(heading.Inlines, cancellationToken));
         }
     }
 
-    private static IEnumerable<LithoHeading> WalkHeadings(IReadOnlyList<LithoBlock> blocks)
+    internal static IEnumerable<LithoHeading> WalkHeadings(IReadOnlyList<LithoBlock> blocks)
     {
         foreach (var block in blocks)
         {
@@ -176,27 +191,25 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
 
     private static (DocumentSyntax Syntax, DocumentSemantics Semantics) Map(
         PreparedTree prepared,
-        string body,
-        DocumentSource source)
+        MdAnalysisResult analysis,
+        DocumentSource source,
+        CancellationToken cancellationToken)
     {
         var document = prepared.Blocks;
         var blocks = new List<SyntaxBlock>();
         var headings = new List<DocumentHeading>();
         var links = new List<DocumentLink>();
         var assets = new List<DocumentAsset>();
-        var diagnostics = new List<LithoSharp.Diagnostics.SiteDiagnostic>();
-        if (LithoLimits.FindFootnoteWarning(body, source.FilePath, source.BodyStartLine) is { } footnote)
+        var diagnostics = LithoLimits.MapDiagnostics(analysis, source.FilePath, source.BodyStartLine,
+            cancellationToken: cancellationToken).ToList();
+        if (MarkdownAnalysisAdapter.IncompleteDiagnostic(analysis, source.FilePath, source.BodyStartLine) is { } incomplete)
         {
-            diagnostics.Add(footnote);
-        }
-
-        if (LithoLimits.FindBrowserAssetWarning(body, source.FilePath, source.BodyStartLine) is { } browserAsset)
-        {
-            diagnostics.Add(browserAsset);
+            diagnostics.Add(incomplete);
         }
 
         var headingIndex = new Counter();
-        MapInto(document, body, source.BodyStartOffset, blocks, headings, links, assets, prepared, headingIndex);
+        MapInto(document, analysis.RawText, source.BodyStartOffset, blocks, headings, links, assets, prepared, headingIndex,
+            cancellationToken);
         return (
             new DocumentSyntax(blocks),
             new DocumentSemantics(
@@ -224,11 +237,13 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         List<DocumentLink> links,
         List<DocumentAsset> assets,
         PreparedTree prepared,
-        Counter headingIndex)
+        Counter headingIndex,
+        CancellationToken cancellationToken)
     {
         // Syntax keeps top-level blocks only; semantics recurse into containers.
         foreach (var block in blocks)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             switch (block)
             {
                 case LithoHeading heading:
@@ -263,7 +278,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                     break;
             }
 
-            CollectSemantics(block, body, shift, headings, links, assets, prepared, headingIndex);
+            CollectSemantics(block, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
         }
     }
 
@@ -275,46 +290,50 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         List<DocumentLink> links,
         List<DocumentAsset> assets,
         PreparedTree prepared,
-        Counter headingIndex)
+        Counter headingIndex,
+        CancellationToken cancellationToken)
     {
         switch (block)
         {
             case LithoHeading heading:
-            {
-                var ordinal = headingIndex.Value++;
-                var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
-                var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
-                headings.Add(new DocumentHeading(
-                    text,
-                    id,
-                    heading.Level,
-                    heading.Level == 1 ? 2 : heading.Level,
-                    heading.Span.Shift(shift)));
-                MapInlines(heading.Inlines, body, shift, links, assets);
-                break;
-            }
+                {
+                    var ordinal = headingIndex.Value++;
+                    var id = ordinal < prepared.HeadingIds.Count ? prepared.HeadingIds[ordinal] : "section";
+                    var text = ordinal < prepared.HeadingTexts.Count ? prepared.HeadingTexts[ordinal] : string.Empty;
+                    headings.Add(new DocumentHeading(
+                        text,
+                        id,
+                        heading.Level,
+                        heading.Level == 1 ? 2 : heading.Level,
+                        heading.Span.Shift(shift)));
+                    MapInlines(heading.Inlines, body, shift, links, assets, cancellationToken);
+                    break;
+                }
 
             case LithoParagraph paragraph:
-                MapInlines(paragraph.Inlines, body, shift, links, assets);
+                MapInlines(paragraph.Inlines, body, shift, links, assets, cancellationToken);
                 break;
             case LithoQuote quote:
                 foreach (var child in quote.Children)
                 {
-                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                 }
 
                 break;
             case LithoAdmonition admonition:
                 foreach (var child in admonition.Children)
                 {
-                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                 }
 
                 break;
             case LithoDirective directive:
                 foreach (var child in directive.Children)
                 {
-                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                 }
 
                 break;
@@ -323,7 +342,8 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                 {
                     foreach (var child in item.Children)
                     {
-                        CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                     }
                 }
 
@@ -333,7 +353,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                 {
                     foreach (var cell in row)
                     {
-                        MapInlines(cell, body, shift, links, assets);
+                        MapInlines(cell, body, shift, links, assets, cancellationToken);
                     }
                 }
 
@@ -346,28 +366,30 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         string body,
         int shift,
         List<DocumentLink> links,
-        List<DocumentAsset> assets)
+        List<DocumentAsset> assets,
+        CancellationToken cancellationToken)
     {
-        foreach (var (inline, exit) in LithoInline.Walk(inlines))
+        foreach (var (inline, exit) in LithoInline.Walk(inlines, cancellationToken: cancellationToken))
         {
-            if (exit) continue;
+            if (exit)
+                continue;
             switch (inline)
             {
                 case LithoLink link:
-                {
-                    links.Add(new DocumentLink(
-                        Slice(body, link.Span),
-                        link.Url,
-                        link.Title,
-                        link.Image,
-                        link.Span.Shift(shift)));
-                    if (link.Image)
                     {
-                        assets.Add(new DocumentAsset(link.Url, link.Span.Shift(shift)));
-                    }
+                        links.Add(new DocumentLink(
+                            Slice(body, link.Span),
+                            link.Url,
+                            link.Title,
+                            link.Image,
+                            link.Span.Shift(shift)));
+                        if (link.Image)
+                        {
+                            assets.Add(new DocumentAsset(link.Url, link.Span.Shift(shift)));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case LithoAutolink autolink:
                     links.Add(new DocumentLink(

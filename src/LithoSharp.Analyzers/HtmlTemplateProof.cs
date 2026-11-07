@@ -26,18 +26,24 @@ internal sealed class HtmlTemplateProof
         var result = ImmutableArray.CreateBuilder<ImmutableArray<HtmlTemplatePiece>>();
         foreach (var alternative in alternatives)
         {
-            if (result.Count == StaticValueFlow.MaxCandidates) return null;
+            if (result.Count == StaticValueFlow.MaxCandidates)
+                return null;
             var pieces = ImmutableArray.CreateBuilder<HtmlTemplatePiece>();
-            var length = 0; var holes = 0;
+            var length = 0;
+            var holes = 0;
             foreach (var piece in alternative)
             {
                 length += piece.Literal?.Length ?? piece.KnownText?.Length ?? 0;
-                if (length > HtmlTemplateAnalysis.MaxTemplateLength) return null;
-                if (piece.Literal is null && ++holes > HtmlTemplateAnalysis.MaxHoles) return null;
+                if (length > HtmlTemplateAnalysis.MaxTemplateLength)
+                    return null;
+                if (piece.Literal is null && ++holes > HtmlTemplateAnalysis.MaxHoles)
+                    return null;
                 if (piece.Literal is not null && pieces.Count != 0 && pieces[pieces.Count - 1].Literal is { } previous)
                     pieces[pieces.Count - 1] = new(previous + piece.Literal);
-                else pieces.Add(piece);
-                if (pieces.Count > MaxPieces) return null;
+                else
+                    pieces.Add(piece);
+                if (pieces.Count > MaxPieces)
+                    return null;
             }
             result.Add(pieces.ToImmutable());
         }
@@ -54,15 +60,21 @@ internal sealed class HtmlTemplateProof
     internal static HtmlTemplateProof? Evaluate(IOperation operation, Func<IOperation, StaticValue> snapshot,
         Func<ILocalSymbol, StaticValue> local, Func<CaptureId, StaticValue> capture)
     {
-        if (StaticValueFlow.HasBindingError(operation)) return null;
+        if (StaticValueFlow.HasBindingError(operation))
+            return null;
         switch (operation)
         {
-            case ILocalReferenceOperation reference: return local(reference.Local).Template;
-            case IFlowCaptureReferenceOperation reference: return capture(reference.Id).Template;
-            case IFlowCaptureOperation captured: return snapshot(captured.Value).Template;
-            case ISimpleAssignmentOperation assignment when !assignment.IsRef: return snapshot(assignment.Value).Template;
+            case ILocalReferenceOperation reference:
+                return local(reference.Local).Template;
+            case IFlowCaptureReferenceOperation reference:
+                return capture(reference.Id).Template;
+            case IFlowCaptureOperation captured:
+                return snapshot(captured.Value).Template;
+            case ISimpleAssignmentOperation assignment when !assignment.IsRef:
+                return snapshot(assignment.Value).Template;
             case IConversionOperation conversion when conversion.OperatorMethod is null
-                && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference): return snapshot(conversion.Operand).Template;
+                && (conversion.Conversion.IsIdentity || conversion.Conversion.IsReference):
+                return snapshot(conversion.Operand).Template;
             case IBinaryOperation binary when binary.OperatorKind == BinaryOperatorKind.Add && binary.OperatorMethod is null
                 && binary.Type?.SpecialType == SpecialType.System_String
                 && binary.LeftOperand.Type?.SpecialType == SpecialType.System_String
@@ -74,7 +86,8 @@ internal sealed class HtmlTemplateProof
                     return snapshot(known ? conditional.WhenTrue : conditional.WhenFalse!).Template;
                 return Join(snapshot(conditional.WhenTrue).Template, conditional.WhenFalse is null ? null : snapshot(conditional.WhenFalse).Template);
             case IInterpolatedStringOperation interpolated:
-                if (interpolated.Syntax.Span.Length > HtmlTemplateAnalysis.MaxTemplateLength) return null;
+                if (interpolated.Syntax.Span.Length > HtmlTemplateAnalysis.MaxTemplateLength)
+                    return null;
                 var result = Literal("");
                 foreach (var part in interpolated.Parts)
                 {
@@ -89,11 +102,14 @@ internal sealed class HtmlTemplateProof
                         if (!deferred && hole.Expression.Type?.SpecialType == SpecialType.System_String
                             && value.Values is { Length: > 0 } values && values.All(v => v is string))
                             next = Create(values.Cast<string>().Select(text => new[] { new HtmlTemplatePiece(null, origin, value.OutputKind, text) }));
-                        else next = Hole(new(null, origin, value.OutputKind, Deferred: deferred));
+                        else
+                            next = Hole(new(null, origin, value.OutputKind, Deferred: deferred));
                     }
-                    else return null;
+                    else
+                        return null;
                     result = Concat(result, next);
-                    if (result is null) return null;
+                    if (result is null)
+                        return null;
                 }
                 return result;
             default:

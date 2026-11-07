@@ -74,7 +74,8 @@ public sealed partial class SiteGenerator
     private static void ValidateCachePartitionPublicInput(string partition, SiteGenerationOptions? options)
     {
         EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(partition)!, partition);
-        if (options?.PublicDirectory is not { } publicDirectory) return;
+        if (options?.PublicDirectory is not { } publicDirectory)
+            return;
         var publicRoot = Path.GetFullPath(publicDirectory);
         if (ContainsCacheDirectory(partition, publicRoot) || ContainsCacheDirectory(publicRoot, partition))
         {
@@ -86,7 +87,8 @@ public sealed partial class SiteGenerator
     // volumes. This conservative destructive boundary does not change route/path identity.
     private static bool ContainsCacheDirectory(string root, string path)
     {
-        if (CachePathContains(root, path)) return true;
+        if (CachePathContains(root, path))
+            return true;
         return CachePathContains(CanonicalizeCacheBoundaryPath(root), CanonicalizeCacheBoundaryPath(path));
     }
 
@@ -103,7 +105,8 @@ public sealed partial class SiteGenerator
         if (path.StartsWith(@"\\.\", StringComparison.Ordinal)
             || path.StartsWith(@"\??\", StringComparison.Ordinal))
             throw new ArgumentException("Unsupported Windows namespace at the cache boundary.");
-        if (!path.StartsWith(@"\\?\", StringComparison.Ordinal)) return path;
+        if (!path.StartsWith(@"\\?\", StringComparison.Ordinal))
+            return path;
 
         string ordinary;
         if (path.Length >= 7 && char.IsAsciiLetter(path[4]) && path[5] == ':' && path[6] == '\\')
@@ -114,7 +117,8 @@ public sealed partial class SiteGenerator
             if (ordinary[2..].Split('\\', StringSplitOptions.RemoveEmptyEntries).Length < 2)
                 throw new ArgumentException("An extended UNC cache boundary needs a server and share.");
         }
-        else throw new ArgumentException("Unsupported Windows namespace at the cache boundary.");
+        else
+            throw new ArgumentException("Unsupported Windows namespace at the cache boundary.");
 
         var segments = ordinary[(ordinary.StartsWith(@"\\", StringComparison.Ordinal) ? 2 : 3)..]
             .TrimEnd('\\').Split('\\');
@@ -138,7 +142,8 @@ public sealed partial class SiteGenerator
             || name.Equals("AUX", StringComparison.OrdinalIgnoreCase)
             || name.Equals("NUL", StringComparison.OrdinalIgnoreCase)
             || name.Equals("CONIN$", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("CONOUT$", StringComparison.OrdinalIgnoreCase)) return true;
+            || name.Equals("CONOUT$", StringComparison.OrdinalIgnoreCase))
+            return true;
         return name.Length == 4
             && (name.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
                 || name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase))
@@ -174,7 +179,8 @@ public sealed partial class SiteGenerator
             var requested = Path.Combine(current, segments[index]);
             if (!Directory.Exists(requested))
             {
-                for (; index < segments.Length; index++) current = Path.Combine(current, segments[index]);
+                for (; index < segments.Length; index++)
+                    current = Path.Combine(current, segments[index]);
                 return current;
             }
 
@@ -200,14 +206,20 @@ public sealed partial class SiteGenerator
 
     private static void ValidateCacheNamespaceAdmission(string outputRoot, SiteGenerationOptions? options)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         _ = NormalizeWindowsCacheNamespacePath(outputRoot);
-        if (options?.BuildCacheDirectory is { } cache) _ = NormalizeWindowsCacheNamespacePath(cache);
-        if (options?.PublicDirectory is { } publicRoot) _ = NormalizeWindowsCacheNamespacePath(publicRoot);
-        if (options?.AssetCacheDirectory is { } assetCache) _ = NormalizeWindowsCacheNamespacePath(assetCache);
-        if (options?.Quality?.ExternalLinks is { } links) _ = NormalizeWindowsCacheNamespacePath(links.CacheFilePath);
+        if (options?.BuildCacheDirectory is { } cache)
+            _ = NormalizeWindowsCacheNamespacePath(cache);
+        if (options?.PublicDirectory is { } publicRoot)
+            _ = NormalizeWindowsCacheNamespacePath(publicRoot);
+        if (options?.AssetCacheDirectory is { } assetCache)
+            _ = NormalizeWindowsCacheNamespacePath(assetCache);
+        if (options?.Quality?.ExternalLinks is { } links)
+            _ = NormalizeWindowsCacheNamespacePath(links.CacheFilePath);
         foreach (var asset in options?.Assets ?? [])
-            if (asset is not null) _ = NormalizeWindowsCacheNamespacePath(asset.InputRoot);
+            if (asset is not null)
+                _ = NormalizeWindowsCacheNamespacePath(asset.InputRoot);
     }
 
     private static void ValidateCachePathAncestry(string outputRoot, SiteGenerationOptions? options)

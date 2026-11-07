@@ -34,7 +34,14 @@ public sealed class WatchBuildProgressTests
         var later = owner.BarrierAsync(cancel.Token);
         cancel.Cancel();
         var rejected = false;
-        try { await later; } catch (OperationCanceledException) { rejected = true; }
+        try
+        {
+            await later;
+        }
+        catch (OperationCanceledException)
+        {
+            rejected = true;
+        }
         await Assert.That(rejected).IsTrue();
     }
 
@@ -48,7 +55,8 @@ public sealed class WatchBuildProgressTests
         var errors = 0;
         await using (var queue = new WatchEventQueue(root, (_, _, error) =>
         {
-            if (error is not null) Interlocked.Increment(ref errors);
+            if (error is not null)
+                Interlocked.Increment(ref errors);
             entered.TrySetResult();
             release.Wait();
         }, () => { }))
@@ -58,12 +66,16 @@ public sealed class WatchBuildProgressTests
             {
                 queue.Enqueue(root, WatcherChangeTypes.Changed);
                 await entered.Task.WaitAsync(Timeout);
-                for (var i = 0; i < WatchEventQueue.Capacity; i++) queue.Enqueue(root, WatcherChangeTypes.Changed);
+                for (var i = 0; i < WatchEventQueue.Capacity; i++)
+                    queue.Enqueue(root, WatcherChangeTypes.Changed);
                 queue.Enqueue(root, WatcherChangeTypes.All, error: new InternalBufferOverflowException("owned native loss"));
                 fence = queue.FlushAsync(default);
                 await Assert.That(fence.IsCompleted).IsFalse();
             }
-            finally { release.Set(); }
+            finally
+            {
+                release.Set();
+            }
             await fence.WaitAsync(Timeout);
             await Assert.That(errors).IsEqualTo(2); // Native error and admitted-queue loss precede the fence.
         }
@@ -72,9 +84,23 @@ public sealed class WatchBuildProgressTests
         {
             failed.Enqueue(root, WatcherChangeTypes.Changed);
             var rejected = false;
-            try { await failed.FlushAsync(default).WaitAsync(Timeout); } catch (IOException) { rejected = true; }
+            try
+            {
+                await failed.FlushAsync(default).WaitAsync(Timeout);
+            }
+            catch (IOException)
+            {
+                rejected = true;
+            }
             await Assert.That(rejected).IsTrue();
         }
-        finally { try { await failed.DisposeAsync(); } catch (IOException) { } }
+        finally
+        {
+            try
+            {
+                await failed.DisposeAsync();
+            }
+            catch (IOException) { }
+        }
     }
 }

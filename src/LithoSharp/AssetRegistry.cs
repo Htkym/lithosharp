@@ -164,7 +164,8 @@ public sealed class AssetRegistry
             var inputUrls = transform.Inputs.ToDictionary(input => input, input => Url(map[input.Id]));
             var key = Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
             {
-                transform.Id, transform.ImplementationFingerprint,
+                transform.Id,
+                transform.ImplementationFingerprint,
                 Handler = Content.SiteContentCollection.CaptureRendererIdentity(transform.Handler),
                 Validator = transform.ValidateInputs is null ? null : Content.SiteContentCollection.CaptureRendererIdentity(transform.ValidateInputs),
                 Inputs = transform.Inputs.Select(input => new { input.Id, input.RelativeInputPath, Hash = map[input.Id].Fingerprint, Url = map[input.Id].Route.PublicPath }),
@@ -182,7 +183,8 @@ public sealed class AssetRegistry
                     if (!context.Written.ContainsKey(output.Id))
                         throw new InvalidOperationException($"Transform '{transform.Id}' did not write output '{output.Id}'.");
                 bytesByOutput = context.Written;
-                if (cachePath is not null) WriteTransformCache(cachePath, key, bytesByOutput);
+                if (cachePath is not null)
+                    WriteTransformCache(cachePath, key, bytesByOutput);
             }
             var owner = new BuildNodeId("asset-transform:" + transform.Id);
             foreach (var output in transform.Outputs)
@@ -211,12 +213,15 @@ public sealed class AssetRegistry
         {
             cancellationToken.ThrowIfCancellationRequested();
             var attributes = File.GetAttributes(entry);
-            if ((attributes & FileAttributes.ReparsePoint) != 0) throw new IOException($"Public entry '{entry}' must not be a symbolic link.");
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+                throw new IOException($"Public entry '{entry}' must not be a symbolic link.");
             if ((attributes & FileAttributes.Directory) != 0)
             {
-                foreach (var file in EnumeratePublicFiles(entry, cancellationToken)) yield return file;
+                foreach (var file in EnumeratePublicFiles(entry, cancellationToken))
+                    yield return file;
             }
-            else yield return entry;
+            else
+                yield return entry;
         }
     }
 
@@ -227,7 +232,8 @@ public sealed class AssetRegistry
     internal AssetRegistry WithGenerated(IEnumerable<SiteGeneratedAsset> declarations, string baseUrl)
     {
         var values = declarations.ToArray();
-        if (values.Length == 0) return this;
+        if (values.Length == 0)
+            return this;
         var map = assets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var nodes = CreateBuildNodes().ToList();
         foreach (var value in values)
@@ -247,7 +253,8 @@ public sealed class AssetRegistry
         }
         foreach (var value in values)
             foreach (var id in value.ReferencedAssetIds)
-                if (!map.ContainsKey(id)) throw new ArgumentException($"Asset '{value.Id}' references unregistered asset '{id}'.");
+                if (!map.ContainsKey(id))
+                    throw new ArgumentException($"Asset '{value.Id}' references unregistered asset '{id}'.");
         return new AssetRegistry(new ReadOnlyDictionary<string, RegisteredAsset>(map), nodes.AsReadOnly())
         { ExecutedTransformNodes = ExecutedTransformNodes };
     }
@@ -297,7 +304,8 @@ public sealed class AssetRegistry
 
     internal IReadOnlyList<BuildNode> CreateBuildNodes()
     {
-        if (additionalNodes is not null) return additionalNodes;
+        if (additionalNodes is not null)
+            return additionalNodes;
         return Array.AsReadOnly(assets.Values.Select(CopyNode).ToArray());
     }
 
@@ -337,17 +345,22 @@ public sealed class AssetRegistry
         {
             using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(Path.GetDirectoryName(path)!, path);
             var cache = JsonSerializer.Deserialize<TransformCache>(stream);
-            if (cache is null || cache.Version != 1 || cache.Key != key || cache.Outputs is null || cache.Outputs.Count != transform.Outputs.Count) return null;
+            if (cache is null || cache.Version != 1 || cache.Key != key || cache.Outputs is null || cache.Outputs.Count != transform.Outputs.Count)
+                return null;
             var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             foreach (var output in transform.Outputs)
             {
                 if (!cache.Outputs.TryGetValue(output.Id, out var entry) || entry is null || entry.Bytes is null
-                    || entry.Hash != Convert.ToHexStringLower(SHA256.HashData(entry.Bytes))) return null;
+                    || entry.Hash != Convert.ToHexStringLower(SHA256.HashData(entry.Bytes)))
+                    return null;
                 result.Add(output.Id, entry.Bytes);
             }
             return result;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { return null; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
     }
 
     private static void WriteTransformCache(string path, string key, IReadOnlyDictionary<string, byte[]> outputs)
@@ -369,7 +382,10 @@ public sealed class AssetRegistry
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
         finally
         {
-            try { File.Delete(temp); }
+            try
+            {
+                File.Delete(temp);
+            }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
         }
     }

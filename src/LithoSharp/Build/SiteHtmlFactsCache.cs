@@ -39,7 +39,8 @@ internal sealed class SiteHtmlFactsCache : IDisposable
         var key = Hash(Encoding.UTF8.GetBytes(Schema + "\n" + contentHash));
         var path = Path.Combine(directory, key + ".json");
         // Decoded-only durable records cannot supply raw/span; required raw uses the one-parse owner.
-        if (sharedFacts?.RequiresQualityRaw == true) return await GetParsedAsync().ConfigureAwait(false);
+        if (sharedFacts?.RequiresQualityRaw == true)
+            return await GetParsedAsync().ConfigureAwait(false);
         try
         {
             EnsureSafe(path);
@@ -52,7 +53,8 @@ internal sealed class SiteHtmlFactsCache : IDisposable
                 int count;
                 while ((count = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
                 {
-                    if (buffer.Length + count > MaxRecordBytes) break;
+                    if (buffer.Length + count > MaxRecordBytes)
+                        break;
                     buffer.Write(chunk, 0, count);
                 }
                 if (count == 0)
@@ -82,9 +84,14 @@ internal sealed class SiteHtmlFactsCache : IDisposable
             {
                 var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
                 facts = shared.Facts;
-                if (shared.NewParse) ParseCount++;
+                if (shared.NewParse)
+                    ParseCount++;
             }
-            else { ParseCount++; facts = QualityHtmlFacts.Parse(content, cancellationToken); }
+            else
+            {
+                ParseCount++;
+                facts = QualityHtmlFacts.Parse(content, cancellationToken);
+            }
             if (facts.MaximumSerializedBytes > MaxRecordBytes || pending.Count >= MaxRecords)
                 return facts;
             var value = new Record(Schema, contentHash, facts, null);
@@ -133,7 +140,11 @@ internal sealed class SiteHtmlFactsCache : IDisposable
             foreach (var file in new DirectoryInfo(directory).EnumerateFiles("*.json"))
             {
                 EnsureSafe(file.FullName);
-                if (file.Length > MaxRecordBytes) { File.Delete(file.FullName); continue; }
+                if (file.Length > MaxRecordBytes)
+                {
+                    File.Delete(file.FullName);
+                    continue;
+                }
                 retainedFiles.Add(file);
                 bytesRetained += file.Length;
                 while (retainedFiles.Count > MaxRecords || bytesRetained > MaxBytes)
@@ -152,10 +163,19 @@ internal sealed class SiteHtmlFactsCache : IDisposable
             }
         }
         catch (Exception exception) when (OptionalFailure(exception)) { }
-        finally { pending.Clear(); pendingBytes = 0; }
+        finally
+        {
+            pending.Clear();
+            pendingBytes = 0;
+        }
     }
 
-    public void Dispose() { pending.Clear(); pendingBytes = 0; disposed = true; }
+    public void Dispose()
+    {
+        pending.Clear();
+        pendingBytes = 0;
+        disposed = true;
+    }
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     private static string Integrity(Record record) => Hash(JsonSerializer.SerializeToUtf8Bytes(record with { Integrity = null }));
     private static void EnsureSafe(string path) => SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);

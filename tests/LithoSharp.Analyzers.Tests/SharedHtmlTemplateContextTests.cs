@@ -29,39 +29,46 @@ public sealed partial class AnalyzerPackageHostTests
         foreach (var row in rows)
         {
             var source = ContextSource(row.Body);
-            var compilation = Compile(source, true, row.Name+".cs");
-            Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Shared context binds: "+row.Name+string.Join(";",compilation.GetDiagnostics()));
+            var compilation = Compile(source, true, row.Name + ".cs");
+            Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Shared context binds: " + row.Name + string.Join(";", compilation.GetDiagnostics()));
             var diagnostics = await Analyze(compilation);
             var definite = diagnostics.Where(d => d.Id is "LSA1102" or "LSA1103" or "LSA1104").ToArray();
-            Check(definite.Length == 1 && definite[0].Id == row.Rule, "Common context: "+row.Name+" "+string.Join(";",diagnostics));
+            Check(definite.Length == 1 && definite[0].Id == row.Rule, "Common context: " + row.Name + " " + string.Join(";", diagnostics));
             var diagnostic = definite[0];
-            var hole = compilation.SyntaxTrees.Single().GetRoot().DescendantNodes().OfType<InterpolationSyntax>().Single(h=>h.Expression.ToString()==row.Hole);
-            Check(diagnostic.Location.SourceSpan == hole.Expression.Span && diagnostic.Location.SourceTree == hole.SyntaxTree, "Original hole: "+row.Name);
+            var hole = compilation.SyntaxTrees.Single().GetRoot().DescendantNodes().OfType<InterpolationSyntax>().Single(h => h.Expression.ToString() == row.Hole);
+            Check(diagnostic.Location.SourceSpan == hole.Expression.Span && diagnostic.Location.SourceTree == hole.SyntaxTree, "Original hole: " + row.Name);
             Check(diagnostic.AdditionalLocations.Count >= 1 && diagnostic.AdditionalLocations.Count <= 16, "Related sink bound");
-            Check(diagnostics.Any(d=>d.Id=="LSA1101"), "Shape proof never upgrades Unknown scalar: "+row.Name);
-            proof.Add(new { row.Name, source, diagnostic.Id, diagnostic.Properties, primary=diagnostic.Location.SourceSpan,
-                related=diagnostic.AdditionalLocations.Select(l=>l.SourceSpan).ToArray() });
+            Check(diagnostics.Any(d => d.Id == "LSA1101"), "Shape proof never upgrades Unknown scalar: " + row.Name);
+            proof.Add(new
+            {
+                row.Name,
+                source,
+                diagnostic.Id,
+                diagnostic.Properties,
+                primary = diagnostic.Location.SourceSpan,
+                related = diagnostic.AdditionalLocations.Select(l => l.SourceSpan).ToArray()
+            });
         }
         // The 256-hole contract must survive the independent URL proof's 64-piece cap.
-        var many = ContextSource("var html=$\""+string.Concat(Enumerable.Repeat("<script>{Html.Encode(x)}</script>",256))+"\"; Html.UnsafeRaw(html);");
-        Check((await Analyze(Compile(many,true))).Count(d=>d.Id=="LSA1104")==256,"Direct 256 encoded holes remain supported");
+        var many = ContextSource("var html=$\"" + string.Concat(Enumerable.Repeat("<script>{Html.Encode(x)}</script>", 256)) + "\"; Html.UnsafeRaw(html);");
+        Check((await Analyze(Compile(many, true))).Count(d => d.Id == "LSA1104") == 256, "Direct 256 encoded holes remain supported");
         const string origin = "var html=$\"<p {x}>\";";
-        var branches = string.Concat(Enumerable.Range(0,20).Select(i=>"case "+i+": Html.UnsafeRaw(html); break;"));
-        var bounded = ContextSource(origin+"switch(n){"+branches+"}");
-        var ordered = (await Analyze(Compile(bounded,true,"bounded.cs"))).Single(d=>d.Id=="LSA1103");
-        Check(ordered.AdditionalLocations.Count==16 && ordered.AdditionalLocations.Select(l=>l.SourceSpan.Start).SequenceEqual(ordered.AdditionalLocations.Select(l=>l.SourceSpan.Start).Order()),"Deterministic bounded sink union");
-        Check(!(await Analyze(Compile("#pragma warning disable LSA1103\n"+bounded,true))).Any(d=>d.Id=="LSA1103"),"Primary pragma");
-        var warning=Compile(ContextSource(origin+"Html.UnsafeRaw(html);"),true).WithOptions(Compile("",true).Options.WithSpecificDiagnosticOptions(
-            new Dictionary<string,ReportDiagnostic>{{"LSA1103",ReportDiagnostic.Warn}}));
-        Check((await Analyze(warning)).Single(d=>d.Id=="LSA1103").Severity==DiagnosticSeverity.Warning,"Severity override");
-        Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a=>Forbidden(a.GetName().Name!)),"No Core/user runtime execution");
-        File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"),"shared-template-contexts.json"),JsonSerializer.Serialize(new {status="PASS",cases=proof,maxHoles=256,related=16,primaryPragma=true},new JsonSerializerOptions{WriteIndented=true}));
+        var branches = string.Concat(Enumerable.Range(0, 20).Select(i => "case " + i + ": Html.UnsafeRaw(html); break;"));
+        var bounded = ContextSource(origin + "switch(n){" + branches + "}");
+        var ordered = (await Analyze(Compile(bounded, true, "bounded.cs"))).Single(d => d.Id == "LSA1103");
+        Check(ordered.AdditionalLocations.Count == 16 && ordered.AdditionalLocations.Select(l => l.SourceSpan.Start).SequenceEqual(ordered.AdditionalLocations.Select(l => l.SourceSpan.Start).Order()), "Deterministic bounded sink union");
+        Check(!(await Analyze(Compile("#pragma warning disable LSA1103\n" + bounded, true))).Any(d => d.Id == "LSA1103"), "Primary pragma");
+        var warning = Compile(ContextSource(origin + "Html.UnsafeRaw(html);"), true).WithOptions(Compile("", true).Options.WithSpecificDiagnosticOptions(
+            new Dictionary<string, ReportDiagnostic> { { "LSA1103", ReportDiagnostic.Warn } }));
+        Check((await Analyze(warning)).Single(d => d.Id == "LSA1103").Severity == DiagnosticSeverity.Warning, "Severity override");
+        Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No Core/user runtime execution");
+        File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "shared-template-contexts.json"), JsonSerializer.Serialize(new { status = "PASS", cases = proof, maxHoles = 256, related = 16, primaryPragma = true }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]
     public async Task SharedHtmlTemplateUnknownOriginsAndEscapesStayDeferred()
     {
-        var rows = new (string Name,string Body)[]
+        var rows = new (string Name, string Body)[]
         {
             ("missing-shape-unknown-scalar","var encoded=Html.Encode(x); var part=$\"<script>{encoded}</script>\"; var html=b?part:x; Html.UnsafeRaw(html);"),
             ("different-hole-origins","var html=b?$\"<p {x}>\":$\"<p {x}>\"; Html.UnsafeRaw(html);"),
@@ -86,27 +93,34 @@ public sealed partial class AnalyzerPackageHostTests
             ("literal-budget","var html=$\"<p {x}>"+new string('a',65536)+"\"; Html.UnsafeRaw(html);"),
             ("alternative-budget","var prefix=(b?\"<p \":\"<div \")+(b?\"\":\"a\")+(b?\"\":\"b\")+(b?\"\":\"c\"); var part=$\"{x}>\"; Html.UnsafeRaw(prefix+part);"),
         };
-        var proof=new List<object>();
-        foreach(var row in rows)
+        var proof = new List<object>();
+        foreach (var row in rows)
         {
-            var source=ContextSource(row.Body);
-            var compilation=Compile(source,true,row.Name+".cs");
-            Check(!compilation.GetDiagnostics().Any(d=>d.Severity==DiagnosticSeverity.Error),"Deferred context binds: "+row.Name+string.Join(";",compilation.GetDiagnostics()));
-            var diagnostics=await Analyze(compilation);
-            Check(!diagnostics.Any(d=>d.Id is "LSA1102" or "LSA1103" or "LSA1104"),"No unavailable shape proof: "+row.Name+string.Join(";",diagnostics));
-            if(row.Name=="missing-shape-unknown-scalar") Check(diagnostics.Any(d=>d.Id=="LSA1101"),"Missing shape remains scalar Unknown");
-            proof.Add(new{row.Name,source,ids=diagnostics.Select(d=>d.Id).ToArray()});
+            var source = ContextSource(row.Body);
+            var compilation = Compile(source, true, row.Name + ".cs");
+            Check(!compilation.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), "Deferred context binds: " + row.Name + string.Join(";", compilation.GetDiagnostics()));
+            var diagnostics = await Analyze(compilation);
+            Check(!diagnostics.Any(d => d.Id is "LSA1102" or "LSA1103" or "LSA1104"), "No unavailable shape proof: " + row.Name + string.Join(";", diagnostics));
+            if (row.Name == "missing-shape-unknown-scalar")
+                Check(diagnostics.Any(d => d.Id == "LSA1101"), "Missing shape remains scalar Unknown");
+            proof.Add(new { row.Name, source, ids = diagnostics.Select(d => d.Id).ToArray() });
         }
-        var cancelled=false;
-        using(var cancellation=new CancellationTokenSource())
+        var cancelled = false;
+        using (var cancellation = new CancellationTokenSource())
         {
             cancellation.Cancel();
-            try{await Analyze(Compile(ContextSource("Html.UnsafeRaw($\"<p {x}>\");"),true),cancellation.Token);}
-            catch(OperationCanceledException){cancelled=true;}
+            try
+            {
+                await Analyze(Compile(ContextSource("Html.UnsafeRaw($\"<p {x}>\");"), true), cancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
+            }
         }
-        Check(cancelled,"Cancellation never returns prefix diagnostics");
-        File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"),"shared-template-deferred.json"),JsonSerializer.Serialize(new{status="PASS",cases=proof,cancelled},new JsonSerializerOptions{WriteIndented=true}));
+        Check(cancelled, "Cancellation never returns prefix diagnostics");
+        File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "shared-template-deferred.json"), JsonSerializer.Serialize(new { status = "PASS", cases = proof, cancelled }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    private static string ContextSource(string body)=>"using LithoSharp; class C { static string Getter=>throw new System.Exception(); static void Touch()=>throw new System.Exception(); static void Set(ref string x)=>throw new System.Exception(); void M(bool b,string x,int n,IHtmlContent content){"+body+"} }";
+    private static string ContextSource(string body) => "using LithoSharp; class C { static string Getter=>throw new System.Exception(); static void Touch()=>throw new System.Exception(); static void Set(ref string x)=>throw new System.Exception(); void M(bool b,string x,int n,IHtmlContent content){" + body + "} }";
 }

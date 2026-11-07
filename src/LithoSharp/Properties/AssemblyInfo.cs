@@ -6,3 +6,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("LithoSharp.Testing")]
 [assembly: InternalsVisibleTo("LithoSharp.Mdx")]
 [assembly: InternalsVisibleTo("LithoSharp.Performance")]
+[assembly: InternalsVisibleTo("LithoSharp.LanguageServer")]

@@ -72,7 +72,9 @@ public sealed class SitePreflightTests
         using var afterFactory = new CancellationTokenSource();
         await Assert.That(async () => await new SiteGenerator().PreflightFactoryAsync(token =>
         {
-            counters.Factories++; afterFactory.Cancel(); return Task.FromResult(definition);
+            counters.Factories++;
+            afterFactory.Cancel();
+            return Task.FromResult(definition);
         }, SitePreflight.FromDiagnostics([]), afterFactory.Token)).Throws<OperationCanceledException>();
         await Assert.That(counters.Routes + counters.Renders).IsEqualTo(0);
         await Assert.That(async () => await new SiteGenerator().PreflightFactoryAsync(_ => throw new IOException("factory failed"),
@@ -94,8 +96,10 @@ public sealed class SitePreflightTests
             var definition = Definition(workspace.Root, counters, collision, [new ErrorExtension(counters)]);
             async Task Generate() => await new SiteGenerator().GenerateWithOptionsAsync(definition.Site, definition.Posts,
                 output, true, definition.Customization, definition.Options, CancellationToken.None);
-            if (collision) await Assert.That(Generate).Throws<SiteRouteValidationException>();
-            else await Assert.That(Generate).Throws<SiteQualityValidationException>();
+            if (collision)
+                await Assert.That(Generate).Throws<SiteRouteValidationException>();
+            else
+                await Assert.That(Generate).Throws<SiteQualityValidationException>();
             await Assert.That(counters.Prepares).IsEqualTo(collision ? 0 : 1);
             await Assert.That(counters.Routes).IsEqualTo(2);
             await Assert.That(counters.Renders).IsEqualTo(0);
@@ -146,8 +150,17 @@ public sealed class SitePreflightTests
         { Plugins = [new MdxPlugin("remark", "./plugin.mjs", JsonSerializer.SerializeToElement(new { }))] };
         await using var mdx = new MdxSite(options);
         mdx.AddCollection(new MdxContentCollectionLoader<Front>(new("mdx"), workspace.Root,
-            _ => { counters.Routes++; return SiteRoute.ForDirectoryIndex("mdx/"); }, entry => new PageMetadata(entry.FrontMatter.Title)),
-            renderer: (_, _) => { counters.Renders++; File.WriteAllText(marker, "renderer"); return "rendered"; });
+            _ =>
+            {
+                counters.Routes++;
+                return SiteRoute.ForDirectoryIndex("mdx/");
+            }, entry => new PageMetadata(entry.FrontMatter.Title)),
+            renderer: (_, _) =>
+            {
+                counters.Renders++;
+                File.WriteAllText(marker, "renderer");
+                return "rendered";
+            });
         var report = await new SiteGenerator().PreflightCatalogAsync(Definition(workspace.Root, extensions: [mdx]));
         await Assert.That(report.Succeeded).IsTrue();
         await Assert.That(counters.Routes).IsEqualTo(1);
@@ -169,17 +182,29 @@ public sealed class SitePreflightTests
         {
             var entries = new[] { "one", "two" }.Select(id => new ContentEntry<Front, string>(new(id), id + ".md", "source:" + id, new() { Title = id }, "body")).ToArray();
             var collection = new ContentCollection<Front, string>(new(collectionId), root, entries,
-                entry => { counters.Routes++; return SiteRoute.ForDirectoryIndex(routePrefix + (collision ? "same/" : entry.Id.Value + "/")); },
+                entry =>
+                {
+                    counters.Routes++;
+                    return SiteRoute.ForDirectoryIndex(routePrefix + (collision ? "same/" : entry.Id.Value + "/"));
+                },
                 entry => new PageMetadata(entry.FrontMatter.Title));
-            registrations.Add(new SiteContentCollection<Front, string>(collection, (_, _) => { counters.Renders++; return "rendered"; }));
+            registrations.Add(new SiteContentCollection<Front, string>(collection, (_, _) =>
+            {
+                counters.Renders++;
+                return "rendered";
+            }));
         }
-        return new(new SiteSettings(), []) { OutputDirectory = Path.Combine(root, "output"),
-            Options = new() { ContentCollections = registrations, Extensions = extensions ?? [] } };
+        return new(new SiteSettings(), [])
+        {
+            OutputDirectory = Path.Combine(root, "output"),
+            Options = new() { ContentCollections = registrations, Extensions = extensions ?? [] }
+        };
     }
     private static string WorkerDirectory()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "LithoSharp.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "LithoSharp.slnx")))
+            directory = directory.Parent;
         return Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository worker was not found."), "src", "LithoSharp.Mdx", "worker");
     }
     public sealed class Front { public string Title { get; set; } = ""; }
@@ -195,19 +220,33 @@ public sealed class SitePreflightTests
     private sealed class CollectionExtension(Counters counters, IReadOnlyList<SiteContentCollection> collections) : ISiteBuildExtension
     {
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
-        { counters.Prepares++; return Task.FromResult(new SiteBuildContribution { ContentCollections = collections }); }
+        {
+            counters.Prepares++;
+            return Task.FromResult(new SiteBuildContribution { ContentCollections = collections });
+        }
     }
     private sealed class CountingFactory : ISiteFactory
     {
         private readonly Counters counters; private readonly SiteDefinition definition;
-        public CountingFactory(Counters counters, SiteDefinition definition) { this.counters = counters; this.definition = definition; counters.Constructors++; }
+        public CountingFactory(Counters counters, SiteDefinition definition)
+        {
+            this.counters = counters;
+            this.definition = definition;
+            counters.Constructors++;
+        }
         public Task<SiteDefinition> CreateAsync(SiteFactoryContext context, CancellationToken cancellationToken = default)
-        { counters.Factories++; return Task.FromResult(definition); }
+        {
+            counters.Factories++;
+            return Task.FromResult(definition);
+        }
     }
     private sealed class UninspectedExtension(Counters counters) : ISiteBuildExtension
     {
         public Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default)
-        { counters.Prepares++; throw new InvalidOperationException("Preflight must not call PrepareAsync."); }
+        {
+            counters.Prepares++;
+            throw new InvalidOperationException("Preflight must not call PrepareAsync.");
+        }
     }
     private sealed class ErrorExtension(Counters counters) : ISiteBuildExtension
     {

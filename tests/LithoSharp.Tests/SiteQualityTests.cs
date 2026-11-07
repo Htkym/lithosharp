@@ -275,8 +275,14 @@ public sealed class SiteQualityTests
         var customization = new SiteCustomization { Template = new CssTemplate(css) };
         var options = new SiteGenerationOptions { Assets = [css], PublicDirectory = publicRoot, Quality = new() };
         SiteQualityValidationException? failure = null;
-        try { await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default); }
-        catch (SiteQualityValidationException error) { failure = error; }
+        try
+        {
+            await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default);
+        }
+        catch (SiteQualityValidationException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure?.Diagnostics.Any(diagnostic => diagnostic.Id == "LSQ001"
             && diagnostic.Location?.FilePath.EndsWith(".css", StringComparison.Ordinal) == true
             && diagnostic.Message.Contains("missing.png", StringComparison.Ordinal)) == true).IsTrue();
@@ -301,8 +307,14 @@ public sealed class SiteQualityTests
         await Assert.That(Directory.EnumerateFiles(output, "custom*.css").Single()).IsEqualTo(publishedCss);
         await File.WriteAllTextAsync(source, valid + "\n.missing { background: url(real-missing.svg) }");
         failure = null;
-        try { await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default); }
-        catch (SiteQualityValidationException error) { failure = error; }
+        try
+        {
+            await generator.GenerateWithOptionsAsync(settings, [], output, true, customization, options, default);
+        }
+        catch (SiteQualityValidationException error)
+        {
+            failure = error;
+        }
         await Assert.That(failure?.Diagnostics.Any(diagnostic => diagnostic.Id == "LSQ001"
             && diagnostic.Message.Contains("real-missing.svg", StringComparison.Ordinal)) == true).IsTrue();
         await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "index.html"))).IsEquivalentTo(originalHtml);
