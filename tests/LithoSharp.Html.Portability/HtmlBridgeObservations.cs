@@ -62,16 +62,23 @@ internal static class HtmlBridgeObservations
         }
         var options = Activator.CreateInstance(Type("HtmlTreeOptions"), input.Scripting, fragment);
         var limits = Activator.CreateInstance(Type("HtmlTreeLimits"))!;
-        if (input.MaxNodes is int nodes) limits.GetType().GetProperty("MaxNodes")!.SetValue(limits, nodes);
+        if (input.MaxNodes is int nodes)
+            limits.GetType().GetProperty("MaxNodes")!.SetValue(limits, nodes);
         if (input.MaxInputChars is int chars)
         {
             var tokenizer = limits.GetType().GetProperty("Tokenizer")!.GetValue(limits)!;
             tokenizer.GetType().GetProperty("MaxInputChars")!.SetValue(tokenizer, chars);
         }
-        try { return Type("HtmlLiteralFacts").GetMethod("Parse", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, new[] { input.Html, options, limits, cancellation })!; }
+        try
+        {
+            return Type("HtmlLiteralFacts").GetMethod("Parse", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, new[] { input.Html, options, limits, cancellation })!;
+        }
         catch (TargetInvocationException error) when (error.InnerException is not null)
-        { ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
+        {
+            ExceptionDispatchInfo.Capture(error.InnerException).Throw();
+            throw;
+        }
     }
 
     internal static JsonElement Observe(Assembly assembly, HtmlBridgeInput input) => JsonSerializer.SerializeToElement(Parse(assembly, input));

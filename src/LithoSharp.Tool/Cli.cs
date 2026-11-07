@@ -19,12 +19,18 @@ internal static class Cli
             Console.WriteLine(typeof(Cli).Assembly.GetName().Version?.ToString(3));
             return 0;
         }
-        if (args[0] == "new") return await NewAsync(args[1..], cancellationToken);
-        if (args[0] == "capabilities") return CapabilitiesCommand.Run(args[1..]);
-        if (args[0] == "check-output") return await CheckOutputCommand.RunAsync(args[1..], cancellationToken);
-        if (args[0] == "cache") return CacheCommand.Run(args[1..]);
-        if (args[0] == "markdown-compat") return MarkdownCompatCommand.Run(args[1..]);
-        if (args[0] == "preflight") return await PreflightCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "new")
+            return await NewAsync(args[1..], cancellationToken);
+        if (args[0] == "capabilities")
+            return CapabilitiesCommand.Run(args[1..]);
+        if (args[0] == "check-output")
+            return await CheckOutputCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "cache")
+            return CacheCommand.Run(args[1..]);
+        if (args[0] == "markdown-compat")
+            return MarkdownCompatCommand.Run(args[1..]);
+        if (args[0] == "preflight")
+            return await PreflightCommand.RunAsync(args[1..], cancellationToken);
         if (args[0] == "migrate" && args.Length > 1 && args[1] == "testing")
             return await TestingMigrationCommand.RunAsync(args[2..], cancellationToken);
         if (args[0] is "snapshot" or "extract-translations" or "restore-mdx" or "migrate-docusaurus")
@@ -62,8 +68,10 @@ internal static class Cli
 
     internal static bool WantsMachineOutput(string[] args)
     {
-        if (args.Length == 0 || args[0] == "__host") return false;
-        if (args[0] is "migrate-docusaurus" or "migrate" or "extract-translations") return true;
+        if (args.Length == 0 || args[0] == "__host")
+            return false;
+        if (args[0] is "migrate-docusaurus" or "migrate" or "extract-translations")
+            return true;
         for (var index = 1; index < args.Length; index++)
         {
             if (args[index] is "-f" or "--format" && index + 1 < args.Length)
@@ -95,17 +103,23 @@ internal static class Cli
         Add("--response", responsePath);
         Add("--format", options.Value("format") ?? "text");
         var output = forcedOutput ?? options.Value("output");
-        if (output is not null) Add("--output", Path.GetFullPath(output, Directory.GetCurrentDirectory()));
-        if (options.Has("clean")) start.ArgumentList.Add("--clean");
+        if (output is not null)
+            Add("--output", Path.GetFullPath(output, Directory.GetCurrentDirectory()));
+        if (options.Has("clean"))
+            start.ArgumentList.Add("--clean");
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Unable to start the LithoSharp site host.");
         var stdout = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
         var stderr = process.StandardError.ReadToEndAsync(CancellationToken.None);
         try
         {
-            try { await process.WaitForExitAsync(cancellationToken); }
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
             catch (OperationCanceledException)
             {
-                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
                 await process.WaitForExitAsync(CancellationToken.None);
                 throw;
             }
@@ -115,7 +129,8 @@ internal static class Cli
             var machineOutput = selectedFormat == "json" || command == "check" && selectedFormat == "sarif";
             if (!string.IsNullOrWhiteSpace(capturedOutput))
                 (machineOutput ? Console.Error : Console.Out).Write(capturedOutput);
-            if (!string.IsNullOrWhiteSpace(capturedError)) Console.Error.Write(capturedError);
+            if (!string.IsNullOrWhiteSpace(capturedError))
+                Console.Error.Write(capturedError);
             if (!File.Exists(responsePath))
                 throw new InvalidOperationException($"The site host exited with code {process.ExitCode} without a response.");
             return JsonSerializer.Deserialize<HostResponse>(await File.ReadAllTextAsync(responsePath, cancellationToken), JsonOptions)
@@ -140,7 +155,8 @@ internal static class Cli
         if (command == "check" && format is "json" or "sarif")
         {
             Console.WriteLine(response.DiagnosticsText);
-            if (!response.Success && !string.IsNullOrWhiteSpace(response.Error)) Console.Error.WriteLine(response.Error);
+            if (!response.Success && !string.IsNullOrWhiteSpace(response.Error))
+                Console.Error.WriteLine(response.Error);
             return;
         }
         if (format == "json" || command == "inspect" && format != "text")
@@ -148,10 +164,12 @@ internal static class Cli
             Console.WriteLine(JsonSerializer.Serialize(response, JsonOptions));
             return;
         }
-        if (!string.IsNullOrWhiteSpace(response.DiagnosticsText)) Console.WriteLine(response.DiagnosticsText);
+        if (!string.IsNullOrWhiteSpace(response.DiagnosticsText))
+            Console.WriteLine(response.DiagnosticsText);
         if (!response.Success)
         {
-            if (!string.IsNullOrWhiteSpace(response.Error)) Console.Error.WriteLine(response.Error);
+            if (!string.IsNullOrWhiteSpace(response.Error))
+                Console.Error.WriteLine(response.Error);
             return;
         }
         if (command == "clean")
@@ -161,19 +179,23 @@ internal static class Cli
         }
         if (response.BuildReport is { } report)
             Console.WriteLine($"{command} succeeded: {report.CacheHitCount} cache hit(s), {report.CacheMissCount} cache miss(es). Output: {response.OutputDirectory}");
-        if (command == "inspect") PrintInspection(response);
+        if (command == "inspect")
+            PrintInspection(response);
     }
 
     private static void PrintInspection(HostResponse response)
     {
-        foreach (var extension in response.Extensions) Console.WriteLine(JsonSerializer.Serialize(extension, JsonOptions));
+        foreach (var extension in response.Extensions)
+            Console.WriteLine(JsonSerializer.Serialize(extension, JsonOptions));
         foreach (var node in response.BuildPlan)
         {
             var report = response.BuildReport?.Nodes.FirstOrDefault(item => item.Id == node.Id);
             Console.WriteLine($"{node.Id} [{(report?.CacheHit == true ? "hit" : "miss")}]"
                 + (report?.CacheMissReason is null ? "" : $" {report.CacheMissReason}"));
-            foreach (var artifact in node.Artifacts) Console.WriteLine($"  {artifact.PublicPath} -> {artifact.Path} ({artifact.Id})");
-            foreach (var dependency in node.Dependencies) Console.WriteLine($"  depends on {dependency}");
+            foreach (var artifact in node.Artifacts)
+                Console.WriteLine($"  {artifact.PublicPath} -> {artifact.Path} ({artifact.Id})");
+            foreach (var dependency in node.Dependencies)
+                Console.WriteLine($"  depends on {dependency}");
         }
     }
 
@@ -224,7 +246,11 @@ internal static class Cli
 internal sealed class CommandOptions
 {
     private readonly Dictionary<string, string?> values;
-    private CommandOptions(string? project, Dictionary<string, string?> values) { Project = project; this.values = values; }
+    private CommandOptions(string? project, Dictionary<string, string?> values)
+    {
+        Project = project;
+        this.values = values;
+    }
     internal string? Project { get; }
     internal bool Has(string key) => values.ContainsKey(key);
     internal string? Value(string key) => values.GetValueOrDefault(key);
@@ -238,21 +264,34 @@ internal sealed class CommandOptions
             var argument = args[index];
             var key = argument switch
             {
-                "-o" => "output", "-c" => "configuration", "-f" => "format",
-                "--output" => "output", "--configuration" => "configuration", "--format" => "format",
-                "--port" => "port", "--host" => "host", "--clean" => "clean", "--open" => "open",
-                "--cache-dir" => "cache-dir", "--control-stdin" => "control-stdin",
+                "-o" => "output",
+                "-c" => "configuration",
+                "-f" => "format",
+                "--output" => "output",
+                "--configuration" => "configuration",
+                "--format" => "format",
+                "--port" => "port",
+                "--host" => "host",
+                "--clean" => "clean",
+                "--open" => "open",
+                "--cache-dir" => "cache-dir",
+                "--control-stdin" => "control-stdin",
                 _ => null,
             };
             if (key is null)
             {
-                if (argument.StartsWith('-')) throw new CliUsageException($"Unknown option '{argument}'.");
-                if (project is not null) throw new CliUsageException("Specify only one site project.");
+                if (argument.StartsWith('-'))
+                    throw new CliUsageException($"Unknown option '{argument}'.");
+                if (project is not null)
+                    throw new CliUsageException("Specify only one site project.");
                 project = argument;
             }
-            else if (key is "clean" or "open" or "control-stdin") values[key] = null;
-            else if (++index >= args.Count) throw new CliUsageException($"Option '{argument}' requires a value.");
-            else values[key] = args[index];
+            else if (key is "clean" or "open" or "control-stdin")
+                values[key] = null;
+            else if (++index >= args.Count)
+                throw new CliUsageException($"Option '{argument}' requires a value.");
+            else
+                values[key] = args[index];
         }
         return new CommandOptions(project, values);
     }

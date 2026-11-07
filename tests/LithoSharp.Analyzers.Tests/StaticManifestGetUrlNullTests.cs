@@ -117,7 +117,7 @@ public sealed partial class AnalyzerPackageHostTests
             if (state == "fresh")
             {
                 var suppressScalar = generated.Compilation.WithOptions(generated.Compilation.Options.WithSpecificDiagnosticOptions(new Dictionary<string, ReportDiagnostic>
-                    { ["LSA1002"] = ReportDiagnostic.Suppress, ["LSA9001"] = ReportDiagnostic.Error }));
+                { ["LSA1002"] = ReportDiagnostic.Suppress, ["LSA9001"] = ReportDiagnostic.Error }));
                 var suppressed = await ManifestAnalyze(suppressScalar);
                 Check(suppressed.Length == 2 && suppressed.All(d => d.Id == "LSA9001"), "Suppressing argument Error does not settle or suppress coverage");
                 evidence.Add(new { name = "independent-owner-suppression", diagnostics = suppressed.Select(ManifestDiagnostic).ToArray() });

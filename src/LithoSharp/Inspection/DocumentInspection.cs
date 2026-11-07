@@ -127,7 +127,8 @@ public static class DocumentInspection
             sourcePath,
             DocumentSemantics.TitleOf(headings),
             headings.Select(heading => new DocumentHeadingInfo(heading.Text, heading.Id, heading.RawLevel, heading.OutputLevel,
-                Locate(locator, sourcePath, heading.Span)) { LocalKey = heading.LocalKey }).ToArray(),
+                Locate(locator, sourcePath, heading.Span))
+            { LocalKey = heading.LocalKey }).ToArray(),
             links.Select(link => new DocumentLinkInfo(link.RawText, link.Url, link.Title, link.IsImage, Locate(locator, sourcePath, link.Span))).ToArray(),
             links.Where(link => link.IsImage).Select(link => new DocumentAssetInfo(link.Url, Locate(locator, sourcePath, link.Span))).ToArray(),
             route,

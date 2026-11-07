@@ -298,85 +298,85 @@ internal static class LithoHtmlRenderer
     {
         foreach (var (inline, exit) in LithoInline.Walk(inlines, includeImageLabels: false))
         {
-        if (exit)
-        {
-            writer.Append(inline switch
+            if (exit)
             {
-                LithoEmphasis { Level: 2 } => "</strong>",
-                LithoEmphasis => "</em>",
-                LithoStrike => "</del>",
-                LithoLink => "</a>",
-                _ => string.Empty,
-            });
-            continue;
-        }
-        switch (inline)
-        {
-            case LithoText text:
-                AppendEncoded(writer, text.Text);
-                break;
-            case LithoEmphasis emphasis:
-                writer.Append(emphasis.Level == 2 ? "<strong>" : "<em>");
-                break;
-            case LithoStrike strike:
-                writer.Append("<del>");
-                break;
-            case LithoCodeSpan code:
-                writer.Append("<code>");
-                AppendEncoded(writer, code.Code);
-                writer.Append("</code>");
-                break;
-            case LithoLink link:
-                if (link.Image)
+                writer.Append(inline switch
                 {
-                    writer.Append("<img src=\"");
-                    AppendEncoded(writer, link.Url);
-                    writer.Append("\" alt=\"");
-                    AppendEncoded(writer, RenderLabelText(link.Label));
-                    writer.Append('"');
-                    if (link.Title is not null)
+                    LithoEmphasis { Level: 2 } => "</strong>",
+                    LithoEmphasis => "</em>",
+                    LithoStrike => "</del>",
+                    LithoLink => "</a>",
+                    _ => string.Empty,
+                });
+                continue;
+            }
+            switch (inline)
+            {
+                case LithoText text:
+                    AppendEncoded(writer, text.Text);
+                    break;
+                case LithoEmphasis emphasis:
+                    writer.Append(emphasis.Level == 2 ? "<strong>" : "<em>");
+                    break;
+                case LithoStrike strike:
+                    writer.Append("<del>");
+                    break;
+                case LithoCodeSpan code:
+                    writer.Append("<code>");
+                    AppendEncoded(writer, code.Code);
+                    writer.Append("</code>");
+                    break;
+                case LithoLink link:
+                    if (link.Image)
                     {
-                        writer.Append(" title=\"");
-                        AppendEncoded(writer, link.Title);
+                        writer.Append("<img src=\"");
+                        AppendEncoded(writer, link.Url);
+                        writer.Append("\" alt=\"");
+                        AppendEncoded(writer, RenderLabelText(link.Label));
                         writer.Append('"');
+                        if (link.Title is not null)
+                        {
+                            writer.Append(" title=\"");
+                            AppendEncoded(writer, link.Title);
+                            writer.Append('"');
+                        }
+
+                        writer.Append(" />");
+                    }
+                    else
+                    {
+                        writer.Append("<a href=\"");
+                        AppendEncoded(writer, link.Url);
+                        writer.Append('"');
+                        if (link.Title is not null)
+                        {
+                            writer.Append(" title=\"");
+                            AppendEncoded(writer, link.Title);
+                            writer.Append('"');
+                        }
+
+                        writer.Append('>');
                     }
 
-                    writer.Append(" />");
-                }
-                else
-                {
+                    break;
+                case LithoAutolink autolink:
                     writer.Append("<a href=\"");
-                    AppendEncoded(writer, link.Url);
-                    writer.Append('"');
-                    if (link.Title is not null)
-                    {
-                        writer.Append(" title=\"");
-                        AppendEncoded(writer, link.Title);
-                        writer.Append('"');
-                    }
-
-                    writer.Append('>');
-                }
-
-                break;
-            case LithoAutolink autolink:
-                writer.Append("<a href=\"");
-                AppendEncoded(writer, autolink.Href);
-                writer.Append("\">");
-                AppendEncoded(writer, autolink.Text);
-                writer.Append("</a>");
-                break;
-            case LithoMathInline math:
-                writer.Append("<span class=\"math\">\\(");
-                AppendEncoded(writer, math.Content);
-                writer.Append("\\)</span>");
-                break;
-            case LithoLineBreak lineBreak:
-                writer.Append(lineBreak.Hard ? "<br />\n" : "\n");
-                break;
-            case LithoRawText:
-                throw new InvalidOperationException("Unresolved raw text reached the renderer.");
-        }
+                    AppendEncoded(writer, autolink.Href);
+                    writer.Append("\">");
+                    AppendEncoded(writer, autolink.Text);
+                    writer.Append("</a>");
+                    break;
+                case LithoMathInline math:
+                    writer.Append("<span class=\"math\">\\(");
+                    AppendEncoded(writer, math.Content);
+                    writer.Append("\\)</span>");
+                    break;
+                case LithoLineBreak lineBreak:
+                    writer.Append(lineBreak.Hard ? "<br />\n" : "\n");
+                    break;
+                case LithoRawText:
+                    throw new InvalidOperationException("Unresolved raw text reached the renderer.");
+            }
         }
     }
 

@@ -50,7 +50,8 @@ internal sealed record CachedCollectionDiagnostic(
             diagnostic.SnapshotIdentity);
 
     internal SiteDiagnostic Restore() => new(Id, Severity, Message, Location?.Restore(), Category,
-        RelatedLocations.Select(location => location.Restore())) { SnapshotIdentity = SnapshotIdentity };
+        RelatedLocations.Select(location => location.Restore()))
+    { SnapshotIdentity = SnapshotIdentity };
 }
 
 internal sealed record CachedCollectionSourceLocation(

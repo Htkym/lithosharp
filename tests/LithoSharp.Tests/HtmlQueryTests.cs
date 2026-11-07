@@ -250,7 +250,8 @@ public sealed class HtmlQueryTests
         var cases = 0;
         foreach (var item in corpus.RootElement.GetProperty("cases").EnumerateArray())
         {
-            if (item.GetProperty("mode").GetString() != "document" || item.GetProperty("scripting").GetBoolean()) continue;
+            if (item.GetProperty("mode").GetString() != "document" || item.GetProperty("scripting").GetBoolean())
+                continue;
             using var document = SiteTestDocument.Parse(item.GetProperty("html").GetString()!);
             foreach (var query in item.GetProperty("queries").EnumerateArray())
             {

@@ -24,8 +24,14 @@ public sealed class DocusaurusMigrationTests
         Directory.CreateDirectory(Path.Combine(source, "docs"));
         await File.WriteAllTextAsync(Path.Combine(source, "docs", "intro.md"), "# Intro\n");
         var link = Path.Combine(workspace.Root, "alias");
-        try { Directory.CreateSymbolicLink(link, source); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { return; }
+        try
+        {
+            Directory.CreateSymbolicLink(link, source);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
         try
         {
             var input = sourceIsLink ? link : source;

@@ -64,7 +64,9 @@ public sealed partial class AnalyzerPackageHostTests
         }
         var dll = zip.GetEntry("analyzers/dotnet/cs/LithoSharp.Generators.dll")!;
         var path = Path.Combine(Required("RA01_PAYLOAD_DIR"), "LithoSharp.Generators.dll");
-        using (var source = dll.Open()) using (var target = File.Create(path)) source.CopyTo(target);
+        using (var source = dll.Open())
+        using (var target = File.Create(path))
+            source.CopyTo(target);
         var reference = new AnalyzerFileReference(path, new Loader());
         var generators = reference.GetGenerators(LanguageNames.CSharp);
         Check(generators.Length == 1, "Actual packed generator discovery");
@@ -75,7 +77,8 @@ public sealed partial class AnalyzerPackageHostTests
     {
         var compilation = Compile(source, true).AddReferences(((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Where(p => Path.GetFileName(p) == "System.Collections.dll").Select(p => MetadataReference.CreateFromFile(p)));
-        if (dependency is not null) compilation = compilation.AddReferences(dependency);
+        if (dependency is not null)
+            compilation = compilation.AddReferences(dependency);
         GeneratorDriver driver = CSharpGeneratorDriver.Create(ManifestGenerators.Value, (inputs ?? [new()]).Select(input => new ManifestText(input)),
             (CSharpParseOptions)compilation.SyntaxTrees.First().Options, provider ?? new());
         driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);

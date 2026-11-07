@@ -107,7 +107,8 @@ public sealed class CollectionDiagnosticsCacheTests
         var cache = new SiteBuildCache(root, OutputIdentity);
         var warning = new SiteDiagnostic("LSM001", SiteDiagnosticSeverity.Warning, "Original warning.",
             new SiteSourceLocation("content/page.md", 3, 5, 3, 9), "Markdown",
-            [new SiteSourceLocation("includes/note.md", 7, 2)]) { SnapshotIdentity = new string('d', 64) };
+            [new SiteSourceLocation("includes/note.md", 7, 2)])
+        { SnapshotIdentity = new string('d', 64) };
         var digest = await cache.SaveAsync(
             [Node("page", CachedCollectionDiagnostics.Capture([warning]))], CancellationToken.None);
         var manifest = JsonNode.Parse(await File.ReadAllTextAsync(ManifestPath(root, digest)))!;

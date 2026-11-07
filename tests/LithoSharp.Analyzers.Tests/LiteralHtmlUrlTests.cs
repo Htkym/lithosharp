@@ -192,9 +192,20 @@ public sealed partial class AnalyzerPackageHostTests
                     && diagnostics[i].Properties["runtimeRule"] == "LSQ001" && diagnostics[i].Properties["parserStatus"] == "Complete",
                     "Existing registry and origin preserved");
             }
-            spanProof.Add(new { source, originals, diagnostics = diagnostics.Select(d => new {
-                d.Id, severity = d.Severity.ToString(), start = d.Location.SourceSpan.Start, length = d.Location.SourceSpan.Length,
-                original = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length), d.Properties }).ToArray() });
+            spanProof.Add(new
+            {
+                source,
+                originals,
+                diagnostics = diagnostics.Select(d => new
+                {
+                    d.Id,
+                    severity = d.Severity.ToString(),
+                    start = d.Location.SourceSpan.Start,
+                    length = d.Location.SourceSpan.Length,
+                    original = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length),
+                    d.Properties
+                }).ToArray()
+            });
         }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No Core runtime or forbidden host loads");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "srcset-packed-selection-spans.json"),
@@ -246,7 +257,10 @@ public sealed partial class AnalyzerPackageHostTests
         object? Map(object text, int start, int length, ref int cursor, ref int budget, CancellationToken token = default)
         {
             object[] args = [text, Span(start, length), 200, token, cursor, budget];
-            var result = mapper.Invoke(null, args); cursor = (int)args[4]; budget = (int)args[5]; return result;
+            var result = mapper.Invoke(null, args);
+            cursor = (int)args[4];
+            budget = (int)args[5];
+            return result;
         }
         var checks = new List<string>();
         foreach (var (name, text, start, length) in new[] {
@@ -256,33 +270,62 @@ public sealed partial class AnalyzerPackageHostTests
             ("decoded-gap", Text("javascript:x", (0, 4, 10, 4), (5, 7, 14, 7)), 0, 12)
         })
         {
-            var cursor = 0; var budget = 32;
+            var cursor = 0;
+            var budget = 32;
             Check(Map(text, start, length, ref cursor, ref budget) is null, "Unprovable candidate Deferred: " + name);
             checks.Add(name);
         }
         var pair = Text("javascript:x javascript:y", (0, 4, 10, 4), (4, 8, 20, 8), (13, 12, 50, 12));
-        var pairCursor = 0; var pairBudget = 32;
+        var pairCursor = 0;
+        var pairBudget = 32;
         Check(Map(pair, 0, 12, ref pairCursor, ref pairBudget) is null, "First candidate raw gap Deferred");
         var second = Map(pair, 13, 12, ref pairCursor, ref pairBudget);
         Check(second is not null && (int)spanType.GetProperty("Start")!.GetValue(second)! == 50
             && (int)spanType.GetProperty("Length")!.GetValue(second)! == 12, "Later independent exact candidate preserved");
         checks.Add("candidate-local-deferred");
-        var entity = Text("xy", (0, 2, 10, 6)); var entityCursor = 0; var entityBudget = 32;
+        var entity = Text("xy", (0, 2, 10, 6));
+        var entityCursor = 0;
+        var entityBudget = 32;
         Check(Map(entity, 0, 2, ref entityCursor, ref entityBudget) is not null, "Whole entity segment maps");
-        var exhaustedCursor = 0; var exhausted = 0;
+        var exhaustedCursor = 0;
+        var exhausted = 0;
         Check(Map(entity, 0, 2, ref exhaustedCursor, ref exhausted) is null, "Mapping budget stays Deferred");
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        var cancelledCursor = 0; var cancelledBudget = 32;
-        try { Map(entity, 0, 2, ref cancelledCursor, ref cancelledBudget, cancelled.Token); throw new InvalidOperationException("Mapping ignored cancellation"); }
-        catch (TargetInvocationException e) when (e.InnerException is OperationCanceledException) { checks.Add("mapping-cancellation"); }
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        var cancelledCursor = 0;
+        var cancelledBudget = 32;
+        try
+        {
+            Map(entity, 0, 2, ref cancelledCursor, ref cancelledBudget, cancelled.Token);
+            throw new InvalidOperationException("Mapping ignored cancellation");
+        }
+        catch (TargetInvocationException e) when (e.InnerException is OperationCanceledException)
+        {
+            checks.Add("mapping-cancellation");
+        }
         var scanner = assembly.GetType("LithoSharp.Quality.SrcsetUrlScanner")!.GetMethod("ReadCandidates", BindingFlags.NonPublic | BindingFlags.Static)!;
         var cancelledCandidates = (System.Collections.IEnumerable)scanner.Invoke(null, ["x.png 1x", cancelled.Token])!;
-        try { cancelledCandidates.GetEnumerator().MoveNext(); throw new InvalidOperationException("Packed scanner ignored cancellation"); }
-        catch (OperationCanceledException) { checks.Add("scanner-cancellation"); }
+        try
+        {
+            cancelledCandidates.GetEnumerator().MoveNext();
+            throw new InvalidOperationException("Packed scanner ignored cancellation");
+        }
+        catch (OperationCanceledException)
+        {
+            checks.Add("scanner-cancellation");
+        }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No forbidden runtime loads");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "srcset-deferred.json"),
-            JsonSerializer.Serialize(new { status = "PASS", dynamic = expressions.Length, partial = partial.Length,
-                lookalike = true, mapping = checks, entireEntity = true, exhaustedBudget = true },
+            JsonSerializer.Serialize(new
+            {
+                status = "PASS",
+                dynamic = expressions.Length,
+                partial = partial.Length,
+                lookalike = true,
+                mapping = checks,
+                entireEntity = true,
+                exhaustedBudget = true
+            },
                 new JsonSerializerOptions { WriteIndented = true }));
     }
 
@@ -325,9 +368,19 @@ public sealed partial class AnalyzerPackageHostTests
                     && diagnostics[i].Properties["parserStatus"] == "Complete" && diagnostics[i].Properties["runtimeRule"] == "LSQ001",
                     "Existing diagnostic contract");
             }
-            proof.Add(new { source, originals, diagnostics = diagnostics.Select(d => new {
-                d.Id, severity = d.Severity.ToString(), start = d.Location.SourceSpan.Start, length = d.Location.SourceSpan.Length,
-                original = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length) }).ToArray() });
+            proof.Add(new
+            {
+                source,
+                originals,
+                diagnostics = diagnostics.Select(d => new
+                {
+                    d.Id,
+                    severity = d.Severity.ToString(),
+                    start = d.Location.SourceSpan.Start,
+                    length = d.Location.SourceSpan.Length,
+                    original = source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length)
+                }).ToArray()
+            });
         }
         var assembly = Packed.Value.Assembly;
         var extractor = assembly.GetType("LithoSharp.Analyzers.HtmlLiteralAnalysis")!.GetMethod("Extract", BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -347,8 +400,15 @@ public sealed partial class AnalyzerPackageHostTests
         Check(assembly.GetCustomAttribute<System.Runtime.Versioning.TargetFrameworkAttribute>()!.FrameworkName == ".NETStandard,Version=v2.0"
             && !AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "Actual compiler-safe package, no runtime Core load");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "literal-concat-spans.json"),
-            JsonSerializer.Serialize(new { status = "PASS", cases = proof, boundaryExpression, decoded,
-                decodeBeforeJoin = true, oldHrefAndSrcsetExamplesMovedToPositive = true }, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(new
+            {
+                status = "PASS",
+                cases = proof,
+                boundaryExpression,
+                decoded,
+                decodeBeforeJoin = true,
+                oldHrefAndSrcsetExamplesMovedToPositive = true
+            }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]
@@ -413,15 +473,31 @@ public sealed partial class AnalyzerPackageHostTests
         var syntax = tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>()
             .Single().ArgumentList.Arguments.Single().Expression;
         var operation = cancelledCompilation.GetSemanticModel(tree).GetOperation(syntax)!;
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        try { type.GetMethod("Extract", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [operation, cancelled.Token]); throw new InvalidOperationException("Extraction ignored cancellation"); }
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        try
+        {
+            type.GetMethod("Extract", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [operation, cancelled.Token]);
+            throw new InvalidOperationException("Extraction ignored cancellation");
+        }
         catch (TargetInvocationException e) when (e.InnerException is OperationCanceledException) { }
-        try { type.GetMethod("Parse", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, ["<a href='javascript:bad'>X</a>", cancelled.Token]); throw new InvalidOperationException("Parse returned Complete on cancellation"); }
+        try
+        {
+            type.GetMethod("Parse", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, ["<a href='javascript:bad'>X</a>", cancelled.Token]);
+            throw new InvalidOperationException("Parse returned Complete on cancellation");
+        }
         catch (TargetInvocationException e) when (e.InnerException is OperationCanceledException) { }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No forbidden runtime loads");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "literal-concat-deferred.json"),
-            JsonSerializer.Serialize(new { status = "PASS", cases = proof, userOperatorAndConversion = true, lookalike = true,
-                extractionCancellationPropagated = true, parserCancellationPropagated = true }, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(new
+            {
+                status = "PASS",
+                cases = proof,
+                userOperatorAndConversion = true,
+                lookalike = true,
+                extractionCancellationPropagated = true,
+                parserCancellationPropagated = true
+            }, new JsonSerializerOptions { WriteIndented = true }));
 
     }
 

@@ -33,9 +33,14 @@ internal sealed class StaticRouteGuaranteeAnalysis
         INamedTypeSymbol options, INamedTypeSymbol definition, INamedTypeSymbol extension, INamedTypeSymbol contribution,
         IPropertySymbol registered, IPropertySymbol selected, IPropertySymbol definitionOptions)
     {
-        this.compilation = compilation; this.options = options; this.definition = definition;
-        this.extension = extension; this.contribution = contribution;
-        this.registered = registered; this.selected = selected; this.definitionOptions = definitionOptions;
+        this.compilation = compilation;
+        this.options = options;
+        this.definition = definition;
+        this.extension = extension;
+        this.contribution = contribution;
+        this.registered = registered;
+        this.selected = selected;
+        this.definitionOptions = definitionOptions;
         fingerprint = new(() => StaticManifestFingerprint.Create(compilation, inputs.AdditionalFiles, inputs.AnalyzerConfigOptionsProvider, token));
     }
     internal static StaticRouteGuaranteeAnalysis? Create(Compilation compilation, AnalyzerOptions inputs, CancellationToken token)
@@ -44,13 +49,15 @@ internal sealed class StaticRouteGuaranteeAnalysis
         var definition = compilation.GetTypeByMetadataName("LithoSharp.SiteDefinition");
         var extension = compilation.GetTypeByMetadataName("LithoSharp.Build.ISiteBuildExtension");
         var contribution = compilation.GetTypeByMetadataName("LithoSharp.Build.SiteBuildContribution");
-        if (!Core(options) || !Core(definition) || !Core(extension) || !Core(contribution)) return null;
+        if (!Core(options) || !Core(definition) || !Core(extension) || !Core(contribution))
+            return null;
         var registered = options!.GetMembers("Extensions").OfType<IPropertySymbol>().SingleOrDefault();
         var selected = options.GetMembers("StaticRouteGuaranteeProducers").OfType<IPropertySymbol>().SingleOrDefault();
         var owner = definition!.GetMembers("Options").OfType<IPropertySymbol>().SingleOrDefault();
         if (registered is null || selected is null || owner is null || selected.IsStatic
             || !SymbolEqualityComparer.Default.Equals(registered.Type, selected.Type)
-            || !SymbolEqualityComparer.Default.Equals(owner.Type, options)) return null;
+            || !SymbolEqualityComparer.Default.Equals(owner.Type, options))
+            return null;
         return new(compilation, inputs, token, options, definition, extension!, contribution!, registered, selected, owner);
     }
     private const string CoverageScope = "selected-producer-route-contributions";
@@ -63,19 +70,24 @@ internal sealed class StaticRouteGuaranteeAnalysis
     private static bool EmptySelection(IOperation value)
     {
         value = Unwrap(value);
-        if (value is ICollectionExpressionOperation collection) return collection.Elements.Length == 0;
-        if (value is not IArrayCreationOperation array) return false;
+        if (value is ICollectionExpressionOperation collection)
+            return collection.Elements.Length == 0;
+        if (value is not IArrayCreationOperation array)
+            return false;
         return array.Initializer is { } initializer ? initializer.ElementValues.Length == 0
             : array.DimensionSizes.Length == 1 && array.DimensionSizes[0].ConstantValue is { HasValue: true, Value: 0 };
     }
     internal void Analyze(OperationBlockAnalysisContext context, IOperation operation, StaticCoveragePolicy coverage)
     {
-        if (operation is not IObjectCreationOperation cfg || !SymbolEqualityComparer.Default.Equals(cfg.Type, options)) return;
+        if (operation is not IObjectCreationOperation cfg || !SymbolEqualityComparer.Default.Equals(cfg.Type, options))
+            return;
         var model = compilation.GetSemanticModel(cfg.Syntax.SyntaxTree);
         if (model.GetOperation(cfg.Syntax, context.CancellationToken) is not IObjectCreationOperation original
-            || original.Initializer is null || original.Constructor?.Parameters.Length != 0 || StaticValueFlow.HasBindingError(original)) return;
+            || original.Initializer is null || original.Constructor?.Parameters.Length != 0 || StaticValueFlow.HasBindingError(original))
+            return;
         var selection = Assignment(original, selected);
-        if (selection is null) return;
+        if (selection is null)
+            return;
         void Proof(string state, string reason) => coverage.Record(original, selection.Value.Syntax.GetLocation(), CoverageScope, state, reason);
         if (EmptySelection(selection.Value))
         {
@@ -87,26 +99,50 @@ internal sealed class StaticRouteGuaranteeAnalysis
             && SymbolEqualityComparer.Default.Equals(creation.Type, definition));
         if (ownerSyntax is null || model.GetOperation(ownerSyntax, context.CancellationToken) is not IObjectCreationOperation owner
             || Assignment(owner, definitionOptions)?.Value.Syntax.Span != original.Syntax.Span)
-        { Proof("Unavailable", "producer-owner-unavailable"); return; }
+        {
+            Proof("Unavailable", "producer-owner-unavailable");
+            return;
+        }
         var block = ownerSyntax.Ancestors().OfType<BlockSyntax>().FirstOrDefault();
-        if (block is null) { Proof("Unavailable", "producer-owner-unavailable"); return; }
+        if (block is null)
+        {
+            Proof("Unavailable", "producer-owner-unavailable");
+            return;
+        }
         if (block.DescendantNodes().Take(StaticValueFlow.MaxOperations + 1).Count() > StaticValueFlow.MaxOperations)
-        { Proof("Unavailable", "producer-syntax-budget"); return; }
+        {
+            Proof("Unavailable", "producer-syntax-budget");
+            return;
+        }
         if (block.DescendantNodes().Any(node => node is IfStatementSyntax or SwitchStatementSyntax or ForStatementSyntax
             or ForEachStatementSyntax or WhileStatementSyntax or DoStatementSyntax or TryStatementSyntax or GotoStatementSyntax))
-        { Proof("Unavailable", "producer-control-flow-unavailable"); return; }
+        {
+            Proof("Unavailable", "producer-control-flow-unavailable");
+            return;
+        }
         var registration = Assignment(original, registered);
-        if (!Elements(selection.Value, out var selections)) { Proof("Unavailable", "opaque-producer-selection"); return; }
+        if (!Elements(selection.Value, out var selections))
+        {
+            Proof("Unavailable", "opaque-producer-selection");
+            return;
+        }
         if (registration is null || !Elements(registration.Value, out var registrations))
-        { Proof("Unavailable", "producer-registration-unavailable"); return; }
+        {
+            Proof("Unavailable", "producer-registration-unavailable");
+            return;
+        }
         if (registrations.Length > MaxProducers || selections.Length > MaxProducers)
-        { Proof("Unavailable", "producer-budget"); return; }
+        {
+            Proof("Unavailable", "producer-budget");
+            return;
+        }
         var registeredInstances = new Dictionary<(SyntaxTree Tree, int Start), IObjectCreationOperation>();
         foreach (var item in registrations)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             var identity = Instance(item, model, block, context.CancellationToken, 0);
-            if (identity is null) continue; // Unselected opaque registrations do not erase a proved selected membership.
+            if (identity is null)
+                continue; // Unselected opaque registrations do not erase a proved selected membership.
             registeredInstances[(identity.Syntax.SyntaxTree, identity.Syntax.SpanStart)] = identity;
         }
         var unique = new HashSet<(SyntaxTree Tree, int Start)>();
@@ -115,18 +151,39 @@ internal sealed class StaticRouteGuaranteeAnalysis
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             var identity = Instance(item, model, block, context.CancellationToken, 0);
-            if (identity is null) { Proof("Unavailable", "producer-identity-unavailable"); return; }
+            if (identity is null)
+            {
+                Proof("Unavailable", "producer-identity-unavailable");
+                return;
+            }
             var key = (identity.Syntax.SyntaxTree, identity.Syntax.SpanStart);
-            if (!registeredInstances.ContainsKey(key)) { Proof("Unavailable", "producer-not-registered"); return; }
-            if (!unique.Add(key)) continue;
-            if (KnownEmpty(identity, context.CancellationToken)) continue;
+            if (!registeredInstances.ContainsKey(key))
+            {
+                Proof("Unavailable", "producer-not-registered");
+                return;
+            }
+            if (!unique.Add(key))
+                continue;
+            if (KnownEmpty(identity, context.CancellationToken))
+                continue;
             if (!DocumentationRegistration(identity, model, block, ownerSyntax.SpanStart, context.CancellationToken))
-            { Proof("Unavailable", "producer-contract-unavailable"); return; }
+            {
+                Proof("Unavailable", "producer-contract-unavailable");
+                return;
+            }
             deferred.Add(identity.Syntax.GetLocation());
         }
-        if (deferred.Count == 0) { Proof("Complete", "known-empty-producer-contributions"); return; }
+        if (deferred.Count == 0)
+        {
+            Proof("Complete", "known-empty-producer-contributions");
+            return;
+        }
         var current = fingerprint.Value;
-        if (current is null) { Proof("Unavailable", "fingerprint-unavailable"); return; }
+        if (current is null)
+        {
+            Proof("Unavailable", "fingerprint-unavailable");
+            return;
+        }
         Proof("Deferred", "registered-documentation-routes-not-statically-enumerable");
         var properties = ImmutableDictionary<string, string?>.Empty
             .Add("contract", "explicit-producer-route-scope/1").Add("scope", "selected-producer-route-contributions")
@@ -144,7 +201,11 @@ internal sealed class StaticRouteGuaranteeAnalysis
     private static bool Elements(IOperation value, out IOperation[] elements)
     {
         value = Unwrap(value);
-        if (value is IArrayCreationOperation { Initializer: { } initializer }) { elements = initializer.ElementValues.ToArray(); return true; }
+        if (value is IArrayCreationOperation { Initializer: { } initializer })
+        {
+            elements = initializer.ElementValues.ToArray();
+            return true;
+        }
         if (value is ICollectionExpressionOperation expression && value.Syntax is CollectionExpressionSyntax collection
             && collection.Elements.All(element => element is ExpressionElementSyntax))
         {
@@ -152,28 +213,34 @@ internal sealed class StaticRouteGuaranteeAnalysis
             elements = expression.Elements.Select(Unwrap).ToArray();
             return elements.Length == collection.Elements.Count;
         }
-        elements = Array.Empty<IOperation>(); return false;
+        elements = Array.Empty<IOperation>();
+        return false;
     }
     private IObjectCreationOperation? Instance(IOperation value, SemanticModel model, BlockSyntax block, CancellationToken token, int depth)
     {
         value = Unwrap(value);
-        if (depth >= StaticValueFlow.MaxDepth || StaticValueFlow.HasBindingError(value)) return null;
+        if (depth >= StaticValueFlow.MaxDepth || StaticValueFlow.HasBindingError(value))
+            return null;
         if (value is IObjectCreationOperation instance && instance.Type is INamedTypeSymbol type
-            && type.IsReferenceType && type.AllInterfaces.Any(candidate => SymbolEqualityComparer.Default.Equals(candidate, extension))) return instance;
+            && type.IsReferenceType && type.AllInterfaces.Any(candidate => SymbolEqualityComparer.Default.Equals(candidate, extension)))
+            return instance;
         if (value is not ILocalReferenceOperation local || local.Local.RefKind != RefKind.None
             || local.Local.DeclaringSyntaxReferences.Length != 1
             || local.Local.DeclaringSyntaxReferences[0].GetSyntax(token) is not VariableDeclaratorSyntax { Initializer: { } initializer }
-            || initializer.SpanStart >= value.Syntax.SpanStart || !block.Span.Contains(initializer.Span)) return null;
+            || initializer.SpanStart >= value.Syntax.SpanStart || !block.Span.Contains(initializer.Span))
+            return null;
         // Track only unchanged local identity. Captured/ref locals and writes are not inferred safe.
         foreach (var reference in block.DescendantNodes().OfType<IdentifierNameSyntax>())
         {
             token.ThrowIfCancellationRequested();
-            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(reference, token).Symbol, local.Local)) continue;
+            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(reference, token).Symbol, local.Local))
+                continue;
             if (reference.Ancestors().Any(node => node is AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax)
                 || reference.Ancestors().Any(node => node is AssignmentExpressionSyntax assignment && assignment.Left.Span.Contains(reference.Span)
                     || node is RefExpressionSyntax
                     || node is ArgumentSyntax argument && argument.RefKindKeyword.RawKind != 0)
-                || reference.Parent is PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax) return null;
+                || reference.Parent is PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax)
+                return null;
         }
         var initial = model.GetOperation(initializer.Value, token);
         return initial is null ? null : Instance(initial, model, block, token, depth + 1);
@@ -183,15 +250,18 @@ internal sealed class StaticRouteGuaranteeAnalysis
         var prepare = extension.GetMembers("PrepareAsync").OfType<IMethodSymbol>().Single();
         if (instance.Type is not INamedTypeSymbol type || type.FindImplementationForInterfaceMember(prepare) is not IMethodSymbol method
             || method.DeclaringSyntaxReferences.Length != 1 || method.DeclaringSyntaxReferences[0].GetSyntax(token) is not MethodDeclarationSyntax syntax
-            || syntax.DescendantNodes().Take(StaticValueFlow.MaxOperations + 1).Count() > StaticValueFlow.MaxOperations) return false;
+            || syntax.DescendantNodes().Take(StaticValueFlow.MaxOperations + 1).Count() > StaticValueFlow.MaxOperations)
+            return false;
         ExpressionSyntax? expression = syntax.ExpressionBody?.Expression;
         if (expression is null && syntax.Body is { } body)
         {
             var returns = body.DescendantNodes().OfType<ReturnStatementSyntax>().ToArray();
-            if (returns.Length != 1 || returns[0].Parent != body) return false;
+            if (returns.Length != 1 || returns[0].Parent != body)
+                return false;
             expression = returns[0].Expression;
         }
-        if (expression is null) return false;
+        if (expression is null)
+            return false;
         var model = compilation.GetSemanticModel(expression.SyntaxTree);
         if (model.GetOperation(expression, token) is not IInvocationOperation call || call.TargetMethod.Name != "FromResult"
             || call.TargetMethod.ContainingType.ToDisplayString() != "System.Threading.Tasks.Task"
@@ -199,7 +269,8 @@ internal sealed class StaticRouteGuaranteeAnalysis
             || call.TargetMethod.Arity != 1 || !SymbolEqualityComparer.Default.Equals(call.TargetMethod.TypeArguments[0], contribution)
             || Unwrap(call.Arguments[0].Value) is not IObjectCreationOperation result || result.Constructor?.Parameters.Length != 0
             || !SymbolEqualityComparer.Default.Equals(result.Type, contribution) || StaticValueFlow.HasBindingError(result)
-            || result.Initializer?.Initializers.Any(item => item is not ISimpleAssignmentOperation) is true) return false;
+            || result.Initializer?.Initializers.Any(item => item is not ISimpleAssignmentOperation) is true)
+            return false;
         var collection = contribution.GetMembers("ContentCollections").OfType<IPropertySymbol>().Single();
         var assigned = Assignment(result, collection);
         return assigned is null || Elements(assigned.Value, out var entries) && entries.Length == 0;
@@ -207,7 +278,8 @@ internal sealed class StaticRouteGuaranteeAnalysis
     private bool DocumentationRegistration(IObjectCreationOperation instance, SemanticModel model, BlockSyntax block, int ownerStart, CancellationToken token)
     {
         if (instance.Type is not INamedTypeSymbol type || type.ToDisplayString() != "LithoSharp.Mdx.DocumentationSite"
-            || type.ContainingAssembly.Identity.Name != "LithoSharp.Mdx" || type.Locations.Any(location => location.IsInSource)) return false;
+            || type.ContainingAssembly.Identity.Name != "LithoSharp.Mdx" || type.Locations.Any(location => location.IsInSource))
+            return false;
         foreach (var statement in block.Statements.OfType<ExpressionStatementSyntax>().Where(statement => statement.SpanStart < ownerStart))
         {
             token.ThrowIfCancellationRequested();
@@ -216,15 +288,18 @@ internal sealed class StaticRouteGuaranteeAnalysis
                 || call.TargetMethod.Parameters.Length != 1 || call.Arguments.Length != 1 || call.Instance is null
                 || Unwrap(call.Arguments[0].Value) is not IObjectCreationOperation collection
                 || collection.Type is not INamedTypeSymbol collectionType || collectionType.ToDisplayString() != "LithoSharp.Mdx.DocumentationCollection"
-                || collectionType.ContainingAssembly.Identity.Name != "LithoSharp.Mdx" || collectionType.Locations.Any(location => location.IsInSource)) continue;
+                || collectionType.ContainingAssembly.Identity.Name != "LithoSharp.Mdx" || collectionType.Locations.Any(location => location.IsInSource))
+                continue;
             var receiver = Instance(call.Instance, model, block, token, 0);
-            if (receiver?.Syntax.Span == instance.Syntax.Span && receiver.Syntax.SyntaxTree == instance.Syntax.SyntaxTree) return true;
+            if (receiver?.Syntax.Span == instance.Syntax.Span && receiver.Syntax.SyntaxTree == instance.Syntax.SyntaxTree)
+                return true;
         }
         return false;
     }
     private static IOperation Unwrap(IOperation operation)
     {
-        while (operation is IConversionOperation { OperatorMethod: null } conversion) operation = conversion.Operand;
+        while (operation is IConversionOperation { OperatorMethod: null } conversion)
+            operation = conversion.Operand;
         return operation;
     }
     private static bool Core(INamedTypeSymbol? symbol) => symbol?.ContainingAssembly.Identity.Name == "LithoSharp"

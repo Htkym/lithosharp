@@ -40,9 +40,12 @@ public sealed class HtmlFactsCacheTests
         await Assert.That(Snapshot(output)).IsEquivalentTo(snapshot);
         Console.WriteLine("HT06_CACHE_PARITY " + System.Text.Json.JsonSerializer.Serialize(new
         {
-            firstParse = first.QualityReport.HtmlParseCount, noOpParse = second.QualityReport.HtmlParseCount,
-            noOpHit = second.QualityReport.HtmlFactsCacheHitCount, cacheOffParse = uncached.QualityReport.HtmlParseCount,
-            outputsEqual = true, diagnosticsEqual = true,
+            firstParse = first.QualityReport.HtmlParseCount,
+            noOpParse = second.QualityReport.HtmlParseCount,
+            noOpHit = second.QualityReport.HtmlFactsCacheHitCount,
+            cacheOffParse = uncached.QualityReport.HtmlParseCount,
+            outputsEqual = true,
+            diagnosticsEqual = true,
         }));
 
         var other = Path.Combine(workspace.Root, "other");
@@ -75,14 +78,23 @@ public sealed class HtmlFactsCacheTests
         var first = await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, true, customization, options, default);
         var original = Snapshot(output);
         var records = CacheSnapshot(workspace.Root);
-        if (change == "anchor") files["target.html"] = files["target.html"].Replace("id=old", "id=new", StringComparison.Ordinal);
-        if (change == "route") files.Remove("target.html");
-        if (change == "asset") options = options with { GeneratedAssets = [] };
+        if (change == "anchor")
+            files["target.html"] = files["target.html"].Replace("id=old", "id=new", StringComparison.Ordinal);
+        if (change == "route")
+            files.Remove("target.html");
+        if (change == "asset")
+            options = options with { GeneratedAssets = [] };
         var settings = change == "base" ? Site with { BaseUrl = "https://example.test/changed/" } : Site;
         options = options with { PreviousBuildPlan = first.BuildPlan };
         SiteQualityValidationException? failure = null;
-        try { await new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, false, customization, options, default); }
-        catch (SiteQualityValidationException exception) { failure = exception; }
+        try
+        {
+            await new SiteGenerator().GenerateWithOptionsAsync(settings, [], output, false, customization, options, default);
+        }
+        catch (SiteQualityValidationException exception)
+        {
+            failure = exception;
+        }
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.Diagnostics.Any(value => value.Id == diagnostic)).IsTrue();
         await Assert.That(failure.Report.HtmlFactsCacheHitCount > 0).IsTrue();
@@ -215,24 +227,36 @@ public sealed class HtmlFactsCacheTests
         await Assert.That(renamed.QualityReport.HtmlFactsCacheHitCount).IsEqualTo(1);
         Console.WriteLine("HT06_ANCHOR_OBSERVATIONS " + System.Text.Json.JsonSerializer.Serialize(new
         {
-            coldParse = first.QualityReport.HtmlParseCount, warmParse = warm.QualityReport.HtmlParseCount,
-            assetParse = changed.QualityReport.HtmlParseCount, reorderedParse = reordered.QualityReport.HtmlParseCount,
-            anchorParse = anchor.QualityReport.HtmlParseCount, failedAnchorParse = missingAnchor.Report.HtmlParseCount,
+            coldParse = first.QualityReport.HtmlParseCount,
+            warmParse = warm.QualityReport.HtmlParseCount,
+            assetParse = changed.QualityReport.HtmlParseCount,
+            reorderedParse = reordered.QualityReport.HtmlParseCount,
+            anchorParse = anchor.QualityReport.HtmlParseCount,
+            failedAnchorParse = missingAnchor.Report.HtmlParseCount,
             renameParse = renamed.QualityReport.HtmlParseCount,
             observations = anchor.BuildPlan.Nodes.Where(QualityAnchorBuildPlan.IsObservation),
             anchor = anchor.BuildPlan.GetInvalidatedNodes(reordered.BuildPlan),
-            deleted = deletedPlan.GetInvalidatedNodes(anchor.BuildPlan), renamed = renamed.BuildPlan.GetInvalidatedNodes(anchor.BuildPlan),
+            deleted = deletedPlan.GetInvalidatedNodes(anchor.BuildPlan),
+            renamed = renamed.BuildPlan.GetInvalidatedNodes(anchor.BuildPlan),
             failureLocations = missingAnchor.Diagnostics.Where(value => value.Id == "LSQ002"),
-            originalOutputHashes = original, successfulCacheHashes = records,
-            rejectedOutputAndCacheUnchanged = true, opaqueFallbackPreserved = true,
+            originalOutputHashes = original,
+            successfulCacheHashes = records,
+            rejectedOutputAndCacheUnchanged = true,
+            opaqueFallbackPreserved = true,
         }));
 
         async Task<SiteQualityValidationException> Rejected(string diagnostic)
         {
             SiteQualityValidationException? failure = null;
-            try { await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
-                options with { PreviousBuildPlan = anchor.BuildPlan }, default); }
-            catch (SiteQualityValidationException exception) { failure = exception; }
+            try
+            {
+                await new SiteGenerator().GenerateWithOptionsAsync(Site, [], output, false, customization,
+                options with { PreviousBuildPlan = anchor.BuildPlan }, default);
+            }
+            catch (SiteQualityValidationException exception)
+            {
+                failure = exception;
+            }
             await Assert.That(failure).IsNotNull();
             await Assert.That(failure!.Diagnostics.Any(value => value.Id == diagnostic)).IsTrue();
             await Assert.That(Snapshot(output)).IsEquivalentTo(original);
@@ -278,10 +302,16 @@ public sealed class HtmlFactsCacheTests
         using var workspace = new TemporaryWorkspace();
         var partition = Path.Combine(workspace.Root, "cache");
         var html = Page("", "Home", "<style>body{color:red}</style>😀");
-        using (var first = new SiteHtmlFactsCache(partition)) { await first.GetAsync(html, default); await first.PublishAsync(); }
+        using (var first = new SiteHtmlFactsCache(partition))
+        {
+            await first.GetAsync(html, default);
+            await first.PublishAsync();
+        }
         var path = Directory.GetFiles(Path.Combine(partition, "html-facts")).Single();
-        if (corruption == "truncated") await File.WriteAllTextAsync(path, "{");
-        else if (corruption == "oversized") await File.WriteAllBytesAsync(path, new byte[SiteHtmlFactsCache.MaxRecordBytes + 1]);
+        if (corruption == "truncated")
+            await File.WriteAllTextAsync(path, "{");
+        else if (corruption == "oversized")
+            await File.WriteAllBytesAsync(path, new byte[SiteHtmlFactsCache.MaxRecordBytes + 1]);
         else
         {
             var value = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
@@ -308,7 +338,11 @@ public sealed class HtmlFactsCacheTests
         var partition = Path.Combine(workspace.Root, "cache");
         await File.WriteAllTextAsync(path, Page("", "Home", "<h2 id=old>A</h2>"));
         var timestamp = File.GetLastWriteTimeUtc(path);
-        using (var first = new SiteHtmlFactsCache(partition)) { await first.GetAsync(await File.ReadAllTextAsync(path), default); await first.PublishAsync(); }
+        using (var first = new SiteHtmlFactsCache(partition))
+        {
+            await first.GetAsync(await File.ReadAllTextAsync(path), default);
+            await first.PublishAsync();
+        }
         await File.WriteAllTextAsync(path, Page("", "Home", "<h2 id=new>A</h2>"));
         File.SetLastWriteTimeUtc(path, timestamp);
         using var second = new SiteHtmlFactsCache(partition);
@@ -327,7 +361,8 @@ public sealed class HtmlFactsCacheTests
         var files = new[] { "index.html", "second.html" };
         Task<string> Read(string path, CancellationToken token)
         {
-            if (path == "second.html") cancellation.Cancel();
+            if (path == "second.html")
+                cancellation.Cancel();
             token.ThrowIfCancellationRequested();
             return Task.FromResult(html);
         }

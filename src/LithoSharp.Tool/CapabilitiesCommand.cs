@@ -18,7 +18,8 @@ internal static class CapabilitiesCommand
             var argument = args[index];
             if (argument is not ("-f" or "--format"))
                 throw new CliUsageException($"Unknown option '{argument}'.");
-            if (++index >= args.Length) throw new CliUsageException($"Option '{argument}' requires a value.");
+            if (++index >= args.Length)
+                throw new CliUsageException($"Option '{argument}' requires a value.");
             format = args[index];
         }
 

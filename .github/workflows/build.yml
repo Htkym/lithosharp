@@ -84,6 +84,19 @@ jobs:
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode
 
+      - name: Verify C# control-statement layout
+        if: matrix.check-name == 'windows-latest'
+        run: |
+          dotnet format style LithoSharp.slnx --diagnostics IDE2001 --exclude tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs --no-restore --verify-no-changes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet format whitespace LithoSharp.slnx --exclude src/LithoSharp/HtmlParsing/HtmlCharacterReferences.g.cs tests/fixtures tests/LithoSharp.Tests/Fixtures templates tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs --no-restore --verify-no-changes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore tests/LithoSharp.Tool.Tests/LithoSharp.Tool.Tests.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet format style tests/LithoSharp.Tool.Tests/LithoSharp.Tool.Tests.csproj --diagnostics IDE2001 --include tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs --no-restore --verify-no-changes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet format whitespace tests/LithoSharp.Tool.Tests/LithoSharp.Tool.Tests.csproj --include tests/LithoSharp.Tests/CompilerDiagnosticPreflightTests.cs --no-restore --verify-no-changes
+
       - name: Check shipping dependency graph
         shell: pwsh
         run: ./eng/Test-DependencyZero.ps1 -RepositoryGraph -Output artifacts/dependency-zero-graph.json

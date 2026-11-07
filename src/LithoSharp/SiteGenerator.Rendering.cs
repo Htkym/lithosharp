@@ -24,7 +24,8 @@ public sealed partial class SiteGenerator
     {
         var seo = SeoComponent.RenderCore(configuration.Site.Title, fullTitle, description,
             canonicalUrl, openGraphType, socialImageUrl, $"{configuration.Site.Title} social preview", publishedAt);
-        if (metadata?.NoIndex == true) seo += "  <meta name=\"robots\" content=\"noindex\">\n";
+        if (metadata?.NoIndex == true)
+            seo += "  <meta name=\"robots\" content=\"noindex\">\n";
         if (metadata is not null)
             seo += string.Concat(metadata.Alternates.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair =>
                 $"  <link rel=\"alternate\" hreflang=\"{Html.Encode(pair.Key)}\" href=\"{pair.Value.ToAttributeValue()}\">\n"));

@@ -130,7 +130,8 @@ public sealed class Phase2ASafetyTests
             GenerateLlmsTxt = false,
             Template = new CallbackTemplate(context => new SiteTemplateFile
             {
-                RelativePath = context.Assets.GetUrl(asset).Route.RelativeOutputPath, Content = "conflict"
+                RelativePath = context.Assets.GetUrl(asset).Route.RelativeOutputPath,
+                Content = "conflict"
             })
         };
         await Assert.That(async () => await new SiteGenerator().GenerateWithOptionsAsync(

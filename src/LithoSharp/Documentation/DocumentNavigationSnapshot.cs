@@ -130,7 +130,7 @@ public sealed class DocumentNavigationSnapshot
             .OrderBy(page => page.Key.ToString(), StringComparer.Ordinal).ToArray();
         var resolved = sidebars is null || sidebars.Count == 0
             ? new Dictionary<string, IReadOnlyList<DocumentNavigationItem>>(StringComparer.Ordinal)
-                { ["default"] = catalog.Sidebar(collection, version, locale, categories: categories) }
+            { ["default"] = catalog.Sidebar(collection, version, locale, categories: categories) }
             : sidebars.ToDictionary(pair => pair.Key, pair => catalog.Sidebar(collection, version, locale, pair.Value, categories),
                 StringComparer.Ordinal);
         if (defaultSidebar is not null && !resolved.ContainsKey(defaultSidebar))

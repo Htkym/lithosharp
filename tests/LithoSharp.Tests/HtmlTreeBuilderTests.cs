@@ -597,18 +597,24 @@ public sealed class HtmlTreeBuilderTests
             var raw = string.Concat(Enumerable.Range(0, 24).Select(_ => parts[random.Next(parts.Length)]));
             var tree = CompactHtmlTreeBuilder.Parse(raw, limits: new()
             {
-                MaxNodes = 300, MaxDepth = 40, MaxOperations = 30_000, Tokenizer = new() { MaxTextChunkChars = 3 }
+                MaxNodes = 300,
+                MaxDepth = 40,
+                MaxOperations = 30_000,
+                Tokenizer = new() { MaxTextChunkChars = 3 }
             });
             await Assert.That(tree.Nodes.Count <= 300).IsTrue();
             await CheckLinksAndSpans(tree, raw.Length);
             var visited = new HashSet<int>();
-            var pending = new Stack<int>(); pending.Push(tree.Root);
+            var pending = new Stack<int>();
+            pending.Push(tree.Root);
             while (pending.Count > 0)
             {
                 var id = pending.Pop();
                 await Assert.That(visited.Add(id)).IsTrue();
-                foreach (var child in tree.Nodes[id].Children) pending.Push(child);
-                if (tree.Nodes[id].TemplateContent is int content) pending.Push(content);
+                foreach (var child in tree.Nodes[id].Children)
+                    pending.Push(child);
+                if (tree.Nodes[id].TemplateContent is int content)
+                    pending.Push(content);
             }
         }
     }
@@ -719,7 +725,8 @@ public sealed class HtmlTreeBuilderTests
             await Assert.That(actual.Length).IsEqualTo(expected.Length);
             for (var i = 0; i < expected.Length; i++)
             {
-                var node = actual[i]; var baseline = expected[i];
+                var node = actual[i];
+                var baseline = expected[i];
                 await Assert.That(node.Name).IsEqualTo(baseline.GetProperty("name").GetString());
                 await Assert.That(node.Namespace).IsEqualTo(baseline.GetProperty("namespace").GetString());
                 await Assert.That(node.Parent is int parent ? tree.Nodes[parent].Name : null).IsEqualTo(baseline.GetProperty("parent").GetString());
@@ -737,7 +744,8 @@ public sealed class HtmlTreeBuilderTests
                     var index = source.GetProperty("oracleIndex").GetInt32();
                     await Assert.That(node.Source?.Start).IsEqualTo(index < 0 ? (int?)null : index);
                 }
-                else if (node.Namespace == HtmlNamespaces.Html) await Assert.That(node.Source is null).IsTrue();
+                else if (node.Namespace == HtmlNamespaces.Html)
+                    await Assert.That(node.Source is null).IsTrue();
                 // The old oracle lacks positions for foreign roots; retain our actual token span.
             }
         }
@@ -751,10 +759,17 @@ public sealed class HtmlTreeBuilderTests
             var node = tree.Nodes[id];
             text.Append('(').Append(node.Kind).Append(JsonSerializer.Serialize(node.Name)).Append(JsonSerializer.Serialize(node.Namespace));
             text.Append(node.Source?.Start.ToString() ?? "?");
-            foreach (var attribute in node.Attributes) text.Append(JsonSerializer.Serialize(new[] { attribute.Name, attribute.Namespace, attribute.Prefix, attribute.Value.Value }));
-            if (node.Kind == HtmlTreeNodeKind.Text) text.Append(JsonSerializer.Serialize(string.Concat(node.TextChunks.Select(c => c.Value))));
-            foreach (var child in node.Children) Visit(child);
-            if (node.TemplateContent is int content) { text.Append("content:"); Visit(content); }
+            foreach (var attribute in node.Attributes)
+                text.Append(JsonSerializer.Serialize(new[] { attribute.Name, attribute.Namespace, attribute.Prefix, attribute.Value.Value }));
+            if (node.Kind == HtmlTreeNodeKind.Text)
+                text.Append(JsonSerializer.Serialize(string.Concat(node.TextChunks.Select(c => c.Value))));
+            foreach (var child in node.Children)
+                Visit(child);
+            if (node.TemplateContent is int content)
+            {
+                text.Append("content:");
+                Visit(content);
+            }
             text.Append(')');
         }
         Visit(tree.Root);
@@ -765,10 +780,14 @@ public sealed class HtmlTreeBuilderTests
     {
         foreach (var node in tree.Nodes)
         {
-            if (node.Parent is int parent) await Assert.That(tree.Nodes[parent].Children.Count(id => id == node.Id)).IsEqualTo(1);
-            foreach (var child in node.Children) await Assert.That(tree.Nodes[child].Parent).IsEqualTo((int?)node.Id);
-            if (node.TemplateContent is int content) await Assert.That(tree.Nodes[content].Parent is null).IsTrue();
-            if (node.Source is { } span) await Assert.That(span.Start >= 0 && span.End <= rawLength).IsTrue();
+            if (node.Parent is int parent)
+                await Assert.That(tree.Nodes[parent].Children.Count(id => id == node.Id)).IsEqualTo(1);
+            foreach (var child in node.Children)
+                await Assert.That(tree.Nodes[child].Parent).IsEqualTo((int?)node.Id);
+            if (node.TemplateContent is int content)
+                await Assert.That(tree.Nodes[content].Parent is null).IsTrue();
+            if (node.Source is { } span)
+                await Assert.That(span.Start >= 0 && span.End <= rawLength).IsTrue();
             foreach (var text in node.TextChunks.Concat(node.Attributes.SelectMany(a => new[] { a.RawName, a.Value })))
             {
                 var end = 0;

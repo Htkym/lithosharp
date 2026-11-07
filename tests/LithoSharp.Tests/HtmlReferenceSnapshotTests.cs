@@ -94,8 +94,12 @@ public sealed class HtmlReferenceSnapshotTests
         var site = new SiteSettings { Title = "References", BaseUrl = "https://example.test/", TimeZone = "UTC" };
         var generator = new SiteGenerator();
         const string html = "<title>Home</title><link rel=canonical href='/'><a href='/'>Home</a>";
-        var options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch,
-            Quality = new(checkOrphans: false), RawHtmlFactsDemand = HtmlRawFactsDemand.Quality };
+        var options = new SiteGenerationOptions
+        {
+            BuildTimestamp = DateTimeOffset.UnixEpoch,
+            Quality = new(checkOrphans: false),
+            RawHtmlFactsDemand = HtmlRawFactsDemand.Quality
+        };
         var first = await generator.GenerateWithOptionsAsync(site, [], output, true,
             new() { Template = new TextTemplate(html) }, options, default);
         var before = Snapshot(output);

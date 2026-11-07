@@ -9,7 +9,8 @@ internal static class StaticApiGuards
 {
     internal static void ValidateAbsoluteUrl(string value)
     {
-        if (value is null) throw new ArgumentNullException(nameof(value));
+        if (value is null)
+            throw new ArgumentNullException(nameof(value));
         if (value.Any(char.IsControl) || value.Any(char.IsWhiteSpace) || value.IndexOf('\\') >= 0
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
@@ -28,14 +29,16 @@ internal static class StaticApiGuards
 
     internal static void ValidateExternalCacheFilePath(string cacheFilePath)
     {
-        if (cacheFilePath is null) throw new ArgumentNullException(nameof(cacheFilePath));
+        if (cacheFilePath is null)
+            throw new ArgumentNullException(nameof(cacheFilePath));
         if (string.IsNullOrWhiteSpace(cacheFilePath))
             throw new ArgumentException("A cache file path must not be empty.", nameof(cacheFilePath));
     }
 
     internal static void ValidateExternalCacheDuration(long ticks)
     {
-        if (ticks < 0) throw new ArgumentOutOfRangeException("cacheDuration");
+        if (ticks < 0)
+            throw new ArgumentOutOfRangeException("cacheDuration");
     }
 
     internal static void ValidateExternalTimerDuration(long ticks, string name, bool allowZero)

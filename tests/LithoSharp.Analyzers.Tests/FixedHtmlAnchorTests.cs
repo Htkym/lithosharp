@@ -81,8 +81,15 @@ public sealed partial class AnalyzerPackageHostTests
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, "shadow-source.cs"), shadowSource);
         File.WriteAllText(Path.Combine(directory, "shadow-owner.cs"), owner.ToString());
-        File.WriteAllText(Path.Combine(directory, "results.json"), JsonSerializer.Serialize(new { status = "PASS", shadowDiagnostic = errors.Select(ManifestDiagnostic),
-            constructor = bound.Constructor.ToDisplayString(), consumerFactoriesInOwner = false, iframe = new { input = embedded, parseStatus = status, closed = false, diagnostics = 0 }, hints }, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "results.json"), JsonSerializer.Serialize(new
+        {
+            status = "PASS",
+            shadowDiagnostic = errors.Select(ManifestDiagnostic),
+            constructor = bound.Constructor.ToDisplayString(),
+            consumerFactoriesInOwner = false,
+            iframe = new { input = embedded, parseStatus = status, closed = false, diagnostics = 0 },
+            hints
+        }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     [Test]

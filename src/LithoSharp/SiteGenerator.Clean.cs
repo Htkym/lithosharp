@@ -26,7 +26,8 @@ public sealed partial class SiteGenerator
         {
             try
             {
-                if (!committed) await transaction.CleanupAsync().ConfigureAwait(false);
+                if (!committed)
+                    await transaction.CleanupAsync().ConfigureAwait(false);
             }
             finally
             {

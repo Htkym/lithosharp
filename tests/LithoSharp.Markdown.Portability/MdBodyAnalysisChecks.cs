@@ -49,8 +49,13 @@ internal static class MdBodyAnalysisChecks
             Check(Value(resource, "RawSpan") is null, "A resource exit must preserve its unknown source position.");
         }
         Check(Serialize(runtimeLimited) == Serialize(portableLimited), "Runtime/portable retained-block resource results differ.");
-        Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-body-portability", status = "PASS", checks =
-            "net10 runtime/netstandard2 Source/body identity/BOM-CRLF/raw spans/typed blocks/candidates/post-block resource retention/unknown position" }));
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            task = "MD-body-portability",
+            status = "PASS",
+            checks =
+            "net10 runtime/netstandard2 Source/body identity/BOM-CRLF/raw spans/typed blocks/candidates/post-block resource retention/unknown position"
+        }));
     }
 
     private static object Analyze(Assembly assembly, string body, string parts = "FrontMatter, UnsupportedSyntax", int maxOutputItems = 131072)
@@ -94,7 +99,9 @@ internal static class MdBodyAnalysisChecks
         }),
         Diagnostics = Items(Value(analysis, "Diagnostics")).Select(diagnostic => new
         {
-            Id = Value(diagnostic, "Id"), Origin = Value(diagnostic, "Origin"), Reason = Value(diagnostic, "Reason"),
+            Id = Value(diagnostic, "Id"),
+            Origin = Value(diagnostic, "Origin"),
+            Reason = Value(diagnostic, "Reason"),
             RawSpan = RangeSnapshot(Value(diagnostic, "RawSpan")),
         }),
     });

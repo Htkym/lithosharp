@@ -65,7 +65,11 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     /// <summary>The public C# layout contract, including sidebar, body, table of contents and head regions.</summary>
     public IPageLayout<PageLayoutContent> Layout { get; init; } = new DocsPageLayout();
     /// <summary>Creates a documentation extension. Node is started only for an MDX collection on a cache miss.</summary>
-    public DocumentationSite(MdxOptions options) { mdx = new(options); blogs = new(mdx); }
+    public DocumentationSite(MdxOptions options)
+    {
+        mdx = new(options);
+        blogs = new(mdx);
+    }
     /// <summary>Registers a blog in the same MDX graph, sharing React and all common chunks with documentation.</summary>
     public void AddBlog(MdxBlogCollection blog) => blogs.AddCollection(blog);
     /// <summary>Registers independent typed MDX pages in the same graph as documentation and blogs.</summary>
@@ -77,9 +81,14 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     /// <summary>Measured MDX work, including valid no-op cache hits.</summary>
     public MdxBuildMetrics MdxMetrics => mdx.Metrics;
     /// <inheritdoc />
-    public JsonElement? GetInspection() => JsonSerializer.SerializeToElement(new { kind = "documentation", mdx = mdx.GetInspection(),
+    public JsonElement? GetInspection() => JsonSerializer.SerializeToElement(new
+    {
+        kind = "documentation",
+        mdx = mdx.GetInspection(),
         variants = registrations.Select(value => new { collection = value.Options.Id, value.Variant.Version, value.Variant.Locale, value.Variant.RoutePrefix }),
-        pages = catalog.Pages.Select(page => new { page.Key, page.Route.PublicPath, page.FrontMatter.Unlisted }), missingTranslations });
+        pages = catalog.Pages.Select(page => new { page.Key, page.Route.PublicPath, page.FrontMatter.Unlisted }),
+        missingTranslations
+    });
     /// <summary>Optional shared UI messages for C# and React.</summary>
     public TranslationCatalog? Translations { get; init; }
     /// <summary>The explicit behavior for untranslated UI messages.</summary>
@@ -92,8 +101,10 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     {
         ArgumentNullException.ThrowIfNull(collection);
         _ = new ContentCollectionId(collection.Id);
-        if (collection.Variants.Count == 0) throw new ArgumentException("A documentation collection requires a variant.");
-        if (registrations.Any(value => value.Options.Id == collection.Id)) throw new ArgumentException("Duplicate documentation collection.");
+        if (collection.Variants.Count == 0)
+            throw new ArgumentException("A documentation collection requires a variant.");
+        if (registrations.Any(value => value.Options.Id == collection.Id))
+            throw new ArgumentException("Duplicate documentation collection.");
         foreach (var variant in collection.Variants)
         {
             _ = SiteRoute.ForDirectoryIndex(variant.RoutePrefix);
@@ -103,7 +114,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 throw new ArgumentException("Duplicate document variant.");
             var registration = new Registration(collection, variant);
             registrations.Add(registration);
-            if (collection.UseMdx) mdx.AddCollection(registration, entry => PublicData(RenderState(entry.FrontMatter), entry),
+            if (collection.UseMdx)
+                mdx.AddCollection(registration, entry => PublicData(RenderState(entry.FrontMatter), entry),
                 (entry, context) => Render(RenderState(entry.FrontMatter), entry, context));
         }
     }
@@ -119,8 +131,14 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     internal async Task<SiteCatalogPreparation> InspectForGenerationAsync(SiteBuildContext context, CancellationToken cancellationToken)
     {
         await inspectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { return await InspectDocumentationAsync(context, cancellationToken).ConfigureAwait(false); }
-        finally { inspectionGate.Release(); }
+        try
+        {
+            return await InspectDocumentationAsync(context, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            inspectionGate.Release();
+        }
     }
 
     private async Task<SiteCatalogPreparation> InspectDocumentationAsync(SiteBuildContext context, CancellationToken cancellationToken)
@@ -152,7 +170,12 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 throw new ArgumentException("Analytics requires an explicit HTTP(S) endpoint and a supported provider.");
             if (browser.Algolia is { } algolia && (!System.Text.RegularExpressions.Regex.IsMatch(algolia.ApplicationId, "^[A-Za-z0-9]+$") || string.IsNullOrWhiteSpace(algolia.SearchOnlyApiKey) || string.IsNullOrWhiteSpace(algolia.IndexName)))
                 throw new ArgumentException("Algolia requires an application ID, public search-only key and index name.");
-            string Resource(string name) { using var stream = typeof(DocumentationSite).Assembly.GetManifestResourceStream("LithoSharp.Mdx.Browser." + name)!; using var reader = new StreamReader(stream); return reader.ReadToEnd(); }
+            string Resource(string name)
+            {
+                using var stream = typeof(DocumentationSite).Assembly.GetManifestResourceStream("LithoSharp.Mdx.Browser." + name)!;
+                using var reader = new StreamReader(stream);
+                return reader.ReadToEnd();
+            }
             string Asset(string id, string extension, string source)
             {
                 var bytes = System.Text.Encoding.UTF8.GetBytes(source);
@@ -160,12 +183,19 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 browserAssets.Add(new("docs:" + id, path, bytes));
                 return SiteUrl.ForFile(path, context.Site.BaseUrl).ToAttributeValue().ToString();
             }
-            var config = JsonSerializer.Serialize(new { basePath = SiteUrl.ForDirectory("", context.Site.BaseUrl).Value,
-                navigation = browser.Navigation, theme = browser.Theme, announcement = browser.Announcement,
+            var config = JsonSerializer.Serialize(new
+            {
+                basePath = SiteUrl.ForDirectory("", context.Site.BaseUrl).Value,
+                navigation = browser.Navigation,
+                theme = browser.Theme,
+                announcement = browser.Announcement,
                 navbar = browser.Navbar.Select(link => new { label = link.Label, url = link.Url.Value }),
-                footer = browser.Footer.Select(link => new { label = link.Label, url = link.Url.Value }), offline = browser.Offline,
-                search = browser.Search, algolia = browser.Algolia is { } search ? new { applicationId = search.ApplicationId, searchOnlyApiKey = search.SearchOnlyApiKey, indexName = search.IndexName } : null,
-                analytics = browser.Analytics is { } provider ? new { endpoint = provider.Endpoint.Value, domain = provider.Domain, provider = provider.Provider } : null });
+                footer = browser.Footer.Select(link => new { label = link.Label, url = link.Url.Value }),
+                offline = browser.Offline,
+                search = browser.Search,
+                algolia = browser.Algolia is { } search ? new { applicationId = search.ApplicationId, searchOnlyApiKey = search.SearchOnlyApiKey, indexName = search.IndexName } : null,
+                analytics = browser.Analytics is { } provider ? new { endpoint = provider.Endpoint.Value, domain = provider.Domain, provider = provider.Provider } : null
+            });
             var script = Asset("client", ".js", Resource("client.mjs") + "\nstart(" + config + ");\n");
             var css = Asset("theme", ".css", Resource("theme.css"));
             browserHead = "<link rel=\"stylesheet\" href=\"" + css + "\"><script type=\"module\" src=\"" + script + "\"></script>";
@@ -174,12 +204,15 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         {
             var options = registration.Options;
             var variant = registration.Variant;
-            var collectionId = new ContentCollectionId($"docs:{options.Id}:{variant.Version}:{variant.Locale}");            SiteRoute Route(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => SiteRoute.ForDirectoryIndex(
+            var collectionId = new ContentCollectionId($"docs:{options.Id}:{variant.Version}:{variant.Locale}");
+            SiteRoute Route(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => SiteRoute.ForDirectoryIndex(
                 variant.RoutePrefix.Trim('/') + "/" + (entry.FrontMatter.Slug ?? entry.Id.Value).Trim('/'), context.Site.BaseUrl);
             PageMetadata Metadata(ContentEntry<DocumentFrontMatter, MdxDocument> entry) => new(entry.FrontMatter.Title,
                 entry.FrontMatter.Description, entry.FrontMatter.Draft, entry.FrontMatter.PublishFrom, entry.FrontMatter.PublishUntil)
             {
-                Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex || entry.FrontMatter.Unlisted,
+                Language = variant.Locale,
+                RightToLeft = variant.RightToLeft,
+                NoIndex = variant.NoIndex || entry.FrontMatter.Unlisted,
                 Document = new(options.Id, variant.Version, variant.Locale, entry.Id.Value),
                 Alternates = catalog.Alternates(new(options.Id, variant.Version, variant.Locale, entry.Id.Value))
             };
@@ -187,8 +220,9 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             if (options.UseMdx)
             {
                 var result = await new MdxContentCollectionLoader<DocumentFrontMatter>(collectionId, variant.InputDirectory, Route, Metadata)
-                    { IncludeMarkdown = true, TransformationFingerprint = "docs-v1" }.LoadAsync(cancellationToken).ConfigureAwait(false);
-                if (!result.IsSuccess) throw new SiteBuildExtensionException(result.Diagnostics);
+                { IncludeMarkdown = true, TransformationFingerprint = "docs-v1" }.LoadAsync(cancellationToken).ConfigureAwait(false);
+                if (!result.IsSuccess)
+                    throw new SiteBuildExtensionException(result.Diagnostics);
                 loadDiagnostics.AddRange(result.Diagnostics);
                 raw = result.Collection!;
             }
@@ -197,7 +231,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 var result = await new MarkdownContentCollectionLoader<DocumentFrontMatter>(collectionId, variant.InputDirectory,
                     _ => SiteRoute.ForDirectoryIndex("unused"), entry => new PageMetadata(entry.FrontMatter.Title))
                     .LoadAsync(cancellationToken).ConfigureAwait(false);
-                if (!result.IsSuccess) throw new SiteBuildExtensionException(result.Diagnostics);
+                if (!result.IsSuccess)
+                    throw new SiteBuildExtensionException(result.Diagnostics);
                 loadDiagnostics.AddRange(result.Diagnostics);
                 raw = new(collectionId, variant.InputDirectory, result.Collection!.Entries.Select(entry => new ContentEntry<DocumentFrontMatter, MdxDocument>(
                     entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, new(entry.Body) { CapturedInputs = entry.CapturedInputs }, entry.SourceLocation)
@@ -220,8 +255,13 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             registration.Categories = await ReadCategoriesAsync(variant.InputDirectory, inputs, cancellationToken).ConfigureAwait(false);
             foreach (var (directory, category) in registration.Categories.Where(pair => pair.Value.Link?.Type == "generated-index"))
             {
-                var frontMatter = new DocumentFrontMatter { Id = "category:" + directory, Title = category.Link!.Title ?? category.Label ?? DocumentCatalog.RemoveNumericPrefix(Path.GetFileName(directory)),
-                    Description = category.Link.Description, Slug = category.Link.Slug ?? DocumentCatalog.DefaultId(directory + ".md") };
+                var frontMatter = new DocumentFrontMatter
+                {
+                    Id = "category:" + directory,
+                    Title = category.Link!.Title ?? category.Label ?? DocumentCatalog.RemoveNumericPrefix(Path.GetFileName(directory)),
+                    Description = category.Link.Description,
+                    Slug = category.Link.Slug ?? DocumentCatalog.DefaultId(directory + ".md")
+                };
                 documents.Add(new(new(options.Id, variant.Version, variant.Locale, frontMatter.Id), (directory + "/_category_.json").TrimStart('/'), frontMatter,
                     SiteRoute.ForDirectoryIndex(variant.RoutePrefix.Trim('/') + "/" + frontMatter.Slug.Trim('/'), context.Site.BaseUrl)));
             }
@@ -262,7 +302,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 var messages = new Dictionary<string, string>(registrations[index].Messages, StringComparer.Ordinal);
                 if (registrations[index].Options.UseMdx && Translations is not null)
                     foreach (var pair in Translations.Select(registrations[index].Variant.Locale,
-                        MessageKeys.Concat(TranslationCatalog.ExtractKeys(entry.Body.Body)), TranslationPolicy)) messages[pair.Key] = pair.Value;
+                        MessageKeys.Concat(TranslationCatalog.ExtractKeys(entry.Body.Body)), TranslationPolicy))
+                        messages[pair.Key] = pair.Value;
                 renderStates.Add(entry.FrontMatter, new(registrations[index], state, messages));
             }
         }
@@ -276,7 +317,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         if (browserOptions is not null)
         {
             catalogAssets.Add(new("docs:service-worker", "lithosharp-sw.js", ReadOnlyMemory<byte>.Empty));
-            if (browserOptions.Offline) catalogAssets.Add(new("docs:manifest", "site.webmanifest", ReadOnlyMemory<byte>.Empty));
+            if (browserOptions.Offline)
+                catalogAssets.Add(new("docs:manifest", "site.webmanifest", ReadOnlyMemory<byte>.Empty));
         }
         var inspected = new SiteBuildContribution
         {
@@ -337,16 +379,27 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             var urls = catalog.Pages.Where(page => !page.FrontMatter.Unlisted).Select(page => page.Route.PublicPath)
                 .Concat(prepared.Assets.Concat(browserAssets).Select(asset => SiteUrl.ForFile(asset.RelativeOutputPath, context.Site.BaseUrl).Value))
                 .Concat(new[] { "assets/site.css" }.Select(path => SiteUrl.ForFile(path, context.Site.BaseUrl).Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-            var revision = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { urls, context.Site,
+            var revision = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                urls,
+                context.Site,
                 sources = registrations.SelectMany(registration => registration.Collection!.Entries).Select(entry => entry.SourceFingerprint),
-                assembly = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(typeof(DocumentationSite).Assembly.Location)) })))[..24];
+                assembly = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(typeof(DocumentationSite).Assembly.Location))
+            })))[..24];
             var prefix = "lithosharp:" + SiteUrl.ForDirectory("", context.Site.BaseUrl).Value + ":";
             using var resource = typeof(DocumentationSite).Assembly.GetManifestResourceStream("LithoSharp.Mdx.Browser/offline.mjs".Replace('/', '.'))!;
             using var reader = new StreamReader(resource);
             var workerSource = "const config=" + JsonSerializer.Serialize(new { urls, cache = prefix + revision, prefix }) + ";\n" + reader.ReadToEnd();
             browserAssets.Add(new("docs:service-worker", "lithosharp-sw.js", System.Text.Encoding.UTF8.GetBytes(workerSource)));
-            var manifest = JsonSerializer.Serialize(new { name = context.Site.Title, short_name = context.Site.Title, start_url = urls.FirstOrDefault(url => url.EndsWith('/')) ?? SiteUrl.ForDirectory("", context.Site.BaseUrl).Value,
-                scope = SiteUrl.ForDirectory("", context.Site.BaseUrl).Value, display = "standalone", lang = context.Site.Language });
+            var manifest = JsonSerializer.Serialize(new
+            {
+                name = context.Site.Title,
+                short_name = context.Site.Title,
+                start_url = urls.FirstOrDefault(url => url.EndsWith('/')) ?? SiteUrl.ForDirectory("", context.Site.BaseUrl).Value,
+                scope = SiteUrl.ForDirectory("", context.Site.BaseUrl).Value,
+                display = "standalone",
+                lang = context.Site.Language
+            });
             browserAssets.Add(new("docs:manifest", "site.webmanifest", System.Text.Encoding.UTF8.GetBytes(manifest)));
             browserHead += "<link rel=\"manifest\" href=\"" + SiteUrl.ForFile("site.webmanifest", context.Site.BaseUrl).ToAttributeValue() + "\">";
         }
@@ -368,8 +421,12 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         this.catalog = catalog;
         this.missingTranslations.Clear();
         this.missingTranslations.AddRange(state.MissingTranslations);
-        return new() { ContentCollections = collections, Assets = [.. prepared.Assets, .. browserAssets],
-            Diagnostics = [.. loadDiagnostics, .. prepared.Diagnostics] };
+        return new()
+        {
+            ContentCollections = collections,
+            Assets = [.. prepared.Assets, .. browserAssets],
+            Diagnostics = [.. loadDiagnostics, .. prepared.Diagnostics]
+        };
     }
 
     private IReadOnlyList<SiteContentCollection> AddDocumentationCollections(
@@ -381,7 +438,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var collections = prepared.ContentCollections.ToList();
         foreach (var registration in registrations.Where(registration => !registration.Options.UseMdx))
             collections.Add(new SiteContentCollection<DocumentFrontMatter, MdxDocument>(registration.Collection!,
-                (entry, rendering) => Render(RenderState(entry.FrontMatter), entry, rendering)) { RendererFingerprint = layout is DocsPageLayout ? "docs-v1" : null, IsThreadSafe = layout is DocsPageLayout });
+                (entry, rendering) => Render(RenderState(entry.FrontMatter), entry, rendering))
+            { RendererFingerprint = layout is DocsPageLayout ? "docs-v1" : null, IsThreadSafe = layout is DocsPageLayout });
         foreach (var registration in registrations)
         {
             var id = registration.Collection!.Id;
@@ -397,7 +455,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                     rendering.RenderDocument("<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1><p>" + Html.Encode(entry.FrontMatter.Description ?? "") + "</p>" +
                         Cards(state, registration, registration.Collection.Entries.Where(page => !page.FrontMatter.Unlisted && page.SourcePath.StartsWith(entry.Id.Value["category:".Length..] + "/", StringComparison.Ordinal)
                             && PagePublicationPolicy.ShouldPublish(registration.Collection.PublicationMapper(page), context.BuildTimestamp, context.Options.EnvironmentName)).ToArray())))
-                    { RendererFingerprint = "docs-categories-v1" });
+                { RendererFingerprint = "docs-categories-v1" });
             }
             collections.Add(registration.Collection.GeneratePages(new(id.Value + ":tags"), entry => entry.FrontMatter.Unlisted ? [] : entry.FrontMatter.Tags,
                 group => new SitePage<IReadOnlyList<ContentEntry<DocumentFrontMatter, MdxDocument>>>(new("tag:" + group.Key),
@@ -421,7 +479,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var key = new DocumentKey(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, entry.Id.Value);
         string T(string id, string fallback) => renderState.Messages.TryGetValue(id, out var message) ? message : fallback;
         var selected = entry.FrontMatter.DisplayedSidebar ?? registration.Options.DefaultSidebar ?? registration.Navigation.Keys.First();
-        if (!registration.Navigation.TryGetValue(selected, out var navigation)) throw new ArgumentException($"Unknown sidebar '{selected}'.");
+        if (!registration.Navigation.TryGetValue(selected, out var navigation))
+            throw new ArgumentException($"Unknown sidebar '{selected}'.");
         var breadcrumbs = DocumentCatalog.Breadcrumbs(key, navigation);
         var adjacent = catalog.Adjacent(key, navigation);
         var article = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
@@ -443,24 +502,37 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             + article
             + "<nav aria-label=\"" + Html.Encode(T("adjacent", "Previous and next documents")) + "\">" + PageLink(adjacent.Previous, "prev") + PageLink(adjacent.Next, "next") + "</nav>";
         var edit = entry.FrontMatter.CustomEditUrl ?? (registration.Options.EditUrl is { } prefix ? prefix.TrimEnd('/') + "/" + string.Join('/', entry.SourcePath.Split('/').Select(Uri.EscapeDataString)) : null);
-        if (edit is not null) body += "<p>" + Link(T("edit", "Edit this page"), SiteUrl.FromAbsolute(edit)) + "</p>";
+        if (edit is not null)
+            body += "<p>" + Link(T("edit", "Edit this page"), SiteUrl.FromAbsolute(edit)) + "</p>";
         if (entry.FrontMatter.LastUpdate is { } update)
             body += "<p class=\"docs-last-update\">" + Html.Encode(T("lastUpdated", "Last updated")) + " "
                 + (update.Date is { } date ? "<time datetime=\"" + date.ToString("O") + "\">" + Html.Encode(date.ToString("d", System.Globalization.CultureInfo.GetCultureInfo(registration.Variant.Locale))) + "</time> " : "")
                 + Html.Encode(update.Author ?? "") + "</p>";
         body += "<nav aria-label=\"" + Html.Encode(T("variants", "Version and language")) + "\">" + string.Concat(registration.Options.Variants.Select(variant =>
         {
-            try { return Link((variant.Label ?? variant.Version) + " · " + variant.Locale, SiteUrl.FromRoute(catalog.Switch(key, variant.Version, variant.Locale, variant.FallbackDocumentId).Route)); }
-            catch (KeyNotFoundException) { return "<span aria-disabled=\"true\">" + Html.Encode((variant.Label ?? variant.Version) + " · " + variant.Locale) + "</span>"; }
+            try
+            {
+                return Link((variant.Label ?? variant.Version) + " · " + variant.Locale, SiteUrl.FromRoute(catalog.Switch(key, variant.Version, variant.Locale, variant.FallbackDocumentId).Route));
+            }
+            catch (KeyNotFoundException)
+            {
+                return "<span aria-disabled=\"true\">" + Html.Encode((variant.Label ?? variant.Version) + " · " + variant.Locale) + "</span>";
+            }
         })) + "</nav>";
         body = "<script type=\"application/json\" data-ls-messages>" + JsonSerializer.Serialize(registration.Messages) + "</script>" + body;
-        if (browserOptions is { Search: true }) body = "<section data-ls-search data-index=\"" + Html.Encode(registration.SearchUrl ?? "") + "\" data-collection=\"" + Html.Encode(key.Collection)
+        if (browserOptions is { Search: true })
+            body = "<section data-ls-search data-index=\"" + Html.Encode(registration.SearchUrl ?? "") + "\" data-collection=\"" + Html.Encode(key.Collection)
             + "\" data-version=\"" + Html.Encode(key.Version) + "\" data-locale=\"" + Html.Encode(key.Locale) + "\"><label>" + Html.Encode(T("search", "Search this documentation"))
             + "<input type=\"search\" aria-label=\"" + Html.Encode(T("search", "Search this documentation")) + "\"></label><p role=\"status\" aria-live=\"polite\"></p><div data-results></div></section>" + body;
         var layoutContext = context.CreateLayoutContext();
         return layout.Render(new SitePage<PageLayoutContent>(new("docs:" + key), context.Route,
-            new(Html.UnsafeRaw(body)) { Sidebar = Html.UnsafeRaw(RenderNavigation(navigation, key)), Head = Html.UnsafeRaw(browserHead), IncludeDefaultScript = browserOptions is null,
-                TableOfContents = entry.FrontMatter.HideTableOfContents ? null : new TableOfContentsComponent().Render(articleHeadings, layoutContext) }, context.Metadata), layoutContext).ToHtmlString();
+            new(Html.UnsafeRaw(body))
+            {
+                Sidebar = Html.UnsafeRaw(RenderNavigation(navigation, key)),
+                Head = Html.UnsafeRaw(browserHead),
+                IncludeDefaultScript = browserOptions is null,
+                TableOfContents = entry.FrontMatter.HideTableOfContents ? null : new TableOfContentsComponent().Render(articleHeadings, layoutContext)
+            }, context.Metadata), layoutContext).ToHtmlString();
     }
 
     private static bool HasLevelOneHeading(
@@ -484,30 +556,59 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     {
         var messages = state.Messages;
         return new(JsonSerializer.SerializeToElement(new { frontMatter = new { title = entry.FrontMatter.Title }, messages }),
-            JsonSerializer.SerializeToElement(new { type = "object", additionalProperties = false, properties = new {
-                frontMatter = new { type = "object", additionalProperties = false, properties = new { title = new { type = "string" } } },
-                messages = new { type = "object", additionalProperties = false, properties = messages.Keys.ToDictionary(key => key, _ => new { type = "string" }) }
-            } }));
+            JsonSerializer.SerializeToElement(new
+            {
+                type = "object",
+                additionalProperties = false,
+                properties = new
+                {
+                    frontMatter = new { type = "object", additionalProperties = false, properties = new { title = new { type = "string" } } },
+                    messages = new { type = "object", additionalProperties = false, properties = messages.Keys.ToDictionary(key => key, _ => new { type = "string" }) }
+                }
+            }));
     }
     private string Message(Registration registration, string id, string fallback)
     {
-        if (Translations is null) return fallback;
-        try { return Translations.Get(registration.Variant.Locale, id, TranslationPolicy) ?? ""; }
-        catch (KeyNotFoundException) when (TranslationPolicy == MissingTranslationPolicy.Source) { return fallback; }
+        if (Translations is null)
+            return fallback;
+        try
+        {
+            return Translations.Get(registration.Variant.Locale, id, TranslationPolicy) ?? "";
+        }
+        catch (KeyNotFoundException) when (TranslationPolicy == MissingTranslationPolicy.Source)
+        {
+            return fallback;
+        }
     }
     private Dictionary<string, string> UiMessages(Registration registration) => new Dictionary<string, string>
     {
-        ["lastUpdated"] = "Last updated", ["theme"] = "Theme", ["system"] = "system", ["light"] = "light", ["dark"] = "dark", ["dismiss"] = "Dismiss", ["offlineUpdate"] = "Update offline content",
-        ["searching"] = "Searching…", ["results"] = "{count} results", ["searchUnavailable"] = "Search unavailable. You can still browse this documentation.",
-        ["copy"] = "Copy", ["copied"] = "Copied", ["copyUnavailable"] = "Copy unavailable"
-        , ["breadcrumb"] = "Breadcrumb", ["adjacent"] = "Previous and next documents", ["variants"] = "Version and language", ["edit"] = "Edit this page", ["search"] = "Search this documentation"
+        ["lastUpdated"] = "Last updated",
+        ["theme"] = "Theme",
+        ["system"] = "system",
+        ["light"] = "light",
+        ["dark"] = "dark",
+        ["dismiss"] = "Dismiss",
+        ["offlineUpdate"] = "Update offline content",
+        ["searching"] = "Searching…",
+        ["results"] = "{count} results",
+        ["searchUnavailable"] = "Search unavailable. You can still browse this documentation.",
+        ["copy"] = "Copy",
+        ["copied"] = "Copied",
+        ["copyUnavailable"] = "Copy unavailable"
+        ,
+        ["breadcrumb"] = "Breadcrumb",
+        ["adjacent"] = "Previous and next documents",
+        ["variants"] = "Version and language",
+        ["edit"] = "Edit this page",
+        ["search"] = "Search this documentation"
     }.ToDictionary(pair => pair.Key, pair => Message(registration, pair.Key, pair.Value), StringComparer.Ordinal);
     private static async Task<IReadOnlyDictionary<string, DocumentCategory>> ReadCategoriesAsync(string root, Dictionary<string, DocumentationInput> inputs, CancellationToken cancellationToken)
     {
         var categories = new Dictionary<string, DocumentCategory>(StringComparer.Ordinal);
         foreach (var file in Directory.EnumerateFiles(root, "_category_.*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
-            if (Path.GetExtension(file) is not (".json" or ".yml" or ".yaml")) continue;
+            if (Path.GetExtension(file) is not (".json" or ".yml" or ".yaml"))
+                continue;
             var bytes = await ContentPath.ReadAllBytesAsync(root, file, cancellationToken).ConfigureAwait(false);
             CaptureInput(inputs, root, file, Convert.ToHexStringLower(SHA256.HashData(bytes)));
             DocumentCategory category;
@@ -516,38 +617,66 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 using var json = JsonDocument.Parse(bytes);
                 void Check(JsonElement element)
                 {
-                    if (element.ValueKind != JsonValueKind.Object) return;
+                    if (element.ValueKind != JsonValueKind.Object)
+                        return;
                     var names = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var property in element.EnumerateObject()) { if (!names.Add(property.Name)) throw new ArgumentException("Duplicate category key: " + property.Name); Check(property.Value); }
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        if (!names.Add(property.Name))
+                            throw new ArgumentException("Duplicate category key: " + property.Name);
+                        Check(property.Value);
+                    }
                 }
                 Check(json.RootElement);
-                category = json.RootElement.Deserialize<DocumentCategory>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-                    UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow }) ?? throw new ArgumentException("Category metadata must be an object.");
+                category = json.RootElement.Deserialize<DocumentCategory>(new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                    UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow
+                }) ?? throw new ArgumentException("Category metadata must be an object.");
             }
             else
             {
                 var parsed = MarkdownContentCollectionLoader<DocumentCategory>.ParseYaml(System.Text.Encoding.UTF8.GetString(bytes), Path.GetRelativePath(root, file), 1, cancellationToken);
-                if (!parsed.IsSuccess) throw new SiteBuildExtensionException(parsed.Diagnostics);
+                if (!parsed.IsSuccess)
+                    throw new SiteBuildExtensionException(parsed.Diagnostics);
                 var bound = new ReflectionContentFrontMatterBinder<DocumentCategory>().Bind(parsed.Value!, new Diagnostics.SiteSourceLocation(Path.GetRelativePath(root, file)));
-                if (!bound.IsSuccess) throw new SiteBuildExtensionException(bound.Diagnostics);
+                if (!bound.IsSuccess)
+                    throw new SiteBuildExtensionException(bound.Diagnostics);
                 category = bound.Value!;
             }
-            if (category.Link is { Type: not ("doc" or "generated-index") }) throw new ArgumentException("Category link type must be doc or generated-index.");
+            if (category.Link is { Type: not ("doc" or "generated-index") })
+                throw new ArgumentException("Category link type must be doc or generated-index.");
             categories.Add(Path.GetRelativePath(root, Path.GetDirectoryName(file)!).Replace('\\', '/').Trim('.'), category);
         }
         return categories;
     }
     private static async Task<DocumentUpdate?> ReadGitUpdateAsync(string root, string sourcePath, CancellationToken cancellationToken)
     {
-        var start = new System.Diagnostics.ProcessStartInfo("git") { WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var argument in new[] { "log", "-1", "--format=%aI%n%an", "--", sourcePath }) start.ArgumentList.Add(argument);
+        var start = new System.Diagnostics.ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in new[] { "log", "-1", "--format=%aI%n%an", "--", sourcePath })
+            start.ArgumentList.Add(argument);
         using var process = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("Git did not start.");
         var output = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var error = process.StandardError.ReadToEndAsync(cancellationToken);
-        try { await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false); }
-        catch { if (!process.HasExited) process.Kill(entireProcessTree: true); throw; }
-        if (process.ExitCode != 0) throw new InvalidOperationException("Git metadata failed: " + await error.ConfigureAwait(false));
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            throw;
+        }
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException("Git metadata failed: " + await error.ConfigureAwait(false));
         var lines = (await output.ConfigureAwait(false)).Split('\n');
         return DateTimeOffset.TryParse(lines[0], System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date)
             ? new() { Date = date, Author = lines.ElementAtOrDefault(1)?.TrimEnd('\r') } : null;
@@ -587,7 +716,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         foreach (var file in Directory.EnumerateFiles(root, "_category_.*", SearchOption.AllDirectories))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (Path.GetExtension(file) is ".json" or ".yml" or ".yaml") files.Add(Path.GetFullPath(file));
+            if (Path.GetExtension(file) is ".json" or ".yml" or ".yaml")
+                files.Add(Path.GetFullPath(file));
         }
         return files.Distinct(InputPathComparer).Order(InputPathComparer).ToArray();
     }

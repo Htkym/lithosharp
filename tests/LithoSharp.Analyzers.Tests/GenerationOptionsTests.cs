@@ -105,7 +105,11 @@ public sealed partial class AnalyzerPackageHostTests
             name + " binds actual Core metadata: " + string.Join("; ", compilation.GetDiagnostics()));
     private static object GenerationDiagnostic(Diagnostic diagnostic) => new
     {
-        diagnostic.Id, severity = diagnostic.Severity.ToString(), diagnostic.Location.SourceSpan.Start,
-        diagnostic.Location.SourceSpan.Length, expression = diagnostic.Location.SourceTree?.GetText().ToString(diagnostic.Location.SourceSpan), diagnostic.Properties
+        diagnostic.Id,
+        severity = diagnostic.Severity.ToString(),
+        diagnostic.Location.SourceSpan.Start,
+        diagnostic.Location.SourceSpan.Length,
+        expression = diagnostic.Location.SourceTree?.GetText().ToString(diagnostic.Location.SourceSpan),
+        diagnostic.Properties
     };
 }

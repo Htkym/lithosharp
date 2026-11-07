@@ -22,10 +22,12 @@ internal sealed partial class HtmlFacts
             cancellationToken.ThrowIfCancellationRequested();
             if (source[i] == '\r')
             {
-                if (i + 1 < source.Length && source[i + 1] == '\n') i++;
+                if (i + 1 < source.Length && source[i + 1] == '\n')
+                    i++;
                 starts.Add(i + 1);
             }
-            else if (source[i] == '\n') starts.Add(i + 1);
+            else if (source[i] == '\n')
+                starts.Add(i + 1);
         }
         lineStarts = starts.ToArray();
     }
@@ -37,7 +39,8 @@ internal sealed partial class HtmlFacts
     public static HtmlFacts Parse(string source, CancellationToken cancellationToken = default, HtmlTreeOptions? options = null)
     {
         var tree = CompactHtmlTreeBuilder.Parse(source, options, cancellationToken: cancellationToken);
-        if (tree.Status != HtmlTokenizationStatus.Complete) throw new HtmlFactsIncompleteException(tree);
+        if (tree.Status != HtmlTokenizationStatus.Complete)
+            throw new HtmlFactsIncompleteException(tree);
         return new(source, tree, cancellationToken);
     }
 
@@ -56,9 +59,11 @@ internal sealed partial class HtmlFacts
 
     public (int Line, int Column)? Position(HtmlTreeNode? element)
     {
-        if (element?.Source is not { } span) return null;
+        if (element?.Source is not { } span)
+            return null;
         var line = Array.BinarySearch(lineStarts, span.Start);
-        if (line < 0) line = ~line - 1;
+        if (line < 0)
+            line = ~line - 1;
         return (line + 1, span.Start - lineStarts[line] + 1);
     }
 
@@ -73,7 +78,8 @@ internal sealed partial class HtmlFacts
     public string TextContent(int root, bool search = false, bool separateElements = false)
     {
         var text = new StringBuilder();
-        foreach (var chunk in TextContentChunks(root, search, separateElements)) text.Append(chunk?.Value ?? " ");
+        foreach (var chunk in TextContentChunks(root, search, separateElements))
+            text.Append(chunk?.Value ?? " ");
         return text.ToString();
     }
 
@@ -84,23 +90,30 @@ internal sealed partial class HtmlFacts
         while (pending.TryPop(out var item))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (item.Closing) { yield return null; continue; }
+            if (item.Closing)
+            {
+                yield return null;
+                continue;
+            }
             var node = tree.Nodes[item.Id];
             if (search && ExcludedFromSearch(node))
             {
-                if (separateElements) yield return null;
+                if (separateElements)
+                    yield return null;
                 continue;
             }
             if (separateElements && node.Kind is HtmlTreeNodeKind.Comment or HtmlTreeNodeKind.ProcessingInstruction)
                 yield return null;
             if (node.Kind == HtmlTreeNodeKind.Text)
-                foreach (var chunk in node.TextChunks) yield return chunk;
+                foreach (var chunk in node.TextChunks)
+                    yield return chunk;
             if (separateElements && node.Kind == HtmlTreeNodeKind.Element)
             {
                 yield return null;
                 pending.Push((node.Id, true));
             }
-            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push((node.Children[i], false));
+            for (var i = node.Children.Count - 1; i >= 0; i--)
+                pending.Push((node.Children[i], false));
         }
     }
 
@@ -125,16 +138,19 @@ internal sealed partial class HtmlFacts
         }
         foreach (var heading in SearchElements())
         {
-            if (heading.Name is not ("h1" or "h2" or "h3" or "h4" or "h5" or "h6") || Attribute(heading, "id") is null) continue;
+            if (heading.Name is not ("h1" or "h2" or "h3" or "h4" or "h5" or "h6") || Attribute(heading, "id") is null)
+                continue;
             var body = new List<int>();
             var siblings = tree.Nodes[heading.Parent!.Value].Children;
             for (var i = siblingPositions[heading.Id] + 1; i < siblings.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var sibling = tree.Nodes[siblings[i]];
-                if (sibling.Kind != HtmlTreeNodeKind.Element || ExcludedFromSearch(sibling)) continue;
+                if (sibling.Kind != HtmlTreeNodeKind.Element || ExcludedFromSearch(sibling))
+                    continue;
                 // Preserve the old sibling stop rule, including h0/h7..h9.
-                if (sibling.Name is { Length: 2 } name && name[0] == 'h' && char.IsDigit(name[1])) break;
+                if (sibling.Name is { Length: 2 } name && name[0] == 'h' && char.IsDigit(name[1]))
+                    break;
                 body.Add(sibling.Id);
             }
             yield return (heading, body.ToArray());
@@ -149,9 +165,12 @@ internal sealed partial class HtmlFacts
         {
             cancellationToken.ThrowIfCancellationRequested();
             var node = tree.Nodes[id];
-            if (ExcludedFromSearch(node)) continue;
-            if (node.Kind == HtmlTreeNodeKind.Element) yield return node;
-            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
+            if (ExcludedFromSearch(node))
+                continue;
+            if (node.Kind == HtmlTreeNodeKind.Element)
+                yield return node;
+            for (var i = node.Children.Count - 1; i >= 0; i--)
+                pending.Push(node.Children[i]);
         }
     }
 

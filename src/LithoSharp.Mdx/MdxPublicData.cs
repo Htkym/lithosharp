@@ -11,7 +11,8 @@ public sealed class MdxPublicData
     /// <exception cref="ArgumentException">The schema is unsupported or the data does not satisfy it.</exception>
     public MdxPublicData(JsonElement value, JsonElement schema)
     {
-        if (value.ValueKind != JsonValueKind.Object) throw new ArgumentException("Public MDX props must be a JSON object.");
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("Public MDX props must be a JSON object.");
         Validate(value, schema, "$", 0);
         Value = value.Clone();
         Schema = schema.Clone();
@@ -26,7 +27,8 @@ public sealed class MdxPublicData
 
     private static void Validate(JsonElement value, JsonElement schema, string path, int depth)
     {
-        if (depth > 32 || schema.ValueKind != JsonValueKind.Object) throw new ArgumentException($"Invalid schema at {path}.");
+        if (depth > 32 || schema.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException($"Invalid schema at {path}.");
         foreach (var field in schema.EnumerateObject())
             if (field.Name is not ("type" or "properties" or "required" or "additionalProperties" or "items" or "enum" or "description"))
                 throw new ArgumentException($"Unsupported schema keyword '{field.Name}' at {path}.");
@@ -43,7 +45,8 @@ public sealed class MdxPublicData
             "null" => value.ValueKind == JsonValueKind.Null,
             _ => throw new ArgumentException($"Unsupported schema type at {path}.")
         };
-        if (!matches) throw new ArgumentException($"Public data has the wrong type at {path}.");
+        if (!matches)
+            throw new ArgumentException($"Public data has the wrong type at {path}.");
         if (schema.TryGetProperty("enum", out var choices)
             && (choices.ValueKind != JsonValueKind.Array || !choices.EnumerateArray().Any(choice => JsonElement.DeepEquals(choice, value))))
             throw new ArgumentException($"Public data is not an allowed value at {path}.");
@@ -62,7 +65,8 @@ public sealed class MdxPublicData
             }
             if (schema.TryGetProperty("required", out var required))
             {
-                if (required.ValueKind != JsonValueKind.Array) throw new ArgumentException($"Invalid required schema at {path}.");
+                if (required.ValueKind != JsonValueKind.Array)
+                    throw new ArgumentException($"Invalid required schema at {path}.");
                 foreach (var name in required.EnumerateArray())
                     if (name.ValueKind != JsonValueKind.String || !names.Contains(name.GetString()!))
                         throw new ArgumentException($"A required public field is missing at {path}.");
@@ -70,9 +74,11 @@ public sealed class MdxPublicData
         }
         if (value.ValueKind == JsonValueKind.Array)
         {
-            if (!schema.TryGetProperty("items", out var items)) throw new ArgumentException($"Array item schema is required at {path}.");
+            if (!schema.TryGetProperty("items", out var items))
+                throw new ArgumentException($"Array item schema is required at {path}.");
             var index = 0;
-            foreach (var item in value.EnumerateArray()) Validate(item, items, $"{path}[{index++}]", depth + 1);
+            foreach (var item in value.EnumerateArray())
+                Validate(item, items, $"{path}[{index++}]", depth + 1);
         }
     }
 }

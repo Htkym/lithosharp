@@ -895,11 +895,23 @@ internal static class CsvParser
             {
                 if (ch == '"' && i + 1 < text.Length && text[i + 1] == '"')
                 {
-                    field.Append('"'); i++; column++; continue;
+                    field.Append('"');
+                    i++;
+                    column++;
+                    continue;
                 }
-                if (ch == '"') { quoted = false; justClosedQuote = true; continue; }
+                if (ch == '"')
+                {
+                    quoted = false;
+                    justClosedQuote = true;
+                    continue;
+                }
                 field.Append(ch);
-                if (ch == '\n') { line++; column = 0; }
+                if (ch == '\n')
+                {
+                    line++;
+                    column = 0;
+                }
                 continue;
             }
 
@@ -907,20 +919,35 @@ internal static class CsvParser
             {
                 if (ch == ',')
                 {
-                    fields.Add(field.ToString()); field.Clear(); justClosedQuote = false; continue;
+                    fields.Add(field.ToString());
+                    field.Clear();
+                    justClosedQuote = false;
+                    continue;
                 }
                 if (ch == '\r' || ch == '\n')
                 {
-                    if (ch == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
-                    fields.Add(field.ToString()); field.Clear(); justClosedQuote = false;
+                    if (ch == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                        i++;
+                    fields.Add(field.ToString());
+                    field.Clear();
+                    justClosedQuote = false;
                     rows.Add(new CsvRow(fields.ToArray(), rowLine, rowColumn));
-                    fields.Clear(); line++; column = 0; rowLine = line; rowColumn = 1; continue;
+                    fields.Clear();
+                    line++;
+                    column = 0;
+                    rowLine = line;
+                    rowColumn = 1;
+                    continue;
                 }
                 diagnostics.Add(ContentDiagnostic.Error(
                     "LSCCSV005", "CSV の closing quote の後に不正な文字があります。", path, line, column));
                 justClosedQuote = false;
             }
-            if (ch == '"' && field.Length == 0) { quoted = true; continue; }
+            if (ch == '"' && field.Length == 0)
+            {
+                quoted = true;
+                continue;
+            }
             if (ch == '"')
             {
                 diagnostics.Add(ContentDiagnostic.Error(
@@ -928,13 +955,25 @@ internal static class CsvParser
                 field.Append(ch);
                 continue;
             }
-            if (ch == ',') { fields.Add(field.ToString()); field.Clear(); continue; }
+            if (ch == ',')
+            {
+                fields.Add(field.ToString());
+                field.Clear();
+                continue;
+            }
             if (ch == '\r' || ch == '\n')
             {
-                if (ch == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
-                fields.Add(field.ToString()); field.Clear();
+                if (ch == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                    i++;
+                fields.Add(field.ToString());
+                field.Clear();
                 rows.Add(new CsvRow(fields.ToArray(), rowLine, rowColumn));
-                fields.Clear(); line++; column = 0; rowLine = line; rowColumn = 1; continue;
+                fields.Clear();
+                line++;
+                column = 0;
+                rowLine = line;
+                rowColumn = 1;
+                continue;
             }
             field.Append(ch);
         }

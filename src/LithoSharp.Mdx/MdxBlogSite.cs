@@ -67,7 +67,8 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
     {
         ArgumentNullException.ThrowIfNull(blog);
         ArgumentOutOfRangeException.ThrowIfLessThan(blog.PageSize, 1);
-        if (blogs.Any(value => value.Id == blog.Id)) throw new ArgumentException("Duplicate blog ID.");
+        if (blogs.Any(value => value.Id == blog.Id))
+            throw new ArgumentException("Duplicate blog ID.");
         _ = SiteRoute.ForDirectoryIndex(blog.RoutePrefix);
         blogs.Add(blog);
         mdx.AddCollection(new BlogLoader(blog, entryBlogs), renderer: (entry, context) =>
@@ -122,8 +123,11 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
         };
     }
     private static MdxBlogCollection CaptureBlog(MdxBlogCollection blog, IEnumerable<string> usedAuthors) =>
-        blog with { Authors = blog.Authors.Keys.Concat(usedAuthors).Distinct(StringComparer.Ordinal)
-            .ToDictionary(id => id, id => blog.Authors[id], StringComparer.Ordinal) };
+        blog with
+        {
+            Authors = blog.Authors.Keys.Concat(usedAuthors).Distinct(StringComparer.Ordinal)
+            .ToDictionary(id => id, id => blog.Authors[id], StringComparer.Ordinal)
+        };
     internal SiteBuildContribution Contribute(SiteBuildContribution prepared, SiteBuildContext context) =>
         Contribute(prepared, context, blogs);
 
@@ -161,9 +165,22 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
             var rss = new XElement("rss", new XAttribute("version", "2.0"), new XElement("channel", new XElement("title", blog.Id), new XElement("description", context.Site.Description),
                 new XElement("link", context.Site.BaseUrl), listed.Select(entry => new XElement("item", new XElement("title", entry.FrontMatter.Title), new XElement("guid", Absolute(entry)),
                     new XElement("link", Absolute(entry)), new XElement("pubDate", entry.FrontMatter.Date.ToString("R", CultureInfo.InvariantCulture)), new XElement("description", entry.FrontMatter.FeedText ?? entry.FrontMatter.Summary)))));
-            var json = JsonSerializer.Serialize(new { version = "https://jsonfeed.org/version/1.1", title = blog.Id, home_page_url = context.Site.BaseUrl,
-                items = listed.Select(entry => new { id = Absolute(entry), url = Absolute(entry), title = entry.FrontMatter.Title, content_text = entry.FrontMatter.FeedText ?? entry.FrontMatter.Summary,
-                    date_published = entry.FrontMatter.Date, tags = entry.FrontMatter.Tags, authors = entry.FrontMatter.Authors.Select(id => new { name = blog.Authors[id].Name, url = blog.Authors[id].Url?.Value }) }) });
+            var json = JsonSerializer.Serialize(new
+            {
+                version = "https://jsonfeed.org/version/1.1",
+                title = blog.Id,
+                home_page_url = context.Site.BaseUrl,
+                items = listed.Select(entry => new
+                {
+                    id = Absolute(entry),
+                    url = Absolute(entry),
+                    title = entry.FrontMatter.Title,
+                    content_text = entry.FrontMatter.FeedText ?? entry.FrontMatter.Summary,
+                    date_published = entry.FrontMatter.Date,
+                    tags = entry.FrontMatter.Tags,
+                    authors = entry.FrontMatter.Authors.Select(id => new { name = blog.Authors[id].Name, url = blog.Authors[id].Url?.Value })
+                })
+            });
             foreach (var (file, content) in new[] { ("atom.xml", ToLfXml(atomFeed)), ("rss.xml", ToLfXml(rss)), ("feed.json", json) })
                 assets.Add(new("blog:" + blog.Id + ":" + file, blog.RoutePrefix.Trim('/') + "/" + file, Encoding.UTF8.GetBytes(content)));
         }
@@ -192,8 +209,9 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
             var result = await new MdxContentCollectionLoader<MdxBlogFrontMatter>(new("blog:" + blog.Id), blog.InputDirectory,
                 entry => SiteRoute.ForDirectoryIndex(blog.RoutePrefix.Trim('/') + "/" + (entry.FrontMatter.Slug ?? Path.ChangeExtension(entry.Id.Value, null)).Trim('/')),
                 entry => new(entry.FrontMatter.Title, entry.FrontMatter.Summary, entry.FrontMatter.Draft, entry.FrontMatter.Date, entry.FrontMatter.PublishUntil))
-                { IncludeMarkdown = true, TransformationFingerprint = "mdx-blog-v1" }.LoadAsync(cancellationToken).ConfigureAwait(false);
-            if (!result.IsSuccess) return result;
+            { IncludeMarkdown = true, TransformationFingerprint = "mdx-blog-v1" }.LoadAsync(cancellationToken).ConfigureAwait(false);
+            if (!result.IsSuccess)
+                return result;
             var source = result.Collection!;
             foreach (var entry in source.Entries)
             {
@@ -201,7 +219,8 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
                     throw new ArgumentException("Blog entries require a date and known author IDs: " + entry.SourcePath);
             }
             var capturedBlog = CaptureBlog(blog, source.Entries.SelectMany(entry => entry.FrontMatter.Authors));
-            foreach (var entry in source.Entries) entryBlogs.Add(entry.FrontMatter, capturedBlog);
+            foreach (var entry in source.Entries)
+                entryBlogs.Add(entry.FrontMatter, capturedBlog);
             return ContentLoadResult<MdxBlogFrontMatter, MdxDocument>.Success(new(source.Id, source.InputRoot, source.Entries.Select(entry =>
                 new ContentEntry<MdxBlogFrontMatter, MdxDocument>(entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, entry.Body, entry.SourceLocation)
                 { DeclaredDependencies = entry.DeclaredDependencies, CapturedInputs = entry.CapturedInputs, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : GeneratedPageDerivedSurfaces.All }), source.RouteConvention, source.PublicationMapper,

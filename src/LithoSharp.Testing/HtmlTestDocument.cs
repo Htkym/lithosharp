@@ -27,20 +27,36 @@ public sealed class HtmlTestDocument
             var previous = -1;
             foreach (var id in parent.Children)
             {
-                if (Tree.Nodes[id].Kind != HtmlTreeNodeKind.Element) continue;
+                if (Tree.Nodes[id].Kind != HtmlTreeNodeKind.Element)
+                    continue;
                 Ordinals[id] = ++ChildCounts[parent.Id];
                 Previous[id] = previous;
-                if (previous >= 0) Next[previous] = id;
+                if (previous >= 0)
+                    Next[previous] = id;
                 previous = id;
             }
         }
     }
 
     /// <summary>Gets the normalized HTML title, or an empty string if absent.</summary>
-    public string Title { get { EnsureAlive(); return facts.Title; } }
+    public string Title
+    {
+        get
+        {
+            EnsureAlive();
+            return facts.Title;
+        }
+    }
 
     /// <summary>Gets exact decoded text from the connected tree, including script and style text.</summary>
-    public string TextContent { get { EnsureAlive(); return facts.TextContent(Tree.Root); } }
+    public string TextContent
+    {
+        get
+        {
+            EnsureAlive();
+            return facts.TextContent(Tree.Root);
+        }
+    }
 
     /// <summary>Gets the document's element children in source tree order.</summary>
     public IReadOnlyList<HtmlTestElement> Children => ChildrenOf(Tree.Root);
@@ -66,9 +82,17 @@ public sealed class HtmlTestDocument
             .Select(Element).ToArray());
     }
 
-    internal string TextOf(int id) { EnsureAlive(); return facts.TextContent(id); }
+    internal string TextOf(int id)
+    {
+        EnsureAlive();
+        return facts.TextContent(id);
+    }
 
-    internal (int Line, int Column)? PositionOf(int id) { EnsureAlive(); return facts.Position(Tree.Nodes[id]); }
+    internal (int Line, int Column)? PositionOf(int id)
+    {
+        EnsureAlive();
+        return facts.Position(Tree.Nodes[id]);
+    }
 
     internal IReadOnlyList<HtmlTestElement> Select(int root, string selector, bool firstOnly, CancellationToken cancellationToken)
     {
@@ -86,9 +110,11 @@ public sealed class HtmlTestDocument
             if (node.Kind == HtmlTreeNodeKind.Element && parsed.Matches(id, context))
             {
                 result.Add(Element(id));
-                if (firstOnly) break;
+                if (firstOnly)
+                    break;
             }
-            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
+            for (var i = node.Children.Count - 1; i >= 0; i--)
+                pending.Push(node.Children[i]);
         }
         return result.AsReadOnly();
     }
@@ -100,9 +126,20 @@ public sealed class HtmlTestElement
     private readonly HtmlTestDocument owner;
     private readonly int id;
 
-    internal HtmlTestElement(HtmlTestDocument owner, int id) { this.owner = owner; this.id = id; }
+    internal HtmlTestElement(HtmlTestDocument owner, int id)
+    {
+        this.owner = owner;
+        this.id = id;
+    }
 
-    private HtmlTreeNode Node { get { owner.EnsureAlive(); return owner.Tree.Nodes[id]; } }
+    private HtmlTreeNode Node
+    {
+        get
+        {
+            owner.EnsureAlive();
+            return owner.Tree.Nodes[id];
+        }
+    }
 
     /// <summary>Gets the parser's canonical local tag name.</summary>
     public string TagName => Node.Name!;
@@ -125,10 +162,24 @@ public sealed class HtmlTestElement
         ? owner.ChildrenOf(content) : Array.AsReadOnly(Array.Empty<HtmlTestElement>());
 
     /// <summary>Gets the preceding element sibling, or null.</summary>
-    public HtmlTestElement? PreviousSibling { get { _ = Node; return owner.Previous[id] is >= 0 and var previous ? owner.Element(previous) : null; } }
+    public HtmlTestElement? PreviousSibling
+    {
+        get
+        {
+            _ = Node;
+            return owner.Previous[id] is >= 0 and var previous ? owner.Element(previous) : null;
+        }
+    }
 
     /// <summary>Gets the following element sibling, or null.</summary>
-    public HtmlTestElement? NextSibling { get { _ = Node; return owner.Next[id] is >= 0 and var next ? owner.Element(next) : null; } }
+    public HtmlTestElement? NextSibling
+    {
+        get
+        {
+            _ = Node;
+            return owner.Next[id] is >= 0 and var next ? owner.Element(next) : null;
+        }
+    }
 
     /// <summary>Gets the raw UTF-16 source start, or null for a synthetic element.</summary>
     public int? SourceStart => Node.Source?.Start;

@@ -77,7 +77,8 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
         {
             var result = await markdown.LoadEntryAsync(file.FullPath, cancellationToken).ConfigureAwait(false);
             diagnostics.AddRange(result.Diagnostics);
-            if (!result.IsSuccess) continue;
+            if (!result.IsSuccess)
+                continue;
             var entry = result.Value!;
             var bytes = await ContentPath.ReadAllBytesAsync(inputRoot, file.FullPath, cancellationToken).ConfigureAwait(false);
             if (entry.SourceFingerprint != "sha256:" + Convert.ToHexStringLower(SHA256.HashData(bytes)))

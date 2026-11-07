@@ -16,7 +16,11 @@ internal sealed partial class HtmlFacts
             foreach (var chunk in TextContentChunks(root, search, separate))
             {
                 token.ThrowIfCancellationRequested();
-                if (chunk is null) { builder.Append(" ", null, "html_structure_separator"); continue; }
+                if (chunk is null)
+                {
+                    builder.Append(" ", null, "html_structure_separator");
+                    continue;
+                }
                 if (!chunks.TryGetValue(chunk, out var map))
                 {
                     map = HtmlRawValueSnapshot.TryCapture(source, chunk, token, out var raw, out var reason)

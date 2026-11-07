@@ -188,7 +188,10 @@ public sealed class SiteTemplateTests
         MarkdownPost Post(string slug, int position) => new(slug + ".md", slug,
             new PostFrontMatter
             {
-                Title = slug, Summary = slug + " summary", Date = timestamp.AddDays(-1), SidebarPosition = position
+                Title = slug,
+                Summary = slug + " summary",
+                Date = timestamp.AddDays(-1),
+                SidebarPosition = position
             }, "## Heading\n\nBody", "posts/" + slug + ".html");
         var posts = new[] { Post("last", 3), Post("first", 1), Post("middle", 2) };
         var expected = new[]
@@ -204,7 +207,8 @@ public sealed class SiteTemplateTests
                 TestSite() with { BaseUrl = "https://example.test/sub/" }, posts, output, clean: true,
                 new SiteCustomization
                 {
-                    Template = template, FaviconSourceDirectory = Path.Combine(workspace.Root, "empty-favicon")
+                    Template = template,
+                    FaviconSourceDirectory = Path.Combine(workspace.Root, "empty-favicon")
                 },
                 new SiteGenerationOptions { BuildTimestamp = timestamp }, CancellationToken.None);
             foreach (var (slug, links) in expected)

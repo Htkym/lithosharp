@@ -23,15 +23,18 @@ internal sealed class HtmlFlowUrlAnalysis(Compilation compilation)
 
     internal void Analyze(OperationBlockAnalysisContext context, HtmlStringOrigins? origins, Location use)
     {
-        if (origins is null || origins.Alternatives.Count > HtmlStringOrigins.MaxAlternatives) return;
+        if (origins is null || origins.Alternatives.Count > HtmlStringOrigins.MaxAlternatives)
+            return;
         var distinct = origins.Alternatives.Select(a => a.Value).Distinct(StringComparer.Ordinal).ToArray();
-        if (distinct.Length > StaticValueFlow.MaxCandidates || distinct.Sum(value => (long)value.Length) > HtmlLiteralAnalysis.MaxInputLength) return;
+        if (distinct.Length > StaticValueFlow.MaxCandidates || distinct.Sum(value => (long)value.Length) > HtmlLiteralAnalysis.MaxInputLength)
+            return;
         var facts = new Dictionary<string, HtmlLiteralFacts>(StringComparer.Ordinal);
         foreach (var value in distinct)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             var parsed = HtmlLiteralAnalysis.Parse(value, context.CancellationToken);
-            if (parsed.Status != HtmlTokenizationStatus.Complete || parsed.Diagnostics.Any(d => d.IncompleteCoverage)) return;
+            if (parsed.Status != HtmlTokenizationStatus.Complete || parsed.Diagnostics.Any(d => d.IncompleteCoverage))
+                return;
             facts.Add(value, parsed);
         }
         var remaining = HtmlLiteralAnalysis.MaxOperations;
@@ -43,11 +46,17 @@ internal sealed class HtmlFlowUrlAnalysis(Compilation compilation)
             var violations = HtmlLiteralAnalysis.Violations(facts[alternative.Value], alternative.Value.Length, alternative.Map, context.CancellationToken, ref remaining, cssBudget)
                 .GroupBy(v => new HtmlViolationKey(v.Location.SourceTree!, v.Location.SourceSpan, v.Attribute, v.Resource, v.Value, v.Issue))
                 .ToDictionary(group => group.Key, group => group.First());
-            if (common is null) common = violations;
-            else foreach (var key in common.Keys.ToArray()) if (!violations.ContainsKey(key)) common.Remove(key);
-            if (common.Count == 0) return;
+            if (common is null)
+                common = violations;
+            else
+                foreach (var key in common.Keys.ToArray())
+                    if (!violations.ContainsKey(key))
+                        common.Remove(key);
+            if (common.Count == 0)
+                return;
         }
-        if (common is null) return;
+        if (common is null)
+            return;
         // Intersection belongs to this sink only. Aggregation is a union of independently proven sinks.
         foreach (var key in common.Keys)
         {

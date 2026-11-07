@@ -32,8 +32,10 @@ internal static class SchemaEmitter
 
     private static string NonNull(ITypeSymbol type)
     {
-        if (type.SpecialType == SpecialType.System_Object) return GeneratorModel.AllowsNull(type) ? "{}" : "{\"not\":{\"type\":\"null\"}}";
-        if (type is IArrayTypeSymbol array) return "{\"type\":\"array\",\"items\":" + Value(array.ElementType) + "}";
+        if (type.SpecialType == SpecialType.System_Object)
+            return GeneratorModel.AllowsNull(type) ? "{}" : "{\"not\":{\"type\":\"null\"}}";
+        if (type is IArrayTypeSymbol array)
+            return "{\"type\":\"array\",\"items\":" + Value(array.ElementType) + "}";
         if (type is INamedTypeSymbol list && GeneratorModel.IsList(list))
             return "{\"type\":\"array\",\"items\":" + Value(list.TypeArguments[0]) + "}";
         if (type is INamedTypeSymbol dictionary && GeneratorModel.IsDictionary(dictionary))
@@ -45,7 +47,8 @@ internal static class SchemaEmitter
                 + Quote("^\\s*(?:" + names + ")(?:\\s*,\\s*(?:" + names + "))*\\s*$")
                 + "},{\"type\":\"integer\"}]}";
         }
-        if (!GeneratorModel.IsScalar(type)) return "{\"$ref\":" + Quote(Reference(type)) + "}";
+        if (!GeneratorModel.IsScalar(type))
+            return "{\"$ref\":" + Quote(Reference(type)) + "}";
         var scalar = type.SpecialType switch
         {
             SpecialType.System_Boolean => "boolean",
@@ -74,9 +77,12 @@ internal static class SchemaEmitter
         var result = new StringBuilder("\"");
         foreach (var character in value)
         {
-            if (character is '"' or '\\') result.Append('\\').Append(character);
-            else if (character < ' ') result.Append("\\u").Append(((int)character).ToString("x4"));
-            else result.Append(character);
+            if (character is '"' or '\\')
+                result.Append('\\').Append(character);
+            else if (character < ' ')
+                result.Append("\\u").Append(((int)character).ToString("x4"));
+            else
+                result.Append(character);
         }
         return result.Append('"').ToString();
     }

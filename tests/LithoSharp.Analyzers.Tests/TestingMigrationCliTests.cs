@@ -161,15 +161,23 @@ public sealed class TestingMigrationCliTests
     private static string[] References(IEnumerable<string> paths) => paths.SelectMany(path => new[] { "--reference", path }).ToArray();
     private static string Required(string name) => Environment.GetEnvironmentVariable(name) ?? throw new InvalidOperationException(name);
     private static string Sha(string file) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file)));
-    private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
+    private static void Check(bool condition, string message)
+    {
+        if (!condition)
+            throw new InvalidOperationException(message);
+    }
     private static async Task<(int Exit, string Stdout, string Stderr)> Run(string cwd, string[] args)
     {
         var start = new ProcessStartInfo(Required("MIGRATION_DOTNET"))
         {
-            WorkingDirectory = cwd, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false,
+            WorkingDirectory = cwd,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
             CreateNoWindow = true,
         };
-        foreach (var arg in new[] { Required("MIGRATION_TOOL_DLL"), "migrate", "testing" }.Concat(args)) start.ArgumentList.Add(arg);
+        foreach (var arg in new[] { Required("MIGRATION_TOOL_DLL"), "migrate", "testing" }.Concat(args))
+            start.ArgumentList.Add(arg);
         var evidence = Path.Combine(Required("MIGRATION_CLI_EVIDENCE"), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(evidence);
         for (var i = 0; i + 1 < args.Length; i++)
@@ -185,8 +193,11 @@ public sealed class TestingMigrationCliTests
         await File.WriteAllTextAsync(Path.Combine(evidence, "stderr.log"), errors);
         await File.WriteAllTextAsync(Path.Combine(evidence, "result.json"), JsonSerializer.Serialize(new
         {
-            arguments = args, exitCode = process.ExitCode, pid = process.Id,
-            birthUtc = process.StartTime.ToUniversalTime(), inputDirectory = cwd,
+            arguments = args,
+            exitCode = process.ExitCode,
+            pid = process.Id,
+            birthUtc = process.StartTime.ToUniversalTime(),
+            inputDirectory = cwd,
         }));
         return (process.ExitCode, output, errors);
     }

@@ -105,7 +105,8 @@ public sealed partial class AnalyzerPackageHostTests
                 standard.Options.SpecificDiagnosticOptions.SetItem("LSA1203", severity))));
             Check(diagnostics.Count(d => d.Id == "LSA1203") == (severity == ReportDiagnostic.Warn ? 1 : 0)
                 && diagnostics.Count(d => d.Id == "LSA1001") == 1, "Standard severity/suppression");
-            if (severity == ReportDiagnostic.Warn) Check(diagnostics.Single(d => d.Id == "LSA1203").Severity == DiagnosticSeverity.Warning, "Standard Warning");
+            if (severity == ReportDiagnostic.Warn)
+                Check(diagnostics.Single(d => d.Id == "LSA1203").Severity == DiagnosticSeverity.Warning, "Standard Warning");
             evidence.Add(new { name = severity.ToString(), diagnostics = diagnostics.Select(AssetInputDiagnostic).ToArray() });
         }
         var lookalike = AssetInputSource("", "[source]", "ctx.GetUrl(missing);").Replace("using LithoSharp;", "using Local;", StringComparison.Ordinal) + """
@@ -117,8 +118,17 @@ public sealed partial class AnalyzerPackageHostTests
             }
             """;
         Check(!(await Analyze(AssetInputCompilation(lookalike))).Any(d => d.Id == "LSA1203"), "Source lookalikes excluded");
-        using var cancellation = new CancellationTokenSource(); cancellation.Cancel(); var cancelled = false;
-        try { await Analyze(standard, cancellation.Token); } catch (OperationCanceledException) { cancelled = true; }
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cancelled = false;
+        try
+        {
+            await Analyze(standard, cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
         Check(cancelled, "Cancellation does not return absence proof");
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No Core/runtime facade/user execution");
         evidence.Add(new { name = "lookalike-and-cancellation", source = lookalike, cancelled, forbiddenRuntimeLoaded = false });
@@ -149,8 +159,15 @@ public sealed partial class AnalyzerPackageHostTests
         """ + before + "\nvar transform = new SiteAssetTransform(" + (named
             ? "handler:(ctx,token)=>{" + body + "return Task.CompletedTask;}, outputs:" + outputs + ", inputs:" + inputs + ", implementationFingerprint:\"v1\", id:\"t\""
             : "\"t\",\"v1\"," + inputs + "," + outputs + ",(ctx,token)=>{" + body + "return Task.CompletedTask;}") + ");\n" + after + "\n} }";
-    private static object AssetInputDiagnostic(Diagnostic d) => new { d.Id, severity = d.Severity.ToString(), file = d.Location.SourceTree?.FilePath,
-        start = d.Location.SourceSpan.Start, length = d.Location.SourceSpan.Length, d.Properties };
+    private static object AssetInputDiagnostic(Diagnostic d) => new
+    {
+        d.Id,
+        severity = d.Severity.ToString(),
+        file = d.Location.SourceTree?.FilePath,
+        start = d.Location.SourceSpan.Start,
+        length = d.Location.SourceSpan.Length,
+        d.Properties
+    };
     private static void AssetInputEvidence(string name, object cases) => File.WriteAllText(Path.Combine(Required("RA05_EVIDENCE_DIR"), name + ".json"),
         JsonSerializer.Serialize(new { status = "PASS", cases }, new JsonSerializerOptions { WriteIndented = true }));
 }

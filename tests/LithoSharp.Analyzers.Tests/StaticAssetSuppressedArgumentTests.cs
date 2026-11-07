@@ -29,7 +29,8 @@ public sealed partial class AnalyzerPackageHostTests
             var compilation = AssetInputCompilation(source);
             var diagnostics = await Analyze(compilation);
             AssetSuppressionCheck(compilation, diagnostics, inputCount, outputCount, name, candidates);
-            if (name == "pragma") Check(diagnostics.All(d => d.Location.SourceSpan.Start > source.IndexOf("#pragma warning restore LSA1203", StringComparison.Ordinal)), "Only restored original argument locations survive pragma");
+            if (name == "pragma")
+                Check(diagnostics.All(d => d.Location.SourceSpan.Start > source.IndexOf("#pragma warning restore LSA1203", StringComparison.Ordinal)), "Only restored original argument locations survive pragma");
             evidence.Add(new { name, source, diagnostics = diagnostics.Select(AssetSuppressionDiagnostic).ToArray() });
         }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "No Core, getter or handler execution");
@@ -97,28 +98,42 @@ public sealed partial class AnalyzerPackageHostTests
             """, StringComparison.Ordinal);
     private static void AssetSuppressionCheck(CSharpCompilation compilation, IEnumerable<Diagnostic> observations, int inputs, int outputs, string name, string? candidates = null, int paths = 0)
     {
-        var diagnostics = observations.ToArray();var asset = diagnostics.Where(d => d.Id == "LSA1203").ToArray();
+        var diagnostics = observations.ToArray();
+        var asset = diagnostics.Where(d => d.Id == "LSA1203").ToArray();
         Check(diagnostics.Length == inputs + outputs + paths && asset.Count(d => d.Properties["scope"] == "asset-transform-inputs") == inputs
             && asset.Count(d => d.Properties["scope"] == "asset-transform-outputs") == outputs && diagnostics.Count(d => d.Id == "LSA1003") == paths, "Exact independent scope counts: " + name + " " + string.Join(";", diagnostics.Select(d => d.ToString())));
-        var tree = compilation.SyntaxTrees.Single();var text = tree.ToString();var syntax = tree.GetRoot();
+        var tree = compilation.SyntaxTrees.Single();
+        var text = tree.ToString();
+        var syntax = tree.GetRoot();
         var declaration = syntax.DescendantNodes().OfType<ObjectCreationExpressionSyntax>().Single(n => n.Type.ToString() == "SiteAssetTransform");
         foreach (var diagnostic in asset)
         {
-            var output = diagnostic.Properties["scope"] == "asset-transform-outputs";var scope = output ? "outputs" : "inputs";
+            var output = diagnostic.Properties["scope"] == "asset-transform-outputs";
+            var scope = output ? "outputs" : "inputs";
             var calls = syntax.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(n => n.Expression is MemberAccessExpressionSyntax access
                 && (output ? access.Name.Identifier.ValueText == "WriteAsync" : access.Name.Identifier.ValueText is "GetUrl" or "OpenRead"));
             var expected = calls.Select(n => (n.ArgumentList.Arguments.SingleOrDefault(a => a.NameColon?.Name.Identifier.ValueText == (output ? "output" : "input")) ?? n.ArgumentList.Arguments[0]).Expression.Span);
             var declared = (declaration.ArgumentList!.Arguments.SingleOrDefault(a => a.NameColon?.Name.Identifier.ValueText == scope) ?? declaration.ArgumentList.Arguments[output ? 3 : 2]).Expression;
-            var at = diagnostic.Location.SourceSpan.Start;var position = diagnostic.Location.GetLineSpan().StartLinePosition;
+            var at = diagnostic.Location.SourceSpan.Start;
+            var position = diagnostic.Location.GetLineSpan().StartLinePosition;
             Check(diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Location.SourceTree?.FilePath == "canary.cs" && expected.Contains(diagnostic.Location.SourceSpan)
                 && position.Line == text[..at].Count(c => c == '\n') && position.Character == at - text.LastIndexOf('\n', at - 1) - 1, "Whole original argument UTF16 position: " + name);
             Check(diagnostic.Properties["scopeState"] == "Closed" && diagnostic.Properties["staticState"] == "Known" && diagnostic.Properties["contract"] == "explicit-transform-" + scope + "/1"
                 && diagnostic.Properties["origin"] == "original-argument-utf16-span" && diagnostic.AdditionalLocations.Count == 1 && diagnostic.AdditionalLocations[0].SourceSpan == declared.Span,
                 "Existing declaration/identity contract and related location: " + name);
-            if (candidates is not null) Check(diagnostic.Properties["candidateCount"] == candidates, "Bounded identity count: " + name);
+            if (candidates is not null)
+                Check(diagnostic.Properties["candidateCount"] == candidates, "Bounded identity count: " + name);
         }
     }
     private static string AssetSuppressionSignature(Diagnostic d) => d.Id + "|" + d.Severity + "|" + d.Location.SourceSpan + "|" + d.GetMessage();
-    private static object AssetSuppressionDiagnostic(Diagnostic d) => new { d.Id, severity = d.Severity.ToString(), start = d.Location.SourceSpan.Start, length = d.Location.SourceSpan.Length,
-        expression = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan), related = d.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray(), d.Properties };
+    private static object AssetSuppressionDiagnostic(Diagnostic d) => new
+    {
+        d.Id,
+        severity = d.Severity.ToString(),
+        start = d.Location.SourceSpan.Start,
+        length = d.Location.SourceSpan.Length,
+        expression = d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan),
+        related = d.AdditionalLocations.Select(l => new { l.SourceSpan.Start, l.SourceSpan.Length }).ToArray(),
+        d.Properties
+    };
 }

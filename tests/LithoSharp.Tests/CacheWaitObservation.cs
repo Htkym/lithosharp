@@ -27,8 +27,10 @@ internal sealed class CacheWaitObservation : IDisposable
         try
         {
             var directory = Environment.GetEnvironmentVariable(DirectoryVariable);
-            if (string.IsNullOrWhiteSpace(directory)) return;
-            if (!Path.IsPathFullyQualified(directory)) throw new ArgumentException("Observation directory must be absolute.");
+            if (string.IsNullOrWhiteSpace(directory))
+                return;
+            if (!Path.IsPathFullyQualified(directory))
+                throw new ArgumentException("Observation directory must be absolute.");
             directory = Path.GetFullPath(directory);
             var relative = Path.GetRelativePath(Root, directory);
             if (relative == "." || !Path.IsPathRooted(relative) && relative != ".."
@@ -38,8 +40,13 @@ internal sealed class CacheWaitObservation : IDisposable
             _recordPath = Path.Combine(directory, $"{test}-{variant}-{Environment.ProcessId}-{Guid.NewGuid():N}.json");
             File.WriteAllText(_recordPath + ".started", JsonSerializer.Serialize(new
             {
-                schema = "cache-wait-observation/1", status = "started", test, variant, workspace = Root,
-                timestamp = Stopwatch.GetTimestamp(), frequency = Stopwatch.Frequency
+                schema = "cache-wait-observation/1",
+                status = "started",
+                test,
+                variant,
+                workspace = Root,
+                timestamp = Stopwatch.GetTimestamp(),
+                frequency = Stopwatch.Frequency
             }));
         }
         catch
@@ -52,43 +59,58 @@ internal sealed class CacheWaitObservation : IDisposable
     internal string Root => _workspace.Root;
     internal void RendererEntered()
     {
-        if (_recordPath is not null) Interlocked.CompareExchange(ref _rendererEntered, Stopwatch.GetTimestamp(), 0);
+        if (_recordPath is not null)
+            Interlocked.CompareExchange(ref _rendererEntered, Stopwatch.GetTimestamp(), 0);
     }
     internal void RendererExited()
     {
-        if (_recordPath is not null) Interlocked.CompareExchange(ref _rendererExited, Stopwatch.GetTimestamp(), 0);
+        if (_recordPath is not null)
+            Interlocked.CompareExchange(ref _rendererExited, Stopwatch.GetTimestamp(), 0);
     }
 
     internal void Snapshot(string phase, Task building, Task? clearing = null, Exception? failure = null,
         string? entrySignalStatus = null, string? clearSignalStatus = null)
     {
-        if (_recordPath is null) return;
+        if (_recordPath is null)
+            return;
         _snapshots.Add(new
         {
-            phase, timestamp = Stopwatch.GetTimestamp(), building = State(building),
+            phase,
+            timestamp = Stopwatch.GetTimestamp(),
+            building = State(building),
             clearingCaptured = _observeDisposal || clearing is not null,
             clearing = _observeDisposal || clearing is not null ? State(clearing) : null,
-            rendererEntered = Volatile.Read(ref _rendererEntered), rendererExited = Volatile.Read(ref _rendererExited),
-            entrySignalStatus, clearSignalStatus,
+            rendererEntered = Volatile.Read(ref _rendererEntered),
+            rendererExited = Volatile.Read(ref _rendererExited),
+            entrySignalStatus,
+            clearSignalStatus,
             failure = failure?.ToString()
         });
     }
 
     internal void BuildResult(Task<SiteGenerationResult> building)
     {
-        if (_recordPath is null || !building.IsCompletedSuccessfully) return;
+        if (_recordPath is null || !building.IsCompletedSuccessfully)
+            return;
         // Completed task and immutable report only; no wait, continuation or new timings.
         var report = building.Result.BuildReport;
         _buildResult = new
         {
-            timestamp = Stopwatch.GetTimestamp(), report.TransactionOutcome, report.CacheHitCount, report.CacheMissCount,
+            timestamp = Stopwatch.GetTimestamp(),
+            report.TransactionOutcome,
+            report.CacheHitCount,
+            report.CacheMissCount,
             nodes = report.Nodes.Select(node => new { node.NodeId, node.CacheHit, node.CacheMissReason }).ToArray()
         };
     }
 
     private static object? State(Task? task) => task is null ? null : new
     {
-        status = task.Status.ToString(), task.IsCompleted, task.IsCompletedSuccessfully, task.IsCanceled, task.IsFaulted,
+        status = task.Status.ToString(),
+        task.IsCompleted,
+        task.IsCompletedSuccessfully,
+        task.IsCanceled,
+        task.IsFaulted,
         terminalException = task.IsFaulted ? task.Exception?.ToString() : null
     };
 
@@ -98,16 +120,19 @@ internal sealed class CacheWaitObservation : IDisposable
         try
         {
             _workspace.Dispose();
-            if (started != 0) _disposal = new { started, finished = Stopwatch.GetTimestamp(), success = true, exception = (string?)null };
+            if (started != 0)
+                _disposal = new { started, finished = Stopwatch.GetTimestamp(), success = true, exception = (string?)null };
         }
         catch (Exception exception)
         {
-            if (started != 0) _disposal = new { started, finished = Stopwatch.GetTimestamp(), success = false, exception = exception.ToString() };
+            if (started != 0)
+                _disposal = new { started, finished = Stopwatch.GetTimestamp(), success = false, exception = exception.ToString() };
             throw;
         }
         finally
         {
-            if (_recordPath is not null) Flush();
+            if (_recordPath is not null)
+                Flush();
         }
     }
 
@@ -117,19 +142,31 @@ internal sealed class CacheWaitObservation : IDisposable
         {
             File.WriteAllText(_recordPath!, JsonSerializer.Serialize(new
             {
-                schema = "cache-wait-observation/1", status = "recorded", test = _test, variant = _variant,
-                workspace = Root, frequency = Stopwatch.Frequency, timestamp = Stopwatch.GetTimestamp(),
-                rendererExitCaptured = _observeDisposal, workspaceDisposalCaptured = _observeDisposal,
+                schema = "cache-wait-observation/1",
+                status = "recorded",
+                test = _test,
+                variant = _variant,
+                workspace = Root,
+                frequency = Stopwatch.Frequency,
+                timestamp = Stopwatch.GetTimestamp(),
+                rendererExitCaptured = _observeDisposal,
+                workspaceDisposalCaptured = _observeDisposal,
                 buildResultObservationEnabled = !_observeDisposal,
-                rendererEntered = Volatile.Read(ref _rendererEntered), rendererExited = Volatile.Read(ref _rendererExited),
-                snapshots = _snapshots, buildResult = _buildResult, workspaceDisposal = _disposal
+                rendererEntered = Volatile.Read(ref _rendererEntered),
+                rendererExited = Volatile.Read(ref _rendererExited),
+                snapshots = _snapshots,
+                buildResult = _buildResult,
+                workspaceDisposal = _disposal
             }, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {
             // Preserve the fixture's original failure. A missing final record makes
             // the observation incomplete; the separate runner must reject it.
-            try { Console.Error.WriteLine($"Cache observation incomplete: {_recordPath}: {exception.Message}"); }
+            try
+            {
+                Console.Error.WriteLine($"Cache observation incomplete: {_recordPath}: {exception.Message}");
+            }
             catch (IOException) { }
         }
     }

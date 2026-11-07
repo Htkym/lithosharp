@@ -37,9 +37,11 @@ internal sealed class HtmlRawValueSnapshot
         if (text.Value.Length == 0)
         {
             // HtmlTextBuilder.Build uses (emptyOffset, 0) and no segments for empty/boolean values.
-            if (span.Length != 0 || mapping.Length != 0) invalid = "raw_attribute_empty_mapping_invalid";
+            if (span.Length != 0 || mapping.Length != 0)
+                invalid = "raw_attribute_empty_mapping_invalid";
         }
-        else if (mapping.Length == 0) invalid = "raw_attribute_mapping_missing";
+        else if (mapping.Length == 0)
+            invalid = "raw_attribute_mapping_missing";
         else
         {
             var covered = 0;
@@ -63,7 +65,8 @@ internal sealed class HtmlRawValueSnapshot
                 covered += segment.ValueLength;
                 lastSourceEnd = segment.Source.End;
             }
-            if (invalid is null && covered != text.Value.Length) invalid = "raw_attribute_decoded_mapping_incomplete";
+            if (invalid is null && covered != text.Value.Length)
+                invalid = "raw_attribute_decoded_mapping_incomplete";
             if (invalid is null && (mapping[0].Source.Start != span.Start || lastSourceEnd != span.End))
                 invalid = "raw_attribute_source_mapping_bounds_invalid";
         }
@@ -124,7 +127,8 @@ internal sealed class HtmlRawAttributeFacts
             HtmlFactsProjection.Search when materials.Search is { } search => search.Coverage.Reasons,
             _ => null,
         };
-        if (reasons is null) return coverage;
+        if (reasons is null)
+            return coverage;
         var errors = reasons.ToArray();
         return new HtmlFactsProjectionCoverage(coverage.Projection,
             errors.Length == 0 ? HtmlFactsCoverageStatus.Complete : HtmlFactsCoverageStatus.Partial, errors);

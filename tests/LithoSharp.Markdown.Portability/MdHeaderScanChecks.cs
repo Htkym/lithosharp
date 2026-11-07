@@ -74,8 +74,13 @@ internal static class MdHeaderScanChecks
         cancellation.Cancel();
         RejectCancellation(() => MarkdownParser.ScanFrontMatter(closed, cancellationToken: cancellation.Token));
         RejectCancellation(() => ScanPortable(portable, closed, Options(portable, 1048576, 256), cancellation.Token));
-        Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-header-scan-portability", status = "PASS", checks =
-            "public runtime/netstandard2 Source/frontmatter-scan-1/header-only/BOM-CRLF/UTF-16 spans/identities/unknown versus EOF/cancellation" }));
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            task = "MD-header-scan-portability",
+            status = "PASS",
+            checks =
+            "public runtime/netstandard2 Source/frontmatter-scan-1/header-only/BOM-CRLF/UTF-16 spans/identities/unknown versus EOF/cancellation"
+        }));
     }
 
     private static object[] ScanPair(Assembly portable, string parserVersion, string raw, int maxInput = 1048576, int maxScan = 256)
@@ -105,17 +110,27 @@ internal static class MdHeaderScanChecks
     // ranges, and this header contract makes no body hash or body-facts claim.
     private static string Snapshot(object result) => JsonSerializer.Serialize(new
     {
-        ContractVersion = (string)Value(result, "ContractVersion")!, ParserVersion = (string)Value(result, "ParserVersion")!,
-        ProfileId = (string)Value(result, "ProfileId")!, OptionsHash = (string)Value(result, "OptionsHash")!,
-        State = EnumSnapshot(Value(result, "State")!), Status = EnumSnapshot(Value(result, "Status")!),
-        OpeningSpan = Span(result, "OpeningSpan"), YamlSpan = Span(result, "YamlSpan"), ClosingSpan = Span(result, "ClosingSpan"),
-        BodySpan = Span(result, "BodySpan"), HeaderSpan = Span(result, "HeaderSpan"), FailureSpan = Span(result, "FailureSpan"),
+        ContractVersion = (string)Value(result, "ContractVersion")!,
+        ParserVersion = (string)Value(result, "ParserVersion")!,
+        ProfileId = (string)Value(result, "ProfileId")!,
+        OptionsHash = (string)Value(result, "OptionsHash")!,
+        State = EnumSnapshot(Value(result, "State")!),
+        Status = EnumSnapshot(Value(result, "Status")!),
+        OpeningSpan = Span(result, "OpeningSpan"),
+        YamlSpan = Span(result, "YamlSpan"),
+        ClosingSpan = Span(result, "ClosingSpan"),
+        BodySpan = Span(result, "BodySpan"),
+        HeaderSpan = Span(result, "HeaderSpan"),
+        FailureSpan = Span(result, "FailureSpan"),
         FailureLine = (int?)Value(result, "FailureLine"),
         Diagnostics = Diagnostics(result).Select(diagnostic => new
         {
-            Id = (string)Value(diagnostic, "Id")!, Severity = EnumSnapshot(Value(diagnostic, "Severity")!),
-            Message = (string)Value(diagnostic, "Message")!, Origin = (string)Value(diagnostic, "Origin")!,
-            Reason = (string)Value(diagnostic, "Reason")!, RawSpan = Span(diagnostic, "RawSpan"),
+            Id = (string)Value(diagnostic, "Id")!,
+            Severity = EnumSnapshot(Value(diagnostic, "Severity")!),
+            Message = (string)Value(diagnostic, "Message")!,
+            Origin = (string)Value(diagnostic, "Origin")!,
+            Reason = (string)Value(diagnostic, "Reason")!,
+            RawSpan = Span(diagnostic, "RawSpan"),
         }),
     });
 

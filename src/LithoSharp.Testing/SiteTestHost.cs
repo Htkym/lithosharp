@@ -13,7 +13,11 @@ public sealed class SiteTestHost : IAsyncDisposable
 {
     private readonly string root;
     private bool disposed;
-    private SiteTestHost(string root) { this.root = root; OutputDirectory = Path.Combine(root, "output"); }
+    private SiteTestHost(string root)
+    {
+        this.root = root;
+        OutputDirectory = Path.Combine(root, "output");
+    }
 
     /// <summary>Gets the temporary output directory. It is removed on disposal.</summary>
     public string OutputDirectory { get; }
@@ -67,9 +71,18 @@ public sealed class SiteTestHost : IAsyncDisposable
                     host.OutputDirectory, false, definition.Customization, options, cancellationToken).ConfigureAwait(false);
                 host.Diagnostics = host.Result.BuildReport.Diagnostics;
             }
-            catch (SiteRouteValidationException exception) { host.Diagnostics = exception.Diagnostics; }
-            catch (SiteBuildPlanValidationException exception) { host.Diagnostics = exception.Diagnostics; }
-            catch (SiteQualityValidationException exception) { host.Diagnostics = exception.Diagnostics; }
+            catch (SiteRouteValidationException exception)
+            {
+                host.Diagnostics = exception.Diagnostics;
+            }
+            catch (SiteBuildPlanValidationException exception)
+            {
+                host.Diagnostics = exception.Diagnostics;
+            }
+            catch (SiteQualityValidationException exception)
+            {
+                host.Diagnostics = exception.Diagnostics;
+            }
             return host;
         }
         catch
@@ -85,7 +98,8 @@ public sealed class SiteTestHost : IAsyncDisposable
     public void AssertSucceeded()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!Succeeded) throw new SiteTestException("Site generation failed: " + string.Join(Environment.NewLine, Diagnostics.Select(d => $"{d.Id}: {d.Message}")));
+        if (!Succeeded)
+            throw new SiteTestException("Site generation failed: " + string.Join(Environment.NewLine, Diagnostics.Select(d => $"{d.Id}: {d.Message}")));
     }
 
     /// <summary>Asserts an exact public path, optionally checking its relative output path.</summary>
@@ -108,7 +122,8 @@ public sealed class SiteTestHost : IAsyncDisposable
     {
         AssertSucceeded();
         ArgumentException.ThrowIfNullOrWhiteSpace(publicPath);
-        if (Result!.Routes.Any(route => route.PublicPath == publicPath)) throw new SiteTestException($"Unexpected route '{publicPath}'.");
+        if (Result!.Routes.Any(route => route.PublicPath == publicPath))
+            throw new SiteTestException($"Unexpected route '{publicPath}'.");
     }
 
     /// <summary>Asserts that a declared artifact exists as a regular contained file, returning its absolute path.</summary>
@@ -145,7 +160,8 @@ public sealed class SiteTestHost : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        if (severity is not null && !Enum.IsDefined(severity.Value)) throw new ArgumentOutOfRangeException(nameof(severity));
+        if (severity is not null && !Enum.IsDefined(severity.Value))
+            throw new ArgumentOutOfRangeException(nameof(severity));
         return Diagnostics.FirstOrDefault(d => d.Id == id && (severity is null || d.Severity == severity)
             && (messageContains is null || d.Message.Contains(messageContains, StringComparison.Ordinal)))
             ?? throw new SiteTestException($"Expected diagnostic '{id}'.");
@@ -157,9 +173,11 @@ public sealed class SiteTestHost : IAsyncDisposable
     public void AssertNoDiagnostics(SiteDiagnosticSeverity minimumSeverity = SiteDiagnosticSeverity.Warning)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!Enum.IsDefined(minimumSeverity)) throw new ArgumentOutOfRangeException(nameof(minimumSeverity));
+        if (!Enum.IsDefined(minimumSeverity))
+            throw new ArgumentOutOfRangeException(nameof(minimumSeverity));
         var unexpected = Diagnostics.Where(d => d.Severity >= minimumSeverity).ToArray();
-        if (unexpected.Length != 0) throw new SiteTestException(string.Join(Environment.NewLine, unexpected.Select(d => $"{d.Id}: {d.Message}")));
+        if (unexpected.Length != 0)
+            throw new SiteTestException(string.Join(Environment.NewLine, unexpected.Select(d => $"{d.Id}: {d.Message}")));
     }
 
     /// <summary>Opens the HTML artifact for an exact public route without running scripts or network requests.</summary>
@@ -168,7 +186,8 @@ public sealed class SiteTestHost : IAsyncDisposable
     public async Task<SiteTestDocument> OpenPageAsync(string publicPath, CancellationToken cancellationToken = default)
     {
         var route = AssertRoute(publicPath);
-        if (!route.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase)) throw new SiteTestException($"Route '{publicPath}' is not an HTML page.");
+        if (!route.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            throw new SiteTestException($"Route '{publicPath}' is not an HTML page.");
         var path = AssertArtifact(route.RelativeOutputPath);
         await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(OutputDirectory, path, asynchronous: true);
         using var reader = new StreamReader(stream);
@@ -182,7 +201,8 @@ public sealed class SiteTestHost : IAsyncDisposable
     /// <remarks>Rejects linked paths before deleting. The tree is retained if cleanup fails so it can be inspected.</remarks>
     public ValueTask DisposeAsync()
     {
-        if (disposed) return ValueTask.CompletedTask;
+        if (disposed)
+            return ValueTask.CompletedTask;
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(root, root);
         if (Directory.Exists(root))
         {
@@ -206,8 +226,10 @@ public sealed class SiteTestHost : IAsyncDisposable
         foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
         {
             SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(root, entry);
-            if (Directory.Exists(entry)) DeleteTree(entry);
-            else File.Delete(entry);
+            if (Directory.Exists(entry))
+                DeleteTree(entry);
+            else
+                File.Delete(entry);
         }
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(root, directory);
         Directory.Delete(directory);

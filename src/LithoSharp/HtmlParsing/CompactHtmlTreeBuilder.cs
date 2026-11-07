@@ -2,9 +2,12 @@ namespace LithoSharp.HtmlParsing;
 
 internal sealed partial class CompactHtmlTreeBuilder
 {
-    private enum Mode { Initial, BeforeHtml, BeforeHead, InHead, InHeadNoscript, AfterHead, InBody,
+    private enum Mode
+    {
+        Initial, BeforeHtml, BeforeHead, InHead, InHeadNoscript, AfterHead, InBody,
         Text, InTable, InTableBody, InRow, InCell, InCaption, InColumnGroup, InSelect, InSelectInTable,
-        InTemplate, AfterBody, AfterAfterBody, InFrameset, AfterFrameset, AfterAfterFrameset }
+        InTemplate, AfterBody, AfterAfterBody, InFrameset, AfterFrameset, AfterAfterFrameset
+    }
     private sealed class Node(int id, HtmlTreeNodeKind kind, string? name, string? ns, HtmlSpan? source)
     {
         public readonly int Id = id;
@@ -63,13 +66,15 @@ internal sealed partial class CompactHtmlTreeBuilder
                 root = NewNode(HtmlTreeNodeKind.Element, "html", HtmlNamespaces.Html, null);
             }
         }
-        else root = NewNode(HtmlTreeNodeKind.Document, null, null, null);
+        else
+            root = NewNode(HtmlTreeNodeKind.Document, null, null, null);
     }
 
     public static CompactHtmlTree Parse(string source, HtmlTreeOptions? options = null,
         HtmlTreeLimits? limits = null, CancellationToken cancellationToken = default)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+            throw new ArgumentNullException(nameof(source));
         return new CompactHtmlTreeBuilder(source, options ?? new(), limits ?? new(), cancellationToken).Build();
     }
 
@@ -84,15 +89,19 @@ internal sealed partial class CompactHtmlTreeBuilder
                     foreignFragmentContext = NewNode(HtmlTreeNodeKind.Element, context.Name, context.Namespace, null);
                 CopyAttributes(foreignFragmentContext ?? root, context.Attributes ?? [], context.Namespace);
                 open.Add(root);
-                if (IsHtml(root, "form")) form = root;
+                if (IsHtml(root, "form"))
+                    form = root;
                 // External ancestry supplies a pointer, never an inserted node or
                 // an open element. The context itself is the nearer form, if any.
-                else externalForm = context.HasExternalFormAncestor;
-                if (IsHtml(root, "template")) templateModes.Add(Mode.InTemplate);
+                else
+                    externalForm = context.HasExternalFormAncestor;
+                if (IsHtml(root, "template"))
+                    templateModes.Add(Mode.InTemplate);
                 ResetMode();
                 if (tokenizer.Status == HtmlTokenizationStatus.Complete && context.Namespace == HtmlNamespaces.Html && TextMode(nodes[root].Name!) is { } text)
                 {
-                    tokenizer.SetContext(text, fragment: true); textModeActive = true;
+                    tokenizer.SetContext(text, fragment: true);
+                    textModeActive = true;
                 }
             }
             while (tokenizer.Status != HtmlTokenizationStatus.Failed)
@@ -106,9 +115,12 @@ internal sealed partial class CompactHtmlTreeBuilder
                     cdataAllowed = foreign;
                 }
                 token = tokenizer.NextToken();
-                if (tableText.Count > 0 && token.Kind != HtmlTokenKind.Text) FlushTableText();
-                while (Process()) Check();
-                if (token.Kind == HtmlTokenKind.EndOfFile) break;
+                if (tableText.Count > 0 && token.Kind != HtmlTokenKind.Text)
+                    FlushTableText();
+                while (Process())
+                    Check();
+                if (token.Kind == HtmlTokenKind.EndOfFile)
+                    break;
             }
             ValidateFinalDepth();
         }
@@ -116,11 +128,15 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             status = HtmlTokenizationStatus.Partial;
             var error = new HtmlTreeDiagnostic(ex.Message, token.Source, true);
-            if (diagnostics.Count < limits.MaxDiagnostics) diagnostics.Add(error);
-            else diagnostics[diagnostics.Count - 1] = error;
+            if (diagnostics.Count < limits.MaxDiagnostics)
+                diagnostics.Add(error);
+            else
+                diagnostics[diagnostics.Count - 1] = error;
         }
-        if (tokenizer.Status == HtmlTokenizationStatus.Failed) status = HtmlTokenizationStatus.Failed;
-        else if (tokenizer.Status == HtmlTokenizationStatus.Partial) status = HtmlTokenizationStatus.Partial;
+        if (tokenizer.Status == HtmlTokenizationStatus.Failed)
+            status = HtmlTokenizationStatus.Failed;
+        else if (tokenizer.Status == HtmlTokenizationStatus.Partial)
+            status = HtmlTokenizationStatus.Partial;
         var frozen = new HtmlTreeNode[nodes.Count];
         foreach (var node in nodes)
         {
@@ -146,7 +162,8 @@ internal sealed partial class CompactHtmlTreeBuilder
     private void Check()
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (++operations > limits.MaxOperations) throw new TreeBudgetException("tree-operation-budget");
+        if (++operations > limits.MaxOperations)
+            throw new TreeBudgetException("tree-operation-budget");
     }
     private sealed class TreeBudgetException(string code) : Exception(code);
     private void ValidateFinalDepth()
@@ -157,21 +174,27 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             Check();
             var (id, depth) = pending.Pop();
-            if (depth > limits.MaxDepth) throw new TreeBudgetException("tree-depth-budget");
-            foreach (var child in nodes[id].Children) pending.Push((child, depth + 1));
-            if (nodes[id].TemplateContent is int content) pending.Push((content, depth + 1));
+            if (depth > limits.MaxDepth)
+                throw new TreeBudgetException("tree-depth-budget");
+            foreach (var child in nodes[id].Children)
+                pending.Push((child, depth + 1));
+            if (nodes[id].TemplateContent is int content)
+                pending.Push((content, depth + 1));
         }
     }
     private void Error(string code, bool incomplete = false, HtmlSpan? source = null)
     {
-        if (incomplete) status = HtmlTokenizationStatus.Partial;
-        if (diagnostics.Count >= limits.MaxDiagnostics) throw new TreeBudgetException("tree-diagnostic-budget");
+        if (incomplete)
+            status = HtmlTokenizationStatus.Partial;
+        if (diagnostics.Count >= limits.MaxDiagnostics)
+            throw new TreeBudgetException("tree-diagnostic-budget");
         diagnostics.Add(new(code, source ?? token.Source, incomplete));
     }
     private int NewNode(HtmlTreeNodeKind kind, string? name, string? ns, HtmlSpan? source)
     {
         Check();
-        if (nodes.Count >= limits.MaxNodes) throw new TreeBudgetException("tree-node-budget");
+        if (nodes.Count >= limits.MaxNodes)
+            throw new TreeBudgetException("tree-node-budget");
         var id = nodes.Count;
         nodes.Add(new(id, kind, name, ns, source));
         return id;
@@ -183,13 +206,18 @@ internal sealed partial class CompactHtmlTreeBuilder
         for (int? ancestor = parent; ancestor is int a; ancestor = nodes[a].Parent)
         {
             Check();
-            if (a == id) throw new TreeBudgetException("tree-cycle");
-            if (++depth > limits.MaxDepth) throw new TreeBudgetException("tree-depth-budget");
+            if (a == id)
+                throw new TreeBudgetException("tree-cycle");
+            if (++depth > limits.MaxDepth)
+                throw new TreeBudgetException("tree-depth-budget");
         }
-        if (nodes[id].Parent is int previous) nodes[previous].Children.Remove(id);
+        if (nodes[id].Parent is int previous)
+            nodes[previous].Children.Remove(id);
         var index = before is int sibling ? nodes[parent].Children.IndexOf(sibling) : -1;
-        if (index < 0) nodes[parent].Children.Add(id);
-        else nodes[parent].Children.Insert(index, id);
+        if (index < 0)
+            nodes[parent].Children.Add(id);
+        else
+            nodes[parent].Children.Insert(index, id);
         nodes[id].Parent = parent;
     }
     private (int Parent, int? Before) Location(int? target = null)
@@ -202,29 +230,39 @@ internal sealed partial class CompactHtmlTreeBuilder
             for (var i = open.Count - 1; i >= 0; i--)
             {
                 Check();
-                if (IsHtml(open[i], "template")) return (nodes[open[i]].TemplateContent ?? open[i], null);
-                if (IsHtml(open[i], "table")) { lastTable = i; break; }
+                if (IsHtml(open[i], "template"))
+                    return (nodes[open[i]].TemplateContent ?? open[i], null);
+                if (IsHtml(open[i], "table"))
+                {
+                    lastTable = i;
+                    break;
+                }
             }
             if (lastTable >= 0)
             {
                 var table = nodes[open[lastTable]];
-                if (table.Parent is int tableParent) return (tableParent, table.Id);
+                if (table.Parent is int tableParent)
+                    return (tableParent, table.Id);
                 parent = lastTable > 0 ? open[lastTable - 1] : root;
             }
-            else parent = open.Count > 0 ? open[0] : root;
+            else
+                parent = open.Count > 0 ? open[0] : root;
         }
-        if (nodes[parent].TemplateContent is int content) parent = content;
+        if (nodes[parent].TemplateContent is int content)
+            parent = content;
         return (parent, null);
     }
     private int Insert(string? name = null, string ns = HtmlNamespaces.Html, bool synthetic = false, bool push = true)
     {
         var id = NewNode(HtmlTreeNodeKind.Element, name ?? Name, ns, synthetic ? null : token.Source);
-        if (!synthetic) CopyAttributes(id, token.Attributes ?? [], ns);
+        if (!synthetic)
+            CopyAttributes(id, token.Attributes ?? [], ns);
         var location = Location();
         Attach(id, location.Parent, location.Before);
         if (push)
         {
-            if (open.Count >= limits.MaxDepth) throw new TreeBudgetException("tree-depth-budget");
+            if (open.Count >= limits.MaxDepth)
+                throw new TreeBudgetException("tree-depth-budget");
             open.Add(id);
         }
         return id;
@@ -239,15 +277,18 @@ internal sealed partial class CompactHtmlTreeBuilder
     private void InsertOther(HtmlTreeNodeKind kind, int? parent = null)
     {
         var id = NewNode(kind, token.Name?.Value, null, token.Source);
-        if (token.Data is not null) nodes[id].TextChunks.Add(token.Data);
+        if (token.Data is not null)
+            nodes[id].TextChunks.Add(token.Data);
         var location = parent is int p ? (p, (int?)null) : Location();
         Attach(id, location.Item1, location.Item2);
     }
     private void InsertText(HtmlText text)
     {
-        if (text.Value.Length == 0) return;
+        if (text.Value.Length == 0)
+            return;
         var location = Location();
-        if (nodes[location.Parent].Kind == HtmlTreeNodeKind.Document) return;
+        if (nodes[location.Parent].Kind == HtmlTreeNodeKind.Document)
+            return;
         var children = nodes[location.Parent].Children;
         var index = location.Before is int before ? children.IndexOf(before) : children.Count;
         var previous = index > 0 ? children[index - 1] : -1;
@@ -265,7 +306,8 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             var left = Math.Max(start, segment.ValueStart);
             var right = Math.Min(start + length, segment.ValueStart + segment.ValueLength);
-            if (left >= right) continue;
+            if (left >= right)
+                continue;
             var source = segment.ValueLength == segment.Source.Length
                 ? new HtmlSpan(segment.Source.Start + left - segment.ValueStart, right - left) : segment.Source;
             segments.Add(new(left - start, right - left, source));
@@ -278,31 +320,50 @@ internal sealed partial class CompactHtmlTreeBuilder
         if (ignoreNextLf)
         {
             ignoreNextLf = false;
-            if (text.Value.Length > 0 && text.Value[0] == '\n') text = Slice(text, 1, text.Value.Length - 1);
+            if (text.Value.Length > 0 && text.Value[0] == '\n')
+                text = Slice(text, 1, text.Value.Length - 1);
         }
         void InsertNonNull(HtmlText part)
         {
-            if (part.Value.Length == 0) return;
-            if (reconstruct) ReconstructFormatting();
-            if (!part.Value.All(IsSpace)) framesetOk = false;
+            if (part.Value.Length == 0)
+                return;
+            if (reconstruct)
+                ReconstructFormatting();
+            if (!part.Value.All(IsSpace))
+                framesetOk = false;
             InsertText(part);
         }
         var start = 0;
         for (var i = 0; i < text.Value.Length; i++)
         {
             Check();
-            if (text.Value[i] != '\0') continue;
+            if (text.Value[i] != '\0')
+                continue;
             InsertNonNull(Slice(text, start, i - start));
-            if (foreign) InsertNonNull(Slice(text, i, 1) with { Value = "\uFFFD" });
+            if (foreign)
+                InsertNonNull(Slice(text, i, 1) with { Value = "\uFFFD" });
             start = i + 1;
         }
         InsertNonNull(start == 0 ? text : Slice(text, start, text.Value.Length - start));
     }
-    private void PopTo(int index) { if (index > 0) open.RemoveRange(index, open.Count - index); }
-    private void Pop() { if (open.Count > 1) open.RemoveAt(open.Count - 1); }
+    private void PopTo(int index)
+    {
+        if (index > 0)
+            open.RemoveRange(index, open.Count - index);
+    }
+    private void Pop()
+    {
+        if (open.Count > 1)
+            open.RemoveAt(open.Count - 1);
+    }
     private int Find(string name)
     {
-        for (var i = open.Count - 1; i >= (options.Fragment is null ? 0 : 1); i--) { Check(); if (IsHtml(open[i], name)) return i; }
+        for (var i = open.Count - 1; i >= (options.Fragment is null ? 0 : 1); i--)
+        {
+            Check();
+            if (IsHtml(open[i], name))
+                return i;
+        }
         return -1;
     }
     private bool Scope(string name, string kind = "general", int? target = null)
@@ -311,23 +372,40 @@ internal sealed partial class CompactHtmlTreeBuilder
         {
             Check();
             var node = nodes[open[i]];
-            if (i == 0 && options.Fragment is not null) return false;
-            if (node.Namespace == HtmlNamespaces.Html && node.Name == name && (target is null || node.Id == target)) return true;
-            if (kind == "select") { if (node.Name is not ("option" or "optgroup")) return false; continue; }
+            if (i == 0 && options.Fragment is not null)
+                return false;
+            if (node.Namespace == HtmlNamespaces.Html && node.Name == name && (target is null || node.Id == target))
+                return true;
+            if (kind == "select")
+            {
+                if (node.Name is not ("option" or "optgroup"))
+                    return false;
+                continue;
+            }
             if (node.Namespace == HtmlNamespaces.Html && (node.Name is "html" or "table" or "template" ||
                 kind != "table" && node.Name is "applet" or "caption" or "td" or "th" or "marquee" or "object" ||
-                kind == "button" && node.Name == "button" || kind == "list" && node.Name is "ol" or "ul")) return false;
+                kind == "button" && node.Name == "button" || kind == "list" && node.Name is "ol" or "ul"))
+                return false;
             if (node.Namespace == HtmlNamespaces.Svg && node.Name is "foreignObject" or "desc" or "title" ||
-                node.Namespace == HtmlNamespaces.MathMl && node.Name is "mi" or "mo" or "mn" or "ms" or "mtext" or "annotation-xml") return false;
+                node.Namespace == HtmlNamespaces.MathMl && node.Name is "mi" or "mo" or "mn" or "ms" or "mtext" or "annotation-xml")
+                return false;
         }
         return false;
     }
     private void Implied(string? except = null)
     {
         while (open.Count > 1 && nodes[Current].Namespace == HtmlNamespaces.Html && nodes[Current].Name != except &&
-            nodes[Current].Name is "dd" or "dt" or "li" or "optgroup" or "option" or "p" or "rb" or "rp" or "rt" or "rtc") { Check(); Pop(); }
+            nodes[Current].Name is "dd" or "dt" or "li" or "optgroup" or "option" or "p" or "rb" or "rp" or "rt" or "rtc")
+        {
+            Check();
+            Pop();
+        }
     }
-    private void CloseP() { Implied("p"); PopTo(Find("p")); }
+    private void CloseP()
+    {
+        Implied("p");
+        PopTo(Find("p"));
+    }
     private void MergeAttributes(int id)
     {
         foreach (var attribute in AdjustAttributes(token.Attributes ?? [], HtmlNamespaces.Html))
@@ -335,23 +413,31 @@ internal sealed partial class CompactHtmlTreeBuilder
             Check();
             if (nodes[id].Attributes.All(a => a.Name != attribute.Name))
             {
-                if (nodes[id].Attributes.Count >= limits.MaxAttributesPerElement) throw new TreeBudgetException("tree-attribute-budget");
+                if (nodes[id].Attributes.Count >= limits.MaxAttributesPerElement)
+                    throw new TreeBudgetException("tree-attribute-budget");
                 nodes[id].Attributes.Add(attribute);
             }
         }
     }
     private void CopyAttributes(int id, IReadOnlyList<HtmlAttribute> attributes, string ns)
     {
-        if (attributes.Count > limits.MaxAttributesPerElement) throw new TreeBudgetException("tree-attribute-budget");
-        foreach (var attribute in AdjustAttributes(attributes, ns)) { Check(); nodes[id].Attributes.Add(attribute); }
+        if (attributes.Count > limits.MaxAttributesPerElement)
+            throw new TreeBudgetException("tree-attribute-budget");
+        foreach (var attribute in AdjustAttributes(attributes, ns))
+        {
+            Check();
+            nodes[id].Attributes.Add(attribute);
+        }
     }
     private void CreateTemplateContent(int id) => nodes[id].TemplateContent = NewNode(HtmlTreeNodeKind.Fragment, null, null, null);
     private void ClearFormatting()
     {
         while (formatting.Count > 0)
         {
-            var last = formatting[formatting.Count - 1]; formatting.RemoveAt(formatting.Count - 1);
-            if (last is null) break;
+            var last = formatting[formatting.Count - 1];
+            formatting.RemoveAt(formatting.Count - 1);
+            if (last is null)
+                break;
         }
     }
     private HtmlTextMode? TextMode(string name) => name switch
@@ -359,7 +445,9 @@ internal sealed partial class CompactHtmlTreeBuilder
         "title" or "textarea" => HtmlTextMode.RcData,
         "style" or "xmp" or "iframe" or "noembed" or "noframes" => HtmlTextMode.RawText,
         "noscript" when options.Scripting => HtmlTextMode.RawText,
-        "script" => HtmlTextMode.ScriptData, "plaintext" => HtmlTextMode.PlainText, _ => null
+        "script" => HtmlTextMode.ScriptData,
+        "plaintext" => HtmlTextMode.PlainText,
+        _ => null
     };
     private void StartText(string name)
     {

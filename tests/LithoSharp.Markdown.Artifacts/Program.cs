@@ -7,7 +7,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Syntamark;
 
-if (args.Length != 3) throw new ArgumentException("pair manifest, actual Generator DLL, result JSON required");
+if (args.Length != 3)
+    throw new ArgumentException("pair manifest, actual Generator DLL, result JSON required");
 using var manifest = JsonDocument.Parse(File.ReadAllText(args[0]));
 var m = manifest.RootElement;
 string Field(string name) => m.GetProperty(name).GetString()!;
@@ -21,7 +22,11 @@ const BindingFlags staticMembers = BindingFlags.Static | BindingFlags.NonPublic;
 var sourceYamlReference = generator.GetReferencedAssemblies().Single(a => a.Name == "YamlDotNet");
 var sourceYaml = AssemblyLoadContext.GetLoadContext(generator)!.LoadFromAssemblyName(sourceYamlReference);
 var sourceYamlInformation = sourceYaml.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-void Check(bool valid, string reason) { if (!valid) throw new InvalidOperationException(reason); }
+void Check(bool valid, string reason)
+{
+    if (!valid)
+        throw new InvalidOperationException(reason);
+}
 Check(generator.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName == ".NETStandard,Version=v2.0",
     "Source host must be the actual netstandard2.0 Generator.");
 Check(!generator.GetReferencedAssemblies().Any(a => a.Name == "Syntamark" || a.Name == "LithoSharp"),
@@ -45,8 +50,15 @@ object SourceParse(string raw, string expected = "", string assembly = "")
         yamlInformation, CancellationToken.None })!;
 bool Rejects(string expected, string assembly)
 {
-    try { SourceParse("# guard\n", expected, assembly); return false; }
-    catch (TargetInvocationException e) when (e.InnerException is InvalidOperationException) { return true; }
+    try
+    {
+        SourceParse("# guard\n", expected, assembly);
+        return false;
+    }
+    catch (TargetInvocationException e) when (e.InnerException is InvalidOperationException)
+    {
+        return true;
+    }
 }
 Check(Rejects("1/" + new string('0', 64), ""), "Source host accepted a mismatched parser stamp.");
 Check(Rejects("", "YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null"),
@@ -55,9 +67,12 @@ Check(Rejects("", "YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=
 // including nested YAML, ranges, source segments and diagnostics; omit only raw ownership/envelope constants.
 object? Normalize(object? value)
 {
-    if (value is null || value is string || value.GetType().IsPrimitive || value is decimal) return value;
-    if (value.GetType().IsEnum) return value.ToString();
-    if (value is IEnumerable sequence) return sequence.Cast<object?>().Select(Normalize).ToArray();
+    if (value is null || value is string || value.GetType().IsPrimitive || value is decimal)
+        return value;
+    if (value.GetType().IsEnum)
+        return value.ToString();
+    if (value is IEnumerable sequence)
+        return sequence.Cast<object?>().Select(Normalize).ToArray();
     var properties = value.GetType().GetProperties(members)
         .Where(p => p.GetMethod is not null && p.GetIndexParameters().Length == 0
             && p.Name is not ("RawText" or "ContractVersion" or "ProfileId"))
@@ -89,15 +104,26 @@ Check(yaml.FullName == yamlAssembly && yaml.GetCustomAttribute<AssemblyInformati
 var runtimeAssembly = typeof(MarkdownParser).Assembly;
 var report = new
 {
-    task = "MD-05", status = "PASS", componentVersion = Field("componentVersion"), parserVersion = version,
+    task = "MD-05",
+    status = "PASS",
+    componentVersion = Field("componentVersion"),
+    parserVersion = version,
     canonicalSourceHash = Field("canonicalSourceHash"),
     runtimeAssemblySha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(runtimeAssembly.Location))).ToLowerInvariant(),
-    actualGenerator = generator.Location, generatorSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(generator.Location))).ToLowerInvariant(),
-    sourceParseCompiled = true, noSourceFacade = true, noSourceFriendMetadata = true,
-    expectedStampRejected = true, expectedDependencyRejected = true,
-    yamlAssembly = yaml.FullName, yamlInformation,
-    sourceYamlAssembly = sourceYaml.FullName, sourceYamlInformation, fixtures = snapshots,
-    actualRoslynHost = "NOT_RUN; IN-01", bothRepoMatrix = "NOT_RUN; IN-01"
+    actualGenerator = generator.Location,
+    generatorSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(generator.Location))).ToLowerInvariant(),
+    sourceParseCompiled = true,
+    noSourceFacade = true,
+    noSourceFriendMetadata = true,
+    expectedStampRejected = true,
+    expectedDependencyRejected = true,
+    yamlAssembly = yaml.FullName,
+    yamlInformation,
+    sourceYamlAssembly = sourceYaml.FullName,
+    sourceYamlInformation,
+    fixtures = snapshots,
+    actualRoslynHost = "NOT_RUN; IN-01",
+    bothRepoMatrix = "NOT_RUN; IN-01"
 };
 var output = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });
 File.WriteAllText(args[2], output + "\n");

@@ -115,7 +115,9 @@ public sealed class DocsSampleFactory : ISiteFactory
         };
         return new SiteDefinition(site, posts)
         {
-            OutputDirectory = output, Customization = customization, Options = options
+            OutputDirectory = output,
+            Customization = customization,
+            Options = options
         };
     }
 }

@@ -80,14 +80,29 @@ internal static class Md03AdapterChecks
                 == (string)generic.GetType().GetProperty(property)!.GetValue(generic)!, "Runtime/portable generic " + property + " agreement");
         Check(portableDoc.GetType().GetProperty("Status", portableMembers)!.GetValue(portableDoc)!.ToString() == "Complete",
             "Portable generic facts can parse YAML in a separate load context");
-        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        try { DocumentInspection.Inspect("doc.md", body, cancellationToken: cancelled.Token); throw new InvalidOperationException("Site cancellation swallowed"); }
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        try
+        {
+            DocumentInspection.Inspect("doc.md", body, cancellationToken: cancelled.Token);
+            throw new InvalidOperationException("Site cancellation swallowed");
+        }
         catch (OperationCanceledException) { }
 
-        Console.WriteLine(JsonSerializer.Serialize(new { task = "MD-03", status = "PASS", checks =
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            task = "MD-03",
+            status = "PASS",
+            checks =
             "shared runtime assembly/one parse/no body HTML/heading legacy parity/frontmatter site policy and LSM001-008/offsets/runtime-portable facts/cancellation",
-            parserVersion = generic.ParserVersion, actualRoslynHost = "NOT_RUN; MD-04/IN-01" }));
+            parserVersion = generic.ParserVersion,
+            actualRoslynHost = "NOT_RUN; MD-04/IN-01"
+        }));
     }
 
-    private static void Check(bool valid, string message) { if (!valid) throw new InvalidOperationException(message); }
+    private static void Check(bool valid, string message)
+    {
+        if (!valid)
+            throw new InvalidOperationException(message);
+    }
 }

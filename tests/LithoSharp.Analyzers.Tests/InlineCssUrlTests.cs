@@ -81,10 +81,17 @@ public sealed partial class AnalyzerPackageHostTests
         var preserved = (await Analyze(Compile(expanded, true))).Where(d => d.Id == "LSA1105").ToArray();
         Check(preserved.Length == 2 && preserved.Select(d => expanded.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length))
             .Order().SequenceEqual(new[] { "javascript:href", "javascript:src" }), "Actual 64-origin CSS work exhaustion preserves independent href/src");
-        using var canceled = new CancellationTokenSource(); canceled.Cancel();
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
         var canceledObserved = false;
-        try { await Analyze(Compile("class C { void M(){LithoSharp.Html.UnsafeRaw(\"<p style='a:url()'>\");}}", true), canceled.Token); }
-        catch (OperationCanceledException) { canceledObserved = true; }
+        try
+        {
+            await Analyze(Compile("class C { void M(){LithoSharp.Html.UnsafeRaw(\"<p style='a:url()'>\");}}", true), canceled.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            canceledObserved = true;
+        }
         Check(canceledObserved, "CSS cancellation propagates");
         File.WriteAllText(Path.Combine(Required("RA04B_EVIDENCE_DIR"), "inline-css-boundaries.json"), JsonSerializer.Serialize(
             new { status = "PASS", cases = cases.Select(row => row.Name), budgetPreservesIndependentHtml = true, cancellation = true }));
