@@ -1,5 +1,7 @@
 # IN-01に先行する最小pack統合
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 基準はfeature/2.0.0の7d3454e8a1034d94bb984db447b625380bb60c60です。既存CIはCore1.1.0から非packableのMarkdown開発project1.0.0への依存をnuspecへ出し、版照合で拒否していました。固定artifactを使う最小pack前提を先行させ、CI成功後にIN-01の4 host検証へ進みます。RA-01やIN-01の合格を先取りする変更ではありません。
 
 CoreはLithoSharp.Markdown [2.0.0-preview.1]を参照します。MD-05で固定したruntime/source pairのbytesをeng/markdown/feedへそのままコピーし、repoのNuGet.Configでこの2 IDだけを専用feedへ割り当てました。両CI入口はrestore前にpairのhash、manifest、HEADのGit blobとcanonical parser/sourceの対応を検査します。現在の作業ツリーのPortable sourceをCoreへCompileリンクする代替は使いません。既存pairの再pack、上書き、版変更はありません。

@@ -158,6 +158,7 @@ foreach ($pattern in $forbidden) {
 # the restore command installs from (lockfile included, node_modules excluded).
 foreach ($required in @(
     'extension/package.json', 'extension/out/src/extension.js', 'extension/LICENSE.txt',
+    'extension/resources/language-server/licenses/Syntamark.LICENSE.txt',
     'extension/resources/language-server/licenses/YamlDotNet.LICENSE.txt',
     'extension/resources/language-server/licenses/SkiaSharp.LICENSE.txt',
     'extension/resources/language-server/licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt',

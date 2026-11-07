@@ -54,9 +54,12 @@ by the unchanged test body. Its `preflight-started.json` guard also prevents a
 second intentional compile. Retain the original JSON/stderr/TRX and compare
 SARIF through the same response formatter; do not rerun the consumer just to
 obtain another format. When reusing reviewed acceptance evidence, run only
-Discover/Adapter. The current accepted consumer inputs were Core
+Discover/Adapter. The historical accepted consumer inputs were Core
 `2.0.0-rc.38677594188` (SHA256
 `5dcf13e67b841fd1b48bd863781fb7f5b80c29cf8e45ceb36b6b07bad41cae46`)
 and Analyzer `2.0.0-ra051203outputs.20261015.1` (SHA256
 `eec01278416b7ff70c3e60b96a46f6664773d8da003eb35fbe92f32af45475a2`).
 The packages are explicit external inputs, not distributed by this test host.
+These hashes identify that historical acceptance run, not the current 2.1.3
+release. A new release consumer requires its own reviewed package identities and
+fresh evidence. Discover or Adapter alone does not validate that consumer.

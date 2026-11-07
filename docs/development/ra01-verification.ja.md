@@ -1,5 +1,7 @@
 # RA-01 Analyzer packageとcompiler host canary
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 基準SHAは15edc2765198e48ba9200bae8d3fd6d4ae127eb8、branchはfeature/2.0.0です。SD2-03はBocchi全12差分PASS、ユーザー手動pushのremote一致、CI run37786958899成功が揃いました。IN-01の前提に残るRA-01を実装します。原計画台帳のTODO表示は計画時点の記録として保持し、実装状態はこのtask証跡に記録します。MD-06はIN-01 PASS待ちです。
 
 新しいLithoSharp.Analyzersはnetstandard2.0、Microsoft.CodeAnalysis.CSharp 4.14.0です。既存Generatorの最低Roslyn API境界を維持します。Core、runtime Markdown、Node、MSBuildWorkspace、CodeFixのWorkspacesを参照せず、自身のDLL/XMLをanalyzers/dotnet/csへpackします。Roslyn本体やCore DLLを同梱せず、runtime向けlibや推移dependency groupを配りません。CodeFixや全IDEの認定は後続です。

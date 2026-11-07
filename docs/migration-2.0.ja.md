@@ -1,38 +1,40 @@
-# 2.1.2への更新
+# 2.1.3への更新
 
 [English](migration-2.0.md)
 
-この案内は既存サイトを2.1.2へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.1.2を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.2.0がMarketplaceへ公開されるわけではありません。
+この案内は既存サイトを2.1.3へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.1.3を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.3.0がMarketplaceへ公開されるわけではありません。
 
-0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.1.2です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
+0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.1.3です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-正式版では利用するLithoSharpパッケージをすべて2.1.2にそろえます。
+正式版では利用するLithoSharpパッケージをすべて2.1.3にそろえます。拡張0.3.0は別の公開系列です。
 
-候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.1.2-ci.…`や`2.1.2-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.1.2`を区別してください。
+候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.1.3-ci.…`や`2.1.3-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.1.3`を区別してください。
 
-templateの既定参照は`2.1.2`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。公開済み1.1.0のToolに、以下のコマンドは含まれません。
+templateの既定参照は`2.1.3`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。旧1.1.0のToolに以下のコマンドは含まれません。
 
-Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedには、その候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々の版に入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
+Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedにはその候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々のバージョンに入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
 
-このブランチではNuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。
+LithoSharp 2.1.3ではNuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
+
+Generatorとsplitterのheader走査には、本文解析とは別の`frontmatter-scan/1`を使います。`ScanFrontMatter`は閉じ区切りの後の本文を解析せず、1 Mi UTF-16コード単位のheader上限にも本文を含めません。`Closed`が確定するのは区切りとheaderのUnicodeであり、YAMLとスキーマの検査は引き続きLithoSharpが行います。入力や解析資源の問題による`Unknown`は、Generatorで`LSG002`、runtimeで`LSM013`となり、headerの不存在や確定した未閉鎖として扱いません。headerの結果には本文の解析情報や文書ハッシュは含まれません。manifestのfingerprintは別途元の入力全体を対象とし、本文のUnicodeが不正な場合は取得できません。
 
 postとcollectionのMarkdown本文は、最終解析時に1 Mi UTF-16コード単位まで扱えます。エディターでの検査は8 Miまでです。readerとcollection loaderが加工前の本文を調べる上限も8 Miです。1 Miを超える元の本文でも、includeや前後の空白除去によって最終解析の前に短くなる場合があります。
 
-入力や解析資源の上限により解析を完了できない場合は、LSM011 Errorとなり、出力を公開する前に生成を停止します。加工前の警告は元の本文の位置を示します。加工後のcollection本文の警告は、元の本文との一致を確認できる場合だけ元の位置を示し、それ以外はファイル名までです。collectionの無変更ビルドでも、検証済みキャッシュから警告を復元します。
+入力や解析資源の上限により解析を完了できない場合は、LSM013 Errorとなり、出力を公開する前に生成を停止します。加工前の警告は元の本文の位置を示します。加工後のcollection本文の警告は、元の本文との一致を確認できる場合だけ元の位置を示し、それ以外はファイル名までです。collectionの無変更ビルドでも、検証済みキャッシュから警告を復元します。
 
 ## Docsの設定と生成済み成果物
 
 Docsの追加設定は必要な項目だけを有効にします。標準テンプレートの検索、トピック、
 トップページの設定と、追加の注意書きやリンクを指定する`SiteCustomization.Footer`は、
-[Docsの標準設定](docs-template.md)を参照してください。HTMLの後処理を置き換える場合も、
+[Docsの標準設定](docs-template.ja.md)を参照してください。HTMLの後処理を置き換える場合も、
 サイトに必要な注意書きとリンクは残します。AngleSharpの依存は、ほかの利用コードが
 残っていないことを確認してから削除してください。
 
 配布する成果物を再生成せずに調べるには、`check-output`を使います。毎回現在のファイルを
 読みますが、現在の原稿との一致は保証しません。原稿や設定を変更した場合は再生成が必要です。
-`check`との違い、出力形式、検査範囲は[生成済み成果物の検査](generated-output-checks.md)を参照してください。
+`check`との違い、出力形式、検査範囲は[生成済み成果物の検査](generated-output-checks.ja.md)を参照してください。
 
 ## Testingの非互換変更
 
@@ -58,7 +60,7 @@ HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範�
 
 `LithoSharp.Analyzers`は任意で導入するcompiler packageです。登録済みAPIの確定した誤用、対応するHTML補間contextとliteral URL、検証済みcatalogへの参照を検査します。不存在の確定にはfreshなClosed scopeが必要で、Open／Stale／Unknownや未対応の値を推測しません。診断がないことは、site全体のリンク・anchor・資産が検証済みであることを意味しません。coverage方針の`LSA9001`は明示opt-inです。
 
-生成projectの`LithoSharpVersion`を`2.1.2`に設定し、診断を利用するprojectの`ItemGroup`へ次を追加します。候補feedを使う場合は、実際の候補版を指定してください。
+生成projectの`LithoSharpVersion`を`2.1.3`に設定し、診断を利用するprojectの`ItemGroup`へ次を追加します。候補feedを使う場合は、実際の候補版を指定してください。
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

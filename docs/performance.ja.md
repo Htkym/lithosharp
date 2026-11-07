@@ -3,7 +3,13 @@
 [English](performance.md)
 
 1.0.0候補の測定、2026-09-08に行った0.3.0の測定、2026-09-13の競合比較を分けて掲載しています。
-各結果は記載した入力と環境での値であり、サービス水準を保証するものではありません。
+各結果は記載した入力と環境での値であり、サービス水準を保証するものではありません。2.1.3やSyntamark 1.2.0の更新効果を測定した値ではありません。依存更新と解析経路の変更による効果は、この過去の結果から推定できません。
+
+## 現行版と測定の範囲
+
+LithoSharp 2.1.3はSyntamark 1.2.0を採用し、`lithosharp-markdown/1`を維持しています。header走査、選択した情報の解析、同一snapshotの再利用、parserを識別するcacheは、それぞれ別の経路に関わります。これらの実装だけでは生成全体の高速化を証明できません。正しさの検証やパッケージ・拡張機能の受け入れ確認も、性能測定とは別です。
+
+ローカルの比較では正式版ではない候補ペアを使い、依存だけの変更とconsumerの変更を分けて調べました。初期比較ではheader専用Generatorの処理コストが下がった一方、エディターの解析コストは増えました。後続の比較では最適化した依存によって大きな入力のエディター解析コストが下がりましたが、変更前の元のbaselineやサイト生成全体を再測定していません。Generatorやconsumer経路がさらに高速化したという結果でもありません。以前のエディター性能の悪化が完全に回復したかは、この結果から確定できません。以下の過去の測定と制約は、これらの限定的な結果で置き換えずに残しています。
 
 ## 測定対象と環境
 
@@ -13,7 +19,7 @@ selective hydrationを比較します。非公開の測定生データはreposit
 
 環境はWindows build 26200 x64、Intel Core Ultra 7 258V、8 logical processors、32 GB RAM、
 .NET SDK 10.0.300/runtime 10.0.8、Node.js 24.13.0、Chromium 153.0.8010.12です。
-worker lockfileはMDX 3.1.1、React 19.2.4、esbuild 0.25.12を固定しています。
+当時の測定にはMDX 3.1.1、React 19.2.4、esbuild 0.25.12を使いました。現在のworker依存関係の一覧ではありません。現行の要件は[MDXガイド](mdx.ja.md)を参照してください。
 
 ## 1.0.0のMarkdown生成
 
@@ -35,7 +41,7 @@ MBは10進表記です。割当量はmanaged memoryが対象であり、常駐�
 ## 過去のMarkdown互換性測定
 
 100ページと1,000ページで、基準版と0.3.0を交互に5回測定しました。時間、割当量、常駐メモリの
-増加はいずれも中央値で10%以内でした。単発では時間差が10%を超えるため、すべての実行で性能回帰が
+増加はいずれも中央値で10%以内でした。単発では時間差が10%を超えるため、すべての実行で性能の悪化が
 ないとは主張しません。これはMarkdown benchmarkの基準版との比較であり、公開NuGet 0.2.0の
 upgrade consumerを使った時間比較ではありません。
 
@@ -78,61 +84,61 @@ hydrationは13.1 → 14.6 ms、CLSは両modeとも0.157でした。初期viewpor
 
 ## 競合比較
 
-2026-09-13に同一マシンと固定corpusで、製品buildの比較を行った。対象は
+2026-09-13に同一マシンと固定corpusで、製品buildを比較しました。対象は
 Docusaurus 3.10.2とReact 19.2.4、Astro 7.3.2とStarlight 0.42.0、Hugo 0.166.0
 extended、MkDocs 1.6.1とMaterial 9.7.7であり、Plain MarkdownとDocumentationと
-MDX・Interactiveのprofileで測った。下表はprofile別のbuild時間の中央値である。
-検索、highlight、navigation、JS機能の差があり、非対応の組合せは0msにしない。
+MDX・Interactiveのprofileで測りました。下表はprofile別のbuild時間の中央値です。
+検索、highlight、navigation、JS機能の差があり、非対応の組合せは0msにしません。
 
 | 1,000 pages | LithoSharp | Hugo | MkDocs | Astro | Docusaurus |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Plain | 6.7 s | 2.8 s | 21.3 s | 6.6 s | 34.6 s (blog) |
 | Docs | 12.4 s | 0.76 s | 23.9 s | 14.3 s (Starlight) | 23.9 s |
 
-10,000 pagesではHugoとAstroが完走し、Docusaurusはメモリ不足、MkDocsは10分制限を
-超えた。HugoとMkDocsにMDX対応はない。raw結果はローカルに置き、手順は
-リポジトリの harness から再現できる。Windowsの結果からLinux/macOSのthroughputは
-推定できない。
+10,000 pagesではHugoとAstroが完走し、Docusaurusはメモリ不足になり、MkDocsは10分制限を
+超えました。HugoとMkDocsにMDX対応はありません。raw結果はローカルに置き、手順は
+リポジトリの harness から再現できます。Windowsの結果からLinux/macOSのthroughputは
+推定できません。
 
 ## この測定からは言えないこと
 
-上の10,000-page MDXの数値に同等の競合測定はない。Windowsの結果からLinux/macOSのthroughputは推定できません。
+上の10,000-page MDXの数値に同等の競合測定はありません。Windowsの結果からLinux/macOSのthroughputは推定できません。
 fixtureの削減は、全MDXページがzero-JSになること、全islandが速くなること、任意のnpm依存が動くことを
 示しません。実行とplatformの境界は[既知の制約](known-limitations.ja.md)を参照してください。
 
 ## 1.1.0候補：Editor latency（測定済み）
 
-Editor測定ハーネスで2026-09-28に測定した（実Release言語サーバー×実`LspClient`、
-Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外する。50 KiB代表文書に
-100編集ずつ、50 ms debounce込みend-to-endの値である。
+Editor測定ハーネスで2026-09-28に測定しました（実Release言語サーバー×実`LspClient`、
+Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外します。50 KiB代表文書に
+100編集ずつ、50 ms debounce込みend-to-endの値です。
 
 | 文書 | burst p50/p95/max | spaced p50/p95/max |
 | --- | ---: | ---: |
 | Markdown | 94/96/97 ms | 94/96/116 ms |
 | MDX | 94/97/101 ms | 94/96/125 ms |
 
-解析単独は約46 ms（end-to-endからdebounceを除いた相当）である。当時の検証閾値は
+設定したdebounceをend-to-endから差し引いた概算の残差は約46 msです。通信、スケジューリング、診断の通知を含むため、パーサー単独の測定値ではありません。当時報告した検証閾値は
 解析Markdown p95≤250 ms・MDX p95≤750 ms、体感Markdown p95≤500 ms・
-MDX p95≤1500 msであり、このmachineでは4つとも適合する。他machineは未測定である。
+MDX p95≤1500 msであり、このmachineでは4つとも適合します。他machineは未測定です。
 
 二root 1,000編集＋途中server kill→有界再起動のsoakは両rootの最新版数へ収束し、
-所有process残留はなかった。このsoakは高速編集であり、30分wall-clock soakではない。
+所有process残留はありませんでした。このsoakは高速編集であり、30分wall-clock soakではありません。
 
 ## 1.1.0の性能上の制約
 
-生成速度の目標は未達である。2026-10-06に、Windows x64、SDK 10.0.401、runtime 10.0.12で
+生成速度の目標は未達です。2026-10-06に、Windows x64、SDK 10.0.401、runtime 10.0.12で
 Markdown 1,000ページをReleaseで比較した1組では、本文1件の編集に基準版1,416.16 ms、
-採用したbuffer設定を使う開発候補2,521.28 msを要した。比率は1.780で、目標0.70以下を満たさない。
-1組の結果であり、中央値、全性能matrix、所要時間の保証ではない。Markdown 10,000ページや
-MDX 1,000ページの結果は証明せず、以前の表も記載した範囲のままである。
+採用したbuffer設定を使う開発候補2,521.28 msを要しました。比率は1.780で、目標0.70以下を満たしません。
+1組の結果であり、中央値、全性能matrix、所要時間の保証ではありません。Markdown 10,000ページや
+MDX 1,000ページの結果は証明せず、以前の表も記載した範囲のままです。
 
 本文変更でも、変更のない生成物と無関係なファイルを含む既存出力全体を、独立したstagingへ
-コピーしてから変更分を置き換える。出力の照合とディレクトリ切替・復旧の規則は維持する。
-この処理は小さな編集の時間でも大きな割合を占め得る。目標未達は1.1.0の既知の制約として記録し、
-出力設計の大きな変更は次版以降へ回す。生成の高速化や性能目標の合格は主張しない。
+コピーしてから変更分を置き換えます。出力の照合とディレクトリ切替・復旧の規則は維持します。
+この処理は小さな編集の時間でも大きな割合を占め得ます。目標未達は1.1.0の既知の制約として記録し、
+出力設計の大きな変更は次版以降へ回します。生成の高速化や性能目標の合格は主張しません。
 
-1.1.0ではWatchとEditorの長時間安定性検証は実施していない。高速編集と復旧の確認は、30分の
-連続稼働を証明しない。複数OSのCIとpackage済み拡張の確認は機能検証で、性能測定とは区別する。
+1.1.0ではWatchとEditorの長時間安定性検証は実施していません。高速編集と復旧の確認は、30分の
+連続稼働を証明しません。複数OSのCIとpackage済み拡張の確認は機能検証で、性能測定とは区別します。
 
 ## 再現
 

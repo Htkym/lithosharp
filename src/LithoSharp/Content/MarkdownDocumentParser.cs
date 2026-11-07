@@ -12,7 +12,7 @@ public static class MarkdownDocumentParser
     /// <param name="path">Path used in error messages.</param>
     /// <returns>The YAML front matter and the body.</returns>
     /// <remarks>Scans only the header, with a default limit of 1,048,576 UTF-16 code units.
-    /// An incomplete header scan throws with diagnostic code LSM011.</remarks>
+    /// An incomplete header scan throws with diagnostic code LSM013.</remarks>
     public static (string Yaml, string Body) SplitFrontMatter(string text, string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);

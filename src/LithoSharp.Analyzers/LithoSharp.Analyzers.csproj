@@ -12,7 +12,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Analyzers</PackageId>
-    <Version>2.1.2</Version>
+    <Version>2.1.3</Version>
     <Authors>Htkym</Authors>
     <Description>Compiler-safe LithoSharp static API and HTML interpolation context diagnostics.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -51,6 +51,7 @@
     <Compile Include="../LithoSharp.Generators/MarkdownSourceHostAdapter.cs" Link="Hosting/MarkdownSourceHostAdapter.cs" />
     <None Include="$(TargetDir)YamlDotNet.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
+    <None Include="../../licenses/Syntamark.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
   <Target Name="CheckMarkdownSourceSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">

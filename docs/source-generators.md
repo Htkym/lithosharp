@@ -7,8 +7,8 @@ analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="1.0.0" />
-<PackageReference Include="LithoSharp.Generators" Version="1.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="2.1.3" />
+<PackageReference Include="LithoSharp.Generators" Version="2.1.3" PrivateAssets="all" />
 ```
 
 For a source-tree project reference, use analyzer output and do not reference the
@@ -18,7 +18,7 @@ generator assembly at runtime:
 <ProjectReference Include="..\src\LithoSharp.Generators\LithoSharp.Generators.csproj"
                   OutputItemType="Analyzer"
                   ReferenceOutputAssembly="false" />
-<Analyzer Include="$(NuGetPackageRoot)yamldotnet/18.0.0/lib/netstandard2.0/YamlDotNet.dll" />
+<Analyzer Include="$(NuGetPackageRoot)yamldotnet/18.1.0/lib/netstandard2.0/YamlDotNet.dll" />
 <Import Project="../src/LithoSharp.Generators/buildTransitive/LithoSharp.Generators.props" />
 ```
 
@@ -99,7 +99,7 @@ for a deployed subpath. Assigning an unrelated generic reference type is a C# er
 | ID | Compile-time error / コンパイル時エラー |
 | --- | --- |
 | `LSG001` | Invalid declaration, collection ID, or declared type / 宣言、collection ID、型が不正 |
-| `LSG002` | Missing metadata, unreadable input, or input outside the project / メタデータ不足、読み取り不能、project外の入力 |
+| `LSG002` | Missing metadata, unreadable or out-of-project input, or unavailable front matter boundaries / メタデータ不足、読み取り不能、project外の入力、front matter境界の解析不能 |
 | `LSG003` | Duplicate collection or entry ID, or generated name / collection、entry ID、生成名の重複 |
 | `LSG004` | Invalid or conflicting route / 不正または競合するルート |
 | `LSG005` | Malformed YAML or unknown field / 不正なYAMLまたは未知のフィールド |

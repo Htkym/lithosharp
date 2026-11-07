@@ -1,6 +1,8 @@
 # 資産と画像
 
-既存の`SiteAsset`のURLは維持されます。`AssetUrl.Fingerprint`はSHA-256の16進文字列、
+[English](assets-and-images.md)
+
+既存の`SiteAsset`のURLは維持されます。`AssetUrl.Fingerprint`はSHA-256の小文字の16進文字列、
 `Integrity`は`sha256-`にBase64形式のハッシュを続けた値です。
 `SiteGenerationOptions.PublicDirectory`を指定すると、通常のファイルを相対パスのままコピーします。
 存在しないディレクトリ、シンボリックリンク、不正なパス、ルートの衝突は出力確定前に拒否します。
@@ -30,7 +32,7 @@ var options = new SiteGenerationOptions
 `WriteAsync`で各出力を一度だけ書き込みます。描画時は`context.Assets.GetUrl(css)`で参照できます。
 登録・変換・描画には同じ宣言オブジェクトを使います。IDやパスの重複、未宣言の入出力、出力漏れはエラーです。
 変換結果の`AssetUrl.Asset`は互換性のための宣言であり、入力パスに元ファイルはありません。
-変換結果は`SiteAssetOutput`で参照してください。`BuildNodes`では入力、依存関係、所有成果物を確認できます。
+変換結果は`SiteAssetOutput`で参照してください。`AssetRegistry.BuildNodes`では入力、依存関係、フィンガープリント、所有成果物を確認できます。
 
 ハンドラーは同じ入力から同じ結果を返す必要があります。未宣言のファイル、ネットワーク、時刻、
 共有の可変状態を読まないでください。コンテキストのAPIは宣言を検証しますが、任意のC#コードを隔離する機能ではありません。
@@ -45,6 +47,8 @@ var options = new SiteGenerationOptions
 トランザクション開始時のステージングへの複製は残ります。
 
 ## 画像
+
+LithoSharp.Imagesを参照し、画像の入力と変換を登録します。
 
 ```csharp
 using LithoSharp.Images;
@@ -64,14 +68,14 @@ var options = new SiteGenerationOptions
 
 PNGかJPEGの代替画像が必要です。形式と幅の組は重複できず、幅は正、品質は0〜100で指定します。
 高さは縦横比から計算します。`ResponsiveImage.Render`は属性をエスケープし、
-代替画像の幅と高さ、形式別の`source`、`srcset`、`sizes`、`alt`、遅延読み込みを出力します。
+`picture`、代替画像の幅と高さ、形式別の`source`、`srcset`、`sizes`、`alt`、`decoding="async"`、`loading="lazy"`を出力します。
 `lazy: false`で即時読み込みにできます。読めない画像は生成に失敗します。
 SkiaSharp 4.153.1ではRAWとDNGを読み込めません。`ImageAsset`やサイトのアイコンに使う前に、
 PNGかJPEGへ変換してください。SVGをそのまま公開する場合は通常の`SiteAsset`を使います。
 
 PNG／JPEG／WebPはSkiaで生成し、外部実行ファイルは不要です。
 キャッシュには変換設定、Skiaのマネージド版とネイティブ版、実行環境の指紋を含めます。
-AVIFだけは、信頼する`avifenc`のパスと依存コーデックの版を明示します。
+AVIFだけは信頼する`avifenc`のパスと依存コーデックのバージョンを明示します。
 
 ```csharp
 var encoder = new ExternalAvifEncoder("/opt/libavif/bin/avifenc",
@@ -80,7 +84,7 @@ var avifImage = new ImageAsset(image.Source,
     [image.Variants[0], new ImageVariant("photo-avif", "images/photo.avif", 640, ImageFormat.Avif)], encoder);
 ```
 
-依存関係の指紋には実際に導入した版を指定してください。PATH探索、ダウンロード、シェル経由の実行は行いません。
+依存関係の指紋には実際に導入したバージョンを指定してください。PATH探索、ダウンロード、シェル経由の実行は行いません。
 実行ファイルの内容と設定をハッシュに含め、キャッシュがある場合もファイルの置換を確認します。
 実行時間を制限し、出力のAVIFブランドも検証します。ツールやコーデックを更新したら宣言を作り直してください。
 詳細は[avifencの公式マニュアル](https://github.com/AOMediaCodec/libavif/blob/main/doc/avifenc.1.md)を参照してください。

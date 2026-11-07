@@ -1,5 +1,7 @@
 # MD-03のruntime接続とsite互換adapter
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 MD-02の最終SHA eaacf27f0cbaa05d5ef62e32fda02890864412df を基準に、runtime・inspection・site policyを接続しています。BocchiはMD-02の全14ファイル差分を直接レビューし、合格としました。MD-02記録の最上位finalChecksをR1-A-build / R1-B-build / R1-B-runへ訂正し、古い実行履歴は残しています。親が許可した測定枠でMD-03の限定build/canaryを完了し、所有build/test PID 0を確認しました。Bocchiの最終実差分レビューはまだです。
 
 ## runtimeの境界

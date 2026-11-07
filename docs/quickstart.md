@@ -5,13 +5,13 @@
 Use the .NET 10 SDK (minimum supported version: 10.0.300). MDX additionally uses Node.js
 24.13.0; Markdown-only sites do not use Node. The SDK supplies the ASP.NET Core
 shared framework used by `serve`. Work in a new directory. Commands below target
-NuGet version 2.1.2.
+NuGet version 2.1.3.
 
 ## Install and create Markdown Docs
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.2
-dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -38,9 +38,32 @@ This is **Markdown** rendered by .NET.
 Run the build again. The page is `MyDocs/dist/posts/hello.html`. Configure the
 title, base URL and content directory in `MyDocs/DocsSiteFactory.cs`; set the real
 deployment URL before publishing. The legacy reader requires title and date;
-the default summary validator runs when validation is requested. The typed
-documentation loader below has its own schema and does not require these legacy
-date/summary fields.
+the default summary validator runs when validation is requested. The
+[typed Markdown loader](typed-markdown-collections.md) uses your own C# schema;
+the separate `DocumentFrontMatter` documentation preset does not require the
+legacy date/summary fields.
+
+## Try the typed-content workflow
+
+The installed Docs template above is the small legacy-reader starting point.
+For the complete typed workflow, open the repository's
+[Docs sample walkthrough](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output).
+It connects `ArticleFrontMatter`, generated references and a binder, Markdown
+inputs, editor navigation, site generation and checks of the emitted HTML.
+Its invalid examples are separate from normal content.
+
+| Check | Where it runs | Scope |
+| --- | --- | --- |
+| Required title or invalid date: `LSG006` | C# compilation | Explicit compiler inputs checked against the custom C# schema. |
+| Proven reference contradiction: `LSA1402` | Analyzer | A complete, current (`Closed`) catalog; dynamic values are not proof. |
+| Source diagnostics and section outline | Editor/LSP | The current Markdown snapshot. `NoContext` lacks project-bound checks; custom C# schemas are not executed per keystroke. |
+| Incomplete or unavailable analysis | Parser/compiler/build | `Partial` and `Unknown` do not mean valid or absent. Unavailable header facts report `LSG002` in the generator or `LSM013` at runtime. |
+| Missing output target/anchor: `LSQ001`/`LSQ002` | Generation quality checks or `check-output` | The actual inspected artifacts and anchors, not source freshness. |
+
+LithoSharp 2.1.3 uses the Syntamark 1.2.0 runtime/Source pair and retains the
+`lithosharp-markdown/1` profile. Syntamark supplies Markdown syntax and raw source
+ranges; LithoSharp owns C# schemas, routes, rendering policy and diagnostics.
+See [known limitations](known-limitations.md) for analysis budgets and trust boundaries.
 
 ## Add MDX and an interactive component
 
@@ -120,5 +143,5 @@ older browser sessions when updating an existing deployment.
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template
-products. See [upgrading to 2.1.2](migration-2.0.md), [testing](testing.md),
+products. See [upgrading to 2.1.3](migration-2.0.md), [testing](testing.md),
 [performance](performance.md) and [Known limitations](known-limitations.md).

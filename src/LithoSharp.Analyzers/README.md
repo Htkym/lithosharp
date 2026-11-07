@@ -1,12 +1,34 @@
 # LithoSharp.Analyzers
 
+Roslyn diagnostics for statically provable LithoSharp API, HTML, route and content-reference mistakes. The analyzer targets netstandard2.0 and Roslyn 4.14.0. It does not execute site factories, user getters or Core runtime code in the compiler host.
+
+## Install and use
+
+Add the analyzer alongside the Core packages used by your project:
+
+```xml
+<PackageReference Include="LithoSharp.Analyzers" Version="2.1.3" PrivateAssets="all" />
+```
+
+Use [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) when a rule needs a generated catalog. Code fixes are an optional, separate [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) package. See the [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) for a complete example.
+
+The package puts its DLL/XML and YamlDotNet in `analyzers/dotnet/cs`. It does not bundle Roslyn, load the Syntamark runtime DLL, or add a transitive Core dependency. Node, MSBuildWorkspace and CodeFix Workspaces assemblies are not part of this analyzer.
+
+## What the diagnostics prove
+
+- LSA1001–1005 check bounded, known arguments against the corresponding runtime guards.
+- LSA1101–1105 cover raw HTML, interpolation contexts and locally provable URL mistakes.
+- LSA1201/1202/1203 check narrowly defined route, fixed-HTML fragment and transform membership. LSA1205 reports stale compiler evidence.
+- LSA1401 suggests an equivalent generated reference; LSA1402 reports a provable entry/route contradiction; LSA1403 describes the selected unproven producer subset.
+- LSA1501 identifies a bound use of the legacy Testing DOM getter. LSA9001 is a disabled-by-default static-coverage policy.
+
+`Known` values are bounded compiler facts. `Closed` coverage belongs only to the explicit lookup or owner described by a rule. `Deferred`, `Open`, `Stale` and `Unavailable` are not proofs of validity. Suppressing a diagnostic does not remove runtime guards, and a clean build is not whole-site validation. Run generation and output checks too. The sections below specify exact severities, supported expressions and exclusions.
+
 ### LSA1401
 
-既定 severity は Info です。正確な metadata overload `LithoSharp.Content.StaticSiteManifest.GetUrl(string)` の引数0が直接の文字列リテラルで、検証済みの生成 static Manifest が fresh な Closed scope を持ち、同じ immutable catalog の一意な生成 PageRef と完全一致するときに報告します。位置は元の引数リテラル全体の UTF-16 span で、生成参照や文字列内部の位置には移しません。
+The default severity is Info. The exact metadata overload `LithoSharp.Content.StaticSiteManifest.GetUrl(string)` must receive a direct string literal at argument zero, through a verified generated static Manifest with a fresh Closed scope. The literal must match one unique generated PageRef in the same immutable catalog. The diagnostic covers the entire original argument literal in UTF-16 coordinates, not a generated reference or a substring.
 
-別packageの `LithoSharp.CodeFixes` は引数だけを完全修飾した生成 `PageRef.Route.PublicPath` に置き換え、元の receiver、`Manifest.GetUrl(string)` overload、runtime guard、引数のtriviaを維持します。Pages 全体の canonical な初期化、catalog entry と PageId の一致、利用者の static 初期化による再入がないことを確認し、登録時と適用時に現在の compiler inputs を再検証します。Open/Stale/Unavailable、曖昧な参照、任意の式、利用者による型変換、getterや副作用、明示的な static constructor、古いworkspace snapshotには fix を提供しません。標準の severity、NoWarn、pragma、editorconfig を使います。LSA1402/1403の有限な診断範囲は下記、既存FixAllの提供範囲はCodeFixesのREADMEを参照してください。
-
-LithoSharp用のRoslyn analyzerです。netstandard2.0、Microsoft.CodeAnalysis 4.14.0を使います。Core runtime・Node・MSBuildWorkspace・CodeFixのWorkspacesを参照しません。packageは自身のDLL/XMLとYamlDotNetをanalyzers/dotnet/csへ配置し、Roslyn本体を同梱しません。実行時Coreへの推移依存もありません。
+The separate CodeFix package replaces only the argument with the fully qualified generated `PageRef.Route.PublicPath`. It preserves the receiver, `Manifest.GetUrl(string)` overload, runtime guard and argument trivia. It checks canonical initialization of all Pages, catalog-entry/PageId agreement and absence of reentrant user static initialization, and revalidates current compiler inputs both when registering and applying the fix. Open/Stale/Unavailable evidence, ambiguous references, arbitrary expressions, user conversions/getters/side effects, explicit static constructors and stale workspace snapshots do not receive a fix. Standard severity, NoWarn, pragma and editorconfig settings apply. See the CodeFix README for its exact FixAll scope.
 
 The registered sinks below use metadata symbols from the LithoSharp assembly, exact overloads and parameter ordinals. Source-defined lookalikes, failed binding and user-defined conversions are excluded. Named arguments are resolved by their parameter symbols; omitted valid defaults do not produce diagnostics. Generated code is excluded.
 
@@ -16,7 +38,8 @@ The registered sinks below use metadata symbols from the LithoSharp assembly, ex
 
 ### LSA1002
 
-ContentRef<TEntry>(ContentCollectionId, ContentEntryId, SiteRoute route) checks only argument 2 when every value in its nonempty Known evaluation snapshot is null. The exact public instance constructor is registered by OriginalDefinition, with all three sealed parameter types from the same Core metadata assembly; the existing static/self-return sink registration is unchanged. Runtime guards collectionId, id, then route, so this diagnostic proves a route argument contract violation only, not reachability or constructor completion. Named arguments retain source evaluation order: an earlier call/getter invalidates local facts, while an already captured route snapshot survives later argument effects. Unknown, mixed null/non-null and user conversions remain unproven. The original route expression, including ! and parentheses, owns the LSA1002 position and standard suppression. This does not prove a route/catalog/Closed scope or Complete coverage; LSA1402 and other diagnostic owners are unchanged.
+`ContentRef<TEntry>(ContentCollectionId, ContentEntryId, SiteRoute route)` checks only argument 2 when every value in its nonempty `Known` evaluation snapshot is null. The exact public instance constructor is registered by `OriginalDefinition`, with all three sealed parameter types from the same Core metadata assembly; the existing static/self-return sink registration is unchanged. Runtime guards `collectionId`, `id`, then `route`, so this diagnostic proves a route argument contract violation only, not reachability or constructor completion. Named arguments retain source evaluation order: an earlier call/getter invalidates local facts, while an already captured route snapshot survives later argument effects. Unknown, mixed null/non-null and user conversions remain unproven. The original route expression, including `!` and parentheses, owns the `LSA1002` position and standard suppression. This does not prove a route/catalog/`Closed` scope or `Complete` coverage; `LSA1402` and other diagnostic owners are unchanged.
+- **Reason**: Outside inline code backticks, CommonMark/GFM parses `<TEntry>` as a raw HTML start tag and strips it when rendering Markdown on GitHub and NuGet (`ContentRef(ContentCollectionId, ...)`), hiding the generic type parameter. Wrapping the signature and code tokens (`collectionId`, `id`, `route`, `!`) in backticks fixes the broken `<TEntry>` rendering and matches the formatting of the remaining paragraphs in `LSA1002` (`ContentRef<TEntry>.GetUrl(...)` on line 1445).
 
 `StaticSiteManifest.GetUrl(string publicPath)` rejects argument 0 only when every value in its nonempty Known snapshot is null, matching the runtime's initial `ThrowIfNull` before membership lookup or resolver execution. The exact public instance metadata overload returns `SiteUrl` from the same Core assembly. This argument check needs no receiver-existence, reachability or Closed-manifest proof. Unknown/getter values, invalidated locals and user conversions remain unproven; `!` preserves snapshots and original argument positions without proving a value. Null is never a missing route for LSA1201 or Complete coverage. Existing LSA1205 and opt-in LSA9001 keep their independent scope and whole-call policy locations, so a null argument can report LSA1002 together with an incomplete-coverage diagnostic. LSA1401 and its CodeFix remain direct-literal only.
 
@@ -42,7 +65,7 @@ Properties, readonly/mutable fields, user calls, ToString/formatting, environmen
 
 Locations use the original argument expression's UTF-16 span, including flow-derived values. No literal substring or origin offset is invented. Properties record Known, candidate count and the argument-span fallback. No diagnostic is a guarantee of runtime validity. Runtime guards still apply after suppression. Frontmatter/schema diagnostics remain owned by the Generator; this analyzer does not emit LSG001..006 or LSA1301..1302.
 
-Syntamark.Source [1.0.0]のportable sourceを既定でコンパイルし、YamlDotNet [18.1.0]をpayloadに同梱します。source-treeのビルドではDirectory.Build.propsが固定版を選び、SyntamarkSourceVersionの不一致を拒否します。canonical parserをrepoから直接Compileしたり、Syntamarkのruntime DLLをcompiler hostへ読み込ませたりしません。
+The analyzer compiles the portable source from the published Syntamark.Source 1.2.0 pair and includes YamlDotNet 18.1.0 in its payload. Directory.Build.props selects the fixed runtime/Source pair, and a different SyntamarkSourceVersion fails the build. The compiler host does not load the Syntamark runtime DLL or compile an unrelated source checkout. See the [version and analysis contracts](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
 
 ### LSA1501
 
@@ -55,7 +78,7 @@ Source lookalikes, v2 `Snapshot`, and unresolved `Document` syntax after upgradi
 to v2 are outside this bounded rule. A warning does not certify that all legacy
 DOM uses have been found.
 
-Use the [Testing v2 migration map](../../docs/Testing-v2-api.md#migration)
+Use the [Testing v2 migration map](https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md#migration)
 to select `Snapshot.Query/QueryAll` or the retained assertion helpers. DOM mutation,
 third-party casts/extensions and unsupported selectors require manual changes.
 There is no automatic CodeFix or blind rename. Normal diagnostic suppression and
@@ -73,7 +96,7 @@ Earlier calls/getters/constructors keep the existing local invalidation rules. L
 
 ### LSA1102
 
-An interpolated UnsafeRaw argument produces Error when explicit ToHtmlString output of a proven raw fragment is placed in a known quoted attribute. Direct raw-object interpolation emits its type name and no longer proves a fragment for this rule. An arbitrary IHtmlContent variable is not proven to be a raw fragment. The sealed HtmlText and HtmlAttributeValue wrappers use the runtime's HTML encoding and are permitted in that context.
+An interpolated `UnsafeRaw` argument produces Error when explicit `ToHtmlString` output of a proven raw fragment is placed in a known quoted attribute. Direct raw-object interpolation emits its type name and no longer proves a fragment for this rule. An arbitrary `IHtmlContent` variable is not proven to be a raw fragment. The sealed `HtmlText` and `HtmlAttributeValue` wrappers use the runtime's HTML encoding and are permitted in that context.
 
 ### LSA1103
 
@@ -81,7 +104,7 @@ Interpolation in a known tag name, attribute name or unquoted attribute value pr
 
 ### LSA1104
 
-HTML encoding in a known script/style body, quoted event handler or style attribute produces Warning. Html.Encode and the two sealed encoded wrappers do not establish JavaScript/CSS safety. Choose appropriate serialization manually.
+HTML encoding in a known `script`/`style` body, quoted event handler or `style` attribute produces Warning. `Html.Encode` and the two sealed encoded wrappers do not establish JavaScript/CSS safety. Choose appropriate serialization manually.
 
 Local/capture aliases, built-in string concatenation and finite branches carry optional literal/typed-hole shapes on the existing evaluation snapshots. Scalar Unknown remains Unknown even when a shape is proven. Each sink requires the same original hole, rule and context across every alternative; independently proven sinks are unioned, with at most 16 deterministic related use locations. Missing shapes, escapes and budget exhaustion cannot leave a successful prefix. Deconstruction invalidates values and all optional proofs; ref/call/getter/loop/exception boundaries also drop the applicable shape and output-kind witnesses.
 
@@ -91,7 +114,7 @@ The exact template scope, supported output symbols, independent eight-alternativ
 
 Direct normal/verbatim/raw HTML literals and bounded built-in string additions made only of those literal leaves, passed to `Html.UnsafeRaw(string)`, use the same portable HTML bridge and pure LSQ001 URL checks as the runtime. Each token is decoded before concatenation; token text or escapes are never reinterpreted across a join. Error requires a Complete parse, an exact original URL span contained in one leaf, and a base-independent violation: an empty resource URL, malformed explicit absolute scheme, unsupported scheme or HTTP(S) userinfo. Cross-leaf URL/entity origins and ambiguous empty origins are Deferred per candidate. Entity decoding follows the bridge. Accepted `srcset` candidate URLs use the same scanner source as runtime; rejected descriptors and empty candidate lists add no URL Error. Each candidate's decoded range must map through that attribute's `HtmlText.Segments` and then the C# literal map; missing, discontinuous or safely unsplittable mappings leave that candidate Deferred. Relative/protocol-relative references, site membership, canonical/base policy, unsupported nonliteral leaves and other composite/dynamic inputs are Deferred. Partial/Failed parses never produce a definite literal URL Error. See `html-template-context-spec.md` for the exact contract and budgets.
 
-このpreviewは未公開の開発候補です。全SDK/VS/C#拡張の認定やCodeFix出荷を示しません。
+The supported compiler-host and CodeFix boundaries are described above; this does not certify every SDK, Visual Studio or C# extension combination.
 
 Source string constants, known locals/captures, aliases, finite branches and string-only interpolation also use the existing scalar evaluation snapshots with optional original-source pieces. Unknown values stay Unknown; origin loss or origin-budget overflow does not change scalar facts. Equal values retain all origin alternatives, including metadata-only or unmappable pieces. Deconstruction invalidates local/capture scalar values and origins. Additional ref escapes retain their existing conservative origin invalidation.
 
@@ -175,4 +198,4 @@ public static partial class Pages
 // await Pages.FixedHtmlPlan.GenerateAsync("dist");
 ```
 
-Encoding and snapshot construction occur inside the actual Core assembly. Generated code passes built-in string arrays to the verified Core constructor and contains no consumer-bound System.Text.UTF8Encoding or System.Array factory calls. iframe/srcdoc pages remain Deferred even when an encoded embedded script is absent from the outer parse tree; this is a conservative fixed-page boundary, not certification of arbitrary executable HTML. Qualified type identities retain namespace separators in generated hint names.
+Encoding and snapshot construction occur inside the actual Core assembly. Generated code passes built-in string arrays to the verified Core constructor and contains no consumer-bound `System.Text.UTF8Encoding` or `System.Array` factory calls. `iframe`/`srcdoc` pages remain Deferred even when an encoded embedded script is absent from the outer parse tree; this is a conservative fixed-page boundary, not certification of arbitrary executable HTML. Qualified type identities retain namespace separators in generated hint names.

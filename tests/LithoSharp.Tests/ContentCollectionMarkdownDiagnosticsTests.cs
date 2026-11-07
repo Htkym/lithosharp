@@ -146,7 +146,7 @@ public sealed class ContentCollectionMarkdownDiagnosticsTests
         }
 
         await Assert.That(failure).IsNotNull();
-        var diagnostic = failure!.Diagnostics.Single(item => item.Id == "LSM011");
+        var diagnostic = failure!.Diagnostics.Single(item => item.Id == "LSM013");
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("entry.md");
         await Assert.That(diagnostic.Location.Line).IsNull();
         await Assert.That(await File.ReadAllBytesAsync(pagePath)).IsEquivalentTo(published);
@@ -170,7 +170,7 @@ public sealed class ContentCollectionMarkdownDiagnosticsTests
         }
 
         await Assert.That(failure).IsNotNull();
-        await Assert.That(failure!.Diagnostics.Single().Id).IsEqualTo("LSM011");
+        await Assert.That(failure!.Diagnostics.Single().Id).IsEqualTo("LSM013");
         await Assert.That(File.Exists(Path.Combine(workspace.Root, "output", "entry.html"))).IsFalse();
     }
 
@@ -280,7 +280,7 @@ public sealed class ContentCollectionMarkdownDiagnosticsTests
         }
 
         await Assert.That(failure).IsNotNull();
-        var diagnostic = failure!.Diagnostics.Single(item => item.Id == "LSM011");
+        var diagnostic = failure!.Diagnostics.Single(item => item.Id == "LSM013");
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo(post.FilePath);
         await Assert.That(diagnostic.Location.Line).IsNull();
         await Assert.That(freshCompiler.ParseCount).IsEqualTo(1);

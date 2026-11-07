@@ -29,6 +29,12 @@ var customization = new SiteCustomization
 };
 ```
 
+Return this value as `SiteDefinition.Customization` from your `ISiteFactory`, or
+pass it as `customization` to `GenerateWithOptionsAsync`. These template settings
+change presentation; your content loader, C# schema and route declarations still
+determine which pages exist. Start with the [Docs sample](../samples/LithoSharp.DocsSample/README.md)
+for typed content and checked generation.
+
 Use the site's actual base URL when constructing internal footer links, and emit
 the corresponding page. Footer text and labels are escaped. Absolute links accept
 HTTP or HTTPS through `SiteUrl.FromAbsolute`; file and directory links use the
@@ -111,5 +117,5 @@ When removing an AngleSharp-based HTML postprocessor, move required notices and
 links into `Footer`, enable the needed Docs options, and remove only the code and
 tests whose purpose was that postprocessing. Keep source/content checks and
 checks of the output you distribute. Sites that retain custom HTML processing
-must still maintain its dependency and validation. See the [2.0 migration
+must still maintain its dependency and validation. See the [upgrade
 guide](migration-2.0.md) and [output inspection](generated-output-checks.md).

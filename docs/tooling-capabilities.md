@@ -1,4 +1,4 @@
-# Tooling capability contract (v1.1.0 / schema 1.0)
+# Tooling capability contract (2.1.3 / schema 1.0)
 
 [日本語](tooling-capabilities.ja.md)
 
@@ -33,7 +33,11 @@ An identity has `name` and `version`. **Core bundled with the tool, Core referen
 
 In a successful CLI invocation, the report's `exitCode` is 0. In a failure report created by passing `error` to the Core API `ToolingCapabilities.CreateReport`, it is 1. CLI failures are returned in a separate error envelope format, whose `exitCode` is 1 for processing failure and 2 for usage error. Do not treat the error envelope as a capability report; verify `success` and `exitCode` before reading the capability list.
 
-## Capability list (schema 1.0, all Stable)
+## Core capability list (schema 1.0)
+
+The following four capabilities are Stable and returned by
+`ToolingCapabilities.CreateReport`. The CLI adds the two Preview commands below;
+they are not inferred capabilities of a selected project or the language server.
 
 | name | scope | Meaning | Client behavior when capability is missing |
 | --- | --- | --- | --- |
@@ -44,6 +48,25 @@ In a successful CLI invocation, the report's `exitCode` is 0. In a failure repor
 
 `scope` values are forward compatible. Unknown scope values are ignored, evaluating only known scopes.
 
+### Tool-only Preview capabilities
+
+| name | scope | Meaning |
+| --- | --- | --- |
+| `preflight-static-inputs` | `markdown`, `mdx` | Explicit source-only preflight without project evaluation. MDX requires an explicitly restored analysis worker. |
+| `preflight-trusted-catalog` | `trusted-catalog` | Explicit compilation and trusted factory/catalog inspection without rendering. The capability report itself does not resolve project support. |
+
+Both use schema `1.0` and maturity string `Preview`. Do not parse maturity strings
+as integer values or assume that every producer uses only the Core enum values.
+Preflight reports always have Partial coverage; success means no Error in the
+reported phase, not that final HTML or future rendering was checked. See
+[preflight](../src/LithoSharp.Tool/README.md#preflight).
+
+The language server's initialize response uses its own
+`capabilities.experimental.lithosharp` object. It advertises
+`markdownInspection: true`, `mdxInspection: "on-demand-worker"`, and both
+`preflightStaticInputs` and `preflightTrustedCatalog` as `false`. A client must
+not route the Tool-only commands to the server.
+
 ## Negotiation rules
 
 - Ignore unknown fields and unknown capability names (changes are additive).
@@ -51,23 +74,35 @@ In a successful CLI invocation, the report's `exitCode` is 0. In a failure repor
 - Schema versions are compatible on matching major version (`ToolingCompatibility.IsCompatible`). Even if the other party is a newer minor version (e.g., `1.1`), it is considered compatible and unknown fields are ignored. Major version mismatches (e.g., `2.0`) are rejected.
 - To prevent older consumers from relying on numeric values when values are added to existing enums, reports output maturity as strings.
 
-## Identity contract for Editor results
+## Snapshot identity and validation state
 
-New Editor-facing results return identity with at least the following field names. Value meanings use the same vocabulary as capability scope.
+There is no single universal editor-result envelope. Use each interface's actual
+contract:
 
-| field | Type | Meaning |
-| --- | --- | --- |
-| `workspaceId` | string | Workspace or session identification. Stable within the process |
-| `projectId` | string? | Resolved project identification. `null` when unresolved |
-| `documentUri` | string | Document URI. Do not unconditionally normalize casing |
-| `documentVersion` | int | Document version assigned by the Editor |
-| `projectGeneration` | int | Project context generation. Increments on reload |
-| `languageKind` | string | `markdown` / `mdx` |
-| `analysisStage` | string | `syntax` / `front-matter` / `project-resolution` / `generated-output` / `runtime` |
-| `completion` | string | `complete` / `partial` / `canceled` / `failed` |
-| `diagnostics` | array | Diagnostics. Positions follow the public position rules below |
+- `DocumentWorkspace.Id` identifies a workspace. `InspectVersionedAsync` accepts
+  document version and project generation and rejects superseded work; returned
+  `DocumentInfo` contains content facts and `ProjectStatus`, not a copy of every
+  request identity field. Retain the request identity when integrating it.
+- `ProjectInspectionSnapshot.ToJson()` includes `schemaVersion`, `projectId`,
+  `projectGeneration`, `coreVersion`, `collection`, `language`, `schema`,
+  `version`, `locale`, `acquiredAt` and `routes`. It is explicitly acquired data,
+  not an instruction to load a project assembly.
+- LSP diagnostics carry `uri`, `version`, `diagnostics`,
+  `lithosharpOpenGeneration` and `lithosharpContextGeneration`; close clears
+  diagnostics without a document version. The separate
+  `lithosharp/analysisStatus` notification carries `uri`, `version`, `language`,
+  `state` (`ready` or `unavailable`), `message`, and the two generation fields.
+  See the [language-server protocol](language-server.md).
 
-Do not display stages where `analysisStage` was not executed as "success with 0 diagnostics". When there is no context, return `project-resolution` and subsequent stages as unexecuted.
+`NoContext` permits syntax inspection but does not prove project-bound schemas
+or routes. `Resolved`, `Ambiguous`, `Unresolved` and `Draft` describe route
+resolution within an explicit context, not whole-site validity. Snapshot binding
+supports built-in schemas; custom C# schemas remain compiler/site-build checks.
+Partial or unavailable facts and Unknown catalog evidence must not be displayed
+as "checked, zero errors". `LSM013` indicates that analysis could not be completed.
+A `ready` LSP status means syntax analysis is available, not that a build or
+generated-output inspection has run, or that the document has no errors.
+- **Reason**: Aligns `docs/tooling-capabilities.md` with its paired Japanese document `docs/tooling-capabilities.ja.md` (`` `LSM013`は解析を完了できなかったことを示します。LSPの`ready`は構文解析が利用できるという意味であり、ビルドや生成物検査を実行したことや、エラーがないことを意味しません。 ``) and `docs/language-server.md` (`Input/resource limits can make facts unavailable (`LSM013`).` and `` `ready` does not mean the document is error-free or that later build stages ran. ``).
 
 ## Diagnostics and position conversion contract
 

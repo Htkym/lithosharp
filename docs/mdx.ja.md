@@ -7,9 +7,11 @@ MDX 3.1.1、React 19.2.4、esbuild 0.28.2 を使います。依存関係は work
 
 ## サイトを作る
 
+以下は2.1.3を対象にした手順です。候補feedを使う場合は、実際の固定候補版を指定し、利用するLithoSharpのパッケージとToolをそろえてください。
+
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -19,7 +21,7 @@ dotnet build MyDocs -c Release
 
 Windows では `.tools/lithosharp.exe` を使います。`restore-mdx` はネットワークを
 使う明示的な復元操作です。通常のビルドは npm パッケージを取得しません。
-サイト固有の npm 依存は、サイト側でも復元してください。TypeScript は変換のみを
+サイト固有の npm 依存はサイト側でも復元してください。TypeScript は変換のみを
 行うため、型検査にはサイトの TypeScript チェッカーを使います。
 
 テンプレートの `ISiteFactory` が `DocumentationSite` を登録します。
@@ -110,7 +112,7 @@ media query を指定します。`manual` は `detail: { id }` を持つ
 
 ## Docs、検索、拡張
 
-文書は集合、版、言語、安定 ID で識別します。variant を明示的に登録し、URL prefix、
+文書は集合、バージョン、言語、安定 ID で識別します。variant を明示的に登録し、URL prefix、
 表示名、バナー、noindex、RTL、切替先がない場合の文書 ID を設定します。
 自動、手動、混在サイドバーは、パンくずと前後リンクの情報を共有します。
 `_category_.json` または YAML でカテゴリの順序、表示名、初期展開、導入ページを
@@ -125,7 +127,7 @@ media query を指定します。`manual` は `detail: { id }` を持つ
 
 `TranslationCatalog` は C# と React の UI 文言を共有し、原文、除外、エラーの
 未翻訳方針を指定できます。翻訳本文と画像は言語別の入力ディレクトリに置きます。
-alternate link は公開された対応文書だけを指します。ローカル検索は集合、版、言語で
+alternate link は公開された対応文書だけを指します。ローカル検索は集合、バージョン、言語で
 分割し、描画後の本文と見出しを索引にします。外部検索には明示設定した Algolia の
 公開検索専用キーを使えます。
 
@@ -147,13 +149,13 @@ alternate link は公開された対応文書だけを指します。ローカ�
 所有する出力を変更するフックではありません。公開後の通知なので、このフックの例外は
 確定済みの公開結果を巻き戻しません。
 
-`inspect` は worker 版、依存、chunk、公開 props、hydration の選択と実行数を表示します。
-CLI は版の snapshot、翻訳キーの抽出、依存復元、Docusaurus 移行診断も扱います。
+`inspect` は worker のバージョン、依存、chunk、公開 props、hydration の選択と実行数を表示します。
+CLI はバージョンの snapshot、翻訳キーの抽出、依存復元、Docusaurus 移行診断も扱います。
 正確な引数は `lithosharp --help` を参照してください。移行診断は JavaScript 設定を
 実行せず、不明な構文をレポートします。
 
 `ApiReferenceSite` は XML コメントと OpenAPI 3 JSON を共通ページへ変換し、
-正確な member ID による参照と選択した版の差分を生成します。
+正確な member ID による参照と選択したバージョンの差分を生成します。
 外部 OpenAPI 参照を自動取得することはありません。
 
 信頼するプロジェクトを復元した後、`DocumentationVerification.BuildApiAsync` を明示的に呼び、
@@ -168,14 +170,14 @@ CLI は版の snapshot、翻訳キーの抽出、依存復元、Docusaurus 移�
 高速遷移を設定します。通常のリンクと本文は JavaScript がなくても使えます。
 遷移時は React root を破棄し、head、履歴、フォーカスを更新します。
 
-`Offline = true` は service worker と webmanifest を有効にします。新しい版の
+`Offline = true` は service worker と webmanifest を有効にします。service worker は新しいバージョンの
 HTML と資産をそろえてから有効化します。出力を一括配置し、古いページを開いている
 利用者のために古い hashed asset を一定期間保持してください。HTTPS または localhost
 が必要です。
 
 ライブコードは sandbox 付き iframe で実行し、静的コードを fallback として残します。
 React と `render` を提供しますが、ホスト文書で任意の MDX import や JSX 変換を
-実行する機能ではありません。解析は既定で無効です。`lithosharp:consent` の
+実行する機能ではありません。アクセス解析は既定で無効です。`lithosharp:consent` の
 `detail: { granted: true }` を受けるまで送信せず、撤回後は停止します。
 
 この同意制御は`DocumentationBrowserOptions.Analytics`の機能です。

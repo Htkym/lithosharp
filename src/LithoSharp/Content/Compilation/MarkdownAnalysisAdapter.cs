@@ -5,7 +5,7 @@ namespace LithoSharp.Content.Compilation;
 
 internal static class MarkdownAnalysisAdapter
 {
-    internal const string IncompleteAnalysisDiagnosticId = "LSM011";
+    internal const string IncompleteAnalysisDiagnosticId = "LSM013";
     internal const MdAnalysisParts InspectionParts = MdAnalysisParts.FrontMatter | MdAnalysisParts.Headings
         | MdAnalysisParts.Sections | MdAnalysisParts.Links | MdAnalysisParts.Fences | MdAnalysisParts.UnsupportedSyntax;
 

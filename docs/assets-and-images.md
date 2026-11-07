@@ -55,7 +55,12 @@ still copies existing output into isolated staging to preserve rollback.
 
 ## Responsive images
 
-Install/reference `LithoSharp.Images` and register the source and transform:
+Reference `LithoSharp.Images` at the same release as Core (2.1.3), then register
+both the source and transform:
+
+```sh
+dotnet add MySite package LithoSharp.Images --version 2.1.3
+```
 
 ```csharp
 using LithoSharp.Images;
@@ -99,5 +104,15 @@ fixed encoder settings, checks tool replacement even on a cache hit, bounds proc
 execution and accepts only an AVIF-branded output container. Recreate the encoder
 and image declarations after changing the tool or codec libraries. See the official
 [avifenc manual](https://github.com/AOMediaCodec/libavif/blob/main/doc/avifenc.1.md).
-Core generation never requires this tool. The Docs sample provides
-`--asset-demo --check` for public files and PNG/WebP variants.
+Core generation never requires this tool. The
+[Docs sample](../samples/LithoSharp.DocsSample/README.md) provides
+`--asset-demo --check` for public files and PNG/WebP variants:
+
+```sh
+dotnet run --project samples/LithoSharp.DocsSample -- --asset-demo --check --output .local/assets-site
+```
+
+Run that command from the repository root. Generation-time
+[quality checks](site-quality.md) inspect references to registered assets.
+[`check-output`](generated-output-checks.md) can inspect an existing distribution's
+local targets but cannot establish registered asset ownership or unused assets.

@@ -1,11 +1,19 @@
 # Layout and component CSS contract / レイアウトとCSSの契約
 
+This contract applies to the built-in layouts in LithoSharp 2.1.3. It covers
+semantic classes and interaction hooks, not byte-identical HTML or arbitrary
+custom templates. See the [generated-site compatibility contract](compatibility-contract.md)
+and the [empty template's custom layout](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)
+when replacing the built-in shell.
+
 The built-in components retain the existing Docs and Blog classes. Override colors
 through `SiteThemeOptions.AdditionalCss`; use the existing `--accent`,
 `--accent-contrast`, `--muted`, and `--border` variables. These C# layout components
 do not require an additional stylesheet dependency or client framework.
 
-組み込みコンポーネントは、既存のDocs／Blogのクラスを維持します。
+この契約はLithoSharp 2.1.3の組み込みレイアウトを対象に、意味を持つクラスと操作用のhookを定めます。HTMLのバイト単位での一致や任意の独自テンプレートは対象ではありません。外側の構造を置き換える場合は[生成サイトの互換性契約](compatibility-contract.ja.md)と[emptyテンプレートの独自レイアウト](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)を参照してください。
+
+組み込みコンポーネントは既存のDocs／Blogのクラスを維持します。
 色の調整には `SiteThemeOptions.AdditionalCss` と、既存の `--accent`、
 `--accent-contrast`、`--muted`、`--border` を使います。
 これらのC# layout componentに追加のスタイルシート依存やclient frameworkは不要です。
@@ -19,7 +27,7 @@ with `is-ancestor`.
 
 `BlogPageLayout` はBlogの文書構造を描画します。`DocsPageLayout` はDocsの文書構造を描画し、
 `PageLayoutContent` から描画済みのサイドバーと目次を受け取ります。
-`DocsNavigationComponent` は、事前計算済みの `SiteTemplateNavigationNode` から下記の
+`DocsNavigationComponent` は事前計算済みの `SiteTemplateNavigationNode` から下記の
 サイドバー用クラスを出力し、ツリーや追加リンクを並べ替えません。`CurrentUrl` に一致する
 リンクには `is-current` と `aria-current` を付け、その親フォルダーには `is-ancestor` を付けます。
 
@@ -49,9 +57,9 @@ of navigation semantics.
 読み上げ用ラベルを維持してください。同梱スクリプトが操作に使います。
 パンくずはナビゲーションとしてのHTMLを出力し、配置と見た目は独自レイアウトで決めます。
 
-スクリプトが参照するフックは、`site-menu`、`data-site-menu-toggle`、
+スクリプトが参照するフックは `site-menu`、`data-site-menu-toggle`、
 `data-site-nav`、`docs-sidebar`、`data-docs-menu-toggle`、`data-docs-sidebar`、
-`post-toc-title`、`data-toc-item`、`data-toc-link` です。ヘッダー検索では、
+`post-toc-title`、`data-toc-item`、`data-toc-link` です。ヘッダー検索では
 `header-search-input` と対応するラベル、GETフィールドの `q`、`type="search"` を維持します。
 ナビゲーションの意味を表す `aria-current="page"`、`rel="prev"`、`rel="next"` も契約に含みます。
 
@@ -73,14 +81,15 @@ Docs and Blog follow the operating system until the reader selects a palette.
 The choice is saved in local storage under `lithosharp-theme` for the same origin.
 Without JavaScript the system palette still applies, but the toggle is hidden.
 
-DocsとBlogは、読者が配色を選択するまではOS設定に従います。選択した配色は同じオリジンの
+DocsとBlogは読者が配色を選択するまではOS設定に従います。選択した配色は同じオリジンの
 ローカルストレージに `lithosharp-theme` として保存します。JavaScriptが無効な場合も
 OS設定に従いますが、ボタンは表示しません。
 
 Set `SiteThemeOptions.EnableThemeSwitching = false` to omit the built-in theme
 toggle and theme preference scripts. The default is `true`. When disabled, the
-built-in stylesheet uses light colors; set `AdditionalCss = ":root { color-scheme: dark; }"`
-for a fixed dark theme. Custom templates that reuse the built-in header and head
+built-in stylesheet stops following the operating system palette and uses light
+colors; set `AdditionalCss = ":root { color-scheme: dark; }"` for a fixed dark
+theme. Custom templates that reuse the built-in header and head
 components inherit this setting; custom controls must honor it explicitly.
 
 `SiteThemeOptions.EnableThemeSwitching` は既定で `true` です。`false` にすると、
@@ -103,8 +112,8 @@ var customization = new SiteCustomization
 
 Omit `AdditionalCss` for fixed light colors. Regenerate after changing the option;
 incremental builds update the affected HTML, CSS and JavaScript. Saved choices
-are ignored while switching is disabled. Blocked storage still permits switching
-within the current page.
+are ignored while switching is disabled. When switching is enabled, blocked storage still permits switching within the
+current page.
 
 `AdditionalCss` を省くとライト固定になります。設定変更後はサイトを再生成してください。
 増分生成でも関連するHTML・CSS・JavaScriptを更新します。無効の間は保存済みの選択を参照しません。

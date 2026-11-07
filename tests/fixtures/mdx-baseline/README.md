@@ -3,6 +3,10 @@
 This is a development-only Docusaurus 3.10.2 comparison site and official MDX
 toolchain check. It is not the LithoSharp MDX worker or a browser hydration test.
 
+Its independent reference lockfile retains esbuild 0.25.12; the current product
+worker uses 0.28.2. Do not copy this fixture's versions into the product worker or
+describe a reference build as validation of the shipping worker's package bytes.
+
 Use Node 24.13.0 and npm 11.6.2, then run from this directory:
 
 ```sh
@@ -13,10 +17,11 @@ npm test
 
 Only `ci` restores dependencies. `build` generates a production reference at
 `/product/` for `en` and `ja`; Japanese uses the same source fallback, not a
-claimed translation. Broken links fail the build. `test` checks the single
-React lock entries, named MDX exports, hydration-capable server rendering,
-browser bundling and the reference static Counter HTML. It does not simulate a
-click or certify hydration. Production hydration is tested separately in
+claimed translation. Broken links fail the build. `test` checks the required
+Node/npm versions, one resolved React installation and matching lock entries,
+and the built Counter page's static text, initial count and canonical URL. It
+does not check product-worker compilation or bundling, simulate a click, or
+certify hydration. Production hydration is tested separately in
 [`../mdx-browser`](../mdx-browser).
 
 Review lockfile, license and test changes together when updating dependencies.

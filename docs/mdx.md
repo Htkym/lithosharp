@@ -1,5 +1,7 @@
 # MDX and documentation sites
 
+[日本語](mdx.ja.md)
+
 `LithoSharp.Mdx` is an optional .NET 10 package. Existing Markdown sites do not
 need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuild
 0.28.2 on Node.js 24.13.0. The worker dependency graph is locked in its
@@ -8,8 +10,8 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 ## Start a site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::1.1.0
-dotnet tool install LithoSharp.Tool --version 1.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -19,7 +21,8 @@ dotnet build MyDocs -c Release
 
 On Windows the local executable is `.tools/lithosharp.exe`. Restore is an
 explicit network operation using `npm ci --ignore-scripts --no-audit --no-fund`.
-Normal builds never install packages. Restore project npm dependencies separately
+Normal builds never install npm packages. Their `dotnet build` step can restore
+NuGet packages. Restore project npm dependencies separately
 when importing packages from the site's `node_modules`. TypeScript is transpiled;
 run the project's TypeScript checker separately for type checking.
 
@@ -43,6 +46,27 @@ Dispose the extension after the final API build, or let the factory host dispose
 it at the end of its watch session. A worker is reused across content rebuilds.
 Changing C# rebuilds and reloads the factory. Failed builds retain the previously
 published output.
+
+## Markdown and MDX analysis boundaries
+
+The Syntamark 1.2.0 runtime/Source pair supplies shared Markdown front-matter
+boundaries and the native Markdown path; it does not replace the MDX worker's
+JavaScript/JSX body parser. The product Markdown profile remains
+`lithosharp-markdown/1`. The header-only scan allows 1 Mi UTF-16 code units for
+the header, excluding the body after a closing delimiter. Unavailable boundaries
+produce `LSM013` at runtime or `LSG002` for explicit generator inputs, not a
+successful missing-header result.
+
+In the editor, Markdown outlines use Syntamark sections for the full symbol
+range and heading spans for the selection range. MDX has a separate worker
+heading path: its symbols use heading ranges, not Markdown section subtrees.
+Neither path runs custom C# schema code per keystroke. `NoContext` means
+project-bound checks are unavailable, while `Partial` means available analysis
+is incomplete. See the [language server guide](language-server.md).
+
+For an end-to-end C# schema and generated-reference example, use the native
+Markdown [Docs sample](../samples/LithoSharp.DocsSample/README.md). Its compiler
+input contract is not an automatic MDX/JavaScript type checker.
 
 ## Author content
 
@@ -75,11 +99,12 @@ their JavaScript export semantics. Only selected browser data is published.
 
 `@theme/Tabs`, `@theme/TabItem`, `@theme/Admonition`, `@theme/Details`,
 `@theme/CodeBlock`, `@theme/TOCInline`, `@theme/Card`, `@theme/DocCardList`,
-`@theme/MDXComponents`, `@theme/IdealImage`, `@theme/ThemedImage`,
-`@theme/Heading`,
-`@theme/BrowserOnly` and `@docusaurus/BrowserOnly` are supported imports.
-The same components, plus `Link`, `Translate`, `Highlight`, `TweetQuote` and
-`Code`, also resolve as bare JSX names from the runtime component map.
+`@theme/IdealImage`, `@theme/ThemedImage`, `@theme/Heading`,
+`@theme/BrowserOnly` and `@docusaurus/BrowserOnly` are supported component
+imports, and `@theme/MDXComponents` resolves to the runtime component map for
+custom MDX providers. Those renderable components, plus `Link`, `Zoom`,
+`Translate`, `Highlight`, `TweetQuote` and `Code`, also resolve as bare JSX
+names from the runtime component map.
 `@docusaurus/router` and `@docusaurus/plugin-content-docs/client` hooks render
 with static fallback values for vendored components; verify the output or
 rewrite call sites to `usePageContext`. `useBaseUrl` and
@@ -99,7 +124,7 @@ The compared release is Docusaurus 3.10.2 with `@mdx-js/mdx` 3.1.1, React
 19.2.4 and esbuild 0.25.12 on Node.js 24.13.0, pinned in
 `tests/fixtures/mdx-baseline`. `DocusaurusProfile` in
 `src/LithoSharp/Documentation` is the single source of truth for these
- judgments; the migration report and the worker alias handling agree with it.
+judgments; the migration report and the worker alias handling agree with it.
 Only verified behavior is listed as supported. The Fixture column names the
 `tests/fixtures/docusaurus` corpus fixtures covering each row; rows marked
 docusaurus.io cite the migrated real site instead (see the
@@ -112,10 +137,10 @@ docusaurus.io cite the migrated real site instead (see the
 | `Details` | Supported | Static-safe. | mdx-components |
 | `CodeBlock` | Supported | Fenced code renders statically with shared title, highlight and line-number metadata. Copy controls hydrate in the browser. Bare `<CodeBlock>` usage requests page hydration. | mdx-components, admonitions |
 | `Card` | Supported | Static-safe card with a linked title. Renders without hydration. | mdx-components |
-| `DocCardList` | Supported | Bare usage renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures. | mdx-components |
+| `DocCardList` | Supported | Standalone `<DocCardList />` without props renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures. | mdx-components |
 | `MDXComponents` | Partial | The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component. | mdx-components |
 | `TOCInline` | Supported | Static-safe. Receives the page `toc` export built from worker headings, levels 2-3 by default. | mdx-components |
-| `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it and unsafe schemes fail the build; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. | mdx-components |
+| `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it, and unsafe schemes (`javascript:`, `vbscript:`, `data:`) or unresolved `xref:` links fail build-time rendering; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. | mdx-components |
 | `Zoom` | Supported | Bare image-zoom wrapper with no import path; renders children without zoom interaction. | mdx-components |
 | `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. | mdx-components |
 | `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. | mdx-components |

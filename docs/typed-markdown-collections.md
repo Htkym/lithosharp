@@ -4,9 +4,14 @@
 `ContentCollection<TFrontMatter, string>`. It is the typed replacement beneath
 the compatibility `MarkdownPostReader`.
 
+For a complete C# schema → generated reference → Markdown → editor → site →
+output-check walkthrough, use the [Docs sample](../samples/LithoSharp.DocsSample/README.md).
+The [source-generator guide](source-generators.md) covers compiler inputs and
+generated binders; this page covers runtime loading and generation.
+
 ## Site generation integration
 
-Register a loaded collection through
+Check `ContentLoadResult.IsSuccess` before using `Collection`, then register it through
 `SiteGenerationOptions.ContentCollections`. The generator evaluates each
 entry's route and publication mapper before rendering, validates all published
 routes and output ownership, and only then starts the atomic output
@@ -38,7 +43,9 @@ var generation = await new SiteGenerator().GenerateWithOptionsAsync(
 `ContentPageRenderingContext` exposes the normalized route, mapped metadata,
 optional layout identity, resolved build timestamp and environment. Its
 `RenderMarkdown` and `RenderDocument` helpers reuse the generator's existing
-safe Markdown and document layout paths. JSON and CSV collections use the same
+Markdown and document layout paths. Markdown link targets are not a security
+allowlist: enable [site quality checks](site-quality.md) to diagnose unsupported
+URL schemes in output. JSON, CSV and YAML collections use the same
 registration API.
 
 For cacheable collections, set a stable `ContentTransformationId` and declare
@@ -110,17 +117,22 @@ collection.
 
 ## File discovery and identity
 
-- The input directory is searched recursively for `*.md`.
+- The input directory is searched recursively for `.md` files, with
+  case-insensitive extension matching. Files or directories whose names start
+  with `_` are excluded from publication and front-matter binding. Markdown
+  does not import those partials as document modules.
 - Files are processed in ordinal order by their `/`-separated, NFC-normalized
   path relative to the input root.
 - The relative path, including `.md`, is the `ContentEntryId`.
 - Paths that become identical after NFC normalization are diagnosed instead of
   being selected by file-system enumeration order.
-- `ContentEntry.Body` is the exact decoded text after the closing front-matter
-  marker. It is not trimmed or rendered.
+- `ContentEntry.Body` is the decoded text after the closing front-matter marker,
+  with any declared code inclusions resolved. Without inclusions it is the exact
+  suffix; the typed loader does not trim or render it.
 - `ContentEntry.SourceFingerprint` is `sha256:` followed by the lowercase
   SHA-256 of the exact file bytes, including a UTF-8 BOM and line endings.
 - Markdown source must be valid UTF-8.
+- Links/reparse points and unsafe or colliding normalized paths are rejected.
 - Cancellation is checked before discovery, while enumerating and processing
   files, and before and after file I/O.
 
@@ -129,6 +141,41 @@ collection.
 The first logical line must be exactly `---`. A later logical line that is
 exactly `---` closes the front matter. Empty front matter, a missing opening or
 closing marker, and a non-mapping YAML root are diagnosed as content errors.
+A leading UTF-8 BOM is supported without losing original diagnostic positions.
+The shared Syntamark header scan has a 1 Mi UTF-16 code-unit header budget;
+the body after a confirmed closing marker does not consume that budget.
+An unavailable (`Unknown`) boundary is `LSM013`, not proof that the header is
+missing or unterminated. The compiler reports unavailable boundaries as `LSG002`.
+
+## Code inclusions and body analysis
+
+A fenced block can read a code file inside the content input root:
+
+````markdown
+```csharp source="_examples/Hello.cs" region="Greeting"
+```
+````
+
+`source` is relative to the Markdown file; `region` is optional and selects a
+named `#region`. Inclusion replaces the fence body, not its language or other
+metadata. A missing/unreadable target reports `LSM011`; a missing or unterminated
+region reports `LSM012`. Incomplete Markdown analysis uses `LSM013`, independently
+of inclusion failures. Targets cannot escape the input root
+or bypass its link/reparse-point checks.
+
+The source fingerprint still hashes the original Markdown bytes. Target files
+and resolved inclusion content contribute separate build dependencies, so a
+code-only edit invalidates the page. Original-source warnings retain their
+original positions; diagnostics on transformed bodies refer to that transformed
+text, not a guessed source position after the splice.
+
+The reader inspects the original body for warnings, using a budget up to 8 Mi
+UTF-16 code units. Final analyzed post/collection bodies have the stricter 1 Mi
+limit, including code brought in by inclusions. Limit failures report `LSM013` Error
+and stop publication. Render-only Markdown snippets use a separate path, so
+successfully rendering a snippet is not evidence that a full document passes
+analysis. See [known limitations](known-limitations.md) and
+[incremental builds](incremental-builds.md).
 
 ## YAML rules
 
@@ -156,8 +203,11 @@ Typed Markdown loading uses these deterministic rules:
   `YamlIgnoreAttribute` excludes a member.
 
 `ReflectionContentFrontMatterBinder<TFrontMatter>` requires a public
-parameterless constructor for reference types. A later source generator may
-replace reflection without changing `IContentFrontMatterBinder<TFrontMatter>`.
+parameterless constructor for reference types. `LithoSharp.Generators` already
+provides an `IContentFrontMatterBinder<TFrontMatter>` through the generated
+`Binder` property. Pass it as `frontMatterBinder: GeneratedArticles.Binder`, as
+the Docs sample does. Static checks cover explicitly registered compiler
+inputs; runtime loading still checks the content it actually discovers.
 Set `rejectUnknownFields` to `false` only for an intentionally extensible
 schema.
 
@@ -166,8 +216,17 @@ schema.
 Expected source errors are returned through `ContentLoadResult.Diagnostics`;
 they do not throw. Every YAML or binding diagnostic includes the normalized
 relative source path and, when available, a one-based line and column.
-Configuration errors and file-system failures still throw their specific .NET
-exceptions.
+Discovery, unsafe paths, read failures and invalid UTF-8 also produce content
+diagnostics. Invalid API configuration and cancellation still throw; user
+callbacks can also throw. A failed load has no usable collection, even when
+some entries were individually valid.
+
+The editor's syntax support does not execute arbitrary C# constructors,
+setters or validators. Custom schemas are checked by the compiler and runtime
+loader, not per keystroke. `NoContext` means project-bound schema/route evidence
+is unavailable; `Partial` means analysis is incomplete. Neither state establishes
+that the content is valid. Typed-reference contradiction checks also need a
+complete, current (`Closed`) catalog; dynamic routes remain unproven.
 
 `MarkdownPostReader` converts typed-loader content diagnostics to
 `InvalidOperationException` for compatibility. It retains its existing output
@@ -175,15 +234,15 @@ paths, body trimming, required title/date checks, and newest-first ordering.
 
 ## Example
 
+This example assumes Markdown inputs under `content/articles` and a
+`cancellationToken` supplied by the caller. A document needs at least
+`title: Example` inside its front matter; `published_on` and `tags` are optional
+for this schema.
+
 ```csharp
-public sealed class ArticleFrontMatter
-{
-    public string Title { get; init; } = string.Empty;
-
-    public DateOnly PublishedOn { get; init; }
-
-    public List<string> Tags { get; init; } = [];
-}
+using LithoSharp.Content;
+using LithoSharp.Pages;
+using LithoSharp.Routing;
 
 var loader = new MarkdownContentCollectionLoader<ArticleFrontMatter>(
     new ContentCollectionId("articles"),
@@ -200,5 +259,12 @@ if (!result.IsSuccess)
             $"{diagnostic.Location?.FilePath}:{diagnostic.Location?.Line}:{diagnostic.Location?.Column}: " +
             $"{diagnostic.Id}: {diagnostic.Message}");
     }
+}
+
+public sealed class ArticleFrontMatter
+{
+    public required string Title { get; init; }
+    public DateOnly PublishedOn { get; init; }
+    public List<string> Tags { get; init; } = [];
 }
 ```

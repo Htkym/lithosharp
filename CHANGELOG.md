@@ -2,6 +2,17 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 2.1.3
+
+- Adopt the verified published Syntamark 1.2.0 runtime/Source pair while retaining the default `lithosharp-markdown/1` profile and existing public APIs.
+- Give unavailable Markdown analysis its own `LSM013` diagnostic, retaining `LSM011` for missing code-inclusion files and `LSM012` for missing regions.
+- Include parser identity and the loaded runtime module in persistent Markdown cache identity, so upgrades cannot reuse incompatible parsed output.
+- Use header-only compiler scanning and shared body analysis. Keep original/transformed diagnostic locations separate, replay verified collection warnings, and stop generation before publication when required analysis is unavailable.
+- Add a typed Docs walkthrough connecting C# schemas, generated references, editing, generation and output checks, with isolated invalid/unproven examples and matching CI. Complete the English/Japanese guides and current package instructions.
+- Add task-oriented English/Japanese documentation indexes, repair NuGet README links and preserve the upstream Syntamark notice in redistributed compiler, CLI and language-server payloads.
+- Apply the control-statement layout rules to hand-written C# without changing tokens or literals, and verify layout in Windows CI.
+- VS Code section outlines and unavailable-analysis reporting ship separately in extension 0.3.0. No site-generation speedup or full CommonMark conformance is claimed.
+
 ## 2.1.2
 
 - Reuse Docs settings and header-search text serialization within each generation instead of repeating it for HTML nodes.

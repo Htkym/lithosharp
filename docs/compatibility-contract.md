@@ -1,7 +1,9 @@
 # Generated site compatibility contract
 
-This document describes the LithoSharp 1.0.0 compatibility contract for generated
-sites and public APIs. Implementation details are not compatibility guarantees.
+This document describes the generated-site compatibility contract retained in
+LithoSharp 2.1.3. It originated with 1.0.0; implementation details are not
+compatibility guarantees. The [upgrade guide](migration-2.0.md) documents the
+2.x Testing API break separately from generated-site compatibility.
 
 ## API compatibility
 
@@ -13,6 +15,29 @@ intended removal version. `SiteGenerator.GenerateAsync`, `MarkdownPostReader`,
 Public signatures are tracked in each library's `PublicAPI.Shipped.txt` and
 `PublicAPI.Unshipped.txt`. Update these analyzer baselines with API changes.
 CI also checks NuGet package compatibility against the published baseline.
+
+The 2.x exception is `LithoSharp.Testing.SiteTestDocument.Document`, removed in
+favor of the read-only `Snapshot` API. It is an intentional source and binary
+break with a [migration map](Testing-v2-api.md#migration); it does not imply
+that arbitrary API removals are permitted.
+
+## Markdown analysis and validation boundaries
+
+The current runtime and embedded compiler source use the fixed Syntamark 1.2.0
+pair. The default profile remains `lithosharp-markdown/1`; the dependency update
+does not select CommonMark or replace the separate MDX body pipeline. Existing
+HTML, heading IDs, duplicate slugs, table of contents, search text and route
+policies remain LithoSharp's responsibility.
+
+Raw source positions use the original UTF-16 snapshot, including BOM and line
+endings. Header-only scanning and selective analysis describe different result
+contracts, not a promise of incremental parsing or complete validation. Missing,
+unrequested or unavailable facts are not empty successful results. `NoContext`
+does not establish project schemas or routes, `Partial` analysis does not certify
+unavailable facts, and `Unknown` catalog evidence cannot prove absence. Custom C#
+schema checks belong to compilation/site builds, not language-server snapshot
+binding. See [source generators](source-generators.md),
+[language-server behavior](language-server.md) and [quality checks](site-quality.md).
 
 ## URL model
 
@@ -98,16 +123,16 @@ Legacy valid routes retain their public paths; see the
   ordinal, case-sensitive semantics and do not depend on host file-system
   casing.
 
-  Before mutating the output directory, the generator completes template
-  rendering and registers published page routes, built-in template artifacts,
-  optional shared artifacts, and every file claimed by a custom template in one
-  `SiteRouteTable`. Opaque custom templates reserve physical ownership only for
-  files they return; omitted pages retain conceptual public-route uniqueness but
-  do not create false output collisions. Every returned file must resolve to a
-  `SiteRoute`; invalid files are diagnosed and excluded before validation fails.
-  Duplicate, case-only, reserved-artifact, and file/directory ancestor conflicts
-  fail with `SiteRouteValidationException`, which remains an
-  `InvalidOperationException` for compatibility.
+Before mutating the output directory, the generator completes template
+rendering and registers published page routes, built-in template artifacts,
+optional shared artifacts, and every file claimed by a custom template in one
+`SiteRouteTable`. Opaque custom templates reserve physical ownership only for
+files they return; omitted pages retain conceptual public-route uniqueness but
+do not create false output collisions. Every returned file must resolve to a
+`SiteRoute`; invalid files are diagnosed and excluded before validation fails.
+Duplicate, case-only, reserved-artifact, and file/directory ancestor conflicts
+fail with `SiteRouteValidationException`, which remains an
+`InvalidOperationException` for compatibility.
 
 ## Docs artifacts
 

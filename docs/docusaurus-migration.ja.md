@@ -8,7 +8,7 @@
 変換時は、移行元と出力先のパスに親ディレクトリも含めてディレクトリリンクがあると拒否する。
 リンクを経由せず、互いに重ならない実ディレクトリのパスを指定する。
 
-移行対象は MDX、Markdown、静的資産、front matter、category、sidebar、版、
+移行対象は MDX、Markdown、静的資産、front matter、category、sidebar、バージョン、
 言語である。部品の判定は [MDX 互換表](mdx.md#docusaurus-compatibility) にある。
 
 ## コマンド
@@ -55,6 +55,12 @@ strict UTF-8で一度だけdecodeし、Unicode NFCを適用して再encodeする
 JSON reportは既存fieldを維持したまま、route比較の範囲とcomponent機能差を追加する。
 route一致は宣言されたpage setだけを対象とし、原本サイト全体の互換性を意味しない。
 
+## 変換後の生成と検査
+
+変換で書き出すのはコンテンツと資産であり、コンパイル・検査済みの配布物ではない。[MDXガイド](mdx.ja.md)に従って信頼するLithoSharp projectと`DocumentationSite` collectionを設定し、変換されたvariantのディレクトリをルートへ割り当てる。reportの手動対応と未対応の項目を確認し、MDX workerを明示的にrestoreしてからbuildする。移行処理がDocusaurus pluginやC# site factoryを推測して実行することはない。
+
+build後は実際の出力先と公開base URLを指定して[check-output](generated-output-checks.ja.md)を実行する。ローカルHTML/CSS、リンク、anchorを検査できるが、元サイトとのルートの同等性や、失われた対話機能は確認できない。route oracleとの比較、生成物検査、部品のブラウザーテストを別々の証拠として残す。
+
 ## 判定
 
 | 判定 | 意味 |
@@ -73,8 +79,8 @@ import を判定する。
 
 ## route の保持
 
-`versions.json` が prefix を決める。`docs/` は未公開の `next` 版になり、
-先頭版が prefix なし path で出る。path の `@` はそのまま残す。重複する文書
+`versions.json` が prefix を決める。`docs/` は未公開の `next` バージョンになり、
+先頭のバージョンが prefix なし path で出る。path の `@` はそのまま残す。重複する文書
 ID には番号を付ける。欠けた front matter の title は導出して記録する。日付の
 ない directory 記事（blog の release folder など）は日付 slug ではなく
 directory 経路になる。
@@ -87,7 +93,7 @@ directory 経路になる。
 
 ## 移行済みサイトの手動手順
 
-- 版依存の `UpgradeGuide` デモは静的注記にする。
+- バージョン依存の `UpgradeGuide` デモは静的注記にする。
 - `react-medium-image-zoom` の import は除き、素の `<Zoom>` で描画する。
 - `LiteYouTubeEmbed` デモは YouTube link にする。
 - `ColorModeToggle` デモは静的注記にする。
@@ -95,7 +101,7 @@ directory 経路になる。
 - Themed image と inline SVG の live デモは静的注記や画像にする。
 - 外部 bare import は移行先に入れるか書き換える。`@docusaurus/useBaseUrl` は静的 path にする。
 
-手動component変更は、外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
+手動component変更は外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
 埋め込みをlinkへ変える場合など、機能を失う置換は非同等と記録する。未検証componentは
 未検証のまま報告し、自動適用候補にはしない。
 
@@ -103,5 +109,5 @@ directory 経路になる。
 
 任意の plugin と theme、一覧外の theme 上書き、JavaScript 設定の実行、
 code editor からの `react-live` import、`useBaseUrl` と `useDocusaurusContext`
-に相当品はない。report が符号付きで指摘し（`LSMIG001`、`LSMIG002`、
-`LSMIG003`）、黙って誤描画せず build で落とす。
+に相当品はない。report が診断コード付きで指摘し（`LSMIG001`、`LSMIG002`、
+`LSMIG003`）、エラーなしに誤描画することはせず build を失敗させる。

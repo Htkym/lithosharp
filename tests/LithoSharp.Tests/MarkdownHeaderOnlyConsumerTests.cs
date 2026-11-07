@@ -65,7 +65,7 @@ public sealed class MarkdownHeaderOnlyConsumerTests
             await Assert.That(diagnostic.Location.EndLine).IsNull();
             await Assert.That(diagnostic.Location.EndColumn).IsNull();
             await Assert.That(() => MarkdownDocumentParser.SplitFrontMatter(raw, "large-header.md"))
-                .Throws<InvalidOperationException>().WithMessageContaining("LSM011");
+                .Throws<InvalidOperationException>().WithMessageContaining("LSM013");
         }
     }
 
@@ -83,7 +83,7 @@ public sealed class MarkdownHeaderOnlyConsumerTests
         await Assert.That((diagnostic.Location!.Line, diagnostic.Location.Column, diagnostic.Location.EndLine, diagnostic.Location.EndColumn))
             .IsEqualTo(((int?)2, (int?)8, (int?)2, (int?)9));
         await Assert.That(() => MarkdownDocumentParser.SplitFrontMatter(raw, "invalid-header.md"))
-            .Throws<InvalidOperationException>().WithMessageContaining("LSM011");
+            .Throws<InvalidOperationException>().WithMessageContaining("LSM013");
     }
 
     [Test]

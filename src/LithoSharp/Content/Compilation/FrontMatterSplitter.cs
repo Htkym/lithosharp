@@ -41,7 +41,7 @@ internal readonly record struct FrontMatterSplit(
 /// <summary>
 /// Header-only scan shared by the compatibility splitter and position-aware loader.
 /// A leading BOM is included in raw positions. The default header budget is
-/// 1,048,576 UTF-16 code units; an incomplete scan maps to LSM011, never a missing header.
+/// 1,048,576 UTF-16 code units; an incomplete scan maps to LSM013, never a missing header.
 /// </summary>
 internal static class FrontMatterSplitter
 {

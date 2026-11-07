@@ -1,7 +1,14 @@
 # LithoSharp.Testing
 
-Generate sites inside ordinary .NET tests, with no server or external process.
+Generate sites inside ordinary .NET tests, without starting a development server.
 Use any test framework: assertion failures throw `SiteTestException`.
+
+```sh
+dotnet add package LithoSharp.Testing --version 2.1.3
+```
+
+Keep the selected LithoSharp packages at matching versions. HTML parsing itself
+starts no external process; optional MDX generation can start its Node worker.
 
 ```csharp
 using LithoSharp;
@@ -43,7 +50,7 @@ rejected, and assertions on disposed hosts/documents throw `ObjectDisposedExcept
 Disposal also invalidates retained snapshot and element views. Malformed selectors
 throw `HtmlSelectorSyntaxException`; unsupported features or query limits throw
 `HtmlSelectorUnsupportedException`. The v2 major version removes `Document`.
-See [the snapshot/query contract and migration examples](https://github.com/Htkym/lithosharp/blob/v2.1.0/docs/Testing-v2-api.md).
+See [the snapshot/query contract and migration examples](https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md).
 
 See [the testing guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md)
 and [Japanese guide](https://github.com/Htkym/lithosharp/blob/main/docs/testing.ja.md).

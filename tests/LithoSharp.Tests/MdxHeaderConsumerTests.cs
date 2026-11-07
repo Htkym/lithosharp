@@ -38,7 +38,7 @@ public sealed class MdxHeaderConsumerTests
         await Assert.That(result.Components).IsEmpty();
         await Assert.That(result.Imports).IsEmpty();
         var diagnostic = result.Diagnostics.Single();
-        await Assert.That(diagnostic.Id).IsEqualTo("LSM011");
+        await Assert.That(diagnostic.Id).IsEqualTo("LSM013");
         await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
         await Assert.That(diagnostic.Message).Contains("front matter scanning is incomplete");
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("unknown.mdx");
@@ -96,7 +96,7 @@ public sealed class MdxHeaderConsumerTests
         await Assert.That(result.IsSuccess).IsFalse();
         await Assert.That(result.Collection).IsNull();
         var diagnostic = result.Diagnostics.Single();
-        await Assert.That(diagnostic.Id).IsEqualTo("LSM011");
+        await Assert.That(diagnostic.Id).IsEqualTo("LSM013");
         await Assert.That(diagnostic.Message).Contains("front matter scanning is incomplete");
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("unknown.mdx");
         await Assert.That(diagnostic.Location.Line).IsNull();
