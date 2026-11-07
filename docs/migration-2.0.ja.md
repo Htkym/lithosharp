@@ -16,7 +16,7 @@ templateの既定参照は`2.1.2`です。候補feedで生成したprojectを使
 
 Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedには、その候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々の版に入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
 
-公開済みの基準ペアはSyntamark 1.0.0です。このブランチでは、未公開のSyntamark 2.0.0-preview.202647137865236のruntime／Sourceペアを使います。正式に採用するには、レビューとマージを終えたペアの正式な公開が必要です。
+このブランチではNuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。
 
 postとcollectionのMarkdown本文は、最終解析時に1 Mi UTF-16コード単位まで扱えます。エディターでの検査は8 Miまでです。readerとcollection loaderが加工前の本文を調べる上限も8 Miです。1 Miを超える元の本文でも、includeや前後の空白除去によって最終解析の前に短くなる場合があります。
 
