@@ -1,4 +1,5 @@
 using LithoSharp;
+using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
@@ -9,14 +10,23 @@ using LithoSharp.Routing;
 
 var output = GetArgument(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "_site");
 var check = args.Contains("--check", StringComparer.Ordinal);
-var definition = await new DocsSampleFactory
+SiteDefinition definition;
+try
 {
-    ContentDirectory = GetArgument(args, "--content"),
-    OutputDirectory = output,
-    Check = check,
-    RedirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal),
-    AssetDemo = args.Contains("--asset-demo", StringComparer.Ordinal)
-}.CreateAsync(new SiteFactoryContext(AppContext.BaseDirectory));
+    definition = await new DocsSampleFactory
+    {
+        ContentDirectory = GetArgument(args, "--content"),
+        OutputDirectory = output,
+        Check = check,
+        RedirectDemo = args.Contains("--redirect-demo", StringComparer.Ordinal),
+        AssetDemo = args.Contains("--asset-demo", StringComparer.Ordinal)
+    }.CreateAsync(new SiteFactoryContext(FindProjectDirectory()));
+}
+catch (SiteBuildExtensionException exception)
+{
+    Console.Error.WriteLine(new SiteQualityReport(exception.Diagnostics).Format(SiteDiagnosticFormat.Text));
+    return 1;
+}
 var site = definition.Site;
 var posts = definition.Posts;
 var customization = definition.Customization;
@@ -56,4 +66,14 @@ static string? GetArgument(string[] args, string name)
 {
     var index = Array.IndexOf(args, name);
     return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+}
+
+static string FindProjectDirectory()
+{
+    for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+    {
+        if (File.Exists(Path.Combine(directory.FullName, "LithoSharp.DocsSample.csproj")))
+            return directory.FullName;
+    }
+    return AppContext.BaseDirectory;
 }

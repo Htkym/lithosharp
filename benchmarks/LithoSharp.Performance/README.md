@@ -1,126 +1,107 @@
-# LithoSharp performance benchmark
+# Performance harnesses
 
-This project measures deterministic Blog-template workloads from a Markdown corpus. It is separate from the unit-test project and uses the fixed `SiteGenerationOptions.BuildTimestamp` value `2026-01-01T00:00:00+00:00`.
-
-This is a reproducible harness, not a current-release speed claim. The retained
-[performance tables](../../docs/performance.md) are historical. Record the exact
-LithoSharp commit, Syntamark runtime/Source pair and environment for every new
-comparison. The current pair is 1.2.0 and the default profile remains
-`lithosharp-markdown/1`.
-
-C00 baseline: site/pipeline workloads and engine micro-benchmarks are measured
-separately. Render-only never includes parsing. The engine fixed corpora are
-`paragraph-heavy`, `heading-heavy`, `nested-list`, `link-heavy`, `code-heavy`,
-`gfm-table`, `task-list`, `admonition`, `practical-docs`, `docusaurus-doc`, and
-`pathological`.
-
-## Push comparison
-
-The build workflow runs its ordinary build and unit checks on every branch push;
-the paired measurement is opt-in. Include `[measure]` in the pushed HEAD commit's
-message, or manually run the build workflow with `run_measurement` enabled
-(default: false). After the build and unit checks succeed, the requested comparison
-calls `performance-baseline.yml` on Ubuntu 24.04. Pull requests retain their
-existing checks but do not run a second measurement. An open
-same-repository PR can still have both push and PR validation runs. A branch must
-contain these workflow changes to use them.
-
-The lightweight comparison uses 100 deterministic Blog pages and the same harness
-source from the candidate for both revisions. Separate processes run in
-baseline/candidate/candidate/baseline order with SDK 10.0.403 and runtime 10.0.14.
-It records clean generation plus existing no-op, page-change and layout-change
-workloads. Restore, compilation and corpus parsing are outside generation timing.
-This is an approximate trend check, not the larger official comparison below;
-two observations do not establish a small performance improvement.
-This replaces the old standalone manual 100/1,000/10,000-page workflow with the
-opt-in 100-page paired check, also selectable in manual build runs. Larger runs remain available
-through the benchmark commands below; they are not run on every push.
-
-On a push, the baseline is the previous branch head. On a new branch, or a manual
-build with no baseline supplied, it is the candidate's first parent. The build
-workflow's manual `baseline` input accepts a full commit SHA. A missing or
-incompatible baseline fails explicitly rather than silently changing the pair.
-The summary records both SHAs, selection reason, environment, all observations,
-final-state input/output hashes and failures; artifacts are retained for 14 days. The runner
-never deploys the site and has only read access to repository contents.
-
-Timing changes never fail the job. Existing harness invariants still fail on an
-invalid corpus, output count or incremental invalidation scope. Hashes cover only
-the final mutated corpus and output after the layout-change workload, not snapshots
-of each clean, no-op or page-change workload. Final-state generated output byte differences are reported for review, excluding only the internal output
-manifest; they may be intentional template changes, not automatically defects.
-No timestamp or content normalization hides those differences. Normal unit tests
-remain the correctness gate. Fresh processes do not imply a cold OS cache.
+The existing Blog generation interval is retained for continuity. The candidate
+adds a separate typed Docs + Quality profile and a Generator header-scan
+substage. These are measurements, not latency guarantees or speed targets.
+Current reference observations and their durable numeric evidence are linked
+from [Performance](../../docs/performance.md). Historical results keep their
+original source and environment in [History](../../docs/history/performance-through-2.1.3.md).
 
 ## Commands
 
-Run the small CI smoke measurement (site mode is the default for compatibility):
+Build Release before measuring. Restore is explicit; use the SDK selected by
+`global.json`, the same runtime and worker lockfile for both targets, and avoid
+concurrent builds or browser work. Fresh processes are not a cold OS cache.
 
 ```powershell
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release -- --size 100 --smoke --output artifacts/performance-baselines/smoke.json
+dotnet restore LithoSharp.slnx --locked-mode
+dotnet build benchmarks/LithoSharp.Performance -c Release --no-restore -p:EnableTypedDocsBenchmark=true
+dotnet run --project benchmarks/LithoSharp.Performance -c Release --no-build -- --size 100 --smoke --output .local/performance/blog/result.json
+dotnet run --project benchmarks/LithoSharp.Performance -c Release --no-build -- --size 100 --profile typed-docs-quality --output .local/performance/docs/result.json
+dotnet run --project benchmarks/LithoSharp.Performance -c Release --no-build -- --size 100 --mode generator --generator-assembly src/LithoSharp.Generators/bin/Release/netstandard2.0/LithoSharp.Generators.dll --output .local/performance/generator.json
 ```
 
-Smoke mode checks the corpus, clean output, the no-op and mutation invalidation scopes, and the working-set invariant. The result schema is version 3 and records `clean`, `no-op`, `single-page-change`, and `layout-change` workloads with elapsed milliseconds, allocations, start/end/peak working set, generated and invalidated node counts, and artifact count. The layout mutation changes the deterministic theme color consumed by every HTML rendering node; its invalidation metric therefore means rendering nodes in that scope, not every build node. It does not enforce timing or memory thresholds.
+`--size` accepts 100, 1,000 or 10,000. `--scenario` accepts `all`, `clean`,
+`no-op`, `single-page-change` or `layout-change`. A selected incremental scenario
+runs after a successful clean preparation in its own process. `all` runs the
+sequence in one process. Do not mix these cache/process conditions.
 
-Run a baseline for one corpus size:
+The typed Docs feature does not exist in 2.1.3. It is disabled at compile time
+unless `EnableTypedDocsBenchmark=true`; identical Blog harness sources can
+therefore build against 2.1.3 with this property omitted. Record the new Docs
+path as its own standalone baseline, not a ratio against legacy Docs or Blog.
+Its runtime binder is the built-in reflection binder over a deterministic
+runtime corpus. Template compilation/generated binders are a separate compiler
+path; this profile is not a template build-time benchmark.
+
+Generator mode uses the actual Generator assembly's `ParseForCompiler` Source
+host. It includes reflection invocation overhead and header scanning, excluding
+schema binding, Roslyn, code emission and C# compilation. It is not full
+Generator throughput. Build that assembly before running. `--warmup` and
+`--iterations` apply to this substage and engine mode, not site mode.
+
+Engine microbenchmarks remain available through `--mode engine` or `--mode all`
+and `--engine-output`. Parse-only, pre-prepared render-only, parse+render and
+analyze remain separate. The fixed corpora and per-iteration elapsed/allocation
+statistics are unchanged. The last removed Markdig reference is historical,
+not a fresh dependency-conformance result.
+
+## Configured campaigns
+
+Copy [matrix.example.json](../../eng/performance/matrix.example.json) under
+`.local/`, resolve paths relative to that configuration, fill in the candidate
+SHA, and choose a new evidence directory. Point each target at separately built
+products containing identical benchmark and shared identity sources. The
+baseline's product files must remain clean at the released 2.1.3 SHA
+`25d92d4605533260b22abffd2618971dd6f60c8a`. Only common harness overlays may
+modify the baseline tree.
 
 ```powershell
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release -- --size 10000 --output artifacts/performance-baselines/baseline-10000.json
+./eng/Run-PerformanceMatrix.ps1 -Configuration .local/performance/campaign.json
 ```
 
-`--size` accepts `100`, `1000`, or `10000`. Large baselines are manual; normal CI runs only the 100-page smoke. The output is JSON containing the corpus details, workload measurements, and runtime/environment metadata. The generated corpus and site are placed next to the result file under `corpus-{size}` and `site-{size}`.
-
-Run the engine micro-benchmarks (parse-only, render-only, parse+render, analyze)
-after a Release build. The paths below are example local evidence directories,
-not claims that the run measures the historical 1.0.0 revision:
-
-```powershell
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode engine --warmup 1 --iterations 5 --engine-output .local/verification/current/engine-100-run-01.json
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode all --output .local/verification/current/baseline-100-run-01.json --engine-output .local/verification/current/engine-100-run-01.json
-```
-
-`--mode` accepts `site` (default), `engine`, or `all`. `--warmup` sets unrecorded
-warmup runs, `--iterations` sets recorded iterations per corpus operation (default 5).
-These flags apply to engine workloads only: site workloads execute once per
-process, and site provenance records warmup 0 with 1 iteration to match the
-actual measurement.
-Each operation records raw elapsed/allocation lists, median, mean, variance, min, max,
-first-vs-warm first value, and median allocation. Official comparison uses at least 5
-independent process executions per size; in-process iterations measure variance within
-a process, not across processes.
+The driver validates commits and harness sources, records dirty candidate
+changes plus product source/file hashes, alternates order and refuses to call a
+source-changing campaign a fixed comparison. All attempts have fresh evidence
+directories. The incremental runner retains raw files, identity, stages,
+failures, timeouts and unavailable values. `-Resume` skips only completed work
+for the same profile and harness binary; it does not replace failed records.
 
 ## Measurement boundaries (C00)
 
-- Site workloads measure the Blog-template pipeline overall: elapsed, allocation,
-  sampled working set, generated/invalidated node counts, render-adjacent artifact counts,
-  and cache-hit behavior via `BuildReport`.
-- Engine workloads measure the Litho frontend over the fixed corpora and
-  iteration statistics (`LithoCorpora` with parse-only, render-only,
-  parse+render, and analyze). The Markdig reference columns were removed in
-  C13; the last side-by-side comparison is `c12-engine.json` at the old
-  commit, and the explicit comparison project can regenerate it. Link new-tab
-  attributes and asset dependencies need site context and are covered by site
-  workloads only. Historical agreement with the last reference run is not a
-  fresh conformance result for a new dependency pair. `nested-list` (`a.` markers, U14), `admonition`
-  (alerts/containers, U05/U06), and `docusaurus-doc` (containers, U06)
-  intentionally diverge.
-- `GenerationPeakWorkingSetBytes` is the maximum sampled working set during clean
-  generation; it is not the process-lifetime peak. Engine files do not record working
-  set; site files do.
-- Provenance records input hash (site corpus SHA-256 over `*.md`), commit, SDK/runtime,
-  OS/CPU, dependency versions, execution arguments, and warmup/iteration counts.
-- Out of scope: MDX/Node workloads (see `LithoSharp.MdxPerformance`), OS peak RSS,
-  timing/memory thresholds, and cross-machine comparison. The first baseline pass
-  records comparison data only.
+- Blog elapsed/allocation/10 ms sampled process working set cover generation,
+  not corpus reading. Existing meanings are unchanged.
+- Typed Docs generation elapsed excludes input load. Its separately named
+  read-and-generate elapsed, allocation and sampled working set cover both.
+- Site stages come from `SiteBuildTimings`. Verification worker intervals
+  overlap execution and may exceed total wall time. Do not sum stage values.
+- Process working set excludes a Node worker. MDX worker heap snapshots are
+  not worker RSS. [MDX](../LithoSharp.MdxPerformance) records worker stages,
+  runtime identity, Node version and lockfile hash separately.
+- [Editor](../../extensions/lithosharp-vscode/eng/measure-editor.mjs) saves raw
+  monotonic edit-to-diagnostics milliseconds, including debounce, transport and
+  scheduling. It separately labels harness and owned server PID working sets;
+  unmeasured Node RSS and protocol-unavailable loaded dependency identity are
+  explicitly unavailable. `--samples`, `--warmup`, `--soak`, `--gap`, `--out`,
+  `--server`, `--worker`, `--timeout` and `--languages` configure bounded runs.
+- Loaded Core runtime/parser/profile and embedded Generator Source identity are
+  observations. Package declaration strings alone do not establish a loaded pair.
+- Failures, missing measurements, unsupported features and timeouts are never
+  replaced by zero or successful empty arrays. No timing thresholds are enforced.
 
-Working-set sampling starts immediately after forced GC and immediately before `GenerateWithOptionsAsync`, then continues at the recorded fixed interval until the awaited generation task has completed or failed. The end working-set and allocation counters are captured immediately when generation completes, before monitor shutdown and artifact enumeration. The monitor's final sample is included before peak calculation, so each workload's peak is at least its start and end samples. `GenerationPeakWorkingSetBytes` is therefore the maximum sampled working set during clean generation; it is not the process-lifetime peak. The allocation and elapsed-time measurements use the same generation interval, with only the small measurement harness overhead included.
+## Optional CI comparison
 
-Each workload passes the immediately preceding workload's `SiteGenerationResult.BuildPlan` as `PreviousBuildPlan`: clean → no-op → single-page-change → layout-change. This keeps each invalidation count attributable to only the mutation introduced by that workload.
+The normal build and tests remain required. A pushed commit containing
+`[measure]`, or manual `run_measurement`, additionally runs the small Blog
+comparison on Ubuntu 24.04. Default baseline is released 2.1.3, not the previous
+branch head; an explicit full SHA can select another control. The common
+candidate harness builds against both revisions with typed Docs disabled.
+SDK/runtime/page count/output are configurable in `compare-site-generation.py`.
 
-The harness records comparison data only. It does not enforce a 10% regression
-threshold; timing and working-set values are intentionally not pass/fail criteria.
-C00/C05/R19 labels describe historical development checkpoints, not an outstanding
-promise that the current release met those targets. Keep dependency-only controls
-separate from consumer-code changes, and do not infer baseline recovery without
-rerunning that baseline under the same measurement conditions.
-
+The CI check uses A/B/B/A, retains raw observations and final input/output file
+hashes for 14 days and never fails on timing differences. Two observations per
+revision cannot establish a small speedup. Generated output differences are
+reported without hiding them by normalization; correctness invariants can fail.
+Short-lived CI artifacts are working evidence, not the sole durable support for
+public performance claims. Curated reference observations may be retained under
+`docs/evidence/performance/`; full logs, sites and corpora remain in `.local/`.

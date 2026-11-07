@@ -189,4 +189,7 @@ public sealed class DocumentInfo
     public DocumentProjectStatus ProjectStatus { get; }
 
     public string? SchemaName { get; }
+
+    // This describes the supported inspection path, never whether binding succeeded.
+    internal string SchemaInspectionScope { get; init; } = "unknown";
 }

@@ -5,10 +5,24 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
-.NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
+C#の型とビルドで、ドキュメントの整合性を管理します。LithoSharpは、.NETチームの
+コンテンツ型、生成した参照、コンパイル診断、生成物の検査をつなぐ静的サイト生成器です。
+製品ドキュメントや技術ガイドをMarkdownで書き、必要に応じてMDXやReactを加えられます。
+生成物は通常の静的ファイルとして配置できます。
 
-以下の導入例は **2.1.3** を対象にしています。リポジトリの体験手順は同じブランチのソースで実行してください。候補feedを使う場合は、実際の固定候補版を指定します。
+次の三つの問題を、それぞれの工程で検査します。
+
+- 必須のタイトルがない場合は、C#スキーマに基づいてコンパイル時に`LSG006`を報告します。
+- entryとルートの矛盾が静的に確定した場合は、Analyzerが`LSA1402`を報告します。
+- 最終HTMLにリンク先や見出しがない場合は、生成物の品質検査で`LSQ001`や`LSQ002`を報告します。
+
+検査の対象範囲は工程ごとに異なります。エディターは入力のたびに独自C#スキーマを実行せず、
+正しい型付き参照だけで最終HTMLの正しさが確定するわけでもありません。
+適合条件、依存関係、評価例は[導入選択ガイド](docs/adoption-guide.ja.md)を参照してください。
+
+このcheckoutは次期マイナーバージョンの候補を説明しており、公開済みのリリースではありません。
+型付きDocsを使う場合は、提供された固定候補バージョンとfeedを指定してください。
+公開済み2.1.3のDocsテンプレートは従来のreaderを使います。
 既存サイトを更新する場合は[更新手順](docs/migration-2.0.ja.md)を参照してください。
 
 ## サンプルサイト
@@ -38,19 +52,25 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 
 .NET 10 SDKを用意して実行します。
 
+提供された候補NuGet feedを設定し、`<candidate-version>`を固定バージョンへ置き換えてください。
+生成後はプロジェクトの`LithoSharpVersion`も同じ値にします。
+
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
+dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
+# ビルド前に MyDocs/MyDocs.csproj の LithoSharpVersion を同じ候補バージョンに設定
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`を編集し、
-`DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
+Windowsの実行ファイルは`.tools/lithosharp.exe`です。`GuideFrontMatter.cs`と`MyDocs/content`を
+編集します。生成Binder・Catalogのルートと`RenderDocs`がDocs表示につながります。
+factoryはQualityのError閾値と外部HTTP検査の無効を明示しています。
+`DocsSiteFactory.cs`を設定し、ビルドと検査の後に`MyDocs/dist`を静的HTTP hostへ配置してください。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 2.1.3`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version <candidate-version>`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -97,13 +117,14 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 2.1.3への更新
+## 2.2候補への更新
 
-利用しているLithoSharpのパッケージ、CLI、templateを2.1.3に揃えてください。
-Docsの追加機能は必要な項目だけを有効にします。[標準設定の案内](docs/docs-template.md)を参照してください。
-1.xから更新する場合は、[更新手順](docs/migration-2.0.ja.md)に従い、Testing APIの`Document`から`Snapshot`への非互換変更にも対応します。
-サイトを再生成し、コンテンツの警告、リンク、独自CSSの表示を確認してください。
-MDXの導入は引き続き任意です。[Markdownの対応構文](docs/known-limitations.ja.md#markdown-の互換性)も確認してください。
+利用するパッケージ、CLI、テンプレートは、提供された同じ固定候補バージョンにそろえてください。
+2.2候補では新規Docsの構成が変わります。既存サイトは型付きloader、Docs adapter、Quality設定を
+明示的に選んで変更します。Catalogのルート宣言で既存URLを維持し、テンプレートを既存ファイルへ
+上書きしないでください。[更新手順](docs/migration-2.0.ja.md)を参照してください。
+1.xからの更新ではTesting APIの`Document`から`Snapshot`への移行も必要です。
+再生成して、コンテンツ診断、最終出力のリンク、独自CSSを確認してください。MDXは任意です。
 
 過去版同士の移行手順は[更新履歴の資料](docs/history/README.md)に保管しています。
 
@@ -115,11 +136,11 @@ trimming、Native AOTは非対応です。実行環境を選ぶ前に[既知の�
 
 ## 性能
 
-0.3.0で測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
-hydration rootが1から0になりました。全islandやfallbackの結果ではありません。
-10,000ページMDX corpusのcoldは274.30秒、no-opは105.13秒でした。100件と1,000件の
-競合比較の要点と、1.0.0候補で再測定したMarkdownの結果も併記しています。
-[測定条件・制約・再現手順](docs/performance.ja.md)を参照してください。
+性能の測定値は、記載されたパッケージ・ソースのバージョン、入力、測定区間、環境の範囲で
+参照してください。生成、Quality、MDX、エディターの検査は、測定する処理が異なります。
+無変更ビルドと入力を変更したビルドも分けて確認します。
+[測定の根拠・制約・再現手順](docs/performance.ja.md)を参照してください。
+一つの入力の結果から、一般的な高速化や移行工数の削減は主張しません。
 
 ## 貢献とライセンス
 

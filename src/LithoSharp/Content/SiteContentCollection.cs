@@ -25,6 +25,7 @@ public sealed class ContentPageRenderingContext
     private readonly DocumentSource? bodySource;
     private readonly Dictionary<string, string> renderedMarkdown = new(StringComparer.Ordinal);
     private readonly List<SiteDiagnostic> markdownDiagnostics = [];
+    private readonly List<SiteTemplateHeading>? markdownHeadings;
 
     internal string? DerivedContent { get; private set; }
     internal void SetDerivedContent(string html) => DerivedContent = html;
@@ -40,7 +41,8 @@ public sealed class ContentPageRenderingContext
         AssetRegistry assets,
         string? markdownSourcePath,
         MarkdownBodyAnalysisSnapshot? bodyAnalysis,
-        DocumentSource? bodySource)
+        DocumentSource? bodySource,
+        bool collectDocsHeadings = false)
     {
         this.generator = generator;
         this.configuration = configuration;
@@ -48,6 +50,7 @@ public sealed class ContentPageRenderingContext
         this.markdownSourcePath = markdownSourcePath;
         this.bodyAnalysis = bodyAnalysis;
         this.bodySource = bodySource;
+        markdownHeadings = collectDocsHeadings ? [] : null;
         Route = route;
         Metadata = metadata;
         LayoutId = layoutId;
@@ -78,10 +81,22 @@ public sealed class ContentPageRenderingContext
         configuration.Cancellation.ThrowIfCancellationRequested();
         if (renderedMarkdown.TryGetValue(markdown, out var html))
             return html;
-        html = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
+        var compiled = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
             bodyAnalysis, bodySource, markdownDiagnostics);
+        html = compiled.Html;
+        markdownHeadings?.AddRange(compiled.Semantics?.Headings
+            .Where(heading => heading.OutputLevel is 2 or 3
+                && !string.IsNullOrWhiteSpace(heading.Id) && !string.IsNullOrWhiteSpace(heading.Text))
+            .Select(heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text)) ?? []);
         renderedMarkdown.Add(markdown, html);
         return html;
+    }
+
+    internal string RenderDocsDocument(string bodyHtml, DocsContentPage page)
+    {
+        DerivedContent = bodyHtml;
+        return generator.RenderTypedDocsDocument(configuration, page, bodyHtml, markdownHeadings ?? [],
+            Metadata, socialImageRelativePath);
     }
 
     internal IReadOnlyList<SiteDiagnostic> SnapshotMarkdownDiagnostics() =>
@@ -181,6 +196,8 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
 {
     private readonly string rendererImplementationIdentity;
 
+    internal Func<ContentEntry<TFrontMatter, TBody>, DocsPagePresentation>? DocsPresentationSelector { get; init; }
+
     public SiteContentCollection(
         ContentCollection<TFrontMatter, TBody> collection,
         ContentPageRenderer<TFrontMatter, TBody> renderer)
@@ -248,6 +265,30 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     ?? throw new InvalidOperationException(
                         $"Content collection '{Collection.Id}' returned no route for entry '{entry.Id}'.");
                 route = route.WithBaseUrl(baseUrl);
+                var presentation = DocsPresentationSelector?.Invoke(entry)
+                    ?? (DocsPresentationSelector is null ? null : throw new InvalidOperationException(
+                        $"Content collection '{Collection.Id}' returned no Docs presentation for entry '{entry.Id}'."));
+                if (presentation is not null)
+                {
+                    if (string.IsNullOrWhiteSpace(presentation.Title))
+                        throw new InvalidOperationException(
+                            $"Content collection '{Collection.Id}' returned an empty Docs title for entry '{entry.Id}'.");
+                    if (metadata.Document is { } document
+                        && ((presentation.Version is not null && presentation.Version != document.Version)
+                            || (presentation.Locale is not null && presentation.Locale != document.Locale)))
+                        throw new InvalidOperationException(
+                            $"Docs presentation for entry '{entry.Id}' conflicts with its canonical document version or locale.");
+                    presentation = presentation with
+                    {
+                        Version = metadata.Document?.Version ?? presentation.Version,
+                        Locale = metadata.Document?.Locale ?? presentation.Locale,
+                    };
+                }
+                var isUnlisted = entry.FrontMatter is DocumentFrontMatter { Unlisted: true }
+                    || presentation?.Unlisted == true;
+                var docs = presentation is null ? null : new DocsContentPage(Collection.Id, entry.Id,
+                    entry.SourcePath, route, presentation,
+                    !isUnlisted && entry.DerivedSurfaces.HasFlag(GeneratedPageDerivedSurfaces.Navigation));
                 var page = new IntegratedContentPage(
                     Collection.Id,
                     entry.Id,
@@ -273,14 +314,19 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     ownerId,
                     new PageId(ownerId),
                     entry.DerivedSurfaces,
-                    context => Renderer(entry, context))
+                    context =>
+                    {
+                        var body = Renderer(entry, context);
+                        return docs is null ? body : context.RenderDocsDocument(body, docs);
+                    })
                 {
                     RendererFingerprint = this.RendererFingerprint is null
                         ? null
                         : this.RendererFingerprint + "|" + rendererImplementationIdentity,
                     IsThreadSafe = this.IsThreadSafe,
                     FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
-                    IsUnlisted = entry.FrontMatter is DocumentFrontMatter { Unlisted: true },
+                    IsUnlisted = isUnlisted,
+                    Docs = docs,
                     MarkdownSourcePath = entry.SourcePath,
                     BodyAnalysis = entry.BodyAnalysis,
                     BodySource = entry.BodySource,
@@ -355,6 +401,8 @@ internal sealed class IntegratedContentPage(
 
     public bool IsUnlisted { get; init; }
 
+    internal DocsContentPage? Docs { get; init; }
+
     public bool IsThreadSafe { get; init; }
 
     internal bool CanCacheRendering => IsCacheable && RendererFingerprint is not null;
@@ -406,7 +454,8 @@ internal sealed class IntegratedContentPage(
             assets,
             MarkdownSourcePath,
             BodyAnalysis,
-            BodySource);
+            BodySource,
+            collectDocsHeadings: Docs is not null);
         Content = renderer(context)
             ?? throw new InvalidOperationException(
                 $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");

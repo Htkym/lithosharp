@@ -1,10 +1,14 @@
 using System.Text;
+using LithoSharp.Content;
 
 namespace LithoSharp;
 
 internal static class DocsTopicCardsComponent
 {
     internal static string RenderCore(SiteTemplateNavigationNode root)
+        => RenderCore(DocsPresentationNode.FromLegacy(root));
+
+    internal static string RenderCore(DocsPresentationNode root)
     {
         if (root.Children.Count == 0)
             return string.Empty;
@@ -15,7 +19,7 @@ internal static class DocsTopicCardsComponent
             body.Append("<h2>");
             AppendLabel(body, node);
             body.AppendLine("</h2>");
-            var summary = node.Page?.Post.FrontMatter.Summary;
+            var summary = node.Description;
             if (!string.IsNullOrWhiteSpace(summary))
                 body.AppendLine($"<p>{Html.Encode(summary)}</p>");
             AppendChildren(body, node);
@@ -25,7 +29,7 @@ internal static class DocsTopicCardsComponent
         return body.ToString();
     }
 
-    private static void AppendChildren(StringBuilder body, SiteTemplateNavigationNode parent)
+    private static void AppendChildren(StringBuilder body, DocsPresentationNode parent)
     {
         if (parent.Children.Count == 0)
             return;
@@ -40,11 +44,11 @@ internal static class DocsTopicCardsComponent
         body.AppendLine("</ul>");
     }
 
-    private static void AppendLabel(StringBuilder body, SiteTemplateNavigationNode node)
+    private static void AppendLabel(StringBuilder body, DocsPresentationNode node)
     {
-        if (node.Page is null)
+        if (node.Url is null)
             body.Append(Html.Encode(node.Label));
         else
-            body.Append($"<a href=\"{Html.Encode(node.Page.Url)}\">{Html.Encode(node.Label)}</a>");
+            body.Append($"<a href=\"{Html.Encode(node.Url)}\">{Html.Encode(node.Label)}</a>");
     }
 }

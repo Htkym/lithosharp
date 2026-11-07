@@ -5,6 +5,7 @@ using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Documentation;
 using LithoSharp.Mdx;
+using LithoSharp.Performance;
 
 if (args.Length < 3 || !int.TryParse(args[0], out var size) || size is not (100 or 1000 or 10000))
     throw new ArgumentException("Usage: LithoSharp.MdxPerformance <100|1000|10000> <restored-worker-directory> <new-result-directory> [--scenario cold|warm-cache|no-op|one-page|shared-component|shared-css|shared-image|layout|route|lockfile]");
@@ -71,7 +72,7 @@ async Task Measure(string name, bool clean = false)
     var allocated = GC.GetTotalAllocatedBytes(true);
     var timer = Stopwatch.StartNew();
     var result = await new SiteGenerator().GenerateWithOptionsAsync(site, [], output, clean, customization,
-        new() { Extensions = [extension], BuildTimestamp = DateTimeOffset.Parse("2026-01-01T00:00:00Z"), PreviousBuildPlan = previous }, default);
+        new() { Extensions = [extension], BuildTimestamp = DateTimeOffset.Parse("2026-01-01T00:00:00Z"), PreviousBuildPlan = previous, CollectTimings = true }, default);
     timer.Stop();
     allocated = GC.GetTotalAllocatedBytes(true) - allocated;
     if (name == "one-page" && (extension.MdxMetrics.CompiledModules != 1 || extension.MdxMetrics.RenderedPages != 1
@@ -86,6 +87,7 @@ async Task Measure(string name, bool clean = false)
         name,
         elapsedMilliseconds = timer.Elapsed.TotalMilliseconds,
         dotnetAllocatedBytes = allocated,
+        timings = result.Timings,
         mdx = extension.MdxMetrics,
         cacheHits = result.BuildReport.CacheHitCount,
         cacheMisses = result.BuildReport.CacheMissCount,
@@ -101,6 +103,7 @@ async Task Measure(string name, bool clean = false)
         scenario,
         corpus = "80% static, 10% page hydration, 10% load islands; shared CSS, SVG and Counter; eight fixed paragraphs; separate 100-document sidebars",
         runtime = Environment.Version.ToString(),
+        identity = BenchmarkIdentity.Capture("mdx", worker),
         os = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
         nodeMemory = "Heap-used snapshot after each worker response, not a peak",
         measurements

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compare a small deterministic site on one runner; not a speed ranking."""
 import hashlib
+import argparse
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ PAGES = 100
 HARNESS = Path("benchmarks/LithoSharp.Performance")
 PROJECT = HARNESS / "LithoSharp.Performance.csproj"
 ORDER = ("baseline", "candidate", "candidate", "baseline")
+RELEASE_BASELINE = "25d92d4605533260b22abffd2618971dd6f60c8a"
 
 
 def capture(args, cwd):
@@ -59,7 +61,7 @@ def resolve_baseline(repo, candidate, supplied):
             subprocess.run(["git", "fetch", "--no-tags", "origin", supplied],
                            cwd=repo, check=True, timeout=120)
         return capture(["git", "rev-parse", supplied + "^{commit}"], repo), "requested-or-push-before"
-    return capture(["git", "rev-parse", candidate + "^"], repo), "first-parent (new branch or manual default)"
+    return capture(["git", "rev-parse", RELEASE_BASELINE + "^{commit}"], repo), "released-2.1.3"
 
 
 def summarize(report):
@@ -73,7 +75,7 @@ def summarize(report):
              f"Baseline: `{report.get('baseline', 'unresolved')}`",
              f"Baseline selection: {report.get('baselineSelection', 'unresolved')}",
              f"Common harness: `{report.get('candidate', 'unknown')}`",
-             f"SDK {SDK}; runtime {RUNTIME}; {PAGES} Blog pages; order A/B/B/A.", ""]
+             f"SDK {report['sdk']}; runtime {report['runtime']}; {report['pages']} Blog pages; order A/B/B/A.", ""]
     if report.get("error"):
         lines += ["Failure: " + report["error"], "No failed observation was replaced or retried.", ""]
     if report.get("comparison"):
@@ -95,24 +97,36 @@ def summarize(report):
 
 
 def main():
+    global SDK, RUNTIME, PAGES
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--baseline", default=os.environ.get("BASELINE_SHA", ""))
+    parser.add_argument("--sdk", default=SDK)
+    parser.add_argument("--runtime", default=RUNTIME)
+    parser.add_argument("--pages", type=int, choices=(100, 1000, 10000), default=PAGES)
+    parser.add_argument("--output", type=Path)
+    options = parser.parse_args()
+    SDK, RUNTIME, PAGES = options.sdk, options.runtime, options.pages
     repo = Path(__file__).resolve().parents[1]
-    output = repo / "artifacts/site-generation-comparison"
+    output = options.output or repo / ".local/site-generation-comparison"
     output.mkdir(parents=True, exist_ok=False)
     report = {"status": "incomplete", "sdk": SDK, "runtime": RUNTIME,
               "pages": PAGES, "observations": [], "setup": {}}
     try:
         candidate = capture(["git", "rev-parse", "HEAD"], repo)
         report["candidate"] = candidate
-        baseline, reason = resolve_baseline(repo, candidate, os.environ.get("BASELINE_SHA", ""))
+        baseline, reason = resolve_baseline(repo, candidate, options.baseline)
         report.update(baseline=baseline, baselineSelection=reason)
-        report["harnessFiles"] = files_manifest(repo / HARNESS)
+        report["harnessFiles"] = {p.name: sha(p) for p in (repo / HARNESS).iterdir() if p.is_file()}
+        shared = repo / "eng/performance"
+        report["sharedHarnessFiles"] = files_manifest(shared)
         # Preserve the common input code independently from both measured revisions.
         common = {p.name: p.read_bytes() for p in (repo / HARNESS).iterdir()
                   if p.is_file() and (p.suffix in (".cs", ".csproj") or p.name == "packages.lock.json")}
         report["runner"] = {key: os.environ.get(key) for key in
                             ("RUNNER_OS", "RUNNER_ARCH", "ImageOS", "ImageVersion", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")}
         (output / "dotnet-info.txt").write_text(capture(["dotnet", "--info"], repo) + "\n")
-        (output / "cpu.txt").write_text(capture(["lscpu"], repo) + "\n")
+        cpu_command = ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Select-Object Name,NumberOfLogicalProcessors | ConvertTo-Json"] if os.name == "nt" else ["lscpu"]
+        (output / "cpu.txt").write_text(capture(cpu_command, repo) + "\n")
         work = Path(tempfile.mkdtemp(prefix="lithosharp-compare-", dir=os.environ.get("RUNNER_TEMP")))
         trees = {}
         for label, commit in (("baseline", baseline), ("candidate", candidate)):
@@ -128,6 +142,7 @@ def main():
             harness.mkdir(parents=True)
             for name, data in common.items():
                 (harness / name).write_bytes(data)
+            shutil.copytree(shared, tree / "eng/performance", dirs_exist_ok=True)
             global_path = tree / "global.json"
             config = json.loads(global_path.read_text()) if global_path.exists() else {}
             config["sdk"] = {"version": SDK, "rollForward": "disable"}
@@ -174,7 +189,8 @@ def main():
             write_json(run_dir / "final-input-files.json", inputs)
             write_json(run_dir / "final-output-files.json", generated)
             observation.update(status="completed", workloads=data["Workloads"], finalInputFiles=inputs,
-                               finalOutputFiles=generated, provenance=data["Provenance"])
+                               finalOutputFiles=generated, provenance=data["Provenance"], identity=data.get("Identity"),
+                               rawResult=str(result.relative_to(output)))
             write_json(output / "comparison.json", report)
         first = report["observations"][0]
         if any(x["finalInputFiles"] != first["finalInputFiles"] for x in report["observations"]):
@@ -189,9 +205,10 @@ def main():
             report["comparison"].append(row)
         report["status"] = "completed"
     except Exception as error:
-        report.update(status="failed", error=str(error))
+        status = "timeout" if isinstance(error, subprocess.TimeoutExpired) else "failed"
+        report.update(status=status, error=str(error))
         if report["observations"] and report["observations"][-1]["status"] == "started":
-            report["observations"][-1]["status"] = "failed"
+            report["observations"][-1]["status"] = status
         raise
     finally:
         write_json(output / "comparison.json", report)

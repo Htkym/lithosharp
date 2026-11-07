@@ -52,6 +52,17 @@ MDX dependencies also report unavailable analysis without fabricating a source
 diagnostic; restore the worker or correct its settings and restart the server.
 `ready` does not mean the document is error-free or that later build stages ran.
 
+New servers also report optional `projectStatus`, `schemaName`, `schemaScope`,
+`projectId`, `projectGeneration` and `contextAcquiredAt` fields. Project identity
+and acquisition time describe the applied snapshot, not proof that all inputs
+are current. `projectStatus` is the Markdown inspection's document resolution
+state. `schemaScope` is `built-in-binding`, `build-required` or `unknown`: it
+describes the supported inspection path, not a successful bind. MDX reports
+`unknown` even when a context names a built-in schema. Older servers that omit
+these fields leave the corresponding scope unknown. The VS Code extension
+invalidates display state on edits, document lifetime changes, context changes
+and server replacement, using the same identity guards as diagnostics.
+
 `NoContext` permits syntax diagnostics and navigation but not project-bound schema or route checks. Context snapshots bind built-in schemas only; custom C# schemas remain compiler/site-build checks.
 
 Markdown section facts and keys are internal coordination data, not additional

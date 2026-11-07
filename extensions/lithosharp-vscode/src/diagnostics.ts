@@ -14,25 +14,55 @@ export interface DiagnosticSink {
   clear(): void;
 }
 
+const diagnosticReferences: Readonly<Record<string, string>> = {
+  LSM001: 'front-matter',
+  LSM002: 'front-matter',
+  LSM003: 'front-matter',
+  LSM004: 'front-matter',
+  LSM005: 'front-matter',
+  LSM006: 'front-matter',
+  LSM007: 'front-matter',
+  LSM008: 'front-matter',
+  LSC101: 'front-matter-binding',
+  LSC102: 'front-matter-binding',
+  LSC103: 'front-matter-binding',
+  LSC104: 'front-matter-binding',
+  LSM013: 'lsm013',
+  LSG005: 'lsg005',
+  LSG006: 'lsg006',
+  LSA1402: 'lsa1402',
+  LSA9001: 'lsa9001',
+  LSQ001: 'lsq001',
+  LSQ002: 'lsq002',
+};
+
+/** Only registered IDs link to official guidance; server data never supplies a URL. */
+export function diagnosticReferenceUrl(code: string): string | undefined {
+  return Object.hasOwn(diagnosticReferences, code)
+    ? `https://github.com/Htkym/lithosharp/blob/main/docs/diagnostics.md#${diagnosticReferences[code]}`
+    : undefined;
+}
+
 /**
  * VS Code boundary shape. Keeps the diagnostic identity (code/source) that
  * the smoke test asserts on; range/message map one-to-one. Severity is
  * converted from LSP numbering (1=Error..4=Hint) to VS Code numbering
- * (0=Error..3=Hint); out-of-range values fall back to Information.
+ * (0=Error..3=Hint); out-of-range values clamp to that range.
  */
 export function toVsDiagnostic(item: LspDiagnosticData): {
   range: LspDiagnosticData['range'];
   message: string;
   severity: number;
-  code: string;
+  code: string | { value: string; target: string };
   source: string;
 } {
   const vscodeSeverity = Math.min(3, Math.max(0, item.severity - 1));
+  const target = diagnosticReferenceUrl(item.code);
   return {
     range: item.range,
     message: item.message,
     severity: vscodeSeverity,
-    code: item.code,
+    code: target === undefined ? item.code : { value: item.code, target },
     source: item.source,
   };
 }

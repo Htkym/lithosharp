@@ -893,6 +893,8 @@ public sealed class LspServer
     private void PublishAnalysisStatus(DocumentBuffer buffer, long contextGeneration, string state, string message)
     {
         var language = IsMdx(buffer.LanguageId, buffer.Uri) ? "mdx" : "markdown";
+        var context = buffer.InspectionContext?.Snapshot;
+        var inspection = language == "markdown" ? buffer.Inspection : null;
         transport.WriteMessage(JsonSerializer.Serialize(new
         {
             jsonrpc = "2.0",
@@ -904,6 +906,12 @@ public sealed class LspServer
                 language,
                 state,
                 message,
+                projectStatus = inspection?.ProjectStatus.ToString(),
+                schemaName = inspection?.SchemaName ?? context?.SchemaName,
+                schemaScope = inspection?.SchemaInspectionScope ?? "unknown",
+                projectId = context?.ProjectId,
+                projectGeneration = context?.ProjectGeneration,
+                contextAcquiredAt = context?.AcquiredAt,
                 lithosharpOpenGeneration = buffer.OpenGeneration,
                 lithosharpContextGeneration = contextGeneration
             }

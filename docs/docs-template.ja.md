@@ -2,6 +2,55 @@
 
 [English](docs-template.md)
 
+## 型付きコンテンツとDocsの表示
+
+次期マイナーバージョンの候補の`docs`テンプレートは、`GuideFrontMatter`、
+`Guides.Binder`、生成Catalogのルート、`RenderDocs`を使います。Blog向けの日付は不要です。
+生成するファイル、入力規則、Qualityの設定、コマンドは[Quick Start](quickstart.ja.md)を
+参照してください。既存サイトのreaderと表示は、明示的に変更するまで維持されます。
+Coreの既定値`Quality = null`や、汎用の`RenderDocument`の挙動は変わりません。
+
+読み込み済みの型付きcollectionから、表示する項目を明示的に選びます。
+
+```csharp
+var docs = collection.RenderDocs(
+    entry => new DocsPagePresentation
+    {
+        Title = entry.FrontMatter.Title,
+        Description = entry.FrontMatter.Description,
+        Order = entry.FrontMatter.Order
+    },
+    (entry, context) => context.RenderMarkdown(entry.Body),
+    rendererFingerprint: "docs-layout:v1",
+    isThreadSafe: true);
+```
+
+この例はテンプレートの`GuideFrontMatter`と、正常に読み込んだ
+`ContentCollection<GuideFrontMatter, string>`を使います。`LithoSharp.Content`をimportし、
+戻り値を`SiteGenerationOptions.ContentCollections`に登録してください。
+付属factoryのように`SiteCustomization.Template`で`DocsSiteTemplate`を指定します。
+rendererが返すのは本文であり、完全なHTML文書を重ねて作るものではありません。
+`context.RenderMarkdown`から、コンパイル済みのHTMLと見出しを共通のDocsレイアウトへ渡します。
+adapterがMarkdownを再解析することはありません。
+
+`DocsPagePresentation`には`ParentId`、`Version`、`Locale`、`Unlisted`も指定できます。
+独自スキーマの項目名をこれらに固定する必要はありません。ルート、公開条件、
+ナビゲーションは同じ確定済みentryを使います。draftと除外したentryは復活しません。
+unlistedのページと`DerivedSurfaces.Navigation`に参加しないentryは、サイドバーと前後リンクに
+含めません。ナビゲーションはcollection・version・localeの区切りを保ちます。
+公開情報にdocument keyがある場合は、そのversionとlocaleを使い、表示selectorと矛盾すると失敗します。
+型付きentryのラベル、概要、表示順には`Title`、`Description`、`Order`を使います。
+後述する従来のfront matter項目名はlegacy reader向けであり、独自C#スキーマの項目名を固定するものではありません。
+ホーム、開始リンク、任意のトピックカードは標準テンプレートが生成するため、ホームと同じ
+出力先へ別のページを登録しないでください。全ページの本文をツリーへ複製せず、表示情報を共有します。
+
+renderer fingerprintには、表示selector、本文描画、取り込んだ設定を識別できる値を使い、
+外部依存も宣言してください。`isThreadSafe`はcallbackを並行実行できる場合だけ指定します。
+通常のcollectionと同じcache・build graphの規則を使います。既存URLやスキーマを維持する場合は
+[移行手順](migration-2.0.ja.md#既存docsを型付きコンテンツへ移す)を参照してください。
+
+## 標準の表示設定
+
 標準のDocsテンプレートは追加の設定なしで使えます。必要な機能だけを有効にしてください。
 
 ```csharp

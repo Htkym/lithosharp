@@ -1,4 +1,4 @@
-# Tooling capability contract (2.1.3 / schema 1.0)
+# Tooling capability contract (schema 1.0)
 
 [日本語](tooling-capabilities.ja.md)
 
@@ -50,6 +50,8 @@ they are not inferred capabilities of a selected project or the language server.
 
 ### Tool-only Preview capabilities
 
+Tool 2.1.3 and later, including the 2.2.0 candidate, advertise these commands as Preview capabilities.
+
 | name | scope | Meaning |
 | --- | --- | --- |
 | `preflight-static-inputs` | `markdown`, `mdx` | Explicit source-only preflight without project evaluation. MDX requires an explicitly restored analysis worker. |
@@ -92,6 +94,11 @@ contract:
   diagnostics without a document version. The separate
   `lithosharp/analysisStatus` notification carries `uri`, `version`, `language`,
   `state` (`ready` or `unavailable`), `message`, and the two generation fields.
+  Optional `projectStatus`, `schemaName`, `schemaScope`, `projectId`,
+  `projectGeneration` and `contextAcquiredAt` describe the applied context and
+  supported inspection path. Missing scope stays unknown; MDX does not infer
+  Markdown binding support from a schema name. Acquisition time is not an
+  all-input freshness guarantee.
   See the [language-server protocol](language-server.md).
 
 `NoContext` permits syntax inspection but does not prove project-bound schemas
@@ -102,7 +109,6 @@ Partial or unavailable facts and Unknown catalog evidence must not be displayed
 as "checked, zero errors". `LSM013` indicates that analysis could not be completed.
 A `ready` LSP status means syntax analysis is available, not that a build or
 generated-output inspection has run, or that the document has no errors.
-- **Reason**: Aligns `docs/tooling-capabilities.md` with its paired Japanese document `docs/tooling-capabilities.ja.md` (`` `LSM013`は解析を完了できなかったことを示します。LSPの`ready`は構文解析が利用できるという意味であり、ビルドや生成物検査を実行したことや、エラーがないことを意味しません。 ``) and `docs/language-server.md` (`Input/resource limits can make facts unavailable (`LSM013`).` and `` `ready` does not mean the document is error-free or that later build stages ran. ``).
 
 ## Diagnostics and position conversion contract
 

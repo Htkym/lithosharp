@@ -7,4 +7,5 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/LithoSharp.Mdx/LithoSharp.Mdx.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../../eng/performance/BenchmarkIdentity.cs" Link="BenchmarkIdentity.cs" /></ItemGroup>
 </Project>

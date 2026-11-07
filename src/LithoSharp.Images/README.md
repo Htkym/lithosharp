@@ -1,9 +1,14 @@
 # LithoSharp.Images
 
-Declared responsive raster image transforms for LithoSharp (.NET 10).
+Add declared, cached responsive raster image transforms to LithoSharp documentation sites (.NET 10). Use them alongside C# content contracts and build/output checks; image transforms do not replace those checks.
+
+This checkout targets the next 2.2 candidate, not a published release. Use the
+exact supplied candidate version and feed; set `LithoSharpVersion` to that value
+for XML examples and replace `<candidate-version>` in commands. The published
+stable baseline is 2.1.3; do not mix that line with candidate packages.
 
 ```sh
-dotnet add package LithoSharp.Images --version 2.1.3
+dotnet add package LithoSharp.Images --version <candidate-version>
 ```
 
 Use matching Core and Images versions. Register the same `ImageAsset` declaration

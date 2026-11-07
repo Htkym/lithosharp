@@ -7,7 +7,7 @@ param([string] $Output, [string] $HarnessDll)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if (!$Output) { $Output = Join-Path $repo ('.tmp/performance-runner-' + [Guid]::NewGuid().ToString('N')) }
+if (!$Output) { $Output = Join-Path $repo ('.local/performance-runner-' + [Guid]::NewGuid().ToString('N')) }
 $Output = [IO.Path]::GetFullPath($Output)
 if (Test-Path -LiteralPath $Output) { throw 'Use a new output directory so prior test evidence is retained.' }
 if (!$HarnessDll) { $HarnessDll = Join-Path $repo 'benchmarks/LithoSharp.Performance/bin/Release/net10.0/LithoSharp.Performance.dll' }

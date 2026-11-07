@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "runId": "released-2.1.3-vs-candidate",
+  "taskId": "PERF-02",
+  "harness": "markdown",
+  "harnessProject": "LithoSharp.Performance",
+  "profile": "blog",
+  "sizes": [100],
+  "scenarios": ["all"],
+  "rounds": 3,
+  "timeoutSeconds": 300,
+  "evidenceRoot": "../../.local/performance/new-campaign",
+  "targets": [
+    {
+      "label": "released-2.1.3",
+      "role": "baseline",
+      "root": "../../.local/performance/baseline-2.1.3",
+      "commit": "25d92d4605533260b22abffd2618971dd6f60c8a",
+      "harnessDll": "benchmarks/LithoSharp.Performance/bin/Release/net10.0/LithoSharp.Performance.dll"
+    },
+    {
+      "label": "candidate",
+      "role": "candidate",
+      "root": "../..",
+      "commit": "REPLACE_WITH_FULL_CANDIDATE_SHA",
+      "harnessDll": "benchmarks/LithoSharp.Performance/bin/Release/net10.0/LithoSharp.Performance.dll"
+    }
+  ]
+}

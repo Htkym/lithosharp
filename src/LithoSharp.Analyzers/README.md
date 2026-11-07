@@ -1,13 +1,18 @@
 # LithoSharp.Analyzers
 
-Roslyn diagnostics for statically provable LithoSharp API, HTML, route and content-reference mistakes. The analyzer targets netstandard2.0 and Roslyn 4.14.0. It does not execute site factories, user getters or Core runtime code in the compiler host.
+Compiler diagnostics help .NET documentation teams keep C# content contracts and generated references consistent. They include statically provable API, HTML, route and content-reference mistakes, including proven entry/route contradictions (`LSA1402`). Final HTML still needs output quality checks. The analyzer targets netstandard2.0 and Roslyn 4.14.0. It does not execute site factories, user getters or Core runtime code in the compiler host.
+
+This checkout targets the next 2.2 candidate, not a published release. Use the
+exact supplied candidate version and feed; set `LithoSharpVersion` to that value
+for XML examples and replace `<candidate-version>` in commands. The published
+stable baseline is 2.1.3; do not mix that line with candidate packages.
 
 ## Install and use
 
 Add the analyzer alongside the Core packages used by your project:
 
 ```xml
-<PackageReference Include="LithoSharp.Analyzers" Version="2.1.3" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />
 ```
 
 Use [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) when a rule needs a generated catalog. Code fixes are an optional, separate [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) package. See the [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) for a complete example.
@@ -39,7 +44,6 @@ The registered sinks below use metadata symbols from the LithoSharp assembly, ex
 ### LSA1002
 
 `ContentRef<TEntry>(ContentCollectionId, ContentEntryId, SiteRoute route)` checks only argument 2 when every value in its nonempty `Known` evaluation snapshot is null. The exact public instance constructor is registered by `OriginalDefinition`, with all three sealed parameter types from the same Core metadata assembly; the existing static/self-return sink registration is unchanged. Runtime guards `collectionId`, `id`, then `route`, so this diagnostic proves a route argument contract violation only, not reachability or constructor completion. Named arguments retain source evaluation order: an earlier call/getter invalidates local facts, while an already captured route snapshot survives later argument effects. Unknown, mixed null/non-null and user conversions remain unproven. The original route expression, including `!` and parentheses, owns the `LSA1002` position and standard suppression. This does not prove a route/catalog/`Closed` scope or `Complete` coverage; `LSA1402` and other diagnostic owners are unchanged.
-- **Reason**: Outside inline code backticks, CommonMark/GFM parses `<TEntry>` as a raw HTML start tag and strips it when rendering Markdown on GitHub and NuGet (`ContentRef(ContentCollectionId, ...)`), hiding the generic type parameter. Wrapping the signature and code tokens (`collectionId`, `id`, `route`, `!`) in backticks fixes the broken `<TEntry>` rendering and matches the formatting of the remaining paragraphs in `LSA1002` (`ContentRef<TEntry>.GetUrl(...)` on line 1445).
 
 `StaticSiteManifest.GetUrl(string publicPath)` rejects argument 0 only when every value in its nonempty Known snapshot is null, matching the runtime's initial `ThrowIfNull` before membership lookup or resolver execution. The exact public instance metadata overload returns `SiteUrl` from the same Core assembly. This argument check needs no receiver-existence, reachability or Closed-manifest proof. Unknown/getter values, invalidated locals and user conversions remain unproven; `!` preserves snapshots and original argument positions without proving a value. Null is never a missing route for LSA1201 or Complete coverage. Existing LSA1205 and opt-in LSA9001 keep their independent scope and whole-call policy locations, so a null argument can report LSA1002 together with an incomplete-coverage diagnostic. LSA1401 and its CodeFix remain direct-literal only.
 

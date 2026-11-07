@@ -20,7 +20,7 @@ The measured numbers come from the harness result file, not from the process wal
             shared-component, shared-css, shared-image, layout, route, lockfile)
 
 .EXAMPLE
-& ./eng/Measure-IncrementalScenarios.ps1 -Harness markdown -Label B1r -RunId v110-04-B1r `
+& ./eng/Measure-IncrementalScenarios.ps1 -Harness markdown -Label candidate -RunId candidate-reference `
     -Sizes 1000,10000 -Scenarios all -Runs 5
 #>
 [CmdletBinding()]
@@ -28,7 +28,8 @@ param(
     [Parameter(Mandatory)] [ValidateSet('markdown', 'mdx')] [string] $Harness,
     [Parameter(Mandatory)] [string] $RunId,
     [string] $Label = 'unlabeled',
-    [string] $TaskId = 'V110-04',
+    [string] $TaskId = 'PERF',
+    [ValidateSet('blog', 'typed-docs-quality', 'mdx')] [string] $Profile,
     [string] $Sizes = '1000',
     [string] $Scenarios,
     [ValidateRange(1, 20)] [int] $Runs = 5,
@@ -45,9 +46,11 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if (!$EvidenceRoot) { $EvidenceRoot = Join-Path $repo '.local/verification/1.1.0' }
+if (!$Profile) { $Profile = if ($Harness -eq 'mdx') { 'mdx' } else { 'blog' } }
+if (($Harness -eq 'mdx') -ne ($Profile -eq 'mdx')) { throw 'Harness and workload profile do not match.' }
+if (!$EvidenceRoot) { $EvidenceRoot = Join-Path $repo '.local/performance' }
 $EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
-if (!$StateRoot) { $StateRoot = Join-Path $EvidenceRoot "$RunId/runs" }
+if (!$StateRoot) { $StateRoot = Join-Path $EvidenceRoot "$RunId/$Label/runs" }
 $StateRoot = [IO.Path]::GetFullPath($StateRoot)
 if (!$HarnessRoot) { $HarnessRoot = $repo }
 $HarnessRoot = [IO.Path]::GetFullPath($HarnessRoot)
@@ -63,6 +66,7 @@ else {
 if (!$Scenarios) { $scenarioList = @($knownScenarios | Where-Object { $_ -ne 'all' }) }
 else { $scenarioList = @($Scenarios -split '[,\s]+' | Where-Object { $_ }) }
 $sizeList = @($Sizes -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { [int]$_ })
+if ($sizeList.Count -eq 0 -or $scenarioList.Count -eq 0) { throw 'At least one size and scenario is required; an empty plan is not a successful measurement.' }
 foreach ($scenario in $scenarioList) {
     if ($knownScenarios -notcontains $scenario) { throw "Unknown $Harness scenario '$scenario'. Known: $($knownScenarios -join ', ')." }
 }
@@ -80,6 +84,7 @@ if (!$HarnessDll) {
 }
 $HarnessDll = [IO.Path]::GetFullPath($HarnessDll)
 if (!(Test-Path -LiteralPath $HarnessDll -PathType Leaf)) { throw "Harness assembly not found: $HarnessDll (build it in Release first)." }
+$expectedHarnessSha256 = (Get-FileHash -LiteralPath $HarnessDll -Algorithm SHA256).Hash
 if ($Harness -eq 'mdx') {
     if (!$WorkerDirectory) { throw '-WorkerDirectory is required for the mdx harness (restored worker directory).' }
     $WorkerDirectory = [IO.Path]::GetFullPath($WorkerDirectory)
@@ -225,6 +230,8 @@ function Test-CompletedRecordSet($Rows, [string] $RequestedScenario) {
 function Test-CompletedRun($Rows, [int] $Size, [string] $RequestedScenario, [int] $Run) {
     $matching = @($Rows | Where-Object {
         (Get-Property $_ 'harness') -ceq $Harness -and (Get-Property $_ 'label') -ceq $Label -and
+        (Get-Property $_ 'profile') -ceq $Profile -and
+        (Get-Property $_ 'harnessSha256') -ceq (Get-FileHash -LiteralPath $HarnessDll -Algorithm SHA256).Hash -and
         (Test-NonnegativeFiniteNumber (Get-Property $_ 'size')) -and (Get-Property $_ 'size') -eq $Size -and
         (Get-Property $_ 'requestedScenario') -ceq $RequestedScenario -and
         (Test-NonnegativeFiniteNumber (Get-Property $_ 'run')) -and (Get-Property $_ 'run') -eq $Run
@@ -257,6 +264,8 @@ function ConvertTo-Record($Entry, [string] $Scenario, [string] $RequestedScenari
     [string] $StdoutPath, [string] $StderrPath, [int] $Size) {
     return [ordered]@{
         harness           = $Harness
+        profile           = $Profile
+        harnessSha256     = $expectedHarnessSha256
         label             = $Label
         size              = $Size
         scenario          = $Scenario
@@ -284,6 +293,7 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
     if ($Harness -eq 'markdown') {
         $resultPath = Join-Path $RunDirectory 'result.json'
         $arguments = @($HarnessDll, '--size', $Size.ToString(), '--output', $resultPath)
+        $arguments += @('--profile', $Profile)
         if ($Scenario -ne 'all') { $arguments += @('--scenario', $Scenario) }
     }
     else {
@@ -322,6 +332,7 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
         $process.Dispose()
     }
     if ($status -eq 'completed' -and $exitCode -ne 0) { $status = 'failed' }
+    if ((Get-FileHash -LiteralPath $HarnessDll -Algorithm SHA256).Hash -cne $expectedHarnessSha256) { $status = 'invalid-identity-change' }
 
     $entries = [Collections.Generic.List[object]]::new()
     $prepare = $null
@@ -349,6 +360,7 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
                         invalidatedNodeCount = Get-Property $workload 'invalidatedNodeCount'
                         artifactCount        = Get-Property $workload 'artifactCount'
                         peakWorkingSetBytes  = Get-Property $workload 'peakWorkingSetBytes'
+                        timings              = Get-Property $workload 'timings'
                     }
                     counters = $null
                 })
@@ -377,6 +389,7 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
                         generatedFiles      = Get-Property $entry 'generatedFiles'
                         outputBytes         = Get-Property $entry 'outputBytes'
                         mdx                 = $metrics
+                        timings             = Get-Property $entry 'timings'
                     }
                     counters = [ordered]@{
                         compiledModules = Get-Property $metrics 'compiledModules'
@@ -409,8 +422,11 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
         }
     }
     foreach ($record in $records) {
+        $record.identity = if ($null -ne (Get-Variable result -ErrorAction SilentlyContinue)) { Get-Property $result 'identity' } else { $null }
+        $record.rawProvenance = if ($null -ne (Get-Variable result -ErrorAction SilentlyContinue)) { Get-Property $result 'provenance' } else { $null }
         $record.measurementError = $measurementError
         $record.unknownMetrics = Get-UnknownMeasurementFields $record.measured
+        if ($null -eq $record.identity) { $record.unknownMetrics += 'identity' }
     }
     return $records.ToArray()
 }
@@ -458,6 +474,7 @@ foreach ($item in $records) { $all.Add($item) }
 # bytes and historical attempts remain untouched; separate retries cannot fill gaps.
 foreach ($item in $all) {
     $unknown = Get-UnknownMeasurementFields (Get-Property $item 'measured') (Get-Property $item 'harness')
+    if ($null -eq (Get-Property $item 'identity')) { $unknown += 'identity' }
     if ($item -is [Collections.IDictionary]) { $item['unknownMetrics'] = $unknown }
     else { $item | Add-Member -NotePropertyName unknownMetrics -NotePropertyValue $unknown -Force }
     if ((Get-Property $item 'status') -cne 'completed') { continue }
@@ -475,23 +492,11 @@ foreach ($item in $all) {
     }
 }
 
-# The B0/B1 harnesses predate --scenario. Keep those failed invocations in the
-# raw ledger, but do not count their argument errors as workload attempts.
-$excluded = @($all | Where-Object {
-    $label = [string](Get-Property $_ 'label')
-    $status = [string](Get-Property $_ 'status')
-    $command = @(Get-Property $_ 'command' @())
-    $label -in @('B0', 'B1') -and $status -notin @('completed', 'invalid-measurement') -and $command -contains '--scenario'
-})
-$included = @($all | Where-Object {
-    $label = [string](Get-Property $_ 'label')
-    $status = [string](Get-Property $_ 'status')
-    $command = @(Get-Property $_ 'command' @())
-    !($label -in @('B0', 'B1') -and $status -notin @('completed', 'invalid-measurement') -and $command -contains '--scenario')
-})
+$excluded = @()
+$included = @($all)
 
 $cells = [Collections.Generic.List[object]]::new()
-foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(Get-Property $_ 'size')|$(Get-Property $_ 'scenario')" })) {
+foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(Get-Property $_ 'label')|$(Get-Property $_ 'profile')|$(Get-Property $_ 'harnessSha256')|$(Get-Property $_ 'size')|$(Get-Property $_ 'scenario')" })) {
     $items = @($group.Group)
     $completed = @($items | Where-Object { (Get-Property $_ 'status') -eq 'completed' })
     $values = [Collections.Generic.List[double]]::new()
@@ -506,6 +511,7 @@ foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(G
     $cells.Add([ordered]@{
         harness   = Get-Property $first 'harness'
         label     = Get-Property $first 'label'
+        profile   = Get-Property $first 'profile'
         size      = Get-Property $first 'size'
         scenario  = Get-Property $first 'scenario'
         status    = if ($completed.Count -eq $items.Count) { 'measured' } elseif ($completed.Count -gt 0) { 'partial' } else { 'blocked' }
@@ -521,7 +527,8 @@ foreach ($group in ($included | Group-Object { "$(Get-Property $_ 'harness')|$(G
 
 $summary = [ordered]@{
     schemaVersion = '1.0'
-    planVersion   = '1.1.0'
+    profile       = $Profile
+    timingNote    = 'Verification overlaps execution; do not sum stages as elapsed time.'
     taskId        = $TaskId
     runId         = $RunId
     label         = $Label
@@ -559,9 +566,6 @@ $summary = [ordered]@{
 
 [IO.File]::WriteAllText($summaryPath, ($summary | ConvertTo-Json -Depth 12))
 Write-Host ("wrote {0} ({1} cells, {2} records)" -f $summaryPath, $cells.Count, $all.Count)
-if ($excluded.Count -gt 0) {
-    Write-Host ("Excluded {0} unsupported B0/B1 --scenario invocations from statistics; raw records remain in the ledger." -f $excluded.Count)
-}
 if (@($cells | Where-Object { $_.status -ne 'measured' }).Count -gt 0) {
     Write-Host 'Some cells are partial or blocked; see the summary.'
 }

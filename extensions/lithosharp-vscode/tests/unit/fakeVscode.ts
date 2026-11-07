@@ -1,4 +1,5 @@
 /** Minimal vscode API double for unit tests. */
+import { pathToFileURL } from 'node:url';
 export interface FakeDisposable {
   disposed: boolean;
   dispose(): void;
@@ -29,7 +30,8 @@ export interface FakeVscode {
   lines: string[];
   commands: Map<string, (...args: unknown[]) => Promise<unknown>>;
   window: {
-    createOutputChannel(name: string): { appendLine(line: string): void; dispose(): void };
+    createOutputChannel(name: string): { appendLine(line: string): void; show(preserveFocus?: boolean): void; dispose(): void };
+    onDidChangeActiveTextEditor(listener: () => void): FakeDisposable;
     createStatusBarItem(alignment: unknown, priority: number): {
       command: string | undefined;
       text: string;
@@ -40,6 +42,7 @@ export interface FakeVscode {
   };
   commandsApi: {
     registerCommand(id: string, handler: (...args: unknown[]) => Promise<unknown>): FakeDisposable;
+    executeCommand(id: string): Promise<unknown>;
   };
   workspaceApi: {
     isTrusted: boolean;
@@ -59,7 +62,7 @@ export interface FakeVscode {
     createDiagnosticCollection(name: string): { set(uri: unknown, diagnostics: unknown[]): void; delete(uri: unknown): void; clear(): void; dispose(): void };
     registerDocumentSymbolProvider(selector: unknown, provider: unknown): FakeDisposable;
   };
-  Uri: { parse(value: string): { toString(): string } };
+  Uri: { parse(value: string): { toString(): string }; file(value: string): { toString(): string } };
   Range: new (startLine: number, startChar: number, endLine: number, endChar: number) => { start: { line: number; character: number }; end: { line: number; character: number } };
   Diagnostic: new (range: unknown, message: string, severity: number) => { range: unknown; message: string; severity: number };
   DiagnosticSeverity: { Error: number; Warning: number; Information: number; Hint: number };
@@ -95,6 +98,7 @@ export function createFakeVscode(): FakeVscode {
           appendLine: (line: string) => {
             fake.lines.push(line);
           },
+          show: () => {},
           dispose: () => disposable.dispose(),
         };
       },
@@ -121,8 +125,10 @@ export function createFakeVscode(): FakeVscode {
         const list = items as T[];
         return list[Math.min(fake.pickedIndex, list.length - 1)];
       },
+      onDidChangeActiveTextEditor: () => trackDisposable(),
     },
     commandsApi: {
+      executeCommand: async (id: string) => fake.commands.get(id)?.(),
       registerCommand: (id: string, handler: (...args: unknown[]) => Promise<unknown>) => {
         fake.commands.set(id, handler);
         return trackDisposable();
@@ -164,6 +170,7 @@ export function createFakeVscode(): FakeVscode {
       registerDocumentSymbolProvider: (_selector: unknown, _provider: unknown) => trackDisposable(),
     },
     Uri: {
+      file: (value: string) => ({ toString: () => pathToFileURL(value).toString() }),
       parse: (value: string) => ({
         toString: () => value,
       }),
@@ -209,6 +216,8 @@ export function createFakeVscode(): FakeVscode {
   extended['onDidCloseTextDocument'] = (_listener: unknown) => trackDisposable();
   extended['onDidDeleteFiles'] = (_listener: unknown) => trackDisposable();
   extended['onDidRenameFiles'] = (_listener: unknown) => trackDisposable();
+  extended['createFileSystemWatcher'] = () => ({ dispose() {}, onDidChange: () => trackDisposable(),
+    onDidCreate: () => trackDisposable(), onDidDelete: () => trackDisposable() });
   return fake;
 }
 
@@ -241,6 +250,7 @@ export function installFakeVscode(fake: FakeVscode): void {
       onDidCloseTextDocument: extended['onDidCloseTextDocument'],
       onDidDeleteFiles: extended['onDidDeleteFiles'],
       onDidRenameFiles: extended['onDidRenameFiles'],
+      createFileSystemWatcher: extended['createFileSystemWatcher'],
     },
     languages: fake.languages,
     Uri: fake.Uri,

@@ -1,10 +1,15 @@
 # LithoSharp.Generators
 
-Roslyn incremental generators for explicitly declared static Markdown collections.
+Connect your .NET documentation schema to generated binders, catalogs and typed references during C# builds. These Roslyn incremental generators inspect explicitly declared static Markdown collections; missing required fields are compiler diagnostics rather than a late layout failure.
 Reference `LithoSharp` normally, then add this package as a private analyzer:
 
+This checkout targets the next 2.2 candidate, not a published release. Use the
+exact supplied candidate version and feed; set `LithoSharpVersion` to that value
+for XML examples and replace `<candidate-version>` in commands. The published
+stable baseline is 2.1.3; do not mix that line with candidate packages.
+
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="2.1.3" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="$(LithoSharpVersion)" PrivateAssets="all" />
 ```
 
 Declare a top-level, nongeneric `static partial` class with

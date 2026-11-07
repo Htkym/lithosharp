@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { findProjectCandidates, keyOf, type ProjectCandidate } from './projectDetector.js';
 import { requireTrusted } from './trust.js';
 import { fetchCliVersion, resolveCli, type CliCommand, type ExecProbe } from './cliResolver.js';
-import { quickPickItems, statusText, type ProjectState } from './state.js';
+import { quickPickItems, editorPresentation, operationSummary, type OperationStatus, type ProjectState } from './state.js';
 import { ServeController } from './serveController.js';
 import { spawnProcess } from './process.js';
 import { BuildRunner } from './buildRunner.js';
@@ -175,7 +175,7 @@ export async function selectProjectHandler(deps: {
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('LithoSharp');
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  status.command = 'lithosharp.selectProject';
+  status.command = 'lithosharp.showStatus';
   const state: { current: ProjectState } = { current: { kind: 'none', candidates: 0 } };
   const servers = new Map<string, ServeController>();
   const buildRunners = new Map<string, BuildRunner>();
@@ -185,6 +185,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const projectGenerations = new Map<string, number>();
   let projectContextEpoch = 0;
   const projectAcquisitions = new Map<string, number>();
+  const staleContexts = new Set<string>();
+  const projectRoots = new Map<string, string>();
+  const operations = new Map<string, OperationStatus>();
+  let operationSequence = 0;
   let disposed = false;
   let capabilityProbe: AbortController | undefined;
   let lspGeneration = 0;
@@ -192,6 +196,59 @@ export function activate(context: vscode.ExtensionContext): void {
   let lspStarting: Promise<LspClient | undefined> | undefined;
   let missingLspBundleLogged = false;
   const diagnosticsCollection = vscode.languages.createDiagnosticCollection('lithosharp');
+  const presentation = (): ReturnType<typeof editorPresentation> => {
+    const key = state.current.kind === 'selected' ? keyOf(state.current.candidate) : undefined;
+    const uri = vscode.window.activeTextEditor?.document.uri.toString();
+    return editorPresentation(state.current, uri ? lsp?.getAnalysisStatus(uri) : undefined,
+      key && staleContexts.has(key) ? 'needs-refresh' : key && projectContexts.has(key) ? 'acquired' : 'unacquired',
+      key ? operations.get(key) : undefined, key ? servers.get(key)?.getState() : undefined);
+  };
+  const renderStatus = (): void => {
+    if (disposed) return;
+    const view = presentation();
+    status.text = view.text;
+    status.tooltip = view.detail;
+    status.show();
+  };
+  const beginOperation = (selected: ProjectCandidate, command: OperationStatus['command'], target = selected.projectPath): OperationStatus => {
+    if (state.current.kind !== 'selected' || keyOf(state.current.candidate) !== keyOf(selected))
+      state.current = { kind: 'selected', candidate: selected, cli: '', version: null };
+    const operation: OperationStatus = { id: ++operationSequence, command, target, startedAt: new Date().toISOString() };
+    operations.set(keyOf(selected), operation);
+    renderStatus();
+    return operation;
+  };
+  const finishOperation = (selected: ProjectCandidate, operation: OperationStatus, result: import('./buildRunner.js').BuildResult, epoch: number): boolean => {
+    if (disposed || epoch !== projectContextEpoch || operations.get(keyOf(selected))?.id !== operation.id) return false;
+    operation.finishedAt = new Date().toISOString();
+    operation.result = result;
+    renderStatus();
+    return true;
+  };
+  const writeDiagnostics = (result: import('./buildRunner.js').BuildResult): void => {
+    if (result.diagnosticsText) {
+      output.appendLine(result.diagnosticsText);
+      return;
+    }
+    for (const diagnostic of result.diagnostics) {
+      const position = diagnostic.file ? diagnostic.file + (diagnostic.line == null ? '' : `:${diagnostic.line}${diagnostic.column == null ? '' : `:${diagnostic.column}`}`) : '';
+      output.appendLine(`${diagnostic.id} ${diagnostic.severity}${position ? ` ${position}` : ''}: ${diagnostic.message}`);
+    }
+  };
+  const isProjectInput = (root: string, filePath: string): boolean => {
+    const relative = nodePath.relative(root, nodePath.resolve(filePath));
+    if (relative === '..' || relative.startsWith('..' + nodePath.sep) || nodePath.isAbsolute(relative)) return false;
+    return !relative.split(nodePath.sep).some(part => ['.git', 'bin', 'obj', 'node_modules', '.local', '.lithosharp'].includes(part));
+  };
+  const invalidateInput = (uri: vscode.Uri): void => {
+    for (const [key, root] of projectRoots) {
+      if (!isProjectInput(root, uri.fsPath)) continue;
+      staleContexts.add(key);
+      projectAcquisitions.set(key, (projectAcquisitions.get(key) ?? 0) + 1);
+      if (projectContexts.delete(key)) lsp?.sendProjectContext(key, [], null);
+    }
+    renderStatus();
+  };
   const previews = new PreviewManager(
     {
       createPanel: (title) => {
@@ -227,9 +284,15 @@ export function activate(context: vscode.ExtensionContext): void {
     // Settings/workspace changes withdraw acquired ownership immediately. A
     // build/inspect begun before this refresh cannot restore a stale context.
     projectContextEpoch++;
+    const refreshEpoch = projectContextEpoch;
+    operations.clear();
+    staleContexts.clear();
+    projectRoots.clear();
     capabilityProbe?.abort();
     capabilityProbe = undefined;
     for (const key of projectContexts.keys()) lsp?.sendProjectContext(key, [], null);
+    // Advance the publication epoch even when no project snapshot was acquired.
+    lsp?.sendProjectContext('editor-selection', [], null);
     projectContexts.clear();
     const folders = vscode.workspace.workspaceFolders ?? [];
     const trusted = vscode.workspace.isTrusted;
@@ -240,6 +303,8 @@ export function activate(context: vscode.ExtensionContext): void {
       for (const folder of folders) {
         found.push(...(await findProjectCandidates(folder.uri.fsPath, folder.name)));
       }
+      if (disposed || refreshEpoch !== projectContextEpoch) return;
+      for (const candidate of found) projectRoots.set(keyOf(candidate), nodePath.dirname(candidate.projectPath));
       const saved = vscode.workspace.getConfiguration('lithosharp').get<string>('projectPath', '');
       const selected = found.find((candidate) => candidate.projectPath === saved);
       if (selected) {
@@ -250,6 +315,7 @@ export function activate(context: vscode.ExtensionContext): void {
           projectDir: selected.workspaceFolder,
           envPath: process.env['PATH'] ?? '',
         });
+        if (disposed || refreshEpoch !== projectContextEpoch) return;
         if (resolved.kind === 'missing') {
           state.current = { kind: 'missing-cli', reason: resolved.reason };
           output.appendLine(`CLI: ${resolved.reason}`);
@@ -267,8 +333,7 @@ export function activate(context: vscode.ExtensionContext): void {
         state.current = found.length === 0 ? { kind: 'none', candidates: 0 } : { kind: 'ambiguous', candidates: found.length };
       }
     }
-    status.text = statusText(state.current);
-    status.show();
+    renderStatus();
   };
 
   const currentSelection = async (): Promise<ProjectCandidate | undefined> => {
@@ -279,13 +344,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const saved = vscode.workspace.getConfiguration('lithosharp').get<string>('projectPath', '');
     const selected = found.find((candidate) => candidate.projectPath === saved);
-    if (selected) {
-      return selected;
-    }
-    if (found.length === 1) {
-      return found[0];
-    }
-    return undefined;
+    const result = selected ?? (found.length === 1 ? found[0] : undefined);
+    if (result) projectRoots.set(keyOf(result), nodePath.dirname(result.projectPath));
+    return result;
   };
 
   const cliFor = async (selected: ProjectCandidate): Promise<CliCommand> => {
@@ -445,17 +506,30 @@ export function activate(context: vscode.ExtensionContext): void {
   const updateProjectContext = (selected: ProjectCandidate, raw: unknown, epoch: number, ticket: number): void => {
     if (disposed || epoch !== projectContextEpoch || projectAcquisitions.get(keyOf(selected)) !== ticket) return;
     const key = keyOf(selected);
+    const root = nodePath.dirname(selected.projectPath);
+    if (vscode.workspace.textDocuments.some(document => document.uri.scheme === 'file' && document.isDirty
+      && isProjectInput(root, document.uri.fsPath))) {
+      staleContexts.add(key);
+      projectContexts.delete(key);
+      lsp?.sendProjectContext(key, [], null);
+      output.appendLine('Project context needs refresh because a project input has unsaved changes. Save it and rerun Build or Inspect; editor diagnostics remain syntax-only.');
+      renderStatus();
+      return;
+    }
     const generation = (projectGenerations.get(key) ?? 0) + 1;
     const context = createProjectContext(selected, raw, generation);
     if (!context) {
       projectContexts.delete(key);
       lsp?.sendProjectContext(key, [], null);
       output.appendLine('Project context was not acquired; editor diagnostics remain syntax-only.');
+      renderStatus();
       return;
     }
     projectGenerations.set(key, generation);
+    staleContexts.delete(key);
     projectContexts.set(key, context);
     lsp?.sendProjectContext(key, context.folders, context.snapshot);
+    renderStatus();
   };
 
   const realRunProbe = (): import('./buildRunner.js').RunProbe => ({
@@ -515,7 +589,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (signal) signal.removeEventListener('abort', onAbort);
         reject(error);
       });
-      child.once('close', (code) => {
+      child.once('close', (code, processSignal) => {
         void (async () => {
           if (signal) signal.removeEventListener('abort', onAbort);
           if (killTreeTask) await killTreeTask;
@@ -523,7 +597,7 @@ export function activate(context: vscode.ExtensionContext): void {
           stderr += stderrDecoder.end();
           resolve(overflow
             ? { exit: 1, stdout: '', stderr: 'CLI output exceeded the 16 MiB capture limit.' }
-            : { exit: code ?? 1, stdout, stderr });
+            : { exit: code ?? 1, stdout, stderr, signal: processSignal });
         })();
       });
       if (signal) {
@@ -541,6 +615,8 @@ export function activate(context: vscode.ExtensionContext): void {
       output.appendLine('LithoSharp: no project selected. Run LithoSharp: Select Project first.');
       return;
     }
+    if (disposed || contextEpoch !== projectContextEpoch) return;
+    const operation = beginOperation(selected, command);
     const ticket = command === 'check' ? undefined : beginProjectAcquisition(selected, contextEpoch);
     if (command !== 'check' && ticket === undefined) return;
     let result: import('./buildRunner.js').BuildResult;
@@ -549,27 +625,28 @@ export function activate(context: vscode.ExtensionContext): void {
       const runner = buildRunnerFor(selected, cli);
       result = await runner.run(command);
     } catch (error) {
+      finishOperation(selected, operation, { ok: false, outcome: 'execution-error', processExitCode: null, exitCode: 1,
+        diagnostics: [], diagnosticsText: null, error: String(error) }, contextEpoch);
       try {
         if (ticket !== undefined) updateProjectContext(selected, undefined, contextEpoch, ticket);
       } finally {
         throw error;
       }
     }
+    if (!finishOperation(selected, operation, result, contextEpoch)) return;
+    output.appendLine(operationSummary(operation));
     if (result.ok) {
       output.appendLine(`LithoSharp ${command} succeeded (exit ${result.exitCode}). Validation only; not a publish approval.`);
       if (ticket !== undefined) {
         updateProjectContext(selected, result.raw, contextEpoch, ticket);
       }
-      if (result.diagnosticsText) {
-        output.appendLine(result.diagnosticsText);
-      }
     } else {
       if (ticket !== undefined) updateProjectContext(selected, undefined, contextEpoch, ticket);
       output.appendLine(`LithoSharp ${command} failed: ${result.error}`);
-      if (result.diagnosticsText) {
-        output.appendLine(result.diagnosticsText);
-      }
     }
+    writeDiagnostics(result);
+    if (result.raw) output.appendLine(JSON.stringify(result.raw, null, 2));
+    output.appendLine(`Next: ${result.ok ? 'review the reported diagnostics and scope; run Build after further input changes' : 'review the diagnostics and error details, correct the input or CLI configuration, then rerun ' + command}.`);
   };
 
   const runPreflight = async (requestedMode?: unknown): Promise<void> => {
@@ -632,16 +709,20 @@ export function activate(context: vscode.ExtensionContext): void {
     if (supported && (document.isClosed || document.isDirty || document.version !== version)) {
       output.appendLine('Preflight cancelled because the active buffer changed during preparation. Save it and run preflight again.'); return;
     }
+    const operation = beginOperation(selected, 'preflight', supported ? `${selected.projectPath}; ${document.uri.fsPath}` : selected.projectPath);
     const result = await buildRunnerFor(selected, cli).run('preflight', args);
     if (disposed || epoch !== projectContextEpoch || !vscode.workspace.isTrusted) return;
-    output.appendLine(`Preflight ${chosen.mode}: ${result.ok ? 'no Error in the reported phase' : 'failed'} (exit ${result.exitCode}). Validation only; no render or publication authorization.`);
+    if (!finishOperation(selected, operation, result, epoch)) return;
+    output.appendLine(operationSummary(operation));
+    output.appendLine(`Preflight ${chosen.mode}: ${result.outcome} (exit ${result.exitCode}). Validation only; no render or publication authorization.`);
     if (result.ok) {
       output.appendLine(JSON.stringify(result.raw, null, 2));
     } else {
       output.appendLine(result.error);
       if (result.raw) output.appendLine(JSON.stringify(result.raw, null, 2));
-      if (result.diagnosticsText) output.appendLine(result.diagnosticsText);
     }
+    writeDiagnostics(result);
+    output.appendLine('Next: review the reported stage, coverage and deferred reasons; use Build for the configured site. Preflight does not check final generated HTML.');
     output.show(true);
   };
 
@@ -672,13 +753,10 @@ export function activate(context: vscode.ExtensionContext): void {
             url: event.event === 'startup' ? event.url : undefined,
           },
         );
-        const current = servers.get(key);
-        status.text = `LithoSharp: ${current ? current.getState() : 'Stopped'}${current?.url ? ` ${current.url}` : ''}`;
-        status.show();
+        renderStatus();
       },
       onState: (next) => {
-        status.text = `LithoSharp: ${next}${created.url ? ` ${created.url}` : ''}`;
-        status.show();
+        renderStatus();
       },
       onLog: (line) => output.appendLine(line),
     });
@@ -691,18 +769,23 @@ export function activate(context: vscode.ExtensionContext): void {
     const contextEpoch = projectContextEpoch;
     const ticket = beginProjectAcquisition(selected, contextEpoch);
     if (ticket === undefined) return [];
+    const operation = beginOperation(selected, 'inspect');
     let result: import('./buildRunner.js').BuildResult;
     try {
       const cli = await cliFor(selected);
       const runner = buildRunnerFor(selected, cli);
       result = await runner.run('inspect');
     } catch (error) {
+      finishOperation(selected, operation, { ok: false, outcome: 'execution-error', processExitCode: null, exitCode: 1,
+        diagnostics: [], diagnosticsText: null, error: String(error) }, contextEpoch);
       try {
         updateProjectContext(selected, undefined, contextEpoch, ticket);
       } finally {
         throw error;
       }
     }
+    if (!finishOperation(selected, operation, result, contextEpoch)) return [];
+    output.appendLine(operationSummary(operation));
     if (!result.ok) {
       updateProjectContext(selected, undefined, contextEpoch, ticket);
       return [];
@@ -739,6 +822,7 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const openPreviewForActiveEditor = async (): Promise<void> => {
+    const epoch = projectContextEpoch;
     requireTrusted(vscode.workspace.isTrusted, 'open the preview');
     const editor = vscode.window.activeTextEditor;
     if (!editor || (editor.document.languageId !== 'markdown' && editor.document.languageId !== 'mdx')) {
@@ -751,7 +835,9 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const key = keyOf(selected);
-    const controller = serverFor(selected, await cliFor(selected));
+    const cli = await cliFor(selected);
+    if (disposed || epoch !== projectContextEpoch) return;
+    const controller = serverFor(selected, cli);
     const owned = !controller.isServing() && !userStartedServers.has(key);
     if (!controller.isServing()) {
       controller.start();
@@ -823,10 +909,12 @@ export function activate(context: vscode.ExtensionContext): void {
         onAnalysisStatus: (uri, state, message, language) => {
           if (!disposed) output.appendLine(`${language === 'mdx' ? 'MDX' : 'Markdown'} analysis ${state}: ${uri}. ${message}`);
         },
+        onDocumentStatusChanged: () => renderStatus(),
         onState: (name) => {
           if (!disposed) output.appendLine(`Language server: ${name}.`);
           // Reconnect on the next editing request, never in an exit-triggered loop.
           if (name === 'stopped' && lsp === client) lsp = undefined;
+          renderStatus();
         },
       },
       {
@@ -845,7 +933,8 @@ export function activate(context: vscode.ExtensionContext): void {
                 adapted.message,
                 adapted.severity as vscode.DiagnosticSeverity,
               );
-              diagnostic.code = adapted.code;
+              diagnostic.code = typeof adapted.code === 'string' ? adapted.code
+                : { value: adapted.code.value, target: vscode.Uri.parse(adapted.code.target) };
               diagnostic.source = adapted.source;
               return diagnostic;
             }),
@@ -928,11 +1017,32 @@ export function activate(context: vscode.ExtensionContext): void {
     openExistingDocuments();
   };
 
+  const inputWatcher = vscode.workspace.createFileSystemWatcher('**/*.{md,mdx,cs,csproj,props,targets,yaml,yml}');
+
   context.subscriptions.push(
     { dispose: () => { disposed = true; capabilityProbe?.abort(); capabilityProbe = undefined; lsp?.stop(); lsp = undefined; } },
     output,
     status,
     diagnosticsCollection,
+    inputWatcher,
+    inputWatcher.onDidChange(invalidateInput),
+    inputWatcher.onDidCreate(invalidateInput),
+    inputWatcher.onDidDelete(invalidateInput),
+    vscode.window.onDidChangeActiveTextEditor(() => renderStatus()),
+    vscode.commands.registerCommand('lithosharp.showStatus', async () => {
+      output.appendLine(presentation().detail);
+      output.show(true);
+      const actions = [
+        { label: 'Inspect project', command: 'lithosharp.inspectSite' },
+        { label: 'Build project', command: 'lithosharp.build' },
+        { label: 'Preflight', command: 'lithosharp.preflight' },
+        { label: 'Restore MDX Worker', command: 'lithosharp.restoreWorker' },
+        { label: 'Restart Language Server', command: 'lithosharp.restartServer' },
+        { label: 'Select project', command: 'lithosharp.selectProject' },
+      ];
+      const action = await vscode.window.showQuickPick(actions, { placeHolder: 'Inspection details are in LithoSharp Output. Choose an explicit next action.' });
+      if (action) await vscode.commands.executeCommand(action.command);
+    }),
     vscode.commands.registerCommand('lithosharp.selectProject', async () => {
       const picked = await selectProjectHandler({
         isTrusted: vscode.workspace.isTrusted,
@@ -976,6 +1086,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       previews.onDocumentDirty(event.document.uri.fsPath, event.document.isDirty);
+      invalidateInput(event.document.uri);
       void ensureLsp().then((client) => {
         if (disposed || event.document.isClosed || !vscode.workspace.isTrusted) return;
         client?.didChange(event.document.uri.toString(), event.document.version, event.document.getText());
@@ -996,11 +1107,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidDeleteFiles((event) => {
       for (const uri of event.files) {
+        invalidateInput(uri);
         lsp?.forget(uri.toString());
       }
     }),
     vscode.workspace.onDidRenameFiles((event) => {
       for (const file of event.files) {
+        invalidateInput(file.oldUri);
+        invalidateInput(file.newUri);
         lsp?.forget(file.oldUri.toString());
       }
     }),
@@ -1094,8 +1208,7 @@ export function activate(context: vscode.ExtensionContext): void {
       previews.markServerUserOwned(key);
       const controller = serverFor(selected, await cliFor(selected));
       controller.start();
-      status.text = `LithoSharp: ${controller.getState()}`;
-      status.show();
+      renderStatus();
     }),
     vscode.commands.registerCommand('lithosharp.stopServer', async () => {
       requireTrusted(vscode.workspace.isTrusted, 'stop the server');

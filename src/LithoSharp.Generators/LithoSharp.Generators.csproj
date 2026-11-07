@@ -12,9 +12,9 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Generators</PackageId>
-    <Version>2.1.3</Version>
+    <Version>2.2.0</Version>
     <Authors>Htkym</Authors>
-    <Description>Static content binders, schemas, and typed references for LithoSharp.</Description>
+    <Description>Connect C# documentation schemas to generated binders, catalogs and typed references for LithoSharp.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

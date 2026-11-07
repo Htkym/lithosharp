@@ -4,7 +4,11 @@
 
 Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics and heading navigation.
 
+This guide describes the unreleased extension 0.4.0 and Core/Tool 2.2.0 candidates. The published stable Core/Tool line is 2.1.3. Use the matching candidate Tool and feed for a 2.2 site. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
+
 ## Install and get started
+
+To test the candidate, use a VSIX built from the corresponding source or a supplied candidate VSIX. The Marketplace instructions below install the published extension.
 
 Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) from the Marketplace, or run:
 
@@ -15,13 +19,11 @@ code --install-extension htkym.lithosharp
 Requirements:
 
 - VS Code `^1.139.0`.
-- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool 2.1.3. The SDK includes the required ASP.NET Core shared framework.
+- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool matching the site: the supplied 2.2 candidate for candidate sites, or published 2.1.3 for stable sites. The SDK includes the required ASP.NET Core shared framework.
 - Node.js 24.13.0 for MDX analysis. Markdown-only diagnostics do not require Node.js.
 
 Create a site using the [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md), open its folder in VS Code, and trust the workspace if you trust its code. Run `LithoSharp: Select Project`, then `LithoSharp: Build` and `LithoSharp: Open Preview`.
 For MDX diagnostics, also run `LithoSharp: Restore MDX Worker` to install the bundled worker's locked dependencies.
-
-This guide describes extension 0.3.0 and the 2.1.3 Core/tooling line. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
 
 ## Project selection and commands
 
@@ -29,7 +31,24 @@ This guide describes extension 0.3.0 and the 2.1.3 Core/tooling line. The extens
 - `LithoSharp: Select Project` selects a project explicitly. Multi-root workspaces keep selections per folder and distinguish projects with the same name.
 - `LithoSharp: Build` builds the site. `LithoSharp: Inspect Site` shows CLI inspection results.
 - `LithoSharp: Start Server` and `LithoSharp: Stop Server` control the selected project's development server. Each project has its own server; stopping one does not stop another project's processes.
-- The output channel and status bar show the selected CLI path and version.
+- The Output channel identifies the CLI. The status bar shows the selected project and short analysis, operation and serve states.
+
+## Inspection status and diagnostic help
+
+Click the status bar or run `LithoSharp: Show Inspection Status` to read details in Output and choose an existing explicit operation. The hover separates four facts:
+
+- Current document analysis: not analysed, pending, analysis complete, or unavailable, for its current Markdown/MDX version. Analysis complete does not mean zero diagnostics or publication readiness.
+- Project information: not acquired, acquired, or needs refresh, with the document's reported resolution state and applied context identity. Inspect or Build acquires a context. Its acquisition time does not establish that all inputs are current.
+- Schema inspection scope: built-in binding supported, custom types checked with Build, or unknown. Scope is reported by the actual inspection path. A schema name alone proves neither binding support nor binding success; MDX does not inherit Markdown binding scope.
+- Last explicit operation: command, target, time and outcome. Build success means Build succeeded, not that Quality was enabled or ran. Preflight retains its reported stage, Partial coverage and deferred reasons.
+
+Edits, close/reopen, rename, project selection and server replacement invalidate old document status. Detected changes to project inputs mark the context as needing refresh and withdraw it from live inspection. Only detected changes are covered; unmonitored inputs are not guaranteed current. The extension does not execute a factory or build merely to refresh the display.
+
+While a project input is unsaved, a successful disk-based Build or Inspect does not acquire a context and the status shows needs-refresh, including on the first operation. Any previous context is withdrawn from live inspection. Save the input and rerun the operation to acquire a context; the extension does not save buffers automatically.
+
+CLI responses must use the supported schema major and valid required fields. Process exit, envelope `success` and `exitCode` must agree. Failed, cancelled, invalid, unsupported and contradictory responses remain distinct; usable diagnostics and the original structured details stay in Output. Late operation results do not replace another selected project's status.
+
+Registered Problems codes open the [diagnostic reference](https://github.com/Htkym/lithosharp/blob/main/docs/diagnostics.md), which explains the detection stage, edit target and remaining checks. Unknown codes remain plain codes. Generator and Analyzer diagnostics stay with their existing host and are not copied into this extension's collection.
 
 ## Preflight and capability reporting
 
@@ -68,7 +87,7 @@ Project detection works in untrusted workspaces. Building, serving, language-ser
 
 - Missing diagnostics: check the LithoSharp output channel, workspace trust, and the .NET 10 runtime on PATH. Use `LithoSharp: Restart Language Server` after changing server or worker settings.
 - MDX diagnostics unavailable: check Node.js 24.13.0 and run `LithoSharp: Restore MDX Worker`. Markdown diagnostics work without that restore.
-- Build or server unavailable: install LithoSharp.Tool 2.1.3 and the .NET 10 SDK, then check the selected project and CLI path in the output channel.
+- Site build or serving unavailable: install the .NET 10 SDK and the Tool matching the site, then check the selected project and CLI path in the output channel.
 - Preview unavailable: build the document and check its route, draft status and server output.
 
 See [known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md) for Markdown compatibility, execution boundaries and long-running stability coverage.

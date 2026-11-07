@@ -10,6 +10,7 @@ internal static class ContentCollectionBuildPlanAdapter
 {
     internal static IReadOnlyList<BuildNode> Create(
         IReadOnlyList<IntegratedContentPage> pages,
+        IReadOnlyList<SiteExtraPage> extraPages,
         SiteSettings site,
         SiteText text,
         SiteThemeOptions theme,
@@ -22,7 +23,7 @@ internal static class ContentCollectionBuildPlanAdapter
     {
         var nodes = new List<BuildNode>(pages.Count * (hasSocialImage ? 2 : 1));
         var navigationValue = Json(pages
-            .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
+            .Where(page => !page.IsUnlisted && page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
             .Select(page => new
             {
                 Collection = page.CollectionId.Value,
@@ -30,9 +31,14 @@ internal static class ContentCollectionBuildPlanAdapter
                 page.Route.PublicPath,
                 page.Route.RelativeOutputPath,
                 page.Metadata.Title,
+                page.SourcePath,
+                Docs = page.Docs?.Presentation,
                 Layout = page.LayoutId?.Value,
             }));
         navigationValue = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(navigationValue)));
+        var extraNavigationValue = Json(extraPages
+            .Where(extra => !string.IsNullOrWhiteSpace(extra.NavLabel))
+            .Select(extra => new { extra.NavLabel, extra.NavCssClass, Route = routes.ExtraPage(extra).PublicPath }));
 
         foreach (var page in pages)
         {
@@ -47,6 +53,7 @@ internal static class ContentCollectionBuildPlanAdapter
                 hasFaviconAssets,
                 hasSocialImage,
                 navigationValue);
+            inputs = inputs.Append(BuildInput.FromConfiguration("content.extraNavigation", extraNavigationValue));
             nodes.Add(new BuildNode(
                 nodeId,
                 inputs,
@@ -165,6 +172,8 @@ internal static class ContentCollectionBuildPlanAdapter
         yield return BuildInput.FromValue("content.metadata", Json(page.Metadata));
         yield return BuildInput.FromValue("content.layout", page.LayoutId?.Value ?? string.Empty);
         yield return BuildInput.FromValue("content.renderer", page.RendererFingerprint ?? string.Empty);
+        if (page.Docs is not null)
+            yield return BuildInput.FromValue("content.docs", Json(page.Docs.Presentation));
         yield return BuildInput.FromValue(
             "content.derivedSurfaces",
             ((int)page.DerivedSurfaces).ToString(CultureInfo.InvariantCulture));

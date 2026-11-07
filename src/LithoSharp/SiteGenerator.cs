@@ -122,6 +122,8 @@ public sealed partial class SiteGenerator
         internal BuildHtmlFacts? HtmlFacts { get; init; }
         internal SiteFooterOptions? Footer { get; init; }
         internal DocsSiteTemplate? DocsTemplate { get; init; }
+        internal System.Collections.Concurrent.ConcurrentDictionary<(string Collection, string? Version, string? Locale), Lazy<TypedDocsSnapshot>> TypedDocsNavigation { get; } = new();
+        internal System.Collections.Concurrent.ConcurrentDictionary<SiteTemplateNavigationNode, Lazy<DocsPresentationNode>> DocsPresentationNavigation { get; } = new(ReferenceEqualityComparer.Instance);
     }
 
     private sealed record PageClaim<TContent>(
@@ -487,6 +489,7 @@ public sealed partial class SiteGenerator
                 customization.GenerateLlmsTxt);
         var collectionNodes = ContentCollectionBuildPlanAdapter.Create(
             contentPages,
+            publishedExtraPages,
             site,
             customization.Text,
             customization.Theme,
@@ -1719,6 +1722,7 @@ public sealed partial class SiteGenerator
         SiteTemplateNavigationNode root,
         IReadOnlyList<MarkdownPost> orderedPosts, bool enableSearch = false)
     {
+        var presentationRoot = BuildDocsPresentationNavigation(configuration, root);
         var body = new StringBuilder();
         body.AppendLine(configuration.DocsTemplate?.CompactHome == true
             ? "<section class=\"docs-hero docs-hero-compact\">"
@@ -1728,15 +1732,15 @@ public sealed partial class SiteGenerator
         body.AppendLine($"<p>{Html.Encode(configuration.Site.Description)}</p>");
         if (enableSearch)
             body.AppendLine($"<p><a href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchPage))}\">{Html.Encode(configuration.Text.SearchHeading)}</a></p>");
-        if (orderedPosts.Count > 0 && configuration.DocsTemplate?.ShowStartLink != false)
+        var firstPageUrl = FlattenDocsPresentation(presentationRoot).FirstOrDefault()?.Url;
+        if (firstPageUrl is not null && configuration.DocsTemplate?.ShowStartLink != false)
         {
-            var first = orderedPosts[0];
-            body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(configuration.Routes.PublicPath(configuration.Routes.Post(first)))}\">Start reading</a></p>");
+            body.AppendLine($"<p><a class=\"docs-primary-link\" href=\"{Html.Encode(firstPageUrl)}\">Start reading</a></p>");
         }
 
         body.AppendLine("</section>");
         if (configuration.DocsTemplate?.ShowTopicCards == true)
-            body.AppendLine(DocsTopicCardsComponent.RenderCore(root));
+            body.AppendLine(DocsTopicCardsComponent.RenderCore(presentationRoot));
         return DocsLayout(configuration, root, configuration.Site.Title, body.ToString(), "index.html", "index.html", null);
     }
 
@@ -1787,17 +1791,12 @@ public sealed partial class SiteGenerator
         SiteTemplateNavigationNode root,
         string? currentPagePath)
     {
-        var links = configuration.ExtraPages
-            .Where(page => !string.IsNullOrWhiteSpace(page.NavLabel))
-            .Select(page => (page.NavLabel!, configuration.Routes.PublicPath(configuration.Routes.ExtraPage(page)), false))
-            .Concat(configuration.ContentPages
-                .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation)
-                    && !string.IsNullOrWhiteSpace(page.Metadata.Title))
-                .Select(page => (page.Metadata.Title!, configuration.Routes.PublicPath(page.Route), false)));
+        var links = DocsAdditionalLinks(configuration);
         var currentUrl = string.IsNullOrWhiteSpace(currentPagePath)
             ? null
             : configuration.Routes.PublicPath(configuration.Routes.File(currentPagePath));
-        return DocsNavigationComponent.RenderCore(root, links, currentUrl, configuration.DocsTemplate?.CollapseTopics == true);
+        return DocsNavigationComponent.RenderCore(BuildDocsPresentationNavigation(configuration, root), links,
+            currentUrl, configuration.DocsTemplate?.CollapseTopics == true);
     }
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
         Layout(configuration, page.Title, page.BodyHtml, page.RelativePath);

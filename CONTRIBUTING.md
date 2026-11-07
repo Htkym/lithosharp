@@ -43,7 +43,12 @@ Keep these two documentation images, not the generated sites, in version control
 
 - **Local working files.** Keep plans, audit notes, measurement results and agent
   artifacts under the ignored `.local/` directory. Commit reusable tests and
-  benchmark tools, not their execution records or generated output.
+  benchmark tools, not their ordinary execution records or generated output.
+  Curated published performance reference baselines may live under
+  `docs/evidence/performance/` so public claims remain traceable. Include the raw
+  numeric observations, aggregates, exact product/harness/corpus identities,
+  conditions and limitations. Exclude personal paths, private information and
+  full logs; keep ordinary logs, generated corpora and sites under `.local/`.
 - **Lock files.** `RestorePackagesWithLockFile` is enabled. When you change a
   dependency, restore and commit the updated `packages.lock.json` files.
 - **EditorConfig.** Formatting is defined in [`.editorconfig`](.editorconfig)

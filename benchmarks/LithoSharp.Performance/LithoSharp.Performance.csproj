@@ -11,6 +11,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LithoSharp\LithoSharp.csproj" />
+    <Compile Include="../../eng/performance/BenchmarkIdentity.cs" Link="BenchmarkIdentity.cs" />
   </ItemGroup>
+
+  <PropertyGroup Condition="'$(EnableTypedDocsBenchmark)' == 'true'">
+    <DefineConstants>$(DefineConstants);TYPED_DOCS_BENCHMARK</DefineConstants>
+  </PropertyGroup>
 
 </Project>

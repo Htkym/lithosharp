@@ -119,6 +119,26 @@ test('activate wires disposables and deactivate cleans up', async () => {
   }
 });
 
+test('inspection status exposes four axes and routes only an explicitly selected next command', async () => {
+  const fake = createFakeVscode();
+  const { activate } = loadExtension(fake);
+  const subscriptions: { dispose(): void }[] = [];
+  activate({ subscriptions } as never);
+  let builds = 0;
+  fake.commands.set('lithosharp.build', async () => { builds++; });
+  fake.pickedIndex = 1;
+  try {
+    await fake.commands.get('lithosharp.showStatus')!();
+    assert.equal(builds, 1);
+    const detail = fake.lines.find(line => line.includes('Project information:'))!;
+    assert.match(detail, /Document analysis: not analysed/);
+    assert.match(detail, /Inspection scope unknown/);
+    assert.match(detail, /Explicit operation: not run/);
+  } finally {
+    for (const subscription of subscriptions) subscription.dispose();
+  }
+});
+
 test('untrusted build and serve commands never execute', async () => {
   const fake = createFakeVscode();
   fake.isTrusted = false;
@@ -164,14 +184,14 @@ async function delayedActivation(options: { nodeExecutable?: string; initializeE
     fake.window.createOutputChannel = (name) => {
       const channel = create(name);
       let closed = false;
-      return { appendLine: (line) => { if (closed) throw new Error('Channel has been closed'); channel.appendLine(line); },
+      return { show() {}, appendLine: (line) => { if (closed) throw new Error('Channel has been closed'); channel.appendLine(line); },
         dispose: () => { closed = true; channel.dispose(); } };
     };
   }
   fake.settings['languageServerPath'] = '/first-language-server';
   if (options.nodeExecutable !== undefined) fake.settings['nodeExecutable'] = options.nodeExecutable;
-  const document = { uri: { fsPath: '/note.md', toString: () => 'file:///note.md' },
-    languageId: 'markdown', version: 1, isClosed: false, getText: () => '# Heading\n' };
+  const document = { uri: { scheme: 'file', fsPath: '/note.md', toString: () => 'file:///note.md' },
+    languageId: 'markdown', version: 1, isDirty: false, isClosed: false, getText: () => '# Heading\n' };
   fake.workspaceApi.textDocuments.push(document);
   let closeDocument: (value: typeof document) => void = () => {};
   let changeDocument: (event: { document: typeof document }) => void = () => {};
@@ -269,6 +289,7 @@ async function delayedActivation(options: { nodeExecutable?: string; initializeE
   }
   return { fake, document, spawns, release, provider: provider!, diagnosticSets,
     edit: () => { document.version++; changeDocument({ document }); },
+    editDocument: (value: typeof document) => { changeDocument({ document: value }); },
     open: () => { openDocument(document); },
     save: () => { saveDocument(document); },
     dispose: () => { for (const item of subscriptions) item.dispose(); },
@@ -514,6 +535,117 @@ async function waitForPreflight(probe: () => boolean | Promise<boolean>): Promis
   }
 }
 
+test('late commands cannot cross project selection and detected input changes invalidate acquired context', async () => {
+  const fake = createFakeVscode();
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-status-'));
+  const a = path.join(root, 'a.csproj'); const b = path.join(root, 'b.csproj');
+  const receipt = path.join(root, 'started'); const release = path.join(root, 'release'); const script = path.join(root, 'cli.cjs');
+  await Promise.all([a, b].map(file => fs.promises.writeFile(file, '<Project><ItemGroup><PackageReference Include="LithoSharp" Version="2.1.3" /></ItemGroup></Project>')));
+  await fs.promises.writeFile(script, `const fs=require('node:fs');const args=process.argv.slice(2);const project=args[1];
+const finish=()=>console.log(JSON.stringify({schemaVersion:'1.1',success:true,exitCode:0,diagnostics:[],projectCoreVersion:'2.2.0',
+buildPlan:[{inputs:[{key:'content.sourcePath',value:'intro.md'},{key:'content.schema',value:'document'}],artifacts:[{path:'intro.html',publicPath:'/intro.html'}]}]}));
+if(project===${JSON.stringify(a)}){fs.writeFileSync(${JSON.stringify(receipt)},'started');const timer=setInterval(()=>{if(fs.existsSync(${JSON.stringify(release)})){clearInterval(timer);finish();}},20);}else finish();`);
+  fake.folders = [folder(root, 'docs')]; fake.settings['cliPath'] = process.execPath; fake.settings['projectPath'] = a;
+  const native = require('node:child_process') as { spawn: typeof childProcess.spawn }; const originalSpawn = native.spawn;
+  let changed: ((uri: unknown) => void) | undefined;
+  (fake.workspaceApi as unknown as Record<string, unknown>)['createFileSystemWatcher'] = () => ({ dispose() {},
+    onDidChange: (callback: typeof changed) => { changed = callback; return { dispose() {} }; },
+    onDidCreate: () => ({ dispose() {} }), onDidDelete: () => ({ dispose() {} }) });
+  const subscriptions: { dispose(): void }[] = [];
+  let pending: Promise<unknown> | undefined;
+  try {
+    native.spawn = ((command: string, args: string[], options: childProcess.SpawnOptions) =>
+      originalSpawn(command, command === process.execPath ? [script, ...args] : args, options)) as typeof childProcess.spawn;
+    loadExtension(fake).activate({ subscriptions } as never);
+    await waitForPreflight(() => fake.statusText.some(text => text.includes('LithoSharp: a')));
+    pending = fake.commands.get('lithosharp.build')!();
+    await waitForPreflight(() => fs.promises.access(receipt).then(() => true, () => false));
+    fake.settings['projectPath'] = b;
+    fake.configListeners[0]!({ affectsConfiguration: section => section === 'lithosharp' });
+    await waitForPreflight(() => fake.statusText.at(-1)?.includes('LithoSharp: b') === true);
+    await fake.commands.get('lithosharp.inspectSite')!();
+    assert.match(fake.statusText.at(-1)!, /LithoSharp: b.*inspect succeeded/);
+    await fs.promises.writeFile(release, 'continue'); await pending;
+    assert.match(fake.statusText.at(-1)!, /LithoSharp: b.*inspect succeeded/);
+    assert.ok(!fake.lines.some(line => line.startsWith('build: succeeded; target ' + a)));
+    changed?.({ fsPath: path.join(root, 'intro.md') });
+    assert.match(fake.statusText.at(-1)!, /context needs refresh.*inspect succeeded/);
+  } finally {
+    await fs.promises.writeFile(release, 'continue');
+    await pending?.catch(() => {});
+    for (const subscription of subscriptions) subscription.dispose();
+    native.spawn = originalSpawn;
+  }
+});
+
+test('a .local ancestor does not hide unsaved project inputs or allow disk context adoption', async () => {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lithosharp-dirty-context-'));
+  const projectRoot = path.join(root, '.local', 'project');
+  await fs.promises.mkdir(projectRoot, { recursive: true });
+  const project = path.join(projectRoot, 'site.csproj');
+  const schemaFile = path.join(projectRoot, 'Schema.cs');
+  const script = path.join(root, 'cli.cjs');
+  await fs.promises.writeFile(project, '<Project><ItemGroup><PackageReference Include="LithoSharp" Version="2.2.0" /></ItemGroup></Project>');
+  await fs.promises.writeFile(schemaFile, 'document');
+  await fs.promises.writeFile(script, `const fs=require('node:fs');console.log(JSON.stringify({schemaVersion:'1.1',success:true,exitCode:0,diagnostics:[],projectCoreVersion:'2.2.0',
+buildPlan:[{inputs:[{key:'content.sourcePath',value:'intro.md'},{key:'content.schema',value:fs.readFileSync(${JSON.stringify(schemaFile)},'utf8')}],artifacts:[{path:'intro.html',publicPath:'/intro.html'}]}]}));`);
+  const host = await delayedActivation();
+  const makeDocument = (file: string, dirty: boolean) => ({ uri: { scheme: 'file', fsPath: file,
+    toString: () => host.fake.Uri.file(file).toString() }, languageId: 'csharp', version: 1,
+    isDirty: dirty, isClosed: false, getText: () => 'custom' });
+  let schemaText = 'custom';
+  const schema = makeDocument(schemaFile, true);
+  schema.getText = () => schemaText;
+  host.fake.workspaceApi.textDocuments.push(schema,
+    makeDocument(path.join(root, 'Unrelated.cs'), true), makeDocument(path.join(projectRoot, '.local', 'Generated.cs'), true));
+  const native = require('node:child_process') as { spawn: typeof childProcess.spawn };
+  const originalSpawn = native.spawn;
+  const snapshots = () => host.spawns.flatMap(spawn => spawn.messages)
+    .filter(message => message.method === 'lithosharp/projectContext')
+    .map(message => (message.params as unknown as { snapshot: { schema: string } | null }).snapshot);
+  try {
+    native.spawn = ((command: string, args: string[], options: childProcess.SpawnOptions) =>
+      originalSpawn(command, command === process.execPath ? [script, ...args] : args, options)) as typeof childProcess.spawn;
+    host.fake.folders = [folder(projectRoot, 'site')];
+    host.fake.settings['cliPath'] = process.execPath;
+    host.fake.settings['projectPath'] = project;
+    host.fake.configListeners[0]!({ affectsConfiguration: section => section === 'lithosharp' });
+    host.release();
+    await waitForPreflight(() => host.fake.statusText.at(-1)?.includes('LithoSharp: site') === true && host.spawns.length === 1);
+    await host.fake.commands.get('lithosharp.inspectSite')!();
+    assert.match(host.fake.statusText.at(-1)!, /context needs refresh.*inspect succeeded/);
+    assert.equal(snapshots().filter(snapshot => snapshot !== null).length, 0,
+      'A dirty input must block the initial context acquisition as well as replacement.');
+    assert.equal(snapshots().at(-1), null);
+    schemaText = 'document';
+    schema.isDirty = false;
+    await host.fake.commands.get('lithosharp.inspectSite')!();
+    assert.equal(snapshots().at(-1)?.schema, 'document', 'Unrelated and excluded dirty files must not block acquisition.');
+    schemaText = 'custom';
+    schema.isDirty = true;
+    schema.version++;
+    host.editDocument(schema);
+    assert.equal(snapshots().at(-1), null);
+    for (const [command, outcome] of [['lithosharp.inspectSite', 'inspect'], ['lithosharp.build', 'build']] as const) {
+      await host.fake.commands.get(command)!();
+      assert.match(host.fake.statusText.at(-1)!, new RegExp(`context needs refresh.*${outcome} succeeded`));
+      assert.equal(snapshots().filter(snapshot => snapshot !== null).length, 1,
+        'Successful disk commands must not apply the saved schema over the unsaved input.');
+      assert.equal(snapshots().at(-1), null);
+      assert.equal(schema.isDirty, true, 'The command must not auto-save the buffer.');
+    }
+    assert.ok(host.fake.lines.some(line => line.includes('project input has unsaved changes')));
+    await fs.promises.writeFile(schemaFile, schema.getText());
+    schema.isDirty = false;
+    await host.fake.commands.get('lithosharp.inspectSite')!();
+    assert.equal(snapshots().at(-1)?.schema, 'custom');
+    assert.ok(!host.fake.statusText.at(-1)!.includes('context needs refresh'));
+  } finally {
+    native.spawn = originalSpawn;
+    host.cleanup();
+  }
+});
+
 test('MDX preflight forwards the configured Node executable as one CLI argument', async () => {
   const fake = createFakeVscode();
   fake.folders = [folder(fixturePath('single'), 'single')];
@@ -523,8 +655,8 @@ test('MDX preflight forwards the configured Node executable as one CLI argument'
   const input = path.join(dir, 'saved.mdx'); const receipt = path.join(dir, 'args.json'); const script = path.join(dir, 'cli.cjs');
   await fs.promises.writeFile(input, '# Saved MDX\n');
   await fs.promises.writeFile(script, `const fs=require('node:fs');const args=process.argv.slice(2);
-if(args[0]==='capabilities') console.log(JSON.stringify({schemaVersion:'1.0',success:true,capabilities:[{name:'preflight-static-inputs',schemaVersion:'1.0',maturity:'Preview'}]}));
-else {fs.writeFileSync(${JSON.stringify(receipt)},JSON.stringify(args));console.log(JSON.stringify({schemaVersion:'1.0',success:true,exitCode:0}));}`);
+if(args[0]==='capabilities') console.log(JSON.stringify({schemaVersion:'1.0',success:true,exitCode:0,capabilities:[{name:'preflight-static-inputs',schemaVersion:'1.0',maturity:'Preview'}]}));
+else {fs.writeFileSync(${JSON.stringify(receipt)},JSON.stringify(args));console.log(JSON.stringify({schemaVersion:'1.0',success:true,exitCode:0,diagnostics:[]}));}`);
   (fake.window as unknown as Record<string, unknown>)['activeTextEditor'] = { document: {
     uri: { scheme: 'file', fsPath: input, toString: () => 'file://' + input }, languageId: 'mdx', version: 1, isDirty: false, isClosed: false,
   } };
@@ -567,7 +699,7 @@ child.once('spawn',()=>fs.writeFileSync(process.argv[2],JSON.stringify({root:pro
   const subscriptions: { dispose(): void }[] = []; const pending: Promise<unknown>[] = [];
   fake.window.createOutputChannel = () => ({ appendLine: line => {
     assert.equal(outputDisposed, false, 'Cancelled probes must not write after disposal.'); fake.lines.push(line);
-  }, dispose: () => { outputDisposed = true; } });
+  }, show() {}, dispose: () => { outputDisposed = true; } });
   const exists = (file: string) => fs.promises.access(file).then(() => true, () => false);
   const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch { return false; } };
   async function start(): Promise<{ promise: Promise<unknown>; root: number; child: number }> {

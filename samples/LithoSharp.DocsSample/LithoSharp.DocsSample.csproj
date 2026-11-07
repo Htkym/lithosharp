@@ -30,10 +30,10 @@
     <Content Include="../../src/LithoSharp/icon.png" Link="image-source.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="public/**/*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="typed-content\**\*.md" CopyToOutputDirectory="PreserveNewest" />
-    <AdditionalFiles Include="typed-content\**\*.md">
+    <AdditionalFiles Include="typed-content/**/*.md" Exclude="typed-content/**/_*.md;typed-content/**/_*/**/*.md">
       <LithoSharpCollection>articles</LithoSharpCollection>
-      <LithoSharpId>%(Filename)%(Extension)</LithoSharpId>
-      <LithoSharpRoute>articles/%(Filename)/</LithoSharpRoute>
+      <LithoSharpId>$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\', '/'))</LithoSharpId>
+      <LithoSharpRoute>$([System.String]::Copy('articles/%(RecursiveDir)%(Filename)/').Replace('\', '/'))</LithoSharpRoute>
     </AdditionalFiles>
   </ItemGroup>
 
