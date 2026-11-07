@@ -7,7 +7,6 @@ LithoSharp.Testing.SiteTestDocument.AssertLink(string! href) -> void
 LithoSharp.Testing.SiteTestDocument.AssertMeta(string! name, string! expected, bool property = false) -> void
 LithoSharp.Testing.SiteTestDocument.AssertText(string! selector, string! expected) -> void
 LithoSharp.Testing.SiteTestDocument.Dispose() -> void
-LithoSharp.Testing.SiteTestDocument.Document.get -> AngleSharp.Dom.IDocument!
 LithoSharp.Testing.SiteTestDocument.Route.get -> LithoSharp.Routing.SiteRoute?
 LithoSharp.Testing.SiteTestException
 LithoSharp.Testing.SiteTestException.SiteTestException(string! message) -> void
@@ -30,3 +29,30 @@ static LithoSharp.Testing.SiteTestDocument.RenderComponent<T>(LithoSharp.ISiteCo
 static LithoSharp.Testing.SiteTestDocument.RenderLayout<T>(LithoSharp.IPageLayout<T>! layout, LithoSharp.Pages.SitePage<T>! page, LithoSharp.PageRenderingContext! context) -> LithoSharp.Testing.SiteTestDocument!
 static LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.ISiteFactory! factory, LithoSharp.SiteFactoryContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Testing.SiteTestHost!>!
 static LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.SiteDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Testing.SiteTestHost!>!
+LithoSharp.Testing.SiteTestDocument.Snapshot.get -> LithoSharp.Testing.HtmlTestDocument!
+LithoSharp.Testing.HtmlTestDocument
+LithoSharp.Testing.HtmlTestDocument.Title.get -> string!
+LithoSharp.Testing.HtmlTestDocument.TextContent.get -> string!
+LithoSharp.Testing.HtmlTestDocument.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestDocument.Query(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestDocument.QueryAll(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement
+LithoSharp.Testing.HtmlTestElement.TagName.get -> string!
+LithoSharp.Testing.HtmlTestElement.NamespaceUri.get -> string!
+LithoSharp.Testing.HtmlTestElement.TextContent.get -> string!
+LithoSharp.Testing.HtmlTestElement.Parent.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.Children.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement.TemplateContent.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlTestElement.PreviousSibling.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.NextSibling.get -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.SourceStart.get -> int?
+LithoSharp.Testing.HtmlTestElement.SourceLength.get -> int?
+LithoSharp.Testing.HtmlTestElement.Line.get -> int?
+LithoSharp.Testing.HtmlTestElement.Column.get -> int?
+LithoSharp.Testing.HtmlTestElement.GetAttribute(string! name, string? namespaceUri = null) -> string?
+LithoSharp.Testing.HtmlTestElement.Query(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Testing.HtmlTestElement?
+LithoSharp.Testing.HtmlTestElement.QueryAll(string! selector, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Testing.HtmlTestElement!>!
+LithoSharp.Testing.HtmlSelectorSyntaxException
+LithoSharp.Testing.HtmlSelectorSyntaxException.HtmlSelectorSyntaxException(string! message) -> void
+LithoSharp.Testing.HtmlSelectorUnsupportedException
+LithoSharp.Testing.HtmlSelectorUnsupportedException.HtmlSelectorUnsupportedException(string! message) -> void

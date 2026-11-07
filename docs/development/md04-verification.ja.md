@@ -1,5 +1,7 @@
 # MD-04のcompiler host接続準備とworkspace cache
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 基準SHAは00d18f770afc529949429ff4ab6b9e59432d870bです。BocchiはMD-03の全25ファイル差分を直接レビューし、合格としました。ZendiatorのStream51〜100測定とcleanupが終わった後、親が許可した枠でMD-04の限定検証を完了しました。所有build/test PID0を確認し、Bocchiの最終実差分レビューを待ちます。
 
 ## legacyとgenericの境界

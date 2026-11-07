@@ -2,6 +2,13 @@
 
 Declared responsive raster image transforms for LithoSharp (.NET 10).
 
+```sh
+dotnet add package LithoSharp.Images --version 2.1.3
+```
+
+Use matching Core and Images versions. Register the same `ImageAsset` declaration
+instances with generation and rendering so their declared outputs can be resolved.
+
 ```csharp
 using LithoSharp;
 using LithoSharp.Images;
@@ -34,3 +41,6 @@ Pass it to ImageAsset with an AVIF variant and a fallback. Tool bytes and settin
 are fingerprinted; changed tools are rejected even on cache hits. Recreate declarations
 after updates. No PATH discovery or downloads occur. See the official
 [avifenc manual](https://github.com/AOMediaCodec/libavif/blob/main/doc/avifenc.1.md).
+
+See [assets and images](https://github.com/Htkym/lithosharp/blob/main/docs/assets-and-images.md)
+for source roots, output paths, transform registration and cache restrictions.

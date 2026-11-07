@@ -28,6 +28,8 @@ var customization = new SiteCustomization
 };
 ```
 
+この設定を`ISiteFactory`が返す`SiteDefinition.Customization`に指定するか、`GenerateWithOptionsAsync`の`customization`へ渡します。テンプレートの設定は表示を変えるもので、ページの存在はcontent loader、C#スキーマ、ルート宣言で決まります。型付きコンテンツと検査付きの生成は[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md)を参照してください。
+
 サイト内のフッターリンクを作るときは、実際のベースURLを使い、リンク先のページも生成してください。
 フッターのテキストとリンクのラベルはエスケープされます。絶対URLには
 `SiteUrl.FromAbsolute`で検証したHTTPまたはHTTPSのURLを使います。ファイルやディレクトリへの
@@ -106,5 +108,5 @@ var sidebar = context.Render(new DocsNavigationComponent(),
 AngleSharpを使った生成後のHTML処理を削除する場合は、必要な注意書きとリンクを`Footer`へ移し、
 必要なDocsの機能を有効にしてください。削除するのはそのHTML処理と、その処理だけを検証していた
 テストです。ソースや本文の検査と、配布する出力の検査は残します。独自のHTML処理を残すサイトでは、
-その依存関係と検証も引き続き保守する必要があります。[2.0への移行案内](migration-2.0.ja.md)と
+その依存関係と検証も引き続き保守する必要があります。[更新手順](migration-2.0.ja.md)と
 [生成済み出力の検査](generated-output-checks.ja.md)も参照してください。

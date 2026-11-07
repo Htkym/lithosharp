@@ -63,6 +63,22 @@ JSON report keeps the existing fields and adds route-comparison scope and
 component-change classifications. A route match covers only the declared
 page set; it does not claim that the original site as a whole is equivalent.
 
+## Build and verify the converted content
+
+Conversion writes content and assets, not a compiled or checked distribution.
+Configure a trusted LithoSharp project and its `DocumentationSite` collections
+using the [MDX guide](mdx.md), map the converted variant directories to routes,
+and review every manual-action and unsupported entry in the report. Restore
+the MDX worker explicitly before building. No Docusaurus plugin or C# site
+factory is inferred and executed by migration.
+
+After building that project, run [`check-output`](generated-output-checks.md)
+with its actual output directory and published base URL. This checks the local
+HTML/CSS, links and anchors. It does not prove route equivalence with the source
+site, recreate missing interactions, or replace browser testing of components.
+Keep route-oracle comparison, generated-output checks and browser checks as
+separate evidence.
+
 ## Verdicts
 
 | Verdict | Meaning |

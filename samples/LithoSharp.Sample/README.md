@@ -1,5 +1,7 @@
 # LithoSharp Blog sample
 
+[日本語](README.ja.md)
+
 ![Generated sample site](../../docs/images/blog-dark.png)
 
 Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
@@ -11,12 +13,17 @@ works without any daily-update code.
 
 ## Run it
 
+Run from the repository root with the .NET 10 SDK (10.0.300 or a later supported
+feature band). No Node.js is required.
+
 ```powershell
 dotnet run --project samples/LithoSharp.Sample -- --output _site
 ```
 
 - `--output <dir>`: where the site is written (default: `./_site`).
 - `--content <dir>`: Markdown source folder (default: the bundled `content/` next to the app).
+- `--check`: inspect staged HTML, local links and anchors before publication.
+- `--redirect-demo`: add the checked `old-home.html` redirect.
 
 Open `_site/index.html` in a browser to view the result. This sample explicitly uses
 `BlogSiteTemplate`, with an editorial layout for listings, archives, tags, and posts.
@@ -31,8 +38,9 @@ preference with the header toggle.
   (social preview subtitle and opt-in `llms.txt`).
 - Explicit selection of `BlogSiteTemplate`.
 
-For the default documentation layout, see
-[`samples/LithoSharp.DocsSample`](../LithoSharp.DocsSample).
+For the default documentation layout and the full custom C# schema, generated
+reference, editor and output-check workflow, see the
+[Docs sample](../LithoSharp.DocsSample/README.md).
 
 Favicon and social-image assets are optional. When no favicon directory is supplied,
 LithoSharp skips those binaries and still produces a complete HTML site.
@@ -42,8 +50,16 @@ samples/LithoSharp.Sample -o artifacts/blog-cli` and the normal `dotnet run` ent
 point use the same definition. `--content`, `--output`, `--check`, and
 `--redirect-demo` remain available in the sample program.
 
-このサンプルは `BlogSampleFactory` を公開しています。CLI と通常の C# 実行が
-同じサイト定義を使い、既存のサンプル用オプションも利用できます。
+To inspect output that already exists, run from the repository root:
+
+```powershell
+dotnet run --project src/LithoSharp.Tool -- check-output --output _site --base-url https://example.com/ --format json
+```
+
+This reads the current files without rebuilding the site or proving source freshness.
+Use the base URL configured in the factory if you change it. The native Markdown
+path retains `lithosharp-markdown/1` with Syntamark 1.2.0; see
+[analysis limits](../../docs/known-limitations.md#markdown-compatibility).
 
 ## Testing
 

@@ -44,7 +44,7 @@ public sealed class MarkdownPartialRetentionTests
         await Assert.That(failure.Reason).IsEqualTo("output");
         await Assert.That(failure.RawSpan).IsNull();
         var diagnostic = MarkdownAnalysisAdapter.IncompleteDiagnostic(analysis, "docs/partial.md")!;
-        await Assert.That(diagnostic.Id).IsEqualTo("LSM011");
+        await Assert.That(diagnostic.Id).IsEqualTo("LSM013");
         await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("docs/partial.md");
         await Assert.That(diagnostic.Location.Line).IsNull();

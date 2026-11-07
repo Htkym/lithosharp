@@ -2,6 +2,12 @@
 
 This project measures deterministic Blog-template workloads from a Markdown corpus. It is separate from the unit-test project and uses the fixed `SiteGenerationOptions.BuildTimestamp` value `2026-01-01T00:00:00+00:00`.
 
+This is a reproducible harness, not a current-release speed claim. The retained
+[performance tables](../../docs/performance.md) are historical. Record the exact
+LithoSharp commit, Syntamark runtime/Source pair and environment for every new
+comparison. The current pair is 1.2.0 and the default profile remains
+`lithosharp-markdown/1`.
+
 C00 baseline: site/pipeline workloads and engine micro-benchmarks are measured
 separately. Render-only never includes parsing. The engine fixed corpora are
 `paragraph-heavy`, `heading-heavy`, `nested-list`, `link-heavy`, `code-heavy`,
@@ -64,11 +70,13 @@ dotnet run --project benchmarks/LithoSharp.Performance --configuration Release -
 
 `--size` accepts `100`, `1000`, or `10000`. Large baselines are manual; normal CI runs only the 100-page smoke. The output is JSON containing the corpus details, workload measurements, and runtime/environment metadata. The generated corpus and site are placed next to the result file under `corpus-{size}` and `site-{size}`.
 
-Run the engine micro-benchmarks (parse-only, render-only, parse+render, analyze):
+Run the engine micro-benchmarks (parse-only, render-only, parse+render, analyze)
+after a Release build. The paths below are example local evidence directories,
+not claims that the run measures the historical 1.0.0 revision:
 
 ```powershell
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode engine --warmup 1 --iterations 5 --engine-output .local/verification/1.0.0/engine-100-run-01.json
-dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode all --output .local/verification/1.0.0/baseline-100-run-01.json --engine-output .local/verification/1.0.0/engine-100-run-01.json
+dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode engine --warmup 1 --iterations 5 --engine-output .local/verification/current/engine-100-run-01.json
+dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --mode all --output .local/verification/current/baseline-100-run-01.json --engine-output .local/verification/current/engine-100-run-01.json
 ```
 
 `--mode` accepts `site` (default), `engine`, or `all`. `--warmup` sets unrecorded
@@ -92,8 +100,8 @@ a process, not across processes.
   C13; the last side-by-side comparison is `c12-engine.json` at the old
   commit, and the explicit comparison project can regenerate it. Link new-tab
   attributes and asset dependencies need site context and are covered by site
-  workloads only. The supported scope renders identically to the last
-  reference run; `nested-list` (`a.` markers, U14), `admonition`
+  workloads only. Historical agreement with the last reference run is not a
+  fresh conformance result for a new dependency pair. `nested-list` (`a.` markers, U14), `admonition`
   (alerts/containers, U05/U06), and `docusaurus-doc` (containers, U06)
   intentionally diverge.
 - `GenerationPeakWorkingSetBytes` is the maximum sampled working set during clean
@@ -109,5 +117,10 @@ Working-set sampling starts immediately after forced GC and immediately before `
 
 Each workload passes the immediately preceding workload's `SiteGenerationResult.BuildPlan` as `PreviousBuildPlan`: clean → no-op → single-page-change → layout-change. This keeps each invalidation count attributable to only the mutation introduced by that workload.
 
-The first baseline pass records comparison data only. It does not enforce the planned 10% regression threshold; timing and working-set values are intentionally not used as pass/fail criteria. Candidate regression thresholds from C00 variance are recorded in the implementation instruction (C05 record); final confirmation happens in R19. Do not treat the exploration target in the plan as achieved.
+The harness records comparison data only. It does not enforce a 10% regression
+threshold; timing and working-set values are intentionally not pass/fail criteria.
+C00/C05/R19 labels describe historical development checkpoints, not an outstanding
+promise that the current release met those targets. Keep dependency-only controls
+separate from consumer-code changes, and do not infer baseline recovery without
+rerunning that baseline under the same measurement conditions.
 

@@ -1,5 +1,7 @@
 # MD-02の実装と確認記録
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 共通Markdownの新しいparse-only entryとimmutable factsを実装しました。初回MD-02のSHA `41f80208cd7256421f84dcb927a7d34308704a91`は対象のbuild/canaryに成功しましたが、Bocchiの全25ファイルの実diffレビューで3点の修正を求められました。同SHAを基準に修正し、現revisionの両TFM buildとcanary build/runも成功しました。以前のPASSは基準SHAへ限定し、今回の確認と分けて記録しています。MD-03へは進みません。
 
 ## 実装の範囲

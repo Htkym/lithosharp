@@ -9,6 +9,12 @@ Use the commands according to the artifact you want to check:
 | `check [project]` | A freshly generated temporary site | Compiles the project, runs the factory, generates, and validates. |
 | `check-output --output <directory> --base-url <url>` | The existing distribution directory | Reads current files and validates them without generation. |
 
+Use this after the C# schema, typed-reference and content-loading stages; those
+stages cannot prove what a custom layout or later file edit actually emitted.
+The [Docs sample](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output)
+shows a normal checked build and a separate broken-output fixture that produces
+`LSQ001`. The [site-quality guide](site-quality.md) lists the diagnostic rules.
+
 ```powershell
 lithosharp check-output --output dist --base-url https://example.com/guide/ --format json
 ```

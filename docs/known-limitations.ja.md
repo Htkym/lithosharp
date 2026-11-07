@@ -2,7 +2,7 @@
 
 [English](known-limitations.md)
 
-1.0.0と1.1.0の制約です。節ごとに適用が違う場合は明記します。測定条件は[性能](performance.ja.md)を、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+現行のソースに適用する制約です。過去版での測定や検証は対象のバージョンを明記します。測定条件は[性能](performance.ja.md)を、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
 1.1の範囲（Core 1.1.0とVS Code拡張）は[1.1の機能](history/release-1.1.ja.md)にまとめています。
 
 ## Markdown の互換性
@@ -10,6 +10,16 @@
 実行時は Litho コンパイラーを使い、CommonMark 0.31.2 と GFM 0.29 の一部をテストしています。表、タスクリスト、取り消し線、自動リンク、admonition、コンテナー、コードのメタデータに対応します。数式と図の描画にはテンプレート側でブラウザー用の資材が必要で、`LIT002` で案内します。
 
 Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。未対応の構文は文字列として残り、脚注では `LIT001` も返します。更新前に対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。定義リスト（`LIT003`）、汎用属性（`LIT004`）、grid table（`LIT005`）の高確度な形だけは opt-in の advisory で案内します。既定出力は変わりません。
+
+既定のprofileは`lithosharp-markdown/1`です。Syntamark 1.2.0のruntime／SourceペアがMarkdown構文、解析情報、原文範囲、未対応構文の候補を提供します。LithoSharpはYAMLとC#スキーマの検査、HTMLやslugの表示方針、ルートと参照の解決、診断IDと重大度を担当します。Syntamarkの更新はCommonMark/GFMの完全対応や生成速度の向上を保証するものではありません。
+
+## 解析の上限と検証できない状態
+
+最終的なpost・collection本文の解析上限は1 Mi UTF-16コード単位、エディターの入力上限は8 Miです。加工前のreader・collection loaderでは、1 Mi以下の本文に厳しい解析上限を適用し、それより大きい本文は8 Miまで扱います。どちらも入れ子の上限は200です。入力や解析資源の上限で完了できない場合は`LSM013` Errorとなり、生成では公開前に停止します。描画だけの断片は本文解析とは別の経路です。
+
+header専用の`frontmatter-scan/1`では1 Mi UTF-16コード単位の上限に閉じ区切り後の本文を含めません。`Closed`が示すのは区切りとheaderのUnicodeが確定したことであり、YAMLやスキーマの妥当性はLithoSharpが検査します。`Unknown`はheaderがないことや未閉鎖であることの証明ではなく、Generatorでは`LSG002`、runtimeでは`LSM013`として報告します。
+
+`NoContext`ではプロジェクト、独自スキーマ、ルートを検査できません。`Partial`では取得できた情報だけを使い、情報の不足を成功や不存在と解釈しません。型付き参照の矛盾を確定できるのは、完全で最新のカタログと既知の値がそろう範囲です。動的な値や未検証の範囲に診断が出なくても、サイト全体の妥当性は証明されません。
 
 ## 生成コストと検証環境
 
@@ -29,13 +39,13 @@ Native AOTは非対応であり、その配布形態の動作保証はありま�
 PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定した信頼できる`avifenc`が必要です。
 この環境では実AVIF encodeは未検証です。
 
-1.1.0の生成速度目標は未達である。本文1件の編集でも既存出力全体を独立したstagingへコピーするため、
-処理時間は出力全体の規模にも依存する。1.1.0の制約として記録し、大きな設計変更は次版以降へ回す。
-高速化は保証しない。[比較条件と結果](performance.ja.md#110の性能上の制約)を参照。
+1.1.0の生成速度目標は未達でした。当時の本文1件の編集でも既存出力全体を独立したstagingへコピーするため、
+処理時間は出力全体の規模にも依存しました。この測定を現行版の性能値としては扱いません。
+現行のキャッシュと変更がないビルドの扱いは[差分ビルド](incremental-builds.ja.md)を参照してください。高速化は保証しません。[比較条件と結果](performance.ja.md#110の性能上の制約)を参照してください。
 
 ## MDXとブラウザー機能の範囲
 
-1.0.0のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
+標準のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
 保存済み配色の復元にはインラインスクリプトを使うため、ホスト側のCSPで実行を許可してください。
 詳しくは[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
 
@@ -51,19 +61,19 @@ fallbackします。静的ページでMDX hydration entryがなくても、任�
 Docusaurus aliasは文書に記載した範囲のみです。任意のpluginとJavaScript設定の実行は非対応です。
 移行機能は非対応構文を報告するもので、サイト全体の自動変換を保証しません。
 
-DOMPurifyを3.4.16へ更新した。DOM node入力を`IN_PLACE: true`で処理し、
-DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローする。hookが
-除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げた。
-hookが単にrootをdetachする場合まで、この受入差に含めるものではない。独自呼出しでは例外を処理し、失敗した入力・結果を破棄する。除去したnodeを安全な
-コンテンツとして使い回したり、シリアライズしたりしない。この限定した互換性差を受け入れ、
-[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持する。
-通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入らない。
-DOMの完全一致を主張するものではない。
+DOMPurifyを3.4.16へ更新しました。DOM node入力を`IN_PLACE: true`で処理し、
+DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローします。hookが
+除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げました。
+hookが単にrootをdetachする場合まで、この受入差に含めるものではありません。独自呼出しでは例外を処理し、失敗した入力・結果を破棄します。除去したnodeを安全な
+コンテンツとして使い回したり、シリアライズしたりしません。この限定した互換性差を受け入れ、
+[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持します。
+通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入りません。
+DOMの完全一致を主張するものではありません。
 
 ## 信頼と公開
 
 MDX、React module、C#のsite code、compiler pluginはbuild accountの権限で実行します。
-HTML safetyはコード実行のsandboxではありません。信頼できないMDXは、認証情報や非公開ファイルを
+HTML safetyはコード実行のsandboxではありません。信頼できないMDXは認証情報や非公開ファイルを
 持たない隔離環境で扱ってください。import検証とworker環境変数の制限はOSのsandboxではなく、
 信頼するコード自体はnetwork通信や外部processの起動ができます。
 
@@ -72,7 +82,7 @@ HTML safetyはコード実行のsandboxではありません。信頼できな�
 `dotnet restore`も設定したfeedへ接続します。Git metadata、外部リンク検査、API build、example test、
 外部AVIF encodeは明示的なoptionまたはcommandです。OpenAPIの外部参照は取得せず診断します。
 
-DTOのfieldとJSON設定は、公開するものだけを選んでください。`MdxPublicData`とisland propsには
+DTOのfieldとJSON設定は公開するものだけを選んでください。`MdxPublicData`とisland propsには
 明示schemaが必要で、秘密情報を含めてはいけません。Algoliaには公開可能なsearch-only keyを使います。
 `unlisted`と`noindex`はaccess controlではなく、URLを直接開けば閲覧できます。
 
@@ -95,12 +105,11 @@ flat ファイルのため、既定のroute比較はraw public pathを使い、�
 欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
 authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
 月別 archive と directory index は文書化した上積みとして出す場合があります。
-Markdown の link 先は build を通し、`check` が非対応 scheme を指摘します。MDX の
-anchor は build で落とします。
+標準MarkdownはリンクのURL schemeを制限しません。生成物の検査は非対応URLを`LSQ001`として報告します。MDXの組み込み`Link`は先頭空白や大文字・小文字の違いを含めて`javascript:`、`vbscript:`、`data:`を検出し、ビルド時の描画で拒否します。未解決の`xref:`も描画に失敗します。通常のリンクとfragmentは使用できます。生成物の検査では、存在しないローカル参照先を`LSQ001`、存在しないanchorを`LSQ002`として報告します。
 
 ## 1.1の拡張と安定性検証の範囲
 
-Editor診断はMarkdownが先で、MDXはrestore済みworker経由である。previewは保存済み文書のみで、
-ワーカーはTypeScriptを変換するだけで、型検査はしない。
-1.1.0ではWatchとEditorの長時間検証を実施していない。高速編集・復旧、複数OSのCI、
-package済みVSIXの確認は、30分の連続稼働を証明するものではない。
+Editor診断はMarkdownが先で、MDXはrestore済みworker経由です。previewは保存済み文書のみで、
+ワーカーはTypeScriptを変換するだけで型検査はしません。
+1.1.0ではWatchとEditorの長時間検証を実施していません。高速編集・復旧、複数OSのCI、
+package済みVSIXの確認は、30分の連続稼働を証明するものではありません。

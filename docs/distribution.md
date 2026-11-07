@@ -2,18 +2,34 @@
 
 [日本語](distribution.ja.md)
 
-Use LithoSharp 2.1.2 for the NuGet installation examples below. The VS Code extension has a separate release channel and uses the Marketplace identity `htkym.lithosharp`.
+Use LithoSharp 2.1.3 for the NuGet installation examples below. VS Code extension 0.3.0 has a separate release channel and uses the Marketplace identity `htkym.lithosharp`. Publishing NuGet packages does not publish the extension.
 
 ## NuGet packages
 
-Use matching 2.1.2 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.1.2. The tool and templates are separate packages.
+Use matching 2.1.3 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.1.3. The tool and templates are separate packages.
+
+Install only what the site uses. Core is the runtime; Generators add typed static
+content; Images and MDX are optional generation extensions; Testing is for tests;
+Analyzers and CodeFixes are compiler/IDE additions. Templates scaffold projects
+and are not a runtime dependency. The [release inventory](../eng/release-packages.json)
+contains all nine packages and is also used by the candidate distribution gate.
+
+Core selects Syntamark 1.2.0 at runtime; Generators and Analyzers embed the matched
+Source artifact. Consumers do not add a direct Syntamark.Source reference. The
+fixed pair retains `lithosharp-markdown/1` and does not opt the site into CommonMark.
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.2
-dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 ```
 
 See the [Quick Start](quickstart.md) to create and serve a site, and [upgrade notes](migration-2.0.md) before updating an existing project.
+
+For a candidate feed, install the exact supplied `2.1.3-ci.…` or `2.1.3-rc.…`
+version and set the generated project's `LithoSharpVersion` to that same value
+before restore. Do not mix stable and candidate LithoSharp packages. The feed
+must supply the selected Syntamark runtime under its own 1.2.0 component version;
+candidate suffixes do not relabel it.
 
 ## VS Code extension
 

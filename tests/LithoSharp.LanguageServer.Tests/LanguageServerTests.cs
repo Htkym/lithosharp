@@ -126,7 +126,7 @@ public sealed class LanguageServerTests
         await Assert.That(unavailable.GetProperty("message").GetString()).Contains("analysis is incomplete");
         await Assert.That(unavailable.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(17);
         await Assert.That(unavailable.GetProperty("lithosharpContextGeneration").GetInt64()).IsEqualTo(0);
-        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+        await client.WaitStderrAsync(line => line.Contains("LSM013", StringComparison.Ordinal)
             && line.Contains("no reliable source position", StringComparison.Ordinal));
 
         var emptyId = client.NextId();
@@ -180,7 +180,7 @@ public sealed class LanguageServerTests
         await Assert.That(status.GetProperty("language").GetString()).IsEqualTo("mdx");
         await Assert.That(status.GetProperty("state").GetString()).IsEqualTo("unavailable");
         await Assert.That(status.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(23);
-        await client.WaitStderrAsync(line => line.Contains("LSM011", StringComparison.Ordinal)
+        await client.WaitStderrAsync(line => line.Contains("LSM013", StringComparison.Ordinal)
             && line.Contains("no reliable source position", StringComparison.Ordinal));
         var symbolsId = client.NextId();
         client.SendRequest(symbolsId, "textDocument/documentSymbol", new { textDocument = new { uri } });

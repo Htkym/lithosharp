@@ -8,7 +8,7 @@
 C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向け静的サイト・ドキュメント生成器です。
 .NETのコードと一緒に文書を管理し、生成時にコンテンツやリンクを検証して、通常の静的ファイルとして配置できます。
 
-以下の導入例では **2.1.2** を使います。
+以下の導入例は **2.1.3** を対象にしています。リポジトリの体験手順は同じブランチのソースで実行してください。候補feedを使う場合は、実際の固定候補版を指定します。
 既存サイトを更新する場合は[更新手順](docs/migration-2.0.ja.md)を参照してください。
 
 ## サンプルサイト
@@ -39,8 +39,8 @@ C#、Markdown、MDX、Reactと増分ビルドを使える、型安全な.NET向�
 .NET 10 SDKを用意して実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.2
-dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -50,10 +50,20 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 `DocsSiteFactory.cs`で設定します。生成した`MyDocs/dist`は静的HTTP hostへ配置できます。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 2.1.2`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version 2.1.3`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
+
+[型付きコンテンツの体験手順](samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では、正常なDocsサイトを生成し、front matterを一箇所変更して診断を確認した後、元に戻してHTMLとリンクを検査します。同じC#モデルがbinder、型付き参照、サイトのレイアウトにつながっています。
+
+| 問題や情報 | 確認する段階 | 判断できる範囲 |
+| --- | --- | --- |
+| 必須項目の不足や型の不一致 | Generator/compiler | 明示したコンテンツ入力と、静的に分かるスキーマの条件。 |
+| エントリーとルートの矛盾 | Analyzer | 完全で最新のカタログと既知の値。実行時の値は未検証です。 |
+| 見出しと原文位置の診断 | Editor/LSP | `NoContext`ではプロジェクトに結び付かず、`Partial`では取得できた情報だけを扱います。 |
+| headerや本文の情報を取得できない | Generator・runtime・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
+| 内部URL、anchor、HTML | 生成物検査 | 現在の出力ファイル。原稿との一致や外部HTTP応答は別途確認が必要です。 |
 
 | 目的 | 入口 |
 | --- | --- |
@@ -61,6 +71,8 @@ Windowsの実行ファイルは`.tools/lithosharp.exe`です。`MyDocs/content`�
 | Blog、フィード、検索 | [Blog sample](samples/LithoSharp.Sample) |
 | MDX、React island、offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.ja.md) |
 | versioning、i18n、Blog/Pages、API docs | [MDXガイド](docs/mdx.ja.md)と[使用例の案内](docs/quickstart.ja.md#使用例と次の手順) |
+
+Markdownの既定profileは`lithosharp-markdown/1`です。Syntamark 1.2.0が構文と原文範囲を扱い、LithoSharpがC#スキーマ、ルート、表示方針、製品の診断を担当します。解析上限や検証できない状態は[既知の制約](docs/known-limitations.ja.md)を参照してください。
 
 ## 必要な環境
 
@@ -75,7 +87,9 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 
 ## ドキュメント
 
-- [Docsの標準設定](docs/docs-template.md)、[生成済み成果物の検査](docs/generated-output-checks.md)
+[目的別のドキュメント案内](docs/README.ja.md)から、導入、型付きコンテンツ、編集支援、検査、運用のガイドを選べます。英語・日英併記の技術リファレンスも区別しています。
+
+- [Docsの標準設定](docs/docs-template.ja.md)、[生成済み成果物の検査](docs/generated-output-checks.ja.md)
 - [CLIとsite factory](docs/cli.ja.md)、[MDXと文書サイト](docs/mdx.ja.md)
 - [型付きMarkdown collection](docs/typed-markdown-collections.md)、
   [型付きYAML](docs/typed-yaml-collections.md)、[source generator](docs/source-generators.md)
@@ -83,9 +97,9 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 2.1.2への更新
+## 2.1.3への更新
 
-利用しているLithoSharpのパッケージ、CLI、templateを2.1.2に揃えてください。
+利用しているLithoSharpのパッケージ、CLI、templateを2.1.3に揃えてください。
 Docsの追加機能は必要な項目だけを有効にします。[標準設定の案内](docs/docs-template.md)を参照してください。
 1.xから更新する場合は、[更新手順](docs/migration-2.0.ja.md)に従い、Testing APIの`Document`から`Snapshot`への非互換変更にも対応します。
 サイトを再生成し、コンテンツの警告、リンク、独自CSSの表示を確認してください。

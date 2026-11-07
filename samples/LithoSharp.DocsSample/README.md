@@ -1,14 +1,21 @@
 # LithoSharp Docs sample
 
+[日本語](README.ja.md)
+
 ![Generated sample site](../../docs/images/docs-light.png)
 
 Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
 to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え).
 
-A minimal console app that builds documentation with
-[LithoSharp](../../src/LithoSharp). It uses the default `DocsSiteTemplate`.
+A console app that builds documentation with
+[LithoSharp](../../src/LithoSharp), a typed article collection, generated
+references and topic indexes. It uses the default `DocsSiteTemplate`.
 
 ## Run it
+
+Run from the repository root with the .NET 10 SDK (10.0.300 or later supported
+feature band). This Markdown-only sample needs no Node.js. It uses project
+references; packaged consumers can start with the [Quick Start](../../docs/quickstart.md).
 
 ```powershell
 dotnet run --project samples/LithoSharp.DocsSample -- --check --output _site
@@ -17,19 +24,35 @@ dotnet run --project samples/LithoSharp.DocsSample -- --check --output _site
 - `--output <dir>`: where the site is written (default: `./_site`).
 - `--content <dir>`: Markdown source folder (default: the bundled `content/` next to the app).
 - `--check`: inspect generated HTML, local links and anchors before committing output.
+- `--asset-demo`: include public files and PNG/WebP responsive images.
+- `--redirect-demo`: add the checked `old-home.html` redirect.
 
-Open `_site/index.html` in a browser. Directories create sidebar sections, and
+The program performs a clean generation and an incremental second generation
+and prints cache hit/miss counts. With `--check`, both runs perform quality
+checks; a verified no-op can inspect existing output without restaging it.
+
+Serve the output over HTTP before opening it in a browser; the walkthrough below
+shows the CLI command. Opening an HTML file directly does not resolve site-root
+links correctly. Directories create sidebar sections, and
 `sidebar_position` and `sidebar_label` in Markdown front matter control page order
 and labels.
 
 ## From a C# model to checked output
 
-Run the commands below from the repository root with the .NET 10 SDK. The same
-`ArticleFrontMatter` model drives the generated binder, static compiler inputs in
-`typed-content/`, runtime loading and the article layout. `GeneratedArticles`
+Run the commands below from the repository root. The same
+[`ArticleFrontMatter` model](SampleModels.cs) drives the generated binder, static compiler inputs in
+[`typed-content/`](typed-content/), runtime loading and the article layout. `GeneratedArticles`
 provides the collection catalog and typed references. The layout links to the
 second article through its generated reference, and topic pages use the loaded
 entries. The generator and analyzer are compiler-only dependencies.
+
+The [`AdditionalFiles` declarations](LithoSharp.DocsSample.csproj) supply the
+collection, entry ID and route to compilation.
+[`SiteFactory.cs`](SiteFactory.cs) uses `GeneratedArticles.Binder` for loading and
+`GeneratedArticles.Entries.Typed_Content_Second.GetUrl(context.Site.BaseUrl)`
+for the related-article link. IDs and routes therefore come from the same
+declarations used by the compiler checks. See the
+[generator setup](../../docs/source-generators.md) when applying this to your site.
 
 1. Generate a valid site and inspect its output:
 
@@ -38,11 +61,20 @@ entries. The generator and analyzer are compiler-only dependencies.
    dotnet run --project src/LithoSharp.Tool -- check-output --output .local/docs-walkthrough --base-url https://example.com/ --format json
    ```
 
-   Open `.local/docs-walkthrough/articles/first/index.html` and follow the typed
-   article link. `--check` checks the staged generation; `check-output` reads the
-   current files without generating a site.
+   `--check` checks the staged generation; `check-output` reads the current files
+   without generating a site. To follow the generated site-root links, start the
+   development server (this builds the trusted sample factory):
 
-2. Remove only the `title:` line from `typed-content/first.md` and build the sample:
+   ```powershell
+   dotnet run --project src/LithoSharp.Tool -- serve samples/LithoSharp.DocsSample --output .local/docs-walkthrough --port 4328
+   ```
+
+   Open <http://127.0.0.1:4328/articles/first/> and follow the typed article link.
+   Use HTTP rather than opening the file with `file://`. Stop the server with
+   Ctrl+C before the intentional compilation errors in the next step.
+
+2. Remove only the `title:` line from
+   `samples/LithoSharp.DocsSample/typed-content/first.md` and build the sample:
 
    ```powershell
    dotnet build samples/LithoSharp.DocsSample
@@ -55,11 +87,13 @@ entries. The generator and analyzer are compiler-only dependencies.
    They are outside normal content and compiler inputs.
 
 3. Restore the valid front matter and generate again with `--check`. In the editor,
-   open `typed-content/first.md`, use the heading outline, and follow diagnostic
+   open `samples/LithoSharp.DocsSample/typed-content/first.md`, use the heading outline, and follow diagnostic
    locations. The [VS Code extension](../../extensions/lithosharp-vscode/README.md)
-   supplies editing support. Syntax navigation without project context does not
-   validate this custom C# schema or establish site routes; the compiler and site
-   build provide those checks.
+   supplies editing support. Syntax navigation without project context cannot establish project-bound schemas
+   or site routes, and custom C# schemas are checked only by the compiler and site
+   build rather than in the editor. Markdown outline selection jumps to the heading;
+   the symbol range covers its section subtree. MDX uses a separate heading-based
+   outline and does not inherit this Markdown section-range contract.
 
 To try a proven reference mismatch, copy
 [conflicting-reference.cs.txt](examples/conflicting-reference.cs.txt) into the
@@ -80,19 +114,20 @@ sources; see [generated output checks](../../docs/generated-output-checks.md).
 
 | Problem or information | Stage | What is established |
 | --- | --- | --- |
-| Missing required title or invalid date | Generator: `LSG006` | The explicit Markdown inputs agree with the C# schema. |
+| Missing required title or invalid date | Generator: `LSG006` | A required-member or conversion error in explicit compiler inputs; it does not validate dynamically discovered files. |
 | Known entry ID paired with the wrong declared route | Analyzer: `LSA1402` | A contradiction in a complete, current catalog (`Closed`). Dynamic values remain unproven. |
 | Headings and source diagnostics | Editor/LSP | Syntax information for the current document. `NoContext` means project/schema/route checks are unavailable. |
 | Incomplete analysis (`Partial`) | Parsing or editing | Only available facts can be used; missing facts are not evidence that content is absent or valid. |
-| Unavailable facts after an input or resource limit | Editor: `LSM011` | Analysis stopped; unavailable facts were not validated. Editor input is limited to 8 Mi UTF-16 code units. |
-| Unavailable facts in an analyzed post body | Generation: `LSM011` | The body input limit is 1 Mi UTF-16 code units. Failure stops publication and preserves the previous output. Render-only snippets do not use this analysis path. |
-| Unavailable header boundaries | Generator: `LSG002`; runtime: `LSM011` | The header-only scan has a 1 Mi UTF-16 header budget. `Unknown` does not prove a missing or unterminated header; a body after a closing delimiter is excluded from that budget. |
-| Missing internal output target or anchor | Generation quality checks or `check-output`: `LSQ001`/`LSQ002` | The inspected local artifacts and anchors exist. External HTTP checks are off by default. |
+| Unavailable facts after an input or resource limit | Editor: `LSM013` | Analysis stopped; unavailable facts were not validated. Editor input is limited to 8 Mi UTF-16 code units. |
+| Unavailable facts in an analyzed post body | Generation: `LSM013` | The body input limit is 1 Mi UTF-16 code units. Failure stops publication and preserves the previous output. Render-only snippets do not use this analysis path. |
+| Unavailable header boundaries | Generator: `LSG002`; runtime: `LSM013` | The header-only scan has a 1 Mi UTF-16 code-unit header budget. `Unknown` does not prove a missing or unterminated header; a body after a closing delimiter is excluded from that budget. |
+| Missing internal output target or anchor | Generation quality checks or `check-output`: `LSQ001`/`LSQ002` | A missing target or anchor in the inspected local artifacts (passing establishes only that the inspected local artifacts and anchors exist). External HTTP checks are off by default. |
 
 CI builds the normal sample, runs it with `--check`, and exercises these published
 invalid inputs through the generator, analyzer and generated-output
 inspector. The checks assert diagnostic IDs and stages, not only a failed process.
-Markdown syntax and raw source ranges belong to Syntamark; C# schemas, routes,
+Markdown syntax and raw source ranges come from the Syntamark 1.2.0 runtime/Source
+pair; C# schemas, routes,
 display policy and product diagnostics belong to LithoSharp. The default Markdown
 profile remains `lithosharp-markdown/1`.
 
@@ -119,9 +154,6 @@ lithosharp serve samples/LithoSharp.DocsSample
 The normal `dotnet run` entry point calls the same factory. Its existing
 `--content`, `--output`, `--check`, `--redirect-demo`, and `--asset-demo` switches
 remain available. The factory uses its project context for source paths.
-
-このサンプルは `DocsSampleFactory` を公開しています。CLI と通常の C# 実行が
-同じサイト定義と記事レイアウトを使います。既存のサンプル用オプションも利用できます。
 
 ## Testing
 

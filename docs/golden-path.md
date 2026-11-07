@@ -4,19 +4,19 @@
 
 Five supported routes from install to serving. Each step states where
 dependencies are restored and where builds run; nothing hidden happens.
-The commands below use NuGet 2.1.2. For existing sites, follow the [upgrade guide](migration-2.0.md).
+The commands below use NuGet 2.1.3. For existing sites, follow the [upgrade guide](migration-2.0.md).
 
 ## 1. Markdown-only site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.2
-dotnet tool install LithoSharp.Tool --version 2.1.2 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
 ```
 
-No `dotnet restore` beyond the template's own project restore, no Node.js.
+The project build can restore NuGet dependencies; no Node.js is needed.
 `serve` builds in a child process, watches the project directory, and serves
 on loopback. See [Quick Start](quickstart.md).
 
@@ -32,13 +32,13 @@ dotnet build MyMdx -c Release
 
 `restore-mdx` is the only step that installs npm dependencies
 (`npm ci --ignore-scripts --no-audit --no-fund` from the packaged lockfile).
-Builds never install npm packages. Only trusted MDX is built. TypeScript is
+Builds never install npm packages. Build only trusted MDX; MDX and component code execute as trusted build code. TypeScript is
 transpiled, not type-checked.
 
 ## 3. Existing project updates
 
 ```sh
-dotnet restore MySite -p:NuGetAudit=false
+dotnet restore MySite
 .tools/lithosharp build MySite -c Release
 .tools/lithosharp check-output --output MySite/dist --base-url https://example.com/guide/ --format json
 ```
@@ -58,7 +58,7 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 code --install-extension htkym.lithosharp
 ```
 
-Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 2.1.2 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
+Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 2.1.3 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
 
 ## 5. Multi-root workspace
 
@@ -70,8 +70,16 @@ documents per folder; diagnostics never cross projects.
 
 ## Execution boundaries
 
-- .NET restore/build: explicit commands above. Builds do not restore npm packages.
+- .NET restore/build: `build`, `serve`, and `check` compile the selected project
+  with `dotnet build`, which may restore NuGet packages from configured feeds.
+  Project code and MSBuild tasks are trusted executable inputs.
 - npm install: `restore-mdx` (MDX worker) and third-party site restores only.
-- Hidden steps that never run: dependency restores inside `build`, `serve`,
-  `check`, or editor keystrokes; JavaScript configuration execution during
-  migration; telemetry (the extension collects none).
+- No automatic npm restore occurs inside `build`, `serve`, `check`, or editor
+  keystrokes. The editor does not run MSBuild or a site factory per keystroke.
+  Migration does not execute JavaScript configuration. The extension collects
+  no telemetry.
+
+For the typed C# schema, generated reference, editor and output-validation flow,
+follow the [Docs sample walkthrough](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output).
+It distinguishes compiler proof from runtime checks and unavailable context,
+and keeps deliberately invalid examples outside the normal site inputs.

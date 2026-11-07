@@ -1,8 +1,14 @@
 # Testing sites
 
-This page describes the unreleased 2.0 candidate snapshot API. When updating from the published 1.1.0 `Document` getter, also read the [2.0 migration notes](migration-2.0.md).
+This page describes LithoSharp.Testing 2.1.3. Install it alongside matching LithoSharp packages. When updating from the 1.x `Document` getter, also read the [upgrade notes](migration-2.0.md) for the source and binary breaking change.
 
-`LithoSharp.Testing` provides framework independent assertions and read-only HTML snapshots. It parses HTML without launching a browser, executing scripts, or making network requests. See [the v2 snapshot/query contract and migration examples](Testing-v2-api.md) for the declared selector grammar.
+```sh
+dotnet add package LithoSharp.Testing --version 2.1.3
+```
+
+`LithoSharp.Testing` provides framework-independent assertions and read-only HTML snapshots. It parses HTML without launching a browser, executing scripts, or making network requests. See [the v2 snapshot/query contract and migration examples](Testing-v2-api.md) for the declared selector grammar.
+
+These tests complement compiler/schema diagnostics and editor inspection. They check rendered HTML and generated routes; they do not turn `NoContext`, `Partial` analysis or `Unknown` catalog evidence into earlier-stage validation. The [Docs sample](../samples/LithoSharp.DocsSample/README.md) connects typed content, compilation, generation and output checks in one project.
 
 ```csharp
 using LithoSharp;

@@ -6,6 +6,18 @@ MDX rendering itself is covered by `../mdx-baseline` (pinned reference)
 and `../mdx-browser` (production hydration); these fixtures cover only
 migration behavior and never duplicate that content.
 
+The owning tests are [DocusaurusCorpusTests](../../LithoSharp.Tests/DocusaurusCorpusTests.cs).
+Run them from the repository root after the normal restore and Release build:
+
+```sh
+dotnet test --project tests/LithoSharp.Tests/LithoSharp.Tests.csproj -c Release --no-build --no-restore --treenode-filter '/*/LithoSharp.Tests/DocusaurusCorpusTests/*'
+```
+
+MDX cases require Node.js 24.13.0 and the explicitly restored product worker in
+`src/LithoSharp.Mdx/worker`. The comparison reference and browser fixture have
+their own lockfiles. These fixtures check migration and generated structure;
+they do not establish whole-language compatibility or performance.
+
 Layout per fixture:
 
 - `source/` is the Docusaurus-shaped input.
@@ -28,6 +40,10 @@ C09 compatibility table coverage:
 | CodeBlock | mdx-components, admonitions |
 | TOCInline | mdx-components |
 | Link | mdx-components |
+| Card | mdx-components (import and bare static link cards) |
+| DocCardList | mdx-components (standalone sibling-card expansion; named props fail and inline use throws) |
+| MDXComponents | mdx-components (partial provider map, not a renderable component) |
+| Zoom | mdx-components (bare child passthrough; `@theme/Zoom` imports are unsupported) |
 | BrowserOnly | mdx-components |
 | Translate | mdx-components |
 | useBaseUrl, useDocusaurusContext | full-site (manual rewrite diagnostics) |
@@ -42,3 +58,6 @@ C09 compatibility table coverage:
 | i18n locales | docs-i18n, full-site |
 | blog dates, slugs, authors | blog, full-site |
 | static assets, content images | assets, full-site |
+
+This table records migration fixture coverage, not complete Docusaurus compatibility
+or equivalent interaction behavior.

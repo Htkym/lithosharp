@@ -200,7 +200,7 @@ public sealed class LithoParserRobustnessTests
         var semantics = result.Semantics!;
         var diagnostic = semantics.Diagnostics.Single();
 
-        await Assert.That(diagnostic.Id).IsEqualTo("LSM011");
+        await Assert.That(diagnostic.Id).IsEqualTo("LSM013");
         await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
         await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("robustness.md");
         await Assert.That(result.Html).IsEqualTo(string.Empty);

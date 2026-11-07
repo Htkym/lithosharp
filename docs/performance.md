@@ -2,9 +2,28 @@
 
 [日本語](performance.ja.md)
 
-This document separates measurements of the 1.0.0 candidate, earlier 0.3.0
-measurements from 2026-09-08, and competitor comparisons from 2026-09-13.
-Each result applies to its stated fixture and environment, not a service-level promise.
+This page preserves historical measurements from 0.3.0, 1.0.0 and 1.1.0. They
+have not been rerun as a full 2.1.3 generation benchmark. Each result applies to
+its stated source, fixture and environment, not a service-level promise or a
+current-release speed claim.
+
+## Current release scope
+
+LithoSharp 2.1.3 adopts Syntamark 1.2.0 while retaining the
+`lithosharp-markdown/1` profile. Header scanning, selective inspection, exact
+snapshot reuse and parser-aware cache identity serve different paths; their
+presence alone proves no end-to-end speed improvement. Correctness checks and
+package/extension acceptance are not performance measurements.
+
+Separate local comparisons distinguished dependency-only changes from consumer
+changes using pre-release pairs, not the final release packages. An early
+comparison observed lower header-only Generator costs but higher editor
+inspection costs. A later follow-up observed lower heavy-input editor costs
+from an optimized dependency; it did not rerun the original pre-change baseline
+or measure whole-site generation, and did not establish an additional Generator
+or consumer-path speedup. These results cannot establish whether the earlier
+editor regression has been fully recovered. The historical results and
+limitations below remain visible without substituting those narrower timings.
 
 ## What was measured
 
@@ -13,9 +32,10 @@ memory. The MDX harness also reports worker compilation, rendering and bundling.
 Browser tests compare page hydration and selective hydration on the same fixtures.
 Private raw measurement records are not distributed in the repository or packages.
 
-Environment: Windows build 26200 x64, Intel Core Ultra 7 258V, 8 logical processors,
+Historical environment: Windows build 26200 x64, Intel Core Ultra 7 258V, 8 logical processors,
 32 GB RAM, .NET SDK 10.0.300/runtime 10.0.8, Node.js 24.13.0, Chromium 153.0.8010.12.
-The worker lockfile pins MDX 3.1.1, React 19.2.4 and esbuild 0.25.12.
+Those measurements used MDX 3.1.1, React 19.2.4 and esbuild 0.25.12. This is not
+the current worker dependency inventory; see the [MDX guide](mdx.md).
 
 ## 1.0.0 Markdown generation
 
@@ -92,9 +112,9 @@ On 2026-09-13 the same machine and fixed corpora compared production builds
 of LithoSharp against Docusaurus 3.10.2 with React 19.2.4, Astro 7.3.2 with
 Starlight 0.42.0, Hugo 0.166.0 extended and MkDocs 1.6.1 with Material 9.7.7,
 using Plain Markdown, Documentation and MDX/Interactive profiles. Medians
-below are per-profile build times; feature differences in search, highlight,
-navigation and JavaScript behavior apply and unsupported combinations are not
-reported as zero.
+in the table below cover the 1,000-page Plain and Docs profiles; feature
+differences in search, highlight, navigation and JavaScript behavior apply and
+unsupported combinations are not reported as zero.
 
 | 1,000 pages | LithoSharp | Hugo | MkDocs | Astro | Docusaurus |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -104,7 +124,7 @@ reported as zero.
 At 10,000 pages Hugo and Astro finished, Docusaurus ran out of memory and
 MkDocs exceeded the ten-minute limit. Hugo and MkDocs do not support MDX.
 Raw results stay local; the procedure is reproducible from the repository
-harness. Windows results do not predict Linux/macOS throughput.
+harness.
 
 ## What this does not prove
 
@@ -125,9 +145,11 @@ shape on a representative 50 KiB document:
 | Markdown | 94/96/97 ms | 94/96/116 ms |
 | MDX | 94/97/101 ms | 94/96/125 ms |
 
-Analysis alone is roughly 46 ms (end-to-end minus the debounce). The historically reported thresholds
-were: analysis Markdown p95 ≤ 250 ms and MDX p95 ≤ 750 ms, and debounce
-included Markdown p95 ≤ 500 ms and MDX p95 ≤ 1,500 ms. All four pass on this
+Subtracting the configured debounce gives a rough residual of 46 ms, not an
+isolated parser measurement: transport, scheduling and publication remain in it.
+The historically reported thresholds
+were: analysis Markdown p95 ≤ 250 ms and MDX p95 ≤ 750 ms, and
+debounce-included Markdown p95 ≤ 500 ms and MDX p95 ≤ 1,500 ms. All four pass on this
 machine; other machines are unmeasured.
 
 A 1,000-edit soak across two roots with one bounded mid-run server restart
@@ -172,3 +194,8 @@ The full harnesses live in [Markdown](../benchmarks/LithoSharp.Performance),
 [browser measurement](../tests/fixtures/mdx-browser/measure.mjs).
 The browser harness accepts page and selective origins and an output file, and
 runs five repetitions; `--activate` measures deferred activation. Keep measurement output local.
+
+For current-revision comparisons, the [Markdown harness guide](../benchmarks/LithoSharp.Performance/README.md)
+describes the opt-in `[measure]` CI job, revision selection, raw evidence and
+measurement boundaries. Do not compare different dependency pairs or combine
+dependency-only and consumer changes into a single attributed speedup.

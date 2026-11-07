@@ -105,8 +105,8 @@ if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool') -or
     $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $prefix = if ($PackageId -eq 'LithoSharp.Tool') { 'tools/net10.0/any/licenses/' } else { 'licenses/' }
     $notices = if ($PackageId -eq 'LithoSharp.Tool') {
-        @('YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
-    } else { @('YamlDotNet.LICENSE.txt') }
+        @('Syntamark.LICENSE.txt', 'YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
+    } else { @('Syntamark.LICENSE.txt', 'YamlDotNet.LICENSE.txt') }
     $noticeArchive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
     try {
         foreach ($name in @($notices) + @('THIRD-PARTY-NOTICES.md')) {

@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>2.1.2</Version>
+    <Version>2.1.3</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
@@ -21,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>2.1.2 reduces repeated work in Docs and content planning, avoids an extra rendered-body cache copy, and reuses copied-file timestamp reads. Public APIs remain supported. Build-time and memory effects depend on content and cache usage. See https://github.com/Htkym/lithosharp/blob/v2.1.2/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>2.1.3 adopts the verified Syntamark 1.2.0 pair, fixes parser/runtime cache identity and Markdown diagnostic reuse, and uses header-only compiler scanning. Typed-content walkthroughs connect compiler checks to generated-output inspection. Public APIs and the default Markdown profile remain supported. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

@@ -3,6 +3,15 @@
 LithoSharp redistributes, or depends on, the following third-party packages.
 Each remains under its own license.
 
+## Syntamark and Syntamark.Source
+
+- License: MIT
+- Project: https://github.com/Htkym/syntamark
+- The fixed 1.2.0 runtime/Source pair supplies Markdown syntax and raw source facts.
+  Compiler packages embed the selected portable source; the CLI and bundled
+  language server redistribute the runtime. The unchanged upstream notice is
+  retained in `licenses/Syntamark.LICENSE.txt`.
+
 ## YamlDotNet
 
 - License: MIT
@@ -17,7 +26,7 @@ Each remains under its own license.
 
 ## Bundled redistribution notices
 
-The generator includes YamlDotNet 18.1.0 in its analyzer payload. The CLI and
+The generator and analyzer include YamlDotNet 18.1.0 in their analyzer payloads. The CLI and
 language server include YamlDotNet 18.1.0 and SkiaSharp 4.153.1
 managed/native assemblies. Their distributions retain the applicable upstream
 notices under `licenses/` alongside their payloads.

@@ -1,15 +1,10 @@
 # LithoSharp.Generators
 
-`[StaticContentCollection(typeof(Front), typeof(string), "guides", EmitStaticSiteManifest = true)]`
-also emits `Guides.Manifest`, an immutable exact route lookup created from the same `Guides.Catalog` used by generated references. `Guides.Manifest.GetUrl("/intro/")` returns a `SiteUrl`; a missing exact path throws `KeyNotFoundException`. This optional member closes only that selected lookup universe. Catalogs, arbitrary site registrations, HTML anchors and assets do not gain a Closed publication claim. The default is off, so existing declarations and generated member names keep their prior behavior.
-
-The compiler fingerprint records original C# and AdditionalText buffers, relevant metadata/properties and reference assembly MVIDs. A fresh, verified generated manifest permits Analyzer LSA1201 for definitely missing paths; changed inputs cause LSA1205 Info and defer absence. Any generator declaration/input/schema error makes the emitted lookup Open. Dynamic membership should use `StaticSiteManifest.Open(catalog, resolver)`; the Analyzer never executes a resolver or getter. `StaticSiteManifest.Create` alone or a handwritten provenance attribute does not establish compiler evidence. These APIs describe exact public-path membership, not output publication or ordinary HTML link resolution.
-
 Roslyn incremental generators for explicitly declared static Markdown collections.
 Reference `LithoSharp` normally, then add this package as a private analyzer:
 
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="1.1.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="2.1.3" PrivateAssets="all" />
 ```
 
 Declare a top-level, nongeneric `static partial` class with
@@ -72,9 +67,16 @@ not use these names. `WriteJsonSchema` is also reserved when `EmitJsonSchema` is
 enabled. Conflicts produce `LSG001` at the source declaration before generation,
 including when no AdditionalFiles are present.
 
+## Optional static route lookup
+
+`[StaticContentCollection(typeof(Front), typeof(string), "guides", EmitStaticSiteManifest = true)]`
+also emits `Guides.Manifest`, an immutable exact route lookup created from the same `Guides.Catalog` used by generated references. `Guides.Manifest.GetUrl("/intro/")` returns a `SiteUrl`; a missing exact path throws `KeyNotFoundException`. This optional member closes only that selected lookup universe. Catalogs, arbitrary site registrations, HTML anchors and assets do not gain a Closed publication claim. The default is off, so existing declarations and generated member names keep their prior behavior.
+
+The compiler fingerprint records original C# and AdditionalText buffers, relevant metadata/properties and reference assembly MVIDs. A fresh, verified generated manifest permits Analyzer `LSA1201` for definitely missing paths; changed inputs cause `LSA1205` Info and defer absence. Any generator declaration/input/schema error makes the emitted lookup Open. Dynamic membership should use `StaticSiteManifest.Open(catalog, resolver)`; the Analyzer never executes a resolver or getter. `StaticSiteManifest.Create` alone or a handwritten provenance attribute does not establish compiler evidence. These APIs describe exact public-path membership, not output publication or ordinary HTML link resolution.
+
 ## Markdown parsing
 
-The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. This branch uses the published `1.2.0` runtime/Source pair from NuGet. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. See the [current version and body-analysis limits](../../docs/migration-2.0.md#package-versions).
+The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. The generator uses the published `1.2.0` runtime/Source pair from NuGet. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. See the [current version and body-analysis limits](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
 
 The actual `StaticContentGenerator` path passes the original immutable AdditionalText buffer to `MarkdownSourceHostAdapter`, verifies the parser/profile/options identity, and calls `ScanFrontMatter`. Its separate `frontmatter-scan/1` result contains raw header ranges and status, with no body facts, YAML tree, document hash or full-analysis coverage. It stops recognizing input at a closing delimiter, so malformed, deeply nested or oversized bodies do not consume the header budget. The default header input limit is 1,048,576 UTF-16 code units; cancellation propagates.
 
@@ -84,4 +86,4 @@ The manifest fingerprint still covers the original input independently. Invalid 
 
 ## Fixed full HTML plans
 
-`FixedHtmlSiteAttribute` and `FixedHtmlPageAttribute` opt a static partial class into the limited fixed-file owner. The generated `FixedHtmlPlan` calls only the declared page methods, snapshots their HTML as strict UTF8 generated assets, and publishes through `FixedHtmlSitePlan.GenerateAsync`. Invalid declaration shapes and duplicate output files are LSG001 errors. Dynamic page methods are valid runtime content but are not Closed compiler evidence. No site-wide anchor manifest or closure for arbitrary factories, layouts, extensions or Markdown headings is emitted. See the [LSA1202 subset and example](../LithoSharp.Analyzers/README.md#lsa1202).
+`FixedHtmlSiteAttribute` and `FixedHtmlPageAttribute` opt a static partial class into the limited fixed-file owner. The generated `FixedHtmlPlan` calls only the declared page methods, snapshots their HTML as strict UTF-8 generated assets, and publishes through `FixedHtmlSitePlan.GenerateAsync`. Invalid declaration shapes and duplicate output files are `LSG001` errors. Dynamic page methods are valid runtime content but are not Closed compiler evidence. No site-wide anchor manifest or closure for arbitrary factories, layouts, extensions or Markdown headings is emitted. See the [LSA1202 subset and example](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1202).

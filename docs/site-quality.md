@@ -5,7 +5,17 @@
 Quality checks run after artifacts are written to staging and before the output
 transaction is committed. Enable them per generation with
 `SiteGenerationOptions.Quality`; leaving it `null` performs no quality checks and
-no network requests.
+no network requests from the quality checker. A verified full no-op may inspect
+the published tree in place without making a staging copy; current bytes and
+site-wide rules are still checked.
+
+These are checks of the generated site, after compiler and content-loading
+checks. They can detect broken links or anchors introduced by a layout even
+when the C# schema and typed references were valid. The
+[Docs sample](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output)
+demonstrates the stages with separate invalid fixtures. To inspect files that
+already exist without compiling a project or regenerating, use
+[`check-output`](generated-output-checks.md).
 
 ```csharp
 using LithoSharp.Diagnostics;
@@ -43,7 +53,8 @@ after inspection stop publication. Previously published output remains available
 Local HTML observations are cached by content hash and parser/projection version
 in the output's existing build-cache partition. References, anchors, canonical URLs,
 and all site-wide rules are checked against the current build on every run. A cache
-hit is not a cached quality verdict. Set `HtmlFactsCacheEnabled = false` to disable
+hit is not a cached quality verdict. Set
+`SiteGenerationOptions.HtmlFactsCacheEnabled = false` to disable
 this reuse. `HtmlParseCount` and `HtmlFactsCacheHitCount` on `QualityReport` count
 final HTML parsing and reuse; both are zero when quality checks are disabled.
 
@@ -119,9 +130,10 @@ var options = new SiteGenerationOptions
 
 ## 日本語
 
-品質検査は、成果物をステージング領域へ書き込んだ後、出力を確定する前に実行します。
-生成ごとに `SiteGenerationOptions.Quality` で有効にします。`null` の場合は品質検査も
-ネットワーク通信も行いません。
+品質検査は成果物をステージング領域へ書き込んだ後、出力を確定する前に実行します。検証済みの完全な無変更ビルドでは、複製せずに公開済みの出力を直接検査する場合があります。この場合も現在のバイト列とサイト全体の規則を確認します。
+生成ごとに `SiteGenerationOptions.Quality` で有効にします。`null` の場合は品質検査をせず、品質検査器からのネットワーク通信も行いません。
+
+コンパイルとコンテンツ読み込みの検査に通っていても、レイアウトによって生成後のリンクやanchorに不整合が生じる場合があります。[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では問題のある例を分離して各段階を示しています。コンパイルや再生成をせずに既存ファイルを調べる場合は[check-output](generated-output-checks.ja.md)を使ってください。
 
 ```csharp
 using LithoSharp.Diagnostics;
@@ -139,14 +151,14 @@ var options = new SiteGenerationOptions
 扱います。検査が失敗しても、前回確定した出力は維持されます。レポートは
 `SiteQualityReport.Format` により `Text`、`Json`、SARIF 2.1.0 の各形式で出力できます。
 
-最終 HTML の検査には、宣言済みの `.html`／`.htm` 資産と部分ビルドで保持するページも
+最終 HTML の検査には宣言済みの `.html`／`.htm` 資産と部分ビルドで保持するページも
 含まれます。解析器の未対応範囲や処理上限、キャンセル、検査後の bytes の変更を
 検出した場合は公開を止め、前回公開した出力を維持します。
 
-HTML の局所的な観測値は、内容ハッシュと解析・観測処理の実装版をキーにして、
+HTML の局所的な観測値は内容ハッシュと解析・観測処理の実装版をキーにして、
 出力別の既存 build cache に保存します。参照先、anchor、canonical URL、サイト全体の
 規則は毎回現在の計画で検査します。再利用を無効にする場合は
-`HtmlFactsCacheEnabled = false` を指定します。`QualityReport.HtmlParseCount` と
+`SiteGenerationOptions.HtmlFactsCacheEnabled = false` を指定します。`QualityReport.HtmlParseCount` と
 `HtmlFactsCacheHitCount` は最終 HTML の解析件数と再利用件数です。検査未実施時は
 どちらも 0 です。
 
@@ -175,15 +187,15 @@ HEADがHTTP 405または501を返した場合だけGETで再試行します。�
 DNSの結果を検査してから、そのIPアドレスへ接続します。キャンセルで検査を中止できます。
 キャッシュが壊れている場合は再検査し、保存できない場合も今回の診断は返します。
 
-検査対象は、内部 URL、フラグメント、canonical URL、SEO 項目、重複タイトル、ホームから
+検査対象は内部 URL、フラグメント、canonical URL、SEO 項目、重複タイトル、ホームから
 到達できないページ、未使用の登録済みアセット、任意の外部 HTTP リンクです。HTML の URL
 属性と CSS のリテラルな `url(...)` を調べます。登録済みの `.css` アセットは正しい UTF-8
 である必要があり、不正なバイトがある場合は出力確定前に生成を中止します。生成時に組み立てる
 など、動的な CSS URL は推測できないため、検査対象になりません。
 
-組み込みレイアウトは、元になる画像がない場合に画像メタデータを省き、Twitterカードを
-`summary` にします。明示した独自の画像URLは引き続き使用できます。これにより、従来の
-出力が生成されていない画像を参照していた不具合を修正しました。
+組み込みレイアウトは元になる画像がない場合に画像メタデータを省き、Twitterカードを
+`summary` にします。明示した独自の画像URLは引き続き使用できます。これにより、生成されていない
+画像を従来の出力が参照していた不具合を修正しました。
 
 診断 ID と重大度は上の表のとおりです。`LSQ001` から `LSQ006` は URL、アンカー、
 canonical、リダイレクトのエラーです。`LSQ007` から `LSQ011` は孤立ページ、未使用アセット、

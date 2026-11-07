@@ -1,5 +1,7 @@
 # MD-05の実装と確認記録
 
+この文書は記載した開発段階と基準commitでの設計・検証記録です。当時の候補バージョン、未完了事項、測定結果を保持しており、現行版の利用手順ではありません。現在の導入と変更点は[更新手順](../migration-2.0.ja.md)を参照してください。
+
 MD-05の固定runtime/source候補と限定検証は完了しました。版は2.0.0-preview.1、canonical sourceの選択SHAはccd165a1fd0eff9cb7b54004c8b472547ba74e8eです。全13手順は19.472秒で成功し、3件のbuildは警告・エラー0でした。所有build/test PID 0を2026-10-08T09:49:32.9839944Zに確認し、commit前に報告しました。実Roslyn hostと両repo照合はIN-01に残しています。
 
 MD-04では上記SHAの全16ファイルと既存DisposeAsync経路をBocchiが直接レビューし、合格としました。MD-05ではcanonical parserと公開APIを変更していません。
