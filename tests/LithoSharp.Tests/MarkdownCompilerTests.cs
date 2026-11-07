@@ -1,6 +1,9 @@
 using LithoSharp;
 using LithoSharp.Configuration;
+using LithoSharp.Build;
+using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
+using Syntamark.Compilation;
 
 namespace LithoSharp.Tests;
 
@@ -69,8 +72,53 @@ public sealed class MarkdownCompilerTests
         await Assert.That(@default.Frontend).IsEqualTo("lithosharp");
         await Assert.That(@default.Fingerprint.StartsWith($"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/", StringComparison.Ordinal)).IsTrue();
         await Assert.That(@default.Fingerprint).Contains($"/spec={LithoMarkdownCompiler.SpecVersion}/");
+        await Assert.That(@default.Fingerprint).Contains($"/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile=lithosharp-markdown/1/");
         await Assert.That(repeated.Fingerprint).IsEqualTo(@default.Fingerprint);
         await Assert.That(changed.Fingerprint == @default.Fingerprint).IsFalse();
+    }
+
+    [Test]
+    [Arguments("unversioned")]
+    [Arguments("previous-runtime")]
+    public async Task PersistentBodyCache_RejectsDifferentParserIdentity(string identity)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var compiler = new LithoMarkdownCompiler();
+        var previous = identity == "unversioned"
+            ? $"lithosharp/{LithoMarkdownCompiler.ImplementationVersion}/spec={LithoMarkdownCompiler.SpecVersion}/syntax=advanced/output=disable-html"
+            : compiler.Fingerprint.Replace(typeof(LithoBlockParser).Module.ModuleVersionId.ToString("N"), new string('0', 32), StringComparison.Ordinal);
+        const string body = "## Current heading\n\nCurrent body.";
+        var sourceHash = MarkdownDocumentFingerprints.SourceHash(body);
+        var partition = SiteGenerator.MeasureCache(output).CacheDirectory;
+        var cache = new SiteBuildCache(Path.GetDirectoryName(partition)!, Path.GetFileName(partition));
+        await cache.StorePostParseAsync(new CachedPostParse(
+            CachedPostParse.CurrentVersion, previous, sourceHash, body.Length,
+            "<p>stale parser HTML</p>", "stale parser text", [], [], []), CancellationToken.None);
+        var post = new MarkdownPost("content/post.md", "post",
+            new PostFrontMatter { Title = "Post", Date = FixedBuildTimestamp, Summary = "Current summary." },
+            body, "posts/post.html");
+        var generator = new SiteGenerator(compiler);
+        await generator.GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.test/" }, [post], output, clean: true,
+            new SiteCustomization { Template = new BlogSiteTemplate() },
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp }, CancellationToken.None);
+
+        await Assert.That(compiler.ParseCount).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "post.html")))
+            .Contains("Current body.");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "search-index.json")))
+            .Contains("Current body.");
+        await Assert.That(await cache.ReadPostParseAsync(
+            compiler.Fingerprint, sourceHash, body.Length, CancellationToken.None)).IsNotNull();
+
+        var next = new LithoMarkdownCompiler();
+        await new SiteGenerator(next).GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.test/" },
+            [post with { FrontMatter = post.FrontMatter with { Title = "Updated title" } }],
+            output, clean: false, new SiteCustomization { Template = new BlogSiteTemplate() },
+            new SiteGenerationOptions { BuildTimestamp = FixedBuildTimestamp }, CancellationToken.None);
+        await Assert.That(next.ParseCount).IsEqualTo(0);
     }
 
     [Test]
