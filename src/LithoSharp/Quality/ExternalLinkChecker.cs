@@ -11,7 +11,7 @@ internal static class ExternalLinkChecker
     private const int CacheVersion = 1;
     private const int MaxRedirects = 10;
     private static readonly SemaphoreSlim RateGate = new(1, 1);
-    private static long LastRequest;
+    private static long LastRequestCompleted;
 
     internal static async Task<IReadOnlyList<SiteDiagnostic>> CheckAsync(
         IReadOnlyDictionary<string, SiteSourceLocation> links,
@@ -118,14 +118,12 @@ internal static class ExternalLinkChecker
             ValidateUri(uri);
             if (!visited.Add(uri.GetComponents(UriComponents.HttpRequestUrl, UriFormat.UriEscaped))) throw new HttpRequestException("The redirect loop was detected.");
             using var head = new HttpRequestMessage(HttpMethod.Head, uri);
-            await WaitRateAsync(interval, token).ConfigureAwait(false);
-            var response = await client.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            var response = await SendRateLimitedAsync(client, head, interval, token).ConfigureAwait(false);
             if (response.StatusCode is HttpStatusCode.MethodNotAllowed or HttpStatusCode.NotImplemented)
             {
                 response.Dispose();
                 using var get = new HttpRequestMessage(HttpMethod.Get, uri);
-                await WaitRateAsync(interval, token).ConfigureAwait(false);
-                response = await client.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+                response = await SendRateLimitedAsync(client, get, interval, token).ConfigureAwait(false);
             }
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
@@ -142,14 +140,22 @@ internal static class ExternalLinkChecker
         throw new HttpRequestException("The redirect limit was exceeded.");
     }
 
-    private static async Task WaitRateAsync(TimeSpan interval, CancellationToken token)
+    private static async Task<HttpResponseMessage> SendRateLimitedAsync(HttpClient client, HttpRequestMessage request, TimeSpan interval, CancellationToken token)
     {
         await RateGate.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            var delay = LastRequest == 0 ? TimeSpan.Zero : interval - Stopwatch.GetElapsedTime(LastRequest);
+            var delay = LastRequestCompleted == 0 ? TimeSpan.Zero : interval - Stopwatch.GetElapsedTime(LastRequestCompleted);
             if (delay > TimeSpan.Zero) await Task.Delay(delay, token).ConfigureAwait(false);
-            LastRequest = Stopwatch.GetTimestamp();
+            try
+            {
+                return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Include startup and dispatch delays, and pace retries after failed requests too.
+                LastRequestCompleted = Stopwatch.GetTimestamp();
+            }
         }
         finally { RateGate.Release(); }
     }

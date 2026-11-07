@@ -306,7 +306,7 @@ jobs:
 
       - name: Run sample
         run: |
-          dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --output artifacts/docs-sample-site
+          dotnet run --project samples/LithoSharp.DocsSample --configuration Release --no-build -- --check --output artifacts/docs-sample-site
           dotnet run --project samples/LithoSharp.Sample --configuration Release --no-build -- --output artifacts/blog-sample-site
 
       - name: Performance smoke

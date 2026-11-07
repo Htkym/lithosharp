@@ -54,12 +54,12 @@ public sealed class DocusaurusCorpusTests
     [Test] public async Task Docs() => await RunFixture("docs");
     [Test] public async Task DocsVersioned() => await RunFixture("docs-versioned");
     [Test] public async Task DocsI18n() => await RunFixture("docs-i18n");
-    [Test] public async Task Blog() => await RunFixture("blog");
-    [Test] public async Task MdxComponents() => await RunFixture("mdx-components");
+    [Test, NotInParallel("MdxToolchain")] public async Task Blog() => await RunFixture("blog");
+    [Test, NotInParallel("MdxToolchain")] public async Task MdxComponents() => await RunFixture("mdx-components");
     [Test] public async Task Admonitions() => await RunFixture("admonitions");
     [Test] public async Task Sidebars() => await RunFixture("sidebars");
-    [Test] public async Task Assets() => await RunFixture("assets");
-    [Test] public async Task FullSite() => await RunFixture("full-site");
+    [Test, NotInParallel("MdxToolchain")] public async Task Assets() => await RunFixture("assets");
+    [Test, NotInParallel("MdxToolchain")] public async Task FullSite() => await RunFixture("full-site");
 
     private static async Task RunFixture(string name)
     {

@@ -132,6 +132,7 @@ public sealed class MdxSemanticsTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task DocsSearchAndToc_UseStaticWorkerSemantics()
     {
         using var workspace = new TemporaryWorkspace();

@@ -169,6 +169,9 @@
           "YamlDotNet": "[18.1.0, )"
         }
       },
+      "lithosharp.analyzers": {
+        "type": "Project"
+      },
       "lithosharp.docssample": {
         "type": "Project",
         "dependencies": {

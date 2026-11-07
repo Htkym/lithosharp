@@ -55,6 +55,47 @@ public sealed class MdxWorkerReadinessTests
     }
 
     [Test]
+    [Arguments(false, "worker-readiness")]
+    [Arguments(true, "response-read")]
+    public async Task TimeoutReportsTheBlockedPhaseWithoutExportingWorkerOrRequestData(bool ready, string phase)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var worker = Path.Combine(workspace.Root, "worker");
+        Directory.CreateDirectory(worker);
+        var script = "console.error('PRIVATE_STDERR_SENTINEL');setInterval(()=>{},1000);\n";
+        if (ready)
+        {
+            script += "import {createInterface} from 'node:readline';\nconsole.log(JSON.stringify(" + JsonSerializer.Serialize(Ready()) + "));\n"
+                + "let first=true;for await(const line of createInterface({input:process.stdin})){if(first){first=false;const request=JSON.parse(line);console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{headings:[],links:[],islands:[],imports:[],diagnostics:[],text:'Ready'}}));}}\n";
+        }
+        await File.WriteAllTextAsync(Path.Combine(worker, "worker.mjs"), script);
+        await using var session = new MdxInspectionSession(new(workspace.Root, worker) { Timeout = TimeSpan.FromSeconds(10) });
+        if (ready)
+        {
+            // The response timeout starts with an already responsive worker.
+            var warmup = await session.AnalyzeAsync("ready.mdx", "# Ready\n");
+            await Assert.That(warmup.Diagnostics.Count).IsEqualTo(0);
+        }
+
+        SiteBuildExtensionException? failure = null;
+        try
+        {
+            await session.AnalyzeAsync("PRIVATE_PATH_SENTINEL.mdx", "# PRIVATE_TEXT_SENTINEL\n");
+        }
+        catch (SiteBuildExtensionException error)
+        {
+            failure = error;
+        }
+        await Assert.That(failure).IsNotNull();
+        var diagnostic = failure!.Diagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("LSMDX004");
+        await Assert.That(diagnostic.Message).Contains("timed out during " + phase + ";");
+        await Assert.That(diagnostic.Message).Contains("the existing site was not published over.");
+        await Assert.That(diagnostic.Message).DoesNotContain("PRIVATE");
+        await Assert.That(diagnostic.Message.Length).IsLessThan(200);
+    }
+
+    [Test]
     public async Task UnknownReadinessDataNeverExportsPathsSecretsOrArbitraryFields()
     {
         using var workspace = new TemporaryWorkspace();

@@ -63,6 +63,18 @@ switching, responsive menus and keyboard navigation. Set
 
 ## Examples
 
+Follow the [typed content walkthrough](samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output)
+to generate a valid Docs site, change one front matter value to see a compiler
+diagnostic, restore it, and inspect the generated HTML and links. The same C#
+model connects the binder, typed references and site layout.
+
+| Concern | Checked at | Limits |
+| --- | --- | --- |
+| Required fields and typed values | Generator/compiler | Explicit content inputs and statically known schema requirements. |
+| Entry/route contradictions | Analyzer | Complete, current catalogs and known values; runtime values remain unproven. |
+| Headings and source diagnostics | Editor/LSP | `NoContext` has no project binding; `Partial` analysis covers only available facts. |
+| Internal URLs, anchors and HTML | Generated output inspection | Current output artifacts; source freshness and external HTTP responses require separate context/checks. |
+
 | Goal | Start here |
 | --- | --- |
 | Markdown Docs, typed content and images | [Docs sample](samples/LithoSharp.DocsSample) |

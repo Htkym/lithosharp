@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\samples\LithoSharp.DocsSample\LithoSharp.DocsSample.csproj" />
     <ProjectReference Include="..\..\samples\LithoSharp.Sample\LithoSharp.Sample.csproj" />
     <ProjectReference Include="..\..\src\LithoSharp.Generators\LithoSharp.Generators.csproj" />
+    <ProjectReference Include="..\..\src\LithoSharp.Analyzers\LithoSharp.Analyzers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

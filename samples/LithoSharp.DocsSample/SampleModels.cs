@@ -1,13 +1,13 @@
 using LithoSharp.Content;
 
-[StaticContentCollection(typeof(ArticleFrontMatter), typeof(ContentEntry<ArticleFrontMatter, string>), "articles")]
+[StaticContentCollection(typeof(ArticleFrontMatter), typeof(ContentEntry<ArticleFrontMatter, string>), "articles", EmitStaticSiteManifest = true)]
 public static partial class GeneratedArticles
 {
 }
 
 public sealed class ArticleFrontMatter
 {
-    public string Title { get; init; } = string.Empty;
+    public required string Title { get; init; }
     public string Summary { get; init; } = string.Empty;
     public DateTimeOffset PublishedFrom { get; init; }
     public bool Draft { get; init; }

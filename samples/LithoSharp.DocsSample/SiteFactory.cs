@@ -111,7 +111,7 @@ public sealed class DocsSampleFactory : ISiteFactory
                 ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
                 : [],
             ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
-                articles, new ArticleLayout(articleSource, image)) { RendererFingerprint = "article-layout:v1", IsThreadSafe = true }, topicPages]
+                articles, new ArticleLayout(articleSource, image)) { RendererFingerprint = "article-layout:v2", IsThreadSafe = true }, topicPages]
         };
         return new SiteDefinition(site, posts)
         {
@@ -125,6 +125,7 @@ sealed class ArticleLayout(SiteAsset source, ImageAsset? image) : IPageLayout<Co
     public IHtmlContent Render(SitePage<ContentEntry<ArticleFrontMatter, string>> page, PageRenderingContext context) =>
         context.RenderDocument(page, Html.UnsafeRaw(
             context.RenderMarkdown(page.Content.Body).ToHtmlString() +
+            $"<p><a href=\"{GeneratedArticles.Entries.Typed_Content_Second.GetUrl(context.Site.BaseUrl).ToAttributeValue()}\">Read the related typed article</a></p>" +
             $"<p><a href=\"{context.Assets.GetUrl(source).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
             (image is null ? string.Empty : ResponsiveImage.Render(context.Assets, image, "LithoSharp sample icon").ToHtmlString() +
                 $"<p><a href=\"{context.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>")));

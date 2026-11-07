@@ -48,7 +48,9 @@ public sealed class MdxIntegrationTests
             await Assert.That(File.Exists(Path.Combine(workspace.Root, "escape.js"))).IsFalse();
         }
     }
+    // Real compiler workers share the CI runner's Node/esbuild resources.
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task BlogsShareAuthorsPaginationAndStaticFeedsWithPublicationFiltering()
     {
         using var workspace = new TemporaryWorkspace();
@@ -81,6 +83,7 @@ public sealed class MdxIntegrationTests
         }
     }
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MdxRendersHydratesCachesAndPreservesPublishedOutputOnFailure()
     {
         using var workspace = new TemporaryWorkspace();
@@ -142,6 +145,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MdxReportsActualBrowserWorkAndSkipsUnchangedGraphs()
     {
         using var workspace = new TemporaryWorkspace();
@@ -206,6 +210,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MdxRestartsTheWorkerWhenDeclaredInputsChange()
     {
         using var workspace = new TemporaryWorkspace();
@@ -237,6 +242,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task TwoWorkspacesDoNotShareWorkerState()
     {
         using var workspace = new TemporaryWorkspace();
@@ -270,6 +276,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task MdxRemovesStaleScratchLeftByAKilledHost()
     {
         using var workspace = new TemporaryWorkspace();
@@ -306,6 +313,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CorruptOptionalMdxCacheRebuildsWithoutChangingPublishedBytes()
     {
         using var workspace = new TemporaryWorkspace();
@@ -377,6 +385,7 @@ public sealed class MdxIntegrationTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CorruptCacheRebuildFailurePreservesPublishedOutputAndCanRecover()
     {
         using var workspace = new TemporaryWorkspace();

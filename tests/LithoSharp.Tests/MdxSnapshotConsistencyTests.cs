@@ -13,6 +13,7 @@ public sealed class MdxSnapshotConsistencyTests
     [Test]
     [Arguments("entry")]
     [Arguments("include")]
+    [NotInParallel("MdxToolchain")]
     public async Task PhysicalInputEditAfterRealLoaderCaptureRejectsStaleCompilation(string input)
     {
         using var workspace = new TemporaryWorkspace();
@@ -97,6 +98,7 @@ public sealed class MdxSnapshotConsistencyTests
     }
 
     [Test]
+    [NotInParallel("MdxToolchain")]
     public async Task CallerConstructedInMemoryBodyKeepsExplicitCallerSourceSemantics()
     {
         using var workspace = new TemporaryWorkspace();

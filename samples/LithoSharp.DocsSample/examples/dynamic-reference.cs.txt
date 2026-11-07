@@ -1,0 +1,10 @@
+using LithoSharp.Content;
+
+public static class DynamicReferenceExample
+{
+    public static ContentRef<ContentEntry<ArticleFrontMatter, string>> Create(string path) =>
+        new ContentRef<ContentEntry<ArticleFrontMatter, string>>(
+            GeneratedArticles.Catalog.CollectionId,
+            new ContentEntryId("first.md"),
+            LithoSharp.Routing.SiteRoute.ForDirectoryIndex(path));
+}
