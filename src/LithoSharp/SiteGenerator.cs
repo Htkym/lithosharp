@@ -330,6 +330,8 @@ public sealed partial class SiteGenerator
             site.BaseUrl,
             publishedMarkdownClaims.Select(claim => claim.Page),
             publishedExtraPageClaims.Select(claim => claim.Page));
+        foreach (var page in contentPages)
+            routes.Add(page.Route);
         var faviconSource = customization.FaviconSourceDirectory ?? Path.Combine(AppContext.BaseDirectory, "favicon");
         var hasFaviconAssets = BundledFaviconAssets.All(asset => File.Exists(Path.Combine(faviconSource, asset)));
         var hasSocialImage = File.Exists(Path.Combine(faviconSource, SocialImageSourceFileName));

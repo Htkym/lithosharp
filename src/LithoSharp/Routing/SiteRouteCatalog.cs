@@ -113,7 +113,7 @@ internal sealed class SiteRouteCatalog
 
     public string AbsoluteRootUrl => $"{_origin}{PublicPath(Root)}";
 
-    private SiteRoute Add(SiteRoute route) => _files.GetOrAdd(route.RelativeOutputPath, route);
+    internal SiteRoute Add(SiteRoute route) => _files.GetOrAdd(route.RelativeOutputPath, route);
 
     private static string RouteHash(SiteRoute route) =>
         Convert.ToHexStringLower(

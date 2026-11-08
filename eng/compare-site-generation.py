@@ -107,7 +107,7 @@ def main():
     options = parser.parse_args()
     SDK, RUNTIME, PAGES = options.sdk, options.runtime, options.pages
     repo = Path(__file__).resolve().parents[1]
-    output = options.output or repo / ".local/site-generation-comparison"
+    output = (options.output or repo / ".local/site-generation-comparison").resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {"status": "incomplete", "sdk": SDK, "runtime": RUNTIME,
               "pages": PAGES, "observations": [], "setup": {}}

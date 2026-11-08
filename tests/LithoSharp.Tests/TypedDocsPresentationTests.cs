@@ -43,6 +43,10 @@ public sealed class TypedDocsPresentationTests
             .IsEqualTo("/base/reference/start/");
         await Assert.That(home.Snapshot.Query(".docs-topic-cards")?.TextContent).Contains("Summary Second");
         using var first = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "reference", "start", "index.html")));
+        await Assert.That(first.Snapshot.Query("link[rel=canonical]")?.GetAttribute("href"))
+            .IsEqualTo("https://example.test/base/reference/start/");
+        await Assert.That(first.Snapshot.Query("meta[property='og:url']")?.GetAttribute("content"))
+            .IsEqualTo("https://example.test/base/reference/start/");
         var nav = first.Snapshot.Query("#docs-sidebar")!;
         await Assert.That(nav.TextContent).Contains("First");
         await Assert.That(nav.TextContent).Contains("Second");
@@ -104,6 +108,28 @@ public sealed class TypedDocsPresentationTests
     }
 
     [Test]
+    public async Task UnorderedParentsFollowOrderedPagesWhileFoldersUseDescendantOrder()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var entries = new[]
+        {
+            Entry("parent.md", "Parent", "parent/", null),
+            Entry("child.md", "Child", "child/", 0, parentId: "parent.md"),
+            Entry("first.md", "First", "first/", 1),
+            Entry("topic/guide.md", "Guide", "topic/guide/", 2),
+        };
+        var output = Path.Combine(workspace.Root, "output");
+        await Generate(new SiteGenerator(), output, [Docs(Collection(workspace.Root, "guides", entries))]);
+        using var home = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "index.html")));
+        await Assert.That(home.Snapshot.Query(".docs-primary-link")?.GetAttribute("href")).IsEqualTo("/base/first/");
+        var links = home.Snapshot.QueryAll("#docs-sidebar a").Select(anchor => anchor.GetAttribute("href"));
+        await Assert.That(links.SequenceEqual(new[] { "/base/first/", "/base/topic/guide/", "/base/parent/", "/base/child/" })).IsTrue();
+        using var parent = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "parent", "index.html")));
+        var adjacent = parent.Snapshot.QueryAll(".docs-pagination a").Select(anchor => anchor.GetAttribute("href"));
+        await Assert.That(adjacent.SequenceEqual(new[] { "/base/topic/guide/", "/base/child/" })).IsTrue();
+    }
+
+    [Test]
     public async Task PresentationRouteAndMembershipChangesInvalidateHomeAndNeighborsWithCleanEquivalentOutput()
     {
         using var workspace = new TemporaryWorkspace();
@@ -157,6 +183,9 @@ public sealed class TypedDocsPresentationTests
         await Generate(new SiteGenerator(), output, [generic]);
         var original = await File.ReadAllTextAsync(Path.Combine(output, "one", "index.html"));
         await Assert.That(original).DoesNotContain("class=\"docs-pagination\"");
+        using var genericDocument = SiteTestDocument.Parse(original);
+        await Assert.That(genericDocument.Snapshot.Query("link[rel=canonical]")?.GetAttribute("href"))
+            .IsEqualTo("https://example.test/base/one/");
         var cycle = new[] { Entry("one.md", "One", "one/", 1, parentId: "two.md"),
             Entry("two.md", "Two", "two/", 2, parentId: "one.md") };
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -186,7 +215,7 @@ public sealed class TypedDocsPresentationTests
             static entry => new PageMetadata(entry.FrontMatter.Heading, draft: entry.FrontMatter.Draft),
             transformationId: new ContentTransformationId("docs-source:v1"), isCacheable: true);
 
-    private static ContentEntry<Card, string> Entry(string id, string title, string route, int order,
+    private static ContentEntry<Card, string> Entry(string id, string title, string route, int? order,
         bool draft = false, bool unlisted = false, bool navigation = true, string? version = null,
         string? locale = null, string? parentId = null, string body = "## Section\n\nBody.") =>
         new(new ContentEntryId(id), id, "source:" + id,
@@ -213,6 +242,6 @@ public sealed class TypedDocsPresentationTests
             .Select(async file => Path.GetRelativePath(root, file).Replace('\\', '/') + ":"
                 + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(file)))));
 
-    private sealed record Card(string Heading, string Route, int Position, bool Draft, bool Unlisted,
+    private sealed record Card(string Heading, string Route, int? Position, bool Draft, bool Unlisted,
         string? Version, string? Locale, string? ParentId);
 }

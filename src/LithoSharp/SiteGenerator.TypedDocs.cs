@@ -127,8 +127,9 @@ public sealed partial class SiteGenerator
         }
         return Snapshot(root);
 
-        static int Order(MutableDocsNode node) => node.Page?.Presentation.Order
-            ?? node.Children.Select(Order).DefaultIfEmpty(int.MaxValue).Min();
+        static int Order(MutableDocsNode node) => node.Page is { } page
+            ? page.Presentation.Order ?? int.MaxValue
+            : node.Children.Select(Order).DefaultIfEmpty(int.MaxValue).Min();
         static DocsPresentationNode Snapshot(MutableDocsNode node) =>
             new(node.Label, node.Page?.Route.PublicPath, node.Page?.Presentation.Description,
                 node.Children.OrderBy(Order).ThenBy(child => child.Label, StringComparer.OrdinalIgnoreCase)
