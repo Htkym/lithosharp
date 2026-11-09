@@ -2170,3 +2170,27 @@ static LithoSharp.Inspection.SitePreflight.FromDiagnostics(System.Collections.Ge
 static LithoSharp.Inspection.SitePreflight.InspectMarkdown(string! sourcePath, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.SitePreflightReport!
 LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Build.ISiteBuildExtension!>!
 LithoSharp.SiteGenerationOptions.StaticRouteGuaranteeProducers.init -> void
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.RenderDocs(System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!, LithoSharp.Content.DocsPagePresentation!>! presentation, LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>! bodyRenderer, string? rendererFingerprint = null, bool isThreadSafe = false) -> LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>!
+LithoSharp.Content.DocsPagePresentation
+LithoSharp.Content.DocsPagePresentation.<Clone>$() -> LithoSharp.Content.DocsPagePresentation!
+LithoSharp.Content.DocsPagePresentation.Description.get -> string?
+LithoSharp.Content.DocsPagePresentation.Description.init -> void
+LithoSharp.Content.DocsPagePresentation.DocsPagePresentation() -> void
+LithoSharp.Content.DocsPagePresentation.Equals(LithoSharp.Content.DocsPagePresentation? other) -> bool
+LithoSharp.Content.DocsPagePresentation.Locale.get -> string?
+LithoSharp.Content.DocsPagePresentation.Locale.init -> void
+LithoSharp.Content.DocsPagePresentation.Order.get -> int?
+LithoSharp.Content.DocsPagePresentation.Order.init -> void
+LithoSharp.Content.DocsPagePresentation.ParentId.get -> LithoSharp.Content.ContentEntryId?
+LithoSharp.Content.DocsPagePresentation.ParentId.init -> void
+LithoSharp.Content.DocsPagePresentation.Title.get -> string!
+LithoSharp.Content.DocsPagePresentation.Title.init -> void
+LithoSharp.Content.DocsPagePresentation.Unlisted.get -> bool
+LithoSharp.Content.DocsPagePresentation.Unlisted.init -> void
+LithoSharp.Content.DocsPagePresentation.Version.get -> string?
+LithoSharp.Content.DocsPagePresentation.Version.init -> void
+override LithoSharp.Content.DocsPagePresentation.Equals(object? obj) -> bool
+override LithoSharp.Content.DocsPagePresentation.GetHashCode() -> int
+override LithoSharp.Content.DocsPagePresentation.ToString() -> string!
+static LithoSharp.Content.DocsPagePresentation.operator !=(LithoSharp.Content.DocsPagePresentation? left, LithoSharp.Content.DocsPagePresentation? right) -> bool
+static LithoSharp.Content.DocsPagePresentation.operator ==(LithoSharp.Content.DocsPagePresentation? left, LithoSharp.Content.DocsPagePresentation? right) -> bool

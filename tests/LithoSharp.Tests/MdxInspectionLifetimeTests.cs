@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using LithoSharp.Mdx;
+using TUnit.Core.Enums;
 
 namespace LithoSharp.Tests;
 
@@ -21,13 +22,64 @@ public sealed class MdxInspectionLifetimeTests
         });
         """;
 
-    private static async Task<int> WaitForStartedAsync(string marker)
+    private static async Task<int> WaitForStartedAsync(string marker, TimeSpan? timeout = null)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        while (!File.Exists(marker))
+        using var deadline = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            deadline.Token.ThrowIfCancellationRequested();
+            if (File.Exists(marker))
+            {
+                try
+                {
+                    using var data = JsonDocument.Parse(await File.ReadAllTextAsync(marker, deadline.Token));
+                    return data.RootElement.GetProperty("pid").GetInt32();
+                }
+                catch (IOException error) when (OperatingSystem.IsWindows() && (error.HResult & 0xffff) is 32 or 33)
+                {
+                    // Atomic rename can expose the path before a transient Windows
+                    // sharing/lock handle is released. Do not suppress other I/O or JSON failures.
+                }
+            }
             await Task.Delay(10, deadline.Token);
-        using var data = JsonDocument.Parse(await File.ReadAllTextAsync(marker, deadline.Token));
-        return data.RootElement.GetProperty("pid").GetInt32();
+        }
+    }
+
+    [Test, RunOn(OS.Windows)]
+    public async Task StartedMarkerWaitsForSharingHandleToClose()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var marker = Path.Combine(workspace.Root, "started.json");
+        await File.WriteAllTextAsync(marker, "{\"pid\":123}");
+        Task<int> waiting;
+        bool pendingWhileLocked;
+        await using (var held = new FileStream(marker, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            waiting = WaitForStartedAsync(marker);
+            pendingWhileLocked = !waiting.IsCompleted;
+        }
+        await Assert.That(await waiting).IsEqualTo(123);
+        await Assert.That(pendingWhileLocked).IsTrue();
+    }
+
+    [Test, RunOn(OS.Windows)]
+    public async Task StartedMarkerSharingWaitHonorsDeadline()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var marker = Path.Combine(workspace.Root, "started.json");
+        await File.WriteAllTextAsync(marker, "{\"pid\":123}");
+        await using var held = new FileStream(marker, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        await Assert.That(async () => await WaitForStartedAsync(marker, TimeSpan.FromMilliseconds(50)))
+            .Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task StartedMarkerRejectsMalformedJson()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var marker = Path.Combine(workspace.Root, "started.json");
+        await File.WriteAllTextAsync(marker, "{");
+        await Assert.That(async () => await WaitForStartedAsync(marker)).Throws<JsonException>();
     }
 
     private static async Task<MdxInspectionSession> CreateSessionAsync(TemporaryWorkspace workspace, string name, bool hold)

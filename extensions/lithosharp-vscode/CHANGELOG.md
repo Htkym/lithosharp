@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.0
 
 - Show separate document-analysis, project-context, schema-scope and explicit-operation states. Unavailable or custom build-only checks stay unverified.
 - Validate CLI schema versions, required fields, diagnostic locations and exit-code agreement before reporting a successful build or output check.
 - Invalidate saved context and results when project selection or observed inputs change; reject late results from earlier generations.
 - Link diagnostics to the official English/Japanese reference without changing their locations or inventing source ranges.
-- Bundle the matching 2.2.0 candidate language server. Optional context fields remain compatible with older protocol consumers; no Marketplace publication is implied.
+- Bundle the matching 2.2.0 language server. Optional context fields remain compatible with older protocol consumers. Check the Marketplace for publication status.
 
 ## 0.3.0
 

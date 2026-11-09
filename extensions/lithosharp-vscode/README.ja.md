@@ -4,7 +4,7 @@
 
 VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断と、見出しによる文書内の移動にも対応しています。
 
-このガイドは、いずれも未公開の候補版である拡張機能0.4.0とCore/Tool 2.2.0を対象にしています。公開済みの安定版Core/Toolは2.1.3です。2.2のサイトには対応する候補版のToolとfeedを使ってください。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
+このガイドは拡張機能0.4.0とCore/Tool 2.2.0を対象にしています。インストール前に、それぞれの版の公開状況を確認してください。Toolはサイトと同じバージョンを使います。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
 
 ## preflightとcapability
 
@@ -14,7 +14,7 @@ OutputではLanguage Server同梱CoreとprojectのCore参照を区別します�
 
 ## インストールと使い方
 
-候補の検証には対応するソースから作成したVSIXか、提供された候補VSIXを使ってください。以下のMarketplace手順でインストールされるのは公開済みの拡張です。
+以下のMarketplace手順では、現在公開されている拡張がインストールされます。0.4.0の公開前に検証する場合は、対応するソースから作成したレビュー済みのVSIXを使ってください。
 
 [MarketplaceのLithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールするか、次のコマンドを実行してください。
 
@@ -25,7 +25,7 @@ code --install-extension htkym.lithosharp
 必要な環境は次のとおりです。
 
 - VS Code `^1.139.0`。
-- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKと、サイトに対応するLithoSharp.Toolも必要です。2.2候補版を使うサイトには提供された2.2候補を、安定版を使うサイトには公開済みの2.1.3を使ってください。SDKには必要なASP.NET Core共有フレームワークが含まれます。
+- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKと、サイトに対応するLithoSharp.Toolも必要です。2.2.0のサイトには2.2.0を、2.1.3を継続するサイトには2.1.3を使ってください。候補版の検証では提供された固定バージョンにそろえます。SDKには必要なASP.NET Core共有フレームワークが含まれます。
 - MDXの解析にはNode.js 24.13.0が必要です。Markdownだけの診断にはNode.jsは不要です。
 
 [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.ja.md)でサイトを作成し、そのフォルダーをVS Codeで開いてください。コードを信頼できる場合はワークスペースを信頼し、`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。

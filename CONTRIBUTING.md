@@ -77,6 +77,13 @@ validation for the 2.x line uses the published NuGet 1.1.0 baseline configured i
 `eng/Test-Templates.ps1` against an isolated package directory. The build workflow
 covers Windows, Linux and macOS; a configured workflow is not proof of a passed run.
 
+Normal CI checks the consumer fixture against both the historical 1.1.0 package
+and the previous stable 2.1.3 package. The NuGet publication workflow repeats the
+2.1.3 source/binary consumer check against the final versioned packages before
+uploading them. This exercises the fixture's API usage, not every public API.
+Keep the previous-stable version in both workflows aligned when preparing the
+next release. Package-validation baseline warnings remain separate evidence.
+
 Update the README, changelog, migration guide and limitations from actual
 verification results. Keep release drafts and readiness records under `.local/`.
 Publishing requires separate approval; the tag workflow checks all package versions

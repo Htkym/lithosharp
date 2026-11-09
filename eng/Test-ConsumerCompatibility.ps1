@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Checks that a consumer compiled against the published 1.0.0 package still runs
+Checks that a consumer compiled against the selected published baseline still runs
 against the candidate package, and that the consumer recompiles against the
 candidate.
 
@@ -119,7 +119,7 @@ try {
 
     $secondRun = Invoke-DotNet @($consumerDll) $binaryDirectory
     $identical = $secondRun.exit -eq 0 -and $secondRun.output -eq $firstRun.output
-    if (!$identical) { $failures.Add('the 1.0-compiled consumer did not behave identically against the candidate assembly') }
+    if (!$identical) { $failures.Add("the $BaselineVersion-compiled consumer did not behave identically against the candidate assembly") }
     Write-Host ("binary compatibility: exit={0} outputIdentical={1} baselineHash={2} candidateHash={3}" -f $secondRun.exit, $identical, $baselineHash.Substring(0, 12), $candidateHash.Substring(0, 12))
     if (!$identical) { Write-Host $secondRun.output }
 
