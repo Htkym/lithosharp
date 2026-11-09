@@ -2,13 +2,13 @@
 
 [English](distribution.md)
 
-現在のソースは、未公開候補のLithoSharp 2.2.0とVS Code拡張0.4.0を対象にしています。以下の安定版の導入例には2.1.3を残しています。拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。NuGetパッケージの公開では拡張は公開されません。
+このガイドはLithoSharp 2.2.0とVS Code拡張0.4.0を対象にしています。インストール前に、それぞれの版が公開されていることを確認してください。ソースのバージョン番号だけでは公開済みとは判断できません。拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。NuGetパッケージの公開では拡張は公開されません。
 
 ## 候補版の導入と互換性
 
 レビュー済み候補とともに渡された正確なバージョンと専用feedを使ってください。生成したプロジェクトの`LithoSharpVersion`をその版に合わせ、同じ版のツールとテンプレートを使います。普段使うfeedやテンプレートhiveは変更せず、候補専用の設定を使ってください。ソースのバージョンやローカルパッケージだけでは、NuGetやMarketplaceに公開済みとは判断できません。
 
-| 利用箇所 | 従来の安定版 | 2.2.0／0.4.0候補 |
+| 利用箇所 | 従来の安定版 | 2.2.0／0.4.0 |
 | --- | --- | --- |
 | 既存のCore呼び出し | 対応を維持 | 型付きDocsのAPIを追加。Qualityの既定値は変更しない |
 | Docsテンプレート | 安定版パッケージの動作 | 生成Binder／Catalog／参照を使い、QualityのErrorで明示的に失敗する |
@@ -20,11 +20,11 @@
 
 ## NuGetパッケージ
 
-プロジェクトで使うパッケージのバージョンを2.1.3に揃えてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.1.3を使います。ツールとテンプレートは別のパッケージです。
+プロジェクトで使うパッケージのバージョンを2.2.0にそろえてください。対象は`LithoSharp`、`LithoSharp.Generators`、`LithoSharp.Images`、`LithoSharp.Tool`、`LithoSharp.Testing`、`LithoSharp.Mdx`、`LithoSharp.ProjectTemplates`です。任意で導入する`LithoSharp.Analyzers`と`LithoSharp.CodeFixes`も2.2.0を使います。ツールとテンプレートは別のパッケージです。2.1.3を継続するサイトでは、使うパッケージをすべて2.1.3にそろえてください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 ```
 
 サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[更新手順](migration-2.0.ja.md)を参照してください。

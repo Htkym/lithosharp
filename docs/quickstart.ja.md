@@ -6,24 +6,24 @@
 Node.jsとReactは不要です。任意のMDXにはNode.js 24.13.0と明示的に復元したworkerを使います。
 `serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
 
-このcheckoutは次期マイナーバージョンの候補を説明しており、公開済みのリリースではありません。
-Tool、Templates、生成プロジェクトには、提供されたfeedと固定候補バージョンを使ってください。
-以下のバージョンのプレースホルダーは置き換えが必要です。公開済み2.1.3のDocsテンプレートは
-従来のreaderを使います。分離した候補の導入は[配布手順](distribution.ja.md)を参照してください。
+以下のコマンドは2.2.0を対象とし、NuGetにその版が公開されていることを前提とします。
+公開前の検証では、2.2.0をレビュー済みの固定候補バージョンへ置き換え、Tool、Templates、
+生成プロジェクトに提供されたfeedを設定してください。2.1.3のDocsテンプレートは従来のreaderを
+使います。分離した候補の導入は[配布手順](distribution.ja.md)を参照してください。
 
 ## 型付きMarkdown Docsを作る
 
-提供された候補feedを設定し、新しいディレクトリで実行してください。
+新しいディレクトリで実行してください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 Windowsでは`.tools/lithosharp.exe`を使います。テンプレートは利用者のtemplate catalogへ
 インストールされ、Toolは`.tools`内に入ります。復元前に`MyDocs/MyDocs.csproj`の
-`LithoSharpVersion`を同じ固定候補バージョンにしてください。異なるバージョンを混ぜたり、
+`LithoSharpVersion`を選択した版にそろえてください。既定値は2.2.0です。異なるバージョンを混ぜたり、
 既存サイトへテンプレートを上書きしたりしないでください。
 
 ## C#の型とMarkdownを編集する

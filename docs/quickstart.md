@@ -6,25 +6,25 @@ Use the .NET 10 SDK (minimum 10.0.300). Markdown-only Docs need no Node.js or
 React. Optional MDX uses Node.js 24.13.0 and an explicitly restored worker.
 The SDK supplies the ASP.NET Core shared framework used by `serve`.
 
-This checkout documents the next minor candidate, not a published release.
-Use the exact reviewed candidate package version and supplied NuGet feed/config
-for Tool, Templates and generated project packages. The version placeholder
-below must be replaced; the published 2.1.3 Docs template still uses the legacy
-reader. See [distribution](distribution.md) for isolated candidate installation.
+The commands below target 2.2.0 and require that version to be available on NuGet.
+Before publication, replace 2.2.0 with the exact reviewed candidate version and
+configure its supplied feed for Tool, Templates and generated project packages.
+The 2.1.3 Docs template uses the legacy reader. See [distribution](distribution.md)
+for isolated candidate installation.
 
 ## Create typed Markdown Docs
 
-Work in a new directory, after configuring the supplied candidate feed:
+Work in a new directory:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 On Windows use `.tools/lithosharp.exe`. Template installation changes your user
 template catalog; the Tool is local to `.tools`. Set `MyDocs/MyDocs.csproj`'s
-`LithoSharpVersion` to that exact candidate before restoring. Do not mix package
+`LithoSharpVersion` to the selected version before restoring; its default is 2.2.0. Do not mix package
 versions or scaffold over an existing site.
 
 ## Edit the C# contract and Markdown

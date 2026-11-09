@@ -1,19 +1,19 @@
-# 2.2候補への更新
+# 2.2.0への更新
 
 [English](migration-2.0.md)
 
-このcheckoutでは次期2.2候補と、公開済み2.1.3のDocs readerから型付きDocsへの任意の移行を
-説明します。公開済みのリリースではありません。[Quick Start](quickstart.ja.md)には、
-提供された固定候補バージョンとfeedを使ってください。パッケージの基準バージョンは2.2.0、
-対応する拡張の候補は0.4.0です。Coreと拡張は別々に公開されるため、NuGetの公開によって
+このガイドでは2.2.0と、2.1.3のDocs readerから型付きDocsへの任意の移行を説明します。
+[Quick Start](quickstart.ja.md)を実行する前にパッケージの公開状況を確認してください。
+公開前の検証では、提供された固定候補バージョンとfeedを使います。パッケージの版は2.2.0、
+対応する拡張の版は0.4.0です。Coreと拡張は別々に公開されるため、NuGetの公開によって
 拡張がMarketplaceへ公開されるわけではありません。
 
-0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。このcheckoutの更新先には提供された固定候補バージョンを使います。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
+0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。今回の更新先は2.2.0にそろえます。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-公開済みの基準は2.1.3です。その構成を維持する場合は同じバージョンでそろえます。
-このcheckoutの新しい型付きDocsには、選択したパッケージ、Tool、Templatesを同じ2.2候補で
+一つ前の安定版は2.1.3です。その構成を維持する場合は同じバージョンでそろえます。
+新しい型付きDocsには、選択したパッケージ、Tool、Templatesを同じ2.2.0で
 そろえてください。拡張は別の公開系列です。
 
 候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。候補のsuffixを含む実際のバージョンと、projectに記載した基準バージョン`2.2.0`を区別してください。公開済みと仮定して番号を指定しないでください。
@@ -22,7 +22,7 @@
 
 Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedにはその候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々のバージョンに入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
 
-LithoSharp 2.1.3と2.2候補では、NuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
+LithoSharp 2.1.3と2.2.0では、NuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
 
 Generatorとsplitterのheader走査には、本文解析とは別の`frontmatter-scan/1`を使います。`ScanFrontMatter`は閉じ区切りの後の本文を解析せず、1 Mi UTF-16コード単位のheader上限にも本文を含めません。`Closed`が確定するのは区切りとheaderのUnicodeであり、YAMLとスキーマの検査は引き続きLithoSharpが行います。入力や解析資源の問題による`Unknown`は、Generatorで`LSG002`、runtimeで`LSM013`となり、headerの不存在や確定した未閉鎖として扱いません。headerの結果には本文の解析情報や文書ハッシュは含まれません。manifestのfingerprintは別途元の入力全体を対象とし、本文のUnicodeが不正な場合は取得できません。
 

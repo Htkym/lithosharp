@@ -2,13 +2,14 @@
 
 [日本語](CHANGELOG.ja.md)
 
-## 2.2.0 (unreleased)
+## 2.2.0
 
 - Connect typed content collections to the existing Docs shell, scoped navigation, topic cards, table of contents and previous/next links with `RenderDocs`. Reuse compiled Markdown analysis and retain source identities through the build graph.
 - Make the Docs template and sample use generated catalogs, binders and references. The template includes two pages, preserves structured diagnostics, and explicitly fails on generated-output quality errors without external HTTP checks.
 - Separate editor document analysis, project context, schema coverage and explicit build/check results. Validate CLI JSON before adopting its result and discard stale project/input generations.
 - Add linked English/Japanese diagnostic guidance, adoption and migration guides, configurable performance comparisons and traceable reference measurements. Results describe their workload and do not imply universal speedups.
-- Prepare matching 2.2.0 NuGet components and extension 0.4.0. Syntamark remains at the verified 1.2.0 runtime/Source pair. These source targets are not a publication announcement.
+- Align the NuGet components at 2.2.0 and the independently versioned extension at 0.4.0. Syntamark remains at the verified 1.2.0 runtime/Source pair. Check each distribution channel for availability.
+- Check source and binary consumer upgrades from 2.1.3 in normal CI and against the final NuGet packages before publication, while retaining the historical 1.1.0 fixture.
 
 ## 2.1.3
 

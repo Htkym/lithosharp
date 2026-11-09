@@ -1,21 +1,21 @@
-# Upgrade to the 2.2 candidate
+# Upgrade to 2.2.0
 
 [日本語](migration-2.0.ja.md)
 
-This checkout covers the next 2.2 candidate, including optional migration from
-the published 2.1.3 Docs reader to typed Docs. It is not a published release.
-Use the exact supplied candidate version/feed for the [Quick Start](quickstart.md).
-The package base version is 2.2.0 and the matching extension candidate is 0.4.0;
+This guide covers 2.2.0, including optional migration from the 2.1.3 Docs reader
+to typed Docs. Check package availability before following the [Quick Start](quickstart.md).
+Before publication, use the exact supplied candidate version and feed instead.
+The package version is 2.2.0 and the matching extension version is 0.4.0;
 Core and the extension have separate release channels. Publishing NuGet packages
 does not publish an extension to the Marketplace.
 
-For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; use the exact candidate version supplied for this checkout. Compare generated output in a fresh directory before deploying it.
+For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; use matching 2.2.0 packages for this upgrade. Compare generated output in a fresh directory before deploying it.
 
 ## Package versions
 
-The published stable baseline is 2.1.3; keep that version together when staying
-on the baseline. For this checkout's new typed Docs template, use the supplied
-2.2 candidate version consistently across selected packages, Tool and Templates.
+The previous stable baseline is 2.1.3; keep that version together when staying
+on the baseline. For the new typed Docs template, use 2.2.0 consistently across
+selected packages, Tool and Templates.
 
 When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Suffixed candidate versions differ from the `2.2.0` package base version declared in the projects; use the actual supplied version, not an assumed published number.
 
@@ -23,7 +23,7 @@ This checkout's templates default to the `2.2.0` package base version. When usin
 
 The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
 
-LithoSharp 2.1.3 uses the published Syntamark `1.2.0` runtime/Source pair from NuGet. Keep both artifacts at this exact version. The fixed feed contains the NuGet repository-signed packages; their payloads match the sealed formal release. See [release provenance](../eng/markdown/release-provenance.json) for the source identity and package hashes. The default profile remains `lithosharp-markdown/1`; updating the dependency does not select CommonMark or replace MDX body analysis.
+LithoSharp 2.1.3 and 2.2.0 use the published Syntamark `1.2.0` runtime/Source pair from NuGet. Keep both artifacts at this exact version. The fixed feed contains the NuGet repository-signed packages; their payloads match the sealed formal release. See [release provenance](../eng/markdown/release-provenance.json) for the source identity and package hashes. The default profile remains `lithosharp-markdown/1`; updating the dependency does not select CommonMark or replace MDX body analysis.
 
 Generator and splitter headers use the separate `frontmatter-scan/1` contract. It recognizes no body after a closing delimiter; its 1 Mi UTF-16 header budget excludes that body. `Closed` establishes delimiters and header Unicode, while YAML/schema validation remains in LithoSharp. `Unknown` input/resource failures report `LSG002` in the Generator or `LSM013` in runtime consumers, and never become missing or confirmed unterminated front matter. The header result has no body facts or document hash. The manifest fingerprint independently covers the original input and stays unavailable for invalid body Unicode.
 
@@ -35,7 +35,7 @@ Generation reuses final-body compilation diagnostics when a post has no supplied
 
 ## Move an existing Docs site to typed content
 
-The next minor candidate changes newly created `docs` projects, not existing
+Version 2.2.0 changes newly created `docs` projects, not existing
 sites. Keep the legacy `MarkdownPostReader` if its schema and routes fit. Do not
 run the template over your working project. Review its files as a reference and
 make selected changes in a branch; build to a separate output first.

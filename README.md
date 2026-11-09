@@ -21,9 +21,9 @@ custom schema on every keystroke, and a valid typed reference does not certify
 the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
 for fit, dependencies and evaluation examples.
 
-This checkout describes the next minor candidate, not a published release.
-Use the exact supplied candidate version/feed for the typed Docs workflow.
-The published 2.1.3 Docs template uses the previous reader.
+This documentation targets LithoSharp 2.2.0. Check package availability before
+using the installation commands below. Before publication, use the exact supplied
+candidate version and feed instead. The 2.1.3 Docs template uses the previous reader.
 For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
 
 ## Features
@@ -46,27 +46,26 @@ For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithos
 
 ## Quick Start
 
-With the .NET 10 SDK installed and the supplied candidate NuGet feed configured,
-replace `<candidate-version>` with its exact version:
+With the .NET 10 SDK installed, use matching 2.2.0 packages:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
-# Before building, set MyDocs/MyDocs.csproj LithoSharpVersion to the same candidate
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
 On Windows the executable is `.tools/lithosharp.exe`. Set the generated project's
-`LithoSharpVersion` to the same candidate before restore. Edit `GuideFrontMatter.cs`
+`LithoSharpVersion` to the selected package version before restore; the template
+defaults to 2.2.0. Edit `GuideFrontMatter.cs`
 and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
 to the Docs shell. The factory enables Quality at Error without external HTTP.
 Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version <candidate-version>`
+Existing applications can use `dotnet add package LithoSharp --version 2.2.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -131,10 +130,10 @@ Use the [documentation index](https://github.com/Htkym/lithosharp/blob/main/docs
 - [Testing](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md), [HTML/CSS contract](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md),
   [compatibility contract](https://github.com/Htkym/lithosharp/blob/main/docs/compatibility-contract.md)
 
-## Upgrade to the 2.2 candidate
+## Upgrade to 2.2.0
 
-Keep selected packages, CLI and templates at the same supplied candidate version.
-The 2.2 candidate changes newly created Docs projects; existing sites opt into
+Keep selected packages, CLI and templates at the same version.
+Version 2.2.0 changes newly created Docs projects; existing sites opt into
 the typed loader/Docs adapter and Quality settings explicitly. Preserve URLs
 through catalog route declarations and do not regenerate over existing files.
 See the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
