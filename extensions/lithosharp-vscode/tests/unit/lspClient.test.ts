@@ -30,6 +30,63 @@ for (const language of ['markdown', 'mdx'] as const) {
   });
 }
 
+test('display state keeps only current analysis evidence and never infers MDX binding scope', async () => {
+  const script = scripted();
+  const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn, isTrusted: () => true },
+    { set() {}, delete() {}, clear() {} });
+  await client.start();
+  for (const language of ['markdown', 'mdx'] as const) {
+    const uri = `file:///project/${language}.md`;
+    client.didOpen({ uri, languageId: language, version: 1, text: '# Heading' });
+    assert.equal(client.getAnalysisStatus(uri)?.state, 'pending');
+    const open = language === 'markdown' ? 1 : 3;
+    const context = language === 'markdown' ? 0 : 1;
+    const status = { uri, language, version: 1, state: 'ready', message: 'Completed with diagnostics',
+      lithosharpOpenGeneration: open, lithosharpContextGeneration: context,
+      schemaName: 'document', schemaScope: 'built-in-binding', projectStatus: 'Unresolved',
+      projectId: 'docs', projectGeneration: 4, contextAcquiredAt: '2026-11-07T00:00:00Z' };
+    const notify = (value: unknown) => script.child.reply(frame(JSON.stringify({ jsonrpc: '2.0', method: 'lithosharp/analysisStatus', params: value })));
+    notify(status);
+    assert.equal(client.getAnalysisStatus(uri)?.schemaScope, language === 'markdown' ? 'built-in-binding' : 'unknown');
+    assert.equal(client.getAnalysisStatus(uri)?.projectStatus, 'Unresolved');
+    client.didChange(uri, 2, '# Edit');
+    notify(status);
+    assert.equal(client.getAnalysisStatus(uri)?.state, 'pending');
+    assert.equal(client.getAnalysisStatus(uri)?.schemaScope, undefined);
+    client.sendProjectContext('docs', [], null);
+    notify({ ...status, version: 2 });
+    assert.equal(client.getAnalysisStatus(uri)?.state, 'pending');
+    client.didClose(uri);
+    client.didOpen({ uri, languageId: language, version: 1, text: '# Reopened' });
+    notify({ ...status, lithosharpContextGeneration: context + 1 });
+    assert.equal(client.getAnalysisStatus(uri)?.state, 'pending');
+    client.didClose(uri);
+    assert.equal(client.getAnalysisStatus(uri), undefined);
+  }
+  client.stop();
+  assert.equal(client.getAnalysisStatus('file:///project/markdown.md'), undefined);
+});
+
+test('changing document language at the same version starts a new analysis lifetime', async () => {
+  const script = scripted();
+  const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: script.spawn, isTrusted: () => true },
+    { set() {}, delete() {}, clear() {} });
+  await client.start();
+  const uri = 'file:///project/intro.md';
+  const notify = (language: string, generation: number) => script.child.reply(frame(JSON.stringify({ jsonrpc: '2.0', method: 'lithosharp/analysisStatus',
+    params: { uri, version: 1, language, state: 'ready', message: '', lithosharpOpenGeneration: generation,
+      lithosharpContextGeneration: 0, schemaScope: 'built-in-binding' } })));
+  client.didOpen({ uri, languageId: 'markdown', version: 1, text: '# Same' });
+  notify('markdown', 1);
+  client.didOpen({ uri, languageId: 'mdx', version: 1, text: '# Same' });
+  notify('markdown', 1);
+  assert.equal(client.getAnalysisStatus(uri)?.state, 'pending');
+  assert.equal(client.getAnalysisStatus(uri)?.language, 'mdx');
+  notify('mdx', 2);
+  assert.equal(client.getAnalysisStatus(uri)?.schemaScope, 'unknown');
+  client.stop();
+});
+
 test('analysis status language follows explicit document identity and only falls back for blank identities', async () => {
   const cases = [
     { languageId: 'MARKDOWN', path: 'one.mdx', expected: 'markdown' },

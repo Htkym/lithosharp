@@ -685,13 +685,15 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                 page.NavLabel,
             }),
             ContentPages = contentPages
-                .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
+                .Where(page => !page.IsUnlisted && page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
                 .Select(page => new
                 {
                     Collection = page.CollectionId.Value,
                     Entry = page.EntryId.Value,
                     page.Route.RelativeOutputPath,
                     page.Metadata.Title,
+                    page.SourcePath,
+                    Docs = page.Docs?.Presentation,
                     Layout = page.LayoutId?.Value,
                 }),
         });

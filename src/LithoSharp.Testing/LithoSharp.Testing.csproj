@@ -5,10 +5,10 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Testing</PackageId>
-    <Version>2.1.3</Version>
+    <Version>2.2.0</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
-    <Description>Framework-independent site and DOM assertions for LithoSharp.</Description>
+    <Description>Framework-independent assertions for generated LithoSharp documentation sites, routes and HTML snapshots.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>

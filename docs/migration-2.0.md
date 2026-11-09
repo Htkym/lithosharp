@@ -1,18 +1,25 @@
-# Upgrade to 2.1.3
+# Upgrade to the 2.2 candidate
 
 [日本語](migration-2.0.ja.md)
 
-This guide covers upgrading an existing site to 2.1.3, including its changes from 1.x. The README and [Quick Start](quickstart.md) installation examples use 2.1.3. Core packages and the VS Code extension have separate release channels; publishing Core does not publish the 0.3.0 extension to the Marketplace.
+This checkout covers the next 2.2 candidate, including optional migration from
+the published 2.1.3 Docs reader to typed Docs. It is not a published release.
+Use the exact supplied candidate version/feed for the [Quick Start](quickstart.md).
+The package base version is 2.2.0 and the matching extension candidate is 0.4.0;
+Core and the extension have separate release channels. Publishing NuGet packages
+does not publish an extension to the Marketplace.
 
-For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; the target package version for this guide is 2.1.3. Compare generated output in a fresh directory before deploying it.
+For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; use the exact candidate version supplied for this checkout. Compare generated output in a fresh directory before deploying it.
 
 ## Package versions
 
-For the stable release, keep all selected LithoSharp packages at 2.1.3.
+The published stable baseline is 2.1.3; keep that version together when staying
+on the baseline. For this checkout's new typed Docs template, use the supplied
+2.2 candidate version consistently across selected packages, Tool and Templates.
 
-When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Candidate versions such as `2.1.3-ci.…` and `2.1.3-rc.…` differ from the `2.1.3` base version declared in the projects.
+When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Suffixed candidate versions differ from the `2.2.0` package base version declared in the projects; use the actual supplied version, not an assumed published number.
 
-Templates default to `2.1.3`. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The `preflight` and `migrate testing` commands described below are absent from the 1.1.0 Tool.
+This checkout's templates default to the `2.2.0` package base version. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The `preflight` and `migrate testing` commands described below are absent from the 1.1.0 Tool.
 
 The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
 
@@ -25,6 +32,48 @@ Reader and collection-loader eager warnings describe the original body before in
 Final post and collection Markdown analysis uses explicit body input with the strict 1 Mi UTF-16 input limit; editor inspection supports 8 Mi. Parsed blocks survive later projection resource stops, but unavailable facts remain unavailable. Incomplete input or resource analysis reports `LSM013` Error: the reader retains that eager error, the collection loader fails, and generation stops before output is published. Reuse requires identical body text, source identity, parser, profile and strict analysis options. Changed snapshots and larger-tier original results require separate final-body analysis. Original and transformed warning snapshots stay separate, without merging or deduplicating by syntax ID. Transformed collection diagnostics have file-only locations unless exact original-body reuse proves their source mapping.
 
 Generation reuses final-body compilation diagnostics when a post has no supplied reader diagnostics, including no-op builds. The post parse cache v2 persists only diagnostic-free results; warning-bearing posts use current analysis or an exact retained snapshot. Collection rendering captures diagnostics from each distinct Markdown string rendered through its page context. Verified collection artifact caches persist both warning-bearing and known-empty diagnostic outcomes and replay them on no-op builds. A missing outcome is unknown and forces rendering again.
+
+## Move an existing Docs site to typed content
+
+The next minor candidate changes newly created `docs` projects, not existing
+sites. Keep the legacy `MarkdownPostReader` if its schema and routes fit. Do not
+run the template over your working project. Review its files as a reference and
+make selected changes in a branch; build to a separate output first.
+
+| Concern | Legacy reader | New typed Docs template |
+| --- | --- | --- |
+| Input contract | `MarkdownPost` and reader rules; title/date requirements and optional summary validation | Your `GuideFrontMatter`: required title, optional description/order; no inherited date requirement |
+| Compiler input | Not automatically a generated typed collection | Explicit `AdditionalFiles` for `content/**/*.md`, with matching exclusions and collection/id/route metadata |
+| Runtime input | Existing reader and content directory | `MarkdownContentCollectionLoader<GuideFrontMatter>` rooted at `content`, using the generated binder |
+| Entry ID | Existing post/reader conventions | Content-root-relative path including extension, normalized with `/` |
+| Route | Keep the site's actual existing output rules | The new default is `guide/<relative-path-without-extension>/`; the loader gets it from `Guides.Catalog.GetRoute(entry.Id)` |
+| Rendering and validation | Existing template and chosen checks | `RenderDocs` plus `DocsSiteTemplate`, with explicit Quality Error threshold and no external HTTP checks |
+
+Keep old URLs by declaring their existing routes in the compiler input metadata
+and obtaining those same routes from the generated catalog at runtime. You do
+not have to adopt the new `guide/` prefix or directory-index style. Never create
+a second independent route dictionary. Keep the template-owned home distinct
+from content-page output paths; if old content owns `index.html`, resolve that
+ownership explicitly before enabling the standard Docs home. Review redirects
+only when a URL really must change.
+
+Match root, recursive glob, underscore-prefixed exclusions and IDs in compilation
+and runtime discovery. `reference/setup.md` must not collapse into `setup.md`.
+Changing a filename changes its generated ID/reference symbol unless you
+explicitly preserve the declaration. Add matching Core/Generators/Analyzers
+references through `LithoSharpVersion`; make compiler packages `PrivateAssets="all"`.
+Use the generated binder and selector rather than executing a custom schema in
+the editor. `RequireStaticCoverage` remains an optional policy for supported
+scopes, not a template-wide prerequisite.
+
+Compare old/new routes, navigation, required metadata, HTML headings and links,
+assets and custom CSS. Run the single [Docs CI sequence](quickstart.md#ci-for-this-docs-project)
+on the new output before deployment. Retain the site's existing Quality threshold,
+suppressions and external-link policy unless you choose to change them; the new
+factory's explicit settings are not a global default change. Markdown needs no
+Node; adding MDX still needs its explicit worker setup. See
+[Docs settings](docs-template.md) for the adapter and [compatibility](compatibility-contract.md)
+for output review boundaries.
 
 ## Docs settings and existing output
 
@@ -63,7 +112,7 @@ Use the same asset declaration instances for registration, transforms and render
 
 `LithoSharp.Analyzers` is an optional compiler package. It checks definite misuse of registered APIs, supported HTML interpolation contexts and literal URLs, and references to verified catalogs. Definite absence requires a fresh Closed scope; Open, Stale, Unknown and unsupported values are not guessed. No diagnostic does not mean that every site link, anchor or asset was verified. The `LSA9001` coverage policy requires explicit opt-in.
 
-Set the generated project's `LithoSharpVersion` to `2.1.3` (or the exact candidate version when using a candidate feed), then add this reference to the `ItemGroup` of the project that should receive diagnostics:
+Set the generated project's `LithoSharpVersion` to the exact supplied candidate version, then add this reference to the `ItemGroup` of the project that should receive diagnostics:
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

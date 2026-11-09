@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BuildRunner } from '../../src/buildRunner.js';
+import { BuildRunner, parseCliResult } from '../../src/buildRunner.js';
 
 function envelope(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -9,6 +9,7 @@ function envelope(overrides: Record<string, unknown> = {}): string {
     exitCode: 0,
     outputDirectory: '/tmp/out',
     diagnosticsText: null,
+    diagnostics: [],
     ...overrides,
   });
 }
@@ -20,13 +21,14 @@ function failureEnvelope(): string {
     exitCode: 1,
     error: 'Route collision.',
     diagnosticsText: 'LSR001 text',
+    diagnostics: [],
   });
 }
 
 test('queued preflight captures arguments and preserves positioned failure diagnostics', async () => {
   const commands: string[][] = [];
   const raw = { schemaVersion: '1.0', success: false, exitCode: 1,
-    preflight: { mode: 'static-inputs', stage: 'source' }, diagnostics: [{ id: 'LIT001', line: 4, column: 8 }] };
+    preflight: { mode: 'static-inputs', stage: 'source', deferredReasons: [] }, diagnostics: [{ id: 'LIT001', severity: 'Error', message: 'Invalid source', line: 4, column: 8 }] };
   const runner = new BuildRunner({ isTrusted: () => true, cwd: '/project',
     cli: (name, args) => ({ command: ['cli', name, ...args] }),
     probe: { run: async command => { commands.push(command); return { exit: 1, stdout: JSON.stringify(raw), stderr: '' }; } } });
@@ -80,6 +82,16 @@ test('unparseable output fails without guessing', async () => {
   });
   const result = await runner.run('build');
   assert.equal(result.ok, false);
+});
+
+test('a signalled process is interrupted even after a successful envelope and retains diagnostics', async () => {
+  const diagnostic = { id: 'LSM013', severity: 'Error', message: 'Incomplete', file: 'intro.md', line: null };
+  const runner = new BuildRunner({ isTrusted: () => true, cwd: '/proj', cli: command => ({ command: ['cli', command] }),
+    probe: { run: async () => ({ exit: 1, stdout: envelope({ diagnostics: [diagnostic] }), stderr: '', signal: 'SIGTERM' }) } });
+  const result = await runner.run('inspect');
+  assert.equal(result.outcome, 'cancelled');
+  assert.equal(result.processExitCode, null);
+  assert.deepEqual(result.diagnostics, [diagnostic]);
 });
 
 test('concurrent builds serialize per runner', async () => {
@@ -183,4 +195,33 @@ test('invalid JSON fails while stderr logs stay bounded', async () => {
   // Trailing non-JSON content is invalid regardless of its length.
   assert.equal(result.ok, false);
   assert.ok(logged.join('\n').length <= 4096);
+});
+
+test('CLI trust boundary rejects incompatible, malformed and contradictory results without losing diagnostics', () => {
+  const diagnostic = { id: 'LSM013', severity: 'Error', message: 'Analysis incomplete', file: 'intro.md', line: null };
+  for (const [overrides, exit, outcome] of [
+    [{ schemaVersion: '2.0' }, 0, 'unsupported-schema'],
+    [{ exitCode: undefined }, 0, 'invalid-response'],
+    [{ success: 'true' }, 0, 'invalid-response'],
+    [{ outputDirectory: 1 }, 0, 'invalid-response'],
+    [{ buildPlan: [{ inputs: 'invalid', artifacts: [] }] }, 0, 'invalid-response'],
+    [{ preflight: { mode: 'static-inputs', stage: 'source', deferredReasons: 'not an array' } }, 0, 'invalid-response'],
+    [{ diagnostics: [diagnostic, { id: 'broken' }] }, 0, 'invalid-response'],
+    [{ success: true, exitCode: 0 }, 1, 'inconsistent'],
+    [{ success: true, exitCode: 1 }, 1, 'inconsistent'],
+    [{ success: false, exitCode: 0 }, 0, 'inconsistent'],
+    [{ success: false, exitCode: 2 }, 1, 'inconsistent'],
+    [{ success: false, exitCode: 130 }, 130, 'cancelled'],
+  ] as [Record<string, unknown>, number, string][]) {
+    const raw = { schemaVersion: '1.0', success: true, exitCode: 0, diagnostics: [diagnostic], diagnosticsText: 'original text', ...overrides };
+    const result = parseCliResult('build', exit, JSON.stringify(raw));
+    assert.equal(result.ok, false);
+    assert.equal(result.outcome, outcome);
+    assert.deepEqual(result.diagnostics, [diagnostic]);
+    assert.equal(result.diagnosticsText, 'original text');
+    assert.deepEqual(result.raw, JSON.parse(JSON.stringify(raw)));
+    assert.equal(result.exitCode, exit);
+    assert.equal(result.processExitCode, exit);
+  }
+  assert.equal(parseCliResult('inspect', 0, envelope({ schemaVersion: '1.42', futureField: { supported: false } })).ok, true);
 });

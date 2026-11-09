@@ -2,68 +2,139 @@
 
 [日本語](quickstart.ja.md)
 
-Use the .NET 10 SDK (minimum supported version: 10.0.300). MDX additionally uses Node.js
-24.13.0; Markdown-only sites do not use Node. The SDK supplies the ASP.NET Core
-shared framework used by `serve`. Work in a new directory. Commands below target
-NuGet version 2.1.3.
+Use the .NET 10 SDK (minimum 10.0.300). Markdown-only Docs need no Node.js or
+React. Optional MDX uses Node.js 24.13.0 and an explicitly restored worker.
+The SDK supplies the ASP.NET Core shared framework used by `serve`.
 
-## Install and create Markdown Docs
+This checkout documents the next minor candidate, not a published release.
+Use the exact reviewed candidate package version and supplied NuGet feed/config
+for Tool, Templates and generated project packages. The version placeholder
+below must be replaced; the published 2.1.3 Docs template still uses the legacy
+reader. See [distribution](distribution.md) for isolated candidate installation.
+
+## Create typed Markdown Docs
+
+Work in a new directory, after configuring the supplied candidate feed:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
+dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
-.tools/lithosharp build MyDocs -c Release
-.tools/lithosharp serve MyDocs -c Release --port 4317
 ```
 
-On Windows use `.tools/lithosharp.exe`. Open `http://localhost:4317/`, then stop
-the server with Ctrl+C. The template installation affects your template catalog;
-the tool is local to `.tools`.
+On Windows use `.tools/lithosharp.exe`. Template installation changes your user
+template catalog; the Tool is local to `.tools`. Set `MyDocs/MyDocs.csproj`'s
+`LithoSharpVersion` to that exact candidate before restoring. Do not mix package
+versions or scaffold over an existing site.
 
-Add `MyDocs/content/hello.md`:
+## Edit the C# contract and Markdown
+
+`GuideFrontMatter.cs` declares required `Title`, optional `Description` and
+`Order`, and the `Guides` generated collection. The project references matching
+Core, Generators and Analyzers packages, with the compiler packages private.
+The factory uses `Guides.Binder` to load Markdown and `Guides.Catalog.GetRoute(entry.Id)`
+to select routes. It then calls `RenderDocs` for the Docs shell and navigation.
+No date is required by this schema.
+
+Edit `MyDocs/content/getting-started.md`:
 
 ```markdown
 ---
-title: Hello
-date: 2026-01-02T09:00:00Z
-summary: My first page.
+title: Getting started
+description: A guide checked with the project build.
+order: 1
 ---
 
-# Hello
+# Getting started
 
 This is **Markdown** rendered by .NET.
+
+## First build
+
+Build the site before distributing its output.
 ```
 
-Run the build again. The page is `MyDocs/dist/posts/hello.html`. Configure the
-title, base URL and content directory in `MyDocs/DocsSiteFactory.cs`; set the real
-deployment URL before publishing. The legacy reader requires title and date;
-the default summary validator runs when validation is requested. The
-[typed Markdown loader](typed-markdown-collections.md) uses your own C# schema;
-the separate `DocumentFrontMatter` documentation preset does not require the
-legacy date/summary fields.
+When adding a property to the C# schema, update the Markdown values and the
+presentation selector if it affects display. The default template includes a
+second valid page at `content/index.md`; intentionally invalid examples remain
+in the [DocsSample walkthrough](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output).
 
-## Try the typed-content workflow
+The compiler's `AdditionalFiles` and runtime loader share the `content` root.
+IDs include the relative path and extension: `getting-started.md` and
+`reference/getting-started.md` stay distinct. Routes are `guide/<relative-path-without-extension>/`,
+using `/` on every OS. `_`-prefixed files and directories are excluded in both
+paths. Add, rename or exclude files in both declared input rules and runtime
+loading when changing the defaults. A runtime file missing from the generated
+catalog fails route lookup rather than receiving a guessed URL; a catalog's
+coverage comes from actual compiler inputs, not a hard-coded Closed promise.
 
-The installed Docs template above is the small legacy-reader starting point.
-For the complete typed workflow, open the repository's
-[Docs sample walkthrough](../samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output).
-It connects `ArticleFrontMatter`, generated references and a binder, Markdown
-inputs, editor navigation, site generation and checks of the emitted HTML.
-Its invalid examples are separate from normal content.
+## Use generated references
 
-| Check | Where it runs | Scope |
+The factory already renders a link through the generated reference:
+
+```csharp
+Guides.Entries.Content_Getting_Started.GetUrl(rendering.Site.BaseUrl)
+```
+
+Use its `ToAttributeValue()` result in an HTML attribute, as the supplied factory
+does. Keep generated names tied to the declared inputs; rebuilding after a
+rename updates the available symbols. Do not duplicate the catalog with a
+handwritten route dictionary. See [typed collections](typed-markdown-collections.md)
+for custom binders, references and runtime validation.
+
+## Build, check and preview
+
+Set the site's title and actual deployment base URL in `DocsSiteFactory.cs`.
+The new factory explicitly enables Quality with an Error failure threshold and
+external HTTP checks disabled. Core's default `Quality = null` remains unchanged.
+Both the CLI and `dotnet run` use this factory. The generated Program prints
+quality diagnostics and exits unsuccessfully on loading or validation failure.
+
+```sh
+.tools/lithosharp build MyDocs -c Release
+.tools/lithosharp check MyDocs -c Release --format json
+.tools/lithosharp check-output --output MyDocs/dist --base-url https://example.com/ --format json
+.tools/lithosharp serve MyDocs -c Release --port 4317
+```
+
+Use the configured base URL in `check-output`. Open `http://localhost:4317/` and
+`http://localhost:4317/guide/getting-started/`. The home is `dist/index.html`;
+the content pages include `dist/guide/index/index.html` and
+`dist/guide/getting-started/index.html`. The Docs template alone owns the home.
+`serve` first builds, then serves saved output and watches for changes; it is
+not a read-only/no-build preview. Stop it with Ctrl+C. To preview an unchanged
+distribution only, use your static HTTP host against `dist`.
+
+| Command | Runs against | What success establishes |
 | --- | --- | --- |
-| Required title or invalid date: `LSG006` | C# compilation | Explicit compiler inputs checked against the custom C# schema. |
-| Proven reference contradiction: `LSA1402` | Analyzer | A complete, current (`Closed`) catalog; dynamic values are not proof. |
-| Source diagnostics and section outline | Editor/LSP | The current Markdown snapshot. `NoContext` lacks project-bound checks; custom C# schemas are not executed per keystroke. |
-| Incomplete or unavailable analysis | Parser/compiler/build | `Partial` and `Unknown` do not mean valid or absent. Unavailable header facts report `LSG002` in the generator or `LSM013` at runtime. |
-| Missing output target/anchor: `LSQ001`/`LSQ002` | Generation quality checks or `check-output` | The actual inspected artifacts and anchors, not source freshness. |
+| `build` | Compiled project, factory and generated artifacts | Generation and the configured Quality policy succeeded before output commit. |
+| `check` | Newly generated temporary output | Quality validation without publishing the configured output. |
+| `check-output` | Files already saved in the specified directory | Those artifacts were inspected; current source freshness is not established. |
+| `preflight --mode static` / `--mode trusted` | Explicit source buffers / compiled trusted factory and catalog | Findings in the reported Partial phase; neither renders final HTML or certifies a whole site. |
 
-LithoSharp 2.1.3 uses the Syntamark 1.2.0 runtime/Source pair and retains the
-`lithosharp-markdown/1` profile. Syntamark supplies Markdown syntax and raw source
-ranges; LithoSharp owns C# schemas, routes, rendering policy and diagnostics.
-See [known limitations](known-limitations.md) for analysis budgets and trust boundaries.
+A missing required title produces `LSG006` during compilation. A statically
+proven entry/route contradiction produces `LSA1402`; final missing targets or
+anchors produce `LSQ001`/`LSQ002`. Editor syntax/section feedback does not run
+custom C# schemas per keystroke. `NoContext`, `Partial` and `Unknown` are not
+complete validation. See [diagnostics](diagnostics.md), [preflight](cli.md) and
+[output checks](generated-output-checks.md).
+
+## CI for this Docs project
+
+Keep the reviewed exact versions and feed in the repository's tool/package
+configuration. Run one generation/check path before publishing the same output:
+
+```sh
+dotnet restore MyDocs
+.tools/lithosharp build MyDocs -c Release
+.tools/lithosharp check-output --output MyDocs/dist --base-url https://example.com/ --format json
+```
+
+Configure CI to stop on a nonzero exit code. The factory's explicit Quality
+Error threshold applies to the generation step; the final command inspects the
+saved distribution. Do not publish after either fails. This Markdown CI needs
+no npm restore. For an existing project, adopt this configuration explicitly
+using the [migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content).
 
 ## Add MDX and an interactive component
 
@@ -71,6 +142,7 @@ Create a separate MDX site using the installed tool and templates:
 
 ```sh
 .tools/lithosharp new mdx MyMdx -o MyMdx
+# Set MyMdx/MyMdx.csproj LithoSharpVersion to the same candidate
 dotnet build MyMdx -c Release
 .tools/lithosharp restore-mdx MyMdx/bin/Release/net10.0/worker
 .tools/lithosharp build MyMdx -c Release
@@ -143,5 +215,5 @@ older browser sessions when updating an existing deployment.
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template
-products. See [upgrading to 2.1.3](migration-2.0.md), [testing](testing.md),
+products. See [upgrading to the 2.2 candidate](migration-2.0.md), [testing](testing.md),
 [performance](performance.md) and [Known limitations](known-limitations.md).

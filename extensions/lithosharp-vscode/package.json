@@ -2,7 +2,7 @@
   "name": "lithosharp",
   "displayName": "LithoSharp for VS Code",
   "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "htkym",
   "repository": {
     "type": "git",
@@ -24,6 +24,7 @@
     "onLanguage:markdown",
     "onLanguage:mdx",
     "onCommand:lithosharp.selectProject",
+    "onCommand:lithosharp.showStatus",
     "onCommand:lithosharp.build",
     "onCommand:lithosharp.startServer",
     "onCommand:lithosharp.stopServer",
@@ -38,6 +39,10 @@
   "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "lithosharp.showStatus",
+        "title": "LithoSharp: Show Inspection Status"
+      },
       {
         "command": "lithosharp.selectProject",
         "title": "LithoSharp: Select Project"

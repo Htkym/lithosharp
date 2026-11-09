@@ -180,7 +180,14 @@ public sealed class SiteTestHostTests
                 var source = await File.ReadAllTextAsync(Path.Combine(sample, "typed-content", "first.md"));
                 var inspected = DocumentInspection.Inspect("typed-content/first.md", source);
                 await Assert.That(inspected.ProjectStatus).IsEqualTo(DocumentProjectStatus.NoContext);
-                await Assert.That(inspected.Headings.Count).IsEqualTo(1);
+                await Assert.That(inspected.Headings.Count).IsEqualTo(2);
+                await Assert.That((inspected.Headings[0].RawLevel, inspected.Headings[0].Text, inspected.Headings[0].Id))
+                    .IsEqualTo((1, "Typed collections in practice", "typed-collections-in-practice"));
+                await Assert.That((inspected.Headings[1].RawLevel, inspected.Headings[1].Text, inspected.Headings[1].Id))
+                    .IsEqualTo((2, "Typed rendering", "typed-rendering"));
+                document.AssertText("h1", "Typed collections in practice");
+                document.AssertText("h2[id='typed-rendering']", "Typed rendering");
+                document.AssertAttribute(".docs-toc a[href='#typed-rendering']", "href", "#typed-rendering");
                 await Assert.That(inspected.SchemaName).IsNull();
                 var report = await GeneratedSiteInspector.InspectAsync(host.OutputDirectory, "https://example.com/");
                 await Assert.That(report.Diagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)).IsFalse();

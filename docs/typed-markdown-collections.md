@@ -9,6 +9,11 @@ output-check walkthrough, use the [Docs sample](../samples/LithoSharp.DocsSample
 The [source-generator guide](source-generators.md) covers compiler inputs and
 generated binders; this page covers runtime loading and generation.
 
+For Docs presentation with the existing sidebar, TOC and previous/next links,
+use [`RenderDocs`](docs-template.md#typed-content-and-the-docs-shell) on the loaded
+collection. The next candidate's installed Docs template supplies this path;
+see [Quick Start](quickstart.md) for matching compiler/runtime inputs and Quality.
+
 ## Site generation integration
 
 Check `ContentLoadResult.IsSuccess` before using `Collection`, then register it through

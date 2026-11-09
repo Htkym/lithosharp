@@ -13,7 +13,7 @@ permissions:
 
 env:
   # Keep the release line aligned with build.yml; the RC suffix isolates this run's feed.
-  LITHOSHARP_RC_VERSION: ${{ format('2.1.3-rc.{0}', github.run_id) }}
+  LITHOSHARP_RC_VERSION: ${{ format('2.2.0-rc.{0}', github.run_id) }}
 
 jobs:
   package:

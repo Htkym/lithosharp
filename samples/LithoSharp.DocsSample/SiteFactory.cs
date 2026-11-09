@@ -1,4 +1,5 @@
 using LithoSharp;
+using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
@@ -50,12 +51,10 @@ public sealed class DocsSampleFactory : ISiteFactory
 
         var posts = await new MarkdownPostReader().ReadAllAsync(content);
         SiteGenerator.Validate(site, content, posts, customization);
-        var articleRoutes = new[] { GeneratedArticles.Entries.Typed_Content_First, GeneratedArticles.Entries.Typed_Content_Second }
-            .ToDictionary(reference => reference.Id, reference => reference.Route);
         var articleLoader = new MarkdownContentCollectionLoader<ArticleFrontMatter>(
             new ContentCollectionId("articles"),
             typedContent,
-            entry => articleRoutes[entry.Id],
+            entry => GeneratedArticles.Catalog.GetRoute(entry.Id),
             entry => new PageMetadata(
                 entry.FrontMatter.Title,
                 entry.FrontMatter.Summary,
@@ -68,8 +67,7 @@ public sealed class DocsSampleFactory : ISiteFactory
         var articleResult = await articleLoader.LoadAsync(cancellationToken);
         if (!articleResult.IsSuccess)
         {
-            throw new InvalidOperationException(string.Join(Environment.NewLine,
-                articleResult.Diagnostics.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.Message}")));
+            throw new SiteBuildExtensionException(articleResult.Diagnostics);
         }
         var articles = articleResult.Collection!;
         var topicPages = articles.GeneratePages(
@@ -85,7 +83,7 @@ public sealed class DocsSampleFactory : ISiteFactory
                 var items = string.Join(
                     string.Empty,
                     page.Content.Entries.Select(entry =>
-                        $"<li><a href=\"{articleRoutes[entry.Id].PublicPath}\">{System.Net.WebUtility.HtmlEncode(entry.FrontMatter.Title)}</a></li>"));
+                        $"<li><a href=\"{new ContentRef<ContentEntry<ArticleFrontMatter, string>>(GeneratedArticles.Catalog.CollectionId, entry.Id, GeneratedArticles.Catalog.GetRoute(entry.Id)).GetUrl(context.Site.BaseUrl).ToAttributeValue()}\">{new HtmlText(entry.FrontMatter.Title)}</a></li>"));
                 return context.RenderDocument(
                     $"<h1>{System.Net.WebUtility.HtmlEncode(page.Content.Topic)}</h1><ul>{items}</ul>");
             },
@@ -110,8 +108,20 @@ public sealed class DocsSampleFactory : ISiteFactory
             Redirects = redirectDemo
                 ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
                 : [],
-            ContentCollections = [new SiteContentCollection<ArticleFrontMatter, string>(
-                articles, new ArticleLayout(articleSource, image)) { RendererFingerprint = "article-layout:v2", IsThreadSafe = true }, topicPages]
+            ContentCollections = [articles.RenderDocs(
+                entry => new DocsPagePresentation
+                {
+                    Title = entry.FrontMatter.Title,
+                    Description = entry.FrontMatter.Summary,
+                    Order = entry.FrontMatter.Order
+                },
+                (entry, rendering) => rendering.RenderMarkdown(entry.Body) +
+                    $"<p><a href=\"{GeneratedArticles.Entries.Typed_Content_Second.GetUrl(rendering.Site.BaseUrl).ToAttributeValue()}\">Read the related typed article</a></p>" +
+                    $"<p><a href=\"{rendering.Assets.GetUrl(articleSource).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
+                    (image is null ? string.Empty : ResponsiveImage.Render(rendering.Assets, image, "LithoSharp sample icon").ToHtmlString() +
+                        $"<p><a href=\"{rendering.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>"),
+                rendererFingerprint: "article-docs-layout:v1",
+                isThreadSafe: true), topicPages]
         };
         return new SiteDefinition(site, posts)
         {
@@ -120,15 +130,4 @@ public sealed class DocsSampleFactory : ISiteFactory
             Options = options
         };
     }
-}
-
-sealed class ArticleLayout(SiteAsset source, ImageAsset? image) : IPageLayout<ContentEntry<ArticleFrontMatter, string>>
-{
-    public IHtmlContent Render(SitePage<ContentEntry<ArticleFrontMatter, string>> page, PageRenderingContext context) =>
-        context.RenderDocument(page, Html.UnsafeRaw(
-            context.RenderMarkdown(page.Content.Body).ToHtmlString() +
-            $"<p><a href=\"{GeneratedArticles.Entries.Typed_Content_Second.GetUrl(context.Site.BaseUrl).ToAttributeValue()}\">Read the related typed article</a></p>" +
-            $"<p><a href=\"{context.Assets.GetUrl(source).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
-            (image is null ? string.Empty : ResponsiveImage.Render(context.Assets, image, "LithoSharp sample icon").ToHtmlString() +
-                $"<p><a href=\"{context.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>")));
 }

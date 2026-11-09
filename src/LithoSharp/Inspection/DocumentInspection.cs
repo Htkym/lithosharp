@@ -141,6 +141,8 @@ public static class DocumentInspection
             status,
             project?.SchemaName)
         {
+            SchemaInspectionScope = project is null ? "unknown"
+                : project.SchemaName is "document" or "post" ? "built-in-binding" : "build-required",
             Sections = (analysis.Sections ?? []).Select(section => new DocumentSectionInfo(section.LocalKey,
                 section.ParentLocalKey, section.HeadingLocalKey, section.SubtreeSpan is { } span
                     ? Locate(locator, sourcePath, new SourceSpan(span.Start, span.Length)) : null)).ToArray(),

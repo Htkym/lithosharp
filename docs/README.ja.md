@@ -2,7 +2,12 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-この案内はNuGetパッケージ2.1.3とVS Code拡張0.3.0を対象にしています。利用するLithoSharpのパッケージは同じバージョンにそろえてください。拡張機能は別のバージョンで公開されます。必要な環境はQuick Startで確認できます。過去の測定や開発記録は記載された時点の結果であり、現行版の保証ではありません。
+このcheckoutの案内には、次期候補の型付きDocsと対応拡張の説明が含まれます。
+公開済みのリリースではありません。導入時には提供された固定候補バージョンとfeedを使ってください。
+利用するLithoSharpのパッケージは同じバージョンにそろえてください。拡張機能は別のバージョンで公開されます。必要な環境はQuick Startで確認できます。過去の測定や開発記録は記載された時点の結果であり、現行版の保証ではありません。
+
+[導入選択ガイド](adoption-guide.ja.md)では、.NET製品Docsへの適合条件、他の生成器との選択、
+DocsSampleの自己利用例、外部評価用の未送信依頼案と記録様式を確認できます。
 
 ## 最初のサイトを作る
 
@@ -17,16 +22,17 @@
 - [型付きMarkdown collection](typed-markdown-collections.md)と[型付きYAML collection](typed-yaml-collections.md)はモデル、binder、ルート、厳密な入力規則の英語リファレンスです。
 - [Source Generator](source-generators.md)は日英併記、[Analyzer](../src/LithoSharp.Analyzers/README.md)は英語です。宣言したカタログとコンパイル時の検証範囲を説明します。動的な値には実行時の検証が必要です。
 - [MDX](mdx.ja.md)はReact、island、文書collection、バージョン、locale、API文書の作成を扱います。
-- [資産と画像](assets-and-images.ja.md)と[HTML/CSSの契約](layout-css-contract.md)は資産、変換、responsive image、表示の変更を説明します。HTML/CSSの詳細は英語・日英併記です。
+- [資産と画像](assets-and-images.ja.md)と[HTML/CSSの契約](layout-css-contract.md)は資産、変換、responsive image、表示の変更を説明します。HTML/CSSの詳細には英語の説明を含みます。
 - [Docusaurus移行](docusaurus-migration.ja.md)で対応入力を検査・変換できます。任意のpluginやsite codeを自動移行するものではありません。
 - 実行例は[Docs](../samples/LithoSharp.DocsSample/README.ja.md)、[Blog](../samples/LithoSharp.Sample/README.ja.md)、[MDX](../samples/LithoSharp.MdxSample/README.ja.md)にあります。
 
 ## 診断・テスト・運用
 
+- [診断リファレンス](diagnostics.ja.md)では、原因、検出工程、修正する場所、検査範囲を確認できます。
 - [CLI](cli.ja.md)はfactory、生成、preview、inspection、preflight、cacheのコマンドを説明します。
 - [VS Code](../extensions/lithosharp-vscode/README.ja.md)と[言語サーバー](language-server.md)は診断、セクションのアウトライン、project context、信頼が必要な操作を扱います。言語サーバーのプロトコルは英語です。
 - [Testing](testing.ja.md)と[Testing API・移行表](Testing-v2-api.md)はサイトのテスト、snapshotの所有期間、対応selector、移行例を説明します。APIの詳細は英語です。
-- [生成済み出力の検査](generated-output-checks.ja.md)と[サイト品質](site-quality.md)は成果物、HTML、リンク、anchor、任意の外部HTTP検査を扱います。サイト品質の詳細は英語・日英併記です。
+- [生成済み出力の検査](generated-output-checks.ja.md)と[サイト品質](site-quality.md)は成果物、HTML、リンク、anchor、任意の外部HTTP検査を扱います。サイト品質の詳細には英語の説明を含みます。
 - [差分ビルド](incremental-builds.ja.md)と[ビルドグラフ](build-graph.ja.md)は依存関係、キャッシュの再利用、無効化理由、出力の所有者を説明します。
 - [機能情報](tooling-capabilities.ja.md)、[互換性契約](compatibility-contract.ja.md)、[既知の制約](known-limitations.ja.md)で、解析ごとに確定できる範囲とコード実行の条件を確認できます。
 - [性能](performance.ja.md)には測定日、入力、環境、限界、再現方法を記載しています。
@@ -50,7 +56,7 @@
 
 ## 言語と過去の資料
 
-多くの利用ガイドには英語版と日本語版があります。この索引で英語・日英併記と示した技術リファレンスは、日本語だけですべての詳細を読めるわけではありません。各リンク先の説明と対応範囲を確認してください。
+多くの利用ガイドには英語版と日本語版があります。この索引にある技術リファレンスには英語の説明も含むため、日本語だけですべての詳細を読めるわけではありません。各リンク先の説明と対応範囲を確認してください。
 
 [更新履歴の資料](history/README.md)は以前の移行手順を保持しています。`development/`とバージョン付きの`contracts/`は当時のrevision、証拠、範囲を記録した資料です。新規サイトの導入にはQuick Startを使ってください。
 

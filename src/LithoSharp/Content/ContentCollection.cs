@@ -82,6 +82,27 @@ public sealed class ContentCollection<TFrontMatter, TBody>
 
     public bool IsCacheable { get; }
 
+    /// <summary>Connects published entries to the shared Docs layout, navigation, table of contents, and adjacent-page links.</summary>
+    /// <param name="presentation">Selects schema-specific display information after publication and canonical route selection.</param>
+    /// <param name="bodyRenderer">Renders only the body fragment. RenderMarkdown supplies its table of contents from the same compilation.</param>
+    /// <param name="rendererFingerprint">A stable identity for display selectors, body rendering, and their captured configuration.</param>
+    /// <param name="isThreadSafe">Whether concurrent calls to the selectors and renderer are safe.</param>
+    /// <remarks>Navigation stays within this collection, version, and locale. Set a renderer fingerprint and declare external dependencies to enable caching.</remarks>
+    public SiteContentCollection<TFrontMatter, TBody> RenderDocs(
+        Func<ContentEntry<TFrontMatter, TBody>, DocsPagePresentation> presentation,
+        ContentPageRenderer<TFrontMatter, TBody> bodyRenderer,
+        string? rendererFingerprint = null,
+        bool isThreadSafe = false)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        return new SiteContentCollection<TFrontMatter, TBody>(this, bodyRenderer)
+        {
+            DocsPresentationSelector = presentation,
+            RendererFingerprint = rendererFingerprint,
+            IsThreadSafe = isThreadSafe,
+        };
+    }
+
     /// <summary>Groups published entries by NFC-normalized, case-sensitive keys, deduplicating each entry within a key. Generated pages cannot be aggregated recursively.</summary>
     /// <remarks>Caching requires a cacheable source, complete external dependencies and a versioned transformationId. Default derived surfaces include search, sitemap, per-page social images and llms.txt, excluding RSS and site navigation.</remarks>
     public SiteContentCollection GeneratePages<TPageContent>(

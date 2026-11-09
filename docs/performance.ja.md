@@ -2,156 +2,97 @@
 
 [English](performance.md)
 
-1.0.0候補の測定、2026-09-08に行った0.3.0の測定、2026-09-13の競合比較を分けて掲載しています。
-各結果は記載した入力と環境での値であり、サービス水準を保証するものではありません。2.1.3やSyntamark 1.2.0の更新効果を測定した値ではありません。依存更新と解析経路の変更による効果は、この過去の結果から推定できません。
+最新の参照測定は2026年11月7日に実施した。正式版2.1.3と、未commitの2.2.0開発snapshotを比較し、新しい型付きDocs＋Qualityは単独のbaselineとして測定した。公開済みの2.2.0パッケージを対象にした測定ではなく、リリース合格を示すものでも速度の保証でもない。後続のナビゲーションcacheと正当性の修正は、このsnapshotに含まれない。高速化は主張しない。
 
-## 現行版と測定の範囲
+[raw値、集計値、ソースと実行バイナリのhash、測定条件](evidence/performance/2026-11-07-typed-docs-reference.json)を、この文書とともに保存している。同じ製品バージョンのまま後続の変更が入っても、測定対象を区別できる。完全なログや生成サイトはローカルに残す。[harnessガイド](../benchmarks/LithoSharp.Performance/README.md)に、再現手順と区間の説明がある。
 
-LithoSharp 2.1.3はSyntamark 1.2.0を採用し、`lithosharp-markdown/1`を維持しています。header走査、選択した情報の解析、同一snapshotの再利用、parserを識別するcacheは、それぞれ別の経路に関わります。これらの実装だけでは生成全体の高速化を証明できません。正しさの検証やパッケージ・拡張機能の受け入れ確認も、性能測定とは別です。
+## 対象と条件
 
-ローカルの比較では正式版ではない候補ペアを使い、依存だけの変更とconsumerの変更を分けて調べました。初期比較ではheader専用Generatorの処理コストが下がった一方、エディターの解析コストは増えました。後続の比較では最適化した依存によって大きな入力のエディター解析コストが下がりましたが、変更前の元のbaselineやサイト生成全体を再測定していません。Generatorやconsumer経路がさらに高速化したという結果でもありません。以前のエディター性能の悪化が完全に回復したかは、この結果から確定できません。以下の過去の測定と制約は、これらの限定的な結果で置き換えずに残しています。
+- baselineは正式版2.1.3の`25d92d4605533260b22abffd2618971dd6f60c8a`。製品ソースを変更せず、共通の計測コードだけを重ねた独立した作業ツリーでビルドした。
+- candidateは同commitを基にした2.2.0のsource build。参照記録にはリポジトリ相対pathごとの製品ソースhashと、実際にロードしたバイナリのhashが含まれる。基準commitだけでは未commitのsnapshotを識別できない。
+- Windows 10.0.26300 x64、Intel Core Ultra 7 258V、論理CPU 8、SDK 10.0.403、runtime 10.0.14。MDXとeditorはNode.js 24.13.0と、記録したworker lockfileを使った。
+- Coreが実際に使ったSyntamarkのruntimeは1.2.0。parser fingerprintはGeneratorに埋め込まれたSourceの実測値と一致した。値は`1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa`、profileは`lithosharp-markdown/1`。runtime assemblyとSource hostを別々に記録し、パッケージ宣言値では代用していない。
+- サイトの規模は100ページ、固定のbuild timestampは`2026-01-01T00:00:00Z`。ビルドを同時実行せず、順番に実行した。新しいprocessで起動しても、OSのファイルキャッシュが空とは限らない。corpus作成、restore、compileは計測区間外。
 
-## 測定対象と環境
+## Blogの継続比較
 
-Markdown harnessは生成時間、managed allocation、常駐メモリを測定します。MDX harnessは
-workerのcompile、render、bundleも記録します。ブラウザーでは同じfixtureのpage hydrationと
-selective hydrationを比較します。非公開の測定生データはrepositoryやpackageに含めません。
+従来のBlog生成区間を維持した。原稿読み込みは区間外で、Qualityの明示設定はない。両版で同じBlog harnessソースと設定を使い、独立したprocessを各3回実行した。対象の実行順を交互に変え、各processでは初回、無変更、本文変更、レイアウト変更の順に測定した。
 
-環境はWindows build 26200 x64、Intel Core Ultra 7 258V、8 logical processors、32 GB RAM、
-.NET SDK 10.0.300/runtime 10.0.8、Node.js 24.13.0、Chromium 153.0.8010.12です。
-当時の測定にはMDX 3.1.1、React 19.2.4、esbuild 0.25.12を使いました。現在のworker依存関係の一覧ではありません。現行の要件は[MDXガイド](mdx.ja.md)を参照してください。
+単位はms。中央値と、括弧内に観測した最小値〜最大値を示す。
 
-## 1.0.0のMarkdown生成
-
-2026-09-15に、`5cc8581`の最終コンパイラーソースを上記のWindows・.NET環境で測定しました。
-100ページと1,000ページは独立した5プロセス、10,000ページは2プロセスの中央値です。
-MBは10進表記です。割当量はmanaged memoryが対象であり、常駐メモリの最大値ではありません。
-
-| ページ数 | 全件生成 | メモリ割当量 | 本文1件変更 |
-| --- | ---: | ---: | ---: |
-| 100 | 426.14 ms | 40.67 MB | 211.61 ms |
-| 1,000 | 5,083.53 ms | 359.58 MB | 3,410.56 ms |
-| 10,000 | 71,195.96 ms | 3,564.19 MB | 75,680.04 ms |
-
-変更のないビルドでは、無効化された文書は0件でした。初期の測定にはリリース基準を超えた実行もあり、
-時間の変動が大きかったため、最終測定は他のローカル検証と重ならない状態で実施しました。
-10,000ページの測定回数は少なく、所要時間を保証する結果ではありません。
-以下の大規模MDXやブラウザーの測定をやり直した結果でもありません。
-
-## 過去のMarkdown互換性測定
-
-100ページと1,000ページで、基準版と0.3.0を交互に5回測定しました。時間、割当量、常駐メモリの
-増加はいずれも中央値で10%以内でした。単発では時間差が10%を超えるため、すべての実行で性能の悪化が
-ないとは主張しません。これはMarkdown benchmarkの基準版との比較であり、公開NuGet 0.2.0の
-upgrade consumerを使った時間比較ではありません。
-
-## MDX生成と大規模サイト
-
-2026-09-08に測定した0.3.0の結果です。最終1.0.0候補での全ケースの再測定は行っていません。
-
-| 10,000ページcorpus | 経過時間 |
-| --- | ---: |
-| Cold | 274.30秒 |
-| No-op | 105.13秒 |
-| 本文1件変更 | 213.39秒 |
-
-本文1件変更ではcompileとrenderが各1件でも、interactive entryを2,000件bundleしました。
-10ケースを通したprocess treeの同時working-set観測最大値は11.807 GiBです。
-単一cold buildのpeakでも、最低限必要なRAMでもありません。managed allocationにはNodeのメモリを
-含まず、worker heap snapshotはpeak RSSではありません。worker timeoutは既定2分から15分へ
-延長しました。増分compileができても、生成全体が即座に終わるとは限りません。
-
-## Selective Hydration
-
-2026-09-08に0.3.0で行ったブラウザー測定の結果です。
-
-静的ページfixtureをmodeごとに5回、順序を交互にして測定しました。各回は新しいbrowser contextを
-使い、service workerを無効化しています。viewportは1280 × 720で、遅延起動前のnetwork idle時点です。
-
-| 指標 | Page Hydration | Selective Hydration |
+| 区間 | 正式版2.1.3 | 2.2.0 snapshot |
 | --- | ---: | ---: |
-| JS bytes | 449,585 | 15,817 |
-| gzip相当bytes | 95,085 | 4,998 |
-| Hydration root | 1 | 0 |
-| Hydration | 12.0 ms | 0 ms |
-| Script中央値 | 17.679 ms | 3.089 ms |
+| 初回生成 | 1,869.63（1,584.33〜1,902.90） | 1,840.49（1,623.12〜3,183.85） |
+| 無変更 | 169.91（161.51〜194.21） | 171.72（143.53〜182.80） |
+| 本文1件変更 | 848.01（797.38〜973.90） | 920.58（822.84〜1,416.21） |
+| レイアウト変更 | 832.57（745.13〜942.26） | 1,006.84（727.91〜1,331.50） |
 
-この削減は測定した静的fixtureの結果です。island fixtureではscript中央値が21.514 → 15.976 ms、
-hydration時間の合計が13.2 → 18.2 msでした。hydration区間は重複する場合があり、dynamic importの
-待ち時間を含みません。fallback fixtureのJSは451,676 → 452,377 bytesで、静的ページと同じ削減はありません。
-640 × 600から1200 × 800へ変更して全遅延islandを起動した場合、scriptは16.101 → 18.056 ms、
-hydrationは13.1 → 14.6 ms、CLSは両modeとも0.157でした。初期viewportと起動後のlayoutは別条件です。
+本文変更とレイアウト変更はcandidateの中央値が高かった。測定回数が少なく、範囲も重なっているため、安定した差や性能改善を確認したとは言えない。レイアウト変更後の入力と出力のbytesは、内部の出力manifestだけを除き、6回すべてで一致した。記録した入出力のhashは最後の状態を表し、各区間直後のsnapshotではない。
 
-## 競合比較
+## 型付きDocs＋Qualityの単独baseline
 
-2026-09-13に同一マシンと固定corpusで、製品buildを比較しました。対象は
-Docusaurus 3.10.2とReact 19.2.4、Astro 7.3.2とStarlight 0.42.0、Hugo 0.166.0
-extended、MkDocs 1.6.1とMaterial 9.7.7であり、Plain MarkdownとDocumentationと
-MDX・Interactiveのprofileで測りました。下表はprofile別のbuild時間の中央値です。
-検索、highlight、navigation、JS機能の差があり、非対応の組合せは0msにしません。
+candidate専用の経路で`MarkdownContentCollectionLoader`、`RenderDocs`、共通のDocs表示部品を使い、Qualityを明示的に有効にした。失敗閾値はError、孤立ページ検査は有効、外部HTTP検査は無効。実行時に作る固定corpusを組み込みのreflection binderで読み込む。生成Binder、テンプレートやC#のcompileは別の工程であり、ここには含まれない。
 
-| 1,000 pages | LithoSharp | Hugo | MkDocs | Astro | Docusaurus |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Plain | 6.7 s | 2.8 s | 21.3 s | 6.6 s | 34.6 s (blog) |
-| Docs | 12.4 s | 0.76 s | 23.9 s | 14.3 s (Starlight) | 23.9 s |
+100ページを、新しいprocessで3回測定した。
 
-10,000 pagesではHugoとAstroが完走し、Docusaurusはメモリ不足になり、MkDocsは10分制限を
-超えました。HugoとMkDocsにMDX対応はありません。raw結果はローカルに置き、手順は
-リポジトリの harness から再現できます。Windowsの結果からLinux/macOSのthroughputは
-推定できません。
-
-## この測定からは言えないこと
-
-上の10,000-page MDXの数値に同等の競合測定はありません。Windowsの結果からLinux/macOSのthroughputは推定できません。
-fixtureの削減は、全MDXページがzero-JSになること、全islandが速くなること、任意のnpm依存が動くことを
-示しません。実行とplatformの境界は[既知の制約](known-limitations.ja.md)を参照してください。
-
-## 1.1.0候補：Editor latency（測定済み）
-
-Editor測定ハーネスで2026-09-28に測定しました（実Release言語サーバー×実`LspClient`、
-Windows x64、8 CPU、Node.js 24.13.0）。warm分は除外します。50 KiB代表文書に
-100編集ずつ、50 ms debounce込みend-to-endの値です。
-
-| 文書 | burst p50/p95/max | spaced p50/p95/max |
+| 区間 | 生成の中央値ms（範囲） | 読み込み＋生成の中央値ms |
 | --- | ---: | ---: |
-| Markdown | 94/96/97 ms | 94/96/116 ms |
-| MDX | 94/97/101 ms | 94/96/125 ms |
+| 初回生成 | 3,120.93（2,655.32〜3,389.91） | 3,520.91 |
+| 無変更 | 1,206.14（889.23〜2,240.43） | 1,386.23 |
+| 本文1件変更 | 1,480.47（1,272.97〜3,177.47） | 1,600.48 |
+| レイアウト変更 | 3,089.29（3,041.90〜3,517.67） | 3,380.00 |
 
-設定したdebounceをend-to-endから差し引いた概算の残差は約46 msです。通信、スケジューリング、診断の通知を含むため、パーサー単独の測定値ではありません。当時報告した検証閾値は
-解析Markdown p95≤250 ms・MDX p95≤750 ms、体感Markdown p95≤500 ms・
-MDX p95≤1500 msであり、このmachineでは4つとも適合します。他machineは未測定です。
+生成時間には入力の読み込みを含めない。別項目の読み込み＋生成時間、allocation、working setには読み込みと生成の両方を含める。無変更ではcache可能なnodeをすべて再利用したが、有効にした出力Qualityは実行した。型付きDocsのadapterは2.1.3には存在しないため、Blogやlegacy Docsなど異なる経路との版間比率は出していない。3回の最終出力bytesは一致した。
 
-二root 1,000編集＋途中server kill→有界再起動のsoakは両rootの最新版数へ収束し、
-所有process残留はありませんでした。このsoakは高速編集であり、30分wall-clock soakではありません。
+## MDX、Generator、editor
 
-## 1.1.0の性能上の制約
+MDXは既存の静的80％、page hydration 10％、load island 10％のcorpusと、10区間の測定順序を使った。各版1processで、下表以外の区間もraw値に残している。1組だけなので、改善や悪化を確定する測定ではない。
 
-生成速度の目標は未達です。2026-10-06に、Windows x64、SDK 10.0.401、runtime 10.0.12で
-Markdown 1,000ページをReleaseで比較した1組では、本文1件の編集に基準版1,416.16 ms、
-採用したbuffer設定を使う開発候補2,521.28 msを要しました。比率は1.780で、目標0.70以下を満たしません。
-1組の結果であり、中央値、全性能matrix、所要時間の保証ではありません。Markdown 10,000ページや
-MDX 1,000ページの結果は証明せず、以前の表も記載した範囲のままです。
+| MDX区間 | 2.1.3の秒数 | 2.2.0 snapshotの秒数 |
+| --- | ---: | ---: |
+| 初回生成 | 23.20 | 19.37 |
+| 無変更 | 12.14 | 10.43 |
+| 本文1件変更 | 21.33 | 15.39 |
+| レイアウト変更 | 13.80 | 17.25 |
 
-本文変更でも、変更のない生成物と無関係なファイルを含む既存出力全体を、独立したstagingへ
-コピーしてから変更分を置き換えます。出力の照合とディレクトリ切替・復旧の規則は維持します。
-この処理は小さな編集の時間でも大きな割合を占め得ます。目標未達は1.1.0の既知の制約として記録し、
-出力設計の大きな変更は次版以降へ回します。生成の高速化や性能目標の合格は主張しません。
+Generatorは実際の埋め込みSourceの`ParseForCompiler`によるheader scanを測った。reflection呼び出しのコストも含む。本文4,096文字の入力100件について、各版3processを使い、各processでwarmup 1回を除いて5回測定した。processごとの中央値をさらに集計した中央値は、2.1.3が0.8157ms、snapshotが0.6947msだった。スキーマのbind、コード出力、Roslyn、C# compileは含まず、Generator全体の高速化は示していない。
 
-1.1.0ではWatchとEditorの長時間安定性検証は実施していません。高速編集と復旧の確認は、30分の
-連続稼働を証明しません。複数OSのCIとpackage済み拡張の確認は機能検証で、性能測定とは区別します。
+candidateのeditorは、実際の`LspClient`とRelease language serverを使った。文書は50KiB。表の4条件（Markdown／MDXとBurst／Spacedの組み合わせ）を別々のLSP processで測り、各条件でwarmup 3回を除外して20編集ずつ、計80編集を記録した。50msのdebounce、transport、schedulingを含む値であり、parser単独の時間ではない。Burstは追加の待ち時間を入れない逐次編集、Spacedは100msの間隔を追加した逐次編集を表す。
+
+| 文書 | Burstのp50／p95／最大ms | Spacedのp50／p95／最大ms |
+| --- | ---: | ---: |
+| Markdown | 66.37／84.59／90.28 | 67.69／80.24／92.68 |
+| MDX | 74.08／83.98／97.53 | 73.44／78.03／78.37 |
+
+この表とは別に、1つのLSP clientで2つのroot URIの20KiB文書を交互に20回ずつ、計40回編集する短い継続試験を行い、途中で1回再起動した。この試験では再起動前後の2つのLSP processを使った。表の4つと合わせ、harnessが所有する6つのLSP processはすべて終了した。停止前のworking-set snapshotは58,114,048〜66,035,712bytesで、peakでもprocess treeの合計でもない。harness自身のworking setは別に46,026,752→49,119,232bytesだった。worker NodeのRSSは未取得。editorのprotocolからはロード済みparser／Sourceの識別情報を取得できないため、その欄は不明のまま残し、サイト測定の値を転用していない。代わりにserver／clientバイナリとclientソースのhashを記録した。
+
+## 解釈と制約
+
+段階別時間には既存の`SiteBuildTimings`を使う。verificationのworker区間はexecutionと重なり、合計が全体時間を上回ることもある。各値を足して総時間にはしない。サイトのworking setは10ms間隔の標本で、process実行期間全体のpeakではない。managed allocationはNodeを含まず、workerのheap snapshotもNodeのRSSではない。
+
+最初のBlog campaignは測定中にソースの文書メタデータが変わり、最初のDocs fixtureは最小スキーマ外のfront matterを含んでいたため、いずれも参照値から除外し、理由を記録している。これらを有効な参照値に読み替えることはしていない。未取得、未対応、失敗、timeoutをゼロと区別する。
+
+editorでは全標本の保存とLSPの終了後も、clientのtimerによってharnessホストが残り、所有元を照合したうえで別途停止する必要があった。この実行上の制約は、取得済みの遅延値とは分けて記録した。後から入れた終了処理の修正を、新たな性能測定には数えていない。参照記録には測定時のharness hashを残している。
+
+1,000／10,000ページ、他OS、長時間のwatch／editor soak、Extension Hostのコスト、競合との再比較は今回の対象外。CIの軽量な比較は任意実行のままで、既定baselineを正式版2.1.3に固定した。14日間のCI artifactだけを、この参照値の根拠にはしていない。
 
 ## 再現
 
-Release buildと明示的なworker restoreを先に行います。SDK、lockfile、時刻、corpusを揃え、
-測定中は別のbuildやbrowser負荷をかけないでください。
+Releaseビルド、profileの選択、設定ファイルを使うmatrix、任意のCI比較は[harnessガイド](../benchmarks/LithoSharp.Performance/README.md)を参照。通常の実行記録は`.local/`に残し、レビューした参照値だけを公開用のevidenceディレクトリへ保存する。
 
-```sh
-dotnet restore LithoSharp.slnx --locked-mode
-dotnet build LithoSharp.slnx -c Release --no-restore
-dotnet run --project benchmarks/LithoSharp.Performance -c Release --no-build -- --size 100 --smoke --output .local/performance-smoke.json
-```
+## 過去の測定
 
-実行コードは[Markdown](../benchmarks/LithoSharp.Performance)、[MDX](../benchmarks/LithoSharp.MdxPerformance)、
-[process-tree計測](../eng/Measure-ProcessTree.ps1)、[browser計測](../tests/fixtures/mdx-browser/measure.mjs)にあります。
-browser harnessにはpage版とselective版のoriginと出力fileを指定し、5回ずつ反復します。
-`--activate`は遅延起動後の測定用です。測定出力はローカルに保持してください。
+0.3.0／1.0.0／1.1.0の表、未達の増分性能目標、当時の制約は[性能測定の履歴](history/performance-through-2.1.3.ja.md)へ移した。現行版の結果としては扱わない。
+
+<a id="100のmarkdown生成"></a>
+<a id="過去のmarkdown互換性測定"></a>
+<a id="mdx生成と大規模サイト"></a>
+<a id="selective-hydration"></a>
+<a id="競合比較"></a>
+<a id="110候補editor-latency測定済み"></a>
+<a id="110の性能上の制約"></a>
+<a id="現行版と測定の範囲"></a>
+<a id="測定対象と環境"></a>
+<a id="この測定からは言えないこと"></a>
+
+旧sectionのリンク先はここに残している。該当する表は履歴を参照。

@@ -12,6 +12,20 @@ using LithoSharp.Performance;
 
 const int defaultPageCount = 100;
 var arguments = BenchmarkArguments.Parse(args);
+if (arguments.Mode == "generator")
+{
+    await GeneratorWorkload.RunAsync(arguments, args);
+    return;
+}
+if (arguments.Profile == "typed-docs-quality")
+{
+#if TYPED_DOCS_BENCHMARK
+    await TypedDocsWorkload.RunAsync(arguments, args);
+    return;
+#else
+    throw new NotSupportedException("typed-docs-quality is a candidate-only feature. Build with -p:EnableTypedDocsBenchmark=true; do not compare it to a different 2.1.3 rendering path.");
+#endif
+}
 var runSite = arguments.Mode is "site" or "all";
 var runEngine = arguments.Mode is "engine" or "all";
 var pageCount = arguments.PageCount ?? defaultPageCount;
@@ -22,8 +36,8 @@ if (pageCount is not (100 or 1_000 or 10_000))
 
 var outputPath = Path.GetFullPath(arguments.OutputPath ?? Path.Combine(
     Environment.CurrentDirectory,
-    "artifacts",
-    "performance-baselines",
+    ".local",
+    "performance",
     $"baseline-{pageCount}.json"));
 var outputDirectory = Path.GetDirectoryName(outputPath)
     ?? throw new InvalidOperationException("The result output path must include a directory.");
@@ -326,6 +340,8 @@ internal sealed class BenchmarkArguments
     public int Warmup { get; private init; } = 1;
     public int Iterations { get; private init; } = 5;
     public string? EngineOutputPath { get; private init; }
+    public string Profile { get; private init; } = "blog";
+    public string? GeneratorAssembly { get; private init; }
 
     public static BenchmarkArguments Parse(string[] args)
     {
@@ -337,10 +353,20 @@ internal sealed class BenchmarkArguments
         var warmup = 1;
         var iterations = 5;
         string? engineOutput = null;
+        var profile = "blog";
+        string? generatorAssembly = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
             {
+                case "--generator-assembly" when index + 1 < args.Length:
+                    generatorAssembly = args[++index];
+                    break;
+                case "--profile" when index + 1 < args.Length:
+                    profile = args[++index];
+                    if (profile is not ("blog" or "typed-docs-quality"))
+                        throw new ArgumentException("The profile must be blog or typed-docs-quality.");
+                    break;
                 case "--size" when index + 1 < args.Length:
                     pageCount = int.Parse(args[++index], CultureInfo.InvariantCulture);
                     break;
@@ -357,8 +383,8 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--mode" when index + 1 < args.Length:
                     mode = args[++index].ToLowerInvariant();
-                    if (mode is not ("site" or "engine" or "all"))
-                        throw new ArgumentException("The mode must be site, engine, or all.", nameof(args));
+                    if (mode is not ("site" or "engine" or "all" or "generator"))
+                        throw new ArgumentException("The mode must be site, engine, all, or generator.", nameof(args));
                     break;
                 case "--warmup" when index + 1 < args.Length:
                     warmup = int.Parse(args[++index], CultureInfo.InvariantCulture);
@@ -371,7 +397,7 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--help":
                 case "-h":
-                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--mode site|engine|all] [--scenario all|clean|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path]");
+                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--profile blog|typed-docs-quality] [--mode site|engine|all|generator] [--generator-assembly path] [--scenario all|clean|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path]");
                     Environment.Exit(0);
                     break;
                 default:
@@ -382,7 +408,7 @@ internal sealed class BenchmarkArguments
         if (warmup < 0 || iterations < 1)
             throw new ArgumentException("Warmup must be >= 0 and iterations must be >= 1.", nameof(args));
 
-        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Scenario = scenario, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput };
+        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Scenario = scenario, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput, Profile = profile, GeneratorAssembly = generatorAssembly };
     }
 }
 
@@ -439,6 +465,7 @@ internal sealed class BenchmarkResult
     public EnvironmentMetadata Environment { get; init; } = new();
     public IReadOnlyList<WorkloadMeasurement> Workloads { get; set; } = [];
     public ProvenanceMetadata? Provenance { get; init; }
+    public object Identity { get; init; } = BenchmarkIdentity.Capture("blog");
     public MeasurementScope? Scope { get; init; } = MeasurementScope.SiteDefault;
 }
 
@@ -625,10 +652,7 @@ internal sealed record ProvenanceMetadata(
             {
             }
 
-            return System.Reflection.Assembly.GetExecutingAssembly()
-                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
-                .FirstOrDefault()?.InformationalVersion ?? Environment.Version.ToString();
+            return "unavailable";
         }
     }
 
@@ -671,7 +695,11 @@ internal sealed record ProvenanceMetadata(
                     .OrderBy(path => path, StringComparer.Ordinal).ToArray();
                 foreach (var file in files)
                 {
+                    var name = Encoding.UTF8.GetBytes(Path.GetRelativePath(corpusDirectory, file).Replace('\\', '/'));
                     var bytes = File.ReadAllBytes(file);
+                    var lengths = Encoding.UTF8.GetBytes($"{name.Length}:{bytes.Length}:");
+                    sha.TransformBlock(lengths, 0, lengths.Length, null, 0);
+                    sha.TransformBlock(name, 0, name.Length, null, 0);
                     sha.TransformBlock(bytes, 0, bytes.Length, null, 0);
                 }
 
@@ -693,6 +721,9 @@ internal sealed record ProvenanceMetadata(
             {
                 ["TargetFramework"] = "net10.0",
                 ["Runtime"] = RuntimeInformation.FrameworkDescription,
+                ["SyntamarkRuntimeAssembly"] = typeof(Syntamark.Compilation.MdParser).Assembly.FullName ?? "unavailable",
+                ["SyntamarkParserVersion"] = Syntamark.Compilation.MdParserVersion.Value,
+                ["MarkdownProfile"] = new Syntamark.Compilation.MdOptions().ProfileId,
             },
             args.ToArray(),
             warmup,
@@ -711,6 +742,7 @@ internal static class EngineBenchmark
         public IReadOnlyList<LithoEngineWorkload.LithoCorpusMeasurement> LithoCorpora { get; init; } = [];
         public EnvironmentMetadata Environment { get; init; } = new();
         public ProvenanceMetadata? Provenance { get; init; }
+        public object Identity { get; init; } = BenchmarkIdentity.Capture("engine");
         public MeasurementScope? Scope { get; init; } = MeasurementScope.EngineDefault;
     }
 

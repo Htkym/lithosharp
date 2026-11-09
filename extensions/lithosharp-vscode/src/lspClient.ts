@@ -2,6 +2,7 @@ import { LspConnection, type LspProcess } from './lspConnection.js';
 import { DiagnosticStore, type LspDiagnosticData } from './diagnostics.js';
 import { mapSymbols, type SymbolData } from './symbols.js';
 import { requireTrusted } from './trust.js';
+import type { AnalysisStatus } from './state.js';
 
 export interface OpenDocument {
   uri: string;
@@ -22,6 +23,7 @@ export interface LspClientOptions {
   onState?: (state: string) => void;
   onCapabilities?: (result: unknown) => void;
   onAnalysisStatus?: (uri: string, state: 'ready' | 'unavailable', message: string, language: 'markdown' | 'mdx') => void;
+  onDocumentStatusChanged?: (uri: string) => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export class LspClient {
     timer: NodeJS.Timeout | undefined;
   }>();
   private readonly projectContexts = new Map<string, { projectId: string; folders: string[]; snapshot: unknown | null }>();
+  private readonly analysisStatuses = new Map<string, AnalysisStatus>();
   private readonly store: DiagnosticStore;
   private readonly debounceMs: number;
   private started = false;
@@ -78,12 +81,13 @@ export class LspClient {
       this.child = undefined;
       this.connection = undefined;
       this.store.clearAll();
+      this.clearAnalysisStatuses();
       this.options.onState?.('stopped');
     });
     const connection = new LspConnection(
       child,
       {
-        onNotification: (method, params) => this.onNotification(method, params),
+        onNotification: (method, params) => { if (this.connection === connection) this.onNotification(method, params); },
         onRequestError: (_id, code, message) => this.options.onLog?.(`LSP request failed: ${code} ${message}`),
       },
       (line) => this.options.onLog?.(line),
@@ -139,6 +143,7 @@ export class LspClient {
       }
     }
     this.store.clearAll();
+    this.clearAnalysisStatuses();
     this.started = false;
     this.connection = undefined;
     this.child = undefined;
@@ -161,7 +166,7 @@ export class LspClient {
       return;
     }
     const existing = this.buffers.get(document.uri);
-    if (existing?.version === document.version && existing.text === document.text) {
+    if (existing?.version === document.version && existing.text === document.text && existing.languageId === document.languageId) {
       return;
     }
     if (existing?.timer) {
@@ -179,6 +184,8 @@ export class LspClient {
       timer: undefined,
     };
     this.buffers.set(document.uri, buffer);
+    if (existing) this.store.clear(document.uri);
+    this.pendingStatus(document.uri);
     if (this.ready) {
       this.connection?.sendNotification('textDocument/didOpen', {
         textDocument: { uri: document.uri, languageId: document.languageId, version: document.version, text: document.text },
@@ -195,6 +202,7 @@ export class LspClient {
     buffer.version = version;
     buffer.text = text;
     this.store.clear(uri);
+    this.pendingStatus(uri);
     if (!this.ready) {
       buffer.pending = null;
       return;
@@ -251,6 +259,8 @@ export class LspClient {
     }
     this.buffers.delete(uri);
     this.store.clear(uri);
+    this.analysisStatuses.delete(uri);
+    this.options.onDocumentStatusChanged?.(uri);
     if (this.ready) {
       this.connection?.sendNotification('textDocument/didClose', { textDocument: { uri } });
     }
@@ -298,6 +308,7 @@ export class LspClient {
     }
     this.contextGeneration += 1;
     this.store.clearAll();
+    for (const uri of this.buffers.keys()) this.pendingStatus(uri);
     const context = { projectId, folders: [...folders], snapshot };
     this.projectContexts.set(projectId, context);
     if (this.ready) {
@@ -314,6 +325,17 @@ export class LspClient {
           status['lithosharpContextGeneration'] === this.contextGeneration && (language === 'markdown' || language === 'mdx') &&
           language === analysisLanguage(status['uri'] as string, buffer.languageId) &&
           (status['state'] === 'ready' || status['state'] === 'unavailable') && typeof status['message'] === 'string') {
+        const uri = status['uri'] as string;
+        const metadata: AnalysisStatus = { uri, version: buffer.version, language, state: status['state'], message: status['message'] };
+        for (const key of ['projectStatus', 'schemaName', 'projectId', 'contextAcquiredAt'] as const) {
+          if (typeof status[key] === 'string') metadata[key] = status[key];
+        }
+        if (Number.isSafeInteger(status['projectGeneration'])) metadata.projectGeneration = status['projectGeneration'] as number;
+        // Scope is explicit producer evidence, never inferred from a schema name or MDX project context.
+        const scope = status['schemaScope'];
+        metadata.schemaScope = language === 'markdown' && (scope === 'built-in-binding' || scope === 'build-required') ? scope : 'unknown';
+        this.analysisStatuses.set(uri, metadata);
+        this.options.onDocumentStatusChanged?.(uri);
         this.options.onAnalysisStatus?.(status['uri'] as string, status['state'], status['message'], language);
       }
       return;
@@ -345,6 +367,23 @@ export class LspClient {
   private nextId(): string {
     this.requestSequence += 1;
     return `lsp-${this.requestSequence}`;
+  }
+
+  getAnalysisStatus(uri: string): AnalysisStatus | undefined {
+    return this.analysisStatuses.get(uri);
+  }
+
+  private pendingStatus(uri: string): void {
+    const buffer = this.buffers.get(uri);
+    const language = buffer && analysisLanguage(uri, buffer.languageId);
+    if (!buffer || !language) return;
+    this.analysisStatuses.set(uri, { uri, version: buffer.version, language, state: this.ready ? 'pending' : 'unparsed', message: '' });
+    this.options.onDocumentStatusChanged?.(uri);
+  }
+
+  private clearAnalysisStatuses(): void {
+    this.analysisStatuses.clear();
+    for (const uri of this.buffers.keys()) this.options.onDocumentStatusChanged?.(uri);
   }
 }
 

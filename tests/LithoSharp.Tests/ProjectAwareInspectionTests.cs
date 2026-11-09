@@ -43,6 +43,7 @@ public sealed class ProjectAwareInspectionTests
         await Assert.That(info.ProjectStatus).IsEqualTo(DocumentProjectStatus.NoContext);
         await Assert.That(info.RouteCandidates.Count).IsEqualTo(0);
         await Assert.That(info.SchemaName).IsNull();
+        await Assert.That(info.SchemaInspectionScope).IsEqualTo("unknown");
         await Assert.That(info.Route).IsEqualTo("/docs/a/");
         await Assert.That(info.Diagnostics.Any(item => item.Id.StartsWith("LSC"))).IsFalse();
     }
@@ -55,6 +56,7 @@ public sealed class ProjectAwareInspectionTests
         await Assert.That(info.ProjectStatus).IsEqualTo(DocumentProjectStatus.Resolved);
         await Assert.That(info.Route).IsEqualTo("/docs/intro/");
         await Assert.That(info.SchemaName).IsEqualTo("document");
+        await Assert.That(info.SchemaInspectionScope).IsEqualTo("built-in-binding");
         var candidate = info.RouteCandidates.Single();
         await Assert.That(candidate.PublicPath).IsEqualTo("/docs/intro/");
         await Assert.That(candidate.ProjectId).IsEqualTo("docs");
@@ -162,6 +164,7 @@ public sealed class ProjectAwareInspectionTests
         var info = Inspect("page.md", "---\ntitle: 123\nunknown_field_xyz: 1\n---\n# Page\n", project);
 
         await Assert.That(info.SchemaName).IsEqualTo("my-custom-type");
+        await Assert.That(info.SchemaInspectionScope).IsEqualTo("build-required");
         await Assert.That(info.Diagnostics.Any(item => item.Id.StartsWith("LSC"))).IsFalse();
         await Assert.That(info.ProjectStatus).IsEqualTo(DocumentProjectStatus.Resolved);
         await Assert.That(info.Route).IsEqualTo("/custom/page/");

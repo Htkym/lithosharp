@@ -9,11 +9,11 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>2.1.3</Version>
+    <Version>2.2.0</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
-    <Description>A type-safe static site and documentation generator for .NET. Build with C#, typed Markdown collections, dependency-aware incremental generation, and safe output publication. Add the optional MDX package for React components, versioned documentation, and selective hydration.</Description>
+    <Description>Manage documentation consistency with C# types and builds. Connect .NET content schemas, generated references, Docs rendering and output quality checks; add optional MDX/React and deploy static files.</Description>
     <PackageTags>static-site-generator;ssg;markdown;mdx;react;docs;documentation;blog;incremental;html;rss;sitemap</PackageTags>
     <PackageProjectUrl>https://github.com/Htkym/lithosharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
@@ -21,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>2.1.3 adopts the verified Syntamark 1.2.0 pair, fixes parser/runtime cache identity and Markdown diagnostic reuse, and uses header-only compiler scanning. Typed-content walkthroughs connect compiler checks to generated-output inspection. Public APIs and the default Markdown profile remain supported. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>2.2.0 connects typed content collections to the Docs shell and navigation, provides a typed Docs template with explicit output quality checks, and clarifies editor validation scope. Syntamark remains at the verified 1.2.0 runtime/Source pair. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

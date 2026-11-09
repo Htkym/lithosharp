@@ -1,28 +1,71 @@
-# 2.1.3への更新
+# 2.2候補への更新
 
 [English](migration-2.0.md)
 
-この案内は既存サイトを2.1.3へ更新する手順と、1.xからの変更を説明します。READMEと[Quick Start](quickstart.ja.md)の導入例も2.1.3を使います。CoreとVS Code拡張は別々に公開されるため、Coreの公開によって拡張0.3.0がMarketplaceへ公開されるわけではありません。
+このcheckoutでは次期2.2候補と、公開済み2.1.3のDocs readerから型付きDocsへの任意の移行を
+説明します。公開済みのリリースではありません。[Quick Start](quickstart.ja.md)には、
+提供された固定候補バージョンとfeedを使ってください。パッケージの基準バージョンは2.2.0、
+対応する拡張の候補は0.4.0です。Coreと拡張は別々に公開されるため、NuGetの公開によって
+拡張がMarketplaceへ公開されるわけではありません。
 
-0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。この案内の更新先は2.1.3です。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
+0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。このcheckoutの更新先には提供された固定候補バージョンを使います。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-正式版では利用するLithoSharpパッケージをすべて2.1.3にそろえます。拡張0.3.0は別の公開系列です。
+公開済みの基準は2.1.3です。その構成を維持する場合は同じバージョンでそろえます。
+このcheckoutの新しい型付きDocsには、選択したパッケージ、Tool、Templatesを同じ2.2候補で
+そろえてください。拡張は別の公開系列です。
 
-候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。`2.1.3-ci.…`や`2.1.3-rc.…`などの候補バージョンと、projectに記載した基準バージョン`2.1.3`を区別してください。
+候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。候補のsuffixを含む実際のバージョンと、projectに記載した基準バージョン`2.2.0`を区別してください。公開済みと仮定して番号を指定しないでください。
 
-templateの既定参照は`2.1.3`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。旧1.1.0のToolに以下のコマンドは含まれません。
+このcheckoutのtemplateの既定参照は基準バージョン`2.2.0`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。旧1.1.0のToolに以下のコマンドは含まれません。
 
 Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedにはその候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々のバージョンに入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
 
-LithoSharp 2.1.3ではNuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
+LithoSharp 2.1.3と2.2候補では、NuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
 
 Generatorとsplitterのheader走査には、本文解析とは別の`frontmatter-scan/1`を使います。`ScanFrontMatter`は閉じ区切りの後の本文を解析せず、1 Mi UTF-16コード単位のheader上限にも本文を含めません。`Closed`が確定するのは区切りとheaderのUnicodeであり、YAMLとスキーマの検査は引き続きLithoSharpが行います。入力や解析資源の問題による`Unknown`は、Generatorで`LSG002`、runtimeで`LSM013`となり、headerの不存在や確定した未閉鎖として扱いません。headerの結果には本文の解析情報や文書ハッシュは含まれません。manifestのfingerprintは別途元の入力全体を対象とし、本文のUnicodeが不正な場合は取得できません。
 
 postとcollectionのMarkdown本文は、最終解析時に1 Mi UTF-16コード単位まで扱えます。エディターでの検査は8 Miまでです。readerとcollection loaderが加工前の本文を調べる上限も8 Miです。1 Miを超える元の本文でも、includeや前後の空白除去によって最終解析の前に短くなる場合があります。
 
 入力や解析資源の上限により解析を完了できない場合は、LSM013 Errorとなり、出力を公開する前に生成を停止します。加工前の警告は元の本文の位置を示します。加工後のcollection本文の警告は、元の本文との一致を確認できる場合だけ元の位置を示し、それ以外はファイル名までです。collectionの無変更ビルドでも、検証済みキャッシュから警告を復元します。
+
+## 既存Docsを型付きコンテンツへ移す
+
+次期マイナーバージョンの候補では、新しく作成する`docs`プロジェクトを変更します。
+既存サイトは自動で変わりません。`MarkdownPostReader`のスキーマとルートが用途に合えば
+維持できます。作業中のプロジェクトへテンプレートを上書きしないでください。
+テンプレートのファイルを参考に、ブランチ上で必要な変更を選び、最初は別の出力先へ生成します。
+
+| 項目 | 従来のreader | 新しい型付きDocsテンプレート |
+| --- | --- | --- |
+| 入力の契約 | `MarkdownPost`とreaderの規則。title・dateの必須条件と任意のsummary検証。 | 独自の`GuideFrontMatter`。titleは必須、description・orderは任意で、日付を必須にしません。 |
+| コンパイル入力 | 自動では生成済みの型付きcollectionになりません。 | `content/**/*.md`を`AdditionalFiles`へ明示し、除外とcollection・id・routeのmetadataを指定します。 |
+| 実行時入力 | 既存readerとcontent directory。 | `content`をrootとする`MarkdownContentCollectionLoader<GuideFrontMatter>`で生成Binderを使います。 |
+| entry ID | 既存post・readerの規則。 | content rootからの相対pathに拡張子を含め、区切りは`/`にします。 |
+| ルート | サイトの現在の出力規則を維持できます。 | 新規の既定値は`guide/<拡張子を除いた相対path>/`です。loaderは`Guides.Catalog.GetRoute(entry.Id)`から取得します。 |
+| 表示と検証 | 既存テンプレートと選択済みの検査。 | `RenderDocs`と`DocsSiteTemplate`を使い、QualityのError閾値と外部HTTP検査の無効を明示します。 |
+
+既存URLを維持する場合は、コンパイル入力のmetadataへ現在のルートを宣言し、実行時にも
+生成Catalogから同じルートを取得してください。新しい`guide/`のprefixやdirectory-index形式を
+採用する必要はありません。別のルート辞書を重ねて作らないでください。テンプレートのホームと
+コンテンツページの出力先を分けます。既存コンテンツが`index.html`を生成する場合は、標準の
+Docsホームを使う前に生成元を明示的に整理してください。URLを変える必要がある場合だけ
+redirectを検討します。
+
+コンパイルと実行時のroot、再帰glob、`_`で始まる入力の除外、IDをそろえてください。
+`reference/setup.md`を`setup.md`と同じIDにしないようにします。ファイル名を変えると、宣言を
+明示的に維持しない限り、生成IDと参照名も変わります。Core・Generators・Analyzersを
+`LithoSharpVersion`でそろえ、コンパイル用パッケージには`PrivateAssets="all"`を指定します。
+エディターで独自スキーマを実行せず、生成Binderとselectorを使ってください。
+`RequireStaticCoverage`は対応範囲で選ぶ任意の規則であり、テンプレート全体の必須条件ではありません。
+
+変更前後のルート、ナビゲーション、必須metadata、HTMLの見出しとリンク、資産、独自CSSを
+比較してください。配布前に、新しい出力へ[DocsのCI手順](quickstart.ja.md#このdocsプロジェクトのci)を
+適用します。変更を選ぶ場合を除き、既存のQuality閾値、抑制、外部リンク方針は維持してください。
+新しいfactoryの明示設定は、Core全体の既定値を変えるものではありません。MarkdownにNodeは
+不要ですが、MDXを加える場合は明示的なworker設定が必要です。
+adapterは[Docsの設定](docs-template.ja.md)、出力を比較する範囲は[互換性契約](compatibility-contract.ja.md)を参照してください。
 
 ## Docsの設定と生成済み成果物
 
@@ -60,7 +103,7 @@ HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範�
 
 `LithoSharp.Analyzers`は任意で導入するcompiler packageです。登録済みAPIの確定した誤用、対応するHTML補間contextとliteral URL、検証済みcatalogへの参照を検査します。不存在の確定にはfreshなClosed scopeが必要で、Open／Stale／Unknownや未対応の値を推測しません。診断がないことは、site全体のリンク・anchor・資産が検証済みであることを意味しません。coverage方針の`LSA9001`は明示opt-inです。
 
-生成projectの`LithoSharpVersion`を`2.1.3`に設定し、診断を利用するprojectの`ItemGroup`へ次を追加します。候補feedを使う場合は、実際の候補版を指定してください。
+公開済みの2.1.3を維持する場合は生成projectの`LithoSharpVersion`を`2.1.3`に設定し、候補feedを使う場合は実際の候補版を指定します。診断を利用するprojectの`ItemGroup`へ次を追加してください。
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

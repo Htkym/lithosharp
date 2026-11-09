@@ -1,18 +1,20 @@
 # LithoSharp for VS Code
 
-このガイドは拡張0.3.0とCore/Tool 2.1.3を対象にしています。旧Core 2.1.2と拡張0.2.0に、以下の新しい解析・アウトライン機能が含まれるとは限りません。CoreとMarketplaceの拡張は別々に公開されます。候補の検証には対応するソースまたは配布されたVSIXと固定バージョンのToolを使ってください。
+[English](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.md)
+
+VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断と、見出しによる文書内の移動にも対応しています。
+
+このガイドは、いずれも未公開の候補版である拡張機能0.4.0とCore/Tool 2.2.0を対象にしています。公開済みの安定版Core/Toolは2.1.3です。2.2のサイトには対応する候補版のToolとfeedを使ってください。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
 
 ## preflightとcapability
 
 `LithoSharp: Preflight` はtrusted workspaceで明示実行するコマンドです。選択中のCLIから互換capability reportを取得し、実際に通知された **Static inputs**（保存済みのactive Markdown/MDXファイルだけ）または **Trusted project catalog**（コンパイルと信頼したfactory/catalogの実行）を選びます。公開済みCore/Tool 1.1を含め、対応capabilityがない場合は理由を表示して実行しません。既存のBuild、Inspect、live診断は維持します。versionだけから新機能を推定せず、未保存の編集はlive診断で検査します。preflightでは描画・公開を行わず、成功したsnapshotを将来の描画許可には使いません。
 
-OutputではLanguage Server同梱CoreとprojectのCore参照を区別します。initializeだけではproject capabilityを取得しません。MDX workerの利用可否は実際の解析後に通知し、利用不能時もMarkdown診断を維持してRestore MDX Workerを案内します。Restore・Restart後には開いているbufferを再送します。C#診断とCodeFixは既存のRoslyn hostが担当し、LSA1402/1403やFixAllを拡張側で可能と表示しません。
-
-[English](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.md)
-
-VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断と、見出しによる文書内の移動にも対応しています。
+OutputではLanguage Server同梱CoreとprojectのCore参照を区別します。initializeだけではproject capabilityを取得しません。MDX workerの利用可否は実際の解析後に通知し、利用不能時もMarkdown診断を維持してRestore MDX Workerを案内します。Restore・Restart後には開いているbufferを再送します。C#診断とCodeFixは既存のRoslyn hostが担当し、LSA1402/1403やFixAllに拡張機能側で対応しているとは表示しません。
 
 ## インストールと使い方
+
+候補の検証には対応するソースから作成したVSIXか、提供された候補VSIXを使ってください。以下のMarketplace手順でインストールされるのは公開済みの拡張です。
 
 [MarketplaceのLithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールするか、次のコマンドを実行してください。
 
@@ -23,7 +25,7 @@ code --install-extension htkym.lithosharp
 必要な環境は次のとおりです。
 
 - VS Code `^1.139.0`。
-- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKとLithoSharp.Tool 2.1.3も必要です。SDKには必要なASP.NET Core共有フレームワークが含まれます。
+- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKと、サイトに対応するLithoSharp.Toolも必要です。2.2候補版を使うサイトには提供された2.2候補を、安定版を使うサイトには公開済みの2.1.3を使ってください。SDKには必要なASP.NET Core共有フレームワークが含まれます。
 - MDXの解析にはNode.js 24.13.0が必要です。Markdownだけの診断にはNode.jsは不要です。
 
 [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.ja.md)でサイトを作成し、そのフォルダーをVS Codeで開いてください。コードを信頼できる場合はワークスペースを信頼し、`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。
@@ -35,7 +37,24 @@ MDXの診断には`LithoSharp: Restore MDX Worker`で同梱ワーカーの依存
 - `LithoSharp: Select Project`でプロジェクトを選択します。複数のフォルダーを開いた場合も選択をフォルダーごとに保持し、同名のプロジェクトを区別します。
 - `LithoSharp: Build`でサイトをビルドし、`LithoSharp: Inspect Site`でCLIの検査結果を表示します。
 - `LithoSharp: Start Server`と`LithoSharp: Stop Server`で選択したプロジェクトの開発サーバーを操作します。サーバーはプロジェクトごとに管理され、ほかのプロジェクトのプロセスは停止しません。
-- 選択したCLIのパスとバージョンを出力チャネルとステータスバーに表示します。
+- 選択したCLIは出力チャネルで確認できます。ステータスバーには選択したプロジェクトと解析・明示操作・配信の短い状態を表示します。
+
+## 検査状態と診断の説明
+
+ステータスバーをクリックするか、`LithoSharp: Show Inspection Status`を実行すると、Outputで詳細を確認し、次に実行する操作を選べます。ホバーでは次の四つを分けて表示します。
+
+- 現在の文書の解析状態。現在のMarkdownまたはMDXの版について、未解析、待機中、解析完了、解析不能を示します。解析完了は診断がないことや公開できることを意味しません。
+- プロジェクト情報。未取得、取得済み、更新が必要な状態と、文書の解決状態、適用したcontextの識別情報を示します。InspectまたはBuildでcontextを取得します。取得日時だけでは、すべての入力が最新と一致することは保証できません。
+- スキーマの検査可能範囲。組み込み型へのバインド対応、独自型はBuildで確認、範囲不明のいずれかを、実際の解析経路から通知します。スキーマ名だけではバインドの対応や成功を判断しません。MDXにMarkdownのバインド範囲を引き継ぐこともありません。
+- 最後の明示操作。コマンド、対象、日時、終了状態を示します。Build成功はBuildの成功であり、Qualityを有効にしたことや実行したことを意味しません。Preflightでは通知された段階、Partialの範囲、必要な後続検査の情報を保持します。
+
+編集、文書の開き直し、改名、プロジェクトの切り替え、サーバーの再起動で、古い文書状態を失効させます。プロジェクト入力の変更を検知した場合は、contextを更新が必要な状態にし、編集時の検査から取り下げます。検知していない入力まで最新とは保証しません。表示を更新するためだけにfactoryやビルドを実行することはありません。
+
+プロジェクトの入力が未保存の場合は、ディスク上のファイルに対するBuildやInspectが成功しても、contextを取得せず、更新が必要と表示します。取得済みのcontextも編集時の検査から取り下げます。contextを取得するには、未保存の入力を保存してから再実行してください。拡張機能が編集中の内容を自動保存することはありません。
+
+CLIの応答は対応するschema majorと必須項目の型を確認します。プロセスの終了コード、envelopeの`success`、`exitCode`が一致した場合だけ成功と表示します。失敗、中断、不正な応答、非対応schema、結果の矛盾を区別し、取得できた診断と元の構造化された詳細をOutputに残します。遅れて完了した別プロジェクトの結果で、選択中の状態を上書きしません。
+
+登録済みのProblemsの診断コードから、[診断リファレンス](https://github.com/Htkym/lithosharp/blob/main/docs/diagnostics.ja.md)を開けます。検出する段階、修正箇所、残る検査を確認してください。未登録のコードは通常のコード表示を保ちます。GeneratorとAnalyzerの診断は既存のhostが担当し、拡張側へ複製しません。
 
 ## 編集支援とプレビュー
 
@@ -70,7 +89,7 @@ MDX preflightでは`lithosharp.nodeExecutable`をCLIの`--node-executable`へ渡
 
 - 診断が出ない場合は、LithoSharpの出力チャネル、ワークスペースの信頼、PATH上の.NET 10ランタイムを確認してください。サーバーやワーカーの設定変更後は`LithoSharp: Restart Language Server`を実行してください。
 - MDXの診断が使えない場合はNode.js 24.13.0を確認し、`LithoSharp: Restore MDX Worker`を実行してください。復元前でもMarkdownの診断は動作します。
-- ビルドやサーバーを使えない場合はLithoSharp.Tool 2.1.3と.NET 10 SDKをインストールし、出力チャネルで選択したプロジェクトとCLIのパスを確認してください。
+- サイトのビルドや配信を使えない場合は、.NET 10 SDKとサイトに対応するToolをインストールし、選択されているプロジェクトとCLIのパスを出力チャネルで確認してください。
 - プレビューを開けない場合は文書をビルドし、経路、下書き設定、サーバーの出力を確認してください。
 
 Markdownの対応範囲、コード実行の境界、長時間稼働の検証範囲は[既知の制約](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.ja.md)を参照してください。

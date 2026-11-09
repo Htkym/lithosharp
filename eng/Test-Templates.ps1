@@ -72,7 +72,7 @@ $null = New-Item -ItemType Directory -Path $fixture
 $sourcePackages = $packages
 $packages = Join-Path $fixture 'feed'
 $null = New-Item -ItemType Directory -Path $packages
-foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')) {
+foreach ($id in @('LithoSharp', 'LithoSharp.Generators', 'LithoSharp.Analyzers', 'LithoSharp.Images', 'LithoSharp.Tool', 'LithoSharp.ProjectTemplates', 'LithoSharp.Testing', 'LithoSharp.Mdx')) {
     $candidateFile = Join-Path $sourcePackages "$id.$CandidateVersion.nupkg"
     if (Test-Path -LiteralPath $candidateFile -PathType Leaf) {
         Copy-Item -LiteralPath $candidateFile -Destination $packages
@@ -135,6 +135,7 @@ try {
         }
         $required = @('LithoSharp')
         if ($kind -eq 'mdx') { $required += 'LithoSharp.Mdx' }
+        if ($kind -eq 'docs') { $required += 'LithoSharp.Generators', 'LithoSharp.Analyzers' }
         foreach ($reference in $siteXml.SelectNodes('/Project/ItemGroup/PackageReference')) {
             if ($reference.Include -match '^LithoSharp(?:\.|$)' -and $reference.Version -cne '$(LithoSharpVersion)') {
                 throw "$kind template does not use its LithoSharpVersion property for $($reference.Include)."
@@ -201,6 +202,49 @@ public sealed class ExternalContent : ISiteBuildExtension {
             [IO.Path]::GetRelativePath($output, $_.FullName) + ':' + (Get-FileHash -LiteralPath $_.FullName).Hash
         } | Sort-Object) -join "`n"
         if ($snapshot -cne $direct) { throw "$kind CLI and direct output differ." }
+        if ($kind -eq 'docs') {
+            foreach ($id in @('LithoSharp.Generators', 'LithoSharp.Analyzers')) {
+                $reference = $siteXml.SelectSingleNode("/Project/ItemGroup/PackageReference[@Include='$id']")
+                if ($null -eq $reference -or $reference.PrivateAssets -cne 'all') { throw "Docs must privately reference $id." }
+            }
+            foreach ($folder in @('alpha', 'beta', '_private', 'alpha/_private')) {
+                $null = New-Item -ItemType Directory -Path (Join-Path $project "content/$folder") -Force
+            }
+            foreach ($folder in @('alpha', 'beta')) {
+                [IO.File]::WriteAllText((Join-Path $project "content/$folder/same.md"), "---`ntitle: $folder nested page`n---`n`n## Shared heading`n`nNested content.`n")
+            }
+            foreach ($name in @('_hidden.md', '_private/invalid.md', 'alpha/_private/invalid.md')) {
+                [IO.File]::WriteAllText((Join-Path $project "content/$name"), 'This private input deliberately has no front matter.')
+            }
+            & $tool build $project -c Release
+            if ($LASTEXITCODE -ne 0) { throw 'Typed Docs nested input or exclusion parity failed.' }
+            foreach ($folder in @('alpha', 'beta')) {
+                $page = Join-Path $output "guide/$folder/same/index.html"
+                if (!(Test-Path -LiteralPath $page) -or [IO.File]::ReadAllText($page) -notmatch 'docs-sidebar') { throw "Typed Docs did not render $folder/same.md." }
+            }
+            Move-Item -LiteralPath (Join-Path $project 'content/alpha/same.md') -Destination (Join-Path $project 'content/alpha/renamed.md')
+            Move-Item -LiteralPath (Join-Path $project 'content/beta/same.md') -Destination (Join-Path $project 'content/beta/_same.md')
+            & $tool build $project -c Release
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath (Join-Path $output 'guide/alpha/renamed/index.html')) -or
+                (Test-Path -LiteralPath (Join-Path $output 'guide/alpha/same/index.html')) -or
+                (Test-Path -LiteralPath (Join-Path $output 'guide/beta/same/index.html'))) { throw 'Typed Docs rename/exclusion did not update compiler and runtime input sets.' }
+            $index = Join-Path $project 'content/index.md'
+            $original = [IO.File]::ReadAllText($index)
+            $published = [IO.File]::ReadAllText((Join-Path $output 'guide/index/index.html'))
+            try {
+                [IO.File]::AppendAllText($index, "`n[Broken anchor](#missing-template-anchor)`n")
+                $failure = (& $tool build $project -c Release --format json 2>&1 | Out-String)
+                if ($LASTEXITCODE -eq 0 -or $failure -notmatch 'LSQ002') { throw 'Typed Docs CLI did not preserve the quality diagnostic and failure exit.' }
+                Push-Location $project
+                try { $failure = (dotnet run -c Release --no-build 2>&1 | Out-String); $directExit = $LASTEXITCODE }
+                finally { Pop-Location }
+                if ($directExit -eq 0 -or $failure -notmatch 'LSQ002') { throw 'Typed Docs Program did not preserve the quality diagnostic and failure exit.' }
+                if ([IO.File]::ReadAllText((Join-Path $output 'guide/index/index.html')) -cne $published) { throw 'Failed typed Docs quality validation modified published output.' }
+            }
+            finally { [IO.File]::WriteAllText($index, $original) }
+            & $tool build $project -c Release
+            if ($LASTEXITCODE -ne 0) { throw 'Typed Docs did not recover after restoring valid content.' }
+        }
         & $tool check $project -c Release --format json
         if ($LASTEXITCODE -ne 0) { throw "Quality check of $kind failed." }
         $serveEvidence = Join-Path $fixture ("serve-" + $kind)

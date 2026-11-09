@@ -2,10 +2,15 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-These guides describe the 2.1.3 NuGet package line and VS Code extension 0.3.0.
+This checkout describes the next candidate package line and matching extension,
+not a published release. Use the exact supplied candidate versions and feed.
 Keep the LithoSharp packages you use aligned; the extension has a separate version.
 For installation prerequisites, start with the Quick Start. Versioned measurement
 and development records describe their original revisions, not current guarantees.
+
+Use the [adoption guide](adoption-guide.md) for .NET product-Docs fit, choices
+based on existing generator assets, DocsSample self-use and prepared external
+evaluation materials.
 
 ## Build your first site
 
@@ -34,6 +39,8 @@ and development records describe their original revisions, not current guarantee
   [Blog](../samples/LithoSharp.Sample/README.md), [MDX](../samples/LithoSharp.MdxSample/README.md).
 
 ## Diagnose, test and operate
+
+- [Diagnostic reference](diagnostics.md): causes, detection phase, where to fix and analysis scope.
 
 - [CLI](cli.md): factories, generation, preview, inspection, preflight and cache commands.
 - [VS Code](../extensions/lithosharp-vscode/README.md) and [language server](language-server.md):

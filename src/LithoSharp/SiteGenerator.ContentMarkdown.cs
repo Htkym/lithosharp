@@ -6,7 +6,7 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
-    internal string RenderContentMarkdown(
+    internal MarkdownCompilationResult RenderContentMarkdown(
         RenderContext configuration,
         string pageIdentity,
         string markdown,
@@ -37,7 +37,7 @@ public sealed partial class SiteGenerator
         if (errors.Length != 0)
             throw new SiteQualityValidationException(new SiteQualityReport(errors));
         if (mapped.Length == 0)
-            return analyzed.Html;
+            return analyzed;
         var snapshotIdentity = MarkdownDocumentFingerprints.SourceHash(
             $"{pageIdentity.Length}:{pageIdentity}{_markdownCompiler.Fingerprint.Length}:{_markdownCompiler.Fingerprint}{markdown}");
         foreach (var diagnostic in mapped)
@@ -46,6 +46,6 @@ public sealed partial class SiteGenerator
             {
                 SnapshotIdentity = snapshotIdentity,
             });
-        return analyzed.Html;
+        return analyzed;
     }
 }

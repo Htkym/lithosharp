@@ -1,4 +1,5 @@
 using System.Text;
+using LithoSharp.Content;
 
 namespace LithoSharp;
 
@@ -38,6 +39,10 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
 
     internal static string RenderCore(SiteTemplateNavigationNode root,
         IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false)
+        => RenderCore(DocsPresentationNode.FromLegacy(root), additionalLinks, currentUrl, collapseTopics);
+
+    internal static string RenderCore(DocsPresentationNode root,
+        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false)
     {
         var body = new StringBuilder();
         body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
@@ -56,15 +61,15 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
         return body.ToString();
     }
 
-    private static void AppendNodes(StringBuilder body, SiteTemplateNavigationNode parent, string? currentUrl, bool collapseTopics)
+    private static void AppendNodes(StringBuilder body, DocsPresentationNode parent, string? currentUrl, bool collapseTopics)
     {
         foreach (var node in parent.Children)
         {
-            var isCurrent = node.Page is not null && IsCurrent(node.Page.Url, currentUrl);
-            if (node.Children.Count == 0 && node.Page is not null)
+            var isCurrent = node.Url is not null && IsCurrent(node.Url, currentUrl);
+            if (node.Children.Count == 0 && node.Url is not null)
             {
                 body.Append("<li>");
-                AppendLink(body, node.Label, node.Page.Url, isCurrent);
+                AppendLink(body, node.Label, node.Url, isCurrent);
                 body.AppendLine("</li>");
                 continue;
             }
@@ -78,9 +83,9 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
                 body.AppendLine($"<details class=\"docs-nav-topic\"{(containsCurrent ? " open" : string.Empty)}>");
                 body.AppendLine($"<summary>{Html.Encode(node.Label)}</summary>");
             }
-            if (node.Page is not null)
+            if (node.Url is not null)
             {
-                AppendLink(body, node.Label, node.Page.Url, isCurrent);
+                AppendLink(body, node.Label, node.Url, isCurrent);
                 body.AppendLine();
             }
             else if (!collapsible)
@@ -110,7 +115,7 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
     private static bool IsCurrent(string url, string? currentUrl) =>
         !string.IsNullOrWhiteSpace(currentUrl) && string.Equals(url, currentUrl, StringComparison.OrdinalIgnoreCase);
 
-    private static bool ContainsUrl(SiteTemplateNavigationNode node, string? currentUrl) =>
-        (node.Page is not null && IsCurrent(node.Page.Url, currentUrl))
+    private static bool ContainsUrl(DocsPresentationNode node, string? currentUrl) =>
+        (node.Url is not null && IsCurrent(node.Url, currentUrl))
         || node.Children.Any(child => ContainsUrl(child, currentUrl));
 }

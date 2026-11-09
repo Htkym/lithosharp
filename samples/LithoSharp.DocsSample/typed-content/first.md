@@ -11,4 +11,6 @@ environments:
 
 # Typed collections in practice
 
+## Typed rendering
+
 This page is loaded through `MarkdownContentCollectionLoader` and rendered as a typed entry.

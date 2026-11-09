@@ -1,133 +1,109 @@
-# V110-25 performance matrix driver: runs the §5 Site API matrix for B0, B1 and
-# the candidate on one machine with per-round A/B rotation and no overlapping
-# runs. Every invocation uses -Resume, so an interrupted campaign continues
-# without discarding completed runs. Raw evidence lands under EvidenceRoot.
+<# Runs an explicitly configured comparison. Build identical harness sources in
+both source trees first. Products, raw files and failed attempts stay separate. #>
 [CmdletBinding()]
-param(
-    [string] $EvidenceRoot,
-    [ValidateSet('All', 'Markdown', 'Mdx100', 'Mdx1000', 'Mdx10000Major', 'Mdx10000Rest')]
-    [string] $Scope = 'All',
-    [ValidateRange(1, 5)]
-    [int] $StartRound = 1,
-    [ValidateRange(1, 5)]
-    [int] $EndRound = 5,
-    # Baseline worktrees. Defaults match the reference machine in V110-25.
-    [string] $B0Root = (Join-Path (Split-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))) -Parent) 'lithosharp-b0'),
-    [string] $B1Root = (Join-Path (Split-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))) -Parent) 'lithosharp-b1')
-)
-
+param([Parameter(Mandatory)][string] $Configuration)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-
+$configPath = [IO.Path]::GetFullPath($Configuration)
+$config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+if ($config.schemaVersion -ne 1) { throw 'Unsupported performance configuration schema.' }
+if ($config.rounds -lt 1 -or $config.rounds -gt 20 -or $config.rounds -ne [Math]::Floor($config.rounds)) { throw 'rounds must be an integer from 1 to 20.' }
+if (@($config.sizes).Count -eq 0 -or @($config.scenarios).Count -eq 0) { throw 'Configure nonempty sizes and scenarios.' }
+if ($config.timeoutSeconds -lt 30 -or $config.timeoutSeconds -gt 86400) { throw 'timeoutSeconds must be between 30 and 86400.' }
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if (!$EvidenceRoot) { $EvidenceRoot = Join-Path $repo '.local/verification/1.1.0/v110-25-20260930' }
-$EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
-if ($StartRound -gt $EndRound) { throw 'StartRound must not be greater than EndRound.' }
-$candidateCommit = (& git -C $repo rev-parse HEAD | Out-String).Trim()
-if ($LASTEXITCODE -ne 0 -or !$candidateCommit) { throw 'Could not identify the candidate commit.' }
-$candidateChanges = @(& git -C $repo status --porcelain=v1 --untracked-files=all)
-if ($LASTEXITCODE -ne 0) { throw 'Could not verify the candidate working tree.' }
-$unexpectedCandidateChanges = @($candidateChanges | Where-Object { $_ -cne '?? eng/Run-PerformanceMatrix.ps1' })
-if ($unexpectedCandidateChanges.Count -gt 0) {
-    throw 'The candidate has uncommitted changes other than this matrix driver. Commit and rebuild it before measuring V110-25.'
+$evidence = [IO.Path]::GetFullPath($config.evidenceRoot, (Split-Path $configPath))
+$null = New-Item -ItemType Directory -Force -Path $evidence
+$manifestPath = Join-Path $evidence 'campaign.json'
+if (Test-Path $manifestPath) { throw 'Use a new evidenceRoot; earlier campaigns are never overwritten.' }
+$targets = @($config.targets)
+if ($targets.Count -lt 1) { throw 'Configure at least one target.' }
+$labels = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach ($target in $targets) {
+    if ($target.label -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or !$labels.Add($target.label)) { throw 'Use unique path-safe target labels.' }
+    if ($target.role -notin 'baseline','candidate') { throw 'Target roles must be baseline or candidate.' }
 }
-$driverHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$workScheduled = $false
-
-$trees = @(
-    # B0 and B1 harnesses predate scenario selection: they run "all" in one
-    # process (V110-04 methodology). Only the candidate uses per-scenario runs.
-    [ordered]@{ label = 'B0'; root = $B0Root; scenarios = 'all' },
-    [ordered]@{ label = 'B1'; root = $B1Root; scenarios = 'all' },
-    [ordered]@{ label = 'candidate'; root = $repo; scenarios = 'selected' }
-)
-$baselineCommits = @{
-    B0 = '11f7e74494e9646033dce1937385c5aadd58d602'
-    B1 = '324842d64ce8505957a1e84b227db6177cdd64bb'
+if (@($targets | Where-Object role -eq 'baseline').Count -gt 1) { throw 'Only one baseline is supported per campaign.' }
+if ($config.profile -eq 'typed-docs-quality' -and @($targets | Where-Object role -eq 'baseline').Count) {
+    throw 'typed-docs-quality is a standalone feature baseline, not a cross-version ratio.'
 }
-foreach ($tree in $trees | Where-Object { $_.label -in @('B0', 'B1') }) {
-    if (!(Test-Path -LiteralPath $tree.root -PathType Container)) {
-        throw "$($tree.label) worktree is missing: $($tree.root)"
+function Source-Manifest([string] $Root, [string[]] $Paths) {
+    $result = [ordered]@{}
+    foreach ($folder in $Paths) {
+        Get-ChildItem -LiteralPath (Join-Path $Root $folder) -Recurse -File |
+            Where-Object { $_.FullName -notmatch '[\\/](bin|obj|node_modules)[\\/]' -and $_.Extension -in '.cs','.csproj','.props','.targets','.json','.js','.mjs','.ts','.jsx','.tsx' } |
+            Sort-Object FullName | ForEach-Object {
+                $result[[IO.Path]::GetRelativePath($Root, $_.FullName).Replace('\','/')] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
     }
-    $actualCommit = (& git -C $tree.root rev-parse HEAD | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $actualCommit -cne $baselineCommits[$tree.label]) {
-        throw "$($tree.label) worktree must be $($baselineCommits[$tree.label]); found '$actualCommit'."
+    return $result
+}
+$identities = @()
+$commonHarness = $null
+foreach ($target in $targets) {
+    $root = [IO.Path]::GetFullPath($target.root, (Split-Path $configPath))
+    $commit = (& git -C $root rev-parse HEAD | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $commit -cne $target.commit) { throw "Commit mismatch for $($target.label)." }
+    $changes = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+    if ($target.role -eq 'baseline' -and @($changes | Where-Object { $_ -notmatch '^.. (benchmarks/|eng/performance/)' }).Count) {
+        throw 'Baseline product must remain clean; only common harness overlays are permitted.'
+    }
+    $harnessFiles = Source-Manifest $root @("benchmarks/$($config.harnessProject)", 'eng/performance')
+    # Project lockfiles necessarily record different product versions. Preserve
+    # those in each target, but compare the measurement sources themselves.
+    foreach ($key in @($harnessFiles.Keys)) { if ($key.EndsWith('packages.lock.json')) { $harnessFiles.Remove($key) } }
+    $harness = $harnessFiles | ConvertTo-Json -Depth 4 -Compress
+    if ($null -eq $commonHarness) { $commonHarness = $harness }
+    elseif ($harness -cne $commonHarness) { throw 'Targets must contain identical harness sources.' }
+    $dll = [IO.Path]::GetFullPath($target.harnessDll, $root)
+    if (!(Test-Path $dll)) { throw "Missing harness: $dll" }
+    $identities += [ordered]@{
+        label = $target.label; role = $target.role; root = $root; commit = $commit
+        changes = $changes; productSources = Source-Manifest $root @('src')
+        harnessSources = $harness | ConvertFrom-Json; harnessDll = $dll
+        harnessSha256 = (Get-FileHash $dll -Algorithm SHA256).Hash.ToLowerInvariant()
+        dependencyLockSha256 = (Get-FileHash (Join-Path $root "benchmarks/$($config.harnessProject)/packages.lock.json") -Algorithm SHA256).Hash.ToLowerInvariant()
     }
 }
-$mdScenarios = 'clean,no-op,single-page-change,layout-change'
-$mdxScenarios = 'cold,warm-cache,no-op,one-page,shared-component,shared-css,shared-image,layout,route,lockfile'
-$mdxMajor = 'cold,no-op,one-page'
-$mdxRest = 'warm-cache,shared-component,shared-css,shared-image,layout,route,lockfile'
-
-function Get-TreeScenarios([string] $Mode, [string] $Selected) {
-    if ($Mode -ceq 'all') { return 'all' }
-    return $Selected
+$campaign = [ordered]@{
+    schemaVersion = 1; status = 'running'; configuration = $config
+    configurationSha256 = (Get-FileHash $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    driverSha256 = (Get-FileHash $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    targets = $identities; runs = @(); timingNote = 'Stage durations overlap; never sum stages as total elapsed time.'
 }
-
-function Invoke-Matrix(
-    [string] $Harness, [string] $Sizes, [string] $SelectedScenarios,
-    [int] $Rounds, [int] $TimeoutSeconds, [string] $Tag, [switch] $CandidateOnly) {
-    $lastRound = [Math]::Min($EndRound, $Rounds)
-    if ($StartRound -gt $lastRound) {
-        Write-Host "[$Tag] no rounds remain in the requested range ($StartRound..$lastRound)."
-        return
-    }
-    for ($round = $StartRound; $round -le $lastRound; $round++) {
-        # Rotate tree order per round so no tree always runs first or last.
-        $order = @(0, 1, 2 | ForEach-Object { ($_ + $round) % 3 })
+function Save-Campaign { [IO.File]::WriteAllText($manifestPath, ($campaign | ConvertTo-Json -Depth 20)) }
+Save-Campaign
+$failed = $false
+try {
+    for ($round = 1; $round -le $config.rounds; $round++) {
+        $order = @(0..($targets.Count - 1))
+        if ($round % 2 -eq 0) { [array]::Reverse($order) }
         foreach ($index in $order) {
-            $tree = $trees[$index]
-            # B0/B1 "all" runs of the major scope already cover the remaining
-            # scenarios; rerunning them here would only duplicate hour-long jobs.
-            if ($CandidateOnly -and $tree.label -cne 'candidate') { continue }
-            $scenarios = Get-TreeScenarios $tree.scenarios $SelectedScenarios
-            $harnessDll = if ($Harness -ceq 'markdown') {
-                Join-Path $tree.root 'benchmarks/LithoSharp.Performance/bin/Release/net10.0/LithoSharp.Performance.dll'
-            } else {
-                Join-Path $tree.root 'benchmarks/LithoSharp.MdxPerformance/bin/Release/net10.0/LithoSharp.MdxPerformance.dll'
-            }
-            $harnessHash = if ($tree.label -ceq 'candidate') {
-                (Get-FileHash -LiteralPath $harnessDll -Algorithm SHA256).Hash.ToLowerInvariant()
-            } else { '' }
+            $target = $targets[$index]; $identity = $identities[$index]
+            $runRoot = Join-Path $evidence "$($target.label)/round-$round"
             $arguments = @{
-                Harness = $Harness; Label = $tree.label
-                TaskId = 'V110-25'
-                RunId = if ($tree.label -ceq 'candidate') {
-                    "v110-25-$Tag-candidate-$($candidateCommit.Substring(0, 12))-$($harnessHash.Substring(0, 8))-$($driverHash.Substring(0, 8))"
-                } else { "v110-25-$Tag-$($tree.label)" }
-                Sizes = $Sizes; Scenarios = $scenarios; Runs = $round; Resume = $true
-                TimeoutSeconds = $TimeoutSeconds; EvidenceRoot = $EvidenceRoot
-                HarnessRoot = $tree.root; HarnessDll = $harnessDll
+                Harness = $config.harness; Profile = $config.profile; Label = $target.label
+                RunId = $config.runId; TaskId = $config.taskId; Sizes = ($config.sizes -join ',')
+                Scenarios = ($config.scenarios -join ','); Runs = 1; TimeoutSeconds = $config.timeoutSeconds
+                EvidenceRoot = $evidence; StateRoot = (Join-Path $runRoot 'runs')
+                HarnessRoot = $identity.root; HarnessDll = $identity.harnessDll
             }
-            if ($Harness -ceq 'mdx') {
-                $arguments.WorkerDirectory = Join-Path $tree.root 'src/LithoSharp.Mdx/worker'
+            if ($config.harness -eq 'mdx') { $arguments.WorkerDirectory = Join-Path $identity.root 'src/LithoSharp.Mdx/worker' }
+            try {
+                & (Join-Path $repo 'eng/Measure-IncrementalScenarios.ps1') @arguments
+                $campaign.runs += @{ label = $target.label; round = $round; status = 'completed'; summary = "$runRoot/benchmark-baseline.json" }
+            } catch {
+                $failed = $true
+                $campaign.runs += @{ label = $target.label; round = $round; status = 'failed'; error = $_.Exception.Message; summary = "$runRoot/benchmark-baseline.json" }
             }
-            Write-Host "[$Tag] round $round tree $($tree.label) scenarios $scenarios"
-            & (Join-Path $repo 'eng/Measure-IncrementalScenarios.ps1') @arguments
-            $script:workScheduled = $true
+            Save-Campaign
         }
     }
-}
-
-if ($Scope -in @('All', 'Markdown')) {
-    Invoke-Matrix 'markdown' '100,1000,10000' $mdScenarios 5 1800 'md'
-}
-if ($Scope -in @('All', 'Mdx100')) {
-    Invoke-Matrix 'mdx' '100' $mdxScenarios 5 1800 'mdx100'
-}
-if ($Scope -in @('All', 'Mdx1000')) {
-    Invoke-Matrix 'mdx' '1000' $mdxScenarios 5 1800 'mdx1000'
-}
-if ($Scope -in @('All', 'Mdx10000Major')) {
-    # 10k all-runs take ~55 min; allow 90 min to absorb loaded-box variance.
-    Invoke-Matrix 'mdx' '10000' $mdxMajor 5 5400 'mdx10000major'
-}
-if ($Scope -in @('All', 'Mdx10000Rest')) {
-    Invoke-Matrix 'mdx' '10000' $mdxRest 3 5400 'mdx10000rest' -CandidateOnly
-}
-if ($workScheduled) {
-    Write-Host "Matrix scope $Scope finished; inspect the ledger for completed, failed, and timed-out runs."
-}
-else {
-    Write-Host "Matrix scope $Scope scheduled no rounds."
-}
+    foreach ($identity in $identities) {
+        if ((Source-Manifest $identity.root @('src') | ConvertTo-Json -Compress) -cne ($identity.productSources | ConvertTo-Json -Compress)) {
+            throw "Product sources changed during campaign: $($identity.label). Results are not a fixed-source comparison."
+        }
+    }
+    $campaign.status = if ($failed) { 'partial' } else { 'completed' }
+} catch { $campaign.status = 'failed'; $campaign.error = $_.Exception.Message; throw }
+finally { Save-Campaign }
+if ($failed) { throw 'A campaign attempt failed; inspect retained raw evidence.' }

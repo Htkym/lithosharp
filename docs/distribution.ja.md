@@ -2,7 +2,21 @@
 
 [English](distribution.md)
 
-以下の導入例はLithoSharp 2.1.3を対象にしています。候補feedを使う場合は、提供された実際の固定候補版を指定してください。VS Code拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。
+現在のソースは、未公開候補のLithoSharp 2.2.0とVS Code拡張0.4.0を対象にしています。以下の安定版の導入例には2.1.3を残しています。拡張は別の公開系列を使い、Marketplaceでの識別子は`htkym.lithosharp`です。NuGetパッケージの公開では拡張は公開されません。
+
+## 候補版の導入と互換性
+
+レビュー済み候補とともに渡された正確なバージョンと専用feedを使ってください。生成したプロジェクトの`LithoSharpVersion`をその版に合わせ、同じ版のツールとテンプレートを使います。普段使うfeedやテンプレートhiveは変更せず、候補専用の設定を使ってください。ソースのバージョンやローカルパッケージだけでは、NuGetやMarketplaceに公開済みとは判断できません。
+
+| 利用箇所 | 従来の安定版 | 2.2.0／0.4.0候補 |
+| --- | --- | --- |
+| 既存のCore呼び出し | 対応を維持 | 型付きDocsのAPIを追加。Qualityの既定値は変更しない |
+| Docsテンプレート | 安定版パッケージの動作 | 生成Binder／Catalog／参照を使い、QualityのErrorで明示的に失敗する |
+| CLI JSON | schema major 1 | 同じmajorを維持。拡張は必須項目と終了コードの整合を検査する |
+| 編集プロトコル | 従来の項目 | プロジェクト情報を任意項目として追加。根拠がない状態は未確認とする |
+| 独自C# frontmatter | コンパイラーとbuildで検査 | プロジェクトのbuildが必要。編集時にすべての項目を検証するわけではない |
+
+候補のコンパイラーパッケージと異なる版のCoreや生成テンプレートを混在させないでください。Docsへ接続した後は出力を生成し直して確認し、公開前にサイト全体をbuildして出力を検査します。
 
 ## NuGetパッケージ
 
@@ -15,7 +29,7 @@ dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 
 サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[更新手順](migration-2.0.ja.md)を参照してください。
 
-候補feedを使う場合は、提供された`2.1.3-ci.…`や`2.1.3-rc.…`を正確に指定し、生成projectの`LithoSharpVersion`もrestore前に同じ値へ設定します。正式版と候補版のLithoSharpパッケージを混在させないでください。CoreはSyntamark 1.2.0 runtimeを参照し、GeneratorsとAnalyzersは対応するSourceを組み込みます。利用者がSyntamark.Sourceを直接参照する必要はありません。候補feedでもSyntamark自身の1.2.0というバージョンを使い、LithoSharpの候補suffixへ付け替えません。既定のprofileは`lithosharp-markdown/1`です。
+候補feedを使う場合は、提供された`<candidate-version>`を正確に指定し、生成projectの`LithoSharpVersion`もrestore前に同じ値へ設定します。正式版と候補版のLithoSharpパッケージを混在させないでください。CoreはSyntamark 1.2.0 runtimeを参照し、GeneratorsとAnalyzersは対応するSourceを組み込みます。利用者がSyntamark.Sourceを直接参照する必要はありません。候補feedでもSyntamark自身の1.2.0というバージョンを使い、LithoSharpの候補suffixへ付け替えません。既定のprofileは`lithosharp-markdown/1`です。
 
 公開する9パッケージは[配布対象の一覧](../eng/release-packages.json)で管理します。
 

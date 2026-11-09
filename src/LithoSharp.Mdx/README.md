@@ -1,7 +1,14 @@
 # LithoSharp.Mdx
 
+Add optional MDX and React to documentation managed with LithoSharp's C# types and builds. Markdown-only Docs do not need this package or Node.js; use MDX when interactive components or its documentation features fit the site.
+
+This checkout targets the next 2.2 candidate, not a published release. Use the
+exact supplied candidate version and feed; set `LithoSharpVersion` to that value
+for XML examples and replace `<candidate-version>` in commands. The published
+stable baseline is 2.1.3; do not mix that line with candidate packages.
+
 ```sh
-dotnet add package LithoSharp.Mdx --version 2.1.3
+dotnet add package LithoSharp.Mdx --version <candidate-version>
 ```
 
 Use matching LithoSharp Core and Tool versions.

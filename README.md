@@ -5,11 +5,25 @@
 
 [English](https://github.com/Htkym/lithosharp/blob/main/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/README.ja.md)
 
-A type-safe static site and documentation generator for .NET with C#, Markdown,
-MDX, React and incremental builds. Build documentation alongside your .NET code,
-validate content and links during generation, and deploy ordinary static files.
+Manage documentation consistency with C# types and builds. LithoSharp connects
+your .NET team's content schema, generated references, compiler diagnostics and
+checks of the generated site. Write product documentation and technical guides
+in Markdown, add MDX/React when needed, and deploy ordinary static files.
 
-The installation examples below use **2.1.3**.
+Three common failures have different checks:
+
+- A missing required title is reported against your C# schema during compilation (`LSG006`).
+- A statically proven entry/route contradiction is reported by the analyzer (`LSA1402`).
+- A missing internal target or heading in final HTML is reported by output quality checks (`LSQ001`/`LSQ002`).
+
+These checks have separate scopes. Editor syntax feedback does not execute your
+custom schema on every keystroke, and a valid typed reference does not certify
+the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
+for fit, dependencies and evaluation examples.
+
+This checkout describes the next minor candidate, not a published release.
+Use the exact supplied candidate version/feed for the typed Docs workflow.
+The published 2.1.3 Docs template uses the previous reader.
 For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
 
 ## Features
@@ -32,22 +46,27 @@ For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithos
 
 ## Quick Start
 
-With the .NET 10 SDK installed:
+With the .NET 10 SDK installed and the supplied candidate NuGet feed configured,
+replace `<candidate-version>` with its exact version:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
+dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
+# Before building, set MyDocs/MyDocs.csproj LithoSharpVersion to the same candidate
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-On Windows the executable is `.tools/lithosharp.exe`. Edit `MyDocs/content` and
-configure `DocsSiteFactory.cs`. Deploy `MyDocs/dist` to a static HTTP host.
+On Windows the executable is `.tools/lithosharp.exe`. Set the generated project's
+`LithoSharpVersion` to the same candidate before restore. Edit `GuideFrontMatter.cs`
+and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
+to the Docs shell. The factory enables Quality at Error without external HTTP.
+Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 2.1.3`
+Existing applications can use `dotnet add package LithoSharp --version <candidate-version>`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -108,19 +127,19 @@ Use the [documentation index](https://github.com/Htkym/lithosharp/blob/main/docs
 - [Typed Markdown collections](https://github.com/Htkym/lithosharp/blob/main/docs/typed-markdown-collections.md),
   [typed YAML](https://github.com/Htkym/lithosharp/blob/main/docs/typed-yaml-collections.md), [source generators](https://github.com/Htkym/lithosharp/blob/main/docs/source-generators.md)
 - [Build graph (Japanese)](https://github.com/Htkym/lithosharp/blob/main/docs/build-graph.ja.md), [incremental builds](https://github.com/Htkym/lithosharp/blob/main/docs/incremental-builds.md)
-- **Reason**: Every other documentation link in `README.md` targets an English `.md` document, whereas `[Build graph]` points to `docs/build-graph.ja.md` without language indication. If an English `docs/build-graph.md` exists in the repository, update the URL to `docs/build-graph.md` instead; if the build-graph reference is intentionally Japanese-only (mirroring how `README.ja.md` notes English-only and bilingual references), adding `(Japanese)` sets accurate reader expectations without assuming unpublished files.
 - [Assets and images](https://github.com/Htkym/lithosharp/blob/main/docs/assets-and-images.md), [site quality](https://github.com/Htkym/lithosharp/blob/main/docs/site-quality.md)
 - [Testing](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md), [HTML/CSS contract](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md),
   [compatibility contract](https://github.com/Htkym/lithosharp/blob/main/docs/compatibility-contract.md)
 
-## Upgrade to 2.1.3
+## Upgrade to the 2.2 candidate
 
-Update the LithoSharp packages, CLI and templates you use together to 2.1.3.
-Docs additions are opt-in; see [template settings](https://github.com/Htkym/lithosharp/blob/main/docs/docs-template.md).
-When upgrading from 1.x, follow the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md),
-including the Testing API change from `Document` to `Snapshot`. Rebuild your site and check
-content warnings, links and custom CSS. MDX remains optional; see the
-[supported Markdown syntax](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md#markdown-compatibility).
+Keep selected packages, CLI and templates at the same supplied candidate version.
+The 2.2 candidate changes newly created Docs projects; existing sites opt into
+the typed loader/Docs adapter and Quality settings explicitly. Preserve URLs
+through catalog route declarations and do not regenerate over existing files.
+See the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
+From 1.x, also apply the Testing API change from `Document` to `Snapshot`.
+Rebuild and check content diagnostics, final links and custom CSS. MDX is optional.
 
 Notes for migrations between older releases are preserved in the
 [upgrade history](https://github.com/Htkym/lithosharp/blob/main/docs/history/README.md).
@@ -134,12 +153,11 @@ Docusaurus plugins, trimming and Native AOT are unsupported. Read
 
 ## Performance
 
-In the static-page fixture measured with 0.3.0, selective hydration reduced JS from
-449,585 to 15,817 bytes and hydration roots from one to zero. This does not
-represent all island or fallback pages. The 10,000-page MDX corpus took 274.30 s
-cold and 105.13 s for a no-op. A 100/1,000-page competitor comparison is
-summarized alongside the Markdown results remeasured with the 1.0.0 candidate.
-See [conditions, limits and reproduction](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md).
+Performance results apply to the named package/source version, workload,
+measurement interval and environment. Generation, Quality, MDX and editor checks
+measure different work; no-op and changed-input builds also need separate results.
+See the [measurement evidence, limits and reproduction](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md).
+No general speedup or migration-effort claim follows from a result for one fixture.
 
 ## Contribute and license
 

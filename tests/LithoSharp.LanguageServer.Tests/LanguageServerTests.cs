@@ -179,6 +179,7 @@ public sealed class LanguageServerTests
             && message.GetProperty("params").GetProperty("uri").GetString() == uri)).GetProperty("params");
         await Assert.That(status.GetProperty("language").GetString()).IsEqualTo("mdx");
         await Assert.That(status.GetProperty("state").GetString()).IsEqualTo("unavailable");
+        await Assert.That(status.GetProperty("schemaScope").GetString()).IsEqualTo("unknown");
         await Assert.That(status.GetProperty("lithosharpOpenGeneration").GetInt64()).IsEqualTo(23);
         await client.WaitStderrAsync(line => line.Contains("LSM013", StringComparison.Ordinal)
             && line.Contains("no reliable source position", StringComparison.Ordinal));
@@ -520,6 +521,17 @@ public sealed class LanguageServerTests
         var codes = published.GetProperty("params").GetProperty("diagnostics").EnumerateArray()
             .Select(item => item.GetProperty("code").GetString()).ToArray();
         await Assert.That(codes.Contains("LSC101")).IsTrue();
+        var status = (await client.WaitForAsync(message => message.TryGetProperty("method", out var method)
+            && method.GetString() == "lithosharp/analysisStatus"
+            && message.GetProperty("params").GetProperty("uri").GetString() == uri)).GetProperty("params");
+        await Assert.That(status.GetProperty("state").GetString()).IsEqualTo("ready");
+        await Assert.That(status.GetProperty("projectStatus").GetString()).IsEqualTo("Resolved");
+        await Assert.That(status.GetProperty("schemaScope").GetString()).IsEqualTo("built-in-binding");
+        await Assert.That(status.GetProperty("schemaName").GetString()).IsEqualTo("document");
+        await Assert.That(status.GetProperty("projectId").GetString()).IsEqualTo("docs");
+        await Assert.That(status.GetProperty("projectGeneration").GetInt64()).IsEqualTo(5);
+        await Assert.That(status.GetProperty("contextAcquiredAt").GetDateTimeOffset())
+            .IsEqualTo(DateTimeOffset.Parse("2026-09-27T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Test]

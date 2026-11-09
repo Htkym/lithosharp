@@ -9,6 +9,7 @@ public sealed class ArticleFrontMatter
 {
     public required string Title { get; init; }
     public string Summary { get; init; } = string.Empty;
+    public int Order { get; init; }
     public DateTimeOffset PublishedFrom { get; init; }
     public bool Draft { get; init; }
     public List<string> Tags { get; init; } = [];

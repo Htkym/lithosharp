@@ -2,7 +2,21 @@
 
 [日本語](distribution.ja.md)
 
-Use LithoSharp 2.1.3 for the NuGet installation examples below. VS Code extension 0.3.0 has a separate release channel and uses the Marketplace identity `htkym.lithosharp`. Publishing NuGet packages does not publish the extension.
+The current source targets LithoSharp 2.2.0 and VS Code extension 0.4.0 as unpublished candidates. The stable NuGet installation examples below retain 2.1.3. The extension has a separate release channel and uses the Marketplace identity `htkym.lithosharp`. Publishing NuGet packages does not publish the extension.
+
+## Candidate installation and compatibility
+
+Use the exact version and isolated package feed supplied with a reviewed candidate. Set `LithoSharpVersion` to that version in generated projects, install the matching tool and templates, and keep the default user feed and template hive unchanged. A source version or local package is not evidence of publication to NuGet or Marketplace.
+
+| Consumer | Earlier stable | 2.2.0 / 0.4.0 candidate |
+| --- | --- | --- |
+| Existing Core calls | Supported | Additive typed Docs adapter; default quality settings remain unchanged |
+| Docs template | Stable package behavior | Generated binder/catalog/references and explicit quality Error threshold |
+| CLI JSON | Schema major 1 | Same major; extension verifies required fields and exit-code agreement |
+| Editor protocol | Earlier fields | Optional context fields; missing evidence stays unknown |
+| Custom C# frontmatter | Compiler/build checks | Still requires the project build; no per-key editor validator is implied |
+
+Do not mix candidate compiler packages with a different Core or generated template version. Regenerate and inspect Docs output after adopting the adapter, then build and check the complete site before deployment.
 
 ## NuGet packages
 
@@ -25,7 +39,7 @@ dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
 
 See the [Quick Start](quickstart.md) to create and serve a site, and [upgrade notes](migration-2.0.md) before updating an existing project.
 
-For a candidate feed, install the exact supplied `2.1.3-ci.…` or `2.1.3-rc.…`
+For a candidate feed, install the exact supplied `<candidate-version>`
 version and set the generated project's `LithoSharpVersion` to that same value
 before restore. Do not mix stable and candidate LithoSharp packages. The feed
 must supply the selected Syntamark runtime under its own 1.2.0 component version;

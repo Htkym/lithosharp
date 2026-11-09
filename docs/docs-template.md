@@ -2,6 +2,62 @@
 
 [日本語](docs-template.ja.md)
 
+## Typed content and the Docs shell
+
+The next minor candidate's `docs` project template uses `GuideFrontMatter`,
+`Guides.Binder`, generated catalog routes and `RenderDocs`; it no longer needs
+Blog-style dates. See [Quick Start](quickstart.md) for the exact generated files,
+input rules, Quality setting and commands. Existing sites keep their reader and
+rendering behavior until explicitly changed. These additions do not change the
+Core default `Quality = null` or generic `RenderDocument` behavior.
+
+For an already loaded typed collection, select presentation fields explicitly:
+
+```csharp
+var docs = collection.RenderDocs(
+    entry => new DocsPagePresentation
+    {
+        Title = entry.FrontMatter.Title,
+        Description = entry.FrontMatter.Description,
+        Order = entry.FrontMatter.Order
+    },
+    (entry, context) => context.RenderMarkdown(entry.Body),
+    rendererFingerprint: "docs-layout:v1",
+    isThreadSafe: true);
+```
+
+This fragment assumes the template's `GuideFrontMatter` and a successfully loaded
+`ContentCollection<GuideFrontMatter, string>`; import `LithoSharp.Content`.
+Register the returned collection in `SiteGenerationOptions.ContentCollections`
+and select `DocsSiteTemplate` in `SiteCustomization.Template`, as the supplied
+factory does. The renderer returns the body, not a second full HTML document.
+`context.RenderMarkdown` supplies the already compiled HTML/headings to the
+shared Docs layout. The adapter does not parse Markdown a second time.
+
+`DocsPagePresentation` also supports `ParentId`, `Version`, `Locale` and
+`Unlisted`; the selector need not require those property names on your schema.
+Routes, publication and navigation use the same resolved entries. Draft/excluded
+entries do not reappear; unlisted pages and entries without
+`DerivedSurfaces.Navigation` stay outside sidebar/previous-next navigation.
+Navigation stays within the collection/version/locale. The standard template
+uses the publication document key's version and locale when present; a conflicting
+presentation selector is rejected. For typed entries, `Title`, `Description`
+and `Order` supply labels, summaries and ordering. The legacy frontmatter names
+described below apply to the legacy reader rather than fixing custom C# property names.
+The standard template
+owns the home, its start link and optional topic cards; do not register another
+page at the home output path. Navigation metadata is shared without copying all
+page bodies into the tree.
+
+Use a stable renderer fingerprint only when it covers display selectors, body
+rendering and captured settings, and declare any external dependencies. Set
+`isThreadSafe` only when those callbacks can run concurrently. The same normal
+collection cache/build-graph rules apply. Use the
+[migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content)
+when retaining an existing site's URLs or schema.
+
+## Standard presentation settings
+
 The standard Docs template works without extra settings. Enable only the features
 your site needs:
 

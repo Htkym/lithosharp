@@ -13,7 +13,7 @@ lithosharp capabilities --format json
 
 - プロジェクトを評価しません。プロジェクトディレクトリの外や、csproj が壊れているディレクトリでも動作し、MSBuild・C#・Node・依存関係の復元を起動しません。
 - `--format json` の標準出力は 1つの JSON ドキュメントです（JSON Lines ではありません）。
-- プロセスの終了コードは0（成功）、1（処理失敗）、2（使い方の誤り）です。`--format json`指定時の失敗はcapability reportの代わりに`schemaVersion`付きのCLIエラー封筒で返します。必須capabilityがない場合は、利用側でその機能を無効にしてください。
+- プロセスの終了コードは0（成功）、1（処理失敗）、2（使い方の誤り）です。`--format json`指定時の失敗はcapability reportの代わりに`schemaVersion`付きのCLIエラーenvelopeで返します。必須capabilityがない場合は、利用側でその機能を無効にしてください。
 
 ## レポートのフィールド
 
@@ -33,7 +33,7 @@ identity は `name` と `version` を持ちます。**ツールに同梱され�
 Language Server に同梱された Core は別の identity として記録し、未解決の値を他の identity で埋めません**。
 未解決の `project.coreVersion` は `null` で、ツールの version を入れません。
 
-成功したCLI呼び出しではreportの`exitCode`は0です。Core APIの`ToolingCapabilities.CreateReport`に`error`を渡して作る失敗reportでは1になります。CLIの失敗は別形式のエラー封筒で返し、その`exitCode`は処理失敗が1、使い方の誤りが2です。エラー封筒をcapability reportとして扱わず、`success`と`exitCode`を確認してから機能一覧を読んでください。
+成功したCLI呼び出しではreportの`exitCode`は0です。Core APIの`ToolingCapabilities.CreateReport`に`error`を渡して作る失敗reportでは1になります。CLIの失敗は別形式のエラーenvelopeで返し、その`exitCode`は処理失敗が1、使い方の誤りが2です。エラーenvelopeをcapability reportとして扱わず、`success`と`exitCode`を確認してから機能一覧を読んでください。
 
 ## Coreのcapability一覧（schema 1.0、すべてStable）
 
@@ -44,7 +44,7 @@ Language Server に同梱された Core は別の identity として記録し、
 | `serve-shutdown` | （なし） | stdin 経由の構造化 serve 停止。重複・実行中・起動途中の停止要求は冪等 | 停止は Ctrl+C のみとし、UI にその制約を表示する |
 | `source-route-lookup` | `project-resolution` | project / collection / variant の識別を保った source→route 取得。複数候補は複数返す | 拡張子推測を行わず、route 未取得として表示する |
 
-Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します。Tool 2.1.3の`capabilities`コマンドはさらに次のPreview機能を加えます。Coreの一覧とCLIが返す一覧を混同しないでください。
+Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します。Tool 2.1.3以降の`capabilities`コマンドは、2.2.0候補を含め、さらに次のPreview機能を加えます。Coreの一覧とCLIが返す一覧を混同しないでください。
 
 | name | maturity | scope | 動作 |
 | --- | --- | --- | --- |
@@ -73,6 +73,8 @@ Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します�
 - `DocumentWorkspace.Id`はworkspaceを識別します。`InspectVersionedAsync`は文書のバージョンとprojectの世代を受け取り、古くなった処理を拒否します。返す`DocumentInfo`はコンテンツの情報と`ProjectStatus`を持ちますが、要求時の識別情報をすべて複製するわけではありません。呼び出し側でも要求の識別情報を保持してください。
 - `ProjectInspectionSnapshot.ToJson()`は`schemaVersion`、`projectId`、`projectGeneration`、`coreVersion`、`collection`、`language`、`schema`、`version`、`locale`、`acquiredAt`、`routes`を含みます。明示的に取得したデータであり、project assemblyの読み込みを指示するものではありません。
 - LSPの診断は`uri`、`version`、`diagnostics`、`lithosharpOpenGeneration`、`lithosharpContextGeneration`を持ちます。close時には文書のバージョンを付けずに診断を消去します。別通知の`lithosharp/analysisStatus`は`uri`、`version`、`language`、`state`（`ready`または`unavailable`）、`message`と、同じ2つの世代項目を持ちます。[言語サーバーのプロトコル](language-server.md)を参照してください。
+
+任意項目の`projectStatus`、`schemaName`、`schemaScope`、`projectId`、`projectGeneration`、`contextAcquiredAt`は、適用したcontextと検査可能な範囲を示します。範囲の通知がない場合は不明として扱ってください。MDXではスキーマ名からMarkdownのバインド対応を推定しません。取得日時だけでは、すべての入力が最新と一致することは保証できません。
 
 `NoContext`では構文を検査できますが、プロジェクトに結び付くスキーマやルートは確定できません。`Resolved`、`Ambiguous`、`Unresolved`、`Draft`は明示した文脈でのルート解決状態であり、サイト全体の妥当性ではありません。snapshotで結び付けるのは組み込みスキーマだけです。独自C#スキーマはコンパイラーとサイトビルドで検証します。
 

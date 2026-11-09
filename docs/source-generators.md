@@ -1,14 +1,25 @@
 # Static content source generators / 静的コンテンツのSource Generator
 
+The next candidate's Docs template is the standard typed starting point: see
+[Quick Start](quickstart.md) for generated `Guides.Binder`/references, content-root-relative
+IDs with extensions, matching underscore exclusions and runtime catalog routes.
+The snippets below describe individual generator contracts; their illustrative
+ID conventions are not a replacement for that template's recursive input rules.
+
 ## Package setup
+
+This checkout targets the next 2.2 candidate, not a published release. Set
+`LithoSharpVersion` to the exact supplied candidate version and use its configured
+feed. The published stable baseline is 2.1.3; keep that line separate from the
+candidate packages.
 
 Reference the runtime package normally and add `LithoSharp.Generators` as a private
 analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="2.1.3" />
-<PackageReference Include="LithoSharp.Generators" Version="2.1.3" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" />
+<PackageReference Include="LithoSharp.Generators" Version="$(LithoSharpVersion)" PrivateAssets="all" />
 ```
 
 For a source-tree project reference, use analyzer output and do not reference the

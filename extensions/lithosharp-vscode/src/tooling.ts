@@ -4,7 +4,7 @@ export type PreflightMode = 'static' | 'trusted';
 export function preflightModes(value: unknown): PreflightMode[] {
   if (typeof value !== 'object' || value === null) return [];
   const report = value as Record<string, unknown>;
-  if (report['success'] !== true || typeof report['schemaVersion'] !== 'string' ||
+  if (report['success'] !== true || report['exitCode'] !== 0 || typeof report['schemaVersion'] !== 'string' ||
       !/^1(?:\.\d+)*$/.test(report['schemaVersion']) || !Array.isArray(report['capabilities'])) return [];
   const modes: PreflightMode[] = [];
   for (const [name, mode] of [['preflight-static-inputs', 'static'], ['preflight-trusted-catalog', 'trusted']] as const) {

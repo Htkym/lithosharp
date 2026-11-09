@@ -4,9 +4,9 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PackageId>LithoSharp.ProjectTemplates</PackageId>
     <Authors>Htkym</Authors>
-    <Description>Docs, Blog, custom C#, and MDX/React site templates for LithoSharp.</Description>
+    <Description>Typed C# Docs with generated references and output checks, plus Blog, custom C# and optional MDX/React templates for LithoSharp.</Description>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
-    <Version>2.1.3</Version>
+    <Version>2.2.0</Version>
     <PackageType>Template</PackageType>
     <PackageTags>dotnet-new;templates;static-site;LithoSharp</PackageTags>
     <IncludeBuildOutput>false</IncludeBuildOutput>
