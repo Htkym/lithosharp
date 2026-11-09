@@ -7,7 +7,8 @@ Raw local evidence is never modified. Missing/failed inputs fail curation.
 import argparse
 import hashlib
 import json
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import statistics
 
 
@@ -31,6 +32,68 @@ def sanitize(value):
     if isinstance(value, list):
         return [sanitize(item) for item in value]
     return value
+
+
+def assert_public(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            assert_public(key)
+            assert_public(item)
+    elif isinstance(value, list):
+        for item in value:
+            assert_public(item)
+    elif isinstance(value, str):
+        if (PureWindowsPath(value).is_absolute() or PurePosixPath(value).is_absolute()
+                or re.search(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]|\\\\|file://", value, re.IGNORECASE)
+                or re.search(r"(?:^|[\s\"'(])/(?!/)[^\s]", value)
+                or "h_tky" in value):
+            raise ValueError("A local/private path remains in the public projection")
+
+
+def validate_committed_campaign(campaign, commit):
+    candidates = [target for target in campaign["targets"] if target["role"] == "candidate"]
+    if not candidates or any(target["commit"] != commit or target["changes"] for target in candidates):
+        raise ValueError("Committed candidate does not match the recorded clean working tree")
+
+
+
+
+def validate_generator_pairs(observations):
+    expected = {(label, round_number) for label in ("baseline", "candidate") for round_number in (1, 2, 3)}
+    if len(observations) != 6 or {(item["label"], item["round"]) for item in observations} != expected:
+        raise ValueError("Expected three process pairs for Generator header scanning")
+
+
+def validate_binary_commit(identity, commit):
+    if not identity.get("informationalVersion", "").endswith("+" + commit):
+        raise ValueError("Loaded binary commit does not match its measurement target")
+
+
+def validate_measurement_commits(report, commit):
+    baseline = next(target["commit"] for target in report["blog"]["targets"] if target["role"] == "baseline")
+    for section in ("blog", "typedDocsQuality"):
+        targets = {target["label"]: target["commit"] for target in report[section]["targets"]}
+        for observation in report[section]["observations"]:
+            raw = observation["raw"]
+            expected = targets[observation["label"]]
+            if raw["Provenance"]["Commit"] != expected:
+                raise ValueError("Site observation commit does not match its measurement target")
+            for component in ("product", "harness"):
+                validate_binary_commit(raw["Identity"][component], expected)
+    for observation in report["generator"]:
+        expected = commit if observation["label"] == "candidate" else baseline
+        raw = observation["raw"]
+        if raw["provenance"]["Commit"] != expected:
+            raise ValueError("Generator observation commit does not match its measurement target")
+        for component in ("product", "harness"):
+            validate_binary_commit(raw["identity"][component], expected)
+        validate_binary_commit(raw["generator"], expected)
+    for observation in report["mdx"]:
+        expected = commit if observation["label"] == "candidate" else baseline
+        for component in ("product", "harness"):
+            validate_binary_commit(observation["raw"]["identity"][component], expected)
+    if report["editor"]["latency"]["identity"]["sourceCommit"] != commit:
+        raise ValueError("Editor observation commit does not match its measurement target")
 
 
 def site_campaign(root):
@@ -71,22 +134,31 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--candidate-commit", help="Full SHA when curating a clean committed product; omitted for historical uncommitted captures.")
     args = parser.parse_args()
     root = args.root
+    if args.candidate_commit and not re.fullmatch(r"[0-9a-f]{40}", args.candidate_commit):
+        parser.error("--candidate-commit must be a full lowercase commit SHA")
     notes = read(root / "run-notes.json") if (root / "run-notes.json").exists() else {}
     first_ledger = root / "blog-fixed/released-2.1.3/round-1/ledger.jsonl"
     measured_date = json.loads(first_ledger.read_text().splitlines()[0])["startedAt"][:10]
     report = {"schemaVersion": 1, "measuredDateUtc": measured_date, "status": "completed",
-              "scope": "One Windows source-build reference, not a release acceptance or speed guarantee. Candidate source manifest and binary hashes identify an uncommitted 2.2.0 snapshot.",
+              "scope": (f"One Windows source-build reference for committed candidate {args.candidate_commit}, not a release acceptance or speed guarantee."
+                        if args.candidate_commit else "One Windows source-build reference, not a release acceptance or speed guarantee. Candidate source manifest and binary hashes identify an uncommitted 2.2.0 snapshot."),
               "blog": site_campaign(root / "blog-fixed"), "typedDocsQuality": site_campaign(root / "typed-docs-fixed"),
               "generator": [], "mdx": [], "editor": {}}
+    if args.candidate_commit:
+        for name in ("blog-fixed", "typed-docs-fixed"):
+            campaign = read(root / name / "campaign.json")
+            validate_committed_campaign(campaign, args.candidate_commit)
+        report["candidateCommit"] = args.candidate_commit
+        report["candidateWorkingTreeClean"] = True
     for path in sorted(root.glob("generator-*.json")):
         raw = read(path)
         if raw.get("status") != "completed":
             raise ValueError("Incomplete Generator run")
         report["generator"].append({"label": path.stem.split("-")[1], "round": int(path.stem.split("-")[-1]), "raw": sanitize(raw)})
-    if len(report["generator"]) != 6:
-        raise ValueError("Expected three process pairs for Generator header scanning")
+    validate_generator_pairs(report["generator"])
     for label in ("baseline", "candidate"):
         run = root / "mdx" / label / "runs/mdx-100-all-run-1/harness"
         rows = [json.loads(line) for line in (run.parents[2] / "ledger.jsonl").read_text().splitlines()]
@@ -104,6 +176,8 @@ def main():
         raise ValueError("Incomplete editor run")
     if any(item["status"] != "exited" for item in report["editor"]["soak"]["serverProcesses"]):
         raise ValueError("Editor owned-process cleanup is not confirmed")
+    if args.candidate_commit:
+        validate_measurement_commits(report, args.candidate_commit)
     report["excludedAttempts"] = sanitize(notes.get("excludedAttempts", []))
     report["limitations"] = ["Only 100 pages, one Windows computer; no 1000/10000-page or cross-OS reference.",
         "Three Blog/Docs process runs per target; overlapping ranges do not establish small performance changes.",
@@ -111,11 +185,15 @@ def main():
         "Generator header scan excludes schema binding, emission, Roslyn and C# compilation.",
         "Editor has 20 edits per shape/language and a 40-edit restart soak, not a long-duration soak or Extension Host benchmark.",
         "Verification stages overlap execution. Worker heap snapshots are not peak RSS. Unmeasured worker RSS and editor loaded-dependency identity remain unavailable."]
+    if "startedAtUtc" in notes and "completedAtUtc" in notes:
+        report["measurementWindowUtc"] = {key: notes[key] for key in ("startedAtUtc", "completedAtUtc", "elapsedSeconds")}
+    if (root / "machine.json").exists():
+        machine = read(root / "machine.json")
+        report["machine"] = {key: machine[key] for key in ("dotnetSdk", "node", "os", "cpu", "logicalProcessors", "conditions")}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
-    # Reject accidental local path publication, including JSON-escaped Windows paths.
-    if any(token in text for token in ("C:\\\\", "C:/Users/", "h_tky", "file:///")):
-        raise ValueError("A local/private path remains in the public projection")
+    # Fail closed for filesystem paths on any host, including paths embedded in prose.
+    assert_public(report)
     args.output.write_text(text, encoding="utf-8")
     for section in ("blog", "typedDocsQuality"):
         print(section, json.dumps(report[section]["aggregates"]))

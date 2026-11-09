@@ -105,3 +105,21 @@ reported without hiding them by normalization; correctness invariants can fail.
 Short-lived CI artifacts are working evidence, not the sole durable support for
 public performance claims. Curated reference observations may be retained under
 `docs/evidence/performance/`; full logs, sites and corpora remain in `.local/`.
+
+## Curate a reference
+
+After reviewing completed raw observations, create a durable reference with:
+
+```powershell
+python eng/performance/curate-reference.py .local/performance/committed-bedc85c docs/evidence/performance/2026-11-08-committed-bedc85c-reference.json --candidate-commit bedc85cc63a5c1ef955e6fa34d1ce3118a983b90
+python eng/performance/test_curate_reference.py
+```
+
+The command takes `ROOT OUTPUT --candidate-commit FULL_SHA`. Committed captures
+require the recorded candidate working tree to be clean at measurement time.
+Recorded site/Generator provenance, binary informational versions and the editor
+source commit must also match their measurement targets.
+Omit the flag only when curating an explicitly uncommitted historical capture.
+The focused Python checks cover curation and evidence validation; they do not
+rerun performance measurements. Keep captures separate and preserve earlier
+reference files.
