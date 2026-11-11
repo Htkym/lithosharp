@@ -23,7 +23,7 @@ public sealed class StaticUrlAnalyzer : DiagnosticAnalyzer
     private static DiagnosticDescriptor Rule(string id, string title) => new(id, title,
         "Every known value of '{0}' violates the {1} runtime contract", "LithoSharp",
         DiagnosticSeverity.Error, isEnabledByDefault: true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant());
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Url, Route, Path, Option, GenerationOptionsAnalysis.Rule, TestingDomMigrationAnalysis.Rule).AddRange(HtmlTemplateAnalysis.Rules).AddRange(StaticManifestAnalysis.Rules).Add(StaticRouteGuaranteeAnalysis.Rule).Add(StaticCoveragePolicy.Rule).Add(StaticAssetInputAnalysis.Rule).Add(FixedHtmlAnchorAnalysis.Rule);

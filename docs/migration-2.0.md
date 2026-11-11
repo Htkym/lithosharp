@@ -2,28 +2,24 @@
 
 [日本語](migration-2.0.ja.md)
 
-This guide covers 2.2.0, including optional migration from the 2.1.3 Docs reader
-to typed Docs. Check package availability before following the [Quick Start](quickstart.md).
-Before publication, use the exact supplied candidate version and feed instead.
-The package version is 2.2.0 and the matching extension version is 0.4.0;
-Core and the extension have separate release channels. Publishing NuGet packages
-does not publish an extension to the Marketplace.
+This guide covers the upgrade to LithoSharp 2.2.0, including optional migration
+from the 2.1.3 Docs reader to typed Docs. The VS Code extension is version 0.4.0.
+See the [Quick Start](quickstart.md) for installation.
 
 For a 0.x site, also review the earlier behavior and dependency changes in the [upgrade history](history/README.md). Those documents retain their original version-specific instructions; use matching 2.2.0 packages for this upgrade. Compare generated output in a fresh directory before deploying it.
 
 ## Package versions
 
-The previous stable baseline is 2.1.3; keep that version together when staying
-on the baseline. For the new typed Docs template, use 2.2.0 consistently across
-selected packages, Tool and Templates.
+Use matching 2.2.0 versions for selected packages, Tool and Templates.
+Generated projects already default to 2.2.0. When updating an existing project,
+set its `LithoSharpVersion` property to 2.2.0 and update its Tool and Templates.
+The `preflight` and `migrate testing` commands are absent from the 1.1.0 Tool.
 
-When an exact version and candidate feed are provided, keep Core, MDX, Tool, Testing, Generators and the other selected LithoSharp packages at that version. Optional Analyzers and CodeFixes must match it too. Suffixed candidate versions differ from the `2.2.0` package base version declared in the projects; use the actual supplied version, not an assumed published number.
-
-This checkout's templates default to the `2.2.0` package base version. When using their generated projects with a candidate feed, set the existing `LithoSharpVersion` property to the actual candidate version before restore. Install the Tool with that exact version and the feed's NuGet configuration as well. The `preflight` and `migrate testing` commands described below are absent from the 1.1.0 Tool.
-
-The Markdown runtime depends on the independent [Syntamark](https://github.com/Htkym/syntamark) component; Generators and Analyzers embed code from its corresponding source artifact. The candidate feed must also supply the Syntamark runtime selected by that candidate. Applications do not need a direct Syntamark.Source reference. Keep the fixed runtime/source pair together; do not substitute different versions or relabel it with the LithoSharp candidate version. See [known limitations](known-limitations.md) for the supported Markdown syntax and MDX environment requirements.
-
-LithoSharp 2.1.3 and 2.2.0 use the published Syntamark `1.2.0` runtime/Source pair from NuGet. Keep both artifacts at this exact version. The fixed feed contains the NuGet repository-signed packages; their payloads match the sealed formal release. See [release provenance](../eng/markdown/release-provenance.json) for the source identity and package hashes. The default profile remains `lithosharp-markdown/1`; updating the dependency does not select CommonMark or replace MDX body analysis.
+The Markdown runtime uses [Syntamark](https://github.com/Htkym/syntamark) 1.2.0;
+Generators and Analyzers embed the matching Source artifact. Applications do not
+need a direct Syntamark.Source reference. The default profile remains
+`lithosharp-markdown/1`; this does not select CommonMark or replace MDX body analysis.
+See [known limitations](known-limitations.md) for syntax and environment requirements.
 
 Generator and splitter headers use the separate `frontmatter-scan/1` contract. It recognizes no body after a closing delimiter; its 1 Mi UTF-16 header budget excludes that body. `Closed` establishes delimiters and header Unicode, while YAML/schema validation remains in LithoSharp. `Unknown` input/resource failures report `LSG002` in the Generator or `LSM013` in runtime consumers, and never become missing or confirmed unterminated front matter. The header result has no body facts or document hash. The manifest fingerprint independently covers the original input and stays unavailable for invalid body Unicode.
 
@@ -112,7 +108,7 @@ Use the same asset declaration instances for registration, transforms and render
 
 `LithoSharp.Analyzers` is an optional compiler package. It checks definite misuse of registered APIs, supported HTML interpolation contexts and literal URLs, and references to verified catalogs. Definite absence requires a fresh Closed scope; Open, Stale, Unknown and unsupported values are not guessed. No diagnostic does not mean that every site link, anchor or asset was verified. The `LSA9001` coverage policy requires explicit opt-in.
 
-Set the generated project's `LithoSharpVersion` to the exact supplied candidate version, then add this reference to the `ItemGroup` of the project that should receive diagnostics:
+Set your project's `LithoSharpVersion` to 2.2.0, then add this reference to the `ItemGroup` of the project that should receive diagnostics:
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

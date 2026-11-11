@@ -18,16 +18,16 @@ internal sealed class StaticManifestAnalysis
 {
     internal static readonly DiagnosticDescriptor Missing = new("LSA1201", "Route absent from a fresh closed manifest",
         "Every known path is absent from the selected fresh Closed route lookup manifest '{0}/{1}'", "LithoSharp", DiagnosticSeverity.Error, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1201");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1201");
     internal static readonly DiagnosticDescriptor Stale = new("LSA1205", "Static manifest provenance is stale",
         "The selected static manifest differs from current compiler inputs; route absence is Deferred", "LithoSharp", DiagnosticSeverity.Info, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1205");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1205");
     internal static readonly DiagnosticDescriptor TypedReference = new("LSA1401", "Use a generated page reference",
         "This literal route has one equivalent generated page reference", "LithoSharp", DiagnosticSeverity.Info, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1401");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1401");
     internal static readonly DiagnosticDescriptor TypedMismatch = new("LSA1402", "Typed reference contradicts a fresh closed catalog",
         "Entry '{0}' in catalog '{1}/{2}' has public path '{3}', not '{4}'", "LithoSharp", DiagnosticSeverity.Error, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1402");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1402");
     internal static ImmutableArray<DiagnosticDescriptor> Rules => ImmutableArray.Create(Missing, Stale, TypedReference, TypedMismatch);
     private readonly Compilation compilation;
     private readonly IMethodSymbol lookup;

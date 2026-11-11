@@ -4,11 +4,11 @@
 
 Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics and heading navigation.
 
-This guide targets extension 0.4.0 and Core/Tool 2.2.0. Check their availability independently before installation. Use a Tool version matching the site. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
+This guide targets extension 0.4.0 and Core/Tool 2.2.0. Use a Tool version matching the site. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
 
 ## Install and get started
 
-The Marketplace instructions below install the currently published extension. Before 0.4.0 is available there, use a reviewed VSIX built from the corresponding source for evaluation.
+Extension 0.4.0 is available from the Marketplace.
 
 Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) from the Marketplace, or run:
 
@@ -19,7 +19,7 @@ code --install-extension htkym.lithosharp
 Requirements:
 
 - VS Code `^1.139.0`.
-- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool matching the site: 2.2.0 for a 2.2.0 site, 2.1.3 for a site staying on that version, or the exact supplied version for candidate evaluation. The SDK includes the required ASP.NET Core shared framework.
+- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool matching the site: 2.2.0 for a 2.2.0 site. The SDK includes the required ASP.NET Core shared framework.
 - Node.js 24.13.0 for MDX analysis. Markdown-only diagnostics do not require Node.js.
 
 Create a site using the [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md), open its folder in VS Code, and trust the workspace if you trust its code. Run `LithoSharp: Select Project`, then `LithoSharp: Build` and `LithoSharp: Open Preview`.
@@ -90,4 +90,4 @@ Project detection works in untrusted workspaces. Building, serving, language-ser
 - Site build or serving unavailable: install the .NET 10 SDK and the Tool matching the site, then check the selected project and CLI path in the output channel.
 - Preview unavailable: build the document and check its route, draft status and server output.
 
-See [known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md) for Markdown compatibility, execution boundaries and long-running stability coverage.
+See [known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md) for Markdown compatibility, execution boundaries and supported platforms.

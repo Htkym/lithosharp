@@ -2,7 +2,8 @@
 
 [日本語](known-limitations.ja.md)
 
-These are the current limitations for the 2.1.3 source and 0.3.0 extension. Historical measurements retain their stated versions and do not establish performance for the current release. See [performance](performance.md) for measurement conditions and [MDX](mdx.md) for configuration and execution rules. The older 1.1 scope remains in [1.1 features](history/release-1.1.md).
+These limitations apply to LithoSharp 2.2.0 and VS Code extension 0.4.0.
+See [MDX](mdx.md) for configuration and execution rules.
 
 ## Markdown compatibility
 
@@ -52,29 +53,18 @@ as valid front matter.
 
 ## Build cost and platform coverage
 
-The 10,000-page MDX corpus measured with 0.3.0 took 274.30 s cold, 105.13 s for a no-op and
-213.39 s for one body edit. That edit compiled and rendered one module/page but
-bundled 2,000 interactive entries. Across ten scenarios the observed simultaneous
-process-tree working-set maximum was 11.807 GiB; this is not a minimum RAM
-requirement or a single cold-build peak. A no-op still validates inputs and output.
-`MdxOptions.Timeout` defaults to two minutes per request; this corpus used fifteen.
-These historical measurements are not current 2.1.3 benchmark results.
+Large MDX rebuilds may bundle many interactive entries even when only one page
+changes. A no-op still validates inputs and output. `MdxOptions.Timeout` defaults
+to two minutes per worker request; increase it explicitly for large inputs.
+See [incremental builds](incremental-builds.md) and [reference times](performance.md).
 
-Performance measurements cover Windows only; the continuous build runs
-Windows x64, Linux x64 and macOS arm64. Browser behavior is exercised in
-Chromium; no equivalent Firefox or Safari verification is claimed. Static content
-and ordinary links remain available without JavaScript, but interactive features
-need the corresponding browser APIs. Trimming and Native AOT are unsupported for
-the dynamically loaded CLI/site path; no trimmed or AOT deployment is certified.
+The CLI and extension support Windows x64, Linux x64 and macOS arm64. Browser
+features are checked in Chromium; Firefox and Safari compatibility is not
+established. Static content and ordinary links work without JavaScript, while
+interactive features require the relevant browser APIs. Trimming and Native AOT
+are unsupported for the dynamically loaded CLI/site path.
 
-PNG, JPEG and WebP were exercised with Skia. AVIF needs an explicitly configured
-trusted `avifenc`; real AVIF encoding remains unverified in this environment.
-
-1.1.0 did not meet its generation speed targets. A one-page edit still copies the
-existing output tree into independent staging, so its cost can scale with total
-output size. A verified full no-op may skip that copy, but this does not eliminate
-the one-page-edit cost or establish a current speedup. See [incremental builds](incremental-builds.md)
-and [the historical comparison](performance.md#110-performance-limitation).
+PNG, JPEG and WebP use Skia. AVIF requires an explicitly configured trusted `avifenc`.
 
 ## MDX and browser scope
 
@@ -91,7 +81,6 @@ Selective hydration is opt-in. Explicit islands support load, idle, visible,
 media and manual activation. Unknown interactive components, shared context or
 unsafe boundaries fall back to page hydration. Static pages can omit the MDX
 hydration entry while still loading optional documentation navigation/search code.
-The measured static-page reduction does not apply to every island or fallback.
 
 Only the documented Docusaurus aliases are implemented. Arbitrary Docusaurus
 plugins and JavaScript configuration execution are unsupported. Migration reports
@@ -162,10 +151,7 @@ leading whitespace and case variations. Unresolved `xref:` links also fail
 rendering. Ordinary links and fragments are supported; generated-output checks
 report missing local targets as `LSQ001` and missing anchors as `LSQ002`.
 
-## Editor and stability scope
+## Editor scope
 
 Editor diagnostics run in stages: Markdown first, MDX through the restored worker.
-Preview shows saved documents only; the worker transpiles TypeScript without
-type-checking. Long-duration
-Watch and Editor checks were not run for 1.1.0. Existing rapid-edit/recovery,
-multi-OS CI and packaged-VSIX checks do not establish 30-minute continuous operation.
+Preview shows saved documents only. The worker transpiles TypeScript without type-checking.

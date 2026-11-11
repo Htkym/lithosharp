@@ -29,18 +29,13 @@ After:
 
 Run `dotnet restore --force-evaluate`, review the lockfile, then build and generate
 into a new output directory before deploying it. Both versions target .NET 10.
-The candidate was verified with SDK 10.0.300. Markdown-only builds require neither
+Markdown-only builds require neither
 Node.js nor React. Core adds AngleSharp 1.7.3; Markdig 1.3.2, YamlDotNet 18.0.0,
 SkiaSharp 3.119.4 and its Linux native package retain their dependency versions.
 
 ## Source and binary compatibility
 
-Package validation against the actual NuGet 0.2.0 found no removed or incompatible
-public API signatures. An isolated consumer using the old reader, generator,
-Docs, Blog and custom-template APIs compiled unchanged against 0.3.0. Its binary
-compiled against 0.2.0 also generated all three sites with the 0.3.0 runtime and
-dependency graph. No new obsolete warnings or namespace moves were found.
-This covers the tested APIs and inputs, not every possible custom extension.
+0.3.0 removes no public API signatures and adds no obsolete warnings or namespace moves. Review the behavior changes below when upgrading; custom extensions may need separate checks.
 
 The existing `MarkdownPostReader`, `SiteGenerator.GenerateAsync`,
 `SiteCustomization` and `ISiteTemplate` entry points remain usable. The default
@@ -49,9 +44,6 @@ No existing Core API was moved into a required replacement package.
 
 ## Output and behavior changes
 
-The upgrade fixture retained all 33 public artifact paths across Docs, Blog and
-custom templates, including nested Unicode routes, extra pages, CSS, JavaScript,
-search, RSS, sitemap and `llms.txt`. Text, links and major landmarks were retained.
 Output bytes are not a compatibility guarantee:
 
 - Text output no longer includes the old UTF-8 BOM; line endings are normalized.
@@ -69,13 +61,12 @@ falling back to the current time.
 Publication fields are now active: `draft: true`, future `publish_from`, expired
 `publish_until`, and an `environments` list excluding the current environment
 remove a post from output and derived artifacts. The default environment is
-`Production`. NuGet 0.2.0 ignored these fields; the four upgrade probes changed
-from one published post to zero. If old content used these keys as unrelated
+`Production`. NuGet 0.2.0 ignored these fields. If old content used these keys as unrelated
 metadata, rename or correct them before upgrading. `PostCount` now reflects the
 published count. This is a documented behavior-breaking change for those inputs.
 
-Stricter safety validation can reject previously tolerated unsafe inputs. A
-tested `ftp:` base URL was accepted by 0.2.0 and rejected by 0.3.0. Routes
+Stricter safety validation can reject previously tolerated unsafe inputs. An
+`ftp:` base URL was accepted by 0.2.0 and rejected by 0.3.0. Routes
 must stay beneath output and cannot use reserved names, ambiguous encodings,
 case-only collisions or file/directory conflicts. Input, public assets and caches
 must not overlap output. See the [route contract](../compatibility-contract.md) and

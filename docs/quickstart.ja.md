@@ -6,10 +6,8 @@
 Node.jsとReactは不要です。任意のMDXにはNode.js 24.13.0と明示的に復元したworkerを使います。
 `serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
 
-以下のコマンドは2.2.0を対象とし、NuGetにその版が公開されていることを前提とします。
-公開前の検証では、2.2.0をレビュー済みの固定候補バージョンへ置き換え、Tool、Templates、
-生成プロジェクトに提供されたfeedを設定してください。2.1.3のDocsテンプレートは従来のreaderを
-使います。分離した候補の導入は[配布手順](distribution.ja.md)を参照してください。
+以下のコマンドはNuGetで公開済みのToolとTemplates 2.2.0を導入します。
+パッケージの選択は[配布とインストール](distribution.ja.md)を参照してください。
 
 ## 型付きMarkdown Docsを作る
 
@@ -22,8 +20,7 @@ dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 ```
 
 Windowsでは`.tools/lithosharp.exe`を使います。テンプレートは利用者のtemplate catalogへ
-インストールされ、Toolは`.tools`内に入ります。復元前に`MyDocs/MyDocs.csproj`の
-`LithoSharpVersion`を選択した版にそろえてください。既定値は2.2.0です。異なるバージョンを混ぜたり、
+インストールされ、Toolは`.tools`内に入ります。生成プロジェクトは既定で2.2.0を使います。異なるバージョンを混ぜたり、
 既存サイトへテンプレートを上書きしたりしないでください。
 
 ## C#の型とMarkdownを編集する
@@ -109,13 +106,13 @@ CLIと`dotnet run`は同じfactoryを使います。生成したProgramは品質
 
 必須タイトルの欠落はコンパイル時に`LSG006`、静的に確定したentryとルートの矛盾は
 `LSA1402`、最終出力のリンク先・anchorの欠落は`LSQ001`・`LSQ002`になります。
-エディターの構文・見出しの検査は、入力のたびに独自C#スキーマを実行するものではありません。
+エディターの構文・見出しの検査は入力のたびに独自C#スキーマを実行するものではありません。
 `NoContext`、`Partial`、`Unknown`を完全な検証と扱わないでください。
 [診断](diagnostics.ja.md)、[preflight](cli.ja.md)、[出力検査](generated-output-checks.ja.md)も参照してください。
 
 ## このDocsプロジェクトのCI
 
-確認済みの固定バージョンとfeedを、リポジトリのツール・パッケージ設定に保存してください。
+サイトのツール・パッケージ設定ではバージョンを2.2.0にそろえてください。
 配布する出力を生成し、同じ出力を検査します。
 
 ```sh
@@ -135,7 +132,6 @@ install済みのtoolとtemplateで別のMDXサイトを作ります。
 
 ```sh
 .tools/lithosharp new mdx MyMdx -o MyMdx
-# MyMdx/MyMdx.csproj の LithoSharpVersion を同じ候補バージョンに設定
 dotnet build MyMdx -c Release
 .tools/lithosharp restore-mdx MyMdx/bin/Release/net10.0/worker
 .tools/lithosharp build MyMdx -c Release
@@ -204,4 +200,4 @@ cache directoryは公開出力の外に置きます。開発用reload scriptは�
 | 独自C# layout | `lithosharp new empty MySite -o MySite` |
 
 testは高度な設定を実行できる例であり、追加のtemplate製品ではありません。
-[2.2候補への更新](migration-2.0.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。
+[2.2.0への更新](migration-2.0.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。

@@ -5,8 +5,8 @@
 serving also uses the ASP.NET Core shared framework. Install from NuGet:
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -18,7 +18,7 @@ with `dotnet new`. The empty template demonstrates a custom C# layout.
 
 ## Inspection and migration
 
-The installation example targets 2.1.3. `preflight` and `migrate testing --dry-run` are part of the 2.x Tool; keep the Tool and selected Core/MDX packages at matching versions. For a candidate feed, use its exact candidate version rather than the stable number. The [upgrade notes](migration-2.0.md) explain dependencies, static versus trusted project inspection, and Testing updates.
+The installation example targets 2.2.0. `preflight` and `migrate testing --dry-run` are part of the 2.x Tool; keep the Tool and selected Core/MDX packages at matching versions. The [upgrade notes](migration-2.0.md) explain dependencies, static versus trusted project inspection, and Testing updates.
 
 ## One definition for both hosts
 

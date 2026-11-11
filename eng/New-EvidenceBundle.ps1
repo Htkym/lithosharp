@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-Builds the public evidence bundle for a V110-21 migration corpus run.
+Builds a local evidence bundle for a V110-21 migration corpus run.
 
 .DESCRIPTION
-Assembles a committed bundle under docs/evidence/1.1.0/v110-21-<run-id>/ from
+Assembles an untracked bundle under .local/evidence/1.1.0/v110-21-<run-id>/ from
 the local (uncommitted) run evidence and the workspace run directories, then
 passes every emitted file through eng/Sanitize-Evidence.ps1. Full traces,
 workspace checkouts and machine logs never enter the bundle: it carries
@@ -26,9 +26,9 @@ if (!(Test-Path -LiteralPath (Join-Path $evidence 'result.json') -PathType Leaf)
 }
 $WorkspaceRoot = [IO.Path]::GetFullPath($WorkspaceRoot)
 $runRoot = Join-Path $WorkspaceRoot "runs/$RunId"
-$bundle = Join-Path $repo "docs/evidence/1.1.0/v110-21-$RunId"
+$bundle = Join-Path $repo ".local/evidence/1.1.0/v110-21-$RunId"
 $null = New-Item -ItemType Directory -Force -Path $bundle
-# Static README files are authored, not generated; refresh only machine output.
+# Refresh machine output only.
 foreach ($generated in @('version-manifest.json', 'run.json', 'commands.txt', 'sanitizer-manifest.json', 'sites', 'routes')) {
     $victim = Join-Path $bundle $generated
     if (Test-Path -LiteralPath $victim) { Remove-Item -LiteralPath $victim -Recurse -Force }

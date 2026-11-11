@@ -2,15 +2,10 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-This checkout describes the next candidate package line and matching extension,
-not a published release. Use the exact supplied candidate versions and feed.
-Keep the LithoSharp packages you use aligned; the extension has a separate version.
-For installation prerequisites, start with the Quick Start. Versioned measurement
-and development records describe their original revisions, not current guarantees.
-
-Use the [adoption guide](adoption-guide.md) for .NET product-Docs fit, choices
-based on existing generator assets, DocsSample self-use and prepared external
-evaluation materials.
+These guides cover LithoSharp 2.2.0 and VS Code extension 0.4.0.
+Keep the LithoSharp packages you use aligned at 2.2.0. The extension has a separate version.
+Start with the Quick Start for requirements and installation, or the
+[adoption guide](adoption-guide.md) to decide whether LithoSharp fits your site.
 
 ## Build your first site
 
@@ -53,7 +48,7 @@ evaluation materials.
   dependencies, cache reuse, invalidation reasons and output ownership.
 - [Capabilities](tooling-capabilities.md), [compatibility contract](compatibility-contract.md),
   [known limitations](known-limitations.md): what each analysis can prove and which execution boundaries apply.
-- [Performance](performance.md): dated workloads, measured conditions, limits and reproduction.
+- [Performance](performance.md): reference times for a 100-page Docs site.
 
 ## Select packages
 
@@ -70,8 +65,8 @@ evaluation materials.
 | LithoSharp.ProjectTemplates | Templates used to create a new site |
 | LithoSharp for VS Code | Editor commands and the bundled language server; a separate Marketplace release |
 
-[Distribution](distribution.md) explains stable installation, isolated candidate
-feeds, package validation and the independent NuGet/extension release channels.
+[Distribution](distribution.md) explains installation, package choices and the
+separate NuGet and Marketplace versions.
 
 ## Languages and historical material
 
@@ -81,10 +76,6 @@ English-only or bilingual technical detail. The [Japanese index](README.ja.md)
 marks those destinations; it does not imply a translation that does not exist.
 
 [Upgrade history](history/README.md) preserves earlier migration instructions.
-Files under `development/` and the versioned `contracts/` reference retain the
-revision, evidence and scope they record. They are not the entry point for a new site.
-
-For repository build, tests, screenshots and release checks, use
-[Contributing](../CONTRIBUTING.md). See [Security](../SECURITY.md) for private
-vulnerability reporting and [third-party notices](../THIRD-PARTY-NOTICES.md) for
+See [Security](../SECURITY.md) for private vulnerability reporting and
+[third-party notices](../THIRD-PARTY-NOTICES.md) for
 redistributed components.

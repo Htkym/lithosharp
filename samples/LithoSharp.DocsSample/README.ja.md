@@ -55,8 +55,6 @@
 | headerの区切りを取得不能 | Generator: `LSG002`、runtime: `LSM013` | header専用走査の上限は1 Mi UTF-16コード単位です。`Unknown`からheaderの不存在や未閉鎖は確定できません。閉じ区切り後の本文は上限に含めません。 |
 | 生成物の内部参照先やanchorの不足 | 生成時の品質検査・`check-output`: `LSQ001`/`LSQ002` | 検査したローカル成果物とanchorの存在を確認します。外部HTTP検査は既定で無効です。 |
 
-CIは正常なサンプルのビルドと`--check`付き実行に加え、公開している不正な入力例をGenerator、Analyzer、生成物検査で確認します。単なるプロセスの失敗ではなく、診断IDと検出段階を検査します。Markdown構文と原文範囲はSyntamarkが担当し、C#スキーマ、ルート、表示方針、製品の診断はLithoSharpが担当します。既定のMarkdown profileは`lithosharp-markdown/1`です。
-
 `DocsSampleFactory` を使って、サイトをテストプロセス内で生成できます。
 出力先とキャッシュは一時領域へ隔離され、外部リンクの検証は既定で無効です。
 テストプロジェクトからこのサンプルと `LithoSharp.Testing` を参照し、

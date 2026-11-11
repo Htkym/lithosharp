@@ -18,7 +18,7 @@
   ],
   "notes": [
     "Existing fixtures are reused; this file classifies and points at them instead of duplicating content.",
-    "Paths are repository-relative and use the directories that exist in B1 (see docs/verification/1.1.0/tasks/V110-00.md).",
+    "Paths are repository-relative.",
     "Many site fixtures are generated in-code by tests through TemporaryWorkspace; the provider column names the owning test files.",
     "Tree hashes computed by eng/Invoke-V110Verification.ps1 exclude node_modules/bin/obj per its recorded exclusion pattern."
   ],

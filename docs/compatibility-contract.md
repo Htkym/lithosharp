@@ -1,7 +1,7 @@
 # Generated site compatibility contract
 
 This document describes the generated-site compatibility contract retained in
-LithoSharp 2.1.3. It originated with 1.0.0; implementation details are not
+LithoSharp 2.2.0. It originated with 1.0.0; implementation details are not
 compatibility guarantees. The [upgrade guide](migration-2.0.md) documents the
 2.x Testing API break separately from generated-site compatibility.
 
@@ -11,10 +11,6 @@ Existing APIs remain available until a replacement and migration path exist.
 Deprecation notices must identify the replacement, migration guidance and
 intended removal version. `SiteGenerator.GenerateAsync`, `MarkdownPostReader`,
 `SiteCustomization` and `ISiteTemplate` retain their supported entry points.
-
-Public signatures are tracked in each library's `PublicAPI.Shipped.txt` and
-`PublicAPI.Unshipped.txt`. Update these analyzer baselines with API changes.
-CI also checks NuGet package compatibility against the published baseline.
 
 The 2.x exception is `LithoSharp.Testing.SiteTestDocument.Document`, removed in
 favor of the read-only `Snapshot` API. It is an intentional source and binary

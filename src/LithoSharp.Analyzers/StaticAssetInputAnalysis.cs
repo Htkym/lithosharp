@@ -14,7 +14,7 @@ internal sealed class StaticAssetInputAnalysis
 {
     internal static readonly DiagnosticDescriptor Rule = new("LSA1203", "Asset is absent from the transform declarations",
         "Every known asset instance is absent from this transform's declared {0}", "LithoSharp", DiagnosticSeverity.Error, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1203");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1203");
     private readonly INamedTypeSymbol transform;
     private readonly INamedTypeSymbol asset;
     private readonly INamedTypeSymbol? output;

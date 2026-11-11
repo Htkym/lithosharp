@@ -7,9 +7,8 @@
 - Connect typed content collections to the existing Docs shell, scoped navigation, topic cards, table of contents and previous/next links with `RenderDocs`. Reuse compiled Markdown analysis and retain source identities through the build graph.
 - Make the Docs template and sample use generated catalogs, binders and references. The template includes two pages, preserves structured diagnostics, and explicitly fails on generated-output quality errors without external HTTP checks.
 - Separate editor document analysis, project context, schema coverage and explicit build/check results. Validate CLI JSON before adopting its result and discard stale project/input generations.
-- Add linked English/Japanese diagnostic guidance, adoption and migration guides, configurable performance comparisons and traceable reference measurements. Results describe their workload and do not imply universal speedups.
+- Add linked English/Japanese diagnostic guidance, adoption and migration guides, and performance reference times. Results describe their workload and do not imply universal speedups.
 - Align the NuGet components at 2.2.0 and the independently versioned extension at 0.4.0. Syntamark remains at the verified 1.2.0 runtime/Source pair. Check each distribution channel for availability.
-- Check source and binary consumer upgrades from 2.1.3 in normal CI and against the final NuGet packages before publication, while retaining the historical 1.1.0 fixture.
 
 ## 2.1.3
 
@@ -17,9 +16,8 @@
 - Give unavailable Markdown analysis its own `LSM013` diagnostic, retaining `LSM011` for missing code-inclusion files and `LSM012` for missing regions.
 - Include parser identity and the loaded runtime module in persistent Markdown cache identity, so upgrades cannot reuse incompatible parsed output.
 - Use header-only compiler scanning and shared body analysis. Keep original/transformed diagnostic locations separate, replay verified collection warnings, and stop generation before publication when required analysis is unavailable.
-- Add a typed Docs walkthrough connecting C# schemas, generated references, editing, generation and output checks, with isolated invalid/unproven examples and matching CI. Complete the English/Japanese guides and current package instructions.
+- Add a typed Docs walkthrough connecting C# schemas, generated references, editing, generation and output checks, with isolated invalid/unproven examples. Complete the English/Japanese guides and current package instructions.
 - Add task-oriented English/Japanese documentation indexes, repair NuGet README links and preserve the upstream Syntamark notice in redistributed compiler, CLI and language-server payloads.
-- Apply the control-statement layout rules to hand-written C# without changing tokens or literals, and verify layout in Windows CI.
 - VS Code section outlines and unavailable-analysis reporting ship separately in extension 0.3.0. No site-generation speedup or full CommonMark conformance is claimed.
 
 ## 2.1.2
@@ -65,8 +63,7 @@
   without MSBuild evaluation, limited workspace trust, build/serve control with
   structured shutdown, debounced diagnostics, symbols, and a real-output preview.
 - Docusaurus migration gains a classified route oracle, an explicit normalized
-  page-set comparison, and component functional-change classifications; a pinned
-  Prettier/Jest/Docusaurus corpus reproduces conversion end to end.
+  page-set comparison, and component functional-change classifications.
 - No incompatible public signatures. Markdown compatibility stays limited to the
   [documented subset](docs/known-limitations.md#markdown-compatibility).
   See the [1.1 features and upgrade notes](docs/history/release-1.1.md).
@@ -133,21 +130,9 @@ JavaScript change; review custom CSS after regeneration. See the
 - Core adds AngleSharp 1.7.3. Six optional package IDs join `LithoSharp`; existing
   Markdown applications do not need to adopt them.
 
-### Performance
-
-- The measured static-page fixture reduced JS from 449,585 to 15,817 bytes and
-  hydration roots from one to zero with selective hydration.
-- Markdown 100/1,000-page repeated medians stayed within 10% of the benchmark
-  baseline for time, allocation and resident-memory increases.
-- Large MDX incremental rendering can still bundle many interactive entries.
-  These are conditional Windows measurements, not competitor comparisons.
-  See [performance](docs/performance.md).
-
 ### Compatibility and migration
 
-No incompatible public signatures or new obsolete warnings were found against
-the actual NuGet 0.2.0. The isolated legacy consumer passed source and binary
-upgrade checks for Docs, Blog and custom templates. Behavioral changes affect
+The upgrade from 0.2.0 adds no incompatible public signatures or obsolete warnings. Behavioral changes affect
 previously ignored publication keys, unsafe base URLs and exact diagnostic text;
 serialized output bytes also change. Follow the
 [0.2.0 migration guide](docs/history/migration-0.3.md), including rollback instructions.

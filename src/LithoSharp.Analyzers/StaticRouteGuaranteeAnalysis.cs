@@ -17,7 +17,7 @@ internal sealed class StaticRouteGuaranteeAnalysis
     internal static readonly DiagnosticDescriptor Rule = new("LSA1403", "Selected producer routes remain deferred",
         "The selected producer route scope has {0} contribution item(s) that cannot be enumerated statically",
         "LithoSharp", DiagnosticSeverity.Info, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1403");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1403");
     internal const int MaxProducers = 64;
     private readonly Compilation compilation;
     private readonly INamedTypeSymbol options;

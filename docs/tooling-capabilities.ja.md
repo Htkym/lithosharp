@@ -44,7 +44,7 @@ Language Server に同梱された Core は別の identity として記録し、
 | `serve-shutdown` | （なし） | stdin 経由の構造化 serve 停止。重複・実行中・起動途中の停止要求は冪等 | 停止は Ctrl+C のみとし、UI にその制約を表示する |
 | `source-route-lookup` | `project-resolution` | project / collection / variant の識別を保った source→route 取得。複数候補は複数返す | 拡張子推測を行わず、route 未取得として表示する |
 
-Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します。Tool 2.1.3以降の`capabilities`コマンドは、2.2.0候補を含め、さらに次のPreview機能を加えます。Coreの一覧とCLIが返す一覧を混同しないでください。
+Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します。Tool 2.2.0の`capabilities`コマンドはさらに次のPreview機能を加えます。Coreの一覧とCLIが返す一覧を混同しないでください。
 
 | name | maturity | scope | 動作 |
 | --- | --- | --- | --- |

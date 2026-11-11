@@ -2,11 +2,11 @@
 
 `LithoSharp.Tool` は .NET 10 のツールです。サイトのビルドには10.0.300以降の.NET 10 SDK、
 開発サーバーには ASP.NET Core の共有フレームワークを使います。
-以下の導入例は2.1.3を対象にしています。候補feedを使う場合は、提供された実際の固定候補版を指定してください。
+以下の導入例は2.2.0を対象にしています。
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -18,14 +18,14 @@ dotnet new install LithoSharp.ProjectTemplates::2.1.3
 
 ## 検査と移行
 
-`preflight`と`migrate testing --dry-run`には対応するToolを使ってください。旧1.1.0のToolには含まれません。[2.1.3への移行案内](migration-2.0.ja.md)に、固定候補版の依存関係、静的検査と信頼するproject検査の違い、Testingの更新手順をまとめています。
+`preflight`と`migrate testing --dry-run`には対応するToolを使ってください。旧1.1.0のToolには含まれません。[2.2.0への移行案内](migration-2.0.ja.md)に、パッケージの依存関係、静的検査と信頼するproject検査の違い、Testingの更新手順をまとめています。
 
 ## CLI とライブラリで同じ定義を使う
 
-サイトには、公開された引数なしコンストラクターを持つ `ISiteFactory` の具象クラスを
+サイトには公開された引数なしコンストラクターを持つ `ISiteFactory` の具象クラスを
 1つ用意します。CLI はプロジェクトをコンパイルし、ビルドごとに別プロセスで
 ファクトリを呼び出します。終了時に DLL のロックが解放され、次回は C# の変更も
-反映されます。サイトのコードは、実行した利用者の権限で動作します。
+反映されます。サイトのコードは実行した利用者の権限で動作します。
 
 ```csharp
 using LithoSharp;

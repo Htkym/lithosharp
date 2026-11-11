@@ -11,7 +11,7 @@ internal static class LegacyTestingDomContract
     internal static readonly DiagnosticDescriptor Rule = new("LSA1501", "Legacy Testing DOM access",
         "Migrate SiteTestDocument.Document to Snapshot.Query/QueryAll or Assert methods; DOM mutation and casts require manual migration",
         "Migration", DiagnosticSeverity.Warning, isEnabledByDefault: true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/docs/Testing-v2-api.md#migration");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md#migration");
 
     internal static IPropertySymbol? FindProperty(Compilation compilation)
     {

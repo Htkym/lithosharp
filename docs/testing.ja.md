@@ -1,11 +1,11 @@
 # サイトのテスト
 
-このガイドはLithoSharp.Testing 2.1.3のsnapshot APIを説明します。1.xの`Document` getterから更新する場合は、[更新手順](migration-2.0.ja.md)も確認してください。
+このガイドはLithoSharp.Testing 2.2.0のsnapshot APIを説明します。1.xの`Document` getterから更新する場合は、[更新手順](migration-2.0.ja.md)も確認してください。
 
 利用するLithoSharpパッケージと同じバージョンを参照してください。
 
 ```sh
-dotnet add package LithoSharp.Testing --version 2.1.3
+dotnet add package LithoSharp.Testing --version 2.2.0
 ```
 
 `LithoSharp.Testing` はテストフレームワークに依存しない検証 API と、読み取り専用の HTML スナップショットを提供します。ブラウザーを起動せず、スクリプトの実行やネットワークへの接続も行わずに HTML を解析します。対応するセレクターと移行例は [v2 の API 仕様](Testing-v2-api.md)を参照してください。
