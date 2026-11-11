@@ -4,7 +4,7 @@
 
 ## 型付きコンテンツとDocsの表示
 
-次期マイナーバージョンの候補の`docs`テンプレートは、`GuideFrontMatter`、
+LithoSharp 2.2.0の`docs`テンプレートは、`GuideFrontMatter`、
 `Guides.Binder`、生成Catalogのルート、`RenderDocs`を使います。Blog向けの日付は不要です。
 生成するファイル、入力規則、Qualityの設定、コマンドは[Quick Start](quickstart.ja.md)を
 参照してください。既存サイトのreaderと表示は、明示的に変更するまで維持されます。

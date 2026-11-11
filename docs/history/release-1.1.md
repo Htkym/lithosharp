@@ -2,7 +2,7 @@
 
 [日本語](release-1.1.ja.md)
 
-Core 1.1.0 is available on NuGet, and [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) is available on the Marketplace. Generation cost for small edits remains a [known limitation](../performance.md#110-performance-limitation).
+Core 1.1.0 is available on NuGet, and [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) is available on the Marketplace.
 
 ## Feature table
 
@@ -21,7 +21,6 @@ Explicitly **not** in 1.1:
 - Browser verification is Chromium-only; Firefox/Safari runs are not claimed.
 - Trimming and Native AOT remain unsupported for the CLI/site host.
 - AVIF encoding needs an explicitly configured trusted `avifenc` and is otherwise unverified.
-- Long-duration Watch and Editor checks were not run for 1.1.0; rapid edits and recovery do not establish 30-minute continuous operation.
 
 ## Upgrade from 1.0 to 1.1
 

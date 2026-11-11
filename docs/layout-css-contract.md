@@ -1,6 +1,6 @@
 # Layout and component CSS contract / レイアウトとCSSの契約
 
-This contract applies to the built-in layouts in LithoSharp 2.1.3. It covers
+This contract applies to the built-in layouts in LithoSharp 2.2.0. It covers
 semantic classes and interaction hooks, not byte-identical HTML or arbitrary
 custom templates. See the [generated-site compatibility contract](compatibility-contract.md)
 and the [empty template's custom layout](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)
@@ -11,7 +11,7 @@ through `SiteThemeOptions.AdditionalCss`; use the existing `--accent`,
 `--accent-contrast`, `--muted`, and `--border` variables. These C# layout components
 do not require an additional stylesheet dependency or client framework.
 
-この契約はLithoSharp 2.1.3の組み込みレイアウトを対象に、意味を持つクラスと操作用のhookを定めます。HTMLのバイト単位での一致や任意の独自テンプレートは対象ではありません。外側の構造を置き換える場合は[生成サイトの互換性契約](compatibility-contract.ja.md)と[emptyテンプレートの独自レイアウト](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)を参照してください。
+この契約はLithoSharp 2.2.0の組み込みレイアウトを対象に、意味を持つクラスと操作用のhookを定めます。HTMLのバイト単位での一致や任意の独自テンプレートは対象ではありません。外側の構造を置き換える場合は[生成サイトの互換性契約](compatibility-contract.ja.md)と[emptyテンプレートの独自レイアウト](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)を参照してください。
 
 組み込みコンポーネントは既存のDocs／Blogのクラスを維持します。
 色の調整には `SiteThemeOptions.AdditionalCss` と、既存の `--accent`、

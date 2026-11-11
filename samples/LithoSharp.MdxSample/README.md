@@ -15,8 +15,7 @@ dotnet run --project src/LithoSharp.Tool -- check-output --output samples/LithoS
 ```
 
 Output is `samples/LithoSharp.MdxSample/.artifacts/site`. Serve it over HTTP;
-`file:` URLs do not support module loading or service workers. The browser test
-server is `node tests/fixtures/mdx-browser/serve.mjs samples/LithoSharp.MdxSample/.artifacts/site 4317`.
+`file:` URLs do not support module loading or service workers.
 
 The content demonstrates static MDX, page-hydration fallback, explicit islands
 with load/idle/visible/media/manual strategies, and sandboxed live code. The
@@ -26,7 +25,7 @@ retirement revision and `--next-revision` produces the update fixture.
 
 `check-output` checks the current local HTML/CSS and target/anchor relationships,
 not browser hydration, offline behavior or correspondence with current sources.
-Use the sample browser fixture for those interactions. Only build trusted MDX
+Check those interactions in the browser. Only build trusted MDX
 and component code; they execute with the build account's permissions.
 
 Shared front-matter handling uses Syntamark 1.2.0, while MDX body parsing stays

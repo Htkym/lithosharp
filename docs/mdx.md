@@ -10,8 +10,8 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 ## Start a site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -120,39 +120,33 @@ and configuration execution are not supported.
 
 ## Docusaurus compatibility
 
-The compared release is Docusaurus 3.10.2 with `@mdx-js/mdx` 3.1.1, React
-19.2.4 and esbuild 0.25.12 on Node.js 24.13.0, pinned in
-`tests/fixtures/mdx-baseline`. `DocusaurusProfile` in
-`src/LithoSharp/Documentation` is the single source of truth for these
-judgments; the migration report and the worker alias handling agree with it.
-Only verified behavior is listed as supported. The Fixture column names the
-`tests/fixtures/docusaurus` corpus fixtures covering each row; rows marked
-docusaurus.io cite the migrated real site instead (see the
-[migration guide](docusaurus-migration.md)).
+The supported compatibility subset targets Docusaurus 3.10.2 with MDX 3.1.1
+and React 19.2.4. Arbitrary Docusaurus plugins and configuration are not supported.
+See the [migration guide](docusaurus-migration.md) for conversion limits.
 
-| Construct | Judgment | Notes | Fixture |
-| --- | --- | --- | --- |
-| `Tabs`, `TabItem` | Supported | Stateful tabs with a server-rendered initial tab and a noscript fallback. Requests page hydration unless enclosed in an explicit `Island`. | mdx-components |
-| `Admonition` | Supported | Static-safe. Markdown `:::` directives render the same aside shape. | mdx-components, admonitions |
-| `Details` | Supported | Static-safe. | mdx-components |
-| `CodeBlock` | Supported | Fenced code renders statically with shared title, highlight and line-number metadata. Copy controls hydrate in the browser. Bare `<CodeBlock>` usage requests page hydration. | mdx-components, admonitions |
-| `Card` | Supported | Static-safe card with a linked title. Renders without hydration. | mdx-components |
-| `DocCardList` | Supported | Standalone `<DocCardList />` without props renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures. | mdx-components |
-| `MDXComponents` | Partial | The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component. | mdx-components |
-| `TOCInline` | Supported | Static-safe. Receives the page `toc` export built from worker headings, levels 2-3 by default. | mdx-components |
-| `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it, and unsafe schemes (`javascript:`, `vbscript:`, `data:`) or unresolved `xref:` links fail build-time rendering; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. | mdx-components |
-| `Zoom` | Supported | Bare image-zoom wrapper with no import path; renders children without zoom interaction. | mdx-components |
-| `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. | mdx-components |
-| `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. | mdx-components |
-| `IdealImage` | Supported | Static image passthrough; responsive variants render the base image. | docusaurus.io (R21) |
-| `ThemedImage` | Supported | Renders the light source statically; color-mode switching needs hydration. | docusaurus.io (R21) |
-| `Heading` | Supported | Renders the requested heading level statically without anchor automation. | docusaurus.io (R21) |
-| `Highlight`, `TweetQuote`, `Code` | Supported | Bare globals from the site compatibility map. | docusaurus.io (R21) |
-| `@docusaurus/router`, `plugin-content-docs/client` hooks | Partial | SSR-safe static fallbacks (empty location, current version); verify the output or rewrite to `usePageContext`. | docusaurus.io (R21) |
-| `useBaseUrl` | Unsupported | No such export. Read `basePath` from `usePageContext` in `@lithosharp/runtime`. | full-site |
-| `useDocusaurusContext` | Unsupported | No such export. Use `usePageContext` from `@lithosharp/runtime`. | full-site |
-| Other `@theme/*` | Unsupported | The build fails with `Unsupported Docusaurus alias`. | full-site |
-| Other `@docusaurus/*` | Unsupported | The build cannot resolve them; the migration report flags `LSMIG002`. | full-site |
+| Construct | Judgment | Notes |
+| --- | --- | --- |
+| `Tabs`, `TabItem` | Supported | Stateful tabs with a server-rendered initial tab and a noscript fallback. Requests page hydration unless enclosed in an explicit `Island`. |
+| `Admonition` | Supported | Static-safe. Markdown `:::` directives render the same aside shape. |
+| `Details` | Supported | Static-safe. |
+| `CodeBlock` | Supported | Fenced code renders statically with shared title, highlight and line-number metadata. Copy controls hydrate in the browser. Bare `<CodeBlock>` usage requests page hydration. |
+| `Card` | Supported | Static-safe card with a linked title. Renders without hydration. |
+| `DocCardList` | Supported | Standalone `<DocCardList />` without props renders sibling directory cards at compile time with titles and descriptions. Variants with props stay explicit failures. |
+| `MDXComponents` | Partial | The import resolves to the runtime component map (default export) for custom MDX providers. It is not a renderable component. |
+| `TOCInline` | Supported | Static-safe. Receives the page `toc` export built from worker headings, levels 2-3 by default. |
+| `Link` | Supported | Bare component only; there is no `@docusaurus/Link` import path. In MDX, `a` elements and bare usage resolve to it, and unsafe schemes (`javascript:`, `vbscript:`, `data:`) or unresolved `xref:` links fail build-time rendering; a `to` prop aliases `href` for unmigrated content. Markdown-pipeline links render CommonMark targets unchanged. |
+| `Zoom` | Supported | Bare image-zoom wrapper with no import path; renders children without zoom interaction. |
+| `BrowserOnly` | Supported | Import from `@docusaurus/BrowserOnly` or `@theme/BrowserOnly`. Renders its fallback statically. |
+| `Translate` | Supported | Bare component only; there is no `@docusaurus/Translate` import path. Renders the translation catalog message or its children as fallback. |
+| `IdealImage` | Supported | Static image passthrough; responsive variants render the base image. |
+| `ThemedImage` | Supported | Renders the light source statically; color-mode switching needs hydration. |
+| `Heading` | Supported | Renders the requested heading level statically without anchor automation. |
+| `Highlight`, `TweetQuote`, `Code` | Supported | Bare globals from the site compatibility map. |
+| `@docusaurus/router`, `plugin-content-docs/client` hooks | Partial | SSR-safe static fallbacks (empty location, current version); verify the output or rewrite to `usePageContext`. |
+| `useBaseUrl` | Unsupported | No such export. Read `basePath` from `usePageContext` in `@lithosharp/runtime`. |
+| `useDocusaurusContext` | Unsupported | No such export. Use `usePageContext` from `@lithosharp/runtime`. |
+| Other `@theme/*` | Unsupported | The build fails with `Unsupported Docusaurus alias`. |
+| Other `@docusaurus/*` | Unsupported | The build cannot resolve them; the migration report flags `LSMIG002`. |
 
 Native conversion targets: front matter maps to `DocumentFrontMatter`
 (strict snake_case keys; unknown and duplicate keys are diagnosed), routes,
@@ -301,7 +295,7 @@ all entries. C# allocation counters do not include Node memory. Worker timing
 and heap-used snapshots are exposed separately and are not peak RSS measurements.
 
 `MdxOptions.Timeout` defaults to two minutes per worker request. Increase it
-explicitly for a large corpus; the 10,000-page benchmark uses fifteen minutes.
+explicitly for large inputs.
 
 `LSMDX003` indicates a malformed worker result or invalid dependency graph;
 `LSMDX005` indicates input changes during compilation; `LSMDX006` indicates a
@@ -309,9 +303,3 @@ forbidden document import. Source diagnostics retain original front-matter line
 offsets. A timeout, cancellation or worker crash does not publish partial output.
 Lockfile updates require explicit restore and renewed package/browser tests.
 Generated third-party notices accompany bundled dependencies.
-
-For repeatable checks, run worker `npm test`, the .NET integration tests,
-`eng/Test-Templates.ps1`, and `tests/fixtures/mdx-browser/run.mjs` against the
-generated MDX sample served on port 4317. Cross-platform CI configuration is
-not evidence of a successful remote run; consult the recorded verification
-results for the environments actually tested.

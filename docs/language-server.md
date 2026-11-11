@@ -2,7 +2,7 @@
 
 The bundled language server uses LSP 3.17 over stdio with Content-Length framing. Positions use UTF-16.
 
-The 0.3.0 VS Code extension carries this server with Core 2.1.3. The server is
+The 0.4.0 VS Code extension carries this server with Core 2.2.0. The server is
 not a separately installed NuGet tool. Keep its DLL, runtime configuration and
 dependencies together; see [distribution](distribution.md). Markdown inspection
 uses the fixed Syntamark 1.2.0 pair and `lithosharp-markdown/1` profile. MDX body

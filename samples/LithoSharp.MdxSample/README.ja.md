@@ -14,15 +14,14 @@ dotnet run --project src/LithoSharp.Tool -- check-output --output samples/LithoS
 ```
 
 出力は`samples/LithoSharp.MdxSample/.artifacts/site`です。HTTPで配信してください。
-`file:` URLではmodule読み込みとservice workerを利用できません。browser test用serverは
-`node tests/fixtures/mdx-browser/serve.mjs samples/LithoSharp.MdxSample/.artifacts/site 4317`で起動します。
+`file:` URLではmodule読み込みとservice workerを利用できません。
 
 静的MDX、page hydrationへのfallback、load/idle/visible/media/manualの明示island、
 sandbox内のlive codeを示します。factoryではlocal search、progressive navigation、offlineを有効にしています。
 `--page-hydration`は比較用mode、`--offline-disabled`はoffline終了用revision、
 `--next-revision`は更新用fixtureを生成します。
 
-`check-output`は現在のローカルHTML/CSSと参照先・anchorの関係を調べます。ブラウザーのhydration、offline動作、現在の原稿との一致を検証するものではありません。対話機能にはサンプルのブラウザーfixtureを使ってください。MDXとcomponent codeはビルド実行者の権限で動くため、信頼できるものだけを使います。
+`check-output`は現在のローカルHTML/CSSと参照先・anchorの関係を調べます。ブラウザーのhydration、offline動作、現在の原稿との一致を検証するものではありません。対話機能はブラウザーで確認してください。MDXとcomponent codeはビルド実行者の権限で動くため、信頼できるものだけを使います。
 
 共通のfront matter処理はSyntamark 1.2.0を使いますが、MDX本文はworkerが解析します。エディターのMDX symbolは見出し単位であり、Markdownのセクション全体を使うアウトラインとは別です。独自C#スキーマと生成した参照は[Docsサンプル](../LithoSharp.DocsSample/README.ja.md)を参照してください。
 

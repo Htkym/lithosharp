@@ -123,14 +123,6 @@ sources; see [generated output checks](../../docs/generated-output-checks.md).
 | Unavailable header boundaries | Generator: `LSG002`; runtime: `LSM013` | The header-only scan has a 1 Mi UTF-16 code-unit header budget. `Unknown` does not prove a missing or unterminated header; a body after a closing delimiter is excluded from that budget. |
 | Missing internal output target or anchor | Generation quality checks or `check-output`: `LSQ001`/`LSQ002` | A missing target or anchor in the inspected local artifacts (passing establishes only that the inspected local artifacts and anchors exist). External HTTP checks are off by default. |
 
-CI builds the normal sample, runs it with `--check`, and exercises these published
-invalid inputs through the generator, analyzer and generated-output
-inspector. The checks assert diagnostic IDs and stages, not only a failed process.
-Markdown syntax and raw source ranges come from the Syntamark 1.2.0 runtime/Source
-pair; C# schemas, routes,
-display policy and product diagnostics belong to LithoSharp. The default Markdown
-profile remains `lithosharp-markdown/1`.
-
 ## What it shows
 
 - The default Docs template.

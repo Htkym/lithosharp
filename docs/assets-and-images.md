@@ -55,11 +55,11 @@ still copies existing output into isolated staging to preserve rollback.
 
 ## Responsive images
 
-Reference `LithoSharp.Images` at the same release as Core (2.1.3), then register
+Reference `LithoSharp.Images` at the same release as Core (2.2.0), then register
 both the source and transform:
 
 ```sh
-dotnet add MySite package LithoSharp.Images --version 2.1.3
+dotnet add MySite package LithoSharp.Images --version 2.2.0
 ```
 
 ```csharp

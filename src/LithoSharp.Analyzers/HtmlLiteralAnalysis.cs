@@ -17,7 +17,7 @@ internal static class HtmlLiteralAnalysis
 {
     internal static readonly DiagnosticDescriptor Rule = new("LSA1105", "Invalid URL in literal HTML",
         "Literal HTML '{0}' URL violates the LSQ001 contract ({1})", "LithoSharp", DiagnosticSeverity.Error,
-        isEnabledByDefault: true, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1105",
+        isEnabledByDefault: true, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1105",
         customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
     internal const int MaxInputLength = 65536;
     internal const int MaxSourceLength = 655360;

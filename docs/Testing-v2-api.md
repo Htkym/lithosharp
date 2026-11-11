@@ -1,12 +1,8 @@
 # Testing v2 snapshot and query contract
 
-LithoSharp.Testing 2.1.3 uses the v2 read-only snapshot API. It replaces the 1.x mutable third-party DOM getter with a LithoSharp-owned tree. Existing Parse, RenderComponent, RenderLayout, AssertElement/Text/Attribute/Meta/Link/Image and the disposable SiteTestDocument ownership pattern remain. Document removal is a source and binary breaking change; the old DOM type is not emulated. For an introduction and whole-site tests, start with [Testing sites](testing.md).
+LithoSharp.Testing 2.2.0 uses the v2 read-only snapshot API. It replaces the 1.x mutable third-party DOM getter with a LithoSharp-owned tree. Existing Parse, RenderComponent, RenderLayout, AssertElement/Text/Attribute/Meta/Link/Image and the disposable SiteTestDocument ownership pattern remain. Document removal is a source and binary breaking change; the old DOM type is not emulated. For an introduction and whole-site tests, start with [Testing sites](testing.md).
 
-Package validation compares 2.x Testing packages against the published 1.1.0 API. `ApiCompat.2.0.xml` permits only the exact `Document` getter removal (BRC-001); other compatibility errors remain fatal. Core, Images and Mdx also validate against 1.1.0 without that suppression. Package and template defaults are 2.1.3. Build CI uses an aligned `2.1.3-ci.<run_id>` candidate; installed-extension acceptance uses `2.1.3-rc.<run_id>`. These are test-feed versions, not substitutes for the stable package number.
-
-Testing and its Core dependency have no AngleSharp package dependency or assembly reference. The product uses its own HTML parser and query snapshots. The shipping dependency check covers the active restore graph, managed assembly identities and references, NuGet archives, language-server publish output and VSIX. Historical API baselines, comparison evidence and the original AngleSharp license remain in the repository outside those shipping inputs.
-
-The distribution gate takes its nine-package inventory from [release-packages.json](../eng/release-packages.json), including optional Analyzers and CodeFixes. It checks exact candidate membership, package contents and package-only consumers; installed-extension handoff also verifies hashes and the selected RC version. To run a local distribution check, use `pwsh eng/Test-PackageDistribution.ps1 -CandidatePackageVersion 2.1.3-rc.local1 -Output .tmp/distribution-2.1.3-rc.local1` with a fresh output directory. Packing builds and performs a locked restore at that candidate version. Syntamark runtime/Source remain the independent fixed 1.2.0 pair. The earlier 2.0 feature-branch candidate names are historical, not current install instructions.
+Testing and its Core dependency have no AngleSharp package dependency or assembly reference. The product uses its own HTML parser and query snapshots.
 
 ```csharp
 using LithoSharp.Testing;
@@ -87,4 +83,4 @@ using var changed = SiteTestDocument.Parse("<p class=changed>Changed</p><a href=
 // Previous text/class/link expectations now throw SiteTestException.
 ```
 
-The [query conformance tests](../tests/LithoSharp.Tests/HtmlQueryTests.cs) execute this migration and cover selectors, escapes, namespaces, exact text, owner lifetime and query limits. [Document assertion tests](../tests/LithoSharp.Tests/SiteTestingDocumentTests.cs) and [site host tests](../tests/LithoSharp.Tests/SiteTestHostTests.cs) verify the retained helpers and generated-site assertions. Parse accepts document HTML with scripting disabled; it exposes no fragment or scripting-mode options.
+Parse accepts document HTML with scripting disabled; it exposes no fragment or scripting-mode options.

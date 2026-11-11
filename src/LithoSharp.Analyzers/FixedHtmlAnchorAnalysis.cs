@@ -16,7 +16,7 @@ internal static class FixedHtmlAnchorAnalysis
 {
     internal static readonly DiagnosticDescriptor Rule = new("LSA1202", "Anchor absent from a fresh closed HTML page",
         "Anchor '{0}' is absent from the selected fixed HTML page '{1}'", "LithoSharp", DiagnosticSeverity.Error, true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1202",
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1202",
         customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
 
     internal static void Analyze(CompilationAnalysisContext context)

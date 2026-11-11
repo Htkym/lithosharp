@@ -2,8 +2,7 @@
 
 [English](known-limitations.md)
 
-現行のソースに適用する制約です。過去版での測定や検証は対象のバージョンを明記します。測定条件は[性能](performance.ja.md)を、設定と実行規則は[MDX](mdx.ja.md)を参照してください。
-1.1の範囲（Core 1.1.0とVS Code拡張）は[1.1の機能](history/release-1.1.ja.md)にまとめています。
+LithoSharp 2.2.0とVS Code拡張0.4.0の制約です。設定と実行規則は[MDX](mdx.ja.md)を参照してください。
 
 ## Markdown の互換性
 
@@ -21,27 +20,15 @@ header専用の`frontmatter-scan/1`では1 Mi UTF-16コード単位の上限に�
 
 `NoContext`ではプロジェクト、独自スキーマ、ルートを検査できません。`Partial`では取得できた情報だけを使い、情報の不足を成功や不存在と解釈しません。型付き参照の矛盾を確定できるのは、完全で最新のカタログと既知の値がそろう範囲です。動的な値や未検証の範囲に診断が出なくても、サイト全体の妥当性は証明されません。
 
-## 生成コストと検証環境
+## 生成コストと対応環境
 
-0.3.0で測定した10,000ページのMDX corpusでは、coldが274.30秒、no-opが105.13秒、本文1件の変更が213.39秒でした。
-最終1.0.0候補での全ケースの再測定は行っていません。
-1件変更ではcompileとrenderが各1件でも、interactive entryを2,000件bundleしています。
-10ケースを通したprocess treeの同時working-set観測最大値は11.807 GiBでした。
-最低限必要なRAMでも、単一cold buildのpeakでもありません。no-opでも入力と出力を検証します。
-`MdxOptions.Timeout`は1要求あたり既定2分で、このcorpusでは15分に延長しました。
+大規模なMDXでは、本文1ページの変更でも多くの対話用entryをbundleする場合があります。
+変更がない場合も入力と出力を検査します。`MdxOptions.Timeout`はworkerへの1要求あたり既定で2分です。大きな入力では明示的に延長してください。
+[差分ビルド](incremental-builds.ja.md)と[参考時間](performance.ja.md)も参照してください。
 
-性能測定はWindowsのみです。継続 build は Windows x64、Linux x64、macOS arm64で
-動きます。ブラウザーの挙動はChromiumで検証しており、FirefoxとSafariで
-同等の検証をしたとは主張しません。JavaScriptがなくても静的本文と通常のリンクは利用できますが、
-対話機能には対応するbrowser APIが必要です。動的に読み込むCLI/site経路ではtrimmingと
-Native AOTは非対応であり、その配布形態の動作保証はありません。
+CLIと拡張はWindows x64、Linux x64、macOS arm64に対応します。ブラウザー機能の確認はChromiumが対象で、FirefoxとSafariの互換性は確定していません。JavaScriptがなくても静的本文と通常のリンクを利用できますが、対話機能には対応するブラウザーAPIが必要です。動的に読み込むCLI/site経路ではtrimmingとNative AOTに対応していません。
 
-PNG、JPEG、WebPはSkiaで実際に変換しました。AVIFには明示設定した信頼できる`avifenc`が必要です。
-この環境では実AVIF encodeは未検証です。
-
-1.1.0の生成速度目標は未達でした。当時の本文1件の編集でも既存出力全体を独立したstagingへコピーするため、
-処理時間は出力全体の規模にも依存しました。この測定を現行版の性能値としては扱いません。
-現行のキャッシュと変更がないビルドの扱いは[差分ビルド](incremental-builds.ja.md)を参照してください。高速化は保証しません。[比較条件と結果](performance.ja.md#110の性能上の制約)を参照してください。
+PNG、JPEG、WebPはSkiaを使います。AVIFには明示設定した信頼できる`avifenc`が必要です。
 
 ## MDXとブラウザー機能の範囲
 
@@ -56,7 +43,7 @@ server importは生成時に実行できる必要があります。workerはType
 Selective Hydrationは明示的に有効化します。islandにはload、idle、visible、media、manualの
 起動戦略があります。未知の対話component、共有context、安全に分離できない境界はpage hydrationへ
 fallbackします。静的ページでMDX hydration entryがなくても、任意のDocs navigationやsearchのJSは
-読み込まれる場合があります。静的fixtureの削減率を全islandやfallbackへ一般化しないでください。
+読み込まれる場合があります。
 
 Docusaurus aliasは文書に記載した範囲のみです。任意のpluginとJavaScript設定の実行は非対応です。
 移行機能は非対応構文を報告するもので、サイト全体の自動変換を保証しません。
@@ -105,11 +92,9 @@ flat ファイルのため、既定のroute比較はraw public pathを使い、�
 欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
 authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
 月別 archive と directory index は文書化した上積みとして出す場合があります。
-標準MarkdownはリンクのURL schemeを制限しません。生成物の検査は非対応URLを`LSQ001`として報告します。MDXの組み込み`Link`は先頭空白や大文字・小文字の違いを含めて`javascript:`、`vbscript:`、`data:`を検出し、ビルド時の描画で拒否します。未解決の`xref:`も描画に失敗します。通常のリンクとfragmentは使用できます。生成物の検査では、存在しないローカル参照先を`LSQ001`、存在しないanchorを`LSQ002`として報告します。
+標準MarkdownはリンクのURL schemeを制限しません。生成物の検査は非対応URLを`LSQ001`として報告します。MDXの組み込み`Link`は先頭空白や大文字・小文字の違いを含めて`javascript:`、`vbscript:`、`data:`を検出し、ビルド時の描画で拒否します。未解決の`xref:`も描画に失敗します。通常のリンクとfragmentは使用できます。生成物の検査では存在しないローカル参照先を`LSQ001`、存在しないanchorを`LSQ002`として報告します。
 
-## 1.1の拡張と安定性検証の範囲
+## エディターの範囲
 
-Editor診断はMarkdownが先で、MDXはrestore済みworker経由です。previewは保存済み文書のみで、
-ワーカーはTypeScriptを変換するだけで型検査はしません。
-1.1.0ではWatchとEditorの長時間検証を実施していません。高速編集・復旧、複数OSのCI、
-package済みVSIXの確認は、30分の連続稼働を証明するものではありません。
+診断はMarkdownが先で、MDXは復元済みworkerを使います。プレビューは保存済み文書だけが対象です。
+workerはTypeScriptを変換しますが、型検査は行いません。

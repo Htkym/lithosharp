@@ -1,6 +1,6 @@
 # Static content source generators / 静的コンテンツのSource Generator
 
-The next candidate's Docs template is the standard typed starting point: see
+The LithoSharp 2.2.0 Docs template is the standard typed starting point: see
 [Quick Start](quickstart.md) for generated `Guides.Binder`/references, content-root-relative
 IDs with extensions, matching underscore exclusions and runtime catalog routes.
 The snippets below describe individual generator contracts; their illustrative
@@ -8,38 +8,18 @@ ID conventions are not a replacement for that template's recursive input rules.
 
 ## Package setup
 
-This checkout targets the next 2.2 candidate, not a published release. Set
-`LithoSharpVersion` to the exact supplied candidate version and use its configured
-feed. The published stable baseline is 2.1.3; keep that line separate from the
-candidate packages.
+Use version 2.2.0 for Core and Generators.
 
 Reference the runtime package normally and add `LithoSharp.Generators` as a private
 analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" />
-<PackageReference Include="LithoSharp.Generators" Version="$(LithoSharpVersion)" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="2.2.0" />
+<PackageReference Include="LithoSharp.Generators" Version="2.2.0" PrivateAssets="all" />
 ```
 
-For a source-tree project reference, use analyzer output and do not reference the
-generator assembly at runtime:
-
-```xml
-<ProjectReference Include="..\src\LithoSharp.Generators\LithoSharp.Generators.csproj"
-                  OutputItemType="Analyzer"
-                  ReferenceOutputAssembly="false" />
-<Analyzer Include="$(NuGetPackageRoot)yamldotnet/18.1.0/lib/netstandard2.0/YamlDotNet.dll" />
-<Import Project="../src/LithoSharp.Generators/buildTransitive/LithoSharp.Generators.props" />
-```
-
-NuGetではruntimeパッケージを通常参照し、`LithoSharp.Generators` をprivate analyzerとして
-追加します。NuGetパッケージは `AdditionalFiles` 用のメタデータ契約を自動的に読み込みます。
-ソースツリーの `ProjectReference` ではanalyzer出力を指定し、上記のpropsを明示的にimportします。
-生成器のassemblyを実行時参照へ追加しないでください。
-`ProjectReference`と`Analyzer`は`ItemGroup`内、`Import`は`Project`直下に置きます。
-Place `ProjectReference` and `Analyzer` inside `ItemGroup`, and `Import` directly
-under `Project`. NuGet consumers do not need the explicit YamlDotNet analyzer item.
+NuGetではruntimeパッケージを通常参照し、`LithoSharp.Generators`をprivate analyzerとして追加します。`AdditionalFiles`用のメタデータは自動的に読み込みます。
 
 ## Declaration and inputs / 宣言と入力
 

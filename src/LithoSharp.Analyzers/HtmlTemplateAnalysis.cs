@@ -18,7 +18,7 @@ internal sealed class HtmlTemplateAnalysis
 {
     private static DiagnosticDescriptor Rule(string id, string title, string message, DiagnosticSeverity severity) =>
         new(id, title, message, "LithoSharp", severity, isEnabledByDefault: true,
-            helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant(),
+            helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#" + id.ToLowerInvariant(),
             customTags: id == "LSA1101" ? Array.Empty<string>() : new[] { WellKnownDiagnosticTags.CompilationEnd });
     private static readonly DiagnosticDescriptor Raw = Rule("LSA1101", "Unverified raw HTML",
         "Raw HTML contents cannot be statically verified ({0})", DiagnosticSeverity.Info);

@@ -7,9 +7,8 @@
 - 型付きコンテンツを`RenderDocs`で既存のDocs画面へ接続しました。コレクション、バージョン、言語ごとのナビゲーション、トピックカード、目次、前後リンクを使えます。Markdownの解析結果を再利用し、元のコンテンツIDをビルド中も保持します。
 - Docsテンプレートとサンプルで、生成したCatalog、Binder、型付き参照を使うようにしました。テンプレートには2ページを含め、構造化診断を保持します。出力検査を明示的に有効にし、外部HTTPへ接続せずにErrorで失敗させます。
 - 編集中の文書解析、プロジェクト情報、スキーマの検証範囲、明示的なbuild/checkの結果を区別しました。CLIのJSONを検証し、切り替え前のプロジェクトや古い入力に対する結果を現在の状態へ反映しないようにしました。
-- 日英の診断案内、導入と移行のガイド、条件を指定できる性能比較と追跡可能な参照測定を追加しました。測定結果の適用範囲を示し、すべてのサイトが速くなるとは主張していません。
+- 日英の診断案内、導入と移行のガイドと性能の参考値を追加しました。測定結果の適用範囲を示し、すべてのサイトが速くなるとは主張していません。
 - NuGetの各パッケージを2.2.0、別途公開する拡張を0.4.0にそろえました。Syntamarkは検証済みの1.2.0 runtime／Sourceペアを維持しています。公開状況はそれぞれの配布先で確認してください。
-- 2.1.3でコンパイルしたconsumerの実行と、新版への再コンパイルを通常CIとNuGet公開直前の最終パッケージで検査します。従来の1.1.0 fixtureも維持しています。
 
 ## 2.1.3
 
@@ -22,7 +21,6 @@
 - 共有する解析情報から生成と編集の診断を構成し、入力や解析資源の上限による`LSM013` Errorでは出力の公開前に生成を停止するようにしました。警告は検証済みキャッシュを使う無変更ビルドでも保持します。
 - MarkdownのアウトラインにSectionsの階層と範囲を使い、見出しへのジャンプ位置とセクション全体の範囲を分けました。拡張0.3.0はCoreとは別の公開系列です。
 - 型付きDocsサンプルで、正常生成、`LSG006`、確定した参照矛盾の`LSA1402`、生成物のリンク検査を順に試せるようにしました。日本語のREADMEと関連ガイドにも検出段階と検証できない範囲を記載しました。
-- 手書きのC#に制御文の配置規則を適用し、Windows CIで配置を検証するようにしました。トークンやリテラルは変更していません。Syntamarkの更新による速度向上やCommonMark/GFMの完全対応は保証しません。
 
 ## 2.1.2
 
@@ -61,7 +59,7 @@
 
 - Editor検査をCLIと同一解析に統合した。opt-inのMarkdown互換助言（`LIT003`/`LIT004`/`LIT005`）、route候補付きproject対応snapshot、plugin読込・bundle・SSR実行なしのMDX解析専用sessionを追加した。
 - 最小stdio言語serverとVS Code 0.1.0 shellを追加した。MSBuild評価なしのproject検出、限定workspace trust、構造化停止付きbuild/serve制御、debounce診断、symbols、実出力previewを持つ。
-- Docusaurus移行に分類済みroute oracle、明示の正規化page set比較、component機能差分類を追加し、pin済み3サイトcorpusで変換を再現する。
+- Docusaurus移行に分類済みroute oracle、明示の正規化page set比較、component機能差分類を追加した。
 - 非互換の公開signatureはない。Markdown互換は[文書化した範囲](docs/known-limitations.ja.md#markdown-の互換性)のままである。
   [1.1の機能と更新手順](docs/history/release-1.1.ja.md)を参照。
 
@@ -109,18 +107,9 @@
 - CoreにAngleSharp 1.7.3を追加しました。`LithoSharp`に加えて任意の6 package IDを提供します。
   既存Markdown applicationでの採用は必須ではありません。
 
-### 性能
-
-- 測定した静的ページfixtureでは、selective hydrationによりJSが449,585から15,817 bytes、
-  hydration rootが1から0になりました。
-- Markdown 100/1,000ページの反復測定では、時間・割当量・常駐メモリの増加が中央値で基準版の10%以内でした。
-- 大規模MDXの増分renderでは、多くのinteractive entryをbundleする場合が残ります。
-  条件付きのWindows測定であり、競合比較ではありません。[性能](docs/performance.ja.md)を参照してください。
-
 ### 互換性と移行
 
-実NuGet 0.2.0に対して、非互換な公開署名とobsolete警告の追加はありませんでした。独立したlegacy
-consumerは、Docs、Blog、custom templateのソース・バイナリ更新検証を通過しました。
+0.2.0からの更新では、非互換な公開署名とobsolete警告の追加はありません。
 以前は無視していた公開条件のkey、危険なbase URL、診断文言の厳密な比較には挙動の変更があります。
 出力バイト列も変わります。rollbackを含む[0.2.0からの移行](docs/history/migration-0.3.ja.md)を確認してください。
 

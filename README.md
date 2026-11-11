@@ -21,9 +21,7 @@ custom schema on every keystroke, and a valid typed reference does not certify
 the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
 for fit, dependencies and evaluation examples.
 
-This documentation targets LithoSharp 2.2.0. Check package availability before
-using the installation commands below. Before publication, use the exact supplied
-candidate version and feed instead. The 2.1.3 Docs template uses the previous reader.
+This documentation targets the published LithoSharp 2.2.0 packages and VS Code extension 0.4.0.
 For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
 
 ## Features
@@ -56,9 +54,8 @@ dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-On Windows the executable is `.tools/lithosharp.exe`. Set the generated project's
-`LithoSharpVersion` to the selected package version before restore; the template
-defaults to 2.2.0. Edit `GuideFrontMatter.cs`
+On Windows the executable is `.tools/lithosharp.exe`. The template defaults to
+LithoSharp 2.2.0. Edit `GuideFrontMatter.cs`
 and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
 to the Docs shell. The factory enables Quality at Error without external HTTP.
 Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
@@ -152,13 +149,9 @@ Docusaurus plugins, trimming and Native AOT are unsupported. Read
 
 ## Performance
 
-Performance results apply to the named package/source version, workload,
-measurement interval and environment. Generation, Quality, MDX and editor checks
-measure different work; no-op and changed-input builds also need separate results.
-See the [measurement evidence, limits and reproduction](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md).
-No general speedup or migration-effort claim follows from a result for one fixture.
+Performance figures are for reference. Results vary with the environment, configuration, and content.
+See the [Docs reference times](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md).
 
-## Contribute and license
+## License
 
-See [CONTRIBUTING](https://github.com/Htkym/lithosharp/blob/main/CONTRIBUTING.md) for build and verification commands.
 MIT licensed; see [LICENSE](https://github.com/Htkym/lithosharp/blob/main/LICENSE) and [third-party notices](https://github.com/Htkym/lithosharp/blob/main/THIRD-PARTY-NOTICES.md).

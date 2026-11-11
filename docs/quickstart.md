@@ -6,11 +6,8 @@ Use the .NET 10 SDK (minimum 10.0.300). Markdown-only Docs need no Node.js or
 React. Optional MDX uses Node.js 24.13.0 and an explicitly restored worker.
 The SDK supplies the ASP.NET Core shared framework used by `serve`.
 
-The commands below target 2.2.0 and require that version to be available on NuGet.
-Before publication, replace 2.2.0 with the exact reviewed candidate version and
-configure its supplied feed for Tool, Templates and generated project packages.
-The 2.1.3 Docs template uses the legacy reader. See [distribution](distribution.md)
-for isolated candidate installation.
+The commands below install the published 2.2.0 Tool and Templates from NuGet.
+See [distribution](distribution.md) for package choices.
 
 ## Create typed Markdown Docs
 
@@ -23,9 +20,8 @@ dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 ```
 
 On Windows use `.tools/lithosharp.exe`. Template installation changes your user
-template catalog; the Tool is local to `.tools`. Set `MyDocs/MyDocs.csproj`'s
-`LithoSharpVersion` to the selected version before restoring; its default is 2.2.0. Do not mix package
-versions or scaffold over an existing site.
+template catalog; the Tool is local to `.tools`. Generated projects already use
+LithoSharp 2.2.0. Do not mix package versions or scaffold over an existing site.
 
 ## Edit the C# contract and Markdown
 
@@ -121,8 +117,7 @@ complete validation. See [diagnostics](diagnostics.md), [preflight](cli.md) and
 
 ## CI for this Docs project
 
-Keep the reviewed exact versions and feed in the repository's tool/package
-configuration. Run one generation/check path before publishing the same output:
+Keep matching 2.2.0 versions in your site's tool and package configuration. Run one generation/check path before publishing the same output:
 
 ```sh
 dotnet restore MyDocs
@@ -142,7 +137,6 @@ Create a separate MDX site using the installed tool and templates:
 
 ```sh
 .tools/lithosharp new mdx MyMdx -o MyMdx
-# Set MyMdx/MyMdx.csproj LithoSharpVersion to the same candidate
 dotnet build MyMdx -c Release
 .tools/lithosharp restore-mdx MyMdx/bin/Release/net10.0/worker
 .tools/lithosharp build MyMdx -c Release
@@ -215,5 +209,5 @@ older browser sessions when updating an existing deployment.
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template
-products. See [upgrading to the 2.2 candidate](migration-2.0.md), [testing](testing.md),
+products. See [upgrading to the 2.2.0](migration-2.0.md), [testing](testing.md),
 [performance](performance.md) and [Known limitations](known-limitations.md).

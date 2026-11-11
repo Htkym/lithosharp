@@ -2,7 +2,7 @@
 
 [English](release-1.1.md)
 
-Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はMarketplaceで配布している。小さな編集でも出力全体のコピーが発生する点は、[性能上の制約](../performance.ja.md#110の性能上の制約)として残る。
+Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)はMarketplaceで配布している。
 
 ## 機能表
 
@@ -21,7 +21,6 @@ Core 1.1.0はNuGetで、[LithoSharp for VS Code](https://marketplace.visualstudi
 - browser検証はChromiumのみ。Firefox/Safariは主張しない。
 - CLI/site hostのtrimmingとNative AOTは非対応のままである。
 - AVIFは信頼済みの`avifenc`を明示設定しない限り未検証である。
-- 1.1.0ではWatchとEditorの長時間検証は実施していない。高速編集と復旧は30分の連続稼働を証明しない。
 
 ## 1.0から1.1への更新
 

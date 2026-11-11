@@ -2,31 +2,17 @@
 
 [日本語](distribution.ja.md)
 
-This guide targets LithoSharp 2.2.0 and VS Code extension 0.4.0. Check each version's availability before installation; source version numbers do not establish publication. The extension has a separate release channel and uses the Marketplace identity `htkym.lithosharp`. Publishing NuGet packages does not publish the extension.
-
-## Candidate installation and compatibility
-
-Use the exact version and isolated package feed supplied with a reviewed candidate. Set `LithoSharpVersion` to that version in generated projects, install the matching tool and templates, and keep the default user feed and template hive unchanged. A source version or local package is not evidence of publication to NuGet or Marketplace.
-
-| Consumer | Earlier stable | 2.2.0 / 0.4.0 |
-| --- | --- | --- |
-| Existing Core calls | Supported | Additive typed Docs adapter; default quality settings remain unchanged |
-| Docs template | Stable package behavior | Generated binder/catalog/references and explicit quality Error threshold |
-| CLI JSON | Schema major 1 | Same major; extension verifies required fields and exit-code agreement |
-| Editor protocol | Earlier fields | Optional context fields; missing evidence stays unknown |
-| Custom C# frontmatter | Compiler/build checks | Still requires the project build; no per-key editor validator is implied |
-
-Do not mix candidate compiler packages with a different Core or generated template version. Regenerate and inspect Docs output after adopting the adapter, then build and check the complete site before deployment.
+Install LithoSharp 2.2.0 from NuGet and VS Code extension 0.4.0 from the Marketplace.
+The extension uses the identity `htkym.lithosharp` and has a separate version.
 
 ## NuGet packages
 
-Use matching 2.2.0 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.2.0. The tool and templates are separate packages. Sites staying on 2.1.3 should keep all selected packages at 2.1.3.
+Use matching 2.2.0 versions of the packages your project needs: `LithoSharp`, `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`, `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`. Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also use 2.2.0. The tool and templates are separate packages.
 
 Install only what the site uses. Core is the runtime; Generators add typed static
 content; Images and MDX are optional generation extensions; Testing is for tests;
 Analyzers and CodeFixes are compiler/IDE additions. Templates scaffold projects
-and are not a runtime dependency. The [release inventory](../eng/release-packages.json)
-contains all nine packages and is also used by the candidate distribution gate.
+and are not a runtime dependency.
 
 Core selects Syntamark 1.2.0 at runtime; Generators and Analyzers embed the matched
 Source artifact. Consumers do not add a direct Syntamark.Source reference. The
@@ -38,12 +24,6 @@ dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 ```
 
 See the [Quick Start](quickstart.md) to create and serve a site, and [upgrade notes](migration-2.0.md) before updating an existing project.
-
-For a candidate feed, install the exact supplied `<candidate-version>`
-version and set the generated project's `LithoSharpVersion` to that same value
-before restore. Do not mix stable and candidate LithoSharp packages. The feed
-must supply the selected Syntamark runtime under its own 1.2.0 component version;
-candidate suffixes do not relabel it.
 
 ## VS Code extension
 

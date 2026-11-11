@@ -5,10 +5,7 @@ serving also uses the ASP.NET Core shared framework. Site factories execute with
 the current user's permissions. Read-only commands such as `capabilities` and
 `check-output` do not run a factory.
 
-This checkout targets the next 2.2 candidate, not a published release. Use the
-exact supplied candidate version and feed; set `LithoSharpVersion` to that value
-for XML examples and replace `<candidate-version>` in commands. The published
-stable baseline is 2.1.3; do not mix that line with candidate packages.
+Use LithoSharp 2.2.0 for this package and the other LithoSharp packages in your project.
 
 ## Inspect existing output
 
@@ -24,7 +21,7 @@ for encoding, file-type and platform limits.
 
 ## Preflight
 
-Preflight is available from the published 2.1.3 baseline. For this checkout, install the supplied 2.2 candidate Tool and matching Core/MDX packages for trusted project validation.
+Use Tool 2.2.0 and matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -45,8 +42,8 @@ Normal generation validates the captured Core catalog and all available extensio
 Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

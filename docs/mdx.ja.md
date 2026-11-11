@@ -7,11 +7,11 @@ MDX 3.1.1、React 19.2.4、esbuild 0.28.2 を使います。依存関係は work
 
 ## サイトを作る
 
-以下は2.1.3を対象にした手順です。候補feedを使う場合は、実際の固定候補版を指定し、利用するLithoSharpのパッケージとToolをそろえてください。
+以下は2.2.0を対象にした手順です。利用するLithoSharpのパッケージとToolを2.2.0にそろえてください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.1.3
-dotnet tool install LithoSharp.Tool --version 2.1.3 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -199,13 +199,9 @@ bundle を省きます。部品変更後のブラウザーバンドルは全 ent
 最大 RSS ではありません。
 
 `MdxOptions.Timeout` は worker への 1 要求あたり既定で 2 分です。大量の文書を扱う場合は
-明示的に延長してください。10,000 ページの性能試験では 15 分を指定しています。
+明示的に延長してください。
 
 `LSMDX003` は worker 応答や依存の不整合、`LSMDX005` は処理中の入力変更、
 `LSMDX006` は禁止した文書 import を示します。診断は front matter を含む元の行へ
 戻します。timeout、cancel、worker 異常終了時には部分出力を公開しません。
 依存更新後は明示的な復元と再検証が必要です。バンドルした依存の第三者通知も生成します。
-
-再検証には worker の `npm test`、.NET 統合試験、`eng/Test-Templates.ps1`、
-MDX サンプルを 4317 番ポートで配信した状態のブラウザー試験を使います。
-CI 設定を追加したことと、各 OS で実際に成功したことは区別してください。

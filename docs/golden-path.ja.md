@@ -2,15 +2,14 @@
 
 [English](golden-path.md)
 
-導入からserveまでの対応経路は5つです。各手順で依存関係のrestoreとbuildの実行境界を明示します。以下は次期候補を対象にした手順であり、公開済み2.1.3の従来Docsテンプレートとは異なります。提供された候補feedを設定し、`<candidate-version>`と生成プロジェクトの`LithoSharpVersion`に同じ固定バージョンを指定してください。既存サイトを更新する場合は[更新手順](migration-2.0.ja.md)を参照してください。
+以下はLithoSharp 2.2.0と拡張0.4.0の手順です。依存関係の復元とプロジェクトの実行が必要な段階を説明します。既存サイトの更新は[更新手順](migration-2.0.ja.md)を参照してください。
 
 ## Markdown-onlyのsite
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::<candidate-version>
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
-# ビルド前に MyDocs/MyDocs.csproj の LithoSharpVersion を同じ候補バージョンに設定
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
 ```
@@ -23,7 +22,6 @@ projectのbuildではNuGetの依存関係が復元される場合があります
 
 ```sh
 .tools/lithosharp new mdx MyMdx -o MyMdx
-# MyMdx/MyMdx.csproj の LithoSharpVersion を同じ候補バージョンに設定
 dotnet build MyMdx -c Release
 .tools/lithosharp restore-mdx MyMdx/bin/Release/net10.0/worker
 .tools/lithosharp build MyMdx -c Release
@@ -50,7 +48,7 @@ dotnet restore MySite
 code --install-extension htkym.lithosharp
 ```
 
-同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKと対応する候補のLithoSharp.Toolを用意します。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要です。未信頼のワークスペースでは検出だけが動作します。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照してください。
+同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.2.0を用意します。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要です。未信頼のワークスペースでは検出だけが動作します。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照してください。
 
 ## multi-rootのworkspace
 
@@ -59,7 +57,7 @@ code --install-extension htkym.lithosharp
 ## 実行境界
 
 - `build`、`serve`、`check`は選択したprojectを`dotnet build`でコンパイルします。この処理で設定済みfeedからNuGetパッケージを復元する場合があります。project codeとMSBuild taskは信頼するコードとして実行します。
-- npm依存のインストールは、MDX workerの`restore-mdx`と、利用者が移行元サイトなどの依存関係を明示的に復元するときに行います。
+- npm依存のインストールはMDX workerの`restore-mdx`と、利用者が移行元サイトなどの依存関係を明示的に復元するときに行います。
 - `build`、`serve`、`check`、エディター入力によるnpmの自動restoreはありません。エディターは入力のたびにMSBuildやsite factoryを実行しません。移行時にJavaScript設定を実行せず、拡張機能はテレメトリーを収集しません。
 
 C#スキーマ、生成した参照、エディター、生成物検査を順に試すには[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)を使います。コンパイル時に確定できる範囲、実行時の検査、文脈不足で検証できない状態を区別し、不正な例は通常のコンテンツから分離しています。

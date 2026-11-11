@@ -1,190 +1,82 @@
 # LithoSharp.Analyzers
 
-Compiler diagnostics help .NET documentation teams keep C# content contracts and generated references consistent. They include statically provable API, HTML, route and content-reference mistakes, including proven entry/route contradictions (`LSA1402`). Final HTML still needs output quality checks. The analyzer targets netstandard2.0 and Roslyn 4.14.0. It does not execute site factories, user getters or Core runtime code in the compiler host.
-
-This checkout targets the next 2.2 candidate, not a published release. Use the
-exact supplied candidate version and feed; set `LithoSharpVersion` to that value
-for XML examples and replace `<candidate-version>` in commands. The published
-stable baseline is 2.1.3; do not mix that line with candidate packages.
+Compiler diagnostics help .NET documentation teams keep C# content schemas and generated references consistent. Use version 2.2.0 alongside matching LithoSharp packages. The analyzer targets netstandard2.0 and Roslyn 4.14.0; it does not execute site factories, user getters or Core runtime code in the compiler host.
 
 ## Install and use
 
-Add the analyzer alongside the Core packages used by your project:
+Add this reference to the consuming project's `ItemGroup`:
 
 ```xml
-<PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Analyzers" Version="2.2.0" PrivateAssets="all" />
 ```
 
-Use [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) when a rule needs a generated catalog. Code fixes are an optional, separate [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) package. See the [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) for a complete example.
+Use [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) for rules requiring generated catalogs. IDE fixes are an optional, separate [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) package. The [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) connects schemas, references and output checks.
 
-The package puts its DLL/XML and YamlDotNet in `analyzers/dotnet/cs`. It does not bundle Roslyn, load the Syntamark runtime DLL, or add a transitive Core dependency. Node, MSBuildWorkspace and CodeFix Workspaces assemblies are not part of this analyzer.
+## Analysis scope
 
-## What the diagnostics prove
+`Known` values are bounded compiler facts. `Closed` coverage belongs only to the lookup or owner described by a rule. `Deferred`, `Open`, `Stale` and `Unavailable` do not prove validity. Unknown values, unsupported expressions, user-defined lookalikes/conversions and exceeded limits remain unproven. Generated code is excluded.
 
-- LSA1001–1005 check bounded, known arguments against the corresponding runtime guards.
-- LSA1101–1105 cover raw HTML, interpolation contexts and locally provable URL mistakes.
-- LSA1201/1202/1203 check narrowly defined route, fixed-HTML fragment and transform membership. LSA1205 reports stale compiler evidence.
-- LSA1401 suggests an equivalent generated reference; LSA1402 reports a provable entry/route contradiction; LSA1403 describes the selected unproven producer subset.
-- LSA1501 identifies a bound use of the legacy Testing DOM getter. LSA9001 is a disabled-by-default static-coverage policy.
+Constants, supported conversions, string concatenation, unformatted string interpolation, single local assignments and finite branches may produce up to eight known values. Every value must violate the selected guard before an Error is reported. Mixed valid/invalid sets do not produce that Error. Properties, mutable/readonly fields, arbitrary calls, formatting, loops, ref escapes and exceptional control flow can prevent local-value analysis. A null-forgiving `!` preserves known facts but does not prove an unknown value.
 
-`Known` values are bounded compiler facts. `Closed` coverage belongs only to the explicit lookup or owner described by a rule. `Deferred`, `Open`, `Stale` and `Unavailable` are not proofs of validity. Suppressing a diagnostic does not remove runtime guards, and a clean build is not whole-site validation. Run generation and output checks too. The sections below specify exact severities, supported expressions and exclusions.
-
-### LSA1401
-
-The default severity is Info. The exact metadata overload `LithoSharp.Content.StaticSiteManifest.GetUrl(string)` must receive a direct string literal at argument zero, through a verified generated static Manifest with a fresh Closed scope. The literal must match one unique generated PageRef in the same immutable catalog. The diagnostic covers the entire original argument literal in UTF-16 coordinates, not a generated reference or a substring.
-
-The separate CodeFix package replaces only the argument with the fully qualified generated `PageRef.Route.PublicPath`. It preserves the receiver, `Manifest.GetUrl(string)` overload, runtime guard and argument trivia. It checks canonical initialization of all Pages, catalog-entry/PageId agreement and absence of reentrant user static initialization, and revalidates current compiler inputs both when registering and applying the fix. Open/Stale/Unavailable evidence, ambiguous references, arbitrary expressions, user conversions/getters/side effects, explicit static constructors and stale workspace snapshots do not receive a fix. Standard severity, NoWarn, pragma and editorconfig settings apply. See the CodeFix README for its exact FixAll scope.
-
-The registered sinks below use metadata symbols from the LithoSharp assembly, exact overloads and parameter ordinals. Source-defined lookalikes, failed binding and user-defined conversions are excluded. Named arguments are resolved by their parameter symbols; omitted valid defaults do not produce diagnostics. Generated code is excluded.
+Use normal Roslyn configuration, `.editorconfig`, `NoWarn` or original-source pragmas to configure individual diagnostics. Suppression does not remove runtime guards. A clean build does not validate the whole site: run generation and [output quality checks](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.md) too. YAML/schema diagnostics remain owned by the Generator.
 
 ### LSA1001
 
-`SiteUrl.FromAbsolute(string value)` uses the same pure guard as the runtime. Null, relative or malformed URLs, whitespace, control characters, backslashes and non-HTTP(S) schemes are errors when every known value is invalid.
+Error: all known arguments to `SiteUrl.FromAbsolute(string)` are invalid. Use an absolute HTTP(S) URL without whitespace, control characters or backslashes.
 
 ### LSA1002
 
-`ContentRef<TEntry>(ContentCollectionId, ContentEntryId, SiteRoute route)` checks only argument 2 when every value in its nonempty `Known` evaluation snapshot is null. The exact public instance constructor is registered by `OriginalDefinition`, with all three sealed parameter types from the same Core metadata assembly; the existing static/self-return sink registration is unchanged. Runtime guards `collectionId`, `id`, then `route`, so this diagnostic proves a route argument contract violation only, not reachability or constructor completion. Named arguments retain source evaluation order: an earlier call/getter invalidates local facts, while an already captured route snapshot survives later argument effects. Unknown, mixed null/non-null and user conversions remain unproven. The original route expression, including `!` and parentheses, owns the `LSA1002` position and standard suppression. This does not prove a route/catalog/`Closed` scope or `Complete` coverage; `LSA1402` and other diagnostic owners are unchanged.
+Error: known arguments violate registered route or URL guards. `SiteUrl.ForFile`, `SiteUrl.ForDirectory`, `SiteRoute.ForFile` and `SiteRoute.ForDirectoryIndex` check relative paths and optional base URLs. Avoid traversal, reserved device names, invalid percent/UTF-8 encoding and invalid bases. Empty directory routes are valid.
 
-`StaticSiteManifest.GetUrl(string publicPath)` rejects argument 0 only when every value in its nonempty Known snapshot is null, matching the runtime's initial `ThrowIfNull` before membership lookup or resolver execution. The exact public instance metadata overload returns `SiteUrl` from the same Core assembly. This argument check needs no receiver-existence, reachability or Closed-manifest proof. Unknown/getter values, invalidated locals and user conversions remain unproven; `!` preserves snapshots and original argument positions without proving a value. Null is never a missing route for LSA1201 or Complete coverage. Existing LSA1205 and opt-in LSA9001 keep their independent scope and whole-call policy locations, so a null argument can report LSA1002 together with an incomplete-coverage diagnostic. LSA1401 and its CodeFix remain direct-literal only.
-
-`SiteUrl.FromRoute(SiteRoute route)` rejects argument 0 only when its nonempty finite set contains known null values exclusively, matching the runtime's initial `ThrowIfNull`. Null-forgiving syntax (`null!`, `default(SiteRoute)!`, or a known-null local followed by `!`) preserves those existing value snapshots. Explicit arguments are selected by `ArgumentKind`, since Roslyn can mark them `IsImplicit` when `!` is present; omitted defaults remain excluded. Diagnostics retain the original argument expression including `!`. An Unknown value set, null joined with Unknown, user-defined conversions, and local facts invalidated by calls/getters remain unproven, with or without `!`. This exact metadata registration checks both Core types and never evaluates a route, `PublicPath`, getter or user call; it does not certify a non-null route's contents, existence or ownership.
-
-`SiteUrl.ForFile`, `SiteUrl.ForDirectory`, `SiteRoute.ForFile` and `SiteRoute.ForDirectoryIndex` validate the relative path and optional base URL independently, using the runtime SiteRoute source compiled privately into the analyzer. Traversal, reserved device names, invalid percent/UTF-8 encoding and invalid base URLs follow that source. Empty directory routes are valid.
-
-The exact metadata instance `ContentRef<TEntry>.GetUrl(string? baseUrl = null)` also validates argument 0 through the same SiteRoute base URL guard. The generic containing type's original method definition and SiteUrl return type are checked separately; existing static registrations are unchanged. Omission and known null preserve the wrapper's existing route. Empty/relative base URLs and base URLs containing query or fragment are invalid, even when a general absolute URL guard would accept them. Receiver expressions are evaluated before argument snapshots; calls/getters that may change a local make that value Unknown. This rule reports only the argument contract, without proving receiver non-nullness, call reachability, entry existence or route ownership, and never executes a receiver/getter.
+`SiteUrl.FromRoute`, `StaticSiteManifest.GetUrl(string)` and the route argument of `ContentRef<TEntry>` reject a definitely null argument. `ContentRef<TEntry>.GetUrl(baseUrl)` checks an explicit base URL: null or omission preserves the existing route; an empty/relative base or one containing a query or fragment is invalid. These checks do not establish receiver non-nullness, call reachability or route/catalog membership.
 
 ### LSA1003
 
-`SiteAssetOutput(string id, string relativeOutputPath)` validates `relativeOutputPath`. `SiteAsset(string id, string inputRoot, string relativeInputPath, string relativeOutputPath)` also validates its relative input and output paths independently, at parameter ordinals 2 and 3. Both use the same pure `SiteRoute.NormalizeRelativeOutputPath` source as the runtime. These are filesystem names: percent text is literal, unlike route URI segments. Invalid static relative paths can be rejected without filesystem access. Input root absolutization, file existence, artifact ownership and registry completeness remain outside this registered scope. Unknown or mixed valid/invalid candidates do not produce an Error; named arguments retain their parameter identity and original evaluation-time snapshots.
+Error: a known `SiteAsset` relative input/output path or `SiteAssetOutput` relative output path is invalid. These are filesystem names, so percent text is literal. Correct the relative path; input-root resolution, file existence and registry completeness require runtime checks.
 
 ### LSA1004
 
-`SiteQualityOptions` validates the explicitly supplied `failureThreshold` with the runtime guard. `ExternalLinkCheckOptions` also validates all four constructor arguments with shared pure guards: a nonblank cache path, nonnegative cache duration, and bounded request interval/timeout. The timer maximum is 42949672940000 ticks; an interval may be zero, a timeout may not. A known null duration keeps the runtime default, while Unknown is never treated as null. Absolute cache paths are allowed; filesystem containment/reachability is outside this rule.
-
-Duration witnesses come only from the compiler's actual core-library TimeSpan symbol: Zero/MinValue/MaxValue, the ticks constructor, FromTicks and supported integral unit/component factories. The host interprets checked integer ticks without calling those factories or user code. Fractional/nonfinite numbers, overflow, uncertain binary64 rounding, unsupported operators/overloads, user getters/factories and lookalikes remain Deferred. Existing candidate limits, evaluation-time snapshots, named-parameter binding and suppression apply. Deconstruction invalidates both scalar values and origins in the existing State; it cannot carry a stale path/duration into the new sink.
-
-The finite flow contract is recorded in `static-value-contract.json`. Constants (including const fields), supported conversions, string concatenation, string-only unformatted interpolation, single local assignments and acyclic CFG branch joins may produce Known sets. Expressions are snapshotted at their evaluation point, so a later argument assignment cannot replace an earlier argument's value. Named arguments retain their source evaluation order; simple local assignment expressions return their snapshotted right-hand value. A set is capped at eight candidates. An Error requires **every** candidate to violate the selected argument guard. Mixed valid/invalid sets and Unknown branches do not produce an Error.
-
-Properties, readonly/mutable fields, user calls, ToString/formatting, environment reads and ref aliases stay Unknown; no user code is executed. Calls/getters conservatively invalidate local and capture facts, including closures and ref/out escape. Any CFG back edge or exceptional region (including try/finally, using and lock) defers local/capture propagation; direct constants remain independently provable. Nested functions get independent states; outer captures stay Unknown. Unreachable CFG blocks are excluded. Budget exhaustion defers analysis without an additional coverage diagnostic. There is no global cross-compilation cache.
-
-Locations use the original argument expression's UTF-16 span, including flow-derived values. No literal substring or origin offset is invented. Properties record Known, candidate count and the argument-span fallback. No diagnostic is a guarantee of runtime validity. Runtime guards still apply after suppression. Frontmatter/schema diagnostics remain owned by the Generator; this analyzer does not emit LSG001..006 or LSA1301..1302.
-
-The analyzer compiles the portable source from the published Syntamark.Source 1.2.0 pair and includes YamlDotNet 18.1.0 in its payload. Directory.Build.props selects the fixed runtime/Source pair, and a different SyntamarkSourceVersion fails the build. The compiler host does not load the Syntamark runtime DLL or compile an unrelated source checkout. See the [version and analysis contracts](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
-
-### LSA1501
-
-Warning identifies a bound use of the public, read-only instance
-`LithoSharp.Testing.SiteTestDocument.Document` getter from metadata assembly
-`LithoSharp.Testing`, returning metadata `AngleSharp.Dom.IDocument` from
-`AngleSharp`. This registration also works in a Testing-only compilation without
-Core URL, HTML or manifest sinks. No getter, factory, DOM method or user code runs.
-Source lookalikes, v2 `Snapshot`, and unresolved `Document` syntax after upgrading
-to v2 are outside this bounded rule. A warning does not certify that all legacy
-DOM uses have been found.
-
-Use the [Testing v2 migration map](https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md#migration)
-to select `Snapshot.Query/QueryAll` or the retained assertion helpers. DOM mutation,
-third-party casts/extensions and unsupported selectors require manual changes.
-There is no automatic CodeFix or blind rename. Normal diagnostic suppression and
-generated-code exclusion apply; runtime snapshot ownership remains unchanged.
+Error: known quality-option arguments violate their guards. `SiteQualityOptions.failureThreshold` must be a supported severity. `ExternalLinkCheckOptions` requires a nonblank cache path, nonnegative cache duration and bounded request interval/timeout. An interval may be zero; a timeout may not. The timer maximum is 42949672940000 ticks. Known null durations retain defaults. Supported `TimeSpan` values include constants, the ticks constructor and integral factories; fractional/nonfinite values, overflow, uncertain rounding and user factories remain Deferred.
 
 ### LSA1005
 
-Error reports a `MaxDegreeOfParallelism` initializer only when all values in its assignment-time snapshot are integers less than one. The exact Core metadata instance `SiteGenerator.GenerateWithOptionsAsync` must receive a directly constructed `SiteGenerationOptions` as argument 5. Zero and negative values violate its runtime guard after the options null check; one, `int.MaxValue` and the omitted default do not. This does not prove call reachability or validity of other arguments.
-
-Earlier calls/getters/constructors keep the existing local invalidation rules. Later initializers and named arguments cannot rewrite an already captured initializer value. Unknown or missing CFG snapshots, mixed valid/invalid values, source lookalikes, other overloads, options aliases and `with` expressions remain unproven. No getter or user code executes. The original initializer value owns the UTF-16 diagnostic span and ordinary Roslyn severity/suppression. LSA1004 remains the separate quality-options rule.
+Error: every known `MaxDegreeOfParallelism` value is less than one in a directly constructed `SiteGenerationOptions` passed to `SiteGenerator.GenerateWithOptionsAsync`. Set it to at least one. Omitted defaults are valid; options aliases and `with` expressions are outside this subset.
 
 ### LSA1101
 
-`Html.UnsafeRaw(string)` receives Info when its contents are Unknown to the bounded static flow. This reports unverified raw output without claiming a vulnerability. A known literal or supported known local is not reported. Ordinary strings and lookalike user APIs are excluded.
+Info: the contents passed to `Html.UnsafeRaw(string)` cannot be determined statically. Review the raw output. This reports unverified content and does not assert a vulnerability.
 
 ### LSA1102
 
-An interpolated `UnsafeRaw` argument produces Error when explicit `ToHtmlString` output of a proven raw fragment is placed in a known quoted attribute. Direct raw-object interpolation emits its type name and no longer proves a fragment for this rule. An arbitrary `IHtmlContent` variable is not proven to be a raw fragment. The sealed `HtmlText` and `HtmlAttributeValue` wrappers use the runtime's HTML encoding and are permitted in that context.
+Error: an explicit `ToHtmlString()` result from a proven raw fragment appears in a known quoted HTML attribute. Use an appropriately encoded attribute value. Sealed `HtmlText` and `HtmlAttributeValue` encode their contents and are permitted there. An arbitrary `IHtmlContent` variable does not establish a raw fragment; direct interpolation of the raw object emits its type name rather than its rendered HTML.
 
 ### LSA1103
 
-Interpolation in a known tag name, attribute name or unquoted attribute value produces Error. A preceding unknown hole invalidates the following context and prevents a definite Error there. Add an appropriate quoted attribute or change the template manually; there is no automatic quote fix.
+Error: interpolation appears in a known tag name, attribute name or unquoted attribute value. Add an appropriate quoted attribute or change the template manually. There is no automatic quote fix.
 
 ### LSA1104
 
-HTML encoding in a known `script`/`style` body, quoted event handler or `style` attribute produces Warning. `Html.Encode` and the two sealed encoded wrappers do not establish JavaScript/CSS safety. Choose appropriate serialization manually.
+Warning: `Html.Encode`, `HtmlText` or `HtmlAttributeValue` appears in known script/style text or a quoted event-handler/style attribute. HTML encoding does not establish JavaScript/CSS safety; choose appropriate serialization manually.
 
-Local/capture aliases, built-in string concatenation and finite branches carry optional literal/typed-hole shapes on the existing evaluation snapshots. Scalar Unknown remains Unknown even when a shape is proven. Each sink requires the same original hole, rule and context across every alternative; independently proven sinks are unioned, with at most 16 deterministic related use locations. Missing shapes, escapes and budget exhaustion cannot leave a successful prefix. Deconstruction invalidates values and all optional proofs; ref/call/getter/loop/exception boundaries also drop the applicable shape and output-kind witnesses.
-
-The exact template scope, supported output symbols, independent eight-alternative/513-piece budget, original source spans and Deferred cases are recorded in `html-template-context-spec.md`. Direct templates retain their 256-hole limit. Format/alignment now defer definite context diagnostics even at forbidden positions; no formatter is modeled. Suppress individual rules using normal compiler/editor configuration or a documented pragma after reviewing the output contract.
+Context checks support direct and finite flow-composed interpolated strings reaching `Html.UnsafeRaw(string)`. Unknown holes, formatting/alignment, comments, malformed prefixes, foreign SVG/MathML and unsupported parsing modes can prevent later definite diagnostics. Direct templates allow 65,536 source/decoded UTF-16 units, 256 holes and 128 characters per tag/attribute name; composed shapes allow eight alternatives and 513 pieces each. Exceeding a limit leaves analysis Deferred.
 
 ### LSA1105
 
-Direct normal/verbatim/raw HTML literals and bounded built-in string additions made only of those literal leaves, passed to `Html.UnsafeRaw(string)`, use the same portable HTML bridge and pure LSQ001 URL checks as the runtime. Each token is decoded before concatenation; token text or escapes are never reinterpreted across a join. Error requires a Complete parse, an exact original URL span contained in one leaf, and a base-independent violation: an empty resource URL, malformed explicit absolute scheme, unsupported scheme or HTTP(S) userinfo. Cross-leaf URL/entity origins and ambiguous empty origins are Deferred per candidate. Entity decoding follows the bridge. Accepted `srcset` candidate URLs use the same scanner source as runtime; rejected descriptors and empty candidate lists add no URL Error. Each candidate's decoded range must map through that attribute's `HtmlText.Segments` and then the C# literal map; missing, discontinuous or safely unsplittable mappings leave that candidate Deferred. Relative/protocol-relative references, site membership, canonical/base policy, unsupported nonliteral leaves and other composite/dynamic inputs are Deferred. Partial/Failed parses never produce a definite literal URL Error. See `html-template-context-spec.md` for the exact contract and budgets.
+Error: statically known HTML has a base-independent URL violation under the runtime `LSQ001` rules: an empty resource URL, malformed explicit absolute scheme, unsupported absolute scheme or HTTP(S) userinfo. Correct the URL at the reported original C# location.
 
-The supported compiler-host and CodeFix boundaries are described above; this does not certify every SDK, Visual Studio or C# extension combination.
+Supported inputs include normal/verbatim/raw literals, built-in string additions, source string constants, known locals/captures, finite branches and unformatted string-only interpolation. Parsing and mapping back to the original source must be complete for every value and origin. Cross-piece/ambiguous locations, incomplete parsing and exceeded limits remain Deferred. A direct literal expression admits at most 64 leaves; HTML input is bounded to 65,536 decoded UTF-16 units, 655,360 source units, 8,192 nodes and depth 128.
 
-Source string constants, known locals/captures, aliases, finite branches and string-only interpolation also use the existing scalar evaluation snapshots with optional original-source pieces. Unknown values stay Unknown; origin loss or origin-budget overflow does not change scalar facts. Equal values retain all origin alternatives, including metadata-only or unmappable pieces. Deconstruction invalidates local/capture scalar values and origins. Additional ref escapes retain their existing conservative origin invalidation.
-
-For each sink, LSA1105 requires the same original URL span, decoded URL, attribute role and LSQ001 issue in every known value and every origin alternative, with Complete HTML parses. Different-origin or mixed/Unknown branches, cross-piece origins and ambiguous empty origins are Deferred. Proven sinks are then unioned within the Compilation; they never intersect across uses. The primary location is the original definition URL and respects its pragma; up to 16 related use locations are ordered deterministically. No user getter/call/operator/formatter or Core runtime code is executed. This is a local URL proof, not whole-HTML or whole-site coverage.
-
-Inline CSS in surviving unnamespaced `style` attributes and active `style` elements also uses the runtime CSS scanner source. Stylesheet text includes the existing top-level `@import` string projection; attributes do not. HTML entity decoding follows each parsed attribute/text chunk, including the distinction between HTML raw-text style and foreign-namespace text. Template content stays inert. CSS candidates map their raw token range through HTML segments and the existing C# origins; empty URLs require an unambiguous exact zero-length boundary. HTML and the relevant CSS projection must be Complete. CSS Partial or exhausted work/mapping leaves CSS Deferred without removing independent HTML URL diagnostics. The CSS sink budget is 262,144 steps, separately bounded from the existing HTML candidate mapping budget. No filesystem, external stylesheet, cascade/layout, base/site or asset membership is inferred.
+Checks cover supported unnamespaced resource attributes, accepted `srcset` candidate URLs and inline CSS URLs in active style attributes/elements, including top-level stylesheet `@import` strings. Inert template content is excluded. CSS parsing must also be complete. Relative/protocol-relative URLs, external stylesheets, base/canonical policy, site membership, anchors, image selection and general browser conformance require separate checks. No base URL or site graph is guessed.
 
 ### LSA1201
 
-Explicit arguments, including null-forgiving `!`, use the existing evaluation snapshot after generated-origin, fingerprint and Closed-scope validation. `!` does not prove an Unknown value. Absence diagnostics cover the original argument expression, including `!` and parentheses, in UTF-16 positions. A known missing path reports LSA1201 without an LSA9001 coverage failure; known present or mixed present/missing strings also retain Complete coverage. LSA1401 and its CodeFix remain limited to a direct string literal.
+Error: every known path in `Guides.Manifest.GetUrl(path)` is absent from the same fresh Closed generated lookup. Opt into that lookup with `EmitStaticSiteManifest = true`, and use a declared exact public path or add the missing declaration.
 
-Error applies only to `Guides.Manifest.GetUrl(path)` when `Guides` explicitly opts into `EmitStaticSiteManifest = true`, the generated property is verified against its runtime catalog initializer and current AdditionalFiles routes, and its compiler fingerprint is fresh. Every bounded known candidate must be absent from that exact immutable lookup. Mixed present/missing candidates, unknown arguments, receiver aliases, custom factories, metadata-only manifests and ordinary catalogs are Deferred. This lookup uses ordinal exact public paths; queries, fragments and URL resolution are outside its contract. A collection catalog does not establish site publication coverage. Anchors and assets remain Open.
-
-### LSA1203
-
-Explicit sink arguments, including null-forgiving `!`, use the same bounded instance-identity proof. Only `SuppressNullableWarningExpression` is exempt from unary mutation rejection; prefix and other postfix expressions remain rejected. Every local still passes the whole-owner reassignment, ref/out, closure and permitted-argument escape checks. Existing alias initializer forms and `SafeContext` are unchanged, so `ctx!` does not establish an owned receiver. Diagnostic locations cover the original argument including `!` and parentheses; related declaration locations and independent input/output scopes are preserved. This does not add LSA9001 scopes or change existing path guards.
-
-When Roslyn gives no operation for a suppressed `ArgumentSyntax`, the local-use check resolves only the matching Explicit argument of its actual source invocation by source tree/span, then applies the existing permitted method, receiver and handler checks. This handoff supplies no identity or value evidence.
-
-The initial scope is a transform's own copied input declarations. An exact metadata `SiteAssetTransform` constructor must receive an inline array/collection expression and an inline handler. Only that handler parameter's `SiteAssetTransformContext.GetUrl(SiteAsset)` and `OpenRead(SiteAsset)` are checked. Every bounded known input instance must be absent before an Error is reported at the original argument's UTF-16 span. A local alias of the same instance is accepted; equal IDs/paths on distinct instances are not membership. The declaration is a related location, and diagnostic properties name `asset-transform-inputs`, not site publication or filesystem coverage.
-
-The independent output scope checks the same handler's exact `WriteAsync(SiteAssetOutput, ReadOnlyMemory<byte>, CancellationToken)` overload against the constructor's copied `outputs` declarations. The original output argument is primary, including named argument reordering; its declaration is related. Properties use `asset-transform-outputs` and `explicit-transform-outputs/1`. Equal output IDs/paths on distinct instances are absent, while an unchanged alias of the same instance is present. Unknown inputs do not discard a closed output proof, and unknown outputs do not discard a closed input proof. Each declaration and identity proof returns only from its own scope; shared context and owner safety requirements still apply to both.
-
-Inputs and outputs are copied in the constructor body, after all arguments are evaluated. Local/shared arrays, array aliases and assignment expressions are therefore unsupported, including mutations before the call or in later arguments. Asset/output locals must have one source initializer and remain unchanged throughout the method, including after construction and inside deferred bodies. Reassignment, deconstruction, ref/out/escape, another closure, loops/statement control flow, unknown or mixed present/missing candidates, opaque declarations/handlers, foreign or nested contexts, binding failures and exceeded budgets remain Deferred. Only each inline handler's own context is used; nested handlers are analyzed separately. The limits reuse 8 candidates, 64 identity depth and 4,096 owner syntax nodes. Current compiler buffers are analyzed directly without cross-Compilation proof caching. Ordinary severity/NoWarn/primary-side pragma and generated-code exclusion apply.
-
-No Core runtime code, user constructor/getter/factory/handler or file I/O executes in the compiler host. Runtime guards are unchanged. Output checking concerns membership only; it does not infer duplicate writes, unwritten outputs or whether a write executes. `GetUrl(SiteAssetOutput)`, arbitrary page/layout registries, generated/import assets, public-directory files and general HTML/Markdown asset URLs remain outside this subset. Absence of LSA1203 does not certify a site asset universe. LSA9001's policy scope is unchanged.
-
-### LSA1205
-
-Collections with an explicit static constructor are Unavailable, including an empty constructor or a constructor in another partial declaration. C# permits that constructor to reassign static get-only `Manifest` and `Catalog` auto-properties. The Analyzer does not infer immutable membership from their original initializer in that case.
-
-Info identifies a generated Closed lookup whose fingerprint differs from current compiler inputs. Route absence is then Deferred. Fingerprints use original C# buffers and parse symbols, AdditionalText buffers and collection/id/route/site/variant metadata, project root/target framework/configuration/profile, and assembly identities/MVIDs/reference aliases. No disk scanning, network access or user code runs. Unreadable inputs, unsupported references or budgets (8,192 source/additional inputs; 8,388,608 framed text units) are Unavailable and defer absence. Other generators' source additions can conservatively make a lookup Stale. The known StaticContentGenerator output path is excluded from its own fingerprint; its marker is an origin convention, not a security attestation.
-
-Normal Roslyn per-ID severity, editor configuration and original-source pragmas apply. LSG004 owns route collisions; LSG005/006 own YAML/schema diagnostics. These errors cause emitted lookup coverage to be Open and are not repeated as LSA1204/1301/1302. LSA1401 and its separate LithoSharp.CodeFixes action have the limited contract above. LSA1204, LSA1203 beyond explicit transform inputs/outputs, LSA130x, whole-site publication coverage and other CodeFix actions remain unimplemented. LSA1403 has the selected producer subset below.
-
-### LSA9001
-
-RequireStaticCoverage is an optional compiler policy, disabled by default. Enable it with standard Roslyn configuration, for example `dotnet_diagnostic.LSA9001.severity = error` in `.editorconfig`, or the corresponding per-ID compilation option. Other severities, NoWarn and original-source pragmas retain their normal meaning; this policy does not change runtime guards.
-
-The initial scope is the exact metadata `StaticSiteManifest.GetUrl(string)` request and explicit `SiteGenerationOptions.StaticRouteGuaranteeProducers` assignments. Fresh Closed lookups with known string candidates and source-proven empty producer selections need no policy diagnostic. Open, Stale, Unavailable, unknown candidates and exhausted proof budgets report the original request with the scope and unverified reason. This is neither a missing-reference assertion nor evidence that an opaque producer is dynamic. LSA1201/1205/1403 and Generator-owned schema diagnostics keep their existing meanings and locations.
-
-Original operation callbacks discover requests independently of bounded CFG evaluation. Block/operation/nested-graph exhaustion cannot silently remove the opt-in notification. Untracked receivers, opaque/unregistered/branched producer selections and unknown identity remain Unavailable. An explicit empty array or collection expression is settled before registration, fingerprint and CFG requirements, including when those are unavailable. No getter, factory or runtime facade is executed. Anchor/asset or whole-site coverage, general unknown strings and unregistered/lookalike APIs are outside this policy's scope; no CodeFix or public runtime API is added.
-
-### LSA1402
-
-An explicit Core `ContentRef<T>` can select a generated catalog through its `Catalog.CollectionId` property. If exactly one verified fresh Closed manifest belongs to that same catalog, an existing constant entry ID paired with a different valid route reports an Error. The public path is normalized by the existing `SiteRoute.ForFile` or `ForDirectoryIndex` implementation and compared ordinally. Constructor arguments are bound by their parameter ordinal, so named argument order does not change the proof.
-
-Only a compiler-known null base URL is supported; an unknown value whose `ConstantValue.Value` happens to be null is Deferred. The entire original route argument expression (ordinal 2 of the outer `ContentRef<T>` creation) is the primary diagnostic location. The entire original ID constant expression (ordinal 0 of the inner `ContentEntryId` creation) is the related location; it is not widened to the outer entry argument. `!` and parentheses are included only after the argument's source tree/span owner matches its own creation; an unproved mapping retains the existing operation location. This mapping supplies no value or provenance evidence. The diagnostic carries the same compiler provenance as the manifest rules and respects primary-side pragmas. No getter, initializer or user factory is executed.
-
-Correct pairs, missing/unknown IDs, ambiguous scopes, Open/Stale/Unavailable manifests, handwritten catalogs, selector aliases, non-null or unknown bases, dynamic routes and user-defined conversions do not produce this Error. Invalid route syntax remains owned by LSA1002. Opaque `PageRef` IDs and other typed reference forms are outside this subset. No CodeFix is provided, and route lookup coverage is not whole-site publication, anchor or asset coverage.
-
-### LSA1403
-
-`SiteGenerationOptions.StaticRouteGuaranteeProducers` selects the same instances already registered in `Extensions`; it adds no registration or Prepare call. Both lists must be explicit arrays or collection expressions in the same directly constructed `SiteDefinition.Options`. Repeated selected instances count once. Straight-line, unchanged local identities and aliases can bind the same instance. A nonregistered selection, getter/factory selector, control-flow ambiguity or exceeded budget makes the request Unavailable, not a complete guarantee.
-
-The initial recognized Deferred producer is the metadata `LithoSharp.Mdx.DocumentationSite` with a preceding, directly bound `AddCollection(new DocumentationCollection(...))` registration on that same instance. Its route contribution requires runtime preparation and is not enumerated from compiler inputs. Runtime value variation is not asserted. A source producer whose exact `PrepareAsync` returns `Task.FromResult(new SiteBuildContribution(...))` with a provably empty `ContentCollections` contributes no Deferred item. Other producer contracts/bodies are unsupported and are not converted from analysis Unknown into dynamic producer evidence.
-
-One default Info reports the number of distinct selected, registered documentation contribution items. The original selection is primary, producer creation locations are related, and the current compiler-input fingerprint records provenance. It does not count runtime pages/routes or mark a Catalog/site Open. Missing Info does not imply Closed coverage, including for unsupported, unregistered or budget-limited selections. The lists are bounded to 64 items and identity/source inspection uses existing depth/operation budgets. No user getter/factory/constructor, producer, filesystem or runtime assembly is executed by the Analyzer. Existing scalar flow still handles Known locals and owns LSA1002 route errors; those calls are not producer evidence or Deferred items. Standard severity/NoWarn/pragma applies; there is no CodeFix. Anchors/assets/final HTML, nonselected producers, Posts/ExtraPages and whole-site coverage are outside this scope.
+Mixed present/missing values, unknown arguments, receiver aliases, custom factories, metadata-only manifests and ordinary catalogs are Deferred. Queries, fragments and URL resolution are outside this ordinal path lookup. A collection catalog does not establish site publication, anchor or asset coverage.
 
 ### LSA1202
 
-The opt-in fixed HTML subset uses `[FixedHtmlSite("https://example.com/sub/")]` on a top-level static partial class and `[FixedHtmlPage("target.html")]` on its parameterless static `IHtmlContent` methods. The Generator emits `FixedHtmlPlan`, an immutable Core plan. Its `GenerateAsync(outputDirectory)` snapshots the methods into generated assets and uses the common ownership checks and output transaction. No caller template, extension, transform or post-build hook can rewrite those files through this entry point. Built-in support pages are still generated; their output names, including `index.html`, must not collide with the declared files.
-
-LSA1202 Error applies only when both the source and target are in that same plan and each body is a direct Core `Html.UnsafeRaw(string)` call with a fully mapped literal expression. The complete current source and input fingerprint, separate anchor/owner contract, generated owner body and actual Core metadata must match. The full HTML is parsed once through the existing source-only literal projection; no independent source/tree arguments or retained tree are introduced. Static constructors, unknown bodies, stale inputs, missing or changed generated owner, incomplete parsing, scripts, iframe/srcdoc, custom/foreign markup and base-dependent pages remain Deferred. Other pages and variants are not inferred Closed, and `StaticSiteManifest.AnchorCoverage` remains Open.
-
-The initial links are namespace-free `a`/`area` hrefs with a site-root path, no query, and a nonempty fragment. Resolution and the one percent-decoding step are shared with runtime quality checks. Decoded `id`/`a name` values use Ordinal comparison; plus signs are not spaces. Missing target pages, external/relative/fragment-only URLs and unmappable positions are Deferred. A definite missing fragment reports its original C# UTF16 URL span with the target definition as a related location. Ordinary severity, NoWarn and original-source pragma apply; no CodeFix or extension to LSA9001 is provided. The subset admits at most 64 declared pages, existing literal parse/mapping limits and the existing 8,192-input/8,388,608-unit fingerprint limits.
+Error: a fragment is definitely missing from another page in the same compiler-owned fixed HTML plan. Declare a top-level static partial class with `FixedHtmlSite`, and parameterless static `IHtmlContent` methods with `FixedHtmlPage`:
 
 ```csharp
 using LithoSharp;
@@ -202,4 +94,42 @@ public static partial class Pages
 // await Pages.FixedHtmlPlan.GenerateAsync("dist");
 ```
 
-Encoding and snapshot construction occur inside the actual Core assembly. Generated code passes built-in string arrays to the verified Core constructor and contains no consumer-bound `System.Text.UTF8Encoding` or `System.Array` factory calls. `iframe`/`srcdoc` pages remain Deferred even when an encoded embedded script is absent from the outer parse tree; this is a conservative fixed-page boundary, not certification of arbitrary executable HTML. Qualified type identities retain namespace separators in generated hint names.
+Both bodies must be fully mapped literal `Html.UnsafeRaw(string)` calls in a fresh plan. Supported links are unnamespaced `a`/`area` site-root hrefs with no query and a nonempty fragment. Decoded `id`/`a name` values compare ordinally; plus signs are not spaces. Add the target anchor or correct the link.
+
+Other pages, missing targets, relative/external/fragment-only URLs, static constructors, stale/incomplete inputs, scripts, iframe/srcdoc and custom/foreign markup remain Deferred. At most 64 pages are supported. The plan owns its declared output; built-in output names, including `index.html`, must not collide. General `StaticSiteManifest.AnchorCoverage` remains Open. There is no CodeFix.
+
+### LSA1203
+
+Error: every known input/output instance is absent from its inline transform handler's declarations. Use the same `SiteAsset` instance in `SiteAssetTransform` inputs and its context's `GetUrl`/`OpenRead`; use the same `SiteAssetOutput` instance in outputs and `WriteAsync`. Equal IDs/paths on different instances are not membership.
+
+The constructor must receive inline arrays/collection expressions and an inline handler. Unchanged local aliases are supported; shared arrays, reassignment, ref escapes, other closures, control-flow ambiguity, unknown/mixed membership and opaque handlers remain Deferred. Input and output scopes are independent. Limits include eight candidates, identity depth 64 and 4,096 owner syntax nodes. This checks declaration membership, not file existence, duplicate writes, unwritten outputs or whole-site assets.
+
+### LSA1205
+
+Info: the generated manifest's fingerprint differs from current compiler inputs. Rebuild generated catalogs after changing declarations or inputs. Route absence remains Deferred while the lookup is stale. Explicit static constructors, including those in another partial declaration, make the collection Unavailable. Unreadable inputs, unsupported references and exceeded limits also prevent definite absence. Fingerprinting supports at most 8,192 source/additional inputs and 8,388,608 framed text units.
+
+### LSA1401
+
+Info: a direct string literal in a verified fresh Closed `StaticSiteManifest.GetUrl(string)` has one equivalent generated `PageRef`. The optional CodeFix replaces only that argument with its fully qualified `Route.PublicPath`. It preserves the receiver, overload and runtime guard and revalidates current inputs. Ambiguous, stale, handwritten, side-effecting and unproved references receive no fix. See the [CodeFix guide](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) for FixAll limits.
+
+### LSA1402
+
+Error: a known entry ID is paired with a different valid route in the same uniquely selected fresh Closed generated catalog. Select the catalog through `Catalog.CollectionId`, and use the declared route or generated reference. The route is the primary location and the entry ID is related.
+
+Missing/unknown IDs, ambiguous scopes, handwritten/Open/Stale/Unavailable catalogs, selector aliases, non-null or unknown base URLs, dynamic routes and user conversions do not produce this Error. Invalid route syntax is `LSA1002`. This does not establish final publication, anchor or asset coverage. There is no CodeFix.
+
+### LSA1403
+
+Info: selected, registered documentation producer contributions require runtime preparation and cannot be enumerated statically. `SiteGenerationOptions.StaticRouteGuaranteeProducers` selects instances already registered in `Extensions`; it does not register or prepare them.
+
+Both lists must be explicit arrays/collection expressions in directly constructed `SiteDefinition.Options`. Unchanged local identities/aliases are supported and repeats count once, with at most 64 items. The recognized Deferred producer is `LithoSharp.Mdx.DocumentationSite` with a preceding `AddCollection(new DocumentationCollection(...))` on that instance. A source producer whose exact `PrepareAsync` returns `Task.FromResult(new SiteBuildContribution(...))` with provably empty `ContentCollections` needs no Deferred item. Unregistered selections, getters/factories, ambiguity, other producer bodies and exceeded limits remain Unavailable. The count is not a page/route count, and missing Info does not imply Closed coverage. There is no CodeFix.
+
+### LSA1501
+
+Warning: a bound legacy `LithoSharp.Testing.SiteTestDocument.Document` getter returning `AngleSharp.Dom.IDocument` needs migration. Use the [Testing migration map](https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md#migration) to select `Snapshot.Query/QueryAll` or assertion helpers. Mutation, third-party casts/extensions and unsupported selectors require manual changes. Already-v2 snapshots, lookalikes and unresolved syntax are excluded. There is no automatic CodeFix.
+
+### LSA9001
+
+RequireStaticCoverage is disabled by default. Enable it with `dotnet_diagnostic.LSA9001.severity = error` in `.editorconfig` or a per-ID compilation option. It reports the scope and reason when a requested `StaticSiteManifest.GetUrl(string)` lookup or explicit `StaticRouteGuaranteeProducers` selection is Open, Stale, Unavailable or unknown. Fresh Closed lookups with known strings and proven empty producer selections need no policy diagnostic.
+
+This is not a missing-reference assertion or a guarantee about arbitrary HTML, anchors, assets, dynamic producers or the whole site. Other diagnostics and runtime guards retain their separate scopes; no CodeFix is provided.

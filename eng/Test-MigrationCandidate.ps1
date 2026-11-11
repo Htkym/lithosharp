@@ -46,11 +46,11 @@ function Get-Hash([string] $Path) {
 function Fail([string] $Message) { throw "Migration candidate re-run failed for '$SiteId': $Message" }
 
 # Original builds stay skipped only when the oracle is byte-identical to the
-# published one; otherwise the full corpus must rerun.
+# checked-in fixture; otherwise the full corpus must rerun.
 $oracleHash = Get-Hash (Join-Path $prior 'routes/route-oracle.json')
-$publishedOracle = Join-Path $repo "docs/evidence/1.1.0/v110-21-20260930-final/routes/$SiteId-route-oracle.json"
-if ((Get-Hash $publishedOracle) -cne $oracleHash) {
-    Fail 'route oracle differs from the published bundle; original builds cannot be skipped.'
+$baselineOracle = Join-Path $repo "tests/fixtures/migration-route-oracles/$SiteId-route-oracle.json"
+if ((Get-Hash $baselineOracle) -cne $oracleHash) {
+    Fail 'route oracle differs from the checked-in fixture; original builds cannot be skipped.'
 }
 
 if ([string]::IsNullOrWhiteSpace($ToolPath)) {

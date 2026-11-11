@@ -14,7 +14,7 @@ internal sealed class GenerationOptionsAnalysis
     internal static readonly DiagnosticDescriptor Rule = new("LSA1005", "Invalid site generation option",
         "Every known value of '{0}' violates the SiteGenerator.GenerateWithOptionsAsync runtime contract",
         "LithoSharp", DiagnosticSeverity.Error, isEnabledByDefault: true,
-        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa1005");
+        helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa1005");
     private readonly IMethodSymbol method;
     private readonly IMethodSymbol constructor;
     private readonly IPropertySymbol property;

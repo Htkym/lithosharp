@@ -4,7 +4,7 @@
 
 ## Typed content and the Docs shell
 
-The next minor candidate's `docs` project template uses `GuideFrontMatter`,
+The LithoSharp 2.2.0 `docs` project template uses `GuideFrontMatter`,
 `Guides.Binder`, generated catalog routes and `RenderDocs`; it no longer needs
 Blog-style dates. See [Quick Start](quickstart.md) for the exact generated files,
 input rules, Quality setting and commands. Existing sites keep their reader and

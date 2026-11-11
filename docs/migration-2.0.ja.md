@@ -2,27 +2,16 @@
 
 [English](migration-2.0.md)
 
-このガイドでは2.2.0と、2.1.3のDocs readerから型付きDocsへの任意の移行を説明します。
-[Quick Start](quickstart.ja.md)を実行する前にパッケージの公開状況を確認してください。
-公開前の検証では、提供された固定候補バージョンとfeedを使います。パッケージの版は2.2.0、
-対応する拡張の版は0.4.0です。Coreと拡張は別々に公開されるため、NuGetの公開によって
-拡張がMarketplaceへ公開されるわけではありません。
+このガイドはLithoSharp 2.2.0への更新と、2.1.3のDocs readerから型付きDocsへの任意の移行を説明します。VS Code拡張のバージョンは0.4.0です。
+導入方法は[Quick Start](quickstart.ja.md)を参照してください。
 
 0.xのサイトでは[更新履歴の資料](history/README.md)で過去の挙動と依存関係の変更も確認してください。履歴には当時のバージョンに向けた手順を残しています。今回の更新先は2.2.0にそろえます。初回は新しいディレクトリへ生成し、出力を比較してから配置してください。
 
 ## バージョンの指定
 
-一つ前の安定版は2.1.3です。その構成を維持する場合は同じバージョンでそろえます。
-新しい型付きDocsには、選択したパッケージ、Tool、Templatesを同じ2.2.0で
-そろえてください。拡張は別の公開系列です。
+利用するパッケージ、Tool、Templatesは2.2.0にそろえてください。生成プロジェクトの既定値も2.2.0です。既存プロジェクトを更新する場合は、`LithoSharpVersion`を2.2.0に変更し、ToolとTemplatesも更新します。旧1.1.0のToolに`preflight`と`migrate testing`は含まれません。
 
-候補feedと固定バージョンが提供されている場合は、そのバージョンのCore、MDX、Tool、Testing、Generatorsなどをそろえて利用します。追加するAnalyzersとCodeFixesも同じ候補バージョンを使います。候補のsuffixを含む実際のバージョンと、projectに記載した基準バージョン`2.2.0`を区別してください。公開済みと仮定して番号を指定しないでください。
-
-このcheckoutのtemplateの既定参照は基準バージョン`2.2.0`です。候補feedで生成したprojectを使う場合は、既存の`LithoSharpVersion`プロパティに実際の候補版を指定してrestoreします。Toolのインストールにも同じ固定版と候補feedのNuGet設定を使ってください。旧1.1.0のToolに以下のコマンドは含まれません。
-
-Markdownのruntime依存には独立した[Syntamark](https://github.com/Htkym/syntamark)を使い、Generators／Analyzersは対応するsource由来のコードを組み込みます。候補feedにはその候補が指定したSyntamark runtimeも必要です。利用者のアプリへSyntamark.Sourceを直接追加する必要はありません。runtimeとsourceの固定pairを別々のバージョンに入れ替えたり、LithoSharpの候補版へ付け替えたりしないでください。Markdownの対応構文とMDXの必要環境は[既知の制約](known-limitations.ja.md)を参照してください。
-
-LithoSharp 2.1.3と2.2.0では、NuGetで公開済みのSyntamark 1.2.0のruntime／Sourceペアを使います。両方を同じ固定バージョンで使用してください。[公開元の記録](../eng/markdown/release-provenance.json)にソースの識別情報とパッケージのハッシュを記載しています。既定のprofileは`lithosharp-markdown/1`です。この依存更新はCommonMarkの選択やMDX本文解析の置き換えではありません。
+Markdownのruntimeは[Syntamark](https://github.com/Htkym/syntamark) 1.2.0を使い、GeneratorsとAnalyzersは対応するSourceを組み込みます。アプリケーションからSyntamark.Sourceを直接参照する必要はありません。既定のprofileは`lithosharp-markdown/1`です。CommonMarkの選択やMDX本文解析の置き換えではありません。対応する構文と必要な環境は[既知の制約](known-limitations.ja.md)を参照してください。
 
 Generatorとsplitterのheader走査には、本文解析とは別の`frontmatter-scan/1`を使います。`ScanFrontMatter`は閉じ区切りの後の本文を解析せず、1 Mi UTF-16コード単位のheader上限にも本文を含めません。`Closed`が確定するのは区切りとheaderのUnicodeであり、YAMLとスキーマの検査は引き続きLithoSharpが行います。入力や解析資源の問題による`Unknown`は、Generatorで`LSG002`、runtimeで`LSM013`となり、headerの不存在や確定した未閉鎖として扱いません。headerの結果には本文の解析情報や文書ハッシュは含まれません。manifestのfingerprintは別途元の入力全体を対象とし、本文のUnicodeが不正な場合は取得できません。
 
@@ -32,7 +21,7 @@ postとcollectionのMarkdown本文は、最終解析時に1 Mi UTF-16コード�
 
 ## 既存Docsを型付きコンテンツへ移す
 
-次期マイナーバージョンの候補では、新しく作成する`docs`プロジェクトを変更します。
+2.2.0では新しく作成する`docs`プロジェクトを変更しました。
 既存サイトは自動で変わりません。`MarkdownPostReader`のスキーマとルートが用途に合えば
 維持できます。作業中のプロジェクトへテンプレートを上書きしないでください。
 テンプレートのファイルを参考に、ブランチ上で必要な変更を選び、最初は別の出力先へ生成します。
@@ -63,7 +52,7 @@ redirectを検討します。
 変更前後のルート、ナビゲーション、必須metadata、HTMLの見出しとリンク、資産、独自CSSを
 比較してください。配布前に、新しい出力へ[DocsのCI手順](quickstart.ja.md#このdocsプロジェクトのci)を
 適用します。変更を選ぶ場合を除き、既存のQuality閾値、抑制、外部リンク方針は維持してください。
-新しいfactoryの明示設定は、Core全体の既定値を変えるものではありません。MarkdownにNodeは
+新しいfactoryの明示設定はCore全体の既定値を変えるものではありません。MarkdownにNodeは
 不要ですが、MDXを加える場合は明示的なworker設定が必要です。
 adapterは[Docsの設定](docs-template.ja.md)、出力を比較する範囲は[互換性契約](compatibility-contract.ja.md)を参照してください。
 
@@ -103,7 +92,7 @@ HTMLのsnapshot、品質検査、対応する静的URL診断には、対応範�
 
 `LithoSharp.Analyzers`は任意で導入するcompiler packageです。登録済みAPIの確定した誤用、対応するHTML補間contextとliteral URL、検証済みcatalogへの参照を検査します。不存在の確定にはfreshなClosed scopeが必要で、Open／Stale／Unknownや未対応の値を推測しません。診断がないことは、site全体のリンク・anchor・資産が検証済みであることを意味しません。coverage方針の`LSA9001`は明示opt-inです。
 
-公開済みの2.1.3を維持する場合は生成projectの`LithoSharpVersion`を`2.1.3`に設定し、候補feedを使う場合は実際の候補版を指定します。診断を利用するprojectの`ItemGroup`へ次を追加してください。
+プロジェクトの`LithoSharpVersion`を`2.2.0`に設定します。診断を利用するprojectの`ItemGroup`へ次を追加してください。
 
 ```xml
 <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />

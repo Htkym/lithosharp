@@ -14,7 +14,7 @@ internal sealed class StaticCoveragePolicy(Compilation compilation)
 {
     internal static readonly DiagnosticDescriptor Rule = new("LSA9001", "Requested static coverage is unverified",
         "The requested {0} static coverage remains {1} ({2})", "LithoSharp", DiagnosticSeverity.Error,
-        isEnabledByDefault: false, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/feature/2.0.0/src/LithoSharp.Analyzers/README.md#lsa9001",
+        isEnabledByDefault: false, helpLinkUri: "https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md#lsa9001",
         customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
     private sealed record Key(SyntaxTree Tree, TextSpan Span, string Scope);
     private sealed record Root(SyntaxTree Tree, TextSpan Span);

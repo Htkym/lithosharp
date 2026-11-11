@@ -50,7 +50,7 @@ Markdownの解析に必要な情報を確定できませんでした。不正な
 
 ## LSG005
 
-Source Generatorが、登録された`AdditionalFiles`でYAMLの不正や未知のフィールドをコンパイル時に検出しました。元のヘッダーの構造、キー、スキーマに対するフィールド名を直してください。生成物は編集しません。
+Source Generatorが登録された`AdditionalFiles`でYAMLの不正や未知のフィールドをコンパイル時に検出しました。元のヘッダーの構造、キー、スキーマに対するフィールド名を直してください。生成物は編集しません。
 
 修正後に`dotnet build <project>`を実行します。対象は宣言されたコンパイラー入力です。動的に読み込むコンテンツ、constructorが設定する既定値、最終HTMLはこの結果では確定しません。[Generatorの診断仕様](source-generators.md#diagnostics-and-dynamic-content--診断と動的コンテンツ)は日英併記です。
 

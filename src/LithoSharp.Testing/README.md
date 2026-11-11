@@ -2,13 +2,10 @@
 
 Check the documentation site your .NET build actually produces. Generate sites inside ordinary .NET tests, without starting a development server. Combine content/schema compilation with output, route and DOM assertions; use any test framework. Assertion failures throw `SiteTestException`.
 
-This checkout targets the next 2.2 candidate, not a published release. Use the
-exact supplied candidate version and feed; set `LithoSharpVersion` to that value
-for XML examples and replace `<candidate-version>` in commands. The published
-stable baseline is 2.1.3; do not mix that line with candidate packages.
+Use LithoSharp 2.2.0 for this package and the other LithoSharp packages in your project.
 
 ```sh
-dotnet add package LithoSharp.Testing --version <candidate-version>
+dotnet add package LithoSharp.Testing --version 2.2.0
 ```
 
 Keep the selected LithoSharp packages at matching versions. HTML parsing itself

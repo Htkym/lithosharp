@@ -1,15 +1,10 @@
 # LithoSharp.Generators
 
 Connect your .NET documentation schema to generated binders, catalogs and typed references during C# builds. These Roslyn incremental generators inspect explicitly declared static Markdown collections; missing required fields are compiler diagnostics rather than a late layout failure.
-Reference `LithoSharp` normally, then add this package as a private analyzer:
-
-This checkout targets the next 2.2 candidate, not a published release. Use the
-exact supplied candidate version and feed; set `LithoSharpVersion` to that value
-for XML examples and replace `<candidate-version>` in commands. The published
-stable baseline is 2.1.3; do not mix that line with candidate packages.
+Use matching LithoSharp 2.2.0 packages. Reference `LithoSharp` normally, then add this package as a private analyzer:
 
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="$(LithoSharpVersion)" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="2.2.0" PrivateAssets="all" />
 ```
 
 Declare a top-level, nongeneric `static partial` class with
@@ -81,13 +76,17 @@ The compiler fingerprint records original C# and AdditionalText buffers, relevan
 
 ## Markdown parsing
 
-The generator compiles the portable source from the fixed Syntamark.Source pair selected by `Directory.Build.props`, with YamlDotNet 18.1.0 in its analyzer payload. The generator uses the published `1.2.0` runtime/Source pair from NuGet. `SyntamarkSourceVersion` must match the selected runtime/source pair; a mismatch fails the build. Core and the Syntamark runtime DLL are not loaded into the compiler host. See the [current version and body-analysis limits](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
+The generator uses the Syntamark 1.2.0 Source artifact and YamlDotNet 18.1.0.
+It does not load the Core or Syntamark runtime DLL into the compiler host.
+See the [version and body-analysis limits](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
 
-The actual `StaticContentGenerator` path passes the original immutable AdditionalText buffer to `MarkdownSourceHostAdapter`, verifies the parser/profile/options identity, and calls `ScanFrontMatter`. Its separate `frontmatter-scan/1` result contains raw header ranges and status, with no body facts, YAML tree, document hash or full-analysis coverage. It stops recognizing input at a closing delimiter, so malformed, deeply nested or oversized bodies do not consume the header budget. The default header input limit is 1,048,576 UTF-16 code units; cancellation propagates.
-
-`Closed` establishes header delimiters and Unicode, not valid YAML or schema. Existing YamlDotNet validation reads the original `YamlSpan`, excluding delimiter lines, and reports `LSG005/006` in the original BOM/CRLF-aware UTF-16 coordinates. `Unknown` or missing required ranges report `LSG002` and keep the generated lookup Open; known absence or confirmed EOF untermination retains its existing strict diagnostic. No separate normalized buffer or local boundary scanner is used.
-
-The manifest fingerprint still covers the original input independently. Invalid body Unicode can leave that fingerprint unavailable even when header/schema validation succeeds, so this does not certify a Closed lookup or validate the body. The compatibility full-facts adapter remains separate from the header-only path.
+The header-only `frontmatter-scan/1` analysis stops at a closing delimiter. Its
+1,048,576 UTF-16-code-unit header limit excludes the following body. `Closed`
+establishes header delimiters and Unicode, not YAML/schema validity or body validity.
+YAML/schema errors are `LSG005/006`; unavailable header analysis is `LSG002` and
+keeps the generated lookup Open. Original BOM/CRLF-aware locations are retained.
+Invalid body Unicode can also leave the manifest fingerprint unavailable even
+when header/schema validation succeeds, so it does not establish a Closed lookup.
 
 ## Fixed full HTML plans
 

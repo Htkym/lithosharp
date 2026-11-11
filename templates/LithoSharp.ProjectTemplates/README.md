@@ -1,22 +1,16 @@
 # LithoSharp project templates
 
-Start documentation managed with C# types and builds. The next candidate's
+Start documentation managed with C# types and builds. The 2.2.0
 `docs` template connects a custom schema, generated binder/catalog and typed
 references to Docs navigation and explicit output quality checks.
 
-This checkout is not a published release. Configure the supplied candidate feed,
-replace `<candidate-version>` with its exact version and set the generated
-project's `LithoSharpVersion` to match before restoring. The published 2.1.3 Docs
-template retains the previous reader-based starting point.
-
-Install the candidate with `dotnet new install LithoSharp.ProjectTemplates::<candidate-version>`
+Install the published template package with `dotnet new install LithoSharp.ProjectTemplates::2.2.0`
 and create a site with `dotnet new lithosharp-docs`, `dotnet new lithosharp-blog`,
 `dotnet new lithosharp-empty`, or `dotnet new lithosharp-mdx`.
 
 ```sh
 dotnet new lithosharp-docs -n MyDocs -o MyDocs
-dotnet tool install LithoSharp.Tool --version <candidate-version> --tool-path .tools
-# Before building, set MyDocs/MyDocs.csproj LithoSharpVersion to the same candidate
+dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```
@@ -26,8 +20,7 @@ site, `blog` uses the Blog template, `empty` demonstrates a custom C# layout, an
 `mdx` adds the optional MDX worker setup. Generated projects export an
 `ISiteFactory` that the CLI compiles and runs as trusted site code.
 
-Templates target .NET 10. For a candidate feed,
-set `LithoSharpVersion` to its exact candidate version. MDX additionally requires
+Templates target .NET 10 and use LithoSharp 2.2.0 by default. MDX additionally requires
 Node.js 24.13.0 and explicit worker restore. See the
 [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md)
 for build, serve and interactive component examples.

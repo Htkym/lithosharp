@@ -50,7 +50,7 @@ they are not inferred capabilities of a selected project or the language server.
 
 ### Tool-only Preview capabilities
 
-Tool 2.1.3 and later, including the 2.2.0 candidate, advertise these commands as Preview capabilities.
+Tool 2.2.0 advertises these commands as Preview capabilities.
 
 | name | scope | Meaning |
 | --- | --- | --- |

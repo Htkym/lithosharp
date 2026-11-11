@@ -29,13 +29,6 @@
     "SiteTestHost"
   ],
   "removedSignature": "LithoSharp.Testing.SiteTestDocument.Document.get -> AngleSharp.Dom.IDocument!",
-  "newSignaturesSource": "src/LithoSharp.Testing/PublicAPI.Unshipped.txt",
-  "historicalShippedBaselinePreserved": true,
-  "incompleteHtml": "Partial/Failed parsing is rejected, not promoted to Complete.",
-  "outOfScope": [
-    "Static migration CLI",
-    "LSA1501 analyzer",
-    "Whole-product dependency-zero gate",
-    "Release/package-version gates"
-  ]
+  "newSignaturesSource": "src/LithoSharp.Testing/PublicAPI.Shipped.txt",
+  "incompleteHtml": "Partial/Failed parsing is rejected, not promoted to Complete."
 }
