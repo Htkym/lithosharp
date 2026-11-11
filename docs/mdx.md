@@ -301,5 +301,5 @@ explicitly for large inputs.
 `LSMDX005` indicates input changes during compilation; `LSMDX006` indicates a
 forbidden document import. Source diagnostics retain original front-matter line
 offsets. A timeout, cancellation or worker crash does not publish partial output.
-Lockfile updates require explicit restore and renewed package/browser tests.
+After changing worker dependencies, explicitly restore them and check the generated site.
 Generated third-party notices accompany bundled dependencies.
