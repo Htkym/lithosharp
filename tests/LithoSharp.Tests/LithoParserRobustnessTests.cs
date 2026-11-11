@@ -238,7 +238,8 @@ public sealed class LithoParserRobustnessTests
                 count++;
             }
 
-        await Assert.That(count).IsEqualTo(35);
+        // The corpus harness README was documentation, not a parser fixture.
+        await Assert.That(count).IsEqualTo(34);
     }
 
     private static string RepoRoot()
