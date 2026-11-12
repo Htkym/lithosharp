@@ -24,7 +24,7 @@ jobs:
       vsix-sha256: ${{ steps.manifest.outputs.vsix-sha256 }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-dotnet@v6.0.0
+      - uses: actions/setup-dotnet@v6.1.0
         env:
           DOTNET_INSTALL_DIR: ${{ runner.temp }}/lithosharp-dotnet-10.0.401
         with:
@@ -134,7 +134,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-dotnet@v6.0.0
+      - uses: actions/setup-dotnet@v6.1.0
         env:
           DOTNET_INSTALL_DIR: ${{ runner.temp }}/lithosharp-dotnet-10.0.401
         with:
