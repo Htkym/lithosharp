@@ -74,7 +74,7 @@ foreach (var (id, input) in cases)
 
 var generator = new SiteGenerator();
 const string smallMarkdown = "## Shared\n\nBody text.";
-var render = typeof(SiteGenerator).GetMethod("RenderMarkdown", BindingFlags.Instance | BindingFlags.NonPublic)!;
+var render = typeof(SiteGenerator).GetMethod("RenderMarkdown", BindingFlags.Instance | BindingFlags.NonPublic, [typeof(string)])!;
 var html = (string)render.Invoke(generator, new object[] { smallMarkdown })!;
 Check(html.Contains("<h2", StringComparison.Ordinal) && html.Contains("id=\"", StringComparison.Ordinal)
     && html.Contains("Body text.", StringComparison.Ordinal), "Existing compiler output changed.");

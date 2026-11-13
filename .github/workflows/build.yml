@@ -80,7 +80,9 @@ jobs:
           node-version: 24.13.0
 
       - name: Verify immutable Markdown component pair
-        run: node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
+        run: |
+          node --test eng/markdown/Verify-FixedPair.test.mjs
+          node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
 
       - name: Verify development version matrix
         shell: pwsh
@@ -131,6 +133,18 @@ jobs:
 
       - name: Build
         run: dotnet build LithoSharp.slnx --no-restore --configuration Release
+
+      - name: Check actual runtime and Source consumers
+        shell: pwsh
+        run: ./eng/markdown/Test-FixedPairConsumers.ps1
+
+      - name: Preserve runtime and Source consumer evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: markdown-pair-consumers-${{ matrix.os }}-${{ github.run_attempt }}
+          path: artifacts/markdown-pair-consumers/**/*.json
+          if-no-files-found: ignore
 
       - name: Check bundled language server and editor units
         shell: pwsh
