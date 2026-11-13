@@ -10,14 +10,14 @@ Both the source collection's `IsCacheable` declaration and the renderer fingerpr
 
 With `clean: false`, the cache is reusable only after node keys, artifact declarations, staged bytes, and any required rendered body pass verification. Corrupt, incomplete, or mismatched entries fall back to regeneration. The cache never authorizes deletion. An immutable cache record is saved first; its digest is published in the output manifest by the existing output transaction. A failed build leaves the previous output and its pointer intact. Non-no-op builds copy existing output into staging and verify files; a verified full no-op may verify the published tree in place and skip the staging copy.
 
-`SiteBuildReport.Nodes` exposes each node's `CacheHit` and `CacheMissReason`; the report provides `CacheHitCount` and `CacheMissCount`. Generated and skipped artifact lists distinguish execution from reuse. `GeneratedFiles` still lists all published artifacts for compatibility. Legacy opaque templates execute eagerly without page caching. Social images fingerprint the selected fonts and SkiaSharp runtime; if that identity cannot be obtained, they are regenerated.
+`SiteBuildReport.Nodes` exposes each node's `CacheHit` and `CacheMissReason`; the report provides `CacheHitCount` and `CacheMissCount`. Generated and skipped artifact lists distinguish execution from reuse. `GeneratedFiles` still lists all published artifacts for compatibility. Legacy opaque templates execute eagerly without page caching. Explicit image transforms include their input bytes, processing configuration, implementation identity and output metadata in their cache contract. Missing or incompatible metadata causes regeneration; Core does not discover fonts or run implicit social-image processing.
 
 Asset transforms resolve fingerprinted routes before the page plan. Their own cache remains controlled by `AssetCacheDirectory`; null disables it. A transform that ran is reported as a miss even if its bytes match the previous output. Input validation still runs on transform cache hits. Optional cache write failures fall back to the current build's in-memory results; required output writes still fail the build and retain the old output. Cache records accumulate outside output; report them with `SiteGenerator.MeasureCache` (`lithosharp cache info -o <directory>`) and reclaim one output's partition with `SiteGenerator.ClearCache` (`lithosharp cache clean -o <directory>`). Both commands share the per-output build lock, so they do not inspect or remove a live partition. The MDX bridge cache also removes worker scratch and partial writes older than a day on the next preparation, so a killed host cannot leave them behind forever.
 
 ## Markdown analysis reuse
 
 Persistent body-cache identity includes the Syntamark parser stamp, loaded
-runtime module identity, `lithosharp-markdown/1` profile, effective body options,
+runtime module identity, the explicitly selected Markdown profile, effective body options,
 and LithoSharp's compiler/rendering policy. Updating the parser cannot silently
 reuse a body result from the previous implementation.
 
@@ -29,12 +29,32 @@ result. Input/resource failures remain error evidence and stop publication;
 they are not successful empty parses. The compiler, editor and build are
 separate hosts and do not share a cross-process AST.
 
-Selecting only needed analysis facts reduces derived work; it is not incremental
-syntax parsing. A header-only scan proves header boundaries, not body validity.
+Selecting only needed analysis facts reduces derived work; it is separate from
+the native incremental session. The editor's document session and transformed-body
+session retain distinct source/options identities, apply edits in sequence and
+discard older-generation results. A header-only scan proves header boundaries,
+not body validity.
 Likewise a reusable final-HTML facts record is not a cached site-quality verdict:
 site-wide links and routes are checked against the current build. See
 [typed Markdown loading](typed-markdown-collections.md#code-inclusions-and-body-analysis)
 and [site quality checks](site-quality.md).
+
+The persistent body cache stores layout-independent HTML and semantic information.
+Site-dependent heading normalization and external-link attributes are applied
+for each generation. Results containing component placeholders or diagnostics are
+not stored in this body cache. `clean: true` reruns build nodes but does not discard
+an independently validated body-cache entry.
+
+Typed-page cache records separately retain Markdown diagnostic outcomes. A valid
+hit restores them without invoking the renderer. An explicitly checked empty
+outcome differs from an unknown or missing outcome; missing, corrupt or incompatible
+records cause regeneration. Unavailable analysis stops publication and preserves
+the previous output and cache pointer.
+
+Source-map evidence can connect transformed Markdown and included code to the
+original file, with the include directive retained as a related location. Exact
+or covering-token mappings are distinguished from partial or unknown mappings.
+Do not assign an original line/column when that correspondence cannot be verified.
 
 ## Cacheable renderer example
 

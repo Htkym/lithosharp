@@ -2,23 +2,29 @@
 
 [English](golden-path.md)
 
-以下はLithoSharp 2.2.0と拡張0.4.0の手順です。依存関係の復元とプロジェクトの実行が必要な段階を説明します。既存サイトの更新は[更新手順](migration-2.0.ja.md)を参照してください。
+次の手順はLithoSharp 3.0.0と拡張0.5.0を対象にしています。
+インストール前に[バージョン一覧](../eng/version-matrix.json)を確認してください。候補の検証はパッケージの正式公開を証明しません。
+各手順で、依存関係を復元する時点とプロジェクトのコードを実行する時点を説明します。
+既存サイトでは[移行案内](migration-3.0.ja.md)に従ってください。
 
-## Markdown-onlyのsite
+## Markdownだけのサイト
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
 ```
 
-新規DocsはC#スキーマ、生成Binder・Catalog、型付き参照、`RenderDocs`を使います。QualityはError閾値で明示的に有効にし、外部HTTP検査は無効です。入力の編集、検査、CIは[Quick Start](quickstart.ja.md)にまとめています。
+新規のDocsはC#スキーマ、生成されたバインダーとカタログ、型付き参照、`RenderDocs`を使います。
+QualityはErrorを閾値として明示的に有効化し、外部HTTP検査は行いません。
+編集方法、検査コマンドの対象範囲の表、Docs用の1つのCI手順は[Quick Start](quickstart.ja.md)を参照してください。
+プロジェクトのビルドでNuGetの依存関係を復元する場合があります。Node.jsは不要です。
+`serve`は子プロセスでビルドし、プロジェクトディレクトリを監視してループバックで配信します。
+詳しくは[Quick Start](quickstart.ja.md)を参照してください。
 
-projectのbuildではNuGetの依存関係が復元される場合があります。Node.jsは不要です。`serve`は子processでbuildし、project directoryを監視してloopbackで配信します。
-
-## MDXのsite
+## MDXサイト
 
 ```sh
 .tools/lithosharp new mdx MyMdx -o MyMdx
@@ -28,9 +34,13 @@ dotnet build MyMdx -c Release
 .tools/lithosharp serve MyMdx -c Release --port 4317
 ```
 
-npm依存を入れるのは`restore-mdx`だけです（package済みlockfileからの`npm ci --ignore-scripts --no-audit --no-fund`）。buildがnpm packageを入れることはありません。信頼できるMDXだけをbuildしてください。TypeScriptは変換のみで、型検査は行いません。
+npmの依存関係をインストールする手順は`restore-mdx`だけです。
+パッケージに含めたlockfileから`npm ci --ignore-scripts --no-audit --no-fund`を実行します。
+ビルドがnpmパッケージをインストールすることはありません。信頼して実行できるMDXだけをビルドしてください。
+MDXやコンポーネントのコードは、信頼して実行するビルドコードとして動作します。
+TypeScriptはトランスパイルしますが、型検査は行いません。
 
-## 既存projectの更新
+## 既存プロジェクトの更新
 
 ```sh
 dotnet restore MySite
@@ -38,26 +48,39 @@ dotnet restore MySite
 .tools/lithosharp check-output --output MySite/dist --base-url https://example.com/guide/ --format json
 ```
 
-`build`はprojectをcompileしてから設定された出力先へ増分生成します。`check-output`はその配布対象を読み取り専用で検査します。実際の出力先と公開URLを指定してください。現在の原稿との一致は保証しません。`check`は一時出力へ再生成して検証し、公開しません。詳しくは[生成済み成果物の検査](generated-output-checks.ja.md)を参照してください。`clean`はLithoSharpが所有する未変更の成果物だけを削除し、cacheは削除しません。`cache clean -o <directory>`を使うと、1つの出力先の区分だけを明示的に削除できます。
+`build`は最初にプロジェクトをコンパイルし、設定した出力先に増分生成します。
+`check-output`はその既存の配布物を検査します。実際の出力パスと公開時のベースURLを指定してください。
+ソースの最新性を証明するものではありません。`check`は一時出力へ生成して検証し、公開はしません。
+詳しくは[既存出力の検査](generated-output-checks.ja.md)を参照してください。
+`clean`は所有している未変更の成果物だけを削除し、キャッシュは削除しません。
+`cache clean -o <directory>`で、1つの出力パーティションを明示的に回収します。
 
 ## VS Code拡張機能
 
-[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールします。
+[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールしてください。
 
 ```sh
 code --install-extension htkym.lithosharp
 ```
 
-同梱の言語サーバーには.NET 10ランタイム、ビルドには.NET 10 SDKとLithoSharp.Tool 2.2.0を用意します。`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。MDX診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要です。未信頼のワークスペースでは検出だけが動作します。設定と対処方法は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照してください。
+同梱の言語サーバーには.NET 10ランタイムを、ビルドには.NET 10 SDKとLithoSharp.Tool 3.0.0をインストールしてください。
+`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`を実行します。
+MDXの診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要です。
+未信頼のワークスペースで利用できるのは検出だけです。
+設定と問題への対処は[拡張機能のガイド](../extensions/lithosharp-vscode/README.ja.md)を参照してください。
 
-## multi-rootのworkspace
+## マルチルートのワークスペース
 
-ワークスペースへ各フォルダーを一度ずつ追加します。`LithoSharp: Select Project`はworkspace folderとproject pathの組でprojectを保持し、同名のprojectを区別します。projectごとにserveの状態管理とpreview panelを持ち、1つを停止しても他のprocessには影響しません。言語sessionはfolderごとにMarkdown/MDX文書を結び付け、診断がprojectを跨ぐことはありません。
+各フォルダーを一度ずつ追加してください。
+`LithoSharp: Select Project`はワークスペースフォルダーとプロジェクトパスの組ごとに1つのプロジェクトを保存し、同名のプロジェクトも区別します。
+各プロジェクトは配信の状態管理とプレビューパネルを自身で持ち、1つを停止しても別のプロジェクトのプロセスには触れません。
+言語セッションはフォルダーごとにMarkdown/MDX文書を接続し、診断がプロジェクトをまたぐことはありません。
 
-## 実行境界
+## 実行の境界
 
-- `build`、`serve`、`check`は選択したprojectを`dotnet build`でコンパイルします。この処理で設定済みfeedからNuGetパッケージを復元する場合があります。project codeとMSBuild taskは信頼するコードとして実行します。
-- npm依存のインストールはMDX workerの`restore-mdx`と、利用者が移行元サイトなどの依存関係を明示的に復元するときに行います。
-- `build`、`serve`、`check`、エディター入力によるnpmの自動restoreはありません。エディターは入力のたびにMSBuildやsite factoryを実行しません。移行時にJavaScript設定を実行せず、拡張機能はテレメトリーを収集しません。
+- .NETの復元とビルド: `build`、`serve`、`check`は選択したプロジェクトを`dotnet build`でコンパイルします。この処理で設定したフィードからNuGetパッケージを復元する場合があります。プロジェクトのコードとMSBuildタスクは、信頼して実行する入力です。
+- npmのインストール: MDX workerの`restore-mdx`と、サードパーティーのサイトの復元だけです。
+- `build`、`serve`、`check`、エディターのキー入力でnpmを自動復元することはありません。エディターはキー入力のたびにMSBuildやサイトファクトリを実行しません。移行でJavaScript設定を実行することはなく、拡張機能はテレメトリーを収集しません。
 
-C#スキーマ、生成した参照、エディター、生成物検査を順に試すには[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)を使います。コンパイル時に確定できる範囲、実行時の検査、文脈不足で検証できない状態を区別し、不正な例は通常のコンテンツから分離しています。
+型付きC#スキーマ、生成された参照、エディター、出力検証の流れは[Docsサンプルの手順](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)に従ってください。
+コンパイル時の証明、実行時の検査、利用できないコンテキストを区別し、意図的に不正にした例は通常のサイト入力の外に置いています。

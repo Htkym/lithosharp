@@ -1,0 +1,2213 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "001d2f60af8b7e99f3a88368a6edfb454eb49364a20d7bff8aeddfab8869fe6c": {
+      "english": "The posts to search.",
+      "japanese": "検索対象の記事。"
+    },
+    "003feb6648717ee64586a611097d505ead439af288b33271fc9c0d797ef5cff6": {
+      "english": "Asset producers are outside this route lookup universe.",
+      "japanese": "アセットの生成処理はこのルート検索の対象集合に含まれません。"
+    },
+    "0091adf402a0ad00036435d25515cca1d987e9ef99822ef8e9459dacb0531d02": {
+      "english": "A named author shared by blog posts and generated author listings.",
+      "japanese": "ブログ記事と生成する著者一覧で共有する、名前付きの著者。"
+    },
+    "0091c5f03a84dbe517c56800076e90eeb56f95fcb3f48abaaea166cb366fb6ae": {
+      "english": "Name of the source.",
+      "japanese": "ソースの名前。"
+    },
+    "00a931d6d6bd49ee69e89797e78817182897cedd64912a4eb013909feeb2e58b": {
+      "english": "The string to convert.",
+      "japanese": "変換する文字列。"
+    },
+    "00f223c9e5bc46ee3a61be69f6e19840a97d0b27a3997c73cfbdf5db03ca9e54": {
+      "english": "The exclusive publication end.",
+      "japanese": "公開期間の終了。この時刻は公開期間に含みません。"
+    },
+    "00f8f79aa98766b89244bcf6c132dd88f4ca6e9f5463be8743b406ad9b817a43": {
+      "english": "Stores explicitly acquired results; construction does not run MSBuild or a factory.",
+      "japanese": "明示的に取得した結果を保存します。構築時にMSBuildやfactoryを実行しません。"
+    },
+    "02713100f8c4cefdcac256ceb2c01ab287f3082c02d0edf4f46b469a44722e14": {
+      "english": "Node's heap-used snapshot after compilation; zero when no worker response was needed.",
+      "japanese": "コンパイル後に取得したNodeのヒープ使用量。workerの応答が不要だった場合は0です。"
+    },
+    "028aa16d84b244a6717291e78936226ad09b9ff35b376fafb962dc9195cd94eb": {
+      "english": "The public path is blank.",
+      "japanese": "公開パスが空白です。"
+    },
+    "02d40bfbb6d697a88e2583bf54c2625c87a28e0d0628f5c54df429b4849d029a": {
+      "english": "Built-in template for documentation with directory navigation.",
+      "japanese": "ディレクトリによるナビゲーションを備えた、文書用の組み込みテンプレート。"
+    },
+    "032b4cf35add19ca9bf4529ca2b2539c8863b5e97b2e85c5ffcafc53edf557d0": {
+      "english": "Symbol data indexed by exact XML ID.",
+      "japanese": "正確なXML IDをキーとするシンボル情報。"
+    },
+    "03368d5871c898a603331a3d7ecd2b4752d723fe34c259a7044686f6014c67ac": {
+      "english": "Uses official MDX for .mdx and .md. False uses the existing Markdown renderer without Node.",
+      "japanese": ".mdxと.mdに公式MDXを使用します。falseの場合は、Nodeを使わずに既存のMarkdownレンダラーを使用します。"
+    },
+    "03409318b07669a09d604b8b6ed4ce23c90380753e0434f63d24561d4f6aee5c": {
+      "english": "Cancels reading and inspection.",
+      "japanese": "読み取りと検査を中止します。"
+    },
+    "037928f20a54c41d7b44504e3cd37195a9ed74091ed9f9723433a544d1468c43": {
+      "english": "Markdown body.",
+      "japanese": "Markdownの本文。"
+    },
+    "03c249b9dbb4305f197a1522dee56bf9f2122d4b912072a58e508b202973d5f2": {
+      "english": "Search status template when browsing posts of a tag. Placeholders: {0}, {1}.",
+      "japanese": "タグの記事を閲覧しているときの検索状態テンプレート。プレースホルダーは{0}と{1}です。"
+    },
+    "04ea0641186c44c34e430e97828d3a294cf70bd3e2c77e97fa88ac276d9ed2c7": {
+      "english": "Creates a catalog with a declared discovery root and input policy.",
+      "japanese": "宣言した探索ルートと入力ポリシーを持つカタログを作成します。"
+    },
+    "04ea8f031eacfea3ab42d3a151b245e5f9551cc24321f13e3a3cc6c12689704f": {
+      "english": "Migration assumptions the caller states explicitly.",
+      "japanese": "呼び出し側が明示する移行の前提。"
+    },
+    "055d2790060bdb3fbb3e51d1e4b97b566a5fb2299a26f0aa67db21076f48be83": {
+      "english": "Optional CSS appended to the end of the default theme stylesheet. Because it wins the cascade, it can override {0} variables and selectors, so colors and fonts can be swapped without touching the default markup. Nothing is appended when it is empty (the default).",
+      "japanese": "既定テーマのスタイルシートの末尾に追加する、任意のCSS。カスケードで優先されるため、{0}の変数とセレクターを上書きし、既定のマークアップを変更せずに配色やフォントを変更できます。既定値の空文字列の場合は何も追加しません。"
+    },
+    "0673fb447e1cca764dd48917b79e4f9d372c1ebc1b62bcf34341db1ea33516e8": {
+      "english": "Compares with the previous validated plan; results are ordered by ordinal node ID.",
+      "japanese": "検証済みの前回の計画と比較します。結果はノードIDの序数順に並びます。"
+    },
+    "068706d6499b18ad2ec91fe9e4853bfd16d5118cdd29d63c913d479c3544ca0a": {
+      "english": "Search status template when a query has no match. Placeholder: {0}.",
+      "japanese": "クエリに一致する結果がないときの検索状態テンプレート。プレースホルダーは{0}です。"
+    },
+    "0694845a80da24a17f5bebd3a8c30e9649061e4b6c406eda5bebde5a89ccbd07": {
+      "english": "HTML text encoded for element content.",
+      "japanese": "要素の内容向けにエンコードされたHTMLテキスト。"
+    },
+    "06990269bd45cf27b616362563904fb7a593e97bfeef3a570b0183bf2c4afe75": {
+      "english": "Core descriptor rendered without decoding.",
+      "japanese": "デコードせずに描画するCoreの記述情報。"
+    },
+    "06c6a3af73d8f910ceb72ca8c6ec05c75b12afcd6f9c0fd90eb5939fe26afabe": {
+      "english": "Pairs the normalized public URL path with its slash-separated, output-root-relative file path.",
+      "japanese": "正規化した公開URLパスと、出力ルートからの相対ファイルパスを対応付けます。ファイルパスはスラッシュで区切ります。"
+    },
+    "07353cf9b33974257b7690bd8a943f36607026ec6a93fadd41a08c49758eb2d4": {
+      "english": "Snapshots symbol identities and references; duplicate exact IDs are rejected.",
+      "japanese": "シンボルの識別情報と参照をスナップショットにします。正確なIDの重複は拒否します。"
+    },
+    "076e69a4d5a2da230170c5fb20ed91fb70cb702ed4e1d70bcc0e4176df864139": {
+      "english": "Finds adjacent unique pages in the same canonical sidebar, honoring explicit overrides.",
+      "japanese": "明示的な上書き指定を反映し、同じ基準サイドバー内で隣接する一意のページを探します。"
+    },
+    "07972dbd03d8de4220e567cd86bf2b8f42a8877561bbfdb7e966ad56af7a599d": {
+      "english": "Explicit build-only MDX execution and dependency settings.",
+      "japanese": "ビルド時だけ明示的に実行するMDXと、その依存関係の設定。"
+    },
+    "07da2bbc53f640a87b89ca607802df6c7857237de419e18e9424528f0f951a64": {
+      "english": "Searches a document set without a network service.",
+      "japanese": "ネットワークサービスを使わずに文書集合を検索します。"
+    },
+    "084b94fbf22f31981e171267876f4d0cd64f8b18c15122e6cc2b5827bd80538c": {
+      "english": "Strict metadata for an MDX blog entry. Summary is an explicit, plain-text excerpt.",
+      "japanese": "MDXブログ記事の厳格なメタデータ。Summaryは明示的なプレーンテキストの抜粋です。"
+    },
+    "085bd33f76eed7203d70c8fac7a16a4f7ef7cde78322b068bbf3bcfb3ba20615": {
+      "english": "Whether to generate the optional JSON Schema export.",
+      "japanese": "任意のJSON Schemaエクスポートを生成するかどうか。"
+    },
+    "086d3fddd9102a8b94668ab0b85dacdeeea577052b7ff19634c87ed9c299a295": {
+      "english": "Renders a page with the built-in Blog document shell.",
+      "japanese": "組み込みのBlog文書シェルでページを描画します。"
+    },
+    "0891bae26da9ec65dc9a6060b006946161ae606eb76f5d936d7f64f92dc52a9c": {
+      "english": "Reports a stable asset reference diagnostic.",
+      "japanese": "安定したアセット参照の診断を報告します。"
+    },
+    "089eb5a88027664b714d81ee372db7e132283064f1543ad9428971a0ab83301a": {
+      "english": "Explicit symbol facts, or null when the input supplies documentation only.",
+      "japanese": "明示的なシンボル情報。入力に文書だけが含まれる場合はnullです。"
+    },
+    "08d51c014decd9c5bc061110331522b8ec184d007d69a32769f118437f03d6f8": {
+      "english": "Serializes cooperating processes by normalized output identity. Private sidecars, not the public manifest, authorize stale removal. Links and name-surrogate reparse points are rejected.",
+      "japanese": "正規化した出力の識別情報を使い、協調するプロセスを直列化します。古い出力を削除する根拠には、公開manifestではなく非公開の付随ファイルを使用します。リンクと名前の代替となる再解析ポイントは拒否します。"
+    },
+    "09ec9d1311c5c01d4523738d35e5cfc8778a53a83d425443413e3f92ce838ab0": {
+      "english": "A bundle file retained without interpreting it as a concept.",
+      "japanese": "概念として解釈せずに保持するバンドルファイル。"
+    },
+    "0a42f7fa4f55c844d34703817dfbb0f6685b7e54b41e9a85cba091673c28749b": {
+      "english": "Disposing the owner invalidates the snapshot and all elements obtained from it.",
+      "japanese": "所有者を破棄すると、スナップショットと、そこから取得したすべての要素が無効になります。"
+    },
+    "0a4fd130b8803e0c07637ed1c94da1bf020d19cb13f89ba35e4660f7e8721e17": {
+      "english": "Opts a static partial class into a generated fixed HTML plan.",
+      "japanese": "static partialクラスで、固定HTML計画の生成を明示的に有効にします。"
+    },
+    "0a55e9ae8a3e5e2f5679df0dd9b7f4f9598bbffd40b4798ef565b2cfb8d205f0": {
+      "english": "The content body type used by generated entry references. Defaults to Markdown strings.",
+      "japanese": "生成したエントリー参照で使うコンテンツ本文の型。既定値はMarkdown文字列です。"
+    },
+    "0a6e517c2fa5ea39524851145df84526b34a4cb4c96bb0bcaebae51b803b591f": {
+      "english": "Exact output width in pixels.",
+      "japanese": "出力の正確な幅。単位はピクセルです。"
+    },
+    "0a88642693a09352405e45dcfaa41acc272cdfa34ef2d2b554a0f75acdeb6580": {
+      "english": "The document version.",
+      "japanese": "文書のバージョン。"
+    },
+    "0a9391d087bf4568fda5787dbba7618b252732b664c33b51262f764bdf3a0fdb": {
+      "english": "A diagnostic meets the threshold.",
+      "japanese": "閾値に達する診断があります。"
+    },
+    "0aedb7927fb72661304c459142d621c5a9749277a95da68053e253545389e8e3": {
+      "english": "Browser bundling time.",
+      "japanese": "ブラウザー向けbundleの生成時間。"
+    },
+    "0b70250101990e2ef9fc0ffc52401747ad45be5edf19a5e77b49517c8f107d4e": {
+      "english": "Cancels cleaning before the atomic commit.",
+      "japanese": "アトミックな確定処理の前に、クリーン処理を中止します。"
+    },
+    "0c474105db5c5d37c767ed8acd3cae9188679558030b7b27c49d0c2a756fb422": {
+      "english": "NFC-normalized, case-sensitive identity independent of OS path rules. Empty values, surrounding whitespace and control characters are rejected.",
+      "japanese": "OSのパス規則から独立した、NFC正規化済みで大文字と小文字を区別する識別情報。空の値、前後の空白、制御文字は拒否します。"
+    },
+    "0c4a7e0affd7db6455526b25342365e5341603bc2f465ef35bb3cab4df952524": {
+      "english": "Maximum image width.",
+      "japanese": "画像の最大幅。"
+    },
+    "0c4b8e6911cd406378c41dc8e2a2a33e9510c57fbbc4743b3fdf7462242ff61d": {
+      "english": "Site settings.",
+      "japanese": "サイトの設定。"
+    },
+    "0c7b1b2be979cc120f0b83f9ec09b958252ce3903e423287bc63b2a379603787": {
+      "english": "\"Available tags\" heading.",
+      "japanese": "利用可能なタグの見出し。"
+    },
+    "0d2dfc9dd719362cc36e2627d298420f66b781efa156e1b5ada254f89ad5ec61": {
+      "english": "Encodes the value as an HTML-safe string.",
+      "japanese": "値をHTMLで安全に使用できる文字列へエンコードします。"
+    },
+    "0d3ba877e8459253d7a3fa4e727285b7226ae58643eebc0038c68b97473bf92e": {
+      "english": "An explicit feed text alternative; otherwise the excerpt is used.",
+      "japanese": "明示的に指定するフィード用の代替テキスト。未指定の場合は抜粋を使います。"
+    },
+    "0d92750175e9cd8561e768090faf2f1040049100e083758aca15b66043b39014": {
+      "english": "Archive link text inside the JavaScript-disabled message.",
+      "japanese": "JavaScriptが無効な場合のメッセージに含める、アーカイブへのリンクテキスト。"
+    },
+    "0dbc7148c1b08f577378d7c51bbf539132f99dce256932d72aa3d2c2094ce3c4": {
+      "english": "Either page for compatibility or selective for explicit islands and static pages.",
+      "japanese": "互換性用のpage、または明示的なislandと静的ページ用のselective。"
+    },
+    "0df567fcc944f833ed68cdcaeb325fe657eed36712f0d6b34bfc5774d347b2b7": {
+      "english": "Declares the front matter type, page type, and stable collection ID.",
+      "japanese": "front matterの型、ページの型、安定したcollection IDを宣言します。"
+    },
+    "0e3160dfd1fc53f51f61fe258f38a6e3af1e80bf46ffb34704fff1524fbe4126": {
+      "english": "Declares PNG generation with lossless zlib compression.",
+      "japanese": "可逆のzlib圧縮を使うPNG生成を宣言します。"
+    },
+    "0e6831cd66adb0198f639f8f0639229be5385e7e1cc73751249bf6882ff43234": {
+      "english": "Accessible in the declaring assembly.",
+      "japanese": "宣言元のアセンブリ内でアクセスできます。"
+    },
+    "0ea7d4502794e9f82a58ecae2e511defa59a600f6a2d0d0ebe734c8b12e4532e": {
+      "english": "Uses only the legacy positional members to preserve record compatibility.",
+      "japanese": "recordの互換性を保つため、従来の位置指定メンバーだけを使用します。"
+    },
+    "0ede52fda13fdaea0204afd44da0e75d0366e3dd9ef7014282cf845f9f054169": {
+      "english": "An explicit order before filename-derived order.",
+      "japanese": "ファイル名から求める順序より優先する、明示的な順序。"
+    },
+    "0eec04c35b1524c820023b8602f55f9d8fa03b5d57e21b8da6ca5a5eb7ac2f6e": {
+      "english": "Maximum size of an RGBA8 buffer or the decompressed PNG scanlines.",
+      "japanese": "RGBA8バッファー、または展開後のPNG走査行の最大サイズ。"
+    },
+    "0f0d4bc34e9a83546842c9830c3041cc26cf7c12882dcb27cf9ba02a8a3bd541": {
+      "english": "An empty public data object.",
+      "japanese": "空の公開データオブジェクト。"
+    },
+    "0f68f0e13619d0eae9e3a3c27204469fe447f8ab09c447016ae68b672a566567": {
+      "english": "Unknown IDs return an empty result; missing version/locale targets have Exists=false.",
+      "japanese": "未知のIDには空の結果を返します。対象のバージョンやlocaleが存在しない場合はExists=falseです。"
+    },
+    "0fd2e44eb3a84b626834369f3d88b101ac54858ad54c643d738c1ff37d700d49": {
+      "english": "Generation report with UTC time and artifact paths relative to the output root.",
+      "japanese": "UTC時刻と、出力ルートからの相対アーティファクトパスを含む生成レポート。"
+    },
+    "104a3faeabbcaec1afb88813f459330b22adda993630c5c41157f278ef4ba9bd": {
+      "english": "HTML source.",
+      "japanese": "HTMLのソース。"
+    },
+    "106b4b6f5e97ee6b83b67e250e8c3670390a43efd889cf9c332370fad26eebd8": {
+      "english": "The result of validating Markdown posts.",
+      "japanese": "Markdown記事の検証結果。"
+    },
+    "10964150679d357f6eda1cb62e38eaf0a18731edcb91bd3ed3db681d0978fc7b": {
+      "english": "An argument is null.",
+      "japanese": "引数がnullです。"
+    },
+    "1097799df67e3a19634f57b4818bf34d840eb66daf88f7fc3dcebf84c29beb32": {
+      "english": "Creates a catalog from the same declarations used for generated references.",
+      "japanese": "生成する参照と同じ宣言からカタログを作成します。"
+    },
+    "10c4b7306bbc197d32f49b521f3414ca0a24fb5c5f58d97e3ed5d373eb03da1d": {
+      "english": "The severity is undefined.",
+      "japanese": "重大度が未定義です。"
+    },
+    "10ceb084d7ed6eb3caf7130d4701b6eabe3dd3dfbaba03234fbbfe49b1185284": {
+      "english": "Nonexecuting inspection of explicit source buffers.",
+      "japanese": "明示的なソースバッファーに対する、コードを実行しない検査。"
+    },
+    "1104db9cceb48e369044d35d59b3f3db8424932336c5b8f04c9cdd70d53d612a": {
+      "english": "The definition is null.",
+      "japanese": "定義がnullです。"
+    },
+    "1147a46f69e791dbd2c5bfcd04337592a9a0c36017b8547fea4c738f75ba23cd": {
+      "english": "Stable output identifier.",
+      "japanese": "安定した出力の識別子。"
+    },
+    "1173113a6e8ea3eb0b697632a1753cad7d21ca56f824d03cdd481690121cc407": {
+      "english": "The canonical sidebar membership when a page occurs in several sidebars.",
+      "japanese": "ページが複数のサイドバーに含まれる場合に、基準とするサイドバーへの所属。"
+    },
+    "119a50aacd2da8784a6ec02c68ca85d2235dc390768e56d2b3b66f0eafb11364": {
+      "english": "The referenced code region is missing or unterminated.",
+      "japanese": "参照先のコード領域が存在しないか、閉じられていません。"
+    },
+    "11f9b5df61ad0a6024f955d717d78f64bc2aa81093eea2d132bb45a76c1c2a5f": {
+      "english": "Plain-text body (shortened for search).",
+      "japanese": "検索用に短くしたプレーンテキストの本文。"
+    },
+    "1222ae1e04a74efc203033dde797da5ebd2501408f505c07f49521120beb0245": {
+      "english": "Resolved navigation shared by sidebars, breadcrumbs and previous/next links.",
+      "japanese": "サイドバー、パンくず、前後のページへのリンクで共有する、解決済みのナビゲーション。"
+    },
+    "128de9cc60527458f4fd4164c4d2cf9a638c5cd8d07ee45df3dab962b4a68499": {
+      "english": "Creates a context with an absolute project directory.",
+      "japanese": "絶対パスのプロジェクトディレクトリでcontextを作成します。"
+    },
+    "12a389747ecdc0c31d52f4b570af551e59800e2be8f32e4b5ca6bab99ea81ac3": {
+      "english": "Creates a workspace with its own snapshot cache.",
+      "japanese": "専用のスナップショットキャッシュを持つworkspaceを作成します。"
+    },
+    "12b2feda63f4bada913ad56374b4c37bb82cb467a53c3e510d7fbe91624ab980": {
+      "english": "Fingerprint of implementation, settings and tool dependencies.",
+      "japanese": "実装、設定、ツールの依存関係のフィンガープリント。"
+    },
+    "12b7b921600ccb266b5bf3fc6b69ae56739439f9cfadf9b15121ae9ec6175f1b": {
+      "english": "Unresolved import declaration; inspection never executes its target.",
+      "japanese": "未解決のimport宣言。検査中にその参照先を実行しません。"
+    },
+    "12c9270dd3eabfe91edccf53f81a973d260f31afa95a1e76f5a4999ebf67ae50": {
+      "english": "Reads limited 8-bit noninterlaced sRGB PNGs and writes noninterlaced RGBA8 PNGs.",
+      "japanese": "対応範囲を限定した8ビット・非インターレースのsRGB PNGを読み取り、非インターレースのRGBA8 PNGを書き出します。"
+    },
+    "12c9a6a241e34fcf08be594ffc86ab864b7b6c617b18d1f2a30843466582222b": {
+      "english": "Creates a validated absolute HTTP or HTTPS URL.",
+      "japanese": "検証済みの絶対HTTP URLまたはHTTPS URLを作成します。"
+    },
+    "12f3c3d4fea7de74e8655f5742334bca58e1f94900172112d54c73a9d5b0c0f5": {
+      "english": "Registers typed content, an explicit browser-data selector and an optional C# layout renderer.",
+      "japanese": "型付きコンテンツ、明示的なブラウザーデータ選択処理、任意のC#レイアウト描画処理を登録します。"
+    },
+    "12fce8d2ffd1383001d39ca9467d55ad08e44680cb4b9529bd596143134e6be9": {
+      "english": "The explicit assembly identity, when a symbol source was registered.",
+      "japanese": "シンボルソースが登録されている場合の、明示的なアセンブリ識別情報。"
+    },
+    "130a017ef51db83597fab2c6f2a7b90a262c182b9a3619594633278fbaa0c455": {
+      "english": "The page description.",
+      "japanese": "ページの説明。"
+    },
+    "137c1ec332e700a9bb7eeba11a9bf457b9c821bd62e96edf4f60e2b75cd8c84d": {
+      "english": "Post summary.",
+      "japanese": "記事の要約。"
+    },
+    "13861079716636eee00dab1322e15f427766b03da7ceddc22d2b4306b7f649f0": {
+      "english": "Asserts that at least one element matches a CSS selector.",
+      "japanese": "CSSセレクターに一致する要素が少なくとも一つあることを検証します。"
+    },
+    "139e4681a43943b2144eac186e043c243acca9fed6457581680d722c9e2ae4e4": {
+      "english": "Creates a solid-color canvas, replacing RGB with zero when alpha is zero.",
+      "japanese": "単色のキャンバスを作成します。alphaが0の場合はRGBも0にします。"
+    },
+    "13a6ff70c1e95125e4fb3440eba51d87026ed40f36842e1d0b18141a8e169fe7": {
+      "english": "A reader that discovers Markdown posts and parses their front matter.",
+      "japanese": "Markdown記事を探索し、front matterを解析するreader。"
+    },
+    "14344f37fbbc7d2b270d05253886d3a8aa5ef7a2be2eb13591ccaecc47c92b86": {
+      "english": "Output path before fingerprinting.",
+      "japanese": "フィンガープリントを付ける前の出力パス。"
+    },
+    "143571c808c494ad09eebd4d39f42c25bddf241c77d58a0bca9fcf926423baad": {
+      "english": "Markdown documents, excluding underscore-prefixed files and directories.",
+      "japanese": "先頭がアンダースコアのファイルとディレクトリを除いた、Markdown文書。"
+    },
+    "148c6562777dae10b2695aadde4c3cd9b179e71eed1f8a8fa7dc2e12e0ab5079": {
+      "english": "Creates a resource-limit failure with its cause.",
+      "japanese": "原因を伴うリソース上限の失敗を作成します。"
+    },
+    "151813ec63f20358904a5c2ecbde0336322ac8ccf9e5eafa04f7c210f5e38c82": {
+      "english": "Renders the component.",
+      "japanese": "部品を描画します。"
+    },
+    "1542d92d05eea58f014d4a14bcf94f28093b9919b779e01a1ec7da5794aec70e": {
+      "english": "The public C# layout contract, including sidebar, body, table of contents and head regions.",
+      "japanese": "サイドバー、本文、目次、head領域を含む、公開C#レイアウトの契約。"
+    },
+    "1546a13643a13cb00d736720a8068e748c0bbc8e421634f1857c4407429fd9c7": {
+      "english": "Renders HTML pages and text assets for a static site.",
+      "japanese": "静的サイトのHTMLページとテキストアセットを描画します。"
+    },
+    "155ad228eb1a8f169d91e333ace9ee4c2a2230fb133aef542f23262be800bd25": {
+      "english": "Selects the explicit, display, default, then first sidebar. Unknown documents return an empty result.",
+      "japanese": "明示指定、表示用、既定、最初のサイドバーの順に選択します。未知の文書には空の結果を返します。"
+    },
+    "1613d54841649a980c5b52323ccd7621494ad857365af01da7ef5f42cff5e9f1": {
+      "english": "Additional message keys used by site components, including dynamically selected keys.",
+      "japanese": "動的に選択するキーを含む、サイト部品が使う追加のメッセージキー。"
+    },
+    "16e6f2fdda73b56abfd0e240c8fc05945f9d5537f0bf68e1dccb73daaea8a6a8": {
+      "english": "A node in the directory-based documentation navigation tree.",
+      "japanese": "ディレクトリに基づく文書ナビゲーションツリーのノード。"
+    },
+    "172b4a8fd719c147ad55f03b7686fd3dcc4b01c8025df895bc0942f1b4710e86": {
+      "english": "The obsolete attribute message, including an empty message when present.",
+      "japanese": "Obsolete属性のメッセージ。属性に空のメッセージがある場合も含みます。"
+    },
+    "17d20220acd264a548ccbbec29dddc080f690bdfa9ca04ffa55598f42e567cf4": {
+      "english": "The number of pages rendered by React.",
+      "japanese": "Reactで描画したページ数。"
+    },
+    "18314538e21f877deee1f9e9b60d58bafcf897bf6352bd8a21549acd88cbf746": {
+      "english": "The original attribute value.",
+      "japanese": "元の属性値。"
+    },
+    "184b2389a3501f55330950f914187482615683cc40374f611a5bc01cc3c4b7ef": {
+      "english": "Heading for the table of contents.",
+      "japanese": "目次の見出し。"
+    },
+    "18862c0e81520005417e0e862a459ecc46ce83f54396b09ce44f3344dc8a2c94": {
+      "english": "The source path relative to MSBuildProjectDirectory.",
+      "japanese": "MSBuildProjectDirectoryからの相対ソースパス。"
+    },
+    "189f13e9aebcf233ddef43b021c883b5253f44ab766789cef39f4caf83da60cd": {
+      "english": "A page the generator emits in addition to the standard pages. Use it to add site-specific pages, such as release notes or a list of sources.",
+      "japanese": "標準ページに加えて生成するページ。リリースノートや出典一覧など、サイト固有のページを追加できます。"
+    },
+    "18d4d1a1607e371392d8319ca3845fa73b6506303b3a00cc9793a8f30fa02747": {
+      "english": "A stable identity for display selectors, body rendering, and their captured configuration.",
+      "japanese": "表示の選択処理、本文描画、それらが捕捉した設定に対する、安定した識別情報。"
+    },
+    "18f9d876c0bce8e67b65ebbc04fcac3a9663ba80b6b1ff705503322f6ec8b8a2": {
+      "english": "Core information about the generated web site.",
+      "japanese": "生成したWebサイトの基本情報。"
+    },
+    "1912260fc68a80a1fdf4e3d04e18c37a97d1e66c5db0170e49209240dc53c67f": {
+      "english": "Whether the built-in script is included. A custom client can own menu and navigation behavior instead.",
+      "japanese": "組み込みスクリプトを含めるかどうか。独自のクライアントでメニューやナビゲーションの動作を担当することもできます。"
+    },
+    "1960e5aa6c293bea26089bece654d9cd8064769af127ac646c30baffe0d3b9b9": {
+      "english": "Theme color (used for the {0} and the PWA manifest).",
+      "japanese": "テーマカラー。{0}とPWA manifestに使用します。"
+    },
+    "19e303ef4ff36029807b1156882b8c177cac2800127a627276c33907888473f0": {
+      "english": "HTML inside the main content element.",
+      "japanese": "メインコンテンツ要素の内部のHTML。"
+    },
+    "19f7ce5fbdd034f568ae27327fe6ebbde075381214a2742d2b3752ad3569a8c5": {
+      "english": "Writes one output exactly once.",
+      "japanese": "一つの出力を正確に一度だけ書き出します。"
+    },
+    "1a05ef721183601f4c33751e5b2db3e47b5d0a7f9c97470af185a53a12dbf05a": {
+      "english": "Transformation to register explicitly in AssetTransforms, with its source assets in Assets.",
+      "japanese": "AssetTransformsへ明示的に登録する変換処理。元のアセットはAssetsへ登録します。"
+    },
+    "1a5a9edf51ee3b2526279413cd2c150b8ec59ef4984ec41e9399c7a51b778964": {
+      "english": "An existing image URL or a registered asset reference, independent of image processing.",
+      "japanese": "画像処理から独立した、既成画像のURLまたは登録済みアセットへの参照。"
+    },
+    "1a8fd6b1393149804ab3457c662ac7156a86995c6c6d79fa9024bd028f7bb39e": {
+      "english": "Declares an existing image with caller supplied dimensions. Copying does not verify decoding.",
+      "japanese": "呼び出し側が指定した寸法で既成画像を宣言します。コピー時にデコードの可否は検証しません。"
+    },
+    "1ac3d69ff2e8777586a21c413166c5663dec7402ffec7f6084f464cec69f4d5b": {
+      "english": "The output is null.",
+      "japanese": "出力がnullです。"
+    },
+    "1b092f0f035cd4f8599d507bf1f569977200dad19d0b9e557fb3109e7ef57f5b": {
+      "english": "Explicitly selected browser data validated against a bounded JSON schema.",
+      "japanese": "範囲を限定したJSONスキーマに対して検証した、明示的に選択されたブラウザーデータ。"
+    },
+    "1b136ad42912d5b26b2808b00b5ea93343b91a35588cfa30f3d197ed34aa2d4d": {
+      "english": "Slug used in the URL.",
+      "japanese": "URLで使うslug。"
+    },
+    "1b4c1ed27383986ed75593cfa41b2c0e8daeb28be1b4d09ea7984e5efe26a95a": {
+      "english": "Open Graph type.",
+      "japanese": "Open Graphのtype。"
+    },
+    "1b939f7576d0d5aec46166bc02db34fa70183c5453e24c170f97dfac9df7e20d": {
+      "english": "Gets a registered asset URL.",
+      "japanese": "登録済みアセットのURLを取得します。"
+    },
+    "1be9f0fe276c8095055b0af29e3941f376383044264343ba48ed99bb158e5181": {
+      "english": "No diagnostic matches.",
+      "japanese": "一致する診断はありません。"
+    },
+    "1c919ead00d46fbaa55c21b428df675be3dc5acf2c3d18847bfbc13836099e14": {
+      "english": "The exact source bytes and identity used when reviewing one document.",
+      "japanese": "一つの文書のレビューに使用した、正確なソースbytesと識別情報。"
+    },
+    "1c9c38b4dfe98cf3d80189513a869014dc92db85d6f0bfcc12b491ffbe41b074": {
+      "english": "A complete immutable universe, subject to compiler provenance freshness.",
+      "japanese": "コンパイラーによる由来情報の鮮度を条件とする、完全で不変の対象集合。"
+    },
+    "1cd4c8d3d8232530f4434534bf994bc5985436a1de5c8ba6c65da7223cbe7cf3": {
+      "english": "Site name.",
+      "japanese": "サイト名。"
+    },
+    "1ce040a8b4e4f8c2abc087dad5556fe23a3611f9b367dc5faf161ebccc83be29": {
+      "english": "Pages emitted in addition to the standard ones.",
+      "japanese": "標準ページに加えて生成するページ。"
+    },
+    "1d0436f381ef78b2fa6535315c0a7d9602e967fe2868d8e366c22a93301c5e4d": {
+      "english": "Use for bundled chunks with embedded relative references. The registry hashes the bytes, preserves the declared path, and publishes through the same transaction as all other assets.",
+      "japanese": "相対参照を埋め込んだbundleのchunkに使用します。registryがbytesのハッシュを計算し、宣言したパスを保持して、ほかのすべてのアセットと同じトランザクションで公開します。"
+    },
+    "1d050bcdb4a8dfb016eba988bdddfc111513cbfe3e8a1083d4b4a081c0b062cc": {
+      "english": "Display order within a topic; unspecified entries follow ordered entries.",
+      "japanese": "トピック内の表示順序。未指定のエントリーは順序指定のあるエントリーの後に並びます。"
+    },
+    "1d09d1fbe305d66af57a23489b9fbeae10d27aaab436380d9c566956dfef43db": {
+      "english": "Renders a page with the built-in Docs document shell.",
+      "japanese": "組み込みのDocs文書シェルでページを描画します。"
+    },
+    "1d13191a9c7cbd2348de879a483e2321f1d2634aec7d32a89c6c08da74fca333": {
+      "english": "Whether the variant should be excluded from search engines.",
+      "japanese": "検索エンジンの対象からvariantを除外するかどうか。"
+    },
+    "1d29149b307a8cfc9f9eb075f9477f2394dd1571dfa4376ac82126574557f048": {
+      "english": "Preserves the body after the front-matter terminator verbatim; SourceFingerprint hashes exact file bytes, including the BOM.",
+      "japanese": "front matterの終了記号以降の本文を、そのまま保持します。SourceFingerprintはBOMを含む正確なファイルbytesのハッシュです。"
+    },
+    "1d4913147aaed0b114f33c77119152f43d8b25b90d0186afad923ffce9f575ab": {
+      "english": "Factory or context is null.",
+      "japanese": "factoryまたはcontextがnullです。"
+    },
+    "1d9c3bf50c070de3f200b0053f3f57ae73a58ddaef899ab5d0b5ac658771b3fe": {
+      "english": "Returns false after workspace disposal.",
+      "japanese": "workspaceの破棄後はfalseを返します。"
+    },
+    "1dbfd0a6dc7e1bed2edbd249e4ca0b7387358593c1614df7f9dc617d03fea226": {
+      "english": "Heading for the archives page.",
+      "japanese": "アーカイブページの見出し。"
+    },
+    "1e75b311fb7e2c8738e700baa500aec80525924f0a292441ec51f7a29af4865a": {
+      "english": "Renders the document head.",
+      "japanese": "文書のheadを描画します。"
+    },
+    "1eabf48f863047711af596a77c0f4b122236df96aa866fb360b274be7f16c286": {
+      "english": "Parses an HTML document without executing scripts or network requests.",
+      "japanese": "スクリプトやネットワークリクエストを実行せずに、HTML文書を解析します。"
+    },
+    "1f176acece73c49d7fd96480b26f1f4b70f322516af83b872b6ed88fd9347ebe": {
+      "english": "Settings or posts are null.",
+      "japanese": "設定または記事がnullです。"
+    },
+    "1f7dd9fd551e6333672747814a5e9e9165eec2060cc6315ee99e6f522962f8ac": {
+      "english": "Files parsed for this generation; zero when quality checks were disabled.",
+      "japanese": "今回の生成で解析したファイル数。品質検査を無効にした場合は0です。"
+    },
+    "1fa3096ed1b2a4cde7ede2c9bc1f589f8e1367dac8bac74938d6dc4378c52417": {
+      "english": "The exact inherited documentation target when inheritdoc omits cref.",
+      "japanese": "inheritdocでcrefを省略した場合の、継承する文書の正確な参照先。"
+    },
+    "2015558c967743a8f870d5fca896357e225f7947b979c581ede241877f3f772d": {
+      "english": "Identifiers are invalid, outputs are empty, or declarations repeat or contain null.",
+      "japanese": "識別子が不正、出力が空、宣言が重複、または宣言にnullが含まれています。"
+    },
+    "20365129984bb124f30e34eee76bdd815dcfcd803b8d7d0d384222b1adaee595": {
+      "english": "The exact API identity.",
+      "japanese": "正確なAPI識別情報。"
+    },
+    "20424743d4e41ade3e3f880bcc64fcd5961606c266fcf325abacca206ad80590": {
+      "english": "Uses HTML fetches and the common root lifecycle for internal navigation.",
+      "japanese": "内部ナビゲーションに、HTMLの取得と共通のルートライフサイクルを使用します。"
+    },
+    "20524f2caad43926046d3972be2991f3ac4e3741ab10e7ab5a922a9059b43337": {
+      "english": "Description for the generated 404 page.",
+      "japanese": "生成する404ページの説明。"
+    },
+    "20d19cc15e07250e1f0c75359a00c089648503a2d2262bd659e9cac9dd99f599": {
+      "english": "Gets the preceding element sibling, or null.",
+      "japanese": "直前の兄弟要素を取得します。存在しない場合はnullです。"
+    },
+    "21477f6569c48aa2c1095d569f3039dcc6ee7457c834b5c9ce791a85a5082e92": {
+      "english": "Cache decisions, key calculation, rendering and writes.",
+      "japanese": "キャッシュの判断、キー計算、描画、書き込み。"
+    },
+    "214f735b35a8e2706127b446c48aa151006c5d988c23e56fc52cbef5e84f19ab": {
+      "english": "References an existing registered transformed output.",
+      "japanese": "登録済みの既存の変換出力を参照します。"
+    },
+    "21626afa41988c72cfc4fabec2c7aaee3d4a4289b0238b5d6130a139e2962098": {
+      "english": "Renders a typed layout using this legacy template's settings and registered assets.",
+      "japanese": "この従来のテンプレートの設定と登録済みアセットを使って、型付きレイアウトを描画します。"
+    },
+    "2217740757b2ed3e276c83ac420b0fd5ebe9c527f4186db26eacef706375d927": {
+      "english": "A manual, automatic, category, or external sidebar entry.",
+      "japanese": "手動、自動、カテゴリー、外部リンクのいずれかのサイドバー項目。"
+    },
+    "22243ac178bd16d9cc85d4c84ace38e6e26db5acc78500b447cb66d5e509e5fd": {
+      "english": "Row-major straight-alpha RGBA8 pixels. Drawing operations update this memory.",
+      "japanese": "行優先で並んだ、ストレートalphaのRGBA8画素。描画操作はこのメモリーを更新します。"
+    },
+    "22ec0df8636c8f8cd334d5947a8b2a22fde0d951dcafac14870ecee297570f3d": {
+      "english": "Label for the search button.",
+      "japanese": "検索ボタンのラベル。"
+    },
+    "2311cf1a2c3542608a0d4842714a7f8fc172fbb2e9e8e35ff3486902aacb2f64": {
+      "english": "Renders a component and parses its HTML output.",
+      "japanese": "部品を描画し、出力したHTMLを解析します。"
+    },
+    "2323483a2983183ea46c21bbc40bc5a14689a7cec31e01019a47455a87bcd9d8": {
+      "english": "Additional navbar links.",
+      "japanese": "ナビゲーションバーの追加リンク。"
+    },
+    "23ca0ef388e18c5a5948cb0959b76a6bae355d5aaba06ab1f158d5873c5f4f6e": {
+      "english": "Obtain this instance from a rendering context. Declare assets through {0}. Duplicate identifiers fail registration.",
+      "japanese": "このインスタンスは描画contextから取得します。アセットは{0}で宣言してください。識別子が重複すると登録に失敗します。"
+    },
+    "23ead0cffa93bb7f961f19764523551ec9830cd88d589aa46c66874fcbcfc29c": {
+      "english": "Allocation and input limits for the limited PNG and RGBA8 implementation.",
+      "japanese": "限定したPNGとRGBA8の実装に適用する、割り当てと入力の上限。"
+    },
+    "2415efa69a4f6ddf1d978ecd8af52ead89d1de4b6b7d750d3d6c1acbc196e05b": {
+      "english": "An OKF concept document.",
+      "japanese": "OKFの概念文書。"
+    },
+    "2419d81888cde90d03847e5aa622009c2f9e14e33edf897db90d5ad28246951d": {
+      "english": "The classification and exclusion policy used for these declarations.",
+      "japanese": "これらの宣言で使う、分類と除外のポリシー。"
+    },
+    "2474a1a8a15cf0a5534f62c06386b5492e93ca1b009e35b1a07819f7025d5135": {
+      "english": "A helper that builds a safe slug from a file name or title.",
+      "japanese": "ファイル名やタイトルから安全なslugを作成するヘルパー。"
+    },
+    "25434f05d9e6a986b6117eaae13a420f65b91d8aa42548f3bbbef7bd0575a67e": {
+      "english": "Server module loading and React rendering time.",
+      "japanese": "サーバーモジュールの読み込みとReactによる描画の時間。"
+    },
+    "2594bcac9f1fd2dbd7d3af7bc2af84fde4cfb22561590d457fe8ab9cec30a6a4": {
+      "english": "Creates a URL for an output file route.",
+      "japanese": "出力ファイルのルートに対するURLを作成します。"
+    },
+    "259700a445cf7d6f2ca87399f288b15a6fa56982e67384fcdc77894ff39107f7": {
+      "english": "An OKF update history.",
+      "japanese": "OKFの更新履歴。"
+    },
+    "259b8e78fe6baa040b9064bb4bbd2fd6fc45db245fa884c6eeecca39ff886cff": {
+      "english": "The membership coverage of this explicit route lookup.",
+      "japanese": "この明示的なルート検索が対象とする所属範囲。"
+    },
+    "25bb769da968d3b0767f4f4cf2dcfcb3cc0bc97889c32d745675dedba5cf2efc": {
+      "english": "The URL string.",
+      "japanese": "URLの文字列。"
+    },
+    "25fd8bdff3262ca473a1121c5c77cd322ba49e0f726581cf52e484e3e7959f6f": {
+      "english": "Compares a candidate with an explicitly selected published baseline. Never writes either artifact.",
+      "japanese": "候補を、明示的に選択した公開済みの基準と比較します。どちらのアーティファクトにも書き込みません。"
+    },
+    "26142eeab8bb33d6dc3c97b4373c606dd39b644174b56a205e75e53a3206145a": {
+      "english": "Fail the build before publication.",
+      "japanese": "公開前にビルドを失敗させます。"
+    },
+    "266a1738ee63233d16c2c16d435025d3309f2d0df78d4905f66e0dafd778e8e2": {
+      "english": "The YAML string.",
+      "japanese": "YAMLの文字列。"
+    },
+    "267c95df41082d0130434e7583553b5732e89df40b86d6e7099dfd632226f853": {
+      "english": "Optional explicit update metadata, taking precedence over Git discovery.",
+      "japanese": "任意の明示的な更新メタデータ。Gitによる探索より優先します。"
+    },
+    "26b5a776d735330a3be57b6495b7a8be498b5816b4469d1d81184ce92b908d52": {
+      "english": "Full Markdown text.",
+      "japanese": "Markdownの全文。"
+    },
+    "26fd22d483f8e27031fc4a2937efb0e07f5dcf0048721ffa69d0cae205fde175": {
+      "english": "The explicit schema used to validate the public data.",
+      "japanese": "公開データの検証に使用する、明示的なスキーマ。"
+    },
+    "2705a5912b3302f381fe20c68063bfd15e3d8dbc507eaca52f30dda234b67ee7": {
+      "english": "Creates an open lookup; a resolver can supply targets outside the catalog.",
+      "japanese": "Openな検索を作成します。resolverはカタログ外の参照先も提供できます。"
+    },
+    "280a5ed6ada9d34db25966b9fbf3844c5778d33c9396a5ce31611a57d2f457db": {
+      "english": "The field name or exception is null.",
+      "japanese": "項目名または例外がnullです。"
+    },
+    "2816f637a6971a9b7f0241a7b7c014bfe066f5f5e4b67721c17bdc82ecc8404e": {
+      "english": "Declares a deterministic handler and all files it reads and writes.",
+      "japanese": "決定的な処理と、その処理が読み書きするすべてのファイルを宣言します。"
+    },
+    "2818434ee38bbfe177e1bdaedeacbd7d87a8c747352525a39035d9de3b23711e": {
+      "english": "The default limits. Instances are immutable after initialization.",
+      "japanese": "既定の上限。初期化後のインスタンスは不変です。"
+    },
+    "2911374ef9807bbd84541b9f990d3337741342165f09a3af983379d7bb68b6b2": {
+      "english": "The bundle-relative concept identifier, or null for ordinary and reserved inputs.",
+      "japanese": "バンドルからの相対的な概念識別子。通常の入力と予約入力ではnullです。"
+    },
+    "29154eef71de8c04de70c1834f6a7db51f17ce7294f0fbc79388e0f01e5fa033": {
+      "english": "An extension point that validates a Markdown post. Use it to plug in site-specific rules (such as required headings or summary quality). Throw an {0} when validation fails.",
+      "japanese": "Markdown記事を検証する拡張点。必須の見出しや要約の品質など、サイト固有の規則を追加できます。検証に失敗した場合は{0}を送出します。"
+    },
+    "292d67346c44ae14cdd9b49b9acf558fb33ad5647bcec527fc0fdea62dd9fd94": {
+      "english": "Creates one declared membership record.",
+      "japanese": "宣言された所属情報を一件作成します。"
+    },
+    "2967d386c02569e7b80eae317987466b815f24c1b67f66e7ccdd4180f7c9c566": {
+      "english": "The encoded string.",
+      "japanese": "エンコードした文字列。"
+    },
+    "2972b6d45e658f8298a5d1c7f3084fbc51cd034d07da330f19b6a33d8db48ec2": {
+      "english": "An explicitly named assembly's symbol and cross-assembly reference maps.",
+      "japanese": "明示的に名前を指定したアセンブリの、シンボルとアセンブリ間参照の対応表。"
+    },
+    "29c5e5474809444ff2b8fa1f655ed91c612955a6cf296c37c68793ad5fe49170": {
+      "english": "Builds XML documentation for a trusted csproj or solution and returns its generated XML files.",
+      "japanese": "信頼するcsprojまたはsolutionのXML文書をビルドし、生成したXMLファイルを返します。"
+    },
+    "2a03b717e91f46fe641702f9497b5907352d1333c2954a2cd3e8e024d39b55df": {
+      "english": "Converts an unwrapped input value without discovering members through reflection.",
+      "japanese": "reflectionでメンバーを探索せず、ラッパーを外した入力値を変換します。"
+    },
+    "2a05504745107473e62ef56418b96bd91d14da6f14b9d32f86b6c4c029dff44e": {
+      "english": "Publication date formatted for display.",
+      "japanese": "表示用の形式にした公開日。"
+    },
+    "2a2ca28d2c6d9cbc1307c2a73794df0364c4fe851ebef20d7794681f5ffc4792": {
+      "english": "Worker elapsed time for this preparation; zero for a bridge cache hit.",
+      "japanese": "今回の準備にかかったworkerの経過時間。bridgeのキャッシュがヒットした場合は0です。"
+    },
+    "2a6a89fcb78f47952c16c8bc7437c5ad96b5402afcf2c8326ec50c4f11105fa2": {
+      "english": "Explicit document snapshot operations. Existing versions are never overwritten.",
+      "japanese": "明示的な文書スナップショットの操作。既存のバージョンは上書きしません。"
+    },
+    "2a98a8d5bdf40450e048f21c3fdd424c0ce7a30dbddc4fb856e90250770639cc": {
+      "english": "Gets the one-based raw source line, or null for a synthetic element.",
+      "japanese": "1から始まる原文の行番号を取得します。合成した要素の場合はnullです。"
+    },
+    "2adc5cea43c11376ca144a56754894254fe755a4494f5a9741c9e1716690d827": {
+      "english": "Actual routes acquired by this inspection operation.",
+      "japanese": "今回の検査で取得した、実際のルート。"
+    },
+    "2b5af72b6a5e1a739532baf7a1e2a77709a54ca95f8608330fca92e053aa86d8": {
+      "english": "Structured diagnostics raised during build preparation, before publication.",
+      "japanese": "公開前のビルド準備中に発生した、構造化された診断。"
+    },
+    "2bb274394aeac083bcfc8da2b605aea4156785d73432d6bafa65c58b80eabc6e": {
+      "english": "UTC-normalized inclusive start time.",
+      "japanese": "UTCに正規化した開始時刻。この時刻を期間に含みます。"
+    },
+    "2be8b1b201de0bf77860bc769b7a20efe5cd0e5433810dcde987df05b53b29e1": {
+      "english": "The unique asset identifier; its build node is named {0}.",
+      "japanese": "一意のアセット識別子。ビルドノードの名前は{0}です。"
+    },
+    "2bffda94332ea13ce8666bc83174f1b37ed83a6cbeae20fd2c699ef09579836b": {
+      "english": "Link to the post page.",
+      "japanese": "記事ページへのリンク。"
+    },
+    "2c286fea43f1d4017aaac262722320e13851cb7744a509cdb2f1085eb67ef611": {
+      "english": "Describes a site without requiring a command-line host.",
+      "japanese": "コマンドラインのhostを必要とせずにサイトを記述します。"
+    },
+    "2c4599c65d2df6eb2fea30d4c56a917af504096dafe8d003472723eff15348dd": {
+      "english": "Reports how many files and bytes the incremental cache holds for one output. The cache is HTML facts are bounded and evicted automatically; use {0} to reclaim one output's partition. Cache operations share the output lock with builds.",
+      "japanese": "一つの出力に対して増分キャッシュが保持する、ファイル数とbytes数を報告します。HTML解析情報のキャッシュには上限があり、自動的に削除されます。一つの出力の区画を回収するには{0}を使用します。キャッシュ操作はビルドと出力ロックを共有します。"
+    },
+    "2c4dcfa92c77e7c03e17ad0929ea5f048fdedaf1dd682c0a95ae6bb3586fc650": {
+      "english": "The page title.",
+      "japanese": "ページのタイトル。"
+    },
+    "2c7289250d4c823fe77c9de4e5ab9373c4757dfcfc13cf30b052603cac303892": {
+      "english": "Prepared assets, each with one declared owner.",
+      "japanese": "それぞれ一つの宣言済み所有者を持つ、準備済みアセット。"
+    },
+    "2ceb158a38c73a40fc3c587e7f13d112e5f6454b2df4753d57c54c3f4bc442b1": {
+      "english": "Creates an unsupported selector error.",
+      "japanese": "非対応セレクターのエラーを作成します。"
+    },
+    "2cf6c4049ba9691a08d7c57a600b22a012bc7c20a36537bc716bab17d01da5c7": {
+      "english": "Core reference usable as an explicitly configured social image.",
+      "japanese": "明示的に設定するsocial imageとして使用できる、Coreの参照。"
+    },
+    "2d13cce33013e376e6bc7cab67b2ad4a49d3c58118a75dc44415b0b4c27c87dd": {
+      "english": "Encodes and snapshots full HTML inside Core, without consumer-supplied encoders or collection factories.",
+      "japanese": "利用側のencoderやcollection factoryを使わずに、Core内で完全なHTMLをエンコードしてスナップショットにします。"
+    },
+    "2d453268a409bb790a59a016a5cfc2355316edc843b9a9eb13afa074e4b61233": {
+      "english": "Shows a GET search form in the header except on the search page. Also enables local search.",
+      "japanese": "検索ページ以外のヘッダーにGET検索フォームを表示します。ローカル検索も有効にします。"
+    },
+    "2d8ad913cd78f4f1a2a9be9f020a92e8496c60e0a4543a8eaddeadeaf024335d": {
+      "english": "Implementation, configuration and tool version fingerprint.",
+      "japanese": "実装、設定、ツールのバージョンのフィンガープリント。"
+    },
+    "2d98dc219bf1c04d5b271795621d49598a0874d652df8857106c9198f62b8d97": {
+      "english": "The source subdirectory selected by an autogenerated entry.",
+      "japanese": "自動生成したエントリーが選択する、ソースのサブディレクトリ。"
+    },
+    "2db41bb3128049d5c10c83e768dc0a497d7fdbc3408b232077f91c34d54a0194": {
+      "english": "Registers independent typed MDX pages in the same graph as documentation and blogs.",
+      "japanese": "独立した型付きMDXページを、文書やブログと同じグラフへ登録します。"
+    },
+    "2dd0b429d0652d1a61386a670d842f3db2901a596a07469d68ee4159bf683bbd": {
+      "english": "Opt-in timing collection; Timings is null when disabled.",
+      "japanese": "明示的に有効にする時間計測。無効の場合、Timingsはnullです。"
+    },
+    "2e3483d0d83f7b00d667a1fe29873dc597d4417acadb8ea83c234430620dfb37": {
+      "english": "Registered assets.",
+      "japanese": "登録済みアセット。"
+    },
+    "2e7be552c558f3692192ad4b115a1943fbfa22cfc32992d118e8dd0d4f2b09ca": {
+      "english": "Existing translated pages, keyed by language tag.",
+      "japanese": "言語タグをキーとする、存在する翻訳ページ。"
+    },
+    "2f673c35dfb3ef013fabb90b7dc5a7eae207c609fa5a3ed416e645116e020534": {
+      "english": "The layout returns null.",
+      "japanese": "レイアウトがnullを返します。"
+    },
+    "3044f24935e7bb94b24b19d5292754a6e0f16b6bb4eeb59001eb7531dad24a21": {
+      "english": "A document ID to use when a switch target is missing. Null reports the missing target.",
+      "japanese": "切り替え先が存在しない場合に使う文書ID。nullの場合は切り替え先の欠如を報告します。"
+    },
+    "30a97d93d756bc3094f5ca60caef87d8ad1b4dd90284bda59e00383b3418d708": {
+      "english": "Child nodes in display order.",
+      "japanese": "表示順に並んだ子ノード。"
+    },
+    "30bd5eda6978d7c0e17dc40df433a273e07c0c16f0a0ad159f4380a3f7f340f4": {
+      "english": "Renders the standard header search form.",
+      "japanese": "標準のヘッダー検索フォームを描画します。"
+    },
+    "31b5a594741804da50170b670d86fb080311ac2352fa3ef8068b179f433b9ed6": {
+      "english": "Versioned publication checks both document version and project generation so older requests cannot overwrite newer results.",
+      "japanese": "古いリクエストが新しい結果を上書きしないよう、バージョン付きの結果反映では文書のバージョンとプロジェクトの世代を両方確認します。"
+    },
+    "31d3678ea140e4b929833d9165eb8fd257f793c171a8c682095580794ce4f862": {
+      "english": "Uses catalog route validation. Unknown routes/keys return empty results; collisions and unresolved sidebar references fail construction.",
+      "japanese": "カタログのルート検証を使用します。未知のルートやキーには空の結果を返します。衝突と未解決のサイドバー参照がある場合は構築に失敗します。"
+    },
+    "31e6457576612c66149d7acbdcfd4d41e016a1e721cade1cd1e4e09c7175f794": {
+      "english": "Verified by a supported decoder.",
+      "japanese": "対応するdecoderによって検証済みです。"
+    },
+    "31f4b8fe641456fa50787864c681ede591a3433660a06d6fb95332a80a76cd8b": {
+      "english": "Renders a typed page using the existing document renderer.",
+      "japanese": "既存の文書レンダラーで型付きページを描画します。"
+    },
+    "32052720c15bfd51f961ab352eab90f86c7f8aa9aa4bd1a54d54470fce155ef5": {
+      "english": "The props, required head or SEO data, or context is null.",
+      "japanese": "props、必須のheadまたはSEOデータ、contextのいずれかがnullです。"
+    },
+    "3235c1b635661d0267e589bef9933ed3e82d5820cebf39199715ebb17010cc2b": {
+      "english": "Compiler diagnostics additionally require a verified generated origin and matching current fingerprint.",
+      "japanese": "コンパイラー診断には検証済みの生成元情報と、現在一致するフィンガープリントも必要です。"
+    },
+    "3243e0cad15fec5fc38a1028c9452e2054348a0eab17b1b731b9368a984a1188": {
+      "english": "Creates a value containing explicitly trusted raw HTML.",
+      "japanese": "明示的に信頼されたraw HTMLを含む値を作成します。"
+    },
+    "327943066462a0bb637c110c6e3b4324d5902ca145b78a35dac4eee9e54316a3": {
+      "english": "Inspects actual route declarations after factory acquisition and before any renderer is invoked.",
+      "japanese": "factoryの取得後、いずれのレンダラーも呼び出す前に、実際のルート宣言を検査します。"
+    },
+    "32ebe8015f4981b8a88c9175a33b89bb15609e04c2f53559a6b30d24f28dd614": {
+      "english": "Optional social image path.",
+      "japanese": "任意のsocial imageのパス。"
+    },
+    "33a31d6e7f214a0c5ab3536c974f28a963adc87a5401e15e3183902e0e6361c2": {
+      "english": "The original compiler input fingerprint.",
+      "japanese": "元のコンパイラー入力のフィンガープリント。"
+    },
+    "3421c04b493892d7bec4987914ccd53f30a6c2ce27b661cc7dce61812780213d": {
+      "english": "Creates a source document. The first body line is one-based.",
+      "japanese": "ソース文書を作成します。本文の先頭行は1から数えます。"
+    },
+    "34ba7e81748646a7f6309b05d01d9210b2d970a44c60626a2dc58d9339bde120": {
+      "english": "DocumentVersion and ProjectGeneration identify the requested snapshot for freshness checks.",
+      "japanese": "鮮度の確認に使う要求対象のスナップショットを、DocumentVersionとProjectGenerationで識別します。"
+    },
+    "355cc07c3c934e9d25de1bd65388709d6a704af41a0a643ad395caafccc1f963": {
+      "english": "The declared accessibility of an explicitly supplied API symbol.",
+      "japanese": "明示的に渡したAPIシンボルの、宣言上のアクセス範囲。"
+    },
+    "358d0fc43c151ec0d25f67ba79ca5042097867d050d59dbd0fa92e401354cf48": {
+      "english": "A shared helper that formats dates using the time zone from the site settings.",
+      "japanese": "サイト設定のタイムゾーンを使って日付を整形する、共通ヘルパー。"
+    },
+    "35a3fb8093d335e81a793a3ee37dba38b428e33153ae72500d7df524c9a572a1": {
+      "english": "Derives a stable ID without coupling it to the public route.",
+      "japanese": "公開ルートに結び付けずに、安定したIDを求めます。"
+    },
+    "35e146fa847bbebe80ce94b7e2efdf3b29ef8e6ab7ffafa323e987f510812e69": {
+      "english": "Represents HTML that has already been assigned an output context.",
+      "japanese": "出力contextがすでに割り当てられたHTMLを表します。"
+    },
+    "3621089bc09fb2fec10688e0be6109a6462dc03518dc460b65f0051a954c6484": {
+      "english": "Additional footer links.",
+      "japanese": "フッターの追加リンク。"
+    },
+    "362e9126a70d2c3d5ea5f7bb0154282de2bdb3e4da721c1c55171b231e8dba80": {
+      "english": "The YAML string to read.",
+      "japanese": "読み取るYAML文字列。"
+    },
+    "36763b176100fb609138dd6b791b1d1b1fda3df7b935e88bc5446ce8d6d38825": {
+      "english": "Snapshots validated language catalogs.",
+      "japanese": "検証済みの言語カタログをスナップショットにします。"
+    },
+    "37139216ab37a23ba1fd2af68a50a4991d66b9f9ba1a3cba02be31aede41b761": {
+      "english": "The selected manifest and resolver do not provide this path.",
+      "japanese": "選択したmanifestとresolverは、このパスを提供しません。"
+    },
+    "372c91f6d6e967d9415c058ee0e649e15ad46755467237be405afdfff5870f85": {
+      "english": "Overrides that include the validators. When omitted or empty, only the required-summary check runs.",
+      "japanese": "validatorを含む上書き指定。省略した場合や空の場合は、必須の要約検査だけを実行します。"
+    },
+    "37434a61eb011117419c0574d7b7e858532ad44d4e9ffd95ad00708e1fffad5a": {
+      "english": "The state of one explicitly declared source/translation relationship.",
+      "japanese": "明示的に宣言した一つの原稿と翻訳の関係の状態。"
+    },
+    "3761f117743b83d607598d79bc7644eef4b08fb6a019535022cb8ca12ec3711a": {
+      "english": "Gets the element parent, or null for a document or template fragment parent.",
+      "japanese": "親要素を取得します。親が文書またはテンプレートのfragmentの場合はnullです。"
+    },
+    "38828870a27d296e755011fa5c0c1d0fcf3c0284b2569059d509fbaca5b92059": {
+      "english": "Renders previous and next links.",
+      "japanese": "前後のページへのリンクを描画します。"
+    },
+    "3892a24501a84dc83e0e8fa81ef8afdebb625bc21101c6fc76a58c8dee974a82": {
+      "english": "NFC-normalized identity with ordinal, case-sensitive equality. Empty values, surrounding whitespace and control characters are rejected.",
+      "japanese": "NFC正規化済みで、序数比較により大文字と小文字を区別する識別情報。空の値、前後の空白、制御文字は拒否します。"
+    },
+    "38bcf8b7079e6d0da9af31af69222780d5982749147268e432fa3d60c34bd1da": {
+      "english": "Lowercase SHA-256 of the exact analyzed source bytes.",
+      "japanese": "解析した正確なソースbytesの、小文字のSHA-256。"
+    },
+    "38d042eadeb863f97ea3ea59484df80b721340c63b14ed25c05e5aafa6cbe7d7": {
+      "english": "Starts its editing worker lazily on first analysis, independent of build/serve lifetime and cancellation.",
+      "japanese": "初回の解析時に編集用workerを遅延起動します。ビルドや配信の存続期間、中止とは独立しています。"
+    },
+    "38f253e03243b5ebed148b707bd98d0352a5ebd941b0801706169b1542982e8d": {
+      "english": "A read-only element view whose lifetime belongs to its snapshot owner.",
+      "japanese": "スナップショットの所有者に存続期間が属する、読み取り専用の要素ビュー。"
+    },
+    "3945ca315417911465fd07375dcea297e6bb617cdc5c95686355b30346a7206e": {
+      "english": "Declares existing variants. The exact fallback reference must appear in the variant list.",
+      "japanese": "既成のvariantを宣言します。正確に一致するfallback参照がvariant一覧に必要です。"
+    },
+    "3a227b54fe1beb001d88099f8d2ae4cd444cbc674f1b126fc346bfe04ae0d5d1": {
+      "english": "Optional transform cache directory outside the output directory. Null disables the disk cache.",
+      "japanese": "出力ディレクトリの外に置く、任意の変換キャッシュディレクトリ。nullの場合はディスクキャッシュを無効にします。"
+    },
+    "3a680f8ea0fb3e2b1b8467569e654e5d4fa17156dbd96cced129eaa1c1104978": {
+      "english": "A diagnostic snapshot for one explicitly selected preflight phase.",
+      "japanese": "明示的に選択した一つのpreflight段階に対する、診断のスナップショット。"
+    },
+    "3a70640aba265c810c5b2b8bb1e15055a817f8e4e77113887a406289ec33bec7": {
+      "english": "{0} is null.",
+      "japanese": "{0}がnullです。"
+    },
+    "3ac34c713ce6e421f00753d05298e11e82fbf0ad35bc72bd4b0f7818f4fd9253": {
+      "english": "Node label.",
+      "japanese": "ノードのラベル。"
+    },
+    "3b29a2835714b7092555dbc3f0378e94231d8b0777ed7e4e1e2ffc1e8f684575": {
+      "english": "The document language.",
+      "japanese": "文書の言語。"
+    },
+    "3b5a469afff38a9096e3aa475104da507e556f36709db1313e0cefa5606d1cad": {
+      "english": "Gets the site settings.",
+      "japanese": "サイトの設定を取得します。"
+    },
+    "3b5c1ce49153a1714d6b25a20d619e888c7960c49d6e22327fa60acdacfa51dd": {
+      "english": "Gets a registered transformed output URL.",
+      "japanese": "登録済みの変換出力のURLを取得します。"
+    },
+    "3b735fad696e742061e8351b1844320ea3764a868667299f3d63069e30e04c6f": {
+      "english": "Caller declared image metadata, or null when unknown.",
+      "japanese": "呼び出し側が宣言した画像メタデータ。不明の場合はnullです。"
+    },
+    "3ba265c8b56d427dd879b199bad30d64486bbac0ed9417b68b384af0503da79e": {
+      "english": "Generation failed or the artifact is undeclared or missing.",
+      "japanese": "生成に失敗したか、アーティファクトが未宣言または存在しません。"
+    },
+    "3bb1c0ecb2319d88c9034f2ebcaf2ddc40052608864bf45b9e5566d8184abf69": {
+      "english": "The selected variant identity.",
+      "japanese": "選択したvariantの識別情報。"
+    },
+    "3c1ccf278296c0d27ce1426b2b5922657791f1fe2073e2610820bddf3a9068bf": {
+      "english": "Explicit inputs and public routing for one collection version and language.",
+      "japanese": "一つのcollection、バージョン、言語に対する、明示的な入力と公開ルート。"
+    },
+    "3c36f4ff5cf2b0fc50bc714e6c0644f854615339d1cbdeb7380779c0721fe688": {
+      "english": "An immutable parsed HTML snapshot owned by a {0}.",
+      "japanese": "{0}が所有する、不変の解析済みHTMLスナップショット。"
+    },
+    "3d044c8728701ff381496081e339da94bc746aebbcce2602f8672e6c71e35160": {
+      "english": "The YAML front matter and the body.",
+      "japanese": "YAMLのfront matterと本文。"
+    },
+    "3d079783e3afc17fbf8ea64165a89853d271cb750be11cdee3eb046778d70096": {
+      "english": "Language code for the site.",
+      "japanese": "サイトの言語コード。"
+    },
+    "3d88b6d852e68a6da15f5e163c538fa5fdb712a729954108b609aa2a269f2e04": {
+      "english": "Returns the original version when compatible; malformed or different-major versions throw InvalidOperationException.",
+      "japanese": "互換性がある場合は元のバージョンを返します。不正な形式や異なるmajorのバージョンにはInvalidOperationExceptionを送出します。"
+    },
+    "3e834f9192e1d757fc1fc2cd0e1af5759093729dfdf5c4e8affd8ff08d312271": {
+      "english": "Legacy flag for removed implicit generation. Explicit image settings now control social metadata.",
+      "japanese": "撤廃した暗黙的生成の、従来のフラグ。social metadataは、現在は明示的な画像設定で制御します。"
+    },
+    "3e909eac817cfaa482e12eb84c048eb281f725b752ec3a42c2361bc991774243": {
+      "english": "Suffix appended when only the top results are shown. Placeholder: {0}.",
+      "japanese": "上位の結果だけを表示するときに追加する接尾辞。プレースホルダーは{0}です。"
+    },
+    "3eca461c128661e77f1b81bc3721997d275e1b892e2a260c5cc70189174d1809": {
+      "english": "The same output declaration is not registered in this build.",
+      "japanese": "このビルドには同じ出力宣言が登録されていません。"
+    },
+    "3efec8ed1f29bd27916b9d06ca592a866cfc7f4b7c8a161a6a9b1e8e5d6a29f3": {
+      "english": "The list or a URL is null.",
+      "japanese": "リストまたはURLがnullです。"
+    },
+    "3f0f95288b9b457ce0a6dface9b4b9add7428771d6c08edce0cbaccb4145e441": {
+      "english": "Groups published entries by NFC-normalized, case-sensitive keys, deduplicating each entry within a key. Generated pages cannot be aggregated recursively.",
+      "japanese": "NFC正規化済みで大文字と小文字を区別するキーごとに、公開エントリーをグループ化します。同じキー内では各エントリーを重複させません。生成したページを再帰的に集約することはできません。"
+    },
+    "3f216651c5d0995a0aa2e9ee20443807bbed8ddf8e7c696f44f317b5477d593b": {
+      "english": "Gets the output directory, resolved against the project directory when relative.",
+      "japanese": "出力ディレクトリを取得します。相対パスの場合はプロジェクトディレクトリを基準に解決します。"
+    },
+    "3f340b98827e87d1bb308f14816b634cf9c7dbb361e51a8fce4a7786df7d43ef": {
+      "english": "One trusted declared route and its existing owner identity.",
+      "japanese": "信頼された一つの宣言済みルートと、その既存の所有者識別情報。"
+    },
+    "3f85501ffa8d892342406af16c1b81510cf7472a7cedeb0b10dbf40e9f48543c": {
+      "english": "Supported schema keywords: type, properties, required, additionalProperties, items, enum and description. Unsupported keywords fail rather than weakening validation.",
+      "japanese": "対応するスキーマキーワードはtype、properties、required、additionalProperties、items、enum、descriptionです。非対応のキーワードがあれば検証を弱めず、処理を失敗させます。"
+    },
+    "3fa79097200f20c4c59a88d9c53e079dece32247a80ebad10a8a9f5799fb1af3": {
+      "english": "Returns diagnostics for ordinary input errors; configuration or implementation errors may throw.",
+      "japanese": "通常の入力エラーには診断を返します。設定や実装のエラーでは例外を送出する場合があります。"
+    },
+    "3ff2fd9d8b1867fbd49a0d36ab1ac6fa472e99e218427e59beeb82de4f056483": {
+      "english": "Documentation navigation, in display order.",
+      "japanese": "表示順に並んだ文書ナビゲーション。"
+    },
+    "403446fb0da6e85b54491fffa21497c070c8a78daad29bcf4f6aa99b0edafc30": {
+      "english": "The relative output path is invalid.",
+      "japanese": "相対出力パスが不正です。"
+    },
+    "403ac15aca0d385a3db2d4de4ef222ad8497d6877bf18ee09e013748255c0a41": {
+      "english": "An explicit review of a translation against one exact source revision.",
+      "japanese": "特定の1つのソースリビジョンに対する翻訳の明示的なレビュー。"
+    },
+    "40bb68d72e9cc57a08954b8507c13eca2fb3f53fb93d5a952643bae64a675699": {
+      "english": "Builds Markdown or MDX documentation through the existing typed collections and asset registry.",
+      "japanese": "既存の型付きコレクションとアセットレジストリを通じて、MarkdownまたはMDXの文書をビルドします。"
+    },
+    "40e1ae95190fff993bf9291e1172809d15f2950686982d839e9612040520a59b": {
+      "english": "PNG.",
+      "japanese": "PNG。"
+    },
+    "413ec6dcee5a8771d9c19b054d0cddddb28207c448664bef012d29161cab4770": {
+      "english": "Built-in template for the legacy blog layout.",
+      "japanese": "従来のブログレイアウト用の組み込みテンプレート。"
+    },
+    "41766775ed2a9b50b9ab8d169d66e6383f26f7be972c8e0deef6ea1e5b06a7a4": {
+      "english": "Context shared by components and page layouts.",
+      "japanese": "コンポーネントとページレイアウトで共有するコンテキスト。"
+    },
+    "4200977681aab2b70a6e9c7e7ead0ffcdd07fa41f741a5bbc1133d9111ff01c4": {
+      "english": "Search status template shown before a query, listing how many posts are searchable. Placeholder: {0}.",
+      "japanese": "クエリの入力前に、検索可能な記事の件数を示す検索状態テンプレート。プレースホルダーは{0}です。"
+    },
+    "4268d49f59cf3564f3c3579bc47c043d7272aca65bc60d47e1013584563aa6de": {
+      "english": "An immutable generated-asset plan with no template or extension rewriting its HTML files.",
+      "japanese": "テンプレートや拡張機能によってHTMLファイルが書き換えられない、変更不能な生成アセット計画。"
+    },
+    "428bd1c2e25fc09e030059c4d57e2ae0fa05339f47b5c2166e08e4d4819b338e": {
+      "english": "A review assessment against a complete or explicitly incomplete input snapshot.",
+      "japanese": "完全な入力スナップショット、または不完全であることを明示した入力スナップショットに対するレビュー評価。"
+    },
+    "42b637b4928a93731d67e0aaf7848d8a8315914fbfc4b383a71612bb52e9576c": {
+      "english": "The fixed UTC timestamp used by publication and rendering.",
+      "japanese": "公開と描画に使用する固定のUTCタイムスタンプ。"
+    },
+    "42ff9006e9ea01f841516532a9a3f81d5f1feea5edeb0251bbca94202d8bc7f1": {
+      "english": "Schema-independent display information for a published documentation entry.",
+      "japanese": "公開済みの文書エントリーについての、スキーマに依存しない表示情報。"
+    },
+    "4365d9fb635d151dac25803204d3fa3b1f9d5b65979eb3950940cb1926f31a39": {
+      "english": "Stable asset identifier.",
+      "japanese": "安定したアセット識別子。"
+    },
+    "43d8dbb1d85bbd0866a45d3b87c1382b66ccfe58a57135c5550fe7a3da218af9": {
+      "english": "The cache partition directory that was measured or cleared.",
+      "japanese": "測定または消去したキャッシュパーティションのディレクトリ。"
+    },
+    "43e0851a480cacc4408c8136c9dc25c9b21ed25953f64a28781c0749ddbc0d80": {
+      "english": "The props, required header data, a link URL, or the context is null.",
+      "japanese": "props、必須のヘッダーデータ、リンクURL、またはコンテキストがnullです。"
+    },
+    "43f1d5aed72aa8ab534eeba0079b65300374986c1359c25edb2ec9e6f464877f": {
+      "english": "The Node executable. It is never installed or downloaded during build.",
+      "japanese": "Nodeの実行ファイル。ビルド中にインストールやダウンロードは行いません。"
+    },
+    "4414b726ae8f3670cb28ea7fa867831dcc308ef9d481a14351746e9095afb045": {
+      "english": "Explicit existing social image used by pages without an override. Register referenced assets or transform outputs separately.",
+      "japanese": "上書き指定のないページで使用する、明示的に指定した既存のソーシャル画像。参照するアセットや変換出力は別途登録してください。"
+    },
+    "441d8601a595bb0f5de9c99b14874422117845503241361f6a256ced6dfb0190": {
+      "english": "Optional sort order in the documentation sidebar.",
+      "japanese": "文書のサイドバーでの任意の並び順。"
+    },
+    "44717cf03473ca8221d1d36f57f466498d054490273512213206a63ed783e803": {
+      "english": "Relative output path.",
+      "japanese": "相対出力パス。"
+    },
+    "449fe480cf38bc79fdc8b42300650ab1213e9311cac255cfc2ddd58da00a3fad": {
+      "english": "A shared, immutable C# and React message catalog.",
+      "japanese": "C#とReactで共有する、変更不能なメッセージカタログ。"
+    },
+    "4515f9dc4b583e4f71ca4e6854dc7e4d0b64ade106a46ebf7016b424a902d49b": {
+      "english": "Next page in documentation order.",
+      "japanese": "文書の順序における次のページ。"
+    },
+    "451afeb5ef7d8c136d92c06d2654aed09215e6479aa25d33625d26527ff863e9": {
+      "english": "The optional site identity; an empty value denotes the default scope.",
+      "japanese": "任意のサイト識別情報。空の値は既定のスコープを表します。"
+    },
+    "457ae28b63cfb1568f57603fb1579d68592103cc8572b60221e91395bd568799": {
+      "english": "Message shown when there are no posts to archive.",
+      "japanese": "アーカイブする記事がないときに表示するメッセージ。"
+    },
+    "45ed55a61531683d3f2bcaa1e3ac56ac060b683b49825dfa9220ff0d70de1cd0": {
+      "english": "Zero-sized rectangles are empty; negative sizes are rejected. This operation replaces pixels.",
+      "japanese": "サイズが0の矩形は空です。負のサイズは拒否します。この操作は画素を置き換えます。"
+    },
+    "4662c010ec1dd465603f41bb83ff41b9976378bf4739a22f319431ee575d5cc0": {
+      "english": "Declared source assets.",
+      "japanese": "宣言されたソースアセット。"
+    },
+    "467dfc34a9dd546eac5eb0c5bf083070ab05c5dade972147946fe65f5c2e7bef": {
+      "english": "Shows home-page topic cards from the existing navigation and page summaries.",
+      "japanese": "既存のナビゲーションとページの要約から、ホームページのトピックカードを表示します。"
+    },
+    "4690e3bf9833d9bb28caf1f699f0f597a072232bb353b47180ebc0f27753292c": {
+      "english": "Supports color types 0, 2, 4 and 6. Palette, animation, EXIF and non-sRGB color management require pre-generated assets.",
+      "japanese": "カラータイプ0、2、4、6をサポートします。パレット、アニメーション、EXIF、非sRGBのカラーマネジメントには事前生成したアセットが必要です。"
+    },
+    "46d357a284a2483346e36b16801a0accf291d50093b3548c21ab9a07f47f8492": {
+      "english": "The date to format.",
+      "japanese": "書式を設定する日付。"
+    },
+    "46d7de0166c5dba333c3cc20c56c3c854307d814abe0dd54adf84514905c7267": {
+      "english": "Whether to include the page in the sitemap.",
+      "japanese": "ページをサイトマップに含めるかどうか。"
+    },
+    "471a870edc8aec0462a2940e43f4ea4e7bd32a33b459c26ce9c2aa9d03e5968f": {
+      "english": "Unexecuted MDX source with its original line positions.",
+      "japanese": "元の行位置を保持した、未実行のMDXソース。"
+    },
+    "4747664d2c03f47d8e03acf2ddbd374257f9436d3a0b9de457aa67d7d99e5a1a": {
+      "english": "Creates the optional blog preset without starting Node.",
+      "japanese": "Nodeを起動せずに、任意のブログプリセットを作成します。"
+    },
+    "47b3d78ec50a8ff943983b9a4f4d933b09924925a6abde2af999a6d9fa008f1b": {
+      "english": "The path is blank or invalid.",
+      "japanese": "パスが空白または不正です。"
+    },
+    "4823ebb929abb92d5adf26dcab9702dc0150acb06b813bbce15dce6dd6d821a1": {
+      "english": "The output was already written.",
+      "japanese": "出力はすでに書き込み済みです。"
+    },
+    "4863e3190bc4582e11dd6b0c2f40edc6d935d26ff2f4d47a75d58e9391c49a35": {
+      "english": "Explicit environment values available to trusted worker code; never sent to browsers.",
+      "japanese": "信頼して実行するworkerコードで利用できる、明示的な環境値。ブラウザーには送信しません。"
+    },
+    "489f5194d0eba269b0c47c1eba6d99f1cf191d8fd5d88cf9c21efa36d3a7bc64": {
+      "english": "The most recently prepared published document catalog.",
+      "japanese": "直近に準備した公開済み文書のカタログ。"
+    },
+    "48c69b3f8da12142565bb1a72322e868ec7af4d576e9ec9b1bf6eb44ddb6ca16": {
+      "english": "For caching, declare every external delegate/comparer dependency and a stable transformationId that changes whenever the rules change.",
+      "japanese": "キャッシュを使用する場合は、外部のデリゲートや比較子への依存をすべて宣言し、規則が変わるたびに変化する安定したtransformationIdを宣言してください。"
+    },
+    "48c716b023632ba63665a98f9a72e2766fe443813fc5a324004ac51234a07578": {
+      "english": "Maximum number of PNG chunks, including empty chunks.",
+      "japanese": "空のチャンクを含む、PNGチャンクの最大数。"
+    },
+    "494df953159e88a95e6940a52ed27beb0efe9fb8a97168f324a816de5d797140": {
+      "english": "The explicit behavior for a missing translated message.",
+      "japanese": "翻訳済みのメッセージがない場合の明示的な動作。"
+    },
+    "4960ed8253e4861c00e78b8e3d93b75e0822556648941157e85600591348ce1d": {
+      "english": "Headings in the rendered content.",
+      "japanese": "描画した内容に含まれる見出し。"
+    },
+    "49cb9397ed34c0bc0359d1191729453e83250eb8ac67d0d8599878ae5a063c9a": {
+      "english": "Default time zone used when rendering post dates.",
+      "japanese": "記事の日付の描画に使用する既定のタイムゾーン。"
+    },
+    "49f5eaae4d28c5f4024395260388333e7ce28922df31410e80695d6e42c56583": {
+      "english": "An API input with the same identity and route dimensions as documentation.",
+      "japanese": "文書と同じ識別情報とルートの次元を持つAPI入力。"
+    },
+    "4a837d49f6e102dfd3b27f03682238065e55de4917f294c6305ed0da85bf6266": {
+      "english": "Registers explicit external API URLs. No remote documentation is downloaded.",
+      "japanese": "外部APIのURLを明示的に登録します。リモートの文書はダウンロードしません。"
+    },
+    "4a9c60b7901a68f86cbe00fd26d72f1ff231092d13dced42284df8135587b2b8": {
+      "english": "A stable, nonempty identifier without surrounding whitespace or control characters.",
+      "japanese": "空でなく、前後に空白がなく、制御文字を含まない安定した識別子。"
+    },
+    "4af8cada80bccb6b8387fc0d5ab6928b31fc9de1b284a6780ebda80f759045f0": {
+      "english": "The existing validated route.",
+      "japanese": "既存の検証済みルート。"
+    },
+    "4b04259b4c131604fc003489f356b770d4d3ff41a2fd0472c2b6fcaa8c37548a": {
+      "english": "Creates an explicit closed lookup from a snapshot of the canonical catalog.",
+      "japanese": "正規カタログのスナップショットから、明示的な閉じたルックアップを作成します。"
+    },
+    "4b1a877c58588bae2bf693163e51c6e0a813d5e49baa73fe4a8f7ee8b3bb48a7": {
+      "english": "Message shown when there are no older posts.",
+      "japanese": "これより古い記事がないときに表示するメッセージ。"
+    },
+    "4b8673d4e8be7b19d1060a173ae928b454abef3109d032a1518289a522245fb7": {
+      "english": "Reused local facts still require target and quality-rule checks.",
+      "japanese": "ローカル情報を再利用する場合も、参照先と品質規則の検査が必要です。"
+    },
+    "4bab90c4ed999ac4d1f2dce8904432520ad243011055e2a1decd32a5b1d12e16": {
+      "english": "Generation validates collisions, cycles, chains and missing targets.",
+      "japanese": "生成時に、衝突、循環、連鎖、存在しない参照先を検証します。"
+    },
+    "4bd4fe4fa140dc859ff91fd8f5a4a2782a50af27aa612895f7d2fabcfa116bf1": {
+      "english": "A category introduction link.",
+      "japanese": "カテゴリーの紹介リンク。"
+    },
+    "4bee3d153cacaecd364d1f99215c05f45d57b7e94364c668ab424d17461f4761": {
+      "english": "Formats a date for display as \"yyyy-MM-dd HH:mm LABEL\".",
+      "japanese": "表示用の日付を\"yyyy-MM-dd HH:mm LABEL\"形式に整えます。"
+    },
+    "4cb9d295fa3b4e758b38cbcbe790e2ec2630177111f5d76b216a0e1a2fe1d245": {
+      "english": "Optional variant identity within the site.",
+      "japanese": "サイト内の任意のバリアント識別情報。"
+    },
+    "4ce545c51afd89c34367014ecc0b9274b1c93b66a76b82cfe32bd64c2b02716e": {
+      "english": "Gets the temporary output directory. It is removed on disposal.",
+      "japanese": "一時出力ディレクトリを取得します。破棄時に削除されます。"
+    },
+    "4d2187e80c14964767346ed1d444ddbdb244097f92195c8ba191f812d1a1e19b": {
+      "english": "Extracts literal translation calls. Dynamic keys must be registered explicitly.",
+      "japanese": "リテラルを使った翻訳呼び出しを抽出します。動的なキーは明示的に登録する必要があります。"
+    },
+    "4d59ab76a0ee85d07be3ca5096da01e2323bec5ba275c6407531719d7f0de6b3": {
+      "english": "Creates a URL for a directory index route.",
+      "japanese": "ディレクトリインデックスのルートに対するURLを作成します。"
+    },
+    "4d841633fd27c32b50165eded7c2df6380486f2a8ddbf43408430da580a8cc7b": {
+      "english": "The ordered parameter symbols.",
+      "japanese": "順序付けされたパラメーターシンボル。"
+    },
+    "4da485f336a6543a580b19f7366e047dc21edfda38b5cc9e99ff37b033a2d964": {
+      "english": "Reports input names not recognized by TryRead or ValidateRequired.",
+      "japanese": "TryReadまたはValidateRequiredで認識されなかった入力名を報告します。"
+    },
+    "4e1c1ca0f1331a44570d2e90e784af7bf0b7744c2f827f1885085382a009b510": {
+      "english": "Runs sequentially after publication, including no-op builds. A hook failure cannot roll back an already committed site.",
+      "japanese": "変更のないビルドを含め、公開後に順次実行します。フックが失敗しても、コミット済みのサイトをロールバックすることはできません。"
+    },
+    "4e26dc7e35388e0db8cfc717603b9c97fd44610d94c1f1961418bdda80bf2e49": {
+      "english": "Operations use premultiplied alpha in sRGB values. Fully transparent output RGB is zero.",
+      "japanese": "演算にはsRGB値でプリマルチプライドアルファを使用します。完全に透明な出力のRGBは0です。"
+    },
+    "4e54d397d10e5d7febc9c42f2af64cbaf9873e6cf4bb30a900c32620ffd7ec33": {
+      "english": "Excludes this published page from site search without hiding it from navigation.",
+      "japanese": "この公開済みページをナビゲーションには残したまま、サイト内検索から除外します。"
+    },
+    "4e61f6de59e7b4de7bbc9092a1f1a6e22e1183b0e2d311dd9db25c16106187de": {
+      "english": "Looks up an exact public path in this manifest, optionally using its open resolver.",
+      "japanese": "任意でオープンリゾルバーを使い、このマニフェスト内で正確な公開パスを検索します。"
+    },
+    "4e6972d14059e411f86cde1e1679e29fa9a50851f82dcd6eac30de5652395df9": {
+      "english": "An optional external search provider. Null uses local variant partitions without network services.",
+      "japanese": "任意の外部検索プロバイダー。nullの場合は、ネットワークサービスを使わずにローカルのバリアント別パーティションを使用します。"
+    },
+    "4e7608d8f3db373ead7388a951a3a83e3bb981a905deef239e9d2b2389d501bb": {
+      "english": "The complete C# declaration supplied by the symbol source.",
+      "japanese": "シンボルソースが提供する完全なC#宣言。"
+    },
+    "4eab0bd7c1f3194bf4f59215f53a26671a6ad7acee1fd19de91a3fbf325fcdc3": {
+      "english": "A rendered Markdown page available to a template.",
+      "japanese": "テンプレートから利用できる、描画済みのMarkdownページ。"
+    },
+    "4eacc7f2daebb6135455dae20fe7808f65b215fdc7878d64c5bf59a364b76107": {
+      "english": "Renders the documentation header.",
+      "japanese": "文書のヘッダーを描画します。"
+    },
+    "4eb697125857f95cf14cbda6445220c2a805b422d6bb55948392a32163b12f01": {
+      "english": "Directory containing the source file.",
+      "japanese": "ソースファイルを含むディレクトリ。"
+    },
+    "4ee28aefdfa0f0e30d1df3723e18d1ec5e4247bc0293f04999235ee3528fee67": {
+      "english": "A generated PNG at an exact width with proportional height.",
+      "japanese": "指定どおりの幅と、縦横比に応じた高さで生成するPNG。"
+    },
+    "4ee74a2304264d5907ac100635adb36c065bd7011c3e3abb53be37b3bd2e1629": {
+      "english": "Cancels pending work and waits with a bounded timeout; caller-held snapshots remain valid.",
+      "japanese": "保留中の処理をキャンセルし、上限時間を設けて待機します。呼び出し側が保持するスナップショットは引き続き有効です。"
+    },
+    "4efc3845c3e80fece65857c966d51eb731376338e2db6beee1d611c22c59dff9": {
+      "english": "Component names explicitly known to produce static output without browser behavior.",
+      "japanese": "ブラウザーの動作を伴わず静的な出力を生成することが明示的に分かっているコンポーネント名。"
+    },
+    "4f279a53ec190b375e096329feec536458dba92d4da5e8c61829fcff984d0444": {
+      "english": "Optional social preview image URL. Defaults to the site's generated image when one is available.",
+      "japanese": "任意のソーシャルプレビュー画像のURL。サイトの生成画像がある場合は、その画像が既定値です。"
+    },
+    "4f3221cd06e23b105e9c485d6a46e6060a2b11f77bb55ad659b9e97427f85906": {
+      "english": "Path validity is checked by the build plan so diagnostics can be reported together.",
+      "japanese": "診断をまとめて報告できるよう、パスの有効性はビルド計画で検査します。"
+    },
+    "4f59a20cfd26e59d049aaa4edf50a2b5b2ec3aa29a03b205f5e6241801ea18aa": {
+      "english": "Root-relative URL for the page.",
+      "japanese": "ページのルート相対URL。"
+    },
+    "4f7ec55ec54da057f6931453539e93370a0bb69e6ad6dc17bd6b6e588fc25785": {
+      "english": "Explicit existing social images keyed by relative output path, for example posts/guide.html. Register referenced assets or transform outputs separately.",
+      "japanese": "posts/guide.htmlなどの相対出力パスをキーとして明示的に指定する既存のソーシャル画像。参照するアセットや変換出力は別途登録してください。"
+    },
+    "4fe2e8ea0e58c382da20f89c2b6685e3c66807226d302725c6ae54b8e4c4f44b": {
+      "english": "An external HTTP URL for a link entry.",
+      "japanese": "リンクエントリーの外部HTTP URL。"
+    },
+    "4fedb1b78123546653c7d43142cceee69a695c91c4a58383af2eb534d093f9dd": {
+      "english": "Either doc or generated-index.",
+      "japanese": "docまたはgenerated-index。"
+    },
+    "5045179b7600ecfd17f28a1aae972d1b90473601a85a62970035abce0127d016": {
+      "english": "The number of interactive entries processed by browser bundling in this worker request; zero when a validated browser cache avoids bundling.",
+      "japanese": "このworker要求でブラウザー向けのバンドル処理を行った対話型エントリーの数。検証済みのブラウザーキャッシュによってバンドルを省略した場合は0です。"
+    },
+    "50589bc237b457b657b2d25cc0aa8c27ce96c2d9fa5c2c8a8d924497073449e7": {
+      "english": "Shared validation and scalar conversion used by generated front matter binders.",
+      "japanese": "生成されたfront matterバインダーが使用する共通の検証とスカラー変換。"
+    },
+    "50d09c55ba521fa04dc6245766b2b2a0c51db12ff492383e5038d1e141edf652": {
+      "english": "A utility for reading and writing the YAML front matter of a Markdown post.",
+      "japanese": "Markdown記事のYAML front matterを読み書きするユーティリティ。"
+    },
+    "50efd891b496cdffaa009f405b765820ccfb38c179e76ba4713e89a7bd257c67": {
+      "english": "Search status shown when the search index fails to load.",
+      "japanese": "検索インデックスの読み込みに失敗したときに表示する検索状態。"
+    },
+    "50f64fef6e1b9aaf6b8ddc17532231ddd4c47467b54098bc4cc3dde9cdd8f960": {
+      "english": "The referenced code file cannot be read.",
+      "japanese": "参照されたコードファイルを読み取れません。"
+    },
+    "513f26b92adc6f135d80060fa5f53eb777ffee809eaf40ba5aa5df3497c84f42": {
+      "english": "Switches to the same document or an explicitly declared fallback.",
+      "japanese": "同じ文書、または明示的に宣言したフォールバックに切り替えます。"
+    },
+    "5216e5d0b41f19834b090d3121eb00d8d0e3043f84cdf4eb84622f8ced8e0756": {
+      "english": "Asserts that a path is neither declared nor present in the output directory.",
+      "japanese": "パスが宣言されておらず、出力ディレクトリにも存在しないことを表明します。"
+    },
+    "5278598c05f09c701d1e85d4bec2996942af74e375fbc3b0e5cb9e24b2bd0e32": {
+      "english": "\"Older posts\" heading.",
+      "japanese": "「古い記事」の見出し。"
+    },
+    "52c0079232f551d6426d85e03b8c359546eec1ddaa676ea311e86e19795b4d75": {
+      "english": "Converts the front matter into a YAML string.",
+      "japanese": "front matterをYAML文字列に変換します。"
+    },
+    "531eb0adbf08fe542f3de3ccbdd308b8f0b7e2d9e3ea07756ea46a7a06f4b41c": {
+      "english": "Optional preflight run before every cache lookup, for example to reject a replaced external tool.",
+      "japanese": "キャッシュを検索する前に毎回実行する任意のpreflight。たとえば、差し替えられた外部ツールを拒否するために使います。"
+    },
+    "532634647776c3e2366b5ea5196c189a9c2beafd5e28777fbe4d0c8daa2c4468": {
+      "english": "Other assets referenced by this asset, including shared chunks.",
+      "japanese": "共有チャンクを含む、このアセットが参照するほかのアセット。"
+    },
+    "540f4ed1483c12438e03b80105393f2ec1754a2580077ecd1e21222a55402e6b": {
+      "english": "Markdown code inclusion diagnostic identifiers.",
+      "japanese": "Markdownのコード取り込みに関する診断識別子。"
+    },
+    "5415dcccded9a28dac484573705a16ea4baaff308e93397fd1d04d491701896e": {
+      "english": "Inspects current HTML, CSS, local targets and native immediate redirects using the published base URL.",
+      "japanese": "公開時のベースURLを使って、現在のHTML、CSS、ローカルの参照先、ネイティブな即時リダイレクトを検査します。"
+    },
+    "5426e3b61d8ba591e002bbd1ce15c16c76853795b558dd29f2b831a55555477b": {
+      "english": "Publishes the exact prepared bytes through the common ownership and output transaction.",
+      "japanese": "準備したとおりの正確なバイト列を、共通の所有権と出力トランザクションを通じて公開します。"
+    },
+    "54462f00b9b77dfaf63a4061bc99b176b21454c294de069ec2dc9e22bf83d81d": {
+      "english": "Locale facets do not add duplicate routes to the overall denominator.",
+      "japanese": "ロケールのファセットによって、全体の分母に同じルートが重複して加算されることはありません。"
+    },
+    "5463e29b2046d2677de38cd17f19ec3434949742fed973450ff0d033a7178e86": {
+      "english": "Build environment.",
+      "japanese": "ビルド環境。"
+    },
+    "54c2f1e0a5e9c11ce51be8f9fa11f58cbfa2beba894980b9d61344d74fc555ac": {
+      "english": "A Markdown post that has been read from disk.",
+      "japanese": "ディスクから読み取ったMarkdown記事。"
+    },
+    "54cb4d4dc7c4c9d8fbde07ab77a935fdee2342496a10cc457f328e1d751173eb": {
+      "english": "Whether the category starts collapsed.",
+      "japanese": "カテゴリーを最初は折りたたむかどうか。"
+    },
+    "5532606dad940e80383fd830fa86da16b1a53ede71c7026e50b4539224d2de7f": {
+      "english": "The links, a link, a link URL, or the context is null.",
+      "japanese": "リンク群、リンク、リンクURL、またはコンテキストがnullです。"
+    },
+    "5545dd901feaad6fa1bb96c9ed21e30685cddd283a45919dca6004ca241eb67e": {
+      "english": "Metadata for an automatically discovered document category.",
+      "japanese": "自動検出した文書カテゴリーのメタデータ。"
+    },
+    "55d5a9b14b87ad0297df3dc81ee0e6f75ce0d32fdc90691c9c399d06515a0480": {
+      "english": "Optional shared UI messages for C# and React.",
+      "japanese": "C#とReactで共有する任意のUIメッセージ。"
+    },
+    "55fbb1e13f1cd9016c87ac6914912b6739726cf478484f5eaffd571cb7627eed": {
+      "english": "Provenance emitted on an opted-in generated manifest property.",
+      "japanese": "明示的に有効化した生成マニフェストのプロパティに出力する来歴情報。"
+    },
+    "55fe0ef8ba0869f56ffc3b4e9ba98b291d09d867bfc8fcd83c687803cf02f538": {
+      "english": "Build cache root outside output and public input. Null uses a sibling .lithosharp directory, partitioned by output identity.",
+      "japanese": "出力と公開入力の外側に置くビルドキャッシュのルート。nullの場合は、出力識別情報ごとに分割した、同じ親ディレクトリ内の.lithosharpディレクトリを使用します。"
+    },
+    "560cd4f987bef2e7c31ed6260d5a19b18d1f0d59f56ebef374d648f9b7766ea6": {
+      "english": "Snapshots already prepared HTML assets. Prefer the generated FixedHtmlPlan property.",
+      "japanese": "準備済みのHTMLアセットをスナップショットとして取得します。生成されたFixedHtmlPlanプロパティの使用を推奨します。"
+    },
+    "564aaba316e28a29d169d6eeb067dfc1a63d2a805943d0c0c4350a28baeaee4a": {
+      "english": "An optional generated index description.",
+      "japanese": "生成するインデックスの任意の説明。"
+    },
+    "5662e3e54c68438517385544d90b3e04e2d27e2e3d03f46d704c89e9458db960": {
+      "english": "Input normalization and plan construction, before output transaction creation.",
+      "japanese": "出力トランザクションを作成する前に行う、入力の正規化と計画の構築。"
+    },
+    "56d8e9a393541e99e1fabeec361d31036cc006a820ed7a2cd1bf1fca45c68025": {
+      "english": "Acquires a catalog and analyzes source without invoking SSR.",
+      "japanese": "SSRを呼び出さずに、カタログを取得してソースを解析します。"
+    },
+    "56def54c44e89274833899c8533aad1535c47d7fd63e5173d17eaf0a55f86ae3": {
+      "english": "Places a source image using source-over alpha compositing, clipping it to this canvas.",
+      "japanese": "source-overアルファ合成でソース画像を配置し、このキャンバスの範囲に切り取ります。"
+    },
+    "56f703e4d2ce7874115c4cbe8ebabd779f2a112b370860afa78e6b415decd95c": {
+      "english": "Use the declared source language.",
+      "japanese": "宣言されたソース言語を使用します。"
+    },
+    "5716c97b2ff5301d6a6e84a7659095929c3cddf015edf400dff40521c3561a10": {
+      "english": "The path crosses a link or escapes the output directory.",
+      "japanese": "パスがリンクを経由するか、出力ディレクトリの外に出ています。"
+    },
+    "574907faf2be15e8c08ccb15abf92ce837c4b18bba73accd7b7c55c0394e4cce": {
+      "english": "The catalog source location, when available.",
+      "japanese": "取得できる場合の、カタログのソース位置。"
+    },
+    "5751ae4d662c2ef0346444849ac9a819fb29b0fa11f0390b74f274d853f6fb25": {
+      "english": "The input or parser is null.",
+      "japanese": "入力またはパーサーがnullです。"
+    },
+    "577476a6846d2e7637f2f5baae5214b255d388ec8f5f7637677096384bb4e587": {
+      "english": "Apply ReplaceLines in descending line order, then InsertAfter. Do not auto-apply ambiguous or stale suggestions.",
+      "japanese": "ReplaceLinesを行番号の降順に適用し、その後でInsertAfterを適用してください。曖昧な提案や古くなった提案は自動適用しないでください。"
+    },
+    "5780655510ffdfa571e711a7fcf2a34454fe2d532fe8bb4aa7c1f9104edaf408": {
+      "english": "One of added, removed, signature, visibility, deprecated, obsolete, documentation or symbol-information. A category alone does not assert that a change is breaking.",
+      "japanese": "added、removed、signature、visibility、deprecated、obsolete、documentation、symbol-informationのいずれか。カテゴリーだけで、その変更が破壊的変更だと断定することはありません。"
+    },
+    "57adceafd834a2883579c564025be99fe8f906ede2e7a6d2e0eb6e90b4d12871": {
+      "english": "An optional generated index title.",
+      "japanese": "生成するインデックスの任意のタイトル。"
+    },
+    "57bac5e51b659c00ea31a2b9233dfc19190396c3a6ca7e304e09172d44c0bdba": {
+      "english": "Replaces a rectangle with a solid color. Coordinates are top-left based and clipped to the canvas.",
+      "japanese": "矩形を単色で置き換えます。座標の原点は左上で、キャンバスの範囲に切り取ります。"
+    },
+    "57f2574f931992a6c880d931c8c7a4af3269bb2ce4d126b1d1f5f2ab6e0caf8e": {
+      "english": "Legacy raw paths remain unclassified; no document page set is inferred.",
+      "japanese": "従来の未加工のパスは未分類のままとし、文書ページの集合は推測しません。"
+    },
+    "581f2653b0e1d59aff99b2ea9b22be223d6b842c2072719859332ab91fca58f2": {
+      "english": "Other producers or a resolver may supply additional targets.",
+      "japanese": "ほかの生成処理やリゾルバーが追加の参照先を提供する場合があります。"
+    },
+    "58fb44a903ce6df81f121831b069fe783aae9c774e89e0576b0494e33cf2b02c": {
+      "english": "Resolves a message using an explicit missing-translation policy.",
+      "japanese": "翻訳がない場合の明示的なポリシーを使って、メッセージを解決します。"
+    },
+    "5925e927686ae12eab062fb850081beed56ae655ff2bce1f19caa3430fd6a354": {
+      "english": "Social card image path (Docusaurus compatibility; bound but not rendered yet).",
+      "japanese": "ソーシャルカード画像のパス。Docusaurusとの互換性のためにバインドしますが、描画にはまだ使用しません。"
+    },
+    "593c00756f63a63878e9c286082362b54dd888dad27d1b92e3a2bc1f49799f15": {
+      "english": "The existing owner identity.",
+      "japanese": "既存の所有者識別情報。"
+    },
+    "59f820a75a76c0b150f64ea1a9f99b2e0f5e84c3cacfec95593a90cc0e5e4752": {
+      "english": "The relative path is unsafe.",
+      "japanese": "相対パスが安全ではありません。"
+    },
+    "5a1eec17f3e74d3482fbe5f0a508d614d196c768bb6769400668ecc34dfbd501": {
+      "english": "HTML text encoded for a quoted attribute value.",
+      "japanese": "引用符で囲む属性値用にエンコードしたHTMLテキスト。"
+    },
+    "5a423b8149c2f6371499609a35958913801d4b2eabd55731b8dfb76e90c87b22": {
+      "english": "Renders Markdown with LithoSharp's safe configuration.",
+      "japanese": "LithoSharpの安全な設定でMarkdownを描画します。"
+    },
+    "5a613f678641867f3f6d11c9ebacdedceb3074c21ac93a44ff21e10cb509c853": {
+      "english": "HTML document head inputs.",
+      "japanese": "HTML文書のheadへの入力。"
+    },
+    "5a982e1e048333712b8b9cd7f4e9a3587b991eefd2b96e7aa8f333e3c40c8213": {
+      "english": "A parameter from an explicit symbol source; its type is never inferred from prose.",
+      "japanese": "明示的なシンボルソースから得たパラメーター。型を説明文から推測することはありません。"
+    },
+    "5aa042eb51872a31cd685f68e44268f1e7977f9e412668bbff05895d0ec56f47": {
+      "english": "Loads actual MDX catalog inputs and analyzes their syntax without running modules, plugins, SSR or bundling.",
+      "japanese": "実際のMDXカタログ入力を読み込み、モジュール、プラグイン、SSR、バンドル処理を実行せずに構文を解析します。"
+    },
+    "5aaa0cea963b9354d52e0d594ddf4928ab85933a0049c1eb8f15d6325ba3a995": {
+      "english": "Read Markdown content.",
+      "japanese": "Markdownの内容を読み取ります。"
+    },
+    "5accedd2949a85448f905ef8570638f870add83d52db22f58d276b8c60a61012": {
+      "english": "Inspects complete text, including front matter, without writing source or published output.",
+      "japanese": "ソースや公開出力に書き込まずに、front matterを含むテキスト全体を検査します。"
+    },
+    "5aed03e0818163f5ebd1acab23da23cbab853314bb4ee0b5e0cd7d270fe148df": {
+      "english": "The value is not a safe absolute HTTP or HTTPS URL.",
+      "japanese": "値が、安全な絶対HTTP URLまたはHTTPS URLではありません。"
+    },
+    "5aef02e932e8113be613578d432daf51bcddb37f7afa5968db5427e3ea2146fe": {
+      "english": "Incomplete syntax reports only fatal diagnostics.",
+      "japanese": "不完全な構文については致命的な診断だけを報告します。"
+    },
+    "5b2a4d15c74451aff536be86431c12e4ee2048fd2607176ed9e28dfd3b3c6883": {
+      "english": "The exact configured URL, including its base path. Comparison does not silently migrate it.",
+      "japanese": "ベースパスを含む、設定どおりの正確なURL。比較時に、このURLを暗黙に移行することはありません。"
+    },
+    "5b60ef223719d0995a1cb26bb32268eaadd372dfc74cb9ab2f2795d7bab125d1": {
+      "english": "The existing build cache root, outside the public output.",
+      "japanese": "公開出力の外側に置く、既存のビルドキャッシュのルート。"
+    },
+    "5b6692ad92b3ad999217d318e4ddf0ada1bed38a515a01f32136b18ea1c11e31": {
+      "english": "Optional explicitly connected analytics. No request is sent until consent is granted.",
+      "japanese": "明示的に接続する任意のアクセス解析。同意が得られるまで要求を送信しません。"
+    },
+    "5b6af930b3bf048f2c2f7540ddb42a89b82ef8944fb82dfe8c02b416c1d18c47": {
+      "english": "Connects published entries to the shared Docs layout, navigation, table of contents, and adjacent-page links.",
+      "japanese": "公開済みのエントリーを、共通のDocsレイアウト、ナビゲーション、目次、隣接ページへのリンクに接続します。"
+    },
+    "5bcc6052cf7f9d0433d9414f25c18a72620711059251592906561e8446781cf4": {
+      "english": "A documented API identity, including overload and generic XML IDs. Equality uses the five positional values; use {0} to compare symbol facts.",
+      "japanese": "オーバーロードとジェネリックのXML IDを含む、文書化されたAPI識別情報。等価性は位置指定の5つの値で判定します。シンボル情報の比較には{0}を使用してください。"
+    },
+    "5bcd1f8248eaa71f0abaa682193c908f492343d890e98717c8e977a5d85638c1": {
+      "english": "Compares the original documented values independently of symbol source objects and internal comparison data.",
+      "japanese": "シンボルソースのオブジェクトや内部の比較データとは独立して、文書化された元の値を比較します。"
+    },
+    "5c00aca9d097c5ac48bd050fbba7c5b72590b6cddb472779ec3b7e4705d865a3": {
+      "english": "Required image media type, or null for an untyped output.",
+      "japanese": "必須の画像メディアタイプ。型のない出力の場合はnullです。"
+    },
+    "5c71b248745639ab14917dcd3a4634500ffd8346dc38ff85c298b793cb77e5ba": {
+      "english": "Generation failed.",
+      "japanese": "生成に失敗しました。"
+    },
+    "5cdc88f9b71ea499d12f18ae65e7b33d77c821a0fcd0def50b138588ad3fe6c6": {
+      "english": "Retains only the latest pending request per document and permits at most two concurrent analyses. Superseded requests are canceled.",
+      "japanese": "文書ごとに保留中の最新の要求だけを保持し、同時に実行する解析は最大2件に制限します。新しい要求で置き換えられた要求はキャンセルします。"
+    },
+    "5ce2129512692947218e803891ddb244726254ae07409d6e881ed37f0bad122f": {
+      "english": "Project-relative discovery root. Empty preserves legacy project-relative catalog declarations.",
+      "japanese": "プロジェクトからの相対パスで指定する探索ルート。空の場合は、従来のプロジェクト相対のカタログ宣言を維持します。"
+    },
+    "5cf87b33c0fa1b42939fac327957d52cd939e839bfcda3d367966e60a04f5d8a": {
+      "english": "The project directory, independent of the tool's executable directory.",
+      "japanese": "ツールの実行ファイルのディレクトリとは独立した、プロジェクトのディレクトリ。"
+    },
+    "5d197fcae895a8bd3544136eb78702dcf6dd7d2d76108f607fee815b9c0b09f1": {
+      "english": "Gets a declared input. Undeclared runtime entries are rejected.",
+      "japanese": "宣言された入力を取得します。宣言されていない実行時エントリーは拒否します。"
+    },
+    "5d2511202a608e68e1890e3ea362db7f95f0e0dc6a20df5a0a5707fadd972308": {
+      "english": "Handler limited to declared snapshot inputs and outputs.",
+      "japanese": "宣言したスナップショットの入力と出力だけを扱うハンドラー。"
+    },
+    "5d2810ec88b168702a7d06a8c4d865a55575baec17774912bed3ed1d39e81ff5": {
+      "english": "Context used by a page layout.",
+      "japanese": "ページレイアウトで使用するコンテキスト。"
+    },
+    "5d67b78bd6882e79e4ee9b2910e24097bcf6cb4a7b9a3b7d1d19d3b30d0fe495": {
+      "english": "Optional directory whose regular files are copied using their original relative paths. It must not overlap the output directory or contain caches.",
+      "japanese": "通常のファイルを元の相対パスのままコピーする、任意のディレクトリ。出力ディレクトリと重複させたり、キャッシュを格納したりしてはいけません。"
+    },
+    "5d8ba5ac975d1777c35b48d8ca55badf75e7a75141a858264068a5b93ff588af": {
+      "english": "Published document routing and variant switching, shared by C# and MDX.",
+      "japanese": "C#とMDXで共有する、公開済み文書のルーティングとバリアントの切り替え。"
+    },
+    "5dac08bedfb4b0439cfc217877596822ed9d61f3862830879bcdd3f4dfce7790": {
+      "english": "Optional table of contents, including its navigation element.",
+      "japanese": "ナビゲーション要素を含む、任意の目次。"
+    },
+    "5dbff5ec80393fd58ae0fc8a10bfc04421ef5bb2a19e4e5274d273c7e45bc1dc": {
+      "english": "Returns the bound value or the accumulated diagnostics.",
+      "japanese": "バインドした値、または蓄積した診断を返します。"
+    },
+    "5e77ebde5d57486484dd3731ae3b0b4766a33052a83d07904acc7e2a2d72203c": {
+      "english": "Dispose after the final build or watch session. MDX is trusted build code, not a sandbox.",
+      "japanese": "最後のビルドまたはwatchセッションの後で破棄してください。MDXは信頼して実行するビルドコードで、サンドボックスではありません。"
+    },
+    "5e7b3e964ed0695948520cfd95ef3977c68acf2dbe0b5dd064e3bbfec6eb1e2d": {
+      "english": "Discovers inputs and returns complete artifact declarations without publishing them.",
+      "japanese": "入力を検出し、公開せずに完全な成果物の宣言を返します。"
+    },
+    "5ee41c6891b9640892223e1920b57d8c8577a03360f14c956d67a3eca4dbe8cc": {
+      "english": "The explicitly supplied C# type.",
+      "japanese": "明示的に渡されたC#の型。"
+    },
+    "5f0a7085ae33a6830563c6be12eef889322afc3ff6d8c89a0656b7f73aae2320": {
+      "english": "An explicit analytics endpoint and provider contract.",
+      "japanese": "明示的なアクセス解析用エンドポイントとプロバイダーの仕様。"
+    },
+    "5f1a0ccbf10fb9fb21a3b865adee5a58a189558036239ae46e5defdf973bf5b9": {
+      "english": "The update timestamp.",
+      "japanese": "更新のタイムスタンプ。"
+    },
+    "5f4446b9de65564dc0300f78ad749604a9d8d97529b5c1442cb1fd808f2b23e6": {
+      "english": "This describes lookup membership, not an entire site's publication or generated HTML anchors/assets.",
+      "japanese": "これはルックアップの対象に含まれるかどうかを示すもので、サイト全体の公開や生成HTMLのアンカーやアセットを示すものではありません。"
+    },
+    "5f47ec22bd9c345542b644205dd857e34a372d9c329266a8285cf4f6f58e93a1": {
+      "english": "No usable evidence is available.",
+      "japanese": "利用できる証拠がありません。"
+    },
+    "5f48d43c557f60124a9630e651a1d7ac233a6baf1eb9caaf7f5bcdddb9e33682": {
+      "english": "An optional original source path for catalog integration.",
+      "japanese": "カタログとの統合に使用する、任意の元ソースパス。"
+    },
+    "5f574937f75c3c2dddd88daecc738c07820e7ab9ff403f45688720ca1b0df015": {
+      "english": "Label for the search input.",
+      "japanese": "検索入力欄のラベル。"
+    },
+    "5f5f342d0a40631c4bc8b1f1b390f8f9e3689b78e46130cec30b527a1f44c807": {
+      "english": "Loads MDX into existing typed collections using the strict C# YAML binder.",
+      "japanese": "厳格なC#のYAMLバインダーを使って、MDXを既存の型付きコレクションに読み込みます。"
+    },
+    "5f6795a16d7ab698983e66492e57ebdc3df05696d770073502e0de33a4f69e74": {
+      "english": "Removes this host's temporary tree. Repeated disposal is harmless.",
+      "japanese": "このホストの一時ディレクトリツリーを削除します。繰り返し破棄しても問題ありません。"
+    },
+    "5f6ec086e2e286a253404f276bd7c9aadde66b6986117001e54ff025a4635f82": {
+      "english": "A navigation link.",
+      "japanese": "ナビゲーションリンク。"
+    },
+    "5f8c57bd5adc9429cda69bb2cb3d58ebb52e63adc86432197fc898a3b44de8cd": {
+      "english": "The values are null.",
+      "japanese": "値がnullです。"
+    },
+    "60670431c15d3353abd5aa78863b50474e763694b96b9b83b3ac49f7b1dad214": {
+      "english": "The stable content entry ID.",
+      "japanese": "安定したコンテンツエントリーID。"
+    },
+    "60c5d313f0f560c64ae6d62d3cdc719a74fa9e0c592c72762fa3c9a3b3b60519": {
+      "english": "A null namespace selects ordinary attributes. HTML attribute names are ASCII case insensitive.",
+      "japanese": "名前空間がnullの場合は通常の属性を選択します。HTML属性名ではASCIIの大文字と小文字を区別しません。"
+    },
+    "60ce8fb3b25fcb3d111614b1e940bd6a59aceac80d6b51e82a4944cee316457b": {
+      "english": "Creates a cache usage snapshot.",
+      "japanese": "キャッシュ使用量のスナップショットを作成します。"
+    },
+    "6222e0a4f726f0fd509c8f37ca415f59de586d0295193af133e0b83c855cf792": {
+      "english": "The component is null.",
+      "japanese": "コンポーネントがnullです。"
+    },
+    "626da3416d0a1e07585144ba65bb201e3667dd2abba5cc7e69185bb119c06ec6": {
+      "english": "The post to validate.",
+      "japanese": "検証する投稿。"
+    },
+    "631a5a628ea5f5809d1b8302d86138f0c47f50d8fbaab542b7933f93b90c367c": {
+      "english": "Decodes a limited PNG to RGBA8, validating every chunk CRC before using its contents.",
+      "japanese": "制限付きのPNGをRGBA8にデコードし、各チャンクの内容を使用する前にCRCを検証します。"
+    },
+    "6347e2199762e6ded2e78fb415ff74667f78b2e6c789ebef28b8fbf1c2e3620e": {
+      "english": "The PNG requests features outside the limited profile.",
+      "japanese": "PNGが制限付きプロファイルの範囲外の機能を要求しています。"
+    },
+    "636264c4b323b56b4607323f5a9946bf57dbdab4a97ee030c1dc9fc5ce639d0c": {
+      "english": "The post that was read.",
+      "japanese": "読み込んだ投稿。"
+    },
+    "64642340a38c70ecfc1b3fcd500af44ca512451e16658eda6b90bdea7e132ca7": {
+      "english": "Empty means deletion; inserted lines use newline separators.",
+      "japanese": "空の場合は削除を意味します。挿入する行は改行で区切ります。"
+    },
+    "6481d0ba4a359d3d8e3ae96b0f138e636570488576dcf545f3ceb4473b90a9c1": {
+      "english": "Converts a sequence to a typed array.",
+      "japanese": "シーケンスを型付き配列に変換します。"
+    },
+    "64b913206c987463ceae55a7932f3b87ac8f8c9045f3e09aefb95c85bd0e4195": {
+      "english": "The ID or route is null.",
+      "japanese": "IDまたはルートがnullです。"
+    },
+    "64d46dd1b3c22381614cfe0287351423e801c21b7b55f9265562dca911daae69": {
+      "english": "Build timestamp.",
+      "japanese": "ビルドのタイムスタンプ。"
+    },
+    "64f5a82435e208c347c83df60b19e7fec5b91cac64fe60c38bd7dd4aa82e5afb": {
+      "english": "Optional documentation sidebar, including its aside element.",
+      "japanese": "aside要素を含む任意のドキュメント用サイドバー。"
+    },
+    "6517191f5c507aa09871c7ea5b35c3014ef2fa854f0fd524f5518aa76fef233a": {
+      "english": "A literal filesystem path beneath the input root.",
+      "japanese": "入力ルート配下のリテラルなファイルシステムパス。"
+    },
+    "65bd118519626d19f14ea6e1e6dd7c1fc78029a50f7113af0125f348ef0e4800": {
+      "english": "Uses native disclosure controls for topics and initially opens the current page's ancestors.",
+      "japanese": "トピックにネイティブの開閉コントロールを使用し、初期状態では現在のページの祖先を開きます。"
+    },
+    "65ebc8899489cfb10b51f6f3470f48843fca01daaaaa5ad239c245fdefc7fd32": {
+      "english": "The route shared by generated references and explicit runtime registration.",
+      "japanese": "生成された参照と明示的な実行時登録で共有するルート。"
+    },
+    "6600e9d24ba3f757eb3af25ba7ef5c45888707b036892c7c96db4db4802d23ce": {
+      "english": "Creates an MDX loader. Files with an underscore-prefixed path segment are import-only partials.",
+      "japanese": "MDXローダーを作成します。アンダースコアで始まるパスセグメントを持つファイルは、インポート専用の部分ファイルです。"
+    },
+    "6608e8ecf0896c08a5720fa7461c8483c3c45ec39cd133b6b679485e6c94ebed": {
+      "english": "Search status template for results within a tag. Placeholders: {0}, {1}.",
+      "japanese": "タグ内の検索結果に使用する検索状態のテンプレート。プレースホルダーは{0}、{1}です。"
+    },
+    "6627bb2dfbee24bf43cea05312530f6f6aa2414fa8d8e77ccecd5ac9b82798f8": {
+      "english": "Creates a failure with at least one error diagnostic.",
+      "japanese": "少なくとも1件のエラー診断を持つ失敗結果を作成します。"
+    },
+    "662cd8a876124c02c9337a83dab653bcdd005da99dc181c9caa59e91d0763198": {
+      "english": "Placeholder for the search page input.",
+      "japanese": "検索ページの入力欄に表示するプレースホルダー。"
+    },
+    "66750971ae54526a08bcbfce67cb1b2f3a20f2abaae5015c11ac1697f00e5994": {
+      "english": "Source Markdown post.",
+      "japanese": "元のMarkdown投稿。"
+    },
+    "668a6c27da9977be7670493d43e35f8c1f3a0c49b69c789e601cdbdf67451681": {
+      "english": "Reads only the supported complete schema and verifies its content identity.",
+      "japanese": "サポートする完全なスキーマだけを読み込み、その内容の識別情報を検証します。"
+    },
+    "66b9bb85d80627a948cecb663781ab2e2fb596fa5cc69b20eb7195c852c35715": {
+      "english": "Provides the fixed environment for build preparation.",
+      "japanese": "ビルド準備用の固定された環境を提供します。"
+    },
+    "66e3548347d90d4b878a8be9fb7325f7d5bda1de331b4ce1789f81927e46a351": {
+      "english": "The final output path, which preparation must not write.",
+      "japanese": "最終出力パス。準備処理はこのパスに書き込んではなりません。"
+    },
+    "670ae437bfaf08db3a5ca3fbf9e84c31df1c77f5b6e039e851d345294f25cbb8": {
+      "english": "Message shown when a post has no headings.",
+      "japanese": "投稿に見出しがない場合に表示するメッセージ。"
+    },
+    "674023f0ef190523dfa7e4770b391ad7482b36957785ed8586c61d9d66f05a75": {
+      "english": "The route or artifact is missing, or does not name HTML.",
+      "japanese": "ルートまたは成果物が存在しないか、HTMLを指定していません。"
+    },
+    "678fdd11136f438866c0a0d4772f67f87ad8e08ff055e75a7e37faa35905282e": {
+      "english": "Whether a validated preparation cache avoided worker execution.",
+      "japanese": "検証済みの準備キャッシュによってワーカーの実行を回避できたかどうか。"
+    },
+    "6795fa15c2f06b826c964c6f5112ce5c65d633bcf40613f37e638b4cc46c3913": {
+      "english": "Explicitly interprets .md files as MDX in this collection. The default is false.",
+      "japanese": "このコレクション内の.mdファイルを明示的にMDXとして解釈します。既定値はfalseです。"
+    },
+    "67bda78f0b995e7c5480fb1aca92cc1f943564c50f644ed4d6ba3b336683bd7e": {
+      "english": "The public author display name.",
+      "japanese": "公開する著者の表示名。"
+    },
+    "685c4f0d10939d2b9532ecc17b42afbbd3f00899fd2a8a328ba61eaadf7df97a": {
+      "english": "Publication date and time.",
+      "japanese": "公開日時。"
+    },
+    "68a944f2addebdcac3996b7b3e810df3f2ca67670567d1c30f7a824d0c5de2e0": {
+      "english": "The current page URL.",
+      "japanese": "現在のページのURL。"
+    },
+    "68eb8813dcf2f9aacb13e3c7ed07ccf74e51644004ab61a91aeba90a6b9ab6dd": {
+      "english": "Multiple routes for the same source remain separate candidates; no route is guessed.",
+      "japanese": "同じソースに複数のルートがある場合は、それぞれを別の候補として保持します。ルートを推測しません。"
+    },
+    "694b73d082f9a9d38731949c17b9f57c48499309d11400db39dca7f87c6217b1": {
+      "english": "Whether to emit an {0} ({1}) for language models. Off by default. It is built from the site title, description, and post list.",
+      "japanese": "言語モデル向けに{0}（{1}）を出力するかどうか。既定では無効です。サイトのタイトル、説明、投稿一覧から作成します。"
+    },
+    "694f7ef18382952699e4a0783d014ccaf021d40fb54e49d672631bb003219633": {
+      "english": "Gets the document's element children in source tree order.",
+      "japanese": "ドキュメントの子要素をソースツリーの順序で取得します。"
+    },
+    "6950ac7ff00060deac77695ae84e1f37740df47558623a603f37f982167efabf": {
+      "english": "UI strings (theme text) for the site. They are injected so that a site can swap in a different language. The default set is English; {0} provides a Japanese set.",
+      "japanese": "サイトのUI文字列（テーマのテキスト）。サイトの言語を切り替えられるように注入します。既定のセットは英語で、{0}が日本語のセットを提供します。"
+    },
+    "69a2d8aafeb6277bb771772b72f62331aacc6530c4ebc62aa9427d2f585dafe6": {
+      "english": "Explicitly selected fallback.",
+      "japanese": "明示的に選択したフォールバック。"
+    },
+    "69cc81e3c5927b3d0f38315860314f227d6b815bb60c25daa801d168adaad8b9": {
+      "english": "The number of browser entries bundled.",
+      "japanese": "バンドルしたブラウザーエントリー数。"
+    },
+    "6a08c529a5603b6fc6275efec97a78e55c4b4f649d0c295d59ed7c8e1396a528": {
+      "english": "A registered asset build node, including generated shared chunks.",
+      "japanese": "生成された共有チャンクを含む、登録済みアセットのビルドノード。"
+    },
+    "6ab6167d0af0ae084fb5640b4914c8805b8b7cc40eade172a390917b895491c6": {
+      "english": "A required argument is null.",
+      "japanese": "必須の引数がnullです。"
+    },
+    "6afc9311a4ad7b1a157e79f94d30f17fc8ae63d83d5f2153a21079961caa7bac": {
+      "english": "Uses build preprocessing and MDX syntax transforms without executing imports, SSR, plugins, bundling or network requests. No Markdown fallback, TypeScript transpilation or type checking.",
+      "japanese": "ビルドの前処理とMDX構文変換を使用します。インポート、SSR、プラグイン、バンドル、ネットワークリクエストは実行しません。Markdownへのフォールバック、TypeScriptのトランスパイル、型検査も行いません。"
+    },
+    "6b28b57c491d31936af9b372d9166846e7966eb8abe42c8534e6126124ff982a": {
+      "english": "Explicitly composes a PNG logo over a PNG background. Text must be supplied in a pre-generated image.",
+      "japanese": "PNGの背景にPNGのロゴを明示的に合成します。テキストは事前生成した画像で指定しなければなりません。"
+    },
+    "6b3042760cbe3bd28c50ddefb96db8ceaf1df254b87ce1cc75a1a9ae8bd091b1": {
+      "english": "Returns the first matching connected element, or null.",
+      "japanese": "一致する最初の接続済み要素を返します。存在しない場合はnullです。"
+    },
+    "6b37407c65365c7c7c438afd57b32e24ada3ecb2c9bfc60531dd24d8040a9cd0": {
+      "english": "Strict, Docusaurus-compatible document front matter.",
+      "japanese": "厳密でDocusaurusと互換性のあるドキュメントのfront matter。"
+    },
+    "6b5024a07ede5ac661ef78073ebe6337cffb867dbb96255efc5ccac12e229b54": {
+      "english": "References an existing image. Optional caller supplied dimensions must have Declared provenance.",
+      "japanese": "既存の画像を参照します。呼び出し元が任意で指定する寸法の来歴はDeclaredでなければなりません。"
+    },
+    "6be791a2700043c91b1ac1ac71708b93e369a7ea78a8423b268285ac65ef2b5f": {
+      "english": "Implementations are trusted catalog code, used by explicit catalog inspection and trusted generation. They must not invoke render or prepare hooks.",
+      "japanese": "実装は信頼されたカタログコードであり、明示的なカタログ検査と信頼された生成処理で使用します。描画フックや準備フックを呼び出してはなりません。"
+    },
+    "6bed098170e2a1aebb7e5aa3fd40d26501723faa1c5992bf89e0afcc0fd547b0": {
+      "english": "The registered asset. Transformed outputs use a synthetic declaration whose input path is not a source file.",
+      "japanese": "登録済みアセット。変換出力には合成された宣言を使用し、その入力パスはソースファイルではありません。"
+    },
+    "6bf52512d4894f4e697c030ca9be36b1eaf3ef978d87a2e6bbda353a65e74dc4": {
+      "english": "UTF-8 text content.",
+      "japanese": "UTF-8のテキスト内容。"
+    },
+    "6c51f5fdae743b0ecc9ac8e1629669d56571db91a038001b72598a03039bc501": {
+      "english": "Integrity hash for the published bytes.",
+      "japanese": "公開したバイト列の整合性ハッシュ。"
+    },
+    "6ca43578193c9038a385e1ebb34d35e281d9dbffad7a917afb563c36c49e1d99": {
+      "english": "Gets image metadata associated with the registered output bytes, or null when unknown.",
+      "japanese": "登録済みの出力バイト列に対応する画像メタデータを取得します。不明な場合はnullです。"
+    },
+    "6cdc273041c12ec66de162f57840eefe4ef8d9db46e3dfb7f0454c869f966db1": {
+      "english": "An explicitly acquired context; null limits inspection to syntax. Inspection never updates source or published output.",
+      "japanese": "明示的に取得したコンテキスト。nullの場合は構文だけを検査します。検査ではソースや公開済み出力を更新しません。"
+    },
+    "6d29a576749d503f84d1e9541dfaf7e201c14633370557d595d14c619421a87a": {
+      "english": "Additive-only within 1.x; removals require deprecation and the next major version.",
+      "japanese": "1.x内の変更は追加だけに限ります。削除には非推奨化と次のメジャーバージョンが必要です。"
+    },
+    "6d3ff4a3862e3625ba9a93c14bbaf8ea91baf5380b2219ee40ac531f627603d6": {
+      "english": "Checks outside this phase; absence of Error does not prove these checks passed.",
+      "japanese": "このフェーズの対象外の検査。Errorがないことは、これらの検査に合格したことを意味しません。"
+    },
+    "6d4211e0760807c8e27434b588f25b447244e7caa28d2dc81b564f24c8dc4a44": {
+      "english": "Provides template data and rendering helpers.",
+      "japanese": "テンプレートデータと描画ヘルパーを提供します。"
+    },
+    "6d471fcaeed86e71ff8033f7710cabd2472f48dc219b0a2e97cd0ca8e4d5806c": {
+      "english": "The props, site title, or context is null.",
+      "japanese": "props、サイトのタイトル、またはコンテキストがnullです。"
+    },
+    "6df3b8c51490790df97b41eb7ddceb49545f78d11169b4a7e6e3d8b516bff0d3": {
+      "english": "Registers XML documentation. Existing files are read; project code is not executed.",
+      "japanese": "XMLドキュメントを登録します。既存のファイルを読み込み、プロジェクトのコードは実行しません。"
+    },
+    "6e414418e4f983559a4dd2371e2a6dc207929cc94215105119b7458f4b75dda5": {
+      "english": "An explicit immutable route lookup universe shared by generated references and runtime.",
+      "japanese": "生成された参照と実行時処理で共有する、明示的で不変のルート検索対象集合。"
+    },
+    "6e7f60d7253a7d7c6c16fd5a5b02af90ec7de0cdf0d6883c81609ac30f8d69e2": {
+      "english": "The stable collection ID.",
+      "japanese": "安定したコレクションID。"
+    },
+    "6f600930979120a6dcf3432aae4fdeba733676308f083f8a0055033222ffe754": {
+      "english": "Gets optional site templates, text, and theme customization.",
+      "japanese": "任意のサイトテンプレート、テキスト、テーマのカスタマイズを取得します。"
+    },
+    "6f69c2c52fe557244bd2e8da3d996aff85164d556ea5bffd87a5dc99b24d6a5e": {
+      "english": "Identifies the source directory of a site project.",
+      "japanese": "サイトプロジェクトのソースディレクトリーを識別します。"
+    },
+    "6f9f80fed6017bf591a92961217a1afafcbd6bf367dc13d56fa55a65d540716f": {
+      "english": "Publishes the entry without including it in listings and feeds.",
+      "japanese": "一覧とフィードに含めずにエントリーを公開します。"
+    },
+    "6fc6867589fcf160aadef847cadced57f8ad57164aa7306180a50108b9d5b07a": {
+      "english": "Documentation pages in navigation order.",
+      "japanese": "ナビゲーション順のドキュメントページ。"
+    },
+    "7010316888a8ae7372ec53c259ac41fcaac66a9ea7e5498d8b5facf4d887cae9": {
+      "english": "Declares PNG variants and explicitly selects one as fallback.",
+      "japanese": "PNGのバリアントを宣言し、そのうち1つをフォールバックとして明示的に選択します。"
+    },
+    "7015a5ea985ab9c07b4ad6fb7416b622d2eef925280dac3d1635a42b3b6a20f6": {
+      "english": "A candidate inventory captured only by explicit publication inspection; never a promoted baseline.",
+      "japanese": "明示的な公開状態の検査でのみ取得する候補一覧。昇格済みのベースラインにはなりません。"
+    },
+    "7021a2dbec8c5050fff2b42d69be34c9ef86bcb8103ad2f93570be9c171dd813": {
+      "english": "Site description.",
+      "japanese": "サイトの説明。"
+    },
+    "707932d0bc42f5afe879f707762c2d7b01297cf53eb00f0193c98da669100cb0": {
+      "english": "Additional pages.",
+      "japanese": "追加のページ。"
+    },
+    "707aa93526b5b9eb6ee3f9a4b4dd71ff6e61a2ba1b8494b73b459b05b4a7be61": {
+      "english": "Serializes a candidate; this does not establish publication success or write a baseline.",
+      "japanese": "候補をシリアライズします。これによって公開の成功を確定したり、ベースラインを書き込んだりはしません。"
+    },
+    "70eb7c23163548b0096a833fae119c4c57096b8b15a3686cd42defb9ceaa5089": {
+      "english": "Files and bytes held by the incremental cache partition of a single output.",
+      "japanese": "単一の出力に対応する増分キャッシュ区画が保持するファイル数とバイト数。"
+    },
+    "70ec34c5940257393a2de2076c89fb7d0e80c9f6017a4f86f712f828f694d801": {
+      "english": "The default canonical sidebar. Null selects the first declared sidebar.",
+      "japanese": "既定の正規サイドバー。nullの場合は最初に宣言されたサイドバーを選択します。"
+    },
+    "71128d6cbabf949487a17e54d90ee5fa5f0b2a90b932e54089c9eee25e2eab7f": {
+      "english": "A post is null.",
+      "japanese": "投稿がnullです。"
+    },
+    "71189d02f652b1b322b896e3987877fad1e9c1639e91a361c33690b2aa32b51b": {
+      "english": "The complete search index used by the client-side fuzzy search.",
+      "japanese": "クライアント側のあいまい検索で使用する完全な検索インデックス。"
+    },
+    "713779dd4d4a9dcb0f289a8a8905a28b716b889659278c9dc76a39a416d6a8b9": {
+      "english": "Gets producer metadata for a registered asset, falling back to declared source facts, or null when unknown.",
+      "japanese": "登録済みアセットの生成元メタデータを取得します。存在しない場合は宣言されたソース情報を使用し、不明な場合はnullです。"
+    },
+    "71471c42a4d29d4d7f3712f13285d426219bd307fdb4981c0eefbddca9a1b1d7": {
+      "english": "Uses Unix epoch if no timestamp is supplied. Explicit quality options are honored; network checks remain off by default. Structured route, build-plan, and quality failures return a failed host with diagnostics. Other exceptions propagate after cleanup.",
+      "japanese": "タイムスタンプを指定しない場合はUnix epochを使用します。明示的な品質オプションに従い、ネットワーク検査は既定では無効のままです。構造化されたルート、ビルド計画、品質検証の失敗では、診断付きの失敗状態のホストを返します。その他の例外はクリーンアップ後に伝播します。"
+    },
+    "71829dda20c6b611b96d3a118a30c035b451d102dca58c0c586386aa058b5f0e": {
+      "english": "Explicitly reviewed source and translation revisions; builds never update these records.",
+      "japanese": "明示的にレビューしたソースと翻訳のリビジョン。ビルドではこれらの記録を更新しません。"
+    },
+    "71ca1badca0594bb788a5dc269d51375d572c5225cfcdeda0e9b5ee148d9f18d": {
+      "english": "Rendered content and optional regions for a built-in page layout.",
+      "japanese": "組み込みページレイアウト用の描画済みコンテンツと任意の領域。"
+    },
+    "71f347cb2f5f485d412a3484fb09639b7a04284b114227140dd8c159597f670a": {
+      "english": "Author name for the site.",
+      "japanese": "サイトの著者名。"
+    },
+    "7201a8735de274f51314cc5a1ad9dae886c9b8a6de50904bdfc0f2abaecca5c3": {
+      "english": "Binds a nested mapping using generated member assignments.",
+      "japanese": "生成されたメンバー代入を使用して、ネストしたマッピングをバインドします。"
+    },
+    "7202d561cbf542cec56680eba5764522cf8b111035ffa8cb96d3318d34d6233c": {
+      "english": "Accepts an object or array of objects. Rejects YAML anchors, aliases, duplicate/non-string keys, links/reparse points and normalized path collisions.",
+      "japanese": "オブジェクトまたはオブジェクトの配列を受け入れます。YAMLのアンカー、エイリアス、重複キー、文字列以外のキー、リンクまたはリパースポイント、正規化後のパスの衝突を拒否します。"
+    },
+    "722588ad2c98aa5c0a27aa83e7d77164292139e5ed59cf66eb53dfcd11ea4770": {
+      "english": "Creates an asset declaration.",
+      "japanese": "アセット宣言を作成します。"
+    },
+    "72415c2b8615c03babedc590d4e203f58a960529405123a6b61b0e29e70559b2": {
+      "english": "An optional project-relative module exporting component overrides. Defaults remain available for wrapping.",
+      "japanese": "コンポーネントのオーバーライドをエクスポートする任意のプロジェクト相対モジュール。既定のコンポーネントはラップ用に引き続き利用できます。"
+    },
+    "7257a3488145d65eaa8a94f45056cedee72450ec9fbbc837078a04cb5ef7c5d3": {
+      "english": "A stable ID; defaults to the path without numeric prefixes or extension.",
+      "japanese": "安定したID。既定では数値の接頭辞と拡張子を除いたパスを使用します。"
+    },
+    "7287626c837c525a5e52f2e225dd3509794d648bc1530bc1f7e9524252edda27": {
+      "english": "Compiles all registered MDX collections with one shared React graph and persistent worker.",
+      "japanese": "1つの共有Reactグラフと永続ワーカーで、登録済みのすべてのMDXコレクションをコンパイルします。"
+    },
+    "729110f43f3be90f94cd593545fc37016aca0cb5db2553635de1019de690b11d": {
+      "english": "Converts the date to the site time zone.",
+      "japanese": "日付をサイトのタイムゾーンに変換します。"
+    },
+    "72a483ff07eb0ef3b8101b02301b4f616578061f14e6b162e6970a3421971d66": {
+      "english": "Converts the input string into a slug suitable for a URL path.",
+      "japanese": "入力文字列をURLパスに適したスラッグに変換します。"
+    },
+    "734f65a58f97e0483cc3481cbcb73ccbfe2e7e36d68d960ef869284f7bcd39b6": {
+      "english": "How image dimensions and media type were obtained.",
+      "japanese": "画像の寸法とメディアタイプの取得方法。"
+    },
+    "735ff67c44e9f617a7d8e3b4e46f9193bfd67f4e723919bd60adcc05ba9d9269": {
+      "english": "Enables reuse only when all site code depends on declared inputs and fixed public data.",
+      "japanese": "サイトのすべてのコードが宣言済み入力と固定された公開データに依存する場合に限り、再利用を有効にします。"
+    },
+    "73a398fd219e8055894f074d8372bdc0164a042498df253a9d95bae8c7185150": {
+      "english": "Copies the given straight-alpha RGBA8 pixels after checking dimensions and limits.",
+      "japanese": "寸法と上限を確認してから、指定されたストレートalphaのRGBA8画素をコピーします。"
+    },
+    "73ae451d088f71ca9d5fc32904000d1f2ef44b9333fa5c493279eb28f9f666b5": {
+      "english": "Reports migration from the removed format and lossy quality settings.",
+      "japanese": "削除された形式と非可逆の品質設定からの移行を報告します。"
+    },
+    "746e6ab2ec31048a1874048e3b5df1b66245c60e88cc92198ca9407675489d16": {
+      "english": "The root containing trusted source and its node_modules.",
+      "japanese": "信頼されたソースとそのnode_modulesを含むルート。"
+    },
+    "74abf5183a78edf6a2eccc617644901af7693503149ad0d3f1b3e2bc9ba4b3c1": {
+      "english": "URL of the GitHub repository that manages this web site.",
+      "japanese": "このウェブサイトを管理するGitHubリポジトリーのURL。"
+    },
+    "74ff12806a1e28d5c93a4bce9fb04197d3184152a3e12ae9ea88285adeab1739": {
+      "english": "Records an expected validation exception from a generated property assignment.",
+      "japanese": "生成されたプロパティ代入からの、想定される検証例外を記録します。"
+    },
+    "753388e27e8277d72ffbdb68edac1c635837a3a680dc24195fd27ca4bf6e0b9e": {
+      "english": "Creates validated metadata with positive pixel dimensions and an image media type.",
+      "japanese": "正のピクセル寸法と画像メディアタイプを持つ、検証済みのメタデータを作成します。"
+    },
+    "759fa4ed16d9c8654a8bdfa5e3742720d6a25e8b91405ce9479331913d5c1dbb": {
+      "english": "The exact public paths used by the same generated runtime manifest.",
+      "japanese": "同じ生成済み実行時マニフェストで使用する正確な公開パス。"
+    },
+    "75a6b5365e21934250d898540d35866ca767ba64c6e11405d6252ed3dbe35e7d": {
+      "english": "Captures a SHA-256 fingerprint without reading or changing the document.",
+      "japanese": "ドキュメントを読み込んだり変更したりせずに、SHA-256フィンガープリントを取得します。"
+    },
+    "75e28ef7c46dc28d0cbd3f7a82acff9751235d88fcfba8487db9b38d9f7b5d55": {
+      "english": "Reads front matter from a YAML string.",
+      "japanese": "YAML文字列からfront matterを読み込みます。"
+    },
+    "7646efb3f1ed865711b29233e4a1580b7c433ddf7f1e5bebba5e04d0021920bb": {
+      "english": "Whether Blog navigation, search, feed link, and script are included.",
+      "japanese": "Blogのナビゲーション、検索、フィードリンク、スクリプトを含めるかどうか。"
+    },
+    "768e254f99a2b8c04cd6ee26f86f61207b787b64a86f4e9281077eb71f247930": {
+      "english": "Kind of source (for example {0}, {1}, or {2}).",
+      "japanese": "ソースの種類（例は{0}、{1}、{2}）。"
+    },
+    "76adf4c4976e8d4e2dbebfd988d4aba02b4a6da12750406880210945b501224b": {
+      "english": "Open Graph content type. Defaults to website.",
+      "japanese": "Open Graphのコンテンツタイプ。既定値はwebsiteです。"
+    },
+    "7700b26f9c1427f5cd91f912174531825f2c23c6e814bfb034f715d82683f5ed": {
+      "english": "The props, required SEO data, or context is null.",
+      "japanese": "props、必須のSEOデータ、またはコンテキストがnullです。"
+    },
+    "772548ac2792edffbe4f04a41ad43a755e9327a63d719c59a7f34aa8406ee015": {
+      "english": "Registers and fingerprints source assets for one site build.",
+      "japanese": "1回のサイトビルド用にソースアセットを登録し、フィンガープリントを取得します。"
+    },
+    "773a31bad3a69afec3d5970819937a8b147553b276154f765f258063ca83765a": {
+      "english": "The translation review assessments from the most recently prepared snapshot.",
+      "japanese": "直近に準備したスナップショットからの翻訳レビューの評価。"
+    },
+    "77413044f3602a9b0f0da380f290590a394b6c9fad02a651e5f6c5ceaa9552a0": {
+      "english": "Body HTML placed inside the {0} element.",
+      "japanese": "{0}要素内に配置する本文HTML。"
+    },
+    "77b9058ff6182eebae1d735c3e1dd999ace050eda09d01d80b562b2b1c38091a": {
+      "english": "The declared accessibility.",
+      "japanese": "宣言されたアクセスレベル。"
+    },
+    "77c3701ef1cd7ed5fbeba0b2a2325824323e6fa21c81b5d99849c92a7efb9c49": {
+      "english": "Symbol facts supplied by a trusted source or metadata reader, keyed by the exact XML ID.",
+      "japanese": "信頼されたソースまたはメタデータリーダーから提供されたシンボル情報。正確なXML IDをキーとします。"
+    },
+    "77e24e15de85b47661283cf4a7fc6c32540d7c2857fb3664f06da04b3ac13b6d": {
+      "english": "Selects schema-specific display information after publication and canonical route selection.",
+      "japanese": "公開状態と正規ルートの選択後に、スキーマ固有の表示情報を選択します。"
+    },
+    "7832ebc668ac595f9087ee2c9ad72fb2cc3e4104f167bbbfdeca253abe911d20": {
+      "english": "Gets generation or validation diagnostics.",
+      "japanese": "生成または検証の診断を取得します。"
+    },
+    "786d50b56b65774b2347cbd335dab44c689c0ddb654a58d7d97badf74342eba8": {
+      "english": "Registers OpenAPI 3 JSON. External references are diagnosed instead of fetched.",
+      "japanese": "OpenAPI 3 JSONを登録します。外部参照は取得せずに診断を報告します。"
+    },
+    "786fa133306ae9b3c4117fe3d35e3aef18a91b2d9c6f390f53c095d43858e884": {
+      "english": "Maximum heading level for the table of contents (Docusaurus compatibility; rendering keeps h2-h3).",
+      "japanese": "目次の最大見出しレベル（Docusaurus互換。描画はh2-h3のままです）。"
+    },
+    "78c23b96acc5b865868c5d60c682c3e63bf97978cdb7128762bd401697155d48": {
+      "english": "The input is not declared by this transformation.",
+      "japanese": "入力がこの変換で宣言されていません。"
+    },
+    "78f1331d89b676f4cec99f2071d99a4daf3ecc5c031ac6dfc4800de482cc43d1": {
+      "english": "Existing image variants.",
+      "japanese": "既存の画像バリアント。"
+    },
+    "79673dad693ce9017acef6992a0e566028e87a06ca2b8132cbc91c4da1bd6403": {
+      "english": "All 1.x tooling contracts share this schema version today.",
+      "japanese": "現在、すべての1.xツール契約でこのスキーマバージョンを共有しています。"
+    },
+    "79b7f5067e72def4a9691746a8a41c0d3c73b807549403143e86eb27d78de10c": {
+      "english": "A link to an adjacent documentation page.",
+      "japanese": "隣接するドキュメントページへのリンク。"
+    },
+    "79e7f419e5798ca4a73fa33fe3c9cccefec832301fa9e7cb513ce622594ae525": {
+      "english": "A linked document or generated category index.",
+      "japanese": "リンクされたドキュメントまたは生成されたカテゴリーのインデックス。"
+    },
+    "79fc8aced41d4015f329d9a9930a0da7c81f17565b11bba46f816495c674e3dc": {
+      "english": "Converts a mapping to a typed string-keyed dictionary.",
+      "japanese": "マッピングを文字列キーの型付き辞書に変換します。"
+    },
+    "7a36f8252815452ba42f23304243e92d45751b4d8a6ca1b00b5c8b2b6db6d328": {
+      "english": "Maximum time for one worker request, including startup.",
+      "japanese": "起動を含む、ワーカーの1回のリクエストの最大時間。"
+    },
+    "7a3894a6f52e2f69817456fc5ddba6145a1f9748a6b1481cfd0d315102d96fec": {
+      "english": "Enables the built-in light/dark toggle, system preference, and saved theme selection. When false, the built-in theme uses light colors; override AdditionalCss for a fixed custom scheme. Custom templates must honor this option when implementing their own theme controls.",
+      "japanese": "組み込みのライト／ダーク切り替え、システム設定への追従、保存済みテーマの選択を有効にします。falseの場合は組み込みテーマに明るい色を使用します。固定のカスタム配色にするにはAdditionalCssをオーバーライドしてください。カスタムテンプレートが独自のテーマコントロールを実装する場合は、このオプションに従わなければなりません。"
+    },
+    "7a67b2987a52f6af241f540c540a9d828221405745817bb9a7ccb11d32fe1820": {
+      "english": "Reports migration to explicit fallback selection.",
+      "japanese": "明示的なフォールバック選択への移行を報告します。"
+    },
+    "7a686bea5163f8e89e11c2b35afaebfcf3fe2646d533a6bf60e8269adbde9715": {
+      "english": "Description for the search page.",
+      "japanese": "検索ページの説明。"
+    },
+    "7a6fffcb3910ec58b27cffba36e3af677d2abae2126818a4ac378b4556d40c5a": {
+      "english": "Creates a named parameter with its C# type, including any ref modifier.",
+      "japanese": "C#の型と、ref修飾子があればその修飾子を含む名前付きパラメーターを作成します。"
+    },
+    "7aa751f1ec9e47b927ba235b6c78dc9c89ad61fda5a68c51295470e1e9cf9c44": {
+      "english": "One-based source positions; null means unknown. An end position requires a start and cannot precede it.",
+      "japanese": "1始まりのソース位置。nullは不明を意味します。終了位置には開始位置が必要であり、開始位置より前にはできません。"
+    },
+    "7ab487745da48cf08259b8e22db481e699db4fae19982eafb8b46b84ca8c5379": {
+      "english": "Registers a collection and all its explicit version/language inputs.",
+      "japanese": "コレクションと、その明示的なすべてのバージョン・言語の入力を登録します。"
+    },
+    "7ab74d4941615f86b353f0897afafc1eff501a7d17a3586e5ca7e4e49249af21": {
+      "english": "The posts ordered newest first.",
+      "japanese": "新しい順に並べた投稿。"
+    },
+    "7abf15cbf4c2c6b307794db1d1cfe1b4912b574772e5b0446c2a39e2abdac54b": {
+      "english": "The worker directory containing worker.mjs and its explicitly restored dependencies.",
+      "japanese": "worker.mjsと、明示的に復元した依存関係を含むワーカーディレクトリー。"
+    },
+    "7b07f0d6beb1abb410573543477274f2be690e12de70f0b2790a2129ed8799be": {
+      "english": "Declares a complete HTML file produced by a parameterless static IHtmlContent method.",
+      "japanese": "引数なしの静的IHtmlContentメソッドで生成する完全なHTMLファイルを宣言します。"
+    },
+    "7b13f040145c2e9820f1f7481964851b9606542a36e1ce95ab494687fd83c06a": {
+      "english": "Root of the content directory.",
+      "japanese": "コンテンツディレクトリーのルート。"
+    },
+    "7b42013cae564a1abf871838ac6a319ea7036dd2763f6dc13dda72b444cf1d75": {
+      "english": "Writes one output and the image facts established by its producer.",
+      "japanese": "1つの出力と、その生成元が確定した画像情報を書き込みます。"
+    },
+    "7b6672b6728275ec03f8f87ab9e6994519f4ba8f0ad3231a74e878518ba07e16": {
+      "english": "SEO keywords (Docusaurus compatibility; bound but not rendered yet).",
+      "japanese": "SEOキーワード（Docusaurus互換。バインドされますが、まだ描画されません）。"
+    },
+    "7b6b413dbdec5fecb32b4e56a212cf4e03d52bc3a550e1eec0bb359e0c4f8761": {
+      "english": "Renders flat navigation links.",
+      "japanese": "フラットなナビゲーションリンクを描画します。"
+    },
+    "7bcd4a41660318ed43de1935504250fd5ecc7271ae03725fdf1ded76b2d46f3e": {
+      "english": "Progressive browser enhancements for documentation; no external service is enabled implicitly.",
+      "japanese": "ドキュメント向けの段階的なブラウザー拡張。外部サービスを暗黙に有効にしません。"
+    },
+    "7bd54a8038b889d17cf5d8996bd8d05243d4bc28934edce1879e21b707cc3427": {
+      "english": "The validated output path, without an additional fingerprint suffix.",
+      "japanese": "追加のフィンガープリント接尾辞を付けない、検証済み出力パス。"
+    },
+    "7c8a8fcde210fd9f261ad02cf46535d796808915db963722414839daffa624f0": {
+      "english": "Uses basic RFC 4180 CSV rules; rejects links/reparse points and normalized input-path collisions.",
+      "japanese": "RFC 4180の基本的なCSV規則を使用し、リンクまたはリパースポイントと、正規化後の入力パスの衝突を拒否します。"
+    },
+    "7c9e2b655e054368372d5d73528beb536f44e54a062c5def3188b00e2801371f": {
+      "english": "A plain-text excerpt, without truncating a React tree.",
+      "japanese": "Reactツリーを切り詰めずに作るプレーンテキストの抜粋。"
+    },
+    "7c9f9dd1276aaf5f15874647bea3d1795b5931050f3ad469435009e728f94709": {
+      "english": "An empty list permits every environment.",
+      "japanese": "空の一覧はすべての環境を許可します。"
+    },
+    "7ca23f8b5066d7d13b94234f231f70e7090c15e0ea248130f3efca954fa5373f": {
+      "english": "Whether a category starts collapsed.",
+      "japanese": "カテゴリーを折りたたんだ状態で開始するかどうか。"
+    },
+    "7d14214a22f173d79505063343a80f079f2f8e79074259eac435bc859ae7cc87": {
+      "english": "Links displayed after the tree.",
+      "japanese": "ツリーの後に表示するリンク。"
+    },
+    "7d423cd7d6165519b04484cac2fb0844a698f32408e83fb8796036feca343eb1": {
+      "english": "Reads a single Markdown post.",
+      "japanese": "1件のMarkdown投稿を読み込みます。"
+    },
+    "7d57f2553a4bc7d1fa279a572a60bbae4a9428756cb792bc2fab39076500ed7e": {
+      "english": "Sidebars keyed by stable names. An empty map uses automatic navigation.",
+      "japanese": "安定した名前をキーとするサイドバー。空のマップの場合は自動ナビゲーションを使用します。"
+    },
+    "7d73de034c4adca678da03b11cf8a4103cb7c611959bd30aea8f55e9603817c0": {
+      "english": "Declared PNG output.",
+      "japanese": "宣言されたPNG出力。"
+    },
+    "7e31bb347a7b1e8639c75bf70fff0fc8650e780ba082b1b8e9126a99cb1dfed4": {
+      "english": "SEO metadata.",
+      "japanese": "SEOメタデータ。"
+    },
+    "7e6d5064be69d7bd23b321a3c916777ee2fe091aabaa8bc66645731c233e07ad": {
+      "english": "Gets the optional route associated with this document.",
+      "japanese": "このドキュメントに対応する任意のルートを取得します。"
+    },
+    "7e88d6462b45d5094aa11f12fbc451965ea8e2ea65d7cfb42bea6ae2be0d6098": {
+      "english": "The directory containing the source file.",
+      "japanese": "ソースファイルを含むディレクトリー。"
+    },
+    "7e8bafdd81be9ee8d024f7d0ada7696d5e281e3d76ba32c808efa199a54b040a": {
+      "english": "Returns associated image metadata, or null when dimensions are unknown.",
+      "japanese": "対応する画像メタデータを返します。寸法が不明な場合はnullです。"
+    },
+    "7ec63b5252ab447856b3c3627bb0d3a62cd54a3919cebc53e89eca44093b77e2": {
+      "english": "Local contextual search for Japanese text and API identifiers.",
+      "japanese": "日本語テキストとAPI識別子に対応する、ローカルのコンテキスト検索。"
+    },
+    "7f229d4989603d42be1649f90d2936a3ae67016d5923bcff3b02a22cff3a5033": {
+      "english": "The category label.",
+      "japanese": "カテゴリーのラベル。"
+    },
+    "7f2824e2c6885db992def14e95ff73c8626b12cfe1ec1901dac867d4e54e4dac": {
+      "english": "Relative output path (for example {0}).",
+      "japanese": "相対出力パス（例は{0}）。"
+    },
+    "7fc278e753360a7fcced93c90fd8b4a92e31dedebd84ac03eae4732228ab2ac4": {
+      "english": "A locale partition when no publication document key exists. A supplied value must agree with that key.",
+      "japanese": "公開ドキュメントキーがない場合のロケール区画。値を指定する場合は、そのキーと一致しなければなりません。"
+    }
+  }
+}

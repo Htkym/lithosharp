@@ -1,0 +1,497 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Current public C# declarations; provisional until selected-package compiler XML export validates membership.",
+  "units": {
+    "809973c9c307dfed811faaa037f1d9413b0f6ab428daf41b283d5ea6bba85032": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "The props binder. A schema provider also enables static editor validation.",
+      "japanese": "props のバインダーです。スキーマの提供元がある場合は、エディターでの静的な検証も有効になります。"
+    },
+    "81c82a209b9303fe6651adcbd22e5e250718af1a1ccb34fbe2916ee48bfafb7d": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/11183/summary"
+      ],
+      "english": "Attaches component metadata without loading component or binder instances.",
+      "japanese": "コンポーネントやバインダーのインスタンスを読み込まずに、コンポーネントのメタデータを関連付けます。"
+    },
+    "81e31ec19e2df0fc17722486d8729b176ccc24c612cf47be3a31030f20a3962e": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfMetadata.cs/1031/summary"
+      ],
+      "english": "The exact DateTimeOffset projection, when representable; Raw retains the original timestamp precision.",
+      "japanese": "表現できる場合の、正確な DateTimeOffset への変換結果です。Raw は元のタイムスタンプの精度を保持します。"
+    },
+    "83c7a03389aef8179d6bf294192a555400b0d99949da5ffa4184fc88e81ad223": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/3881/summary"
+      ],
+      "english": "Immutable metadata evidence, separate from the catalog of published routes.",
+      "japanese": "公開するルートのカタログとは別に保持する、不変のメタデータの根拠です。"
+    },
+    "85afebf6bfc1e6dd0e5171ab0d40706e3b64dce99e07a01056f95c510518c4a7": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/2540/summary"
+      ],
+      "english": "Identity of names, implementations, schemas, configuration, and declared inputs.",
+      "japanese": "名前、実装、スキーマ、設定、宣言した入力の識別情報です。"
+    },
+    "863cec5fc75edeea702941b56f4e7d32fa84e1bec205d81354d07c971546231c": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/3482/summary"
+      ],
+      "english": "Checks document IDs or explicit collection/version/locale/id objects. Published sources require published targets when requested.",
+      "japanese": "文書 ID、またはコレクション・バージョン・言語・ID を明示したオブジェクトを検査します。要求した場合は、公開する原稿の参照先も公開されている必要があります。"
+    },
+    "867cc95e0e25e0c0fcf097535fde1f24d213b4769643f5755f85b78fdc4989a4": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/3529/typeparam"
+      ],
+      "english": "A DTO supported by ReflectionContentFrontMatterBinder with a public parameterless constructor.",
+      "japanese": "ReflectionContentFrontMatterBinder が対応する DTO で、public な引数なしコンストラクターを持つものです。"
+    },
+    "87f6462b7937ca73c7fc04a7aeae766772663463a590d594ec67f4cb0ad53a10": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentInfo.cs/1939/summary"
+      ],
+      "english": "Markdown interpretation shared with site generation. YAML binding remains independent.",
+      "japanese": "サイト生成と共有する Markdown の解釈です。YAML のバインドは独立しています。"
+    },
+    "8915b30c3629ac01d40502b60f433abb247216ef1e5d644ba1585be8840751c2": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/4672/summary"
+      ],
+      "english": "Declared constraints on literal props, evaluated against the current captured document catalog.",
+      "japanese": "現在取得済みの文書カタログに照らして評価する、リテラルの props に対して宣言した制約です。"
+    },
+    "8b6d054e8d52405a02da4c4cea4206f3f7db7456e14ce52a20a5623004cf6934": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/4852/summary"
+      ],
+      "english": "Runs only the explicitly mapped projects/tests with no dependency restore and no implicit time limit.",
+      "japanese": "明示的に対応付けたプロジェクトとテストだけを実行します。依存関係の復元や、暗黙の時間制限はありません。"
+    },
+    "8cf738619702d4edc7e8114f3f32b6be71654bc06473678d28c2a3409f79755e": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfWriter.cs/347/summary"
+      ],
+      "english": "Explicit metadata and original Markdown, with a caller-supplied portable alternative for component or MDX input.",
+      "japanese": "明示的なメタデータと元の Markdown、およびコンポーネントや MDX の入力に対して呼び出し側が渡す、移植可能な代替入力です。"
+    },
+    "8ddf6076e7aadf78e680f81842746cbc6069d79f7545c7f80fa3f36cacb9f3a1": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/4345/summary"
+      ],
+      "english": "Selects headings, paragraphs, table cells and link labels. Code, HTML, math, image labels, destinations, URLs and explicit protected identifiers are excluded.",
+      "japanese": "見出し、段落、表のセル、リンクのラベルを選びます。コード、HTML、数式、画像のラベル、参照先、URL、明示的に保護した識別子は除外します。"
+    },
+    "8e7d26591c8d2a13274a41764609af810fbcbe2cee6047b68cab99714221889b": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentEntry.cs/1845/summary"
+      ],
+      "english": "The role assigned by the selected input policy.",
+      "japanese": "選択した入力ポリシーが割り当てた役割です。"
+    },
+    "90044cdfdf9d21748929e6ad195d83a8fcd354d4a5ca9ee0deae8d953268aeda": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentNameAttribute.cs/413/param"
+      ],
+      "english": "The nonempty content field name.",
+      "japanese": "空でないコンテンツのフィールド名です。"
+    },
+    "94d0c0a49d1bf4a373c7e03eca0abdd193306d54c41818fa29006e69475223e4": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/2791/exception",
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/3529/exception"
+      ],
+      "english": "The YAML or typed values are invalid or unsupported.",
+      "japanese": "YAML または型付きの値が不正か、未対応です。"
+    },
+    "969816fdea3cbe0d0071390c699d3d3e074c05fcc0f8964525aba60b0f12b72e": {
+      "contexts": [
+        "src/LithoSharp.Mdx/DocumentationSite.cs/6928/summary"
+      ],
+      "english": "The latest captured catalog and metadata, or null while capture is unavailable.",
+      "japanese": "最後に取得したカタログとメタデータです。取得できない間は null です。"
+    },
+    "9ac4bc63b16bef4014c54e08070f691d118fe4ba7e164655b2c45196172b4ee1": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfMetadata.cs/9803/summary"
+      ],
+      "english": "The exact DateTimeOffset projection when representable. Freshness compares the full original precision.",
+      "japanese": "表現できる場合の、正確な DateTimeOffset への変換結果です。鮮度は元の精度全体で比較します。"
+    },
+    "9dc1cd8e376cb7bfbdf925e03bf7d6e67c21a550cedb4c6a12329c98523d76c9": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/2665/summary"
+      ],
+      "english": "Requires a nonempty field when another field equals the decoded literal text.",
+      "japanese": "別のフィールドの値がデコードしたリテラルのテキストと等しい場合に、空でないフィールドを要求します。"
+    },
+    "a11d37cc0bc88707b1e728b9f2a4b5b3d5f40f16928424338c7e4faec3582f6c": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/411/summary"
+      ],
+      "english": "An explicit mapping from a fenced snippet=\"id\" to tests in a trusted project.",
+      "japanese": "フェンスに付けた snippet=\"id\" から、信頼するプロジェクトのテストへの明示的な対応付けです。"
+    },
+    "a303a25a7eebdfa00a78ecc077a86ec921da565a48115572bb9d856b50e3c0d7": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/3976/summary"
+      ],
+      "english": "Editorial findings for the explicitly selected prose, not a technical or trust verification.",
+      "japanese": "明示的に選択した文章への編集上の指摘です。技術的な検証や信頼性の検証ではありません。"
+    },
+    "a90b768fa2e7484d3c368dc3d8b3e3413e7a3c247170c640bbe7599a6cab7070": {
+      "contexts": [
+        "src/LithoSharp/Inspection/FrontMatterSchema.cs/2983/summary"
+      ],
+      "english": "Requires a public parameterless constructor but does not invoke it, getters or setters. Runtime-dependent required values remain build-required.",
+      "japanese": "public な引数なしコンストラクターを要求しますが、コンストラクター、ゲッター、セッターは呼び出しません。実行時に依存する必須値には、引き続きビルドが必要です。"
+    },
+    "aa7de6775f5ac80910c46c14c6c01e8ed26e750995061db7454a28153777f187": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfWriter.cs/3582/summary"
+      ],
+      "english": "Creates new OKF snapshots using only explicit metadata and Markdown conversion rules.",
+      "japanese": "明示的なメタデータと Markdown の変換ルールだけを使い、新しい OKF スナップショットを作ります。"
+    },
+    "aca124cdf8505eb6abfd0fe400cfb2c6ae22f510bfc90245b74e06c9c8a3f19b": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/14525/summary"
+      ],
+      "english": "Requires an explicit supported version and published prerequisites for published documentation.",
+      "japanese": "公開する文書に、明示的な対応バージョンと、公開済みの前提文書を要求します。"
+    },
+    "b4d1d5b5c040191fd1417feee269340b08d41b17c0d9dbbac4d95d6f83ebabdd": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/270/summary"
+      ],
+      "english": "Explicit, immutable registrations for attribute-only Markdown components.",
+      "japanese": "属性だけで指定する Markdown コンポーネントの、明示的で不変の登録です。"
+    },
+    "b5134a9f9dba2af74fe499eb86a305e3631bf5133209671111b2b18176fb93bc": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfBundle.cs/4514/summary"
+      ],
+      "english": "A nonexecuting OKF v0.2 reader over immutable file snapshots.",
+      "japanese": "不変のファイルスナップショットを読み、処理を実行しない OKF v0.2 リーダーです。"
+    },
+    "b527e40f215960333264d5a6891348fa8bf6f8c61fdf635451b30c5a6333135b": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "Declarative prop reference rules. Rendering requires the current document identity and captured catalog.",
+      "japanese": "props の参照に関する宣言的なルールです。描画には現在の文書の識別情報と、取得済みのカタログが必要です。"
+    },
+    "b5accfc1a30111cbcd7a8c738a877e302c51c3af465920c0491224548902e7cf": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/772/summary"
+      ],
+      "english": "A collection/version/locale input universe covered by a complete capture.",
+      "japanese": "完全な取得がカバーする、コレクション・バージョン・言語ごとの入力集合です。"
+    },
+    "b8b2acf2b26be8e23dffb74ee64968b1cd6be1162496a914c351b7e1feda9c34": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfBundle.cs/796/summary"
+      ],
+      "english": "One verified file snapshot; export never transforms these bytes.",
+      "japanese": "検証した一つのファイルスナップショットです。エクスポートではこのバイト列を一切変換しません。"
+    },
+    "bad8218bee76edec82f67308a2d7579fbca71af81820805324c14f4b4320357f": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/14344/summary"
+      ],
+      "english": "One evaluator for editor metadata and real builds. Deferred is never a successful validation.",
+      "japanese": "エディターのメタデータと実際のビルドで共有する評価器です。Deferred は検証の成功を示すものではありません。"
+    },
+    "bb27b8f690d1e4d1677d120c228e9d91ee5041162d754e3a95fbfa1c30fffadc": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentRequiredWhenAttribute.cs/152/summary"
+      ],
+      "english": "Requires a nonempty input value when a field in the same mapping equals the decoded literal text.",
+      "japanese": "同じマッピング内のフィールドの値がデコードしたリテラルのテキストと等しい場合に、空でない入力値を要求します。"
+    },
+    "bbf7211150c894969638b1b9ecf4731eb428cd2d731eac09f711c78c3437fa41": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentIgnoreAttribute.cs/117/summary"
+      ],
+      "english": "Excludes a property or field from content binding and schemas.",
+      "japanese": "コンテンツのバインドとスキーマから、プロパティまたはフィールドを除外します。"
+    },
+    "bc7df8494a184728f6a34efdb5711bc4e817e0c432f2607c7d24722460bd93b3": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceSnapshot.cs/400/summary"
+      ],
+      "english": "An immutable editor buffer. ProjectPath is the explicit path used by the acquired project catalog.",
+      "japanese": "不変のエディターバッファーです。ProjectPath は、取得済みのプロジェクトカタログが使う明示的なパスです。"
+    },
+    "bd8ace723e64a0b4c5e5bf25215f7528955d3781db2ac7c7f3be46895bd9b868": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/12322/summary"
+      ],
+      "english": "Attaches static schemas acquired by the same explicit operation. Replaces the immutable project snapshot.",
+      "japanese": "同じ明示的な操作で取得した静的スキーマを関連付け、不変のプロジェクトスナップショットを置き換えます。"
+    },
+    "c146a039293d732d5cb5155b4f62d2fed3a7b13603ef357b9375321a0e8823c3": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/5436/summary"
+      ],
+      "english": "Runs the caller-selected local Python and lint script once, with no implicit timeout, word files or source writes.",
+      "japanese": "呼び出し側が選んだローカルの Python と lint スクリプトを、一度だけ実行します。暗黙のタイムアウト、単語ファイル、ソースへの書き込みはありません。"
+    },
+    "c3877e1eae3588de6fb9204714377619b8278834eb2422fbd214fe7ae9c8491f": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceEdits.cs/1288/summary"
+      ],
+      "english": "A reviewable edit set. Manual scopes remain explicit even when the included edits are safe to apply.",
+      "japanese": "レビューできる編集の集合です。含まれる編集を安全に適用できる場合でも、手動で扱う範囲は明示したままにします。"
+    },
+    "c4936848ebe982bb502dcacf4fbc44caaaecfa672bb0338c2412e9f46f43e6f5": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceEdits.cs/265/summary"
+      ],
+      "english": "An exact replacement guarded by the complete source snapshot and editor version.",
+      "japanese": "ソース全体のスナップショットとエディターのバージョンで保護した、正確な置換です。"
+    },
+    "c671fa6861b4f918f74a581e1461f906293b9eee879f522f6a68f4c6c641ad6d": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "The explicit root for file dependencies. Required when files are declared.",
+      "japanese": "ファイルの依存関係に使う明示的なルートです。ファイルを宣言する場合は必須です。"
+    },
+    "c7e60a7ce2d9e83443447199850c491c8d915aa6be67b57cf112a1babd516fcd": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/3920/summary"
+      ],
+      "english": "Optional editorial selection using Syntamark syntax and projections; it does not execute a proofreader.",
+      "japanese": "Syntamark の構文とマッピングを使う、任意の編集用の選択です。校正処理は実行しません。"
+    },
+    "ca9e9f2391afc66ffbc42fcd97bb35cad4ed0aafc65fd283113e8ab6de2cd86b": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/2008/summary"
+      ],
+      "english": "Registrations in ordinal name order. Inspection reads metadata without invoking user code.",
+      "japanese": "名前の序数順に並ぶ登録です。検査では利用者のコードを呼び出さずにメタデータを読みます。"
+    },
+    "cba8450dd0569e8686898c85553b4d68ee6b924b31c6af32e03db4d77aa7f8f1": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/251/summary"
+      ],
+      "english": "A reviewable replacement. Applying it returns text and never writes files.",
+      "japanese": "レビューできる置換です。適用するとテキストを返し、ファイルには一切書き込みません。"
+    },
+    "ce1810f48563146afdc5f2052878899902e9c3531cc5f85de2be6331c2e0fbef": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/4852/remarks"
+      ],
+      "english": "Call only for a trusted root and trusted projects. Success requires flat TRX execution records for passed tests with no skipped, failed or unavailable results. Every declared file is captured before execution and verified again before success is recorded. This does not execute Markdown code or set OKF trust metadata.",
+      "japanese": "信頼するルートとプロジェクトに対してだけ呼び出してください。成功には、スキップ、失敗、取得不能の結果がない、合格したテストのフラットな TRX 実行記録が必要です。宣言したすべてのファイルを実行前に取得し、成功を記録する前に再確認します。Markdown のコードの実行や、OKF の信頼性メタデータの設定は行いません。"
+    },
+    "ce5bdeb587f2f2e96642bd58ce5048a3577c9a7bfec87124fe37f059339078c6": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/4088/summary"
+      ],
+      "english": "Static schema supplied by a generated binder, or null when static validation is unavailable.",
+      "japanese": "生成したバインダーが提供する静的スキーマです。静的な検証ができない場合は null です。"
+    },
+    "d042d4ca6e5b6426310984b28950bb9cac624266ff13d7981099a6e541dca8bc": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/11776/summary"
+      ],
+      "english": "Attaches declarative rules and captured catalog evidence from the same explicit acquisition.",
+      "japanese": "同じ明示的な取得操作で得た、宣言的なルールとカタログの根拠を関連付けます。"
+    },
+    "d144439a3420c632910cf3b52c580f5fc584fecb7b43797c7515a2b423c205d2": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/3529/exception"
+      ],
+      "english": "T is a scalar, sequence, dictionary, or untyped object.",
+      "japanese": "T がスカラー、シーケンス、辞書、または型を指定しない object である場合です。"
+    },
+    "d3b17f852f102b780a2b4a1d8c995a657cd7dcab80ba4c12c338f37d69a374fd": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfMetadata.cs/569/summary"
+      ],
+      "english": "A recorded assertion; an actor name does not establish identity or truth.",
+      "japanese": "記録された主張です。actor の名前だけでは、識別情報や正しさは証明できません。"
+    },
+    "d5547f558e4317c36eb1d240a5717f663e004de3f0ddfd80d7b13c2e0127581a": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "The trusted static HTML component.",
+      "japanese": "信頼する静的 HTML コンポーネントです。"
+    },
+    "d674a64ddaa2494e00a59ebe53b931742a579d6660e0ef88c553153ecfb25ced": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentEntry.cs/1678/summary"
+      ],
+      "english": "The explicitly selected input policy, independent of the Markdown body profile.",
+      "japanese": "明示的に選択した入力ポリシーです。Markdown 本文のプロファイルとは独立しています。"
+    },
+    "d82e362c9ac8a1c4f80a843a274367a8f66235422aa9551f8c1f25688b91dcca": {
+      "contexts": [
+        "src/LithoSharp/Documentation/ApiReferenceSite.cs/3271/summary"
+      ],
+      "english": "An optional trusted layout for member, index and comparison pages. Null uses the standard document renderer.",
+      "japanese": "メンバー、索引、比較の各ページに使う、任意の信頼するレイアウトです。null の場合は、標準の文書描画を使います。"
+    },
+    "d8cf2ffe1d3e53d30ec3b1f2cab4b1c5f6239f55f786e1957a988fcafbbfa144": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/4224/summary"
+      ],
+      "english": "Versioned identity, including the explicit configuration fingerprint.",
+      "japanese": "明示的な設定のフィンガープリントを含む、バージョン付きの識別情報です。"
+    },
+    "d9185daae7defb0363d64301ec9f033bc430be599471c9ff64437b78e74af7c0": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/2365/summary"
+      ],
+      "english": "An immutable selection tied to the source version and exact source text.",
+      "japanese": "ソースのバージョンと、正確なソースのテキストに結び付く、不変の選択結果です。"
+    },
+    "db2822b515d3fb5e78d60d734ebe86ffc76f0efdfff63d86874d25482720b6ee": {
+      "contexts": [
+        "src/LithoSharp/Content/IContentFrontMatterSchemaProvider.cs/148/summary"
+      ],
+      "english": "Supplies generated static schema metadata during an explicitly requested build or inspection.",
+      "japanese": "明示的に要求したビルドまたは検査で、生成した静的スキーマのメタデータを提供します。"
+    },
+    "db871f3156e9721cceb408c7d9043ebbe3b3933afeea2638f5e96fb0632a9d42": {
+      "contexts": [
+        "src/LithoSharp/Content/IContentFrontMatterSchemaProvider.cs/311/summary"
+      ],
+      "english": "The generated JSON Schema, including the versioned LithoSharp static metadata.",
+      "japanese": "生成した JSON Schema です。バージョン付きの LithoSharp の静的メタデータを含みます。"
+    },
+    "dcc97816e9fe05d38e384fdaf66a1829f8318fe44cf58c005a6911be6b2943bb": {
+      "contexts": [
+        "src/LithoSharp/Components.cs/1861/summary"
+      ],
+      "english": "The captured current documentation identity and publication decision, when available.",
+      "japanese": "取得できる場合の、現在の文書の識別情報と公開の判定です。"
+    },
+    "ddb6b8af9f4b6d4adad7b824b377b127109ef7d66a2bc3ecbe5c178dfad6a551": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/3876/summary"
+      ],
+      "english": "Captures current inputs without executing projects; previous results only explain invalidation.",
+      "japanese": "プロジェクトを実行せずに、現在の入力を取得します。以前の結果は無効化の説明だけに使います。"
+    },
+    "dfa2eb830f2cd6d565bddf350f6e8ace1e5d3a719f0706d1a3e21b4767048df3": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/2791/summary"
+      ],
+      "english": "Reads a post metadata mapping. Unknown fields are ignored for legacy post compatibility.",
+      "japanese": "投稿のメタデータのマッピングを読みます。従来の投稿との互換性のため、未知のフィールドは無視します。"
+    },
+    "e2708ca42a0c044006432174a601eb10b1495570486989b791dd96d8a06e1737": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/summary"
+      ],
+      "english": "Registers a component and its typed binder without evaluating Markdown expressions.",
+      "japanese": "Markdown の式を評価せずに、コンポーネントと型付きのバインダーを登録します。"
+    },
+    "e2f520d41788e75ae70913128d4550194e7ec80ed3a16e08b6f877c1d56e2b63": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/3428/summary"
+      ],
+      "english": "Previews an explicitly selected code-point range. Decoded entities and ambiguous mappings cannot be edited directly.",
+      "japanese": "明示的に選んだコードポイントの範囲をプレビューします。デコードしたエンティティや曖昧なマッピングは、直接編集できません。"
+    },
+    "e48cee9eb3c1d1eb8be649dbc39026074a6e02f29d113d7f438eeae4025a8abd": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/148/summary"
+      ],
+      "english": "Selects Markdown interpretation independently of front matter binding and publication policy.",
+      "japanese": "front matter のバインドと公開ポリシーから独立して、Markdown の解釈を選びます。"
+    },
+    "e5b516a93793b211387ca297524308e9b631c3577fdaec3cd8997e566df03923": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/339/remarks"
+      ],
+      "english": "Serialization creates deterministic YAML; it does not preserve an existing document's formatting or bytes.",
+      "japanese": "シリアル化は決定的な YAML を作ります。既存文書の書式やバイト列は保持しません。"
+    },
+    "e6af5a3d314879849ca30e05ea28d4b7ef57f6d2d53c385c2c0e183e86e9a0de": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/590/summary"
+      ],
+      "english": "The documentation profile with footnotes and structured directives.",
+      "japanese": "脚注と構造化したディレクティブを使う文書用プロファイルです。"
+    },
+    "e88af69cafc3e57fa1a3031b103c1c1e0542e6ef776dd96a6a46fabe712d1e36": {
+      "contexts": [
+        "src/LithoSharp/Components.cs/2025/summary"
+      ],
+      "english": "The captured reference universe for this document, when available.",
+      "japanese": "取得できる場合の、この文書の取得済みの参照対象集合です。"
+    },
+    "eb149f072416d9500ff9aab519ea8691c15d03a9d883e4ad1da4c8b99a710651": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/10769/summary"
+      ],
+      "english": "Captures the profile selected by an explicit project operation.",
+      "japanese": "明示的なプロジェクトの操作で選択したプロファイルを取得します。"
+    },
+    "f2237bd58fd725d93614dd799fd1fd6f6a99de86b92748242504757eac629c6a": {
+      "contexts": [
+        "src/LithoSharp/Inspection/FrontMatterSchema.cs/2326/summary"
+      ],
+      "english": "Static metadata does not execute constructors, getters, setters, or custom validation.",
+      "japanese": "静的メタデータはコンストラクター、ゲッター、セッター、独自の検証を実行しません。"
+    },
+    "f2dc6b898b3d4b7fecaaf843ffab6e4e571314bf0908d786ae456104668cfd46": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentCatalog.cs/2126/summary"
+      ],
+      "english": "Prerequisite document IDs in the same collection, version, and locale.",
+      "japanese": "同じコレクション、バージョン、言語に属する前提文書の ID です。"
+    },
+    "f6accffd03458d3aa1e3952ec23c7dfad3452615e5a91f26e982c65e9fccdc33": {
+      "contexts": [
+        "src/LithoSharp/Documentation/ApiReferenceSite.cs/3494/summary"
+      ],
+      "english": "A stable identity for the custom layout's configuration. Required when Layout is set; layout code identity is captured separately.",
+      "japanese": "独自レイアウトの設定を表す安定した識別情報です。Layout を設定する場合は必須です。レイアウトのコードの識別情報は別に取得します。"
+    },
+    "f7053dcdee7fd223ccdfccaace59f0b5345083cb99ef2f412e3bf649d12a0734": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/339/summary"
+      ],
+      "english": "Reads typed front matter and writes new post metadata using native YAML.",
+      "japanese": "ネイティブ YAML を使って型付きの front matter を読み、新しい投稿のメタデータを書き込みます。"
+    },
+    "fa57dc16a665b150c191d2273ee8bbd355de8499f9eb60c3773c6e32aba89112": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/3148/summary"
+      ],
+      "english": "Requires a nonempty field when the real publication policy selects this document.",
+      "japanese": "実際の公開ポリシーがこの文書を選ぶ場合に、空でないフィールドを要求します。"
+    },
+    "fabbeffa339eeb7c81897cb1324dc4482a8f7b1252fcde364daac2e9cbb75a7c": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentNameAttribute.cs/121/summary"
+      ],
+      "english": "Overrides the snake_case name of a front matter property or field.",
+      "japanese": "front matter のプロパティまたはフィールドの snake_case の名前を上書きします。"
+    },
+    "fdfbbdbc3519236cdb798614f075095033b9127421493732603f31e7ae8935bd": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/4345/remarks"
+      ],
+      "english": "LithoSharp front matter is separated independently of the Markdown profile. Protected identifiers use exact ordinal decoded text, without guessing C# names.",
+      "japanese": "LithoSharp の front matter は、Markdown のプロファイルから独立して分離します。保護する識別子にはデコードしたテキストとの正確な序数比較を使い、C# の名前は推測しません。"
+    },
+    "ff02ed5e972ca38b3bec4bc460c72818558ccddcaf779cf699283d71b01e8f71": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/605/summary"
+      ],
+      "english": "Converts post metadata into deterministic YAML with LF line endings.",
+      "japanese": "投稿のメタデータを、LF 改行を使う決定的な YAML に変換します。"
+    }
+  }
+}

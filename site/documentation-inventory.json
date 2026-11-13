@@ -1,0 +1,1337 @@
+{
+  "schemaVersion": 1,
+  "sourceVersion": "3.0",
+  "locales": [
+    "en",
+    "ja"
+  ],
+  "implementationHashEncoding": "utf8-with-lf",
+  "entries": [
+    {
+      "collection": "overview",
+      "id": "introduction",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "README.md",
+          "title": "LithoSharp",
+          "sha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b"
+        },
+        "ja": {
+          "path": "README.ja.md",
+          "title": "LithoSharp",
+          "sha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "README",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/README.md",
+          "title": "LithoSharp documentation",
+          "sha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074"
+        },
+        "ja": {
+          "path": "docs/README.ja.md",
+          "title": "LithoSharpのドキュメント",
+          "sha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "Testing-v2-api",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/Testing-v2-api.md",
+          "title": "Testing v2 snapshot and query contract",
+          "sha256": "053623a532067b95623fd582f0e94b7bebbbe6255ae27f1a63a1572d89846be6"
+        },
+        "ja": {
+          "path": "docs/Testing-v2-api.ja.md",
+          "title": "Testing v2 のスナップショットとクエリの契約",
+          "sha256": "592b121f96eb14814860f963ee79947d2b662eb085651f13d6712fdfa612307b"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "adoption-guide",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/adoption-guide.md",
+          "title": "Decide whether LithoSharp fits",
+          "sha256": "e066062ee0cf390003907f1a2caee100c6ba1ba544379331292ae2c18ce3eed8"
+        },
+        "ja": {
+          "path": "docs/adoption-guide.ja.md",
+          "title": "LithoSharpの導入を判断する",
+          "sha256": "f0c0345bd32d6b00a858b01b730121075ffe4eea816adf8b120a0d7ac0263f48"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "assets-and-images",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/assets-and-images.md",
+          "title": "Assets and images",
+          "sha256": "0bc4491339723209b4d2ce53219728dfa5450c75ee6c153f8ce715ac92c781a0"
+        },
+        "ja": {
+          "path": "docs/assets-and-images.ja.md",
+          "title": "アセットと画像",
+          "sha256": "463d658dfc444dd90f4323f0b9bf04e1ea12e6f10b3b468515880b14197f8edc"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "build-graph",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/build-graph.md",
+          "title": "Build graph",
+          "sha256": "a8960766533dbd0712c7258900046e1ac0f4cfb1022bbf99a45c1f0811333176"
+        },
+        "ja": {
+          "path": "docs/build-graph.ja.md",
+          "title": "ビルドグラフ",
+          "sha256": "904fb737dda474e21bf18e5fc59e549f2751b49bd1c05a5ed0b8274ac58108ca"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "cli",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/cli.md",
+          "title": "CLI and site factories",
+          "sha256": "695d3f4fb0ca48223c325b12dfe46011b24869430a5accab9f62baea521cf5e7"
+        },
+        "ja": {
+          "path": "docs/cli.ja.md",
+          "title": "CLIとサイトファクトリ",
+          "sha256": "8a2cc7a8db61f1ef566daa9f4861df9fa2bf566579f84342d08379e73f592cd5"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "code-example-verification",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/code-example-verification.md",
+          "title": "Verify documented code examples",
+          "sha256": "8233f903ea7de5cddc6ed1c6560825def614797dbf2c2c6bd6069defddd18c6c"
+        },
+        "ja": {
+          "path": "docs/code-example-verification.ja.md",
+          "title": "文書のコード例を検証する",
+          "sha256": "d64fb2140b040c34f799adddd7eb31efe46dea8d72994f2787bb3ea89d67fa0e"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "compatibility-contract",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/compatibility-contract.md",
+          "title": "Generated site compatibility contract",
+          "sha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7"
+        },
+        "ja": {
+          "path": "docs/compatibility-contract.ja.md",
+          "title": "生成サイトの互換性契約",
+          "sha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "csharp-reference-rename",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/csharp-reference-rename.md",
+          "title": "C# reference rename preview",
+          "sha256": "446a4ed2ee9176caf60164df70f2a10faa6c937f09365af196f53f239f40f6d0"
+        },
+        "ja": {
+          "path": "docs/csharp-reference-rename.ja.md",
+          "title": "C# 参照の名前変更プレビュー",
+          "sha256": "0c94102b08561e5da6a69efd495473d7e47d962c61165e3920bec366df3af3ab"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "diagnostics",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/diagnostics.md",
+          "title": "Diagnostic reference",
+          "sha256": "24a7491e0dddc9e1a85cea8b694642a55f689ed7d4f5a7b6ae83778c9d4dd19d"
+        },
+        "ja": {
+          "path": "docs/diagnostics.ja.md",
+          "title": "診断リファレンス",
+          "sha256": "539b7848169fe8e547c260f43f3039df04be68ec9cb40592aef4042c5e238b3b"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "distribution",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/distribution.md",
+          "title": "Distribution and installation",
+          "sha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58"
+        },
+        "ja": {
+          "path": "docs/distribution.ja.md",
+          "title": "配布とインストール",
+          "sha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "docs-template",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/docs-template.md",
+          "title": "Configure the Docs template",
+          "sha256": "624038b7513d8fb3f74e62c1d501e6e26bce72b4763ce50b36a21c671bef6fad"
+        },
+        "ja": {
+          "path": "docs/docs-template.ja.md",
+          "title": "Docsテンプレートの設定",
+          "sha256": "b126f042a0fccef655a7580855bd8294143971c80bca2d82013b1468ea5d70a5"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "docusaurus-migration",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/docusaurus-migration.md",
+          "title": "Docusaurus migration",
+          "sha256": "aa43b31b0b59b3fef159595668cf6f7700a9314fac2c5d27c2173869f98f0efe"
+        },
+        "ja": {
+          "path": "docs/docusaurus-migration.ja.md",
+          "title": "Docusaurus 移行",
+          "sha256": "aa5da5e4231c6f8820d11b1e0d126e90a5e84cc504c871963bd121138306c551"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "generated-output-checks",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/generated-output-checks.md",
+          "title": "Inspect existing generated output",
+          "sha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147"
+        },
+        "ja": {
+          "path": "docs/generated-output-checks.ja.md",
+          "title": "生成済み出力の検査",
+          "sha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "golden-path",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/golden-path.md",
+          "title": "Golden paths",
+          "sha256": "404136748deaf12254a64b1b18ca5beb01e8171a9ff3d89df044903f6c2feeeb"
+        },
+        "ja": {
+          "path": "docs/golden-path.ja.md",
+          "title": "Golden Path",
+          "sha256": "a5ffd3677f5adfdc2647bd974e2eb6d3b399e1ab7ad7ca2bfb9ee15c83a624e5"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "incremental-builds",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/incremental-builds.md",
+          "title": "Incremental builds",
+          "sha256": "b6cd7a70862f4432f8a3a86ccc72b90d26d1423ef3911b2d24ceacd1fd2d9406"
+        },
+        "ja": {
+          "path": "docs/incremental-builds.ja.md",
+          "title": "差分ビルド",
+          "sha256": "81eb7a5879d18f76bd36da3a724647a2c230c24a8eb2c4e8995490d16d455129"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "known-limitations",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/known-limitations.md",
+          "title": "Known limitations",
+          "sha256": "b03f3bbf320a44d0872bb5c8dddf8438c5c1f716a5538a772653f1386d974605"
+        },
+        "ja": {
+          "path": "docs/known-limitations.ja.md",
+          "title": "既知の制約",
+          "sha256": "6638cc51608bd48c28b2ad41ab55bcba7dc8b663cba3f779f622436019aa8805"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "language-server",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/language-server.md",
+          "title": "Language-server protocol",
+          "sha256": "45f4e903bbce11c2257ab3e958830c58a81795a5157112382a20a374fa44ea28"
+        },
+        "ja": {
+          "path": "docs/language-server.ja.md",
+          "title": "言語サーバープロトコル",
+          "sha256": "d4c4fe1f25f3ba3cb8e5fe950a941731ec1cd07798da42ddc29a13f1b55bef7c"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "layout-css-contract",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/layout-css-contract.md",
+          "title": "Layout and component CSS contract",
+          "sha256": "2373b8161a4cbc064bc60d87078c022d1b7e040f8a6c4980136af538cb79a95e"
+        },
+        "ja": {
+          "path": "docs/layout-css-contract.ja.md",
+          "title": "レイアウトとコンポーネント CSS の契約",
+          "sha256": "dc3015ca2b64221b3dffb7b611fa7cb6dfebd602aef27e73886c3a8c272dbd78"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "markdown-profiles",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/markdown-profiles.md",
+          "title": "Markdown profiles",
+          "sha256": "0a5957ffbf2fa24fe4e95cef3e093665b98a57be19794a5043a33a292d6589d9"
+        },
+        "ja": {
+          "path": "docs/markdown-profiles.ja.md",
+          "title": "Markdown プロファイル",
+          "sha256": "3db9e4b89023f9b8d4dfd43bb2ab0363dad5b18752992d98ab4cc635dff18ee1"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "mdx",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/mdx.md",
+          "title": "MDX and documentation sites",
+          "sha256": "36cc2c313f3aae9a6d55565debf5430ce4824204d05099bbe3acd391b36ef15a"
+        },
+        "ja": {
+          "path": "docs/mdx.ja.md",
+          "title": "MDX とドキュメントサイト",
+          "sha256": "12b7fcee981d31e6cbb4a44a32214f4128f403317f32c135b7b8c4e4ab5c7e30"
+        }
+      }
+    },
+    {
+      "collection": "history",
+      "id": "migration-2.0",
+      "historical": true,
+      "source": {
+        "en": {
+          "path": "docs/migration-2.0.md",
+          "title": "Upgrade to 2.2.0",
+          "sha256": "4eb6b81d2ae6b008132c970ab1ff9e4a136e4b366f3260dc65d8b5c83706daf2"
+        },
+        "ja": {
+          "path": "docs/migration-2.0.ja.md",
+          "title": "2.2.0への更新",
+          "sha256": "290f5f311d5ac9689bc08ba34415d02d935ccc81b6877c3c1b43d10d2f7dc477"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "migration-3.0",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/migration-3.0.md",
+          "title": "Upgrade to LithoSharp 3",
+          "sha256": "114c18c4d9ed948fbf250995333a7025c2adcd8771c467a19dfade86ea514870"
+        },
+        "ja": {
+          "path": "docs/migration-3.0.ja.md",
+          "title": "LithoSharp 3 への移行",
+          "sha256": "ec9d29eef5d4c879ebdec03c04f64d49c7b6063fb2a12ec9925afe7a2d6a6bd0"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "open-knowledge-format",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/open-knowledge-format.md",
+          "title": "Open Knowledge Format",
+          "sha256": "8a1083714c002f60407d6f79fbd7cf1f8828218947912b6f8d816d05156637a3"
+        },
+        "ja": {
+          "path": "docs/open-knowledge-format.ja.md",
+          "title": "Open Knowledge Format",
+          "sha256": "0dd90281ea3d7cdfba060f275345ae632630b559e98cce058677e9b35e78b345"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "performance",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/performance.md",
+          "title": "Performance",
+          "sha256": "31d61875672dbd01fe2c51c56524bbcdf49a458786693d0937f0a0ad0e5d8af7"
+        },
+        "ja": {
+          "path": "docs/performance.ja.md",
+          "title": "性能",
+          "sha256": "1b0d34d0e7031db87f399eb80431c774f13d540dc500ad4a9a0edbd035e61484"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "proofreading",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/proofreading.md",
+          "title": "Optional proofreading",
+          "sha256": "b067a157c77bbd1c89b6999d27f1e69243d6039af4f24bbb287c34dc48a5ba69"
+        },
+        "ja": {
+          "path": "docs/proofreading.ja.md",
+          "title": "任意の校正",
+          "sha256": "b00b602b46b39f0f5122ed3ccbed9ff9235861c46f36cb607cecb6a17234dfe4"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "quickstart",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/quickstart.md",
+          "title": "Quick Start",
+          "sha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be"
+        },
+        "ja": {
+          "path": "docs/quickstart.ja.md",
+          "title": "Quick Start",
+          "sha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "reference-editing",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/reference-editing.md",
+          "title": "Reference inspection and editing",
+          "sha256": "f1d76bba42dff8b1630845a532f61f884e9e3c08ff8c50b33b263b36600f69d9"
+        },
+        "ja": {
+          "path": "docs/reference-editing.ja.md",
+          "title": "参照の検査と編集",
+          "sha256": "29337b55bb9f5a8afaf7c2d570c2d565fa80812b9fc670478b592f37df965ae3"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "semantic-constraints",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/semantic-constraints.md",
+          "title": "Document semantic constraints",
+          "sha256": "d3c6584f75ee17e39d3edba65a998dc7fd2c831df586f1961111d5095e87704c"
+        },
+        "ja": {
+          "path": "docs/semantic-constraints.ja.md",
+          "title": "文書の意味制約",
+          "sha256": "5265402cda2e354bb2bd50512bc3a8df22bc52cdc0d72fb460fbcdcd7e195cb3"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "site-quality",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/site-quality.md",
+          "title": "Site quality checks",
+          "sha256": "460d79519f2fe71ec1e04de0d03e045f5af398d88774ebc46cd359fac946f2d9"
+        },
+        "ja": {
+          "path": "docs/site-quality.ja.md",
+          "title": "サイトの品質検査",
+          "sha256": "6d4620b5e19d5d06058559aca80af8054d378dcbb126db3687abe14a733270a1"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "source-generators",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/source-generators.md",
+          "title": "Static content source generators",
+          "sha256": "cc51bf552385dab6d7ff466569fe076c5a961c1be031b3c913674efd4c9cc5b3"
+        },
+        "ja": {
+          "path": "docs/source-generators.ja.md",
+          "title": "静的コンテンツのソースジェネレーター",
+          "sha256": "04a4a80852072f082544db244f44fe3e31043d978905b2eb9d7f2ee5682e819c"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "syntamark-contracts",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/syntamark-contracts.md",
+          "title": "Syntamark contracts in LithoSharp",
+          "sha256": "bebcab3d80df609ff511c3c8689696e3de7acd7ee9be7374611548061aebc5e2"
+        },
+        "ja": {
+          "path": "docs/syntamark-contracts.ja.md",
+          "title": "LithoSharp で使う Syntamark の契約",
+          "sha256": "5dfbf4c90ff3adbbaeb420f4a723ab860ce5832fc4c073911784f48bed131aa6"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "testing",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/testing.md",
+          "title": "Testing sites",
+          "sha256": "7e0ed0a4263d2a01935e6be438bf0a75ba8b6d248ecbf7198cafe972fd8d27e9"
+        },
+        "ja": {
+          "path": "docs/testing.ja.md",
+          "title": "サイトのテスト",
+          "sha256": "6ccee122c8139fce4e7f9c6879ed64614b4069a7df75b17a4c33f6e3d8fbfdaf"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "tooling-capabilities",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/tooling-capabilities.md",
+          "title": "Tooling capability contract (schema 1.0)",
+          "sha256": "4bec71602ddf18872a19347157e8be8105d83341b424b6461e1ba9bdf33600b9"
+        },
+        "ja": {
+          "path": "docs/tooling-capabilities.ja.md",
+          "title": "Toolingの機能情報と互換性（schema 1.0）",
+          "sha256": "6914dbfa2802c66ba5b843c5fc1c819cb6b8890ca0689f8780d55d191a87d21d"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "typed-markdown-collections",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/typed-markdown-collections.md",
+          "title": "Typed Markdown collections",
+          "sha256": "1b69495d2b3ce86a7ed972a90d6dae80150c7d64970c7b7998a3aab34e48cf31"
+        },
+        "ja": {
+          "path": "docs/typed-markdown-collections.ja.md",
+          "title": "型付き Markdown コレクション",
+          "sha256": "54d416ab39bbd429f59d931da7b918f10b73c5aa2c59d3792f61cdc105e06edb"
+        }
+      }
+    },
+    {
+      "collection": "reference",
+      "id": "typed-yaml-collections",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/typed-yaml-collections.md",
+          "title": "Typed YAML collections",
+          "sha256": "8fdd028c1998cef5c6ff1d4e47c01f77a7a12c26cc9d753e4130a4bf2b8fce1b"
+        },
+        "ja": {
+          "path": "docs/typed-yaml-collections.ja.md",
+          "title": "型付き YAML コレクション",
+          "sha256": "ddcc116d37fa98a79d13b3402e3b1f4963abffb823b4aca685eeb4334429758d"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "extensions-lithosharp-vscode",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "extensions/lithosharp-vscode/README.md",
+          "title": "LithoSharp for VS Code",
+          "sha256": "7c8cd31bf097911abc3053bf6166a6df18ed5239ac50faa904bf89ec6abb0702"
+        },
+        "ja": {
+          "path": "extensions/lithosharp-vscode/README.ja.md",
+          "title": "LithoSharp for VS Code",
+          "sha256": "3c5533f36a51e6b49c4a41cda351931d6b519e944f401cd2f8c22171a99406d7"
+        }
+      }
+    },
+    {
+      "collection": "samples",
+      "id": "samples-lithosharp-docssample",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "samples/LithoSharp.DocsSample/README.md",
+          "title": "LithoSharp Docs sample",
+          "sha256": "35799b0f4d09dc65b9da8976f65c5a9b72dd8e09d76984a7a982c30fd62922e5"
+        },
+        "ja": {
+          "path": "samples/LithoSharp.DocsSample/README.ja.md",
+          "title": "LithoSharp Docs サンプル",
+          "sha256": "61651a6a5e48e6ea17b55d2ece03ca5e986ecd6cbffd815ea3d080e7a7930c44"
+        }
+      }
+    },
+    {
+      "collection": "samples",
+      "id": "samples-lithosharp-mdxsample",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "samples/LithoSharp.MdxSample/README.md",
+          "title": "MDX and React sample",
+          "sha256": "bc955f166c681cf4b94617616badfd4ea1ef6c2b908238bb85b92ec0f0788dd8"
+        },
+        "ja": {
+          "path": "samples/LithoSharp.MdxSample/README.ja.md",
+          "title": "MDX と React のサンプル",
+          "sha256": "ca56cea0b20f3a9890c16a4dc95027f1ad54ef216f3f69ae8c2ee9719ba08464"
+        }
+      }
+    },
+    {
+      "collection": "samples",
+      "id": "samples-lithosharp-sample",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "samples/LithoSharp.Sample/README.md",
+          "title": "LithoSharp Blog sample",
+          "sha256": "45b67d09ae2ea17835e9bd90c28c5942e0995db395af92c676ba7ebc31911ef6"
+        },
+        "ja": {
+          "path": "samples/LithoSharp.Sample/README.ja.md",
+          "title": "LithoSharp Blog サンプル",
+          "sha256": "08902d51fb22e9ca6f78964bbbc320704f28f8f989041272bc0aa501dbf3a791"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-analyzers",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Analyzers/README.md",
+          "title": "LithoSharp.Analyzers",
+          "sha256": "520bc45fca391552e4bdecdf2e71eb172cd8837c16634397206a90f92a7c5858"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Analyzers/README.ja.md",
+          "title": "LithoSharp.Analyzers",
+          "sha256": "aead25c46ad852f7395740c1aa3856d0e406bb2f38dfb99ee0f005d4ba8fb5e9"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-codefixes",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.CodeFixes/README.md",
+          "title": "LithoSharp.CodeFixes",
+          "sha256": "17f1460cf252437b0676f72f44077f2e44ee513a6b8382ec76458b3bbcf6820c"
+        },
+        "ja": {
+          "path": "src/LithoSharp.CodeFixes/README.ja.md",
+          "title": "LithoSharp.CodeFixes",
+          "sha256": "30a6336ab4cdad2f660a570afcfd0fdfb357a9c9d37f8335de1a075c58b18584"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-generators",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Generators/README.md",
+          "title": "LithoSharp.Generators",
+          "sha256": "d477d70aafc3c547b25ca846abf3dd412e984228ff2f176ca53f332ab83d4e03"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Generators/README.ja.md",
+          "title": "LithoSharp.Generators",
+          "sha256": "ea3d562f77bf8073ad8de73ab48d9089f8ebb2e30a40955aeb033689be9794e8"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-images",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Images/README.md",
+          "title": "LithoSharp.Images",
+          "sha256": "0f7e66b1ae018fc246465b87a9b3f85f2d625fee258ad0ae4fedd7eee8596ce9"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Images/README.ja.md",
+          "title": "LithoSharp.Images",
+          "sha256": "604a190f048f72c0a7c0f96ab7090f5868a9700968fff921823be053790a84ae"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-mdx",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Mdx/README.md",
+          "title": "LithoSharp.Mdx",
+          "sha256": "1da891042b2b30d27ddc57686cf9a6577d7c30aa802cc8431a6b737bf831b9bc"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Mdx/README.ja.md",
+          "title": "LithoSharp.Mdx",
+          "sha256": "9f92e636234896354f5dc1a5b07e233602cc0256e49d8867d1e3be7398bd01b1"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-testing",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Testing/README.md",
+          "title": "LithoSharp.Testing",
+          "sha256": "0f6fabd79551fff3990fd8bb68467779879640fe632186647ed51abb7ae6389b"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Testing/README.ja.md",
+          "title": "LithoSharp.Testing",
+          "sha256": "c9c55c3d3220574d58118e06331424c2d4031253e3e021e54b48e6a8ea7988fb"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "src-lithosharp-tool",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "src/LithoSharp.Tool/README.md",
+          "title": "LithoSharp.Tool",
+          "sha256": "74ed4a9f390b4d96d5a1775a2d954dba0cc024b95afd408c7688feab902e45fb"
+        },
+        "ja": {
+          "path": "src/LithoSharp.Tool/README.ja.md",
+          "title": "LithoSharp.Tool",
+          "sha256": "fd72c1b43c1dbab99317b425a374cdf9d0025c69dbc0a42f82493a690c7a2f0c"
+        }
+      }
+    },
+    {
+      "collection": "packages",
+      "id": "templates-lithosharp-projecttemplates",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "templates/LithoSharp.ProjectTemplates/README.md",
+          "title": "LithoSharp project templates",
+          "sha256": "7ba6439db2be8c53dc0f85e03a72f749d6bca01f594954f1b3665cd8ed56723c"
+        },
+        "ja": {
+          "path": "templates/LithoSharp.ProjectTemplates/README.ja.md",
+          "title": "LithoSharp プロジェクトテンプレート",
+          "sha256": "6201867156204d22a8130ff5a0a45c9e1cd3943dca37228ffd6e2cf4e164a95c"
+        }
+      }
+    }
+  ],
+  "historicalSources": [
+    {
+      "path": "docs/history/README.md",
+      "sha256": "e2e8ceaaa3132316b4db3cdc85009b9b7716462621839263ea1debe34890a94f",
+      "disposition": "Preserved historical source; linked to its repository archive without inventing a current-version variant."
+    },
+    {
+      "path": "docs/history/migration-0.3.ja.md",
+      "sha256": "661e84501a37fa3dca0b9735e4a5d4df5c0c3d28ed8a2b5dd4a37330ba261006",
+      "disposition": "Preserved historical source; linked to its repository archive without inventing a current-version variant."
+    },
+    {
+      "path": "docs/history/migration-0.3.md",
+      "sha256": "7184112a2eeb0130550faf02f5a63fa9dbb80ef7ac8e6b00042d9e1c7e558092",
+      "disposition": "Preserved historical source; linked to its repository archive without inventing a current-version variant."
+    },
+    {
+      "path": "docs/history/release-1.1.ja.md",
+      "sha256": "1856a99b0ba9e5d1cd85b04e01ccac62e162901a3de91a122c2e377129d80125",
+      "disposition": "Preserved historical source; linked to its repository archive without inventing a current-version variant."
+    },
+    {
+      "path": "docs/history/release-1.1.md",
+      "sha256": "90c92bb5afd961dd28dd6cee1a044657ec756aad35b62209bd661a65ded8a152",
+      "disposition": "Preserved historical source; linked to its repository archive without inventing a current-version variant."
+    }
+  ],
+  "apiContracts": [
+    {
+      "path": "src/LithoSharp/PublicAPI.Shipped.txt",
+      "sha256": "6f14dc77d2f2e4ee6958da9a66b4c5ac184225bc7651148827324119fedd653c",
+      "entries": 2195
+    },
+    {
+      "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
+      "sha256": "763acaf6064d77eb0175625bd5c7eeff4c12b95cf7d8927220f15db15186583b",
+      "entries": 660
+    },
+    {
+      "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
+      "sha256": "8f73ce7facd9f896f39cd7914034feec64ef7940a87afca878af6fef03d9f539",
+      "entries": 324
+    },
+    {
+      "path": "src/LithoSharp.Mdx/PublicAPI.Unshipped.txt",
+      "sha256": "2c6c278b1dea896587b2cfb412f23e042fc183f0be8fca9f066eb4385fcbd6a7",
+      "entries": 9
+    },
+    {
+      "path": "src/LithoSharp.Testing/PublicAPI.Shipped.txt",
+      "sha256": "ab6abf236d1aeeebfb2c3f55e071d97ce523aa8605ceba1ffc0dce9129238865",
+      "entries": 57
+    },
+    {
+      "path": "src/LithoSharp.Testing/PublicAPI.Unshipped.txt",
+      "sha256": "3c3b422dddb1efeb0fc5b228608fd8682452b2a9507d4031894bce3c4dedadbd",
+      "entries": 0
+    }
+  ],
+  "sourceSurfaces": {
+    "cli": {
+      "source": {
+        "path": "src/LithoSharp.Tool/Cli.cs",
+        "sha256": "d7aeff27b35300438d509ddd070c628c2b145300c7d27a0e851f81719393dd89"
+      },
+      "usage": [
+        "capabilities [-f json] (tool, core, contract and capability report; never evaluates a project)",
+        "cache <info|clean> -o directory [--cache-dir directory] (explicit per-output cache usage or reclamation)",
+        "markdown-compat <markdown-file> [--advisory on|off] [--format text|json] [--project snapshot.json] (explicit Markdown compatibility check; same analysis as document inspection)",
+        "new <docs|blog|empty|mdx> [name] [-o directory]",
+        "snapshot <source> <destination> <version>",
+        "extract-translations <source>",
+        "restore-mdx <worker-directory> [--allow-scripts]",
+        "migrate-docusaurus <source> (read-only JSON report; never executes config) (exit 0 done, 1 failure, 3 unconvertible)",
+        "migrate testing --dry-run --source file.cs --reference baseline.dll [--source file.cs] [--reference baseline.dll] [--format json] (metadata-only JSON report; no edits or user project execution)",
+        "migrate docusaurus <source> [--output directory] [--expected-routes file] [--base-url url] [--default-locale locale] [--source-version version] [--source-base-path path] [--compare-normalized-pages] (exit 0 done, 1 failure, 3 unconvertible)",
+        "build [project] [-o directory] [--clean] [-c configuration]",
+        "serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]",
+        "check [project] [--format text|json|sarif] [-c configuration] (regenerates into temporary output)",
+        "check-output -o directory --base-url url [--format text|json|sarif] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; no generation or cache writes)",
+        "check-output -o directory --base-url url --site-id id --initialize-baseline file (explicit create-only baseline initialization after verified publication)",
+        "okf <inspect|validate|export> --input bundle-directory [--format text|json|sarif] [--as-of offset-datetime] [--strict-lint] [--base-url url] [--max-files count] [--max-discovery-entries count] [--max-file-bytes bytes] [--max-bundle-bytes bytes] [--output new-export-directory] (standalone bundle read; no project or computation execution)",
+        "proofread <markdown-file> --python executable --yomiyasu lint-script [--profile id] [--protect identifier] [--format text|json] [--preview segment:start:length --replacement text] (explicit optional Yomiyasu execution; diagnostics and edit previews only)",
+        "preview-csharp-rename --source caller.cs --reference metadata.dll --type metadata-type --member member --new-name identifier [--define symbol] [--format json] (explicit Roslyn caller preview; no project evaluation, generated-source edits or file writes)",
+        "clean [project] [-o directory] [-c configuration]",
+        "inspect [project] [--format text|json] [-c configuration]",
+        "preflight --mode static --input file.md [--input file.mdx] [--format text|json|sarif] [--worker-directory directory]",
+        "preflight project.csproj --mode trusted [--input file.md] [--format text|json|sarif] [--configuration configuration]"
+      ],
+      "guides": {
+        "en": "docs/cli.md",
+        "ja": "docs/cli.ja.md"
+      }
+    },
+    "editor": {
+      "source": {
+        "path": "extensions/lithosharp-vscode/package.json",
+        "sha256": "30ddc9a3d03b895cd62919dbf9f201eeffa74088a4b031cf6489f6d4abe8d885"
+      },
+      "commands": [
+        "lithosharp.build",
+        "lithosharp.inspectSite",
+        "lithosharp.openInBrowser",
+        "lithosharp.openPreview",
+        "lithosharp.preflight",
+        "lithosharp.previewMarkdownMove",
+        "lithosharp.previewMarkdownRename",
+        "lithosharp.refreshPreview",
+        "lithosharp.renameMarkdownReferences",
+        "lithosharp.restartServer",
+        "lithosharp.restoreWorker",
+        "lithosharp.selectProject",
+        "lithosharp.showStatus",
+        "lithosharp.startServer",
+        "lithosharp.stopServer"
+      ],
+      "settings": [
+        {
+          "id": "lithosharp.cliPath",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "id": "lithosharp.diagnosticDebounceMs",
+          "type": "integer",
+          "default": 150
+        },
+        {
+          "id": "lithosharp.languageServerPath",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "id": "lithosharp.nodeExecutable",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "id": "lithosharp.projectPath",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "id": "lithosharp.workerDirectory",
+          "type": "string",
+          "default": ""
+        }
+      ],
+      "guides": {
+        "en": "docs/language-server.md",
+        "ja": "docs/language-server.ja.md"
+      }
+    },
+    "templates": {
+      "entries": [
+        {
+          "path": "templates/LithoSharp.ProjectTemplates/content/blog/.template.config/template.json",
+          "sha256": "7e2323506f4fbe602ae5c121e02b2fdbddc920551fdc645b15a87173d80469a3",
+          "identity": "LithoSharp.Blog",
+          "shortName": "lithosharp-blog",
+          "symbols": []
+        },
+        {
+          "path": "templates/LithoSharp.ProjectTemplates/content/docs/.template.config/template.json",
+          "sha256": "ee7e4ea55bdf7dad5f1895c798761dfc808c4067e48d5ed632333a91776271ae",
+          "identity": "LithoSharp.Docs",
+          "shortName": "lithosharp-docs",
+          "symbols": []
+        },
+        {
+          "path": "templates/LithoSharp.ProjectTemplates/content/empty/.template.config/template.json",
+          "sha256": "aab4a416966a3b5a075d48ed059beae4460c0aa06329c33c7cb0a2b53a37f1f6",
+          "identity": "LithoSharp.Empty",
+          "shortName": "lithosharp-empty",
+          "symbols": []
+        },
+        {
+          "path": "templates/LithoSharp.ProjectTemplates/content/mdx/.template.config/template.json",
+          "sha256": "a51e5b8b85156568130e091eca8b4880adeacd66c68e2a850dd1545df4b00773",
+          "identity": "LithoSharp.Mdx",
+          "shortName": "lithosharp-mdx",
+          "symbols": []
+        }
+      ],
+      "guides": {
+        "en": "docs/distribution.md",
+        "ja": "docs/distribution.ja.md"
+      }
+    },
+    "diagnostics": {
+      "ids": [
+        "LIT001",
+        "LIT002",
+        "LIT003",
+        "LIT004",
+        "LIT005",
+        "LSA001",
+        "LSB001",
+        "LSB002",
+        "LSB003",
+        "LSB004",
+        "LSB005",
+        "LSB006",
+        "LSB007",
+        "LSB008",
+        "LSB009",
+        "LSC101",
+        "LSC102",
+        "LSC103",
+        "LSC104",
+        "LSC105",
+        "LSCCSV002",
+        "LSCCSV003",
+        "LSCCSV004",
+        "LSCCSV005",
+        "LSCCSV006",
+        "LSCCSV007",
+        "LSCJSON002",
+        "LSCJSON003",
+        "LSCJSON004",
+        "LSCJSON005",
+        "LSCJSON006",
+        "LSCJSON007",
+        "LSDOC001",
+        "LSDOC201",
+        "LSDOC202",
+        "LSDOC203",
+        "LSDOC210",
+        "LSDOC211",
+        "LSDOC212",
+        "LSDOC213",
+        "LSDOC214",
+        "LSDOC301",
+        "LSG001",
+        "LSG002",
+        "LSG003",
+        "LSG004",
+        "LSG005",
+        "LSG006",
+        "LSM001",
+        "LSM002",
+        "LSM003",
+        "LSM004",
+        "LSM005",
+        "LSM006",
+        "LSM007",
+        "LSM008",
+        "LSM009",
+        "LSM010",
+        "LSM011",
+        "LSM012",
+        "LSM013",
+        "LSM014",
+        "LSM015",
+        "LSM020",
+        "LSM021",
+        "LSM022",
+        "LSM023",
+        "LSM024",
+        "LSMDX001",
+        "LSMDX002",
+        "LSMDX003",
+        "LSMDX004",
+        "LSMDX005",
+        "LSMDX006",
+        "LSMIG001",
+        "LSMIG002",
+        "LSMIG003",
+        "LSMIG004",
+        "LSMIG005",
+        "LSOKF900",
+        "LSOKF901",
+        "LSPREFLIGHT001",
+        "LSPROOF001",
+        "LSPUB001",
+        "LSPUB002",
+        "LSPUB003",
+        "LSPUB004",
+        "LSQ001",
+        "LSQ002",
+        "LSQ003",
+        "LSQ004",
+        "LSQ005",
+        "LSQ006",
+        "LSQ007",
+        "LSQ008",
+        "LSQ009",
+        "LSQ010",
+        "LSQ011",
+        "LSR001",
+        "LSR002",
+        "LSR003",
+        "LSR004",
+        "LSR005",
+        "LSR006",
+        "LST001",
+        "LST002",
+        "LST003",
+        "LSY001",
+        "LSY002",
+        "LSY003",
+        "OKF001",
+        "OKF002",
+        "OKF003",
+        "OKF004",
+        "OKF005",
+        "OKF006",
+        "OKF007",
+        "OKF008",
+        "OKF110",
+        "OKF111",
+        "OKF112",
+        "OKF113",
+        "OKF114",
+        "OKF115",
+        "OKF116",
+        "OKF117",
+        "OKF118",
+        "OKF119",
+        "OKF120",
+        "OKF121",
+        "OKF900",
+        "OKF901",
+        "OKF902"
+      ],
+      "sources": [
+        {
+          "path": "src/LithoSharp.Analyzers/HtmlFlowUrlAnalysis.cs",
+          "sha256": "ad7e22d577d48407b701f144ab77936949500bad94a7b16486610c4e807fcd43"
+        },
+        {
+          "path": "src/LithoSharp.Generators/StaticContentGenerator.cs",
+          "sha256": "9c85be78957a587a47179e9a5e821570bff5226bdb4be76cc248310247e32eac"
+        },
+        {
+          "path": "src/LithoSharp.Generators/StaticYamlValidation.cs",
+          "sha256": "1dbcba66ca4262be715f7261bc4a5cad115a4f9bcd5500e696a73ae7ac56652c"
+        },
+        {
+          "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
+          "sha256": "6f3fba3809510c99599c0f59d7af62bc1a26bc4ade0063b437992cf9f2994914"
+        },
+        {
+          "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
+          "sha256": "3ac24a5845335be7506442495b0747bee6ed80a39d95ab2eabdbe3152eb2a510"
+        },
+        {
+          "path": "src/LithoSharp.Mdx/MdxInspectionSession.cs",
+          "sha256": "4bb155555837afdc5c001d9220052999d666da81f1fca3616a45f186aff3f70d"
+        },
+        {
+          "path": "src/LithoSharp.Mdx/MdxSite.cs",
+          "sha256": "343cf24c87807d63d7c463657b7092190858e887f26542f0fa32776296eca0eb"
+        },
+        {
+          "path": "src/LithoSharp.Mdx/MdxWorker.cs",
+          "sha256": "36148522b07b9dbb0c1963cf22eaff5f47efd545a6f38966cd0032af5b880d21"
+        },
+        {
+          "path": "src/LithoSharp.Tool/CheckOutputCommand.cs",
+          "sha256": "593e447c88de6bf63e4f403a2484485137f16f00bbdef27e9a68f7a3a508bc2c"
+        },
+        {
+          "path": "src/LithoSharp.Tool/OkfCommand.cs",
+          "sha256": "5774077813036a22b523646c4ff54f26d275fafef75062bff98e184966e999c9"
+        },
+        {
+          "path": "src/LithoSharp/AssetRegistry.cs",
+          "sha256": "68aa569825b98cdb27d334475c389030de5f151ef2cda286c3e6c1524407d246"
+        },
+        {
+          "path": "src/LithoSharp/Build/SiteBuildPlanDiagnosticIds.cs",
+          "sha256": "04138a9fdd671d3edb7488a7afb42417599821eb86b8aac6fa5d732688dc07a3"
+        },
+        {
+          "path": "src/LithoSharp/Content/Compilation/LithoLimits.cs",
+          "sha256": "e3cba11c7ab90d606208385d55cf839308b377107e5c67a0b9793c656860b9f2"
+        },
+        {
+          "path": "src/LithoSharp/Content/Compilation/MarkdownAnalysisAdapter.cs",
+          "sha256": "ef56d8e94292a1cfbed5eeb0be42fdc2a64c2065140c609c1ecdb2f536a76962"
+        },
+        {
+          "path": "src/LithoSharp/Content/Compilation/MarkdownComponentRendering.cs",
+          "sha256": "0460dd8b4643247a546bb649e6b6c501ff4cb8b1bbe2e68abb1e1f7c491b20be"
+        },
+        {
+          "path": "src/LithoSharp/Content/GeneratedContentPages.cs",
+          "sha256": "6c3caa83a19534252def67dc457782abd5c0443ec6f90a098b54da596bc51100"
+        },
+        {
+          "path": "src/LithoSharp/Content/MarkdownCodeInclusion.cs",
+          "sha256": "30ceab8737cd2312295cdfbe996b2d89151448df78983f55a036afe210bf2e58"
+        },
+        {
+          "path": "src/LithoSharp/Content/MarkdownContentCollectionLoader.cs",
+          "sha256": "9659545c578020aca31e305523dc93afaf3448db648ab9dccdaa0fd469192804"
+        },
+        {
+          "path": "src/LithoSharp/Content/ReflectionContentFrontMatterBinder.cs",
+          "sha256": "13d24ca432596175e44fc1004206d6ac4d87b6c2d66c8d23996df08f17a28399"
+        },
+        {
+          "path": "src/LithoSharp/Content/StructuredContentLoaders.cs",
+          "sha256": "b5888c4768bd41acbba62d9913c9bfee63ec2b904db80ec58d62dde848571bba"
+        },
+        {
+          "path": "src/LithoSharp/Content/YamlContentCollectionLoader.cs",
+          "sha256": "e508276a7cb95e10b2ecf2c35b772af9ee4f97cdb621a61dac87c626ab87be72"
+        },
+        {
+          "path": "src/LithoSharp/Documentation/DocumentOperations.cs",
+          "sha256": "6cc057067d2448099ff0c3929b423de26d19178a25187bc86ea7265f7ad496e0"
+        },
+        {
+          "path": "src/LithoSharp/Documentation/DocumentSemanticRules.cs",
+          "sha256": "f06d7ba363be75ac394a4f063363b9619cdaa86182a3d845853375992ff8b1e1"
+        },
+        {
+          "path": "src/LithoSharp/Documentation/DocumentSnippetVerification.cs",
+          "sha256": "147c36b6b372dedad9ba97fb93996a85caa3aa289241bf6ea2d8108dcba36bba"
+        },
+        {
+          "path": "src/LithoSharp/Documentation/DocumentTranslationReview.cs",
+          "sha256": "3c07576ec96c9e0fa0874a302d5f578fe63be533255e134251787e818ce716e2"
+        },
+        {
+          "path": "src/LithoSharp/Documentation/DocusaurusMigration.cs",
+          "sha256": "1e60aaab96d18c3678fad3360e3c90ad279ba5a03f5a013aea9cff34e859270d"
+        },
+        {
+          "path": "src/LithoSharp/Inspection/DocumentInspection.cs",
+          "sha256": "b4cf1b14e923b14a89a791849d40fb3f4df5de0ef26271e3d3d075d1d615fdd4"
+        },
+        {
+          "path": "src/LithoSharp/OpenKnowledge/OkfBundle.cs",
+          "sha256": "12d8fc697af0f7da3d56f312dbd320f6c24e4e37a0ee5e1d152ad465c4bea1d7"
+        },
+        {
+          "path": "src/LithoSharp/OpenKnowledge/OkfDocumentValidation.cs",
+          "sha256": "d5b466f8486d6fa2f09c80880223172c158dacf68a8e976d44a27e2406a1e3c3"
+        },
+        {
+          "path": "src/LithoSharp/OpenKnowledge/OkfLinks.cs",
+          "sha256": "f14b5db60aedc892ea6beac5a664fb86a5a89109a562da4eb9428be1b3775f9f"
+        },
+        {
+          "path": "src/LithoSharp/OpenKnowledge/OkfMetadata.cs",
+          "sha256": "16462d04700b65542b44114ebe83b31bda86c2935ab82c50b2f00f9c8f84332c"
+        },
+        {
+          "path": "src/LithoSharp/OpenKnowledge/OkfWriter.cs",
+          "sha256": "a4a8cf6b2c6754fed46f374e600e2e2c312452576a851cb4773481d4e3c0330c"
+        },
+        {
+          "path": "src/LithoSharp/Proofreading/YomiyasuProofreader.cs",
+          "sha256": "926467257149bba9ae4120605e1fcc6b5766dd7e7acedb97d5873c433c659014"
+        },
+        {
+          "path": "src/LithoSharp/Quality/ExternalLinkChecker.cs",
+          "sha256": "c19674f9c87585b712531c92599df251d1ed9a1abad52df8a57fe5a0740b0abb"
+        },
+        {
+          "path": "src/LithoSharp/Quality/GeneratedSiteInspector.cs",
+          "sha256": "2619214319eea8f7024effb8caeb7c2bef7c7d434c6b92454c073b058560e761"
+        },
+        {
+          "path": "src/LithoSharp/Quality/SitePublicationCompatibility.cs",
+          "sha256": "77941fde0e448a5d2541b47c8af60fd5e2910cad4581005c361a994714393602"
+        },
+        {
+          "path": "src/LithoSharp/Quality/SiteQualityValidator.cs",
+          "sha256": "f34c029a8806b277e9a1ab773a4138ba8588ea4feb9761e61333430dd4c677fb"
+        },
+        {
+          "path": "src/LithoSharp/Routing/SiteRouteDiagnosticIds.cs",
+          "sha256": "8f6e6cfe5c86434f54d383f880c5ecca28c540720befdaffa128b379ac40a4a5"
+        },
+        {
+          "path": "src/LithoSharp/SiteGenerator.Quality.cs",
+          "sha256": "d481175a13ef6242bf7dd0d9c32b53e9286c25e1e525e52765331394ffb09b63"
+        },
+        {
+          "path": "src/LithoSharp/SiteGenerator.cs",
+          "sha256": "c445aabe5ab9f906642dc96916913d947fff1cb5aa8ec8fe0f9cc86417842bf1"
+        }
+      ],
+      "guides": {
+        "en": "docs/diagnostics.md",
+        "ja": "docs/diagnostics.ja.md"
+      }
+    }
+  }
+}

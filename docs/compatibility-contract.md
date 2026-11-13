@@ -1,9 +1,12 @@
 # Generated site compatibility contract
 
-This document describes the generated-site compatibility contract retained in
-LithoSharp 2.2.0. It originated with 1.0.0; implementation details are not
-compatibility guarantees. The [upgrade guide](migration-2.0.md) documents the
-2.x Testing API break separately from generated-site compatibility.
+[日本語](compatibility-contract.ja.md)
+
+This document describes the generated-site compatibility contract in LithoSharp
+3.0.0. It originated with 1.0.0; implementation details are not compatibility
+guarantees. The [3.0 upgrade guide](migration-3.0.md) documents the native YAML and
+image-processing changes. The [historical 2.x guide](migration-2.0.md) retains the
+earlier Testing API break separately from generated-site compatibility.
 
 ## API compatibility
 
@@ -12,16 +15,25 @@ Deprecation notices must identify the replacement, migration guidance and
 intended removal version. `SiteGenerator.GenerateAsync`, `MarkdownPostReader`,
 `SiteCustomization` and `ISiteTemplate` retain their supported entry points.
 
+Public signatures are recorded in each library's `PublicAPI.Shipped.txt` and
+`PublicAPI.Unshipped.txt`. Update these analyzer baselines when changing APIs.
+CI validates NuGet package compatibility against published package baselines.
+
 The 2.x exception is `LithoSharp.Testing.SiteTestDocument.Document`, removed in
 favor of the read-only `Snapshot` API. It is an intentional source and binary
 break with a [migration map](Testing-v2-api.md#migration); it does not imply
 that arbitrary API removals are permitted.
 
+The 3.0 changes deliberately replace YamlDotNet attributes/binding behavior and
+remove Skia-dependent image generation. Supported replacements and limitations
+are listed in [migration](migration-3.0.md) and [assets/images](assets-and-images.md).
+
 ## Markdown analysis and validation boundaries
 
-The current runtime and embedded compiler source use the fixed Syntamark 1.2.0
-pair. The default profile remains `lithosharp-markdown/1`; the dependency update
-does not select CommonMark or replace the separate MDX body pipeline. Existing
+The runtime and embedded compiler source use one fixed Syntamark 2 pair selected
+by the [version matrix](../eng/version-matrix.json). The default profile remains
+`lithosharp-markdown/1`; explicitly selecting `commonmark/0.31.2` or
+`syntamark-docs/2` changes interpretation without replacing the separate MDX body pipeline. Existing
 HTML, heading IDs, duplicate slugs, table of contents, search text and route
 policies remain LithoSharp's responsibility.
 
@@ -30,25 +42,30 @@ endings. Header-only scanning and selective analysis describe different result
 contracts, not a promise of incremental parsing or complete validation. Missing,
 unrequested or unavailable facts are not empty successful results. `NoContext`
 does not establish project schemas or routes, `Partial` analysis does not certify
-unavailable facts, and `Unknown` catalog evidence cannot prove absence. Custom C#
-schema checks belong to compilation/site builds, not language-server snapshot
-binding. See [source generators](source-generators.md),
+unavailable facts, and `Unknown` catalog evidence cannot prove absence. Acquired
+static schemas support editor binding without executing DTO constructors, setters
+or runtime callbacks. Arbitrary C# validation still requires an explicit trusted
+build. See [source generators](source-generators.md),
 [language-server behavior](language-server.md) and [quality checks](site-quality.md).
 
 ## URL model
+
+The following conventions describe legacy Markdown posts, extra pages and the
+built-in Docs/Blog templates. Typed pages use their declared `SiteRoute`, including
+explicit directory-index routes. Authored body links can retain relative or
+external URLs; the root-relative convention below concerns generator-owned links.
 
 - Output paths use `/` as the public URL separator and are resolved beneath the
   configured output directory.
 - Canonical URLs are `SiteSettings.BaseUrl` plus the relative artifact path.
   LithoSharp keeps the explicit `.html` suffix.
-- Links inside HTML and the search index are root-relative and include the path
+- Generator-owned navigation and search links are root-relative and include the path
   component of `BaseUrl`. For example, a base URL of
   `https://example.com/product/` produces `/product/posts/intro.html`.
 - A Markdown file keeps its directory below the content root:
   `guides/install.md` becomes `posts/guides/install.html`.
-- The post social-image name is the lowercase SHA-256 hash of the normalized
-  page output route. For example, `posts/guides/install.html` uses
-  `assets/social/posts/efbbd97218682f5d9fb8a2b08c2e37bcb24ec6e32fb6a5ffb57b0cbadd1f9e8f.png`.
+- Social images use explicit `CommonSocialImage` or per-output `SocialImages`
+  declarations. Core does not generate a route-hashed image implicitly.
 - Extra pages use `SiteExtraPage.RelativePath` unchanged for their output path,
   canonical URL, navigation link, and optional sitemap entry.
 
@@ -66,8 +83,8 @@ Markdown front matter additionally accepts `draft`, `publish_from`,
 and exclusive at the end, and an empty environment list allows every
 environment. At generation start, legacy Markdown posts and extra pages are
 adapted to the common page model and filtered with the resolved build timestamp
-and `SiteGenerationOptions.EnvironmentName`. The environment defaults to
-`Production`. Extra pages have no publication conditions and are therefore
+and `SiteGenerationOptions.EnvironmentName`. Environment names are compared
+case-insensitively, and the default is `Production`. Extra pages have no publication conditions and are therefore
 published by default.
 
 Filtered Markdown posts are absent from template input, Docs navigation and
@@ -128,7 +145,8 @@ do not create false output collisions. Every returned file must resolve to a
 `SiteRoute`; invalid files are diagnosed and excluded before validation fails.
 Duplicate, case-only, reserved-artifact, and file/directory ancestor conflicts
 fail with `SiteRouteValidationException`, which remains an
-`InvalidOperationException` for compatibility.
+`InvalidOperationException` for compatibility. Its `Diagnostics` provide stable
+IDs, messages and available origin locations.
 
 ## Docs artifacts
 
@@ -137,6 +155,7 @@ The default `DocsSiteTemplate` emits:
 | Artifact | Convention |
 | --- | --- |
 | Home | `index.html` |
+| Host-served not-found page | `404.html` |
 | Markdown pages | `posts/{content-relative-path}.html` |
 | Extra pages | `{SiteExtraPage.RelativePath}` |
 | Stylesheet | `assets/site.css` |
@@ -146,6 +165,8 @@ The default `DocsSiteTemplate` emits:
 By default, Docs output does not emit `archives.html`, `tags.html`, `search.html`,
 `search-index.json`, `assets/search.js`, `feed.xml`, or `sitemap.xml`.
 `EnableSearch = true` explicitly adds search artifacts.
+The host must serve `404.html` with HTTP 404 for absent URLs and honor the
+configured `BaseUrl` subpath; generating the page does not configure the host.
 
 ## Blog artifacts
 
@@ -154,6 +175,7 @@ The explicit `BlogSiteTemplate` emits:
 | Artifact | Convention |
 | --- | --- |
 | Home | `index.html` |
+| Host-served not-found page | `404.html` |
 | Archives | `archives.html` |
 | Tags | `tags.html` |
 | Search page | `search.html` |
@@ -200,12 +222,11 @@ files beneath `assets/favicon/`:
 - `favicon-256x256.png`
 - `favicon-512x512.png`
 
-The same condition emits `site.webmanifest`. If
-`android-chrome-192x192.png` is present, social images are generated as
-`assets/social/og-default.png` and
-`assets/social/posts/{sha256(normalized-page-output-route)}.png`.
+The same condition emits `site.webmanifest`. Favicon discovery does not generate
+social images. Configure existing image sources explicitly, or register optional
+PNG transforms and their output descriptors.
 
-HTML references emitted default or post social images through absolute Open Graph
+HTML references configured common or per-output social images through absolute Open Graph
 and Twitter Card URLs. When no image is emitted, image metadata is omitted and
 the Twitter card uses `summary`. Favicon and manifest links are present only when
 the complete favicon set is available.

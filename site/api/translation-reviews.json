@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "sourceIdentity": "Each explanation is keyed by the SHA-256 of its exact normalized English XML prose.",
+  "files": [
+    {
+      "path": "ja/units-0-7.json",
+      "sha256": "82d7e8e47cc3f13260d4aa79a7303596271c5b96f79cbfef3f304a4865d4c4d3"
+    },
+    {
+      "path": "ja/units-8-b.json",
+      "sha256": "0968d8aaae7c4e820d450eaecb0424408afeeadefc08b9573b99db0c1a0de59b"
+    },
+    {
+      "path": "ja/units-c-f.json",
+      "sha256": "7a7b6f1df0dcb5871ccc0e5a3a05cb69e1792704a4a8d61288549c47b5d0e79c"
+    },
+    {
+      "path": "ja/units-source-additions-0-7.json",
+      "sha256": "5961155b920446765ee0b96948dfcfe96928099d1c299646e9032823f15c59e8"
+    },
+    {
+      "path": "ja/units-source-additions-8-f.json",
+      "sha256": "0c29d7e399d45118c9338d9d2562e2fd0cf98716dd575b8af0c416a48ceff6a8"
+    },
+    {
+      "path": "ja/units-source-revisions.json",
+      "sha256": "d28a96446d60910a33fa7518d3bc3c9c017013a4f193ce4d9000237dfec9ef39"
+    }
+  ],
+  "example": {
+    "sourcePath": "examples/source/WebsiteExamples.cs",
+    "sourceSha256": "faa14d1de2cd676a854505f53f72d5af2e3ebeaf92309bc182e2b02c8f0e49d6",
+    "translationPath": "api/ja/WebsiteExamples.xml",
+    "translationSha256": "f8d41316f727b29f93f3b0edd83cac1446bbafeeb8c0f98bd6d7a93fb17b014c"
+  }
+}

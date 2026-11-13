@@ -14,7 +14,7 @@ their plain display. A diagnostic without a source location has no implied line.
 
 ## Front matter
 
-`LSM001`–`LSM008` report front matter errors during Markdown content loading.
+`LSM001`–`LSM008` and `LSM014`–`LSM015` report front matter errors during Markdown content loading.
 Editor inspection can report syntax facts available for the current buffer;
 compiler inputs use the Generator's `LSG` codes instead.
 
@@ -28,6 +28,8 @@ compiler inputs use the Generator's `LSG` codes instead.
 | `LSM006` | YAML uses an anchor or alias. Replace it with explicit values. |
 | `LSM007` | A mapping key is not a non-null string. Correct the key. |
 | `LSM008` | The YAML root is not a mapping. Use named fields at the header root. |
+| `LSM014` | YAML uses a feature outside the native subset, such as an explicit tag or directive. Use supported syntax. |
+| `LSM015` | Native YAML parsing reached a resource limit. The message identifies the limit; unavailable values are not bound. |
 
 Fixing the header does not validate arbitrary C# schemas, dynamic routes or final
 HTML. Save and run `lithosharp build <project>` for runtime loading, or use explicit
@@ -78,7 +80,7 @@ keys or schema field names. Do not edit generated output.
 Run `dotnet build <project>` after editing. Only declared compiler inputs are
 checked; dynamically loaded content, constructor-established defaults and final
 HTML are not established by this result. See the
-[Generator diagnostic contract](source-generators.md#diagnostics-and-dynamic-content--診断と動的コンテンツ).
+[Generator diagnostic contract](source-generators.md#diagnostics-and-dynamic-content).
 
 ## LSG006
 
@@ -91,7 +93,7 @@ the generated binder or reference.
 Run `dotnet build <project>`. Compiler success does not validate dynamically
 discovered inputs, arbitrary runtime defaults/validators, dynamic routes or final HTML.
 Continue with `lithosharp build <project>` and output checking as needed. See the
-[Generator diagnostic contract](source-generators.md#diagnostics-and-dynamic-content--診断と動的コンテンツ).
+[Generator diagnostic contract](source-generators.md#diagnostics-and-dynamic-content).
 
 ## LSA1402
 
@@ -131,7 +133,7 @@ Use `lithosharp check <project>` to generate and check a temporary site, or
 `lithosharp check-output --output <directory> --base-url <url>` to inspect existing
 bytes. An ordinary Build result does not establish that Quality ran. Existing
 output checks do not prove source freshness, and external HTTP checks require
-explicit opt-in. See [Quality rules](site-quality.md#english) and
+explicit opt-in. See [Quality rules](site-quality.md) and
 [output-checking boundaries](generated-output-checks.md).
 
 ## LSQ002
@@ -145,5 +147,5 @@ Use `lithosharp check <project>`, or
 `lithosharp check-output --output <directory> --base-url <url>` for existing files.
 The result applies to the inspected HTML,
 not unbuilt source changes, dynamic browser content or unchecked external pages.
-See [Quality rules](site-quality.md#english) and
+See [Quality rules](site-quality.md) and
 [output-checking boundaries](generated-output-checks.md).

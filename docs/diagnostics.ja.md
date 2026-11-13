@@ -8,7 +8,7 @@ VS Code拡張機能は、自身が所有するProblemsの診断コードに説�
 
 ## Front matter
 
-`LSM001`〜`LSM008`は、Markdownコンテンツの読み込み時にfront matterの問題を検出します。エディターの検査では現在の文書から得られる構文の情報を扱います。コンパイル対象の入力には、Generatorの`LSG`コードが使われます。
+`LSM001`〜`LSM008`と`LSM014`〜`LSM015`は、Markdownコンテンツの読み込み時にfront matterの問題を検出します。エディターの検査では現在の文書から得られる構文の情報を扱います。コンパイル対象の入力には、Generatorの`LSG`コードが使われます。
 
 | コード | 原因と修正箇所 |
 | --- | --- |
@@ -20,10 +20,12 @@ VS Code拡張機能は、自身が所有するProblemsの診断コードに説�
 | `LSM006` | YAMLのanchorやaliasが使われています。値を直接記述します。 |
 | `LSM007` | mappingのキーがnullでない文字列になっていません。キーを修正します。 |
 | `LSM008` | YAMLのルートがmappingではありません。ヘッダーの最上位を名前付きのフィールドにします。 |
+| `LSM014` | 明示的なタグやディレクティブなど、ネイティブで対応する範囲外の YAML 機能です。対応する構文を使います。 |
+| `LSM015` | ネイティブ YAML の解析がリソース上限に達しました。上限はメッセージに示し、利用できない値はバインドしません。 |
 
 ヘッダーを直しただけでは、独自のC#スキーマ、動的なルート、最終HTMLの検査は終わりません。保存後に`lithosharp build <project>`を実行し、実行時の読み込みを確認してください。ソースの限定的な検査には`lithosharp preflight --mode static --input <file>`を明示的に実行できます。
 
-詳しくは[front matterの区切り](typed-markdown-collections.md#front-matter-delimiters)と[preflightの段階と検査範囲](../src/LithoSharp.Tool/README.md#preflight)を参照してください。いずれも英語の説明です。
+詳しくは[フロントマターの区切り](typed-markdown-collections.ja.md)と[preflightの段階と検査範囲](../src/LithoSharp.Tool/README.md#preflight)を参照してください。後者は英語の説明です。
 
 ## Front matter binding
 
@@ -38,7 +40,7 @@ VS Code拡張機能は、自身が所有するProblemsの診断コードに説�
 
 スキーマを変更する前に、aliasとsnake_caseの名前を確認してください。生成されたbinderではなく、元のコンテンツやC#モデルを直します。その後、`lithosharp build <project>`で確認します。`dotnet build <project>`が検査するのは、コンパイラーへ明示的に登録した入力です。どちらの成功も動的な参照や最終HTMLの正しさを保証しません。
 
-[割り当ての規則](typed-markdown-collections.md#yaml-rules)と[エディターと実行時の検査範囲](typed-markdown-collections.md#diagnostics-and-failure-behavior)に英語の詳細があります。
+[割り当ての規則とエディター・実行時の検査範囲](typed-markdown-collections.ja.md)を参照してください。
 
 ## LSM013
 
@@ -46,19 +48,19 @@ Markdownの解析に必要な情報を確定できませんでした。不正な
 
 取得できなかった構文の情報、それに依存するスキーマの検査、最終出力には未確認の範囲が残ります。修正後に同じ検査か`lithosharp build <project>`を実行してください。言語サーバーの再起動では入力の上限は解消しません。
 
-[本文解析と上限](typed-markdown-collections.md#code-inclusions-and-body-analysis)は英語、[既知の制約](known-limitations.ja.md)は日本語で確認できます。
+[本文解析と上限](typed-markdown-collections.ja.md)と[既知の制約](known-limitations.ja.md)を確認できます。
 
 ## LSG005
 
 Source Generatorが登録された`AdditionalFiles`でYAMLの不正や未知のフィールドをコンパイル時に検出しました。元のヘッダーの構造、キー、スキーマに対するフィールド名を直してください。生成物は編集しません。
 
-修正後に`dotnet build <project>`を実行します。対象は宣言されたコンパイラー入力です。動的に読み込むコンテンツ、constructorが設定する既定値、最終HTMLはこの結果では確定しません。[Generatorの診断仕様](source-generators.md#diagnostics-and-dynamic-content--診断と動的コンテンツ)は日英併記です。
+修正後に`dotnet build <project>`を実行します。対象は宣言されたコンパイラー入力です。動的に読み込むコンテンツ、constructorが設定する既定値、最終HTMLはこの結果では確定しません。[Generatorの診断仕様](source-generators.ja.md)を参照してください。
 
 ## LSG006
 
 Source Generatorがfront matterの型と互換性のない値を検出しました。必須値の欠如、許可されないnull、値の構造の不一致も含みます。登録された`AdditionalFiles`をコンパイル時に検査します。C#モデルに合わせて元のYAMLを直すか、意図した変更であればモデルを変更してください。生成されたbinderや参照は修正しません。
 
-`dotnet build <project>`で再確認します。コンパイルが成功しても、動的に発見する入力、任意の実行時の既定値やvalidator、動的なルート、最終HTMLの検査は終わりません。必要に応じて`lithosharp build <project>`と生成物の検査へ進んでください。[Generatorの診断仕様](source-generators.md#diagnostics-and-dynamic-content--診断と動的コンテンツ)は日英併記です。
+`dotnet build <project>`で再確認します。コンパイルが成功しても、動的に発見する入力、任意の実行時の既定値やvalidator、動的なルート、最終HTMLの検査は終わりません。必要に応じて`lithosharp build <project>`と生成物の検査へ進んでください。[Generatorの診断仕様](source-generators.ja.md)を参照してください。
 
 ## LSA1402
 
@@ -76,10 +78,10 @@ Analyzerが型付きの`ContentRef<T>`について、既知のentry IDと公開�
 
 生成物の検査で、不正なURL、対応しないURL、値が必要な箇所の空URL、存在しない内部の参照先を検出しました。Qualityを有効にした生成時か、明示的な出力検査で報告されます。URLを出力したコンテンツのリンク、レイアウト、assetの登録、ルートの宣言を直して再生成してください。生成後に出力ファイルを編集した場合は、その変更も確認します。
 
-`lithosharp check <project>`は一時サイトを生成して検査します。既存のファイルには`lithosharp check-output --output <directory> --base-url <url>`を使います。通常のBuild結果だけではQualityを実施したとは限りません。既存の出力を検査してもソースの新しさは証明できず、外部HTTP検査は明示的な有効化が必要です。[Qualityの規則](site-quality.md#english)は日英併記、[出力検査の範囲](generated-output-checks.ja.md)は日本語で確認できます。
+`lithosharp check <project>`は一時サイトを生成して検査します。既存のファイルには`lithosharp check-output --output <directory> --base-url <url>`を使います。通常のBuild結果だけではQualityを実施したとは限りません。既存の出力を検査してもソースの新しさは証明できず、外部HTTP検査は明示的な有効化が必要です。[Qualityの規則](site-quality.ja.md)と[出力検査の範囲](generated-output-checks.ja.md)を確認できます。
 
 ## LSQ002
 
 生成物の検査で、参照先のページに存在しないanchorを指すfragmentを検出しました。検出する段階は`LSQ001`と同じです。元のリンクのfragmentか、参照先の見出しやレイアウトが出力するHTMLのIDを修正し、関係するページを再生成してください。C#の参照が正しくても、最終HTMLにanchorが存在するとは限りません。
 
-`lithosharp check <project>`か、既存のファイルを対象にする`lithosharp check-output --output <directory> --base-url <url>`を実行します。結果が対象にするのは検査したHTMLです。未ビルドのソース変更、ブラウザー内で動的に生成する内容、検査していない外部ページは含みません。[Qualityの規則](site-quality.md#english)と[出力検査の範囲](generated-output-checks.ja.md)を参照してください。
+`lithosharp check <project>`か、既存のファイルを対象にする`lithosharp check-output --output <directory> --base-url <url>`を実行します。結果が対象にするのは検査したHTMLです。未ビルドのソース変更、ブラウザー内で動的に生成する内容、検査していない外部ページは含みません。[Qualityの規則](site-quality.ja.md)と[出力検査の範囲](generated-output-checks.ja.md)を参照してください。

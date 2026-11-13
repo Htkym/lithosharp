@@ -36,7 +36,7 @@ In a successful CLI invocation, the report's `exitCode` is 0. In a failure repor
 ## Core capability list (schema 1.0)
 
 The following four capabilities are Stable and returned by
-`ToolingCapabilities.CreateReport`. The CLI adds the two Preview commands below;
+`ToolingCapabilities.CreateReport`. The CLI adds the Tool-only Preview capabilities below;
 they are not inferred capabilities of a selected project or the language server.
 
 | name | scope | Meaning | Client behavior when capability is missing |
@@ -50,15 +50,23 @@ they are not inferred capabilities of a selected project or the language server.
 
 ### Tool-only Preview capabilities
 
-Tool 2.2.0 advertises these commands as Preview capabilities.
+Tool 3.0.0 advertises these commands as Preview capabilities.
 
-| name | scope | Meaning |
-| --- | --- | --- |
-| `preflight-static-inputs` | `markdown`, `mdx` | Explicit source-only preflight without project evaluation. MDX requires an explicitly restored analysis worker. |
-| `preflight-trusted-catalog` | `trusted-catalog` | Explicit compilation and trusted factory/catalog inspection without rendering. The capability report itself does not resolve project support. |
+| name | schemaVersion | scope | Meaning |
+| --- | --- | --- | --- |
+| `csharp-reference-rename` | `1.0` | `preview-csharp-rename` | Roslyn previews for explicit caller sources and metadata; incomplete scopes remain manual and no files are written. |
+| `proofreading` | `1.0` | `proofread` | Explicit optional Yomiyasu execution with source-mapped findings and guarded edit previews; no project evaluation or document writes. |
+| `open-knowledge-format` | `0.2` | `okf inspect`, `okf validate`, `okf export` | Explicit standalone bundle inspection, validation and export; no project evaluation or computation execution. |
+| `publication-compatibility` | `1.0` | `check-output` | Explicit published URL/anchor comparison against a verified manifest; no project evaluation or automatic baseline promotion. |
+| `preflight-static-inputs` | `1.0` | `markdown`, `mdx` | Explicit source-only preflight without project evaluation. MDX requires an explicitly restored analysis worker. |
+| `preflight-trusted-catalog` | `1.0` | `trusted-catalog` | Explicit compilation and trusted factory/catalog inspection without rendering. The capability report itself does not resolve project support. |
 
-Both use schema `1.0` and maturity string `Preview`. Do not parse maturity strings
+All use the maturity string `Preview`; the two preflight capabilities use schema `1.0`. Do not parse maturity strings
 as integer values or assume that every producer uses only the Core enum values.
+The report does not establish support for the selected project. Trusted preflight
+separately reports the factory assembly's referenced Core as `projectCoreVersion`;
+this does not guarantee all features of that Core or future rendering results.
+Use the actual report to detect capabilities instead of inferring them from a version.
 Preflight reports always have Partial coverage; success means no Error in the
 reported phase, not that final HTML or future rendering was checked. See
 [preflight](../src/LithoSharp.Tool/README.md#preflight).
@@ -104,7 +112,12 @@ contract:
 `NoContext` permits syntax inspection but does not prove project-bound schemas
 or routes. `Resolved`, `Ambiguous`, `Unresolved` and `Draft` describe route
 resolution within an explicit context, not whole-site validity. Snapshot binding
-supports built-in schemas; custom C# schemas remain compiler/site-build checks.
+supports built-in schemas and explicitly acquired generated static schemas.
+Generated field checks require matching captured project/schema identities,
+hashes and a unique input-membership match. Typing does not execute user DTO
+constructors, setters or validation callbacks. Custom executable validation and
+build-required decisions remain compiler/site-build checks. Missing or stale
+schema evidence does not certify those checks.
 Partial or unavailable facts and Unknown catalog evidence must not be displayed
 as "checked, zero errors". `LSM013` indicates that analysis could not be completed.
 A `ready` LSP status means syntax analysis is available, not that a build or
