@@ -103,6 +103,8 @@ var options = new SiteGenerationOptions
     BuildTimestamp = CorpusGenerator.BuildTimestamp,
     CollectTimings = true
 };
+// Probe the loaded contract so the same harness also validates the released 2.2 baseline.
+var generatesNotFoundPage = typeof(SiteText).GetProperty("NotFoundTitle") is not null;
 
 var process = Process.GetCurrentProcess();
 GC.Collect();
@@ -146,7 +148,11 @@ if (generatedFileCount != result.GeneratedFiles.Count)
         $"Generator reported {result.GeneratedFiles.Count} files, but {generatedFileCount} files exist on disk.");
 }
 
-var expectedGeneratedFileCount = pageCount + 11;
+if (File.Exists(Path.Combine(siteDirectory, "404.html")) != generatesNotFoundPage)
+{
+    throw new InvalidOperationException("The generated 404.html does not match the loaded Blog template contract.");
+}
+var expectedGeneratedFileCount = pageCount + 11 + (generatesNotFoundPage ? 1 : 0);
 if (generatedFileCount != expectedGeneratedFileCount)
 {
     throw new InvalidOperationException(

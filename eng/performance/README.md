@@ -2,13 +2,15 @@
 
 Reserve the shared machine before restoring, building, testing, or measuring. Use short, dedicated source, output and package-cache roots. Inspect planned output paths and package entry lengths before expansion. These runners do not install tools, clear shared caches, or choose performance thresholds.
 
-## Matched released/candidate workloads
+## Released/candidate workloads
 
 The released baseline is 2.2.0 at `b6e315db13a5b07ddd77696c9c0a5eefe6e9341f`. Overlay identical benchmark sources and `eng/performance` measurement helpers onto a separate baseline checkout. Keep baseline product sources unchanged. Use one exact SDK, Release configuration, workload profile and build arguments for both arms.
 
 `Measure-CompilationStage.ps1` records one prepared `restore` or C# build interval. Supply an explicit `PreparedState`, relevant `InputPath` values, and the built harness as `OutputArtifact`. It records SDK, arguments, input hashes, artifact hashes, elapsed time, raw output and a build binlog. It never prepares or mutates source/cache state. Prepare a fresh copy for `first`, leave successful outputs for `no-change`, and make the declared body/schema/membership edit in that dedicated fixture before invoking the corresponding stage. C# build elapsed includes Generator work; it is not an isolated Generator duration. Cross-process allocation remains unavailable.
 
 `Run-PerformanceMatrix.ps1` requires the exact SDK and those successful build receipts. It verifies the harness artifact, identical measurement sources and build arguments, alternates target order, and retains failed attempts. Fill in `matrix.example.json`; its SDK, build receipt and candidate SHA placeholders deliberately prevent accidental execution. The common Blog and typed Docs profiles measure `clean`, `warm-cache`, `no-op`, `single-page-change`, and `layout-change`. Warm cache loads persisted build state without an explicitly supplied previous plan; no-op supplies the previous plan. Neither means the operating-system file cache was cleared.
+
+The 3.x Blog template automatically generates `404.html`; released 2.2.0 does not. The shared harness probes the loaded `SiteText.NotFoundTitle` contract before timing, then checks the expected `404.html` presence and exact artifact count. Retain these raw total-cost observations and actual output counts, declare each target's scope in `featureScope`, and set `comparisonKind` to `feature-scope-difference`; this is not an equal-feature speed verdict. The example uses `timeoutSeconds=0` without an overall job deadline.
 
 Typed Docs also exists in 2.2.0. Build that profile with `EnableTypedDocsBenchmark=true` on both arms to retain raw total-cost observations. Candidate Quality additionally retains raw HTML origins when Markdown source claims are admitted. Declare this difference in each target's `featureScope` and set `comparisonKind` to `feature-scope-difference`; this is not an equal-feature speed verdict. The matrix and curator do not calculate an automatic speedup or winner. Keep new component/schema/editor/codec acceptance work out of cross-version ratios. `GeneratorWorkload` remains a separate embedded Source **header-scan** substage, including reflection overhead, rather than full C# compilation or Generator throughput.
 

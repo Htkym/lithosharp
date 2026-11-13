@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "runId": "released-2.2.0-vs-candidate",
   "dotnetSdk": "REPLACE_WITH_EXACT_SHARED_SDK",
-  "comparisonKind": "matched-existing-contract",
+  "comparisonKind": "feature-scope-difference",
   "taskId": "PERF-02",
   "harness": "markdown",
   "harnessProject": "LithoSharp.Performance",
@@ -10,13 +10,13 @@
   "sizes": [100],
   "scenarios": ["all"],
   "rounds": 3,
-  "timeoutSeconds": 300,
+  "timeoutSeconds": 0,
   "evidenceRoot": "../../.local/performance/new-campaign",
   "targets": [
     {
       "label": "released-2.2.0",
       "role": "baseline",
-      "featureScope": "Blog corpus and template; Quality disabled; same selected existing workload",
+      "featureScope": "Blog corpus and 2.2.0 template; Quality disabled; no automatic 404.html; raw total-cost observation",
       "root": "../../.local/performance/baseline-2.2.0",
       "commit": "b6e315db13a5b07ddd77696c9c0a5eefe6e9341f",
       "buildReceipt": "REPLACE_WITH_BASELINE_BUILD_STAGE_JSON",
@@ -25,7 +25,7 @@
     {
       "label": "candidate",
       "role": "candidate",
-      "featureScope": "Blog corpus and template; Quality disabled; same selected existing workload",
+      "featureScope": "Blog corpus and 3.x template; Quality disabled; automatic 404.html included; raw total-cost observation",
       "root": "../..",
       "commit": "REPLACE_WITH_FULL_CANDIDATE_SHA",
       "buildReceipt": "REPLACE_WITH_CANDIDATE_BUILD_STAGE_JSON",
