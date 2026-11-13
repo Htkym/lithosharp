@@ -9,7 +9,7 @@ on:
         type: boolean
         default: false
       baseline:
-        description: Optional full baseline commit SHA (default released 2.1.3)
+        description: Optional full baseline commit SHA (default released 2.2.0)
         required: false
         type: string
   pull_request:
@@ -33,7 +33,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.run_measurement)
     uses: ./.github/workflows/performance-baseline.yml
     with:
-      baseline: ${{ inputs.baseline || '25d92d4605533260b22abffd2618971dd6f60c8a' }}
+      baseline: ${{ inputs.baseline || 'b6e315db13a5b07ddd77696c9c0a5eefe6e9341f' }}
 
   installed-extension:
     name: Installed extension with one VSIX across three OSes
@@ -61,9 +61,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # Retain the historical fixture and test upgrades from the previous stable release.
-      LITHOSHARP_CANDIDATE_VERSION: ${{ format('2.2.0-ci.{0}', github.run_id) }}
+      LITHOSHARP_CANDIDATE_VERSION: ${{ format('3.0.0-ci.{0}', github.run_id) }}
       LITHOSHARP_BASELINE_VERSION: '1.1.0'
-      LITHOSHARP_PREVIOUS_STABLE_VERSION: '2.1.3'
+      LITHOSHARP_PREVIOUS_STABLE_VERSION: '2.2.0'
 
     steps:
       - name: Checkout
@@ -81,6 +81,10 @@ jobs:
 
       - name: Verify immutable Markdown component pair
         run: node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
+
+      - name: Verify development version matrix
+        shell: pwsh
+        run: ./eng/Test-VersionMatrix.ps1
 
       - name: Restore
         run: dotnet restore LithoSharp.slnx --locked-mode
@@ -168,6 +172,43 @@ jobs:
             ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $env:LITHOSHARP_CANDIDATE_VERSION
           }
 
+      - name: Check packed CodeFix consumer
+        if: matrix.check-name == 'windows-latest'
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $feed = Join-Path $env:GITHUB_WORKSPACE 'artifacts/packages'
+          $work = Join-Path $env:RUNNER_TEMP 'ls-codefix-host'
+          $null = New-Item -ItemType Directory -Path $work
+          $env:RA01_NUPKG = Join-Path $feed "LithoSharp.Analyzers.$env:LITHOSHARP_CANDIDATE_VERSION.nupkg"
+          $env:RA01_EXPECTED_PACKAGE_VERSION = $env:LITHOSHARP_CANDIDATE_VERSION
+          $env:RA05_GENERATOR_NUPKG = Join-Path $feed "LithoSharp.Generators.$env:LITHOSHARP_CANDIDATE_VERSION.nupkg"
+          $env:RA06_CODEFIX_NUPKG = Join-Path $feed "LithoSharp.CodeFixes.$env:LITHOSHARP_CANDIDATE_VERSION.nupkg"
+          $env:RA01_CORE_METADATA = Join-Path $work 'LithoSharp.dll'
+          $env:RA01_PAYLOAD_DIR = Join-Path $work 'payload'
+          $env:RA05_EVIDENCE_DIR = Join-Path $work 'evidence'
+          $null = New-Item -ItemType Directory -Path $env:RA05_EVIDENCE_DIR
+          $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $feed "LithoSharp.$env:LITHOSHARP_CANDIDATE_VERSION.nupkg"))
+          try {
+            $entry = $archive.GetEntry('lib/net10.0/LithoSharp.dll')
+            if (!$entry) { throw 'Candidate Core package has no metadata assembly.' }
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $env:RA01_CORE_METADATA)
+          } finally { $archive.Dispose() }
+          dotnet restore tests/LithoSharp.CodeFixes.Tests/LithoSharp.CodeFixes.Tests.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test --project tests/LithoSharp.CodeFixes.Tests/LithoSharp.CodeFixes.Tests.csproj --no-restore --configuration Release --report-trx --results-directory (Join-Path $work 'trx')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve packed CodeFix evidence
+        if: always() && matrix.check-name == 'windows-latest'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: codefix-package-host-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/ls-codefix-host/evidence
+            ${{ runner.temp }}/ls-codefix-host/trx/*.trx
+          if-no-files-found: ignore
+
       - name: Test
         env:
           LITHOSHARP_T06_OUTPUT: ${{ github.workspace }}/artifacts/test-diagnostics/workspace-resource-series.json
@@ -239,6 +280,18 @@ jobs:
         shell: pwsh
         run: ./eng/Test-DocumentationVerification.ps1
 
+      - name: Check OKF CLI
+        shell: pwsh
+        run: ./eng/Test-Okf.ps1 -EvidenceDirectory (Join-Path $env:RUNNER_TEMP 'ls-okf-candidate')
+
+      - name: Preserve OKF CLI evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: okf-cli-${{ matrix.os }}
+          path: ${{ runner.temp }}/ls-okf-candidate
+          if-no-files-found: ignore
+
       - name: Preserve sanitized MDX watch diagnostics
         if: always()
         uses: actions/upload-artifact@v7.0.2
@@ -294,6 +347,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId LithoSharp.Testing
 
+      - name: Check bilingual site from candidate packages
+        if: matrix.check-name == 'windows-latest'
+        shell: pwsh
+        run: |
+          ./site/Build.ps1 -LithoSharpVersion $env:LITHOSHARP_CANDIDATE_VERSION -PackageFeed @((Join-Path $PWD 'artifacts/packages'), (Join-Path $PWD 'eng/markdown/feed')) -WorkDirectory (Join-Path $env:RUNNER_TEMP 'lsw') -Output (Join-Path $env:RUNNER_TEMP 'ls-site') -BaseUrl 'https://example.invalid/docs/'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve candidate bilingual site evidence
+        if: always() && matrix.check-name == 'windows-latest'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: bilingual-site-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/ls-site
+            ${{ runner.temp }}/lsw/g
+          if-no-files-found: ignore
+
       - name: Check package security gate controls
         shell: pwsh
         run: |
@@ -334,7 +404,8 @@ jobs:
         working-directory: tests/fixtures/mdx-browser
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          node --test serve.test.mjs
+          npx playwright install --with-deps chromium firefox
 
       - name: Check production MDX browser behavior
         shell: pwsh
@@ -362,8 +433,12 @@ jobs:
               catch { Start-Sleep -Milliseconds 100 }
             }
             if (!$ready) { throw 'Static fixture server did not start.' }
-            node tests/fixtures/mdx-browser/run.mjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            foreach ($browser in @('chromium', 'firefox')) {
+              $env:LS_BROWSER = $browser
+              node tests/fixtures/mdx-browser/run.mjs
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            $env:LS_BROWSER = 'chromium'
             node tests/fixtures/mdx-browser/offline-update.mjs http://127.0.0.1:4317
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally { if (!$server.HasExited) { $server.Kill($true); $server.WaitForExit() }; $server.Dispose() }
@@ -371,6 +446,29 @@ jobs:
       - name: Check sub-path deployment
         shell: pwsh
         run: ./eng/Test-Deployment.ps1
+
+      - name: Generate candidate delivery fixtures
+        if: matrix.os == 'macos-15'
+        shell: pwsh
+        run: ./eng/New-DeliveryBrowserFixture.ps1 -PackageDirectory artifacts/packages -CandidateVersion $env:LITHOSHARP_CANDIDATE_VERSION -WorkerDirectory src/LithoSharp.Mdx/worker -OutputDirectory artifacts/delivery-fixture
+
+      # This enables the OS Safari driver only on the disposable hosted runner.
+      # Playwright WebKit is deliberately not used as Safari evidence.
+      - name: Check actual Safari and Firefox delivery
+        if: matrix.os == 'macos-15'
+        run: |
+          sudo /usr/bin/safaridriver --enable
+          node eng/Test-SafariDelivery.mjs --fixture artifacts/delivery-fixture --output artifacts/safari-delivery --firefox
+
+      - name: Preserve actual Safari delivery evidence
+        if: always() && matrix.os == 'macos-15'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: safari-delivery-${{ matrix.os }}
+          path: |
+            artifacts/safari-delivery
+            artifacts/delivery-fixture/fixture.json
+          if-no-files-found: ignore
 
       - name: Upload sample site
         uses: actions/upload-artifact@v7.0.2

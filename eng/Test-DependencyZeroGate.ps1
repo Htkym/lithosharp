@@ -16,7 +16,12 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.IO.Compression
 $Output = [IO.Path]::GetFullPath($Output)
-if ($env:GITHUB_ACTIONS -ne 'true' -and $Output -notmatch '^[Dd]:[\\/]') { throw 'Local negative gate output must be a dedicated D-drive directory; CI uses its runner temporary directory.' }
+$temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$pathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+$isTemporaryChild = $Output.StartsWith($temporaryRoot + [IO.Path]::DirectorySeparatorChar, $pathComparison)
+if ($env:GITHUB_ACTIONS -ne 'true' -and $Output -notmatch '^[Dd]:[\\/]' -and !$isTemporaryChild) {
+    throw 'Local negative gate output must be a new dedicated D-drive directory or temporary child directory; CI uses its runner temporary directory.'
+}
 if (Test-Path -LiteralPath $Output) { throw 'Negative gate output must be new.' }
 $null = New-Item -ItemType Directory -Path $Output
 $validator = Join-Path $PSScriptRoot 'Test-DependencyZero.ps1'
@@ -116,7 +121,7 @@ try {
     $zip.Dispose()
     Add-Entry $clean 'DependencyGate.nuspec' '<package><metadata><id>DependencyGate</id><version>2.0.0</version><dependencies><group targetFramework="net10.0" /></dependencies></metadata></package>'
     $cleanProject = Join-Path $Output 'clean.csproj'
-    [IO.File]::WriteAllText($cleanProject, '<Project><ItemGroup><PackageReference Include="YamlDotNet" Version="18.1.0" /></ItemGroup></Project>')
+    [IO.File]::WriteAllText($cleanProject, '<Project><ItemGroup><PackageReference Include="Syntamark" Version="2.0.0" /></ItemGroup></Project>')
     $positive = Invoke-Scanner 'positive-fixture' @($clean, $cleanProject)
     if ($positive.exitCode -ne 0) { throw 'Clean dependency fixture failed.' }
     $results.Add([ordered]@{ name = 'positive-fixture'; passed = $true; exitCode = 0 })
@@ -199,6 +204,28 @@ try {
     $deps = Copy-Candidate 'bundled-deps' $candidate
     Add-Entry $deps 'tools/fixture.deps.json' '{"libraries":{"AngleSharp.Css/1.0.0":{"type":"package"}}}'
     Assert-Rejected 'negative-bundled-deps' @($deps) 'dependency-graph'
+    foreach ($native in @('libSkiaSharp.dll', 'libSkiaSharp.so', 'libSkiaSharp.dylib')) {
+        $imagePayload = Copy-Candidate ('bundled-' + $native) $candidate
+        Add-Entry $imagePayload ('runtimes/fixture/native/' + $native) 'Removed image dependency fixture'
+        Assert-Rejected ('negative-' + $native) @($imagePayload) 'bundled-removed-dependency'
+    }
+    $imageGraph = Copy-Candidate 'skia-graph' $candidate
+    Add-Entry $imageGraph 'tools/fixture.deps.json' '{"libraries":{"SkiaSharp.NativeAssets.Linux.NoDependencies/4.153.1":{"type":"package"}}}'
+    Assert-Rejected 'negative-image-dependency-graph' @($imageGraph) 'dependency-graph'
+    $yamlPackage = Join-Path $Output 'yaml.nupkg'
+    $zip = [IO.Compression.ZipFile]::Open($yamlPackage, [IO.Compression.ZipArchiveMode]::Create)
+    $zip.Dispose()
+    Add-Entry $yamlPackage 'YamlContamination.nuspec' '<package><metadata><id>YamlContamination</id><version>1.0.0</version><dependencies><dependency id="YamlDotNet" version="18.1.0" /></dependencies></metadata></package>'
+    Assert-Rejected 'negative-yaml-nuspec' @($yamlPackage) 'nuspec-dependency'
+    $yamlTargets = Join-Path $Output 'yaml.targets'
+    [IO.File]::WriteAllText($yamlTargets, '<Project><ItemGroup><Reference Include="YamlDotNet, Version=18.0.0.0" /></ItemGroup></Project>')
+    Assert-Rejected 'negative-yaml-targets' @($yamlTargets) 'project-reference'
+    $yamlGraph = Copy-Candidate 'yaml-graph' $candidate
+    Add-Entry $yamlGraph 'tools/fixture.deps.json' '{"libraries":{"YamlDotNet/18.1.0":{"type":"package"}}}'
+    Assert-Rejected 'negative-yaml-dependency-graph' @($yamlGraph) 'dependency-graph'
+    $yamlNotice = Copy-Candidate 'yaml-license' $candidate
+    Add-Entry $yamlNotice 'licenses/YamlDotNet.LICENSE.txt' 'Removed YAML dependency fixture'
+    Assert-Rejected 'negative-yaml-license' @($yamlNotice) 'bundled-removed-dependency'
 } catch {
     $results.Add([ordered]@{ name = 'gate-error'; passed = $false; detail = $_.Exception.Message })
     Write-Host $_.Exception.Message
