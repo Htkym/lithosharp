@@ -18,6 +18,8 @@ import { resolveWorker, restoreWorker, type WorkerDeps, type WorkerFileSystem } 
 import { PreviewManager } from './previewManager.js';
 import type { InspectedRoute } from './preview.js';
 import { preflightModes, serverCapabilityText } from './tooling.js';
+import { acquireInputEvidence, acquireProjectEvidence, acquireSemanticEvidence, retainStaticEvidenceForTextChange } from './projectEvidence.js';
+import {registerReferenceProviders} from './referenceProviders.js';
 
 const execFile = promisify(execFileCallback);
 
@@ -181,7 +183,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const buildRunners = new Map<string, BuildRunner>();
   const buildCliCommands = new Map<string, CliCommand>();
   const userStartedServers = new Set<string>();
-  const projectContexts = new Map<string, { folders: string[]; snapshot: unknown }>();
+  const projectContexts = new Map<string, { folders: string[]; snapshot: unknown; inputPaths: string[] }>();
   const projectGenerations = new Map<string, number>();
   let projectContextEpoch = 0;
   const projectAcquisitions = new Map<string, number>();
@@ -240,12 +242,20 @@ export function activate(context: vscode.ExtensionContext): void {
     if (relative === '..' || relative.startsWith('..' + nodePath.sep) || nodePath.isAbsolute(relative)) return false;
     return !relative.split(nodePath.sep).some(part => ['.git', 'bin', 'obj', 'node_modules', '.local', '.lithosharp'].includes(part));
   };
-  const invalidateInput = (uri: vscode.Uri): void => {
+  const invalidateInput = (uri: vscode.Uri, textChange = false): void => {
     for (const [key, root] of projectRoots) {
       if (!isProjectInput(root, uri.fsPath)) continue;
       staleContexts.add(key);
       projectAcquisitions.set(key, (projectAcquisitions.get(key) ?? 0) + 1);
-      if (projectContexts.delete(key)) lsp?.sendProjectContext(key, [], null);
+      const context = projectContexts.get(key);
+      const retained = context && textChange
+        ? retainStaticEvidenceForTextChange(context.snapshot, uri.fsPath, context.inputPaths) : undefined;
+      if (retained) {
+        if (retained !== context!.snapshot) {
+          projectContexts.set(key, { ...context!, snapshot: retained });
+          lsp?.sendProjectContext(key, context!.folders, retained);
+        }
+      } else if (projectContexts.delete(key)) lsp?.sendProjectContext(key, [], null);
     }
     renderStatus();
   };
@@ -391,7 +401,7 @@ export function activate(context: vscode.ExtensionContext): void {
     selected: ProjectCandidate,
     raw: unknown,
     generation: number,
-  ): { folders: string[]; snapshot: unknown } | undefined => {
+  ): { folders: string[]; snapshot: unknown; inputPaths: string[] } | undefined => {
     if (typeof raw !== 'object' || raw === null) return undefined;
     const response = raw as Record<string, unknown>;
     const coreVersion = response['projectCoreVersion'];
@@ -402,9 +412,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const projectId = keyOf(selected);
     const projectRoot = nodePath.dirname(selected.projectPath);
+    const evidence = acquireProjectEvidence(buildPlan, projectRoot, projectId, generation);
+    if (!evidence) return undefined;
+    const semanticEvidence = acquireSemanticEvidence(response['extensions']);
     const routes: Record<string, unknown>[] = [];
     const seen = new Set<string>();
     const schemas = new Set<string>();
+    const inputPaths = new Set(evidence.schemas.flatMap(schema => schema.inputPaths));
     const textInput = (inputs: Record<string, unknown>[], key: string): string | undefined => {
       const value = inputs.find((input) => input['key'] === key)?.['value'];
       return typeof value === 'string' ? value : undefined;
@@ -427,7 +441,10 @@ export function activate(context: vscode.ExtensionContext): void {
         : 'post';
       schemas.add(schema);
       const contentRoot = contentSource ? textInput(inputs, 'content.inputRoot') : undefined;
+      const inputEvidence = acquireInputEvidence(inputs, projectRoot, source, contentRoot);
+      if (!inputEvidence) return undefined;
       const sourcePath = nodePath.resolve(projectRoot, contentRoot ?? '.', source).replace(/\\/g, '/');
+      inputPaths.add(sourcePath);
       const metadataText = textInput(inputs, 'content.metadata');
       let metadata: Record<string, unknown> = {};
       if (metadataText) {
@@ -445,6 +462,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const collectionInput = inputs.find((input) => input['kind'] === 'Collection');
       const collectionValue = field(documentKey, 'Collection', 'collection')
         ?? collectionInput?.['key']
+        ?? textInput(inputs, 'content.collection')
         ?? (legacySource ? 'posts' : 'site');
       const versionValue = field(documentKey, 'Version', 'version') ?? 'current';
       const localeValue = field(documentKey, 'Locale', 'locale')
@@ -472,12 +490,14 @@ export function activate(context: vscode.ExtensionContext): void {
           version,
           locale,
           publication,
+          ...inputEvidence,
         });
       }
     }
 
     return {
       folders: [vscode.Uri.file(projectRoot).toString()],
+      inputPaths: [...inputPaths],
       snapshot: {
         schemaVersion: '1.0',
         projectId,
@@ -490,6 +510,10 @@ export function activate(context: vscode.ExtensionContext): void {
         version: 'current',
         locale: 'default',
         acquiredAt: new Date().toISOString(),
+        ...evidence,
+        ...semanticEvidence,
+        inputMetadata: routes.map(route => ({ sourcePath: route['sourcePath'], inputProfile: route['inputProfile'], inputKind: route['inputKind'],
+          inputRoot: route['inputRoot'], inputPath: route['inputPath'] })),
         routes,
       },
     };
@@ -903,6 +927,7 @@ export function activate(context: vscode.ExtensionContext): void {
           ...(workerDirectory === '' ? {} : { workerDirectory }),
           ...(nodeExecutable === '' ? {} : { nodeExecutable }),
         },
+        referenceEditing: true,
         isTrusted: () => vscode.workspace.isTrusted,
         onLog: (line) => { if (!disposed) output.appendLine(line); },
         onCapabilities: (value) => { if (!disposed) output.appendLine(serverCapabilityText(value)); },
@@ -1017,6 +1042,32 @@ export function activate(context: vscode.ExtensionContext): void {
     openExistingDocuments();
   };
 
+  const requestEditorFeature = async <T>(document: vscode.TextDocument, token: vscode.CancellationToken,
+    request: (client: LspClient, onCancel: (cancel: () => void) => void) => Promise<T>): Promise<T | undefined> => {
+    const version = document.version;
+    const current = (): boolean => !disposed && !document.isClosed && vscode.workspace.isTrusted &&
+      !token.isCancellationRequested && document.version === version;
+    if (!current()) return undefined;
+    let waiting: vscode.Disposable | undefined;
+    let client: LspClient | undefined;
+    try {
+      const cancelled = new Promise<undefined>(resolve => { waiting = token.onCancellationRequested(() => resolve(undefined)); });
+      client = await Promise.race([ensureLsp(), cancelled]);
+    } finally { waiting?.dispose(); }
+    if (!client || !current()) return undefined;
+    let cancel: (() => void) | undefined;
+    const off = token.onCancellationRequested(() => cancel?.());
+    try {
+      if (!current()) return undefined;
+      const result = await request(client, callback => { cancel = callback; if (token.isCancellationRequested) callback(); });
+      return current() && lsp === client ? result : undefined;
+    } catch (error) {
+      if (current()) output.appendLine(`Language server editor request failed: ${String(error)}`);
+      return undefined;
+    } finally { off.dispose(); }
+  };
+  const featureRange = (range: import('./editorFeatures.js').EditorRange): vscode.Range =>
+    new vscode.Range(range.start.line, range.start.character, range.end.line, range.end.character);
   const inputWatcher = vscode.workspace.createFileSystemWatcher('**/*.{md,mdx,cs,csproj,props,targets,yaml,yml}');
 
   context.subscriptions.push(
@@ -1024,10 +1075,12 @@ export function activate(context: vscode.ExtensionContext): void {
     output,
     status,
     diagnosticsCollection,
+    ...registerReferenceProviders({ensureClient: ensureLsp, active: () => !disposed,
+      log: line => { if (!disposed) output.appendLine(line); }, showOutput: () => { if (!disposed) output.show(true); }}),
     inputWatcher,
-    inputWatcher.onDidChange(invalidateInput),
-    inputWatcher.onDidCreate(invalidateInput),
-    inputWatcher.onDidDelete(invalidateInput),
+    inputWatcher.onDidChange(uri => invalidateInput(uri, true)),
+    inputWatcher.onDidCreate(uri => invalidateInput(uri)),
+    inputWatcher.onDidDelete(uri => invalidateInput(uri)),
     vscode.window.onDidChangeActiveTextEditor(() => renderStatus()),
     vscode.commands.registerCommand('lithosharp.showStatus', async () => {
       output.appendLine(presentation().detail);
@@ -1086,7 +1139,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       previews.onDocumentDirty(event.document.uri.fsPath, event.document.isDirty);
-      invalidateInput(event.document.uri);
+      invalidateInput(event.document.uri, true);
       void ensureLsp().then((client) => {
         if (disposed || event.document.isClosed || !vscode.workspace.isTrusted) return;
         client?.didChange(event.document.uri.toString(), event.document.version, event.document.getText());
@@ -1117,6 +1170,33 @@ export function activate(context: vscode.ExtensionContext): void {
         invalidateInput(file.newUri);
         lsp?.forget(file.oldUri.toString());
       }
+    }),
+    vscode.languages.registerCompletionItemProvider(selector, {
+      provideCompletionItems: async (document, position, token) => {
+        const items = await requestEditorFeature(document, token,
+          (client, onCancel) => client.requestCompletions(document.uri.toString(), position, onCancel));
+        return (items ?? []).map(item => {
+          const completion: vscode.CompletionItem = { label: item.label };
+          if (item.kind !== undefined) completion.kind = (item.kind - 1) as vscode.CompletionItemKind;
+          if (item.detail !== undefined) completion.detail = item.detail;
+          if (item.documentation !== undefined) completion.documentation = new vscode.MarkdownString().appendText(item.documentation);
+          if (item.textEdit) {
+            completion.range = featureRange(item.textEdit.range);
+            completion.insertText = item.textEdit.newText;
+          }
+          return completion;
+        });
+      },
+    }, ':', ' ', '"', '=', '[', '(', '#', '/'),
+    vscode.languages.registerHoverProvider(selector, {
+      provideHover: async (document, position, token) => {
+        const hover = await requestEditorFeature(document, token,
+          (client, onCancel) => client.requestHover(document.uri.toString(), position, onCancel));
+        if (!hover) return undefined;
+        const result: vscode.Hover = { contents: [new vscode.MarkdownString().appendText(hover.text)] };
+        if (hover.range) result.range = featureRange(hover.range);
+        return result;
+      },
     }),
     vscode.languages.registerDocumentSymbolProvider(selector, {
       provideDocumentSymbols: async (document, token) => {

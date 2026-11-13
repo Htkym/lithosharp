@@ -19,12 +19,15 @@ internal sealed record CompiledPostBody(
 {
     /// <summary>Diagnostics from the same final-body snapshot as the rendered content.</summary>
     internal IReadOnlyList<SiteDiagnostic> Diagnostics { get; init; } = [];
+    internal RenderedHtmlOrigins? RenderedOrigins { get; init; }
 }
 
 /// <summary>Per-build cache so post HTML, TOC, search text, and links share one parse.</summary>
 internal sealed class CompiledPostBodyCache
 {
     private readonly ConcurrentDictionary<MarkdownPost, Lazy<CompiledPostBody>> _cache =
+        new(ReferenceEqualityComparer.Instance);
+    private readonly ConcurrentDictionary<MarkdownPost, IReadOnlyList<SiteDiagnostic>> _diagnostics =
         new(ReferenceEqualityComparer.Instance);
     private readonly object _persistentLock = new();
     private (SiteBuildCache Cache, string CompilerFingerprint)? _persistent;
@@ -46,6 +49,12 @@ internal sealed class CompiledPostBodyCache
     /// <summary>Returns a body already being compiled in this build, without starting another parse.</summary>
     internal CompiledPostBody? GetExisting(MarkdownPost post) =>
         _cache.TryGetValue(post, out var compiled) ? compiled.Value : null;
+
+    internal IReadOnlyList<SiteDiagnostic>? GetExistingDiagnostics(MarkdownPost post) =>
+        GetExisting(post)?.Diagnostics ?? (_diagnostics.TryGetValue(post, out var diagnostics) ? diagnostics : null);
+
+    internal void RestoreDiagnostics(MarkdownPost post, IReadOnlyList<SiteDiagnostic> diagnostics) =>
+        _diagnostics[post] = Array.AsReadOnly(diagnostics.ToArray());
 
     /// <summary>
     /// Attaches the cross-build parse cache. Reads and writes are keyed by compiler

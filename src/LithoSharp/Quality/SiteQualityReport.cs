@@ -29,9 +29,10 @@ public sealed class SiteQualityReport
             .ThenBy(static value => value.Location?.EndLine)
             .ThenBy(static value => value.Location?.EndColumn)
             .ThenBy(static value => value.Category, StringComparer.Ordinal)
+            .ThenBy(static value => value.MappingPrecision, StringComparer.Ordinal)
             .ThenBy(static value => RelatedKey(value), StringComparer.Ordinal)
             .ThenBy(static value => value.SnapshotIdentity, StringComparer.Ordinal)
-            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column, value.Location?.EndLine, value.Location?.EndColumn, value.Category, RelatedKey(value), value.SnapshotIdentity))
+            .DistinctBy(static value => (value.Id, value.Severity, value.Message, value.Location?.FilePath, value.Location?.Line, value.Location?.Column, value.Location?.EndLine, value.Location?.EndColumn, value.Category, value.MappingPrecision, RelatedKey(value), value.SnapshotIdentity))
             .ToArray());
     }
 
@@ -42,6 +43,12 @@ public sealed class SiteQualityReport
 
     /// <summary>Reused local facts still require target and quality-rule checks.</summary>
     public int HtmlFactsCacheHitCount { get; internal init; }
+
+    /// <summary>A candidate inventory captured only by explicit publication inspection; never a promoted baseline.</summary>
+    public SitePublicationManifest? PublicationManifest { get; internal init; }
+
+    public SitePublicationCompatibilityState? PublicationCompatibility { get; internal init; }
+    public bool PublicationCompatibilityRequired { get; internal init; }
 
     internal IReadOnlyList<HtmlReferenceSnapshot> HtmlReferences { get; init; } = [];
     internal IReadOnlyList<CssReferenceSnapshot> CssReferences { get; init; } = [];
@@ -55,7 +62,8 @@ public sealed class SiteQualityReport
         _ => throw new ArgumentOutOfRangeException(nameof(format)),
     };
 
-    private string FormatText() => string.Join("\n", Diagnostics.Select(static diagnostic =>
+    private string FormatText() => (PublicationCompatibility is { } state ? $"Publication compatibility: {state} (required: {PublicationCompatibilityRequired}).\n" : "")
+        + string.Join("\n", Diagnostics.Select(static diagnostic =>
         $"{diagnostic.Severity.ToString().ToUpperInvariant()} {diagnostic.Id}"
         + (string.IsNullOrEmpty(diagnostic.Category) ? "" : $" [{diagnostic.Category}]")
         + $": {diagnostic.Message}"
@@ -71,6 +79,7 @@ public sealed class SiteQualityReport
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
         {
             writer.WriteStartObject();
+            WritePublicationState(writer);
             writer.WriteStartArray("diagnostics");
             foreach (var diagnostic in Diagnostics)
                 WriteDiagnostic(writer, diagnostic);
@@ -90,6 +99,12 @@ public sealed class SiteQualityReport
             writer.WriteString("$schema", "https://json.schemastore.org/sarif-2.1.0.json");
             writer.WriteStartArray("runs");
             writer.WriteStartObject();
+            if (PublicationCompatibility is not null)
+            {
+                writer.WriteStartObject("properties");
+                WritePublicationState(writer);
+                writer.WriteEndObject();
+            }
             writer.WriteStartObject("tool");
             writer.WriteStartObject("driver");
             writer.WriteString("name", "LithoSharp");
@@ -136,10 +151,13 @@ public sealed class SiteQualityReport
                     writer.WriteEndObject();
                     writer.WriteEndArray();
                 }
-                if (diagnostic.Category is { } category)
+                if (diagnostic.Category is not null || diagnostic.MappingPrecision is not null)
                 {
                     writer.WriteStartObject("properties");
-                    writer.WriteString("category", category);
+                    if (diagnostic.Category is { } category)
+                        writer.WriteString("category", category);
+                    if (diagnostic.MappingPrecision is { } precision)
+                        writer.WriteString("mappingPrecision", precision);
                     writer.WriteEndObject();
                 }
                 if (diagnostic.RelatedLocations.Count > 0)
@@ -187,6 +205,16 @@ public sealed class SiteQualityReport
         return string.Join("/", path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
     }
 
+    private void WritePublicationState(Utf8JsonWriter writer)
+    {
+        if (PublicationCompatibility is not { } state)
+            return;
+        writer.WriteStartObject("publicationCompatibility");
+        writer.WriteString("state", state.ToString());
+        writer.WriteBoolean("required", PublicationCompatibilityRequired);
+        writer.WriteEndObject();
+    }
+
     private static string RelatedKey(SiteDiagnostic diagnostic) =>
         string.Join(";", diagnostic.RelatedLocations.Select(static related => string.Concat(related.FilePath, ":", related.Line?.ToString(), ":", related.Column?.ToString(), "-", related.EndLine?.ToString(), ":", related.EndColumn?.ToString())));
 
@@ -211,6 +239,8 @@ public sealed class SiteQualityReport
         writer.WriteString("message", diagnostic.Message);
         if (diagnostic.Category is { } category)
             writer.WriteString("category", category);
+        if (diagnostic.MappingPrecision is { } precision)
+            writer.WriteString("mappingPrecision", precision);
         if (diagnostic.Location is { } location)
         {
             writer.WriteStartObject("location");

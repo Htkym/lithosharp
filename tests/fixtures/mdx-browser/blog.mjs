@@ -1,10 +1,10 @@
 // Generate BlogSample and serve it with serve.mjs before running this check.
 // node tests/fixtures/mdx-browser/blog.mjs http://127.0.0.1:4329
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { browserType } from './browser.mjs';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:4329';
-const browser = await chromium.launch();
+const browser = await browserType.launch();
 try {
   const page = await browser.newPage({ reducedMotion: 'reduce' });
   const errors = [];

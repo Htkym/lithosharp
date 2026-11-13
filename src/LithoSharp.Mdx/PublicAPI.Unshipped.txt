@@ -1,1 +1,10 @@
 #nullable enable
+LithoSharp.Mdx.DocumentationCollection.SemanticRules.get -> LithoSharp.Documentation.DocumentSemanticRuleSet?
+LithoSharp.Mdx.DocumentationCollection.SemanticRules.init -> void
+LithoSharp.Mdx.DocumentationSite.SemanticResults.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSemanticAssessment!>!
+LithoSharp.Mdx.DocumentationSite.SemanticSnapshot.get -> LithoSharp.Documentation.DocumentSemanticSnapshot?
+LithoSharp.Mdx.DocumentationCollection.TrackTranslationReviews.get -> bool
+LithoSharp.Mdx.DocumentationCollection.TrackTranslationReviews.init -> void
+LithoSharp.Mdx.DocumentationCollection.TranslationReviews.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentTranslationReview!>!
+LithoSharp.Mdx.DocumentationCollection.TranslationReviews.init -> void
+LithoSharp.Mdx.DocumentationSite.TranslationReviewResults.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentTranslationReviewResult!>!

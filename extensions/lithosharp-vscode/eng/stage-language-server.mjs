@@ -28,7 +28,6 @@ try {
   ]) {
     if (!fs.statSync(path.join(staging, required)).isFile()) throw new Error(`Published server is missing ${required}`);
   }
-  if (!fs.statSync(path.join(staging, 'runtimes')).isDirectory()) throw new Error('Published server has no native runtime assets.');
   if (fs.existsSync(path.join(staging, 'worker', 'node_modules'))) throw new Error('Published worker must not contain node_modules.');
   const hadPrevious = fs.existsSync(target);
   if (hadPrevious) fs.renameSync(target, backup);

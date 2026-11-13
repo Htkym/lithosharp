@@ -33,6 +33,12 @@ public sealed class StaticContentCollectionAttribute : Attribute
     /// <summary>The content body type used by generated entry references. Defaults to Markdown strings.</summary>
     public Type BodyType { get; set; } = typeof(string);
 
+    /// <summary>Project-relative discovery root. Empty preserves legacy project-relative catalog declarations.</summary>
+    public string InputRoot { get; set; } = string.Empty;
+
+    /// <summary>The input classification and exclusion rules shared with runtime discovery.</summary>
+    public ContentInputProfile InputProfile { get; set; } = ContentInputProfile.Markdown;
+
     /// <summary>Optional site identity used to select AdditionalFiles for this declaration.</summary>
     public string Site { get; set; } = string.Empty;
 

@@ -33,9 +33,14 @@ public sealed class OriginalBodyWarningAnalysisTests
         await Assert.That(post.MarkdownBody.EndsWith(newline, StringComparison.Ordinal)).IsFalse();
         await Assert.That(collection.Collection!.Entries.Single().Body).DoesNotContain("placeholder");
         await Assert.That(post.BodyAnalysis).IsNull();
-        await Assert.That(post.BodySource).IsNull();
+        await Assert.That(post.BodySource.CanMapBody(post.MarkdownBody, path)).IsTrue();
+        await Assert.That(post.BodySource!.SourceMap).IsNotNull();
+        await Assert.That(post.BodySource.SourceMap!.Output.Text).IsEqualTo(post.MarkdownBody);
         await Assert.That(collection.Collection.Entries.Single().BodyAnalysis).IsNull();
-        await Assert.That(collection.Collection.Entries.Single().BodySource).IsNull();
+        var entry = collection.Collection.Entries.Single();
+        await Assert.That(entry.BodySource.CanMapBody(entry.Body, "post.md")).IsTrue();
+        await Assert.That(entry.BodySource!.SourceMap).IsNotNull();
+        await Assert.That(entry.BodySource.SourceMap!.Output.Text).IsEqualTo(entry.Body);
         await AssertOriginalWarningsAsync(post.CompilerDiagnostics!, raw, path);
         await AssertOriginalWarningsAsync(collection.Diagnostics, raw, "post.md");
     }
@@ -126,7 +131,7 @@ public sealed class OriginalBodyWarningAnalysisTests
     [Test]
     [Arguments("Body [^note] and $x$.", true)]
     [Arguments("\nBody [^note] and $x$.\n", false)]
-    public async Task OnlyExactStrictBodiesRetainAnalysisAndOriginalSourceMapping(string body, bool readerCanReuse)
+    public async Task OnlyExactStrictBodiesReuseAnalysisWhileSourceMappingSurvivesTrim(string body, bool readerCanReuse)
     {
         using var workspace = new TemporaryWorkspace();
         var path = Path.Combine(workspace.Root, "post.md");
@@ -139,7 +144,10 @@ public sealed class OriginalBodyWarningAnalysisTests
         var entry = collection.Collection!.Entries.Single();
 
         await Assert.That(post.BodyAnalysis is not null).IsEqualTo(readerCanReuse);
-        await Assert.That(post.BodySource is not null).IsEqualTo(readerCanReuse);
+        await Assert.That(post.BodySource.CanMapBody(post.MarkdownBody, path)).IsTrue();
+        var trimmedStart = body.Length - body.TrimStart().Length;
+        await Assert.That(post.BodySource!.BodyStartOffset).IsEqualTo(header.Length + trimmedStart);
+        await Assert.That(post.BodySource.BodyStartLine).IsEqualTo(readerCanReuse ? 5 : 6);
         await Assert.That(entry.BodyAnalysis).IsNotNull();
         var snapshot = entry.BodyAnalysis!;
         await Assert.That(snapshot.Analysis.RawText).IsEqualTo(body);
@@ -147,13 +155,6 @@ public sealed class OriginalBodyWarningAnalysisTests
         await Assert.That(entry.BodySource!.FilePath).IsEqualTo("post.md");
         await Assert.That(entry.BodySource.BodyStartOffset).IsEqualTo(header.Length);
         await Assert.That(entry.BodySource.BodyStartLine).IsEqualTo(5);
-        if (readerCanReuse)
-        {
-            await Assert.That(post.BodySource!.FilePath).IsEqualTo(path);
-            await Assert.That(post.BodySource.BodyStartOffset).IsEqualTo(header.Length);
-            await Assert.That(post.BodySource.BodyStartLine).IsEqualTo(5);
-        }
-
         await Assert.That(ReferenceEquals(snapshot,
             MarkdownAnalysisAdapter.RetainForBody(snapshot, body, entry.SourcePath))).IsTrue();
         await Assert.That(MarkdownAnalysisAdapter.RetainForBody(snapshot, body + " ", entry.SourcePath)).IsNull();

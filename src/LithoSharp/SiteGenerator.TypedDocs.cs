@@ -14,6 +14,7 @@ public sealed partial class SiteGenerator
         string? socialImageRelativePath)
     {
         ArgumentNullException.ThrowIfNull(bodyHtml);
+        configuration = ForPageLanguage(configuration, metadata.Language);
         var snapshot = configuration.TypedDocsNavigation.GetOrAdd(
             (page.CollectionId.Value, page.Presentation.Version, page.Presentation.Locale),
             _ => new Lazy<TypedDocsSnapshot>(() =>
@@ -35,9 +36,9 @@ public sealed partial class SiteGenerator
             + (string.IsNullOrWhiteSpace(page.Presentation.Description) ? string.Empty
                 : $"<p class=\"docs-description\">{Html.Encode(page.Presentation.Description)}</p>\n")
             + NormalizePostBodyHeadings(bodyHtml)
-            + PreviousNextComponent.RenderCore(previous?.Label, previous?.Url, next?.Label, next?.Url);
+            + PreviousNextComponent.RenderCore(previous?.Label, previous?.Url, next?.Label, next?.Url, metadata.Language);
         var sidebar = DocsNavigationComponent.RenderCore(root,
-            DocsAdditionalLinks(configuration), page.Route.PublicPath, configuration.DocsTemplate?.CollapseTopics == true);
+            DocsAdditionalLinks(configuration), page.Route.PublicPath, configuration.DocsTemplate?.CollapseTopics == true, metadata.Language);
         var socialImageUrl = socialImageRelativePath is null ? null
             : configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath));
         return DocsPageLayout.RenderCore(configuration, page.Presentation.Title, body,

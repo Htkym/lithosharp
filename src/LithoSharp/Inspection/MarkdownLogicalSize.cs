@@ -44,8 +44,9 @@ internal static class MarkdownLogicalSize
         Text(document.TextHash);
         Text(document.ParserVersion);
         Text(document.OptionsHash);
-        Text("1.0");
-        Text("lithosharp-markdown/1"); // envelope contract/profile held by the bound cache key
+        Text(document.ContractVersion);
+        Text(document.ProfileId);
+        Text(document.YamlProfileId);
         Fact(); // frontmatter
         if (document.FrontMatter.Root is { } root)
         {
@@ -57,6 +58,38 @@ internal static class MarkdownLogicalSize
                 Projection(node.Scalar);
                 foreach (var child in node.Children)
                     pending.Push(child);
+            }
+        }
+        if (document.FrontMatter.YamlSyntax is { } yaml)
+        {
+            Fact();
+            Text(yaml.RawText);
+            Text(yaml.ProfileId);
+            Text(yaml.ParserVersion);
+            Text(yaml.OptionsHash);
+            if (yaml.HasOriginalUtf8)
+                bytes = checked(bytes + 3L * yaml.RawText.Length + 3); // UTF-8 upper bound without cloning retained bytes.
+            foreach (var diagnostic in yaml.Diagnostics)
+            {
+                Fact();
+                Text(diagnostic.Reason);
+                Text(diagnostic.Message);
+            }
+            var pending = new Stack<MdYamlSyntaxNode>();
+            if (yaml.Root is not null)
+                pending.Push(yaml.Root);
+            while (pending.TryPop(out var node))
+            {
+                Fact();
+                Projection(node.Projection);
+                foreach (var child in node.Children)
+                    pending.Push(child);
+                foreach (var entry in node.Entries)
+                {
+                    Fact();
+                    pending.Push(entry.Key);
+                    pending.Push(entry.Value);
+                }
             }
         }
         foreach (var heading in document.Headings)

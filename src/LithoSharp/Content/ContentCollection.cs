@@ -51,7 +51,9 @@ public sealed class ContentCollection<TFrontMatter, TBody>
         }
 
         Id = id;
-        InputRoot = inputRoot.Normalize(NormalizationForm.FormC);
+        // Validate Unicode without changing the filesystem path.
+        _ = inputRoot.Normalize(NormalizationForm.FormC);
+        InputRoot = inputRoot;
         RouteConvention = routeConvention;
         PublicationMapper = publicationMapper;
         LayoutId = layoutId;
@@ -82,6 +84,8 @@ public sealed class ContentCollection<TFrontMatter, TBody>
 
     public bool IsCacheable { get; }
 
+    internal string? StaticSchemaJson { get; init; }
+
     /// <summary>Connects published entries to the shared Docs layout, navigation, table of contents, and adjacent-page links.</summary>
     /// <param name="presentation">Selects schema-specific display information after publication and canonical route selection.</param>
     /// <param name="bodyRenderer">Renders only the body fragment. RenderMarkdown supplies its table of contents from the same compilation.</param>
@@ -104,7 +108,7 @@ public sealed class ContentCollection<TFrontMatter, TBody>
     }
 
     /// <summary>Groups published entries by NFC-normalized, case-sensitive keys, deduplicating each entry within a key. Generated pages cannot be aggregated recursively.</summary>
-    /// <remarks>Caching requires a cacheable source, complete external dependencies and a versioned transformationId. Default derived surfaces include search, sitemap, per-page social images and llms.txt, excluding RSS and site navigation.</remarks>
+    /// <remarks>Caching requires a cacheable source, complete external dependencies and a versioned transformationId. Default derived surfaces include search, sitemap and llms.txt, excluding RSS and site navigation. Social images require explicit generation options.</remarks>
     public SiteContentCollection GeneratePages<TPageContent>(
         ContentCollectionId generatedCollectionId,
         ContentPageGroupSelector<TFrontMatter, TBody> groupSelector,

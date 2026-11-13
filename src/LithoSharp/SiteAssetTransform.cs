@@ -13,10 +13,18 @@ public sealed class SiteAssetOutput
         Id = new Build.BuildNodeId(id).Value;
         RelativeOutputPath = Routing.SiteRoute.NormalizeRelativeOutputPath(relativeOutputPath);
     }
+    /// <summary>Declares an image output that must carry associated image metadata.</summary>
+    public SiteAssetOutput(string id, string relativeOutputPath, string mediaType) : this(id, relativeOutputPath)
+    {
+        ImageMetadata.ValidateMediaType(mediaType);
+        MediaType = mediaType;
+    }
     /// <summary>Stable output identifier.</summary>
     public string Id { get; }
     /// <summary>Relative output path.</summary>
     public string RelativeOutputPath { get; }
+    /// <summary>Required image media type, or null for an untyped output.</summary>
+    public string? MediaType { get; }
 }
 
 /// <summary>Declares a deterministic asset transformation.</summary>
@@ -69,6 +77,7 @@ public sealed class SiteAssetTransformContext
     private readonly IReadOnlyDictionary<SiteAsset, AssetUrl> urls;
     private readonly IReadOnlyDictionary<string, SiteAssetOutput> outputs;
     private readonly Dictionary<string, byte[]> written = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ImageMetadata> imageMetadata = new(StringComparer.Ordinal);
     internal SiteAssetTransformContext(IReadOnlyDictionary<SiteAsset, byte[]> inputs,
         IReadOnlyList<SiteAssetOutput> outputs, IReadOnlyDictionary<SiteAsset, AssetUrl> urls)
     {
@@ -96,14 +105,23 @@ public sealed class SiteAssetTransformContext
     /// <exception cref="ArgumentException">The output is not declared by this transformation.</exception>
     /// <exception cref="InvalidOperationException">The output was already written.</exception>
     public Task WriteAsync(SiteAssetOutput output, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
+        => WriteAsync(output, bytes, null, cancellationToken);
+
+    /// <summary>Writes one output and the image facts established by its producer.</summary>
+    public Task WriteAsync(SiteAssetOutput output, ReadOnlyMemory<byte> bytes, ImageMetadata? metadata, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(output);
         cancellationToken.ThrowIfCancellationRequested();
         if (!outputs.TryGetValue(output.Id, out var declared) || !ReferenceEquals(declared, output))
             throw new ArgumentException("The output is not declared by this transformation.", nameof(output));
+        if (output.MediaType is not null && metadata?.MediaType != output.MediaType)
+            throw new ArgumentException("Image outputs require metadata matching their declared media type.", nameof(metadata));
         if (!written.TryAdd(output.Id, bytes.ToArray()))
             throw new InvalidOperationException("A transform output can only be written once.");
+        if (metadata is not null)
+            imageMetadata.Add(output.Id, metadata);
         return Task.CompletedTask;
     }
     internal IReadOnlyDictionary<string, byte[]> Written => written;
+    internal IReadOnlyDictionary<string, ImageMetadata> ImageMetadata => imageMetadata;
 }

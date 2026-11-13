@@ -17,6 +17,14 @@ namespace LithoSharp.Mdx;
 /// <remarks>Dispose after the final build or watch session. MDX is trusted build code, not a sandbox.</remarks>
 public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtension, ISiteCatalogPreparationExtension, IAsyncDisposable
 {
+    internal static string CompiledRuntimeFingerprint { get; } = Hash(JsonSerializer.SerializeToUtf8Bytes(new
+    {
+        bridge = typeof(MdxSite).Module.ModuleVersionId,
+        core = typeof(SiteGenerator).Module.ModuleVersionId,
+        markdown = typeof(Syntamark.MarkdownParser).Module.ModuleVersionId,
+        yamlParser = Syntamark.Hosting.MarkdownYamlIdentity.ParserVersion,
+    }));
+
     private readonly MdxOptions options;
     private readonly MdxWorker worker;
     private readonly List<Func<SiteBuildContext, CancellationToken, Task<Loaded>>> loaders = [];
@@ -229,6 +237,7 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 context.Site.BaseUrl,
                 context.BuildTimestamp,
                 tools,
+                runtime = CompiledRuntimeFingerprint,
                 resolutionCandidates,
                 options.Environment,
                 options.DeclaredInputFiles,

@@ -26,7 +26,6 @@ internal static class LegacySiteTemplateBuildPlanAdapter
         string environmentName,
         string faviconSourceDirectory,
         bool hasFaviconAssets,
-        bool hasSocialImage,
         bool generateLlmsTxt)
     {
         var inputs = new List<BuildInput>
@@ -50,7 +49,6 @@ internal static class LegacySiteTemplateBuildPlanAdapter
                 "assets.faviconSourceDirectory",
                 Path.GetFullPath(faviconSourceDirectory)),
             BuildInput.FromConfiguration("assets.hasFaviconSet", hasFaviconAssets.ToString()),
-            BuildInput.FromConfiguration("assets.hasSocialImage", hasSocialImage.ToString()),
             BuildInput.FromConfiguration("assets.generateLlmsTxt", generateLlmsTxt.ToString()),
             BuildInput.FromCollection("pages.markdown.published"),
             BuildInput.FromCollection("pages.extra.published"),
@@ -96,10 +94,6 @@ internal static class LegacySiteTemplateBuildPlanAdapter
             {
                 inputs.Add(BuildInput.FromFile($"favicon/{fileName}"));
             }
-        }
-        else if (hasSocialImage)
-        {
-            inputs.Add(BuildInput.FromFile($"favicon/{SiteGenerator.SocialImageSourceFileName}"));
         }
 
         var templateNode = new BuildNode(

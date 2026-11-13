@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <SyntamarkComponentVersion>1.2.0</SyntamarkComponentVersion>
+    <SyntamarkComponentVersion>2.0.0-preview.2026111303</SyntamarkComponentVersion>
     <SyntamarkSourceVersion Condition="'$(SyntamarkSourceVersion)' == ''">$(SyntamarkComponentVersion)</SyntamarkSourceVersion>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

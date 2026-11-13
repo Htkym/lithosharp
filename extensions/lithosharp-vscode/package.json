@@ -2,7 +2,7 @@
   "name": "lithosharp",
   "displayName": "LithoSharp for VS Code",
   "description": "Markdown/MDX project detection and trusted CLI control for LithoSharp sites.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "htkym",
   "repository": {
     "type": "git",
@@ -34,11 +34,26 @@
     "onCommand:lithosharp.restoreWorker",
     "onCommand:lithosharp.openPreview",
     "onCommand:lithosharp.refreshPreview",
-    "onCommand:lithosharp.openInBrowser"
+    "onCommand:lithosharp.openInBrowser",
+    "onCommand:lithosharp.previewMarkdownRename",
+    "onCommand:lithosharp.renameMarkdownReferences",
+    "onCommand:lithosharp.previewMarkdownMove"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "lithosharp.previewMarkdownRename",
+        "title": "LithoSharp: Preview Markdown Rename"
+      },
+      {
+        "command": "lithosharp.renameMarkdownReferences",
+        "title": "LithoSharp: Rename Markdown References"
+      },
+      {
+        "command": "lithosharp.previewMarkdownMove",
+        "title": "LithoSharp: Preview Markdown Move"
+      },
       {
         "command": "lithosharp.showStatus",
         "title": "LithoSharp: Show Inspection Status"

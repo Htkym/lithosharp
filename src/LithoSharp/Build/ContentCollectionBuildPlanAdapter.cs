@@ -16,12 +16,11 @@ internal static class ContentCollectionBuildPlanAdapter
         SiteThemeOptions theme,
         DateTimeOffset buildTimestamp,
         string environmentName,
-        string faviconSourceDirectory,
         bool hasFaviconAssets,
-        bool hasSocialImage,
         SiteRouteCatalog routes)
     {
-        var nodes = new List<BuildNode>(pages.Count * (hasSocialImage ? 2 : 1));
+        var nodes = new List<BuildNode>(pages.Count);
+        var describedSchemas = new HashSet<(string Collection, string Schema)>();
         var navigationValue = Json(pages
             .Where(page => !page.IsUnlisted && page.IsIncludedIn(GeneratedPageDerivedSurfaces.Navigation))
             .Select(page => new
@@ -51,8 +50,8 @@ internal static class ContentCollectionBuildPlanAdapter
                 buildTimestamp,
                 environmentName,
                 hasFaviconAssets,
-                hasSocialImage,
-                navigationValue);
+                navigationValue,
+                page.StaticSchemaJson is { } schema && describedSchemas.Add((page.CollectionId.Value, schema)));
             inputs = inputs.Append(BuildInput.FromConfiguration("content.extraNavigation", extraNavigationValue));
             nodes.Add(new BuildNode(
                 nodeId,
@@ -67,40 +66,10 @@ internal static class ContentCollectionBuildPlanAdapter
                         page.Route.RelativeOutputPath),
                 ]));
 
-            if (hasSocialImage
-                && page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage))
-            {
-                var socialNodeId = SocialNodeId(page);
-                nodes.Add(new BuildNode(
-                    socialNodeId,
-                    [
-                        BuildInput.FromValue("content.collection", page.CollectionId.Value),
-                        BuildInput.FromValue("content.page", page.PageId.Value),
-                        BuildInput.FromValue("content.route", page.Route.RelativeOutputPath),
-                        BuildInput.FromValue("content.title", page.Metadata.Title ?? string.Empty),
-                        BuildInput.FromConfiguration("site.title", site.Title),
-                        BuildInput.FromFile(
-                            $"favicon/{SiteGenerator.SocialImageSourceFileName}",
-                            BuildInputFingerprint.FromFile(Path.Combine(
-                                faviconSourceDirectory,
-                                SiteGenerator.SocialImageSourceFileName))),
-                        .. DependencyInputs(page),
-                    ],
-                    artifacts:
-                    [
-                        new BuildArtifact(
-                            new BuildArtifactId($"artifact:{socialNodeId.Value}"),
-                            socialNodeId,
-                            routes.ContentSocialImage(page.Route).RelativeOutputPath),
-                    ]));
-            }
         }
 
         return nodes;
     }
-
-    internal static BuildNodeId SocialNodeId(IntegratedContentPage page) =>
-        new($"social:collection:{page.OwnerId["page:collection:".Length..]}");
 
     internal static string SurfaceValue(
         IReadOnlyList<IntegratedContentPage> pages,
@@ -134,8 +103,8 @@ internal static class ContentCollectionBuildPlanAdapter
         DateTimeOffset buildTimestamp,
         string environmentName,
         bool hasFaviconAssets,
-        bool hasSocialImage,
-        string navigationValue)
+        string navigationValue,
+        bool includeSchemaMetadata)
     {
         yield return BuildInput.FromCollection(page.CollectionId.Value, page.SourceFingerprint);
         yield return BuildInput.FromValue("content.entry", page.EntryId.Value);
@@ -143,6 +112,21 @@ internal static class ContentCollectionBuildPlanAdapter
         yield return BuildInput.FromValue("content.inputRoot", page.InputRoot);
         yield return BuildInput.FromValue("content.sourcePath", page.SourcePath);
         yield return BuildInput.FromValue("content.schema", page.FrontMatterSchema);
+        yield return BuildInput.FromValue("content.inputProfile", page.InputProfile.ToString());
+        yield return BuildInput.FromValue("content.inputKind", page.InputKind.ToString());
+        if (page.InputRelations.Count != 0)
+            yield return BuildInput.FromValue("content.inputRelations", Json(page.InputRelations.Select(static link => new
+            {
+                Target = link.OriginalTarget,
+                TargetSourcePath = link.TargetPath,
+                Kind = link.Kind.ToString(),
+                IsImage = link.Syntax.Image,
+            })));
+        if (includeSchemaMetadata && page.StaticSchemaJson is { } schemaJson)
+        {
+            yield return BuildInput.FromValue("content.schemaJson", schemaJson);
+            yield return BuildInput.FromValue("content.schemaInputs", Json(page.StaticSchemaInputs));
+        }
         yield return BuildInput.FromValue("content.publication", page.IsUnlisted ? "unlisted" : "published");
         yield return BuildInput.FromValue("content.sourceFingerprint", page.SourceFingerprint);
         yield return BuildInput.FromValue(
@@ -188,9 +172,6 @@ internal static class ContentCollectionBuildPlanAdapter
         yield return BuildInput.FromConfiguration(
             "assets.hasFaviconSet",
             hasFaviconAssets.ToString(CultureInfo.InvariantCulture));
-        yield return BuildInput.FromConfiguration(
-            "assets.hasSocialImage",
-            hasSocialImage.ToString(CultureInfo.InvariantCulture));
         foreach (var input in DependencyInputs(page))
         {
             yield return input;
@@ -222,9 +203,9 @@ internal static class ContentCollectionBuildPlanAdapter
             string fingerprint;
             try
             {
-                fingerprint = BuildInputFingerprint.FromContainedFile(
+                fingerprint = dependency.CapturedHash ?? BuildInputFingerprint.FromContainedFile(
                     page.InputRoot,
-                    dependency.Key);
+                    dependency.PhysicalFilePath);
             }
             catch (Exception exception) when (
                 exception is FileNotFoundException or DirectoryNotFoundException)

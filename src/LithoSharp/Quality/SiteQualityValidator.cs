@@ -182,7 +182,8 @@ internal static class SiteQualityValidator
                     foreach (var target in targets)
                         pending.Enqueue(target);
             }
-            foreach (var path in pages.Keys.Where(path => !reachable.Contains(path) && !redirects.ContainsKey(path)))
+            // Hosts reach the conventional error document directly, without a link from home.
+            foreach (var path in pages.Keys.Where(path => path != "404.html" && !reachable.Contains(path) && !redirects.ContainsKey(path)))
                 Add("LSQ007", SiteDiagnosticSeverity.Warning, "Page is not reachable from the site's home page.", path);
             foreach (var path in registeredAssets.Where(path => !referencedAssets.Contains(path)))
                 Add("LSQ008", SiteDiagnosticSeverity.Warning, "Registered asset is not reachable through HTML, CSS or declared transitive references.", path);
@@ -213,7 +214,7 @@ internal static class SiteQualityValidator
                     SiteQualityUrlIssue.InvalidReference => $"Invalid URL '{value}'.",
                     _ => $"Unsupported URL '{value}'.",
                 };
-                Add("LSQ001", SiteDiagnosticSeverity.Error, message, path, element);
+                AddReference("LSQ001", message, path, element, reference);
                 return;
             }
             if (address.Scheme is "mailto" or "tel" or "data")
@@ -225,7 +226,7 @@ internal static class SiteQualityValidator
             }
             if (!TryInternalPath(address, out var targetPath) || !artifactRoutes.ContainsKey(targetPath))
             {
-                Add("LSQ001", SiteDiagnosticSeverity.Error, $"Internal target '{value}' does not exist in this site.", path, element);
+                AddReference("LSQ001", $"Internal target '{value}' does not exist in this site.", path, element, reference);
                 return;
             }
             if (cssFiles.ContainsKey(path))
@@ -243,7 +244,7 @@ internal static class SiteQualityValidator
                 var fragment = SiteQualityUrlRules.DecodedFragment(address);
                 anchorReferences.Add(new(path, targetPath, fragment));
                 if (!targetPage.Anchors.Contains(fragment))
-                    Add("LSQ002", SiteDiagnosticSeverity.Error, $"Anchor '{fragment}' does not exist in '{targetPath}'.", path, element);
+                    AddReference("LSQ002", $"Anchor '{fragment}' does not exist in '{targetPath}'.", path, element, reference);
             }
         }
 
@@ -252,6 +253,12 @@ internal static class SiteQualityValidator
 
         void Add(string id, SiteDiagnosticSeverity severity, string message, string path, HtmlSnapshotPosition? element = null) =>
             diagnostics.Add(new SiteDiagnostic(id, severity, message, Location(path, element)));
+
+        void AddReference(string id, string message, string path, HtmlSnapshotPosition? element, HtmlReference reference) =>
+            diagnostics.Add(new SiteDiagnostic(id, SiteDiagnosticSeverity.Error, message, Location(path, element))
+            {
+                GeneratedReferenceSpan = reference.Source is { } span ? (span.Start, span.Length) : null,
+            });
 
         SiteSourceLocation Location(string path, HtmlSnapshotPosition? element) =>
             element is { Line: { } line, Column: { } column }

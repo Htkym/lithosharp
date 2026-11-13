@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using LithoSharp.Build;
+using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
 using LithoSharp.Diagnostics;
 using LithoSharp.Documentation;
@@ -21,7 +22,7 @@ public sealed record LspServerOptions(string? MdxProjectDirectory = null, string
 /// $/cancelRequest, plus a namespaced project-context notification. Anything
 /// else answers MethodNotFound or is ignored. Full-site builds never run here:
 /// project context arrives only through explicit inspect/build operations.</remarks>
-public sealed class LspServer
+public sealed partial class LspServer
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -45,6 +46,7 @@ public sealed class LspServer
         public required long Version;
         public long? OpenGeneration;
         public required string Text;
+        public DocumentChangeSet? Changes;
         public DocumentInfo? Inspection;
         public MdxAnalysisResult? MdxInspection;
         public bool MdxInspectionCompleted;
@@ -160,6 +162,21 @@ public sealed class LspServer
                 }
 
                 return false;
+            case "textDocument/completion":
+            case "textDocument/hover":
+                if (hasId)
+                    SchemaRequest(id!, @params, method == "textDocument/hover");
+                return false;
+            case "textDocument/definition":
+            case "textDocument/references":
+            case "textDocument/prepareRename":
+            case "textDocument/rename":
+            case "workspace/willRenameFiles":
+            case "lithosharp/previewRename":
+            case "lithosharp/referenceScopes":
+                if (hasId)
+                    ReferenceRequest(id!, @params, method);
+                return false;
             case "$/cancelRequest":
                 CancelRequest(@params);
                 return false;
@@ -200,6 +217,7 @@ public sealed class LspServer
 
     private JsonElement Initialize(JsonElement @params)
     {
+        InitializeReferenceCapabilities(@params);
         if (@params.ValueKind == JsonValueKind.Object
             && @params.TryGetProperty("initializationOptions", out var options)
             && options.ValueKind == JsonValueKind.Object)
@@ -225,7 +243,7 @@ public sealed class LspServer
         }
 
         var coreVersion = typeof(DocumentWorkspace).Assembly.GetName().Version?.ToString() ?? "unknown";
-        return JsonSerializer.SerializeToElement(new
+        return WithReferenceCapabilities(JsonSerializer.SerializeToElement(new
         {
             capabilities = new
             {
@@ -237,6 +255,8 @@ public sealed class LspServer
                     save = new { includeText = false },
                 },
                 documentSymbolProvider = true,
+                completionProvider = new { triggerCharacters = new[] { ":", " " } },
+                hoverProvider = true,
                 experimental = new
                 {
                     lithosharp = new
@@ -252,7 +272,7 @@ public sealed class LspServer
                 },
             },
             serverInfo = new { name = "lithosharp", version = coreVersion },
-        }, JsonOptions);
+        }, JsonOptions));
     }
 
     private void DidOpen(JsonElement @params)
@@ -269,6 +289,12 @@ public sealed class LspServer
 
         lock (stateGate)
         {
+            var path = UriPath(uri);
+            workspace.Remove(path);
+            foreach (var projectId in contexts.Select(context => context.ProjectId).Distinct(StringComparer.Ordinal))
+            {
+                workspace.Remove(projectId, path);
+            }
             buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = languageId, Version = version, Text = text, OpenGeneration = openGeneration };
         }
 
@@ -305,16 +331,26 @@ public sealed class LspServer
             }
 
             var current = buffer.Text;
+            var edits = new List<DocumentTextChange>();
             foreach (var change in changes.EnumerateArray())
             {
-                if (!ApplyChange(ref current, change))
+                if (!ApplyChange(ref current, change, out var edit))
                 {
                     StdioTransport.Log($"Ignoring a textDocument/didChange batch with an invalid range for '{uri}'.");
                     return;
                 }
+                edits.Add(edit);
             }
 
-            buffers[uri] = new DocumentBuffer { Uri = uri, LanguageId = buffer.LanguageId, Version = version, Text = current, OpenGeneration = buffer.OpenGeneration };
+            buffers[uri] = new DocumentBuffer
+            {
+                Uri = uri,
+                LanguageId = buffer.LanguageId,
+                Version = version,
+                Text = current,
+                OpenGeneration = buffer.OpenGeneration,
+                Changes = new DocumentChangeSet(buffer.Version, buffer.Text, edits),
+            };
         }
 
         TrackDocumentAnalysis(uri, version);
@@ -564,7 +600,11 @@ public sealed class LspServer
             if (generation is not { } next || next <= clientContextGeneration)
                 return;
             clientContextGeneration = next;
-            // Retain the last valid snapshots. Invalidate owned work before new
+            // Route evidence remains last-known data; rejected acquisitions cannot
+            // keep generated field candidates or semantic assertions current.
+            for (var index = 0; index < contexts.Count; index++)
+                contexts[index] = contexts[index] with { Snapshot = contexts[index].Snapshot.WithoutStaticMetadata() };
+            // Retain the last valid route evidence. Invalidate owned work before new
             // publication so an obsolete analysis cannot acquire the new tag.
             foreach (var buffer in buffers.Values)
             {
@@ -599,6 +639,8 @@ public sealed class LspServer
     private static bool ClaimsSource(ProjectContextEntry entry, string uri)
     {
         var path = UriPath(uri).Replace('\\', '/');
+        if (entry.Snapshot.Schemas.Any(schema => schema.Contains(path)))
+            return true;
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         foreach (var route in entry.Snapshot.Routes)
         {
@@ -759,10 +801,17 @@ public sealed class LspServer
             {
                 // Reservation and buffer/context changes use the same lock, so
                 // obsolete work cannot supersede the new revision's inspection.
-                inspection = entry is null
-                    ? workspace.InspectAsync(path, buffer.Text, null, cancellationToken)
-                    : workspace.InspectVersionedAsync(path, buffer.Text, version, entry.Snapshot.ProjectGeneration,
-                        new DocumentInspectionOptions { Project = entry.Snapshot }, cancellationToken);
+                var generation = entry?.Snapshot.ProjectGeneration ?? contextGeneration;
+                var inspectionOptions = entry is null ? null : new DocumentInspectionOptions
+                {
+                    Project = entry.Snapshot,
+                    Markdown = new MarkdownOptions { ProfileId = entry.Snapshot.MarkdownProfileId },
+                };
+                inspection = buffer.Changes is { } changes
+                    ? workspace.InspectVersionedEditsAsync(path, buffer.Text, version, generation, changes,
+                        inspectionOptions, cancellationToken)
+                    : workspace.InspectVersionedAsync(path, buffer.Text, version, generation,
+                        inspectionOptions, cancellationToken);
             }
         }
 
@@ -801,6 +850,7 @@ public sealed class LspServer
 
             buffer.Inspection = info;
             buffer.InspectionContext = entry;
+            buffer.Changes = null;
             Publish(uri, version, diagnostics, buffer.OpenGeneration, contextGeneration);
             PublishAnalysisStatus(buffer, contextGeneration, incomplete is null ? "ready" : "unavailable",
                 incomplete?.Message ?? "Markdown syntax analysis completed.");
@@ -911,6 +961,12 @@ public sealed class LspServer
                 schemaScope = inspection?.SchemaInspectionScope ?? "unknown",
                 projectId = context?.ProjectId,
                 projectGeneration = context?.ProjectGeneration,
+                projectHash = context?.ProjectHash,
+                schemaVersion = inspection?.StaticSchema?.SchemaVersion,
+                schemaHash = inspection?.StaticSchema?.SchemaHash,
+                schemaInputSetHash = inspection?.StaticSchema?.InputSetHash,
+                semanticDeferred = inspection?.SemanticAssessments.Count(assessment => assessment.State == DocumentSemanticState.Deferred),
+                incremental = inspection?.IncrementalAnalysis,
                 contextAcquiredAt = context?.AcquiredAt,
                 lithosharpOpenGeneration = buffer.OpenGeneration,
                 lithosharpContextGeneration = contextGeneration
@@ -950,6 +1006,11 @@ public sealed class LspServer
             return EmptySymbols();
         }
 
+        return BuildSymbols(await InspectionForAsync(buffer, context, cancellationToken).ConfigureAwait(false));
+    }
+
+    private async Task<DocumentInfo> InspectionForAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
+    {
         DocumentInfo info;
         for (; ; )
         {
@@ -1005,7 +1066,7 @@ public sealed class LspServer
             buffer.InspectionContext = context;
         }
 
-        return BuildSymbols(info);
+        return info;
     }
 
     private async Task<JsonElement> MdxSymbolsAsync(DocumentBuffer buffer, ProjectContextEntry? context, CancellationToken cancellationToken)
@@ -1180,8 +1241,18 @@ public sealed class LspServer
             code = diagnostic.Id,
             source = "lithosharp",
             message = diagnostic.Message,
+            relatedInformation = diagnostic.RelatedLocations.Where(related => related.Line is not null)
+                .Select(related => new
+                {
+                    location = new { uri = SourceUri(related.FilePath), range = LspRange(related) },
+                    message = "Related source location.",
+                }).ToArray(),
+            data = diagnostic.MappingPrecision is { } precision ? new { mappingPrecision = precision } : null,
         };
     }
+
+    private static string SourceUri(string path) => Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.IsFile
+        ? uri.AbsoluteUri : Path.IsPathRooted(path) ? new Uri(Path.GetFullPath(path)).AbsoluteUri : path;
 
     private void Publish(string uri, long version, object[] diagnostics, long? openGeneration = null, long? contextGeneration = null)
     {
@@ -1379,7 +1450,11 @@ public sealed class LspServer
 
     /// <summary>Applies one content change in order. Returns false for invalid ranges.</summary>
     internal static bool ApplyChange(ref string text, JsonElement change)
+        => ApplyChange(ref text, change, out _);
+
+    private static bool ApplyChange(ref string text, JsonElement change, out DocumentTextChange edit)
     {
+        edit = default;
         if (change.ValueKind != JsonValueKind.Object
             || !change.TryGetProperty("text", out var textValue)
             || textValue.ValueKind != JsonValueKind.String)
@@ -1390,6 +1465,7 @@ public sealed class LspServer
         var replacement = textValue.GetString()!;
         if (!change.TryGetProperty("range", out var range) || range.ValueKind != JsonValueKind.Object)
         {
+            edit = new DocumentTextChange(0, text.Length, replacement);
             text = replacement;
             return true;
         }
@@ -1406,6 +1482,7 @@ public sealed class LspServer
             return false;
         }
 
+        edit = new DocumentTextChange(startOffset, endOffset - startOffset, replacement);
         text = text[..startOffset] + replacement + text[endOffset..];
         return true;
     }

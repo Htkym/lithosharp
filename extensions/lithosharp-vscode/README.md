@@ -2,13 +2,14 @@
 
 [日本語](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.ja.md)
 
-Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics and heading navigation.
+Build and preview LithoSharp sites from VS Code, with Markdown/MDX diagnostics,
+Markdown schema completion, heading navigation and project reference previews.
 
-This guide targets extension 0.4.0 and Core/Tool 2.2.0. Use a Tool version matching the site. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
+This guide targets extension 0.5.0 and Core/Tool 3.0.0. Use a Tool version matching the site. The extension and NuGet packages have separate versions; capabilities are checked from the selected tool, not assumed from a version label.
 
 ## Install and get started
 
-Extension 0.4.0 is available from the Marketplace.
+Check the Marketplace for published extension versions.
 
 Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) from the Marketplace, or run:
 
@@ -19,7 +20,7 @@ code --install-extension htkym.lithosharp
 Requirements:
 
 - VS Code `^1.139.0`.
-- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool matching the site: 2.2.0 for a 2.2.0 site. The SDK includes the required ASP.NET Core shared framework.
+- .NET 10 runtime for the bundled language server. Building and serving sites also require the .NET 10 SDK, version 10.0.300 or later, and LithoSharp.Tool matching the site: 3.0.0 for a 3.0.0 site. The SDK includes the required ASP.NET Core shared framework.
 - Node.js 24.13.0 for MDX analysis. Markdown-only diagnostics do not require Node.js.
 
 Create a site using the [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md), open its folder in VS Code, and trust the workspace if you trust its code. Run `LithoSharp: Select Project`, then `LithoSharp: Build` and `LithoSharp: Open Preview`.
@@ -39,7 +40,7 @@ Click the status bar or run `LithoSharp: Show Inspection Status` to read details
 
 - Current document analysis: not analysed, pending, analysis complete, or unavailable, for its current Markdown/MDX version. Analysis complete does not mean zero diagnostics or publication readiness.
 - Project information: not acquired, acquired, or needs refresh, with the document's reported resolution state and applied context identity. Inspect or Build acquires a context. Its acquisition time does not establish that all inputs are current.
-- Schema inspection scope: built-in binding supported, custom types checked with Build, or unknown. Scope is reported by the actual inspection path. A schema name alone proves neither binding support nor binding success; MDX does not inherit Markdown binding scope.
+- Schema inspection scope: built-in binding, an acquired generated schema projection, custom types requiring Build, or unknown. Scope is reported by the actual inspection path. A schema name alone proves neither binding support nor binding success; MDX does not inherit Markdown binding scope.
 - Last explicit operation: command, target, time and outcome. Build success means Build succeeded, not that Quality was enabled or ran. Preflight retains its reported stage, Partial coverage and deferred reasons.
 
 Edits, close/reopen, rename, project selection and server replacement invalidate old document status. Detected changes to project inputs mark the context as needing refresh and withdraw it from live inspection. Only detected changes are covered; unmonitored inputs are not guaranteed current. The extension does not execute a factory or build merely to refresh the display.
@@ -60,11 +61,31 @@ The Output channel distinguishes the language server's bundled Core from the sel
 
 Markdown/MDX diagnostics retain their original IDs. Changes are debounced by 150 ms by default; stale diagnostic results are discarded. Markdown Outline entries use section ranges for the whole symbol and the original heading range for navigation. Hierarchy comes from Syntamark section parent keys; unavailable section information falls back to the known heading range. MDX retains its separate heading-based path. Typing does not run a full site build, SSR, or user modules.
 
-Without project context (`NoContext`), syntax diagnostics and navigation remain available, but project-bound schema and route checks are unavailable. Project snapshots bind only built-in schemas; custom C# schemas are checked by the compiler and site build. Partial analysis exposes only available facts. If input or resource limits leave no reliable range, the extension shows a separate analysis-unavailable status instead of inventing a Problems location. Corrected input clears that status. See the [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) and [analysis limits](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
+Without project context (`NoContext`), syntax diagnostics and navigation remain available, but project-bound schema and route checks are unavailable. Acquired generated schemas provide static field, required-value, enum and nested-shape checks without executing user constructors, setters or factories during typing. Custom binding code remains a compiler/build check. Known Markdown text edits retain static schema and input classifications while withdrawing route and semantic evidence until explicit refresh. Partial analysis exposes only available facts. If input or resource limits leave no reliable range, the extension shows a separate analysis-unavailable status instead of inventing a Problems location. Corrected input clears that status. See the [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) and [migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
 
 `LithoSharp: Open Preview`, `LithoSharp: Refresh Preview`, and `LithoSharp: Open in Browser` show the site's served output. Preview uses routes from site inspection. Unknown, draft, or unbuilt documents show an explanation. If an update fails, the last successful result remains labeled. A server started for preview stops when its last preview panel closes; a server started with `LithoSharp: Start Server` keeps running.
 
 Preview shows saved, built documents; unsaved buffers have no preview. The MDX worker transpiles TypeScript without type-checking.
+
+## References and guarded changes
+
+Acquire project context with an explicit Inspect or Build before resolving
+Markdown documents, headings or xrefs. Definition and reference results use the
+selected collection, version and language. Choose the scope when one source
+belongs to several variants; incomplete catalogs remain incomplete.
+
+`LithoSharp: Preview Markdown Rename` displays the proposed changes and manual
+scopes in Output. `LithoSharp: Rename Markdown References` adds an explicit
+confirmation, then checks document versions, raw hashes, expected text and the
+current project context before applying a text-only workspace transaction.
+The commands cover proven static Markdown references. C#, generated C# and
+dynamic MDX require separate review; see [C# reference previews](https://github.com/Htkym/lithosharp/blob/main/docs/csharp-reference-rename.md).
+
+The regular F2 edit path cannot retain the server's original version guard in
+this VS Code adapter. It explains the limitation and points to the explicit
+command. `LithoSharp: Preview Markdown Move` and Explorer rename events display
+a preview without automatically editing references. Review the preview around
+the file move and refresh project context afterward.
 
 MDX preflight passes `lithosharp.nodeExecutable` to the CLI as `--node-executable`, using the same configured Node as live analysis. A waiting preflight capability probe is cancelled when it is superseded, the workspace/settings change, or the extension is disposed; its owned process tree is stopped.
 

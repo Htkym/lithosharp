@@ -1,11 +1,13 @@
 # LithoSharp.Tool
 
+[English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Tool/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Tool/README.ja.md)
+
 .NET 10 CLI for documentation managed with C# types and builds. Compile and generate a site, check temporary or saved output, and preview static files. These commands inspect different stages, so a successful source check does not certify the final HTML. Building sites requires SDK 10.0.300 or later;
 serving also uses the ASP.NET Core shared framework. Site factories execute with
 the current user's permissions. Read-only commands such as `capabilities` and
 `check-output` do not run a factory.
 
-Use LithoSharp 2.2.0 for this package and the other LithoSharp packages in your project.
+Use LithoSharp 3.0.0 for this package and the other LithoSharp packages in your project.
 
 ## Inspect existing output
 
@@ -21,7 +23,7 @@ for encoding, file-type and platform limits.
 
 ## Preflight
 
-Use Tool 2.2.0 and matching Core/MDX packages for trusted project validation.
+Use Tool 3.0.0 and matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -42,8 +44,8 @@ Normal generation validates the captured Core catalog and all available extensio
 Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -65,6 +67,29 @@ lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1
 ```
 
 The existing JSON envelope adds `migration` with byte SHA256, original UTF-16 locations, `ReadCandidate`/`Manual`/`Unknown`, reasons and informational previews. The report does not execute user assemblies, projects, build targets, generators or scripts, and does not edit source or remove dependencies. Unknown binding never becomes an automatic conversion; even a read preview requires review. Constant selectors use the current Testing grammar. Findings inspect bound legacy symbols independently of warning suppression and generated-code exclusion. Indexed uses require manual review of the full outer expression. LSA1501 keeps its bound-symbol Warning and suppression policy; ordinary compiler errors stay errors. Exit codes are 0 for analysis without compiler errors, 1 for input/analysis failure, 2 for usage and 130 for cancellation. See [Testing migration](https://github.com/Htkym/lithosharp/blob/main/docs/Testing-v2-api.md#migration) for the mapping and coverage limits.
+
+For an explicitly selected generated catalog member, use `preview-csharp-rename`
+with caller `--source` files, original `--reference` metadata, an exact metadata
+`--type`, `--member`, and `--new-name`. The JSON preview contains only
+Roslyn-proven usages with byte hashes and expected original strings; it performs
+no project evaluation or writes. See [C# reference rename](https://github.com/Htkym/lithosharp/blob/main/docs/csharp-reference-rename.md)
+for the supported subset and manual scopes.
+
+`okf inspect`, `okf validate` and `okf export` read an explicitly selected Open
+Knowledge Format bundle without evaluating a site project or executing its
+auxiliary code. Export preserves original bytes. See [OKF](https://github.com/Htkym/lithosharp/blob/main/docs/open-knowledge-format.md)
+for the fixed specification, limits and separate publication policy.
+
+`proofread` explicitly invokes a caller-selected Python executable and Yomiyasu
+lint script. Findings retain their source-coordinate precision; guarded previews
+do not write documents. See [proofreading](https://github.com/Htkym/lithosharp/blob/main/docs/proofreading.md).
+Python is optional for other commands.
+
+`check-output --baseline ... --require-publication-compatibility` compares URLs
+and anchors against an explicitly selected published manifest. A missing or
+incompatible required baseline remains unexamined and fails the operation.
+Baseline initialization is explicit and create-only; ordinary builds never
+promote it. See [output checks](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.md).
 
 See the [CLI guide](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md) for
 factory examples, output behavior, development server limitations and deployment support.

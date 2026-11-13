@@ -7,6 +7,8 @@ using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content;
 
+internal sealed record MarkdownInclusionOrigin(MdRawRange OutputSpan, SiteSourceLocation Directive);
+
 /// <summary>Markdown code inclusion diagnostic identifiers.</summary>
 public static class MarkdownInclusionDiagnosticIds
 {
@@ -27,7 +29,7 @@ public static class MarkdownInclusionDiagnosticIds
 /// Resolution needs a file root: include targets must stay inside the input root
 /// (existing path containment and reparse-point validation apply). Positions after
 /// a splice refer to the resolved body; directive diagnostics use pre-splice
-/// coordinates mapped back to the original file.
+/// coordinates mapped back to the original file. The result retains snapshot-bound source maps.
 /// </remarks>
 internal static partial class MarkdownCodeInclusion
 {
@@ -38,7 +40,15 @@ internal static partial class MarkdownCodeInclusion
     internal sealed record InclusionResult(
         string Body,
         IReadOnlyList<ResolvedInclusion> Resolved,
-        IReadOnlyList<SiteDiagnostic> Diagnostics);
+        IReadOnlyList<SiteDiagnostic> Diagnostics)
+    {
+        internal MdSourceMap? SourceMap { get; init; }
+        internal string? OriginalSourceId { get; init; }
+        internal IReadOnlyList<MarkdownInclusionOrigin> Origins { get; init; } = [];
+    }
+
+    private sealed record IncludeTarget(string Content, string RelativePath, string RawHash,
+        MdSourceSnapshot Source, MdRawRange SourceSpan);
 
     private sealed record BodyLine(string Text, int Offset, string Break);
 
@@ -67,21 +77,37 @@ internal static partial class MarkdownCodeInclusion
 
         var lines = SplitLines(body);
         var fences = FindInclusionFences(lines);
+        var bodyOffset = fileText.Length - body.Length;
+        if (bodyOffset < 0 || !fileText.AsSpan(bodyOffset).SequenceEqual(body))
+            throw new ArgumentException("The body must be an exact suffix of its original source.", nameof(body));
         if (fences.Count == 0)
         {
-            return new InclusionResult(body, [], []);
+            return new InclusionResult(body, [], [])
+            {
+                OriginalSourceId = relativePath,
+            };
         }
 
+        var original = new MdSourceSnapshot(relativePath, MdHash.Compute(fileText), fileText);
         var source = new SourceText(fileText);
-        var bodyOffset = fileText.Length - body.Length;
         var resolved = new List<ResolvedInclusion>(fences.Count);
         var diagnostics = new List<SiteDiagnostic>();
+        var segments = new List<MdSourceMapSegment>();
+        var origins = new List<MarkdownInclusionOrigin>();
         var builder = new StringBuilder(body.Length);
         var cursor = 0;
+        void AppendOriginal(int start, int length)
+        {
+            if (length == 0)
+                return;
+            segments.Add(new MdSourceMapSegment(new MdRawRange(builder.Length, length),
+                new MdSourceRange(original, new MdRawRange(bodyOffset + start, length)), MdSegmentKind.Linear));
+            builder.Append(body, start, length);
+        }
         foreach (var fence in fences)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            builder.Append(body, cursor, fence.ContentStart - cursor);
+            AppendOriginal(cursor, fence.ContentStart - cursor);
             var (line, column) = source.GetLineAndColumn(
                 Math.Min(bodyOffset + fence.FenceStart, fileText.Length));
             var location = new SiteSourceLocation(relativePath, line, column);
@@ -91,23 +117,38 @@ internal static partial class MarkdownCodeInclusion
             {
                 // Keep the original fence content on failure so output stays
                 // complete; the error diagnostic fails the load.
-                builder.Append(body, fence.ContentStart, fence.ContentEnd - fence.ContentStart);
+                AppendOriginal(fence.ContentStart, fence.ContentEnd - fence.ContentStart);
             }
             else
             {
-                builder.Append(target.Value.Content);
-                if (target.Value.Content.Length > 0 && target.Value.Content[^1] is not ('\r' or '\n'))
+                var start = builder.Length;
+                if (target.Content.Length != 0)
+                    segments.Add(new MdSourceMapSegment(new MdRawRange(start, target.Content.Length),
+                        new MdSourceRange(target.Source, target.SourceSpan), MdSegmentKind.Linear));
+                builder.Append(target.Content);
+                if (target.Content.Length > 0 && target.Content[^1] is not ('\r' or '\n'))
+                {
+                    segments.Add(new MdSourceMapSegment(new MdRawRange(builder.Length, 1), null, MdSegmentKind.Unknown));
                     builder.Append('\n');
+                }
+                origins.Add(new MarkdownInclusionOrigin(new MdRawRange(start, builder.Length - start), location));
                 resolved.Add(new ResolvedInclusion(
-                    Encoding.UTF8.GetBytes(target.Value.Content), fence.FenceStart, fence.ContentEnd - fence.FenceStart,
-                    target.Value.RelativePath, target.Value.RawHash));
+                    Encoding.UTF8.GetBytes(target.Content), fence.FenceStart, fence.ContentEnd - fence.FenceStart,
+                    target.RelativePath, target.RawHash));
             }
 
             cursor = fence.ContentEnd;
         }
 
-        builder.Append(body, cursor, body.Length - cursor);
-        return new InclusionResult(builder.ToString(), resolved, diagnostics);
+        AppendOriginal(cursor, body.Length - cursor);
+        var finalBody = builder.ToString();
+        return new InclusionResult(finalBody, resolved, diagnostics)
+        {
+            OriginalSourceId = relativePath,
+            SourceMap = new MdSourceMap(new MdSourceSnapshot("lithosharp:included:" + relativePath,
+                MdHash.Compute(finalBody), finalBody), segments),
+            Origins = origins.AsReadOnly(),
+        };
     }
 
     private sealed record InclusionFence(
@@ -250,7 +291,7 @@ internal static partial class MarkdownCodeInclusion
         }
     }
 
-    private static async ValueTask<(string Content, string RelativePath, string RawHash)?> ReadTargetAsync(
+    private static async ValueTask<IncludeTarget?> ReadTargetAsync(
         InclusionFence fence,
         string postDirectory,
         string inputRoot,
@@ -307,21 +348,26 @@ internal static partial class MarkdownCodeInclusion
             return null;
         }
 
-        if (content.Length > 0 && content[0] == '\uFEFF')
+        var originalContent = content;
+        var prefixLength = content.Length > 0 && content[0] == '\uFEFF' ? 1 : 0;
+        if (prefixLength != 0)
         {
             content = content[1..];
         }
 
         string resolved;
+        MdRawRange sourceSpan;
         if (fence.Region is null)
         {
             resolved = content;
+            sourceSpan = new MdRawRange(0, content.Length);
         }
         else
         {
             try
             {
-                resolved = ExtractRegion(content, fence.Region);
+                sourceSpan = ExtractRegionSpan(content, fence.Region);
+                resolved = content.Substring(sourceSpan.Start, sourceSpan.Length);
             }
             catch (InvalidOperationException exception)
             {
@@ -333,9 +379,12 @@ internal static partial class MarkdownCodeInclusion
 
         var relativeTarget = Path.GetRelativePath(Path.GetFullPath(inputRoot), fullPath)
             .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace(Path.AltDirectorySeparatorChar, '/')
-            .Normalize(NormalizationForm.FormC);
-        return (resolved, relativeTarget, Convert.ToHexStringLower(SHA256.HashData(bytes)));
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+        _ = relativeTarget.Normalize(NormalizationForm.FormC);
+        var rawHash = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        return new IncludeTarget(resolved, relativeTarget, rawHash,
+            new MdSourceSnapshot(relativeTarget, rawHash, originalContent),
+            new MdRawRange(prefixLength + sourceSpan.Start, sourceSpan.Length));
     }
 
     /// <summary>
@@ -344,13 +393,21 @@ internal static partial class MarkdownCodeInclusion
     /// </summary>
     internal static string ExtractRegion(string source, string? name)
     {
+        var span = ExtractRegionSpan(source, name);
+        return source.Substring(span.Start, span.Length);
+    }
+
+    private static MdRawRange ExtractRegionSpan(string source, string? name)
+    {
         ArgumentNullException.ThrowIfNull(source);
         if (string.IsNullOrWhiteSpace(name))
         {
-            return source;
+            return new MdRawRange(0, source.Length);
         }
         var lines = source.Split('\n');
         var start = -1;
+        var startOffset = 0;
+        var offset = 0;
         var depth = 0;
         for (var index = 0; index < lines.Length; index++)
         {
@@ -365,13 +422,15 @@ internal static partial class MarkdownCodeInclusion
                 else if (string.Equals(opening.Groups[1].Value.Trim(), name, StringComparison.Ordinal))
                 {
                     start = index + 1;
+                    startOffset = offset + lines[index].Length + 1;
                     depth = 1;
                 }
             }
             else if (start >= 0 && RegionClose().IsMatch(line) && --depth == 0)
             {
-                return string.Join("\n", lines, start, index - start);
+                return new MdRawRange(startOffset, Math.Max(0, offset - startOffset - 1));
             }
+            offset += lines[index].Length + 1;
         }
 
         throw new InvalidOperationException($"Code region '{name}' is missing or unterminated.");

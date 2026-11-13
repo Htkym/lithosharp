@@ -102,6 +102,8 @@ def site_campaign(root):
         raise ValueError(f"Campaign is not completed: {root.name}")
     targets = [{key: item[key] for key in ("label", "role", "commit", "productSources", "harnessSources", "harnessSha256", "dependencyLockSha256")}
                for item in campaign["targets"]]
+    for target, original in zip(targets, campaign["targets"]):
+        target["featureScope"] = original.get("featureScope", "not-recorded")
     for target in targets:
         target["productSourceManifestSha256"] = digest(target["productSources"])
     observations = []
@@ -116,14 +118,20 @@ def site_campaign(root):
                              "raw": sanitize(result), "rawFileSha256": hashlib.sha256((directory / "result.json").read_bytes()).hexdigest(),
                              "finalInputFiles": inputs, "finalOutputFiles": outputs})
     aggregates = []
+    scenario_names = tuple(work["Name"] for work in observations[0]["raw"]["Workloads"])
+    if not {"clean", "no-op", "single-page-change", "layout-change"}.issubset(scenario_names) or len(set(scenario_names)) != len(scenario_names) or any(
+        tuple(work["Name"] for work in item["raw"]["Workloads"]) != scenario_names for item in observations
+    ):
+        raise ValueError("Workload scenarios differ between compared observations")
     for label in sorted({item["label"] for item in observations}):
-        for name in ("clean", "no-op", "single-page-change", "layout-change"):
+        for name in scenario_names:
             values = [next(work["ElapsedMilliseconds"] for work in item["raw"]["Workloads"] if work["Name"] == name)
                       for item in observations if item["label"] == label]
             aggregates.append({"label": label, "scenario": name, "unit": "ms", "raw": values,
                                "median": statistics.median(values), "min": min(values), "max": max(values)})
     first = observations[0]
     return {"profile": campaign["configuration"]["profile"], "pages": 100, "rounds": campaign["configuration"]["rounds"],
+            "comparisonKind": campaign.get("comparisonKind", "not-recorded"), "automaticSpeedupOrVerdict": "not-calculated",
             "targets": targets, "observations": observations, "aggregates": aggregates,
             "finalInputsEqual": all(item["finalInputFiles"] == first["finalInputFiles"] for item in observations),
             "finalOutputsEqual": all(item["finalOutputFiles"] == first["finalOutputFiles"] for item in observations),

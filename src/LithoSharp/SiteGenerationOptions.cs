@@ -6,6 +6,9 @@ using LithoSharp.Routing;
 
 public sealed record SiteGenerationOptions
 {
+    /// <summary>Markdown interpretation used for body rendering and persistent parse-cache identities.</summary>
+    public MarkdownOptions Markdown { get; init; } = new();
+
     /// <summary>Optional output path prefixes for a subset build. Other owned outputs and shared chunks are retained.</summary>
     /// <remarks>A subset requires an existing full output and clean=false. Shared aggregate files outside the scope are retained; include context-specific search partitions in the scope.</remarks>
     public IReadOnlyList<string> OutputScope { get; init; } = [];
@@ -36,6 +39,12 @@ public sealed record SiteGenerationOptions
 
     public IReadOnlyList<SiteAsset> Assets { get; init; } = [];
 
+    /// <summary>Explicit existing social image used by pages without an override. Register referenced assets or transform outputs separately.</summary>
+    public ImageSource? CommonSocialImage { get; init; }
+
+    /// <summary>Explicit existing social images keyed by relative output path, for example posts/guide.html. Register referenced assets or transform outputs separately.</summary>
+    public IReadOnlyDictionary<string, ImageSource> SocialImages { get; init; } = new Dictionary<string, ImageSource>();
+
     /// <summary>Transforms with declared source assets and output files.</summary>
     public IReadOnlyList<SiteAssetTransform> AssetTransforms { get; init; } = [];
 
@@ -53,7 +62,7 @@ public sealed record SiteGenerationOptions
     /// <summary>Reuses bounded output-specific local facts; target and rule checks still run each time. Used only when quality checks are enabled.</summary>
     public bool HtmlFactsCacheEnabled { get; init; } = true;
 
-    // Internal consumer plan, frozen when the owner is created; no public API or late mutation.
+    // Initial internal consumer plan; admitted source provenance may add Quality demand before the first shared parse.
     internal LithoSharp.Build.HtmlRawFactsDemand RawHtmlFactsDemand { get; init; }
 
     /// <summary>Opt-in timing collection; Timings is null when disabled.</summary>

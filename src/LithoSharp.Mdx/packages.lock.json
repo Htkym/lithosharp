@@ -8,50 +8,15 @@
         "resolved": "5.6.0",
         "contentHash": "W4kJGezNIKLzo0Ak5FAQDFvkMf2U7DtGL4THmHyRSApfKsKt5V+eX/bU0ZLKAt/uf9Bb2o1bi0YDKj/GRB/vYQ=="
       },
-      "SkiaSharp": {
-        "type": "Transitive",
-        "resolved": "4.153.1",
-        "contentHash": "TghYLOUaP3q6rTjQw7U9uQaaXh8lEs9rfA1U7/VtmyAptVDtj/SmjtcWzFWmcC/VMWxe3QgbV9uyvqDL7ySFtQ==",
-        "dependencies": {
-          "SkiaSharp.NativeAssets.Win32": "4.153.1",
-          "SkiaSharp.NativeAssets.macOS": "4.153.1"
-        }
-      },
-      "SkiaSharp.NativeAssets.Linux.NoDependencies": {
-        "type": "Transitive",
-        "resolved": "4.153.1",
-        "contentHash": "NrnPjcxjcRau4GMOY0BTpUdMey+MnmLU3jC5AuExEFHPS2NkX1tdkXW0n/c5nQMMHBTAMpHnt7qEOpXs2FNfIQ=="
-      },
-      "SkiaSharp.NativeAssets.macOS": {
-        "type": "Transitive",
-        "resolved": "4.153.1",
-        "contentHash": "YTojWeWIhnpF7uC8vpMxB5wRONKkDB2t3r/nNPA3DL2pgj9fqMXRevA/rIanYazWnco4jo1ufgp3HkXuh1Tz8A=="
-      },
-      "SkiaSharp.NativeAssets.Win32": {
-        "type": "Transitive",
-        "resolved": "4.153.1",
-        "contentHash": "Yqg6rChTVh0BUE8QQxtOA3uUBnihfgID4yex/AvDa0+os2bVcBjmI3Qj9tnOB+R1hd/Jry1Gwl8qw5JI9HZG8Q=="
-      },
       "Syntamark": {
         "type": "Transitive",
-        "resolved": "1.2.0",
-        "contentHash": "JZy4lHGP+Z8XW/EWcXeh86jm6Dm5gSarXRG49D6iONyB5DlcTOF/xanG4RC6WUwGF6+6JwBxo6Lc2F4VYD4H1Q==",
-        "dependencies": {
-          "YamlDotNet": "[18.1.0]"
-        }
-      },
-      "YamlDotNet": {
-        "type": "Transitive",
-        "resolved": "18.1.0",
-        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
+        "resolved": "2.0.0-preview.2026111303",
+        "contentHash": "VP8SuaTSd3U/z2sdU0EVABDkGAhO1V1hadejfDD4flBFZcJlxnz6lml/JA4/c7U8NaS3t9IQAVaZmCLeYBBG6g=="
       },
       "lithosharp": {
         "type": "Project",
         "dependencies": {
-          "SkiaSharp": "[4.153.1, )",
-          "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.153.1, )",
-          "Syntamark": "[1.2.0, 1.2.0]",
-          "YamlDotNet": "[18.1.0, )"
+          "Syntamark": "[2.0.0-preview.2026111303, 2.0.0-preview.2026111303]"
         }
       }
     }

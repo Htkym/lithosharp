@@ -13,17 +13,23 @@ public sealed partial class SiteGenerator
         string? sourcePath,
         MarkdownBodyAnalysisSnapshot? bodyAnalysis,
         DocumentSource? bodySource,
-        ICollection<SiteDiagnostic> diagnostics)
+        ICollection<SiteDiagnostic> diagnostics,
+        Documentation.DocumentKey? document = null)
     {
         var cancellation = configuration.Cancellation;
         cancellation.ThrowIfCancellationRequested();
         var retained = bodyAnalysis is null ? null
             : MarkdownAnalysisAdapter.RetainForBody(bodyAnalysis, markdown, sourcePath);
-        var originalSource = retained is not null ? bodySource : null;
+        var originalSource = bodySource.CanMapBody(markdown, sourcePath) || retained is not null ? bodySource : null;
         var analyzed = _markdownCompiler.Analyze(markdown,
-            originalSource ?? new DocumentSource(sourcePath, 0), cancellation, retained);
+            originalSource ?? new DocumentSource(sourcePath, 0), cancellation, retained, CreateMarkdownComponentContext(configuration, document));
+        analyzed = analyzed with
+        {
+            SourceOrigins = RenderedHtmlOrigins.Bind(analyzed.Html, markdown, analyzed.RenderOrigins,
+                originalSource ?? new DocumentSource(sourcePath, 0)),
+        };
         SiteDiagnostic[] mapped = analyzed.Semantics is { } semantics
-            ? semantics.Diagnostics.Select(diagnostic => originalSource is not null ? diagnostic
+            ? semantics.Diagnostics.Select(diagnostic => originalSource is not null ? originalSource.MapDiagnostic(diagnostic)
                 : new SiteDiagnostic(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
                     string.IsNullOrWhiteSpace(sourcePath) ? null : new SiteSourceLocation(sourcePath),
                     diagnostic.Category, string.IsNullOrWhiteSpace(sourcePath) ? []
@@ -45,6 +51,7 @@ public sealed partial class SiteGenerator
                 diagnostic.Location, diagnostic.Category, diagnostic.RelatedLocations)
             {
                 SnapshotIdentity = snapshotIdentity,
+                MappingPrecision = diagnostic.MappingPrecision,
             });
         return analyzed;
     }

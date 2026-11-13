@@ -7,7 +7,7 @@ internal sealed record CachedCollectionDiagnostics(
     int Version,
     IReadOnlyList<CachedCollectionDiagnostic> Diagnostics)
 {
-    internal const int CurrentVersion = 2;
+    internal const int CurrentVersion = 3;
 
     internal bool IsValid() => Version == CurrentVersion && Diagnostics is not null
         && Diagnostics.All(diagnostic => diagnostic is not null && diagnostic.IsValid());
@@ -32,11 +32,13 @@ internal sealed record CachedCollectionDiagnostic(
     CachedCollectionSourceLocation? Location,
     string? Category,
     IReadOnlyList<CachedCollectionSourceLocation> RelatedLocations,
-    string? SnapshotIdentity = null)
+    string? SnapshotIdentity = null,
+    string? MappingPrecision = null)
 {
     internal bool IsValid() => !string.IsNullOrWhiteSpace(Id) && !string.IsNullOrWhiteSpace(Message)
         && Enum.IsDefined(Severity) && Severity != SiteDiagnosticSeverity.Error
         && (Category is null || !string.IsNullOrWhiteSpace(Category))
+        && (MappingPrecision is null or "Exact" or "CoveringTokens" or "Partial" or "Unknown")
         && (Location is null || Location.IsValid())
         && SnapshotIdentity is { Length: 64 }
         && SnapshotIdentity.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f')
@@ -47,11 +49,11 @@ internal sealed record CachedCollectionDiagnostic(
         new(diagnostic.Id, diagnostic.Severity, diagnostic.Message,
             diagnostic.Location is null ? null : CachedCollectionSourceLocation.Capture(diagnostic.Location),
             diagnostic.Category, diagnostic.RelatedLocations.Select(CachedCollectionSourceLocation.Capture).ToArray(),
-            diagnostic.SnapshotIdentity);
+            diagnostic.SnapshotIdentity, diagnostic.MappingPrecision);
 
     internal SiteDiagnostic Restore() => new(Id, Severity, Message, Location?.Restore(), Category,
         RelatedLocations.Select(location => location.Restore()))
-    { SnapshotIdentity = SnapshotIdentity };
+    { SnapshotIdentity = SnapshotIdentity, MappingPrecision = MappingPrecision };
 }
 
 internal sealed record CachedCollectionSourceLocation(

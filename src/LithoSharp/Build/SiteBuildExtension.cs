@@ -48,6 +48,9 @@ public sealed class SiteBuildContext
 /// <summary>Additions to the existing content and asset registries.</summary>
 public sealed record SiteBuildContribution
 {
+    internal IReadOnlyList<ScopedSearchProjection> ScopedSearch { get; init; } = [];
+    internal IReadOnlyList<Documentation.DocumentSemanticSnapshot> DocumentSemantics { get; init; } = [];
+
     /// <summary>Typed collections to include in the build.</summary>
     public IReadOnlyList<SiteContentCollection> ContentCollections { get; init; } = [];
     /// <summary>Prepared assets, each with one declared owner.</summary>

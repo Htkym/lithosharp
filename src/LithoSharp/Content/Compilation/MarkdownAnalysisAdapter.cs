@@ -15,6 +15,16 @@ internal static class MarkdownAnalysisAdapter
     private static readonly MdOptions BodyOptions = new(MdInputKind.Body);
     internal static string BodyOptionsHash => BodyOptions.Hash;
 
+    internal static MdOptions BodyOptionsFor(MarkdownOptions options)
+    {
+        options.Validate();
+        return new MdOptions(MdInputKind.Body, profileId: options.ProfileId);
+    }
+
+    internal static MdAnalysisParts BodyPartsFor(MarkdownOptions options) => BodyParts
+        | (options.ProfileId == MarkdownOptions.LegacyProfile ? MdAnalysisParts.None : MdAnalysisParts.Headings)
+        | (options.ProfileId == MarkdownOptions.DocumentationProfile ? MdAnalysisParts.Syntax : MdAnalysisParts.None);
+
     // Eager public-reader warnings inspect the original, pre-inclusion body. Choose
     // its budget up front so larger accepted originals do not inherit the final
     // compiler's stricter input limit or require a second recognition attempt.
@@ -28,9 +38,29 @@ internal static class MarkdownAnalysisAdapter
     internal static MdAnalysisResult InspectDocument(string raw, string sourcePath, CancellationToken cancellationToken) =>
         MdParser.AnalyzeWithBlocks(raw, InspectionParts, "lithosharp", sourcePath, null, EditorOptions, cancellationToken);
 
+    internal static MdAnalysisResult InspectBody(string body, string sourcePath, MarkdownOptions options,
+        CancellationToken cancellationToken)
+        => MdParser.AnalyzeWithBlocks(body, InspectionPartsFor(options),
+            BodyScope, sourcePath, null, EditorBodyOptionsFor(options), cancellationToken);
+
+    internal static MdOptions EditorBodyOptionsFor(MarkdownOptions options)
+    {
+        options.Validate();
+        return new MdOptions(MdInputKind.Body, maxInputUtf16: 8 * 1024 * 1024,
+            maxOutputItems: 1024 * 1024, maxScanUnits: 512 * 1024 * 1024, profileId: options.ProfileId);
+    }
+
+    internal static MdAnalysisParts InspectionPartsFor(MarkdownOptions options) => InspectionParts
+        | (options.ProfileId == MarkdownOptions.DocumentationProfile ? MdAnalysisParts.Syntax : MdAnalysisParts.None);
+
     internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, CancellationToken cancellationToken) =>
         MdParser.AnalyzeWithBlocks(body, BodyParts, BodyScope,
             BodySourceId(sourcePath), null, BodyOptions, cancellationToken);
+
+    internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, MdOptions options,
+        MdAnalysisParts parts, CancellationToken cancellationToken) =>
+        MdParser.AnalyzeWithBlocks(body, parts, BodyScope,
+            BodySourceId(sourcePath), null, options, cancellationToken);
 
     internal static MarkdownBodyAnalysisSnapshot AnalyzeOriginalBody(
         string body, string? sourcePath, CancellationToken cancellationToken)
@@ -44,18 +74,22 @@ internal static class MarkdownAnalysisAdapter
     /// <summary>Retains authoritative evidence only for the identical strict body request.</summary>
     internal static MarkdownBodyAnalysisSnapshot? RetainForBody(
         MarkdownBodyAnalysisSnapshot snapshot, string body, string? sourcePath)
+        => RetainForBody(snapshot, body, sourcePath, BodyOptions, BodyParts);
+
+    internal static MarkdownBodyAnalysisSnapshot? RetainForBody(
+        MarkdownBodyAnalysisSnapshot snapshot, string body, string? sourcePath, MdOptions options, MdAnalysisParts parts)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(body);
         var analysis = snapshot.Analysis;
         if (!string.Equals(analysis.RawText, body, StringComparison.Ordinal)
             || !string.Equals(analysis.ParserVersion, MdParserVersion.Value, StringComparison.Ordinal)
-            || !string.Equals(analysis.ProfileId, BodyOptions.ProfileId, StringComparison.Ordinal)
-            || !string.Equals(analysis.OptionsHash, BodyOptions.Hash, StringComparison.Ordinal)
+            || !string.Equals(analysis.ProfileId, options.ProfileId, StringComparison.Ordinal)
+            || !string.Equals(analysis.OptionsHash, options.Hash, StringComparison.Ordinal)
             || !string.Equals(analysis.ScopeId, BodyScope, StringComparison.Ordinal)
             || !string.Equals(analysis.SourceId, BodySourceId(sourcePath), StringComparison.Ordinal)
             || analysis.SourceVersion is not null
-            || analysis.RequestedParts != BodyParts)
+            || analysis.RequestedParts != parts)
             return null;
 
         if (analysis.Blocks is not null)
@@ -107,12 +141,13 @@ internal static class MarkdownAnalysisAdapter
                 + (failure is null ? string.Empty : " " + failure.Message), location);
     }
 
-    internal static IReadOnlyList<DocumentHeading> InspectionHeadings(MdAnalysisResult analysis, CancellationToken cancellationToken)
+    internal static IReadOnlyList<DocumentHeading> InspectionHeadings(MdAnalysisResult analysis, CancellationToken cancellationToken,
+        int rawOffset = 0)
     {
         if (analysis.Blocks is not { } blocks || analysis.Headings is not { } facts || analysis.BodySpan is not { } body)
             return [];
         var headings = LithoMarkdownCompiler.WalkHeadings(blocks).ToArray();
-        var texts = headings.Select(heading => LithoLegacyTextPolicy.Heading(heading.Inlines, cancellationToken)).ToList();
+        var texts = headings.Select(heading => HeadingText(heading, analysis.ProfileId, cancellationToken)).ToList();
         var ids = LithoSlug.Assign(texts);
         var byStart = headings.Select((heading, index) => (Start: body.Start + heading.Span.Start, Index: index))
             .ToDictionary(heading => heading.Start, heading => heading.Index);
@@ -123,7 +158,7 @@ internal static class MarkdownAnalysisAdapter
             if (!byStart.TryGetValue(heading.RawSpan.Start, out var index))
                 continue;
             result.Add(new DocumentHeading(texts[index], ids[index], heading.RawLevel,
-                heading.RawLevel == 1 ? 2 : heading.RawLevel, new SourceSpan(heading.RawSpan.Start, heading.RawSpan.Length))
+                heading.RawLevel == 1 ? 2 : heading.RawLevel, new SourceSpan(checked(rawOffset + heading.RawSpan.Start), heading.RawSpan.Length))
             {
                 LocalKey = heading.LocalKey,
             });
@@ -131,7 +166,13 @@ internal static class MarkdownAnalysisAdapter
         return result;
     }
 
-    internal static IReadOnlyList<DocumentLink> InspectionLinks(MdAnalysisResult analysis, CancellationToken cancellationToken)
+    internal static string HeadingText(LithoHeading heading, string profileId, CancellationToken cancellationToken) =>
+        profileId == MarkdownOptions.LegacyProfile
+            ? LithoLegacyTextPolicy.Heading(heading.Inlines, cancellationToken)
+            : MdInlineFacts.Text(heading.Inlines, cancellationToken, includeImageLabels: false).Text ?? string.Empty;
+
+    internal static IReadOnlyList<DocumentLink> InspectionLinks(MdAnalysisResult analysis, CancellationToken cancellationToken,
+        int rawOffset = 0)
     {
         var result = new List<DocumentLink>();
         foreach (var link in analysis.Links ?? [])
@@ -142,7 +183,20 @@ internal static class MarkdownAnalysisAdapter
             var raw = link.Kind == MdLinkKind.Autolink ? link.Label.Text ?? string.Empty
                 : analysis.RawText.Substring(link.RawSpan.Start, link.RawSpan.Length);
             result.Add(new DocumentLink(raw, link.Target, link.Title, link.Image,
-                new SourceSpan(link.RawSpan.Start, link.RawSpan.Length)));
+                new SourceSpan(checked(rawOffset + link.RawSpan.Start), link.RawSpan.Length)));
+        }
+        if (analysis.ProfileId == MarkdownOptions.DocumentationProfile && analysis.Blocks is { } blocks)
+        {
+            var headings = InspectionHeadings(analysis, cancellationToken);
+            var plan = MarkdownFootnoteRenderPlan.Create(blocks, headings.Select(static heading => heading.Id!).ToArray(), cancellationToken);
+            foreach (var reference in plan.References)
+            {
+                var span = reference.Span.Shift(analysis.BodySpan?.Start ?? 0);
+                result.Add(new DocumentLink(analysis.RawText.Substring(span.Start, span.Length),
+                    "#" + plan.DefinitionId(reference.Number!.Value), null, false,
+                    span.Shift(rawOffset)));
+            }
+            result.Sort(static (left, right) => left.Span.Start.CompareTo(right.Span.Start));
         }
         return result;
     }

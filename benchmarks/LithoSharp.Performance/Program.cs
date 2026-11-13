@@ -12,6 +12,15 @@ using LithoSharp.Performance;
 
 const int defaultPageCount = 100;
 var arguments = BenchmarkArguments.Parse(args);
+if (arguments.Mode == "acceptance")
+{
+#if MAJOR_ACCEPTANCE_BENCHMARK
+    await AcceptanceWorkload.RunAsync(arguments, args);
+    return;
+#else
+    throw new NotSupportedException("Candidate-only acceptance workloads require -p:EnableMajorAcceptanceBenchmark=true.");
+#endif
+}
 if (arguments.Mode == "generator")
 {
     await GeneratorWorkload.RunAsync(arguments, args);
@@ -23,7 +32,7 @@ if (arguments.Profile == "typed-docs-quality")
     await TypedDocsWorkload.RunAsync(arguments, args);
     return;
 #else
-    throw new NotSupportedException("typed-docs-quality is a candidate-only feature. Build with -p:EnableTypedDocsBenchmark=true; do not compare it to a different 2.1.3 rendering path.");
+    throw new NotSupportedException("Build the matching typed Docs workload with -p:EnableTypedDocsBenchmark=true on both targets.");
 #endif
 }
 var runSite = arguments.Mode is "site" or "all";
@@ -206,6 +215,7 @@ if (selectedScenario is not "all")
         switch (selectedScenario)
         {
             case "no-op":
+            case "warm-cache":
                 break;
             case "single-page-change":
                 File.AppendAllText(Path.Combine(corpusDirectory, "section-000", "page-00001.md"),
@@ -218,7 +228,8 @@ if (selectedScenario is not "all")
             default:
                 throw new ArgumentException($"Unknown scenario '{selectedScenario}'.");
         }
-        var isolatedRun = await MeasureWorkloadAsync(selectedScenario, isolatedPosts, site, clean: false, result.BuildPlan, isolatedCustomization);
+        var isolatedRun = await MeasureWorkloadAsync(selectedScenario, isolatedPosts, site, clean: false,
+            selectedScenario == "warm-cache" ? null : result.BuildPlan, isolatedCustomization);
         workloads.Add(isolatedRun.Measurement);
     }
 }
@@ -271,6 +282,8 @@ async Task<(WorkloadMeasurement Measurement, SiteGenerationResult Result)> Measu
 
 if (selectedScenario is "all")
 {
+    var warmRun = await MeasureWorkloadAsync("warm-cache", posts, site, clean: false, previousPlan: null);
+    workloads.Add(warmRun.Measurement);
     var noOpRun = await MeasureWorkloadAsync("no-op", posts, site, clean: false, result.BuildPlan);
     workloads.Add(noOpRun.Measurement);
     var changedPost = Path.Combine(corpusDirectory, "section-000", "page-00001.md");
@@ -342,6 +355,10 @@ internal sealed class BenchmarkArguments
     public string? EngineOutputPath { get; private init; }
     public string Profile { get; private init; } = "blog";
     public string? GeneratorAssembly { get; private init; }
+    public string AcceptanceFamily { get; private init; } = "editor";
+    public int CancellationDelayMilliseconds { get; private init; } = 5;
+    public string? FactoryAssembly { get; private init; }
+    public string? FactoryDirectory { get; private init; }
 
     public static BenchmarkArguments Parse(string[] args)
     {
@@ -355,10 +372,29 @@ internal sealed class BenchmarkArguments
         string? engineOutput = null;
         var profile = "blog";
         string? generatorAssembly = null;
+        var acceptanceFamily = "editor";
+        var cancellationDelay = 5;
+        string? factoryAssembly = null, factoryDirectory = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
             {
+                case "--acceptance-family" when index + 1 < args.Length:
+                    acceptanceFamily = args[++index];
+                    if (acceptanceFamily is not ("editor" or "yaml" or "images" or "site" or "factory"))
+                        throw new ArgumentException("Unknown acceptance family.");
+                    break;
+                case "--factory-assembly" when index + 1 < args.Length:
+                    factoryAssembly = args[++index];
+                    break;
+                case "--factory-directory" when index + 1 < args.Length:
+                    factoryDirectory = args[++index];
+                    break;
+                case "--cancel-after-ms" when index + 1 < args.Length:
+                    cancellationDelay = int.Parse(args[++index], CultureInfo.InvariantCulture);
+                    if (cancellationDelay < 0)
+                        throw new ArgumentException("Cancellation delay must be nonnegative.");
+                    break;
                 case "--generator-assembly" when index + 1 < args.Length:
                     generatorAssembly = args[++index];
                     break;
@@ -375,16 +411,16 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--scenario" when index + 1 < args.Length:
                     scenario = args[++index].ToLowerInvariant();
-                    if (scenario is not ("all" or "clean" or "no-op" or "single-page-change" or "layout-change"))
-                        throw new ArgumentException("The scenario must be all, clean, no-op, single-page-change, or layout-change.", nameof(args));
+                    if (scenario is not ("all" or "clean" or "warm-cache" or "no-op" or "single-page-change" or "layout-change"))
+                        throw new ArgumentException("Unknown site scenario.", nameof(args));
                     break;
                 case "--smoke":
                     smoke = true;
                     break;
                 case "--mode" when index + 1 < args.Length:
                     mode = args[++index].ToLowerInvariant();
-                    if (mode is not ("site" or "engine" or "all" or "generator"))
-                        throw new ArgumentException("The mode must be site, engine, all, or generator.", nameof(args));
+                    if (mode is not ("site" or "engine" or "all" or "generator" or "acceptance"))
+                        throw new ArgumentException("The mode must be site, engine, all, generator, or acceptance.", nameof(args));
                     break;
                 case "--warmup" when index + 1 < args.Length:
                     warmup = int.Parse(args[++index], CultureInfo.InvariantCulture);
@@ -397,7 +433,7 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--help":
                 case "-h":
-                    Console.WriteLine("Usage: dotnet run --project benchmarks/LithoSharp.Performance -- [--size 100|1000|10000] [--output path] [--smoke] [--profile blog|typed-docs-quality] [--mode site|engine|all|generator] [--generator-assembly path] [--scenario all|clean|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path]");
+                    Console.WriteLine("Usage: LithoSharp.Performance [--size 100|1000|10000] [--output path] [--smoke] [--profile blog|typed-docs-quality] [--mode site|engine|all|generator|acceptance] [--generator-assembly path] [--scenario all|clean|warm-cache|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path] [--acceptance-family editor|yaml|images|site|factory] [--cancel-after-ms N] [--factory-assembly path --factory-directory path]");
                     Environment.Exit(0);
                     break;
                 default:
@@ -408,7 +444,23 @@ internal sealed class BenchmarkArguments
         if (warmup < 0 || iterations < 1)
             throw new ArgumentException("Warmup must be >= 0 and iterations must be >= 1.", nameof(args));
 
-        return new BenchmarkArguments { PageCount = pageCount, OutputPath = outputPath, Smoke = smoke, Mode = mode, Scenario = scenario, Warmup = warmup, Iterations = iterations, EngineOutputPath = engineOutput, Profile = profile, GeneratorAssembly = generatorAssembly };
+        return new BenchmarkArguments
+        {
+            PageCount = pageCount,
+            OutputPath = outputPath,
+            Smoke = smoke,
+            Mode = mode,
+            Scenario = scenario,
+            Warmup = warmup,
+            Iterations = iterations,
+            EngineOutputPath = engineOutput,
+            Profile = profile,
+            GeneratorAssembly = generatorAssembly,
+            AcceptanceFamily = acceptanceFamily,
+            CancellationDelayMilliseconds = cancellationDelay,
+            FactoryAssembly = factoryAssembly,
+            FactoryDirectory = factoryDirectory
+        };
     }
 }
 
@@ -600,7 +652,7 @@ internal sealed class EnvironmentMetadata
 internal sealed record MeasurementScope(string Measured, string OutOfScope, string WorkingSetNote)
 {
     public static MeasurementScope SiteDefault => new(
-        "Blog-template pipeline: clean, no-op, single-page-change, layout-change with elapsed, allocation, sampled working set, generated/invalidated nodes, artifacts.",
+        "Blog-template pipeline: clean, warm disk cache without a supplied previous plan, no-op with a supplied previous plan, single-page-change, layout-change with elapsed, allocation, sampled working set, generated/invalidated nodes, artifacts.",
         "Engine micro-benchmarks (parse-only, render-only, parse+render, analyze) are in engine-*.json. No timing thresholds enforced. MDX/Node excluded.",
         "GenerationPeakWorkingSetBytes is the max sampled WorkingSet64 during generation at 10ms intervals, not the OS process-lifetime peak.");
 
@@ -622,7 +674,8 @@ internal sealed record ProvenanceMetadata(
     string? InputHash)
 {
     /// <summary>
-    /// The .NET SDK that built and runs this benchmark (<c>dotnet --version</c>).
+    /// The SDK selected in the harness working directory at measurement time (<c>dotnet --version</c>).
+    /// The build receipt records the SDK used for the separate compilation interval.
     /// The assembly informational version (for example, <c>1.0.0+&lt;commit&gt;</c>)
     /// is a product version, not the SDK, so it is only a fallback here.
     /// </summary>

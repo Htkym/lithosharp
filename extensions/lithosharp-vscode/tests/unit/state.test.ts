@@ -27,6 +27,9 @@ test('four status axes and serving remain independent and preflight preserves re
     state: 'ready', message: '', schemaName: 'document' }, 'unacquired');
   assert.match(legacy.detail, /Inspection scope unknown/);
   assert.match(legacy.detail, /Build success does not establish that Quality ran/);
+  const generated = editorPresentation({ kind: 'none', candidates: 0 }, { uri: 'file:///intro.md', version: 1, language: 'markdown',
+    state: 'ready', message: '', schemaName: 'custom', schemaScope: 'static-schema-build-required' }, 'acquired');
+  assert.match(generated.detail, /Static schema available; constructors and custom validation require Build/);
 });
 
 test('quick pick keeps workspace identity visible', () => {

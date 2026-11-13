@@ -10,10 +10,9 @@ public sealed class DocsSiteFactory : ISiteFactory
 {
     public async Task<SiteDefinition> CreateAsync(SiteFactoryContext context, CancellationToken cancellationToken = default)
     {
-        var loaded = await new MarkdownContentCollectionLoader<GuideFrontMatter>(
-            new ContentCollectionId("docs"),
-            Path.Combine(context.ProjectDirectory, "content"),
-            entry => Guides.Catalog.GetRoute(entry.Id),
+        var loaded = await MarkdownContentCollectionLoader<GuideFrontMatter>.FromCatalog(
+            Guides.Catalog,
+            context.ProjectDirectory,
             entry => new PageMetadata(entry.FrontMatter.Title, entry.FrontMatter.Description),
             frontMatterBinder: Guides.Binder,
             transformationId: new ContentTransformationId("docs-content:v1"),
@@ -43,7 +42,11 @@ public sealed class DocsSiteFactory : ISiteFactory
         }, [])
         {
             OutputDirectory = "dist",
-            Customization = new SiteCustomization { Template = new DocsSiteTemplate() },
+            Customization = new SiteCustomization
+            {
+                Template = new DocsSiteTemplate(),
+                Theme = new SiteThemeOptions { UseExternalThemeRestoration = true }
+            },
             Options = new SiteGenerationOptions
             {
                 ContentCollections = [docs],

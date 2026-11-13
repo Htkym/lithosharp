@@ -34,19 +34,19 @@ public sealed class DocsNavigationComponent : ISiteComponent<DocsNavigationCompo
             ArgumentNullException.ThrowIfNull(link.Url);
         }
         return Html.UnsafeRaw(RenderCore(props.Root,
-            props.AdditionalLinks.Select(link => (link.Label, link.Url.Value, link.IsCurrent)), props.CurrentUrl?.Value, props.CollapseTopics));
+            props.AdditionalLinks.Select(link => (link.Label, link.Url.Value, link.IsCurrent)), props.CurrentUrl?.Value, props.CollapseTopics, context.Document?.Key.Locale));
     }
 
     internal static string RenderCore(SiteTemplateNavigationNode root,
-        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false)
-        => RenderCore(DocsPresentationNode.FromLegacy(root), additionalLinks, currentUrl, collapseTopics);
+        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false, string? locale = null)
+        => RenderCore(DocsPresentationNode.FromLegacy(root), additionalLinks, currentUrl, collapseTopics, locale);
 
     internal static string RenderCore(DocsPresentationNode root,
-        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false)
+        IEnumerable<(string Label, string Url, bool IsCurrent)> additionalLinks, string? currentUrl, bool collapseTopics = false, string? locale = null)
     {
         var body = new StringBuilder();
         body.AppendLine("<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar>");
-        body.AppendLine("<nav aria-label=\"Documentation navigation\">");
+        body.AppendLine("<nav aria-label=\"" + SiteText.Label(locale, "Documentation navigation") + "\">");
         body.AppendLine("<ul class=\"docs-nav-list\">");
         AppendNodes(body, root, currentUrl, collapseTopics);
         foreach (var link in additionalLinks)

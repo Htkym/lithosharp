@@ -1,12 +1,8 @@
 # LithoSharp.Images
 
-Add declared, cached responsive raster image transforms to LithoSharp documentation sites (.NET 10). Use them alongside C# content contracts and build/output checks; image transforms do not replace those checks.
+[English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Images/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Images/README.ja.md)
 
-Use LithoSharp 2.2.0 for this package and the other LithoSharp packages in your project.
-
-```sh
-dotnet add package LithoSharp.Images --version 2.2.0
-```
+Add explicit, cached PNG transforms to LithoSharp sites (.NET 10). Core registers and copies existing images of any format and renders responsive markup without this package or a decoder. Register Images transforms only when PNG processing is needed.
 
 Use matching Core and Images versions. Register the same `ImageAsset` declaration
 instances with generation and rendering so their declared outputs can be resolved.
@@ -14,35 +10,91 @@ instances with generation and rendering so their declared outputs can be resolve
 ```csharp
 using LithoSharp;
 using LithoSharp.Images;
+using System.IO.Compression;
 
+var small = new ImageVariant("small", "images/photo-small.png", 320);
+var large = new ImageVariant("large", "images/photo-large.png", 640, CompressionLevel.Optimal);
 var image = new ImageAsset(
-    new SiteAsset("photo", "assets", "photo.jpg", "images/original.jpg"),
-    [new ImageVariant("jpeg", "images/photo.jpg", 640, ImageFormat.Jpeg),
-     new ImageVariant("webp", "images/photo.webp", 640, ImageFormat.WebP)]);
+    new SiteAsset("photo", "assets", "photo.png", "images/original.png"),
+    [small, large], fallback: large);
 var options = new SiteGenerationOptions
 {
     Assets = [image.Source],
     AssetTransforms = [image.Transform],
     AssetCacheDirectory = ".lithosharp/assets"
 };
-// In a layout: ResponsiveImage.Render(context.Assets, image, "Lake at dawn")
+// In a layout: ResponsiveImage.Render(context.Assets, image.Descriptor, "Lake at dawn")
 ```
 
-The renderer encodes alt text and attributes and emits intrinsic dimensions,
-format sources, srcset, sizes and lazy loading. PNG/JPEG fallback, positive widths,
-quality 0–100 and distinct format/width pairs are required. Invalid images fail
-before output publication. Cached bytes are verified; corrupt entries regenerate.
-Place the cache outside the output directory. RAW and DNG sources are unsupported
-by SkiaSharp 4.153.1; convert them to PNG or JPEG before declaring an image.
-On Linux, install the .NET native prerequisites, including `libstdc++.so.6`;
-SkiaSharp 4.153.1 needs it even with `Linux.NoDependencies`.
+The Core renderer escapes alt text and attributes and emits picture, format sources,
+srcset, sizes, intrinsic dimensions, loading and decoding attributes. The fallback
+must be selected explicitly from existing variants. Unknown dimensions stay unknown.
+For existing images, use Core alone:
 
-PNG/JPEG/WebP need no external executable. AVIF requires a trusted avifenc path:
-`new ExternalAvifEncoder(path, dependencyFingerprint: "installed-tool-and-codec-versions")`.
-Pass it to ImageAsset with an AVIF variant and a fallback. Tool bytes and settings
-are fingerprinted; changed tools are rejected even on cache hits. Recreate declarations
-after updates. No PATH discovery or downloads occur. See the official
-[avifenc manual](https://github.com/AOMediaCodec/libavif/blob/main/doc/avifenc.1.md).
+```csharp
+var webp = new ImageSource("https://cdn.example.test/photo.webp",
+    new ImageMetadata(640, 320, "image/webp", ImageMetadataProvenance.Declared));
+var jpeg = new ImageSource("https://cdn.example.test/photo.jpg",
+    new ImageMetadata(640, 320, "image/jpeg", ImageMetadataProvenance.Declared));
+var existing = new ImageDescriptor([webp, jpeg], fallback: jpeg);
+// ResponsiveImage.Render(context.Assets, existing, "Lake at dawn")
+```
+
+`ImageSource` also accepts a registered `SiteAsset` or `SiteAssetOutput`. Source
+dimensions supplied by the caller are `Declared`; copying an image does not prove
+it can be decoded. Declare dimensions on the source asset to retain registration,
+fingerprinting and build dependencies without Images transforms:
+
+```csharp
+var smallAsset = new SiteAsset("small", "assets", "photo-small.jpg", "images/photo-small.jpg",
+    new ImageMetadata(320, 160, "image/jpeg", ImageMetadataProvenance.Declared));
+var largeAsset = new SiteAsset("large", "assets", "photo-large.jpg", "images/photo-large.jpg",
+    new ImageMetadata(640, 320, "image/jpeg", ImageMetadataProvenance.Declared));
+var smallSource = new ImageSource(smallAsset);
+var largeSource = new ImageSource(largeAsset);
+var registered = new ImageDescriptor([smallSource, largeSource], fallback: largeSource);
+var existingOptions = new SiteGenerationOptions { Assets = [smallAsset, largeAsset] };
+// ResponsiveImage.Render(context.Assets, registered, "Lake at dawn")
+```
+
+Unregistered asset references fail even when their declared dimensions are known.
+Supported decoding establishes `Decoded` facts, while transforms
+attach `Generated` metadata to the exact output bytes. Cache format 2 associates
+metadata with the output ID, content hash and transform identity. Old, missing,
+invalid or mismatched cache metadata causes regeneration. Keep caches outside output.
+Fingerprints include the PNG and pixel profiles, compression setting, implementation
+and runtime identity; byte equality across unverified environments is not promised.
+
+PNG input is limited to 8-bit, noninterlaced grayscale, RGB, grayscale-alpha and RGBA.
+Filters 0–4, multiple IDAT chunks, transparency and bounded structural/checksum
+validation are supported. Output is noninterlaced RGBA8 PNG with filter 0 and zlib
+compression. Resize respects the exact width and preserves aspect ratio, rounding
+height half up. Bilinear interpolation and source-over compositing use premultiplied
+alpha; fully transparent output RGB is zero. `ImageLimits` bounds input, chunks,
+dimensions, pixels and decoded bytes before allocation.
+
+Palette images, 16-bit PNG, Adam7, APNG, JPEG/WebP/AVIF conversion, SVG rasterization,
+EXIF orientation, ICC/cICP/HDR color conversion and general text/vector drawing are
+unsupported. Inputs must be sRGB or untagged; compatible gAMA/cHRM values are checked.
+Optional metadata is validated and skipped; transformed metadata preservation is
+not guaranteed. Publish unsupported formats unchanged with `SiteAsset` and declare
+existing variants with Core descriptors.
+
+For explicit social composition, create `SocialImageAsset(background, logo, id,
+"social.png", logoWidth, logoX, logoY)`. Register both PNG source assets and its
+`Transform`, then use its `Image` in `SiteGenerationOptions.CommonSocialImage` or
+`SocialImages` (keyed by the page's normalized relative output path). The background
+determines canvas dimensions; logo placement is clipped to the canvas. Existing
+site or per-page images use `ImageSource` directly. Favicon presence does not generate
+social images. Supply pre-generated artwork when titles or other text are needed.
+
+Migration: replace format/quality variants with `ImageVariant(id, path, width,
+CompressionLevel)`, select an explicit fallback in `ImageAsset`, and pass its
+`Descriptor` to Core `ResponsiveImage.Render`. The old format/quality overloads
+report `LSI001`/`LSI002`; PNG has no lossy quality setting. Unsupported PNG features
+report `LSI003`, invalid PNG input reports `LSI005`, and omitted fallback selection
+reports `LSI004`. `ExternalAvifEncoder` has been removed; pre-generate AVIF files
+and reference them as existing assets.
 
 See [assets and images](https://github.com/Htkym/lithosharp/blob/main/docs/assets-and-images.md)
 for source roots, output paths, transform registration and cache restrictions.

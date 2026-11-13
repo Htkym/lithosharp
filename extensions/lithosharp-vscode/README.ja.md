@@ -2,9 +2,9 @@
 
 [English](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.md)
 
-VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断と、見出しによる文書内の移動にも対応しています。
+VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断、Markdownのスキーマ補完、見出しによる移動、プロジェクト内の参照プレビューにも対応しています。
 
-このガイドは拡張機能0.4.0とCore/Tool 2.2.0を対象にしています。Toolはサイトと同じバージョンを使います。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
+このガイドは拡張機能0.5.0とCore/Tool 3.0.0を対象にしています。Toolはサイトと同じバージョンを使います。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
 
 ## preflightとcapability
 
@@ -14,7 +14,7 @@ OutputではLanguage Server同梱CoreとprojectのCore参照を区別します�
 
 ## インストールと使い方
 
-拡張0.4.0はMarketplaceで公開済みです。
+公開済みの拡張機能のバージョンはMarketplaceで確認してください。
 
 [MarketplaceのLithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)をインストールするか、次のコマンドを実行してください。
 
@@ -25,7 +25,7 @@ code --install-extension htkym.lithosharp
 必要な環境は次のとおりです。
 
 - VS Code `^1.139.0`。
-- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKと、サイトに対応するLithoSharp.Toolも必要です。2.2.0のサイトには2.2.0を使ってください。SDKには必要なASP.NET Core共有フレームワークが含まれます。
+- 同梱の言語サーバーには.NET 10ランタイムが必要です。サイトのビルドと配信には、10.0.300以降の.NET 10 SDKと、サイトに対応するLithoSharp.Toolも必要です。3.0.0のサイトには3.0.0を使ってください。SDKには必要なASP.NET Core共有フレームワークが含まれます。
 - MDXの解析にはNode.js 24.13.0が必要です。Markdownだけの診断にはNode.jsは不要です。
 
 [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.ja.md)でサイトを作成し、そのフォルダーをVS Codeで開いてください。コードを信頼できる場合はワークスペースを信頼し、`LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`の順に実行してください。
@@ -43,9 +43,9 @@ MDXの診断には`LithoSharp: Restore MDX Worker`で同梱ワーカーの依存
 
 ステータスバーをクリックするか、`LithoSharp: Show Inspection Status`を実行すると、Outputで詳細を確認し、次に実行する操作を選べます。ホバーでは次の四つを分けて表示します。
 
-- 現在の文書の解析状態。現在のMarkdownまたはMDXの版について、未解析、待機中、解析完了、解析不能を示します。解析完了は診断がないことや公開できることを意味しません。
+- 現在の文書の解析状態。現在のMarkdownまたはMDXのバージョンについて、未解析、待機中、解析完了、解析不能を示します。解析完了は診断がないことや公開できることを意味しません。
 - プロジェクト情報。未取得、取得済み、更新が必要な状態と、文書の解決状態、適用したcontextの識別情報を示します。InspectまたはBuildでcontextを取得します。取得日時だけでは、すべての入力が最新と一致することは保証できません。
-- スキーマの検査可能範囲。組み込み型へのバインド対応、独自型はBuildで確認、範囲不明のいずれかを、実際の解析経路から通知します。スキーマ名だけではバインドの対応や成功を判断しません。MDXにMarkdownのバインド範囲を引き継ぐこともありません。
+- スキーマの検査可能範囲。組み込み型へのバインド、取得済みの生成スキーマによる静的検査、独自型はBuildで確認、範囲不明のいずれかを、実際の解析経路から通知します。スキーマ名だけではバインドの対応や成功を判断しません。MDXにMarkdownのバインド範囲を引き継ぐこともありません。
 - 最後の明示操作。コマンド、対象、日時、終了状態を示します。Build成功はBuildの成功であり、Qualityを有効にしたことや実行したことを意味しません。Preflightでは通知された段階、Partialの範囲、必要な後続検査の情報を保持します。
 
 編集、文書の開き直し、改名、プロジェクトの切り替え、サーバーの再起動で、古い文書状態を失効させます。プロジェクト入力の変更を検知した場合は、contextを更新が必要な状態にし、編集時の検査から取り下げます。検知していない入力まで最新とは保証しません。表示を更新するためだけにfactoryやビルドを実行することはありません。
@@ -62,11 +62,27 @@ Markdown/MDXの診断には元のIDを表示します。変更をまとめて送
 
 Markdownのアウトラインは同じ解析snapshotの見出しと`MarkdownSections`を使います。`selectionRange`はジャンプ先の見出し、`range`はそのセクション全体の範囲を示し、階層もセクション情報に従います。セクション情報が取得できない場合は、分かっている見出しの範囲だけを使います。これはMarkdownの経路の説明です。MDXの見出しにも同じセクション範囲を保証するものではありません。
 
-解析の利用可否は診断とは別の状態として通知します。`LSM013`は入力や解析資源の上限などで解析を完了できなかったことを示します。エディター入力の上限は8 Mi UTF-16コード単位です。診断が空でも、状態が`unavailable`なら検証済みとは扱えません。`NoContext`ではプロジェクト、独自C#スキーマ、サイトのルートは検査できず、`Partial`では取得できた情報だけが使えます。プロジェクトのsnapshotがある場合も、編集時に検証するのは組み込みスキーマだけです。独自C#スキーマはコンパイラーとサイトビルドで検証します。診断位置への移動やアウトラインは、サイト全体のビルドによる検証を置き換えません。
+解析の利用可否は診断とは別の状態として通知します。`LSM013`は入力や解析資源の上限などで解析を完了できなかったことを示します。エディター入力の上限は8 Mi UTF-16コード単位です。診断が空でも、状態が`unavailable`なら検証済みとは扱えません。`NoContext`ではプロジェクトのスキーマやルートを検査できず、`Partial`では取得できた情報だけが使えます。取得済みの生成スキーマがある場合は、項目名、必須値、enum、入れ子の構造を静的に検査します。入力時に利用者のconstructor、setter、factoryを実行しません。独自のバインド処理はコンパイラーとサイトビルドで検証します。既知のMarkdown本文を編集した場合は静的スキーマと入力区分を保持し、ルートと意味制約の情報は明示的な再取得まで失効させます。診断位置への移動やアウトラインは、サイト全体のビルドによる検証を置き換えません。
 
 `LithoSharp: Open Preview`、`LithoSharp: Refresh Preview`、`LithoSharp: Open in Browser`で配信中のサイトを表示します。プレビューの経路はサイトの検査結果から取得します。不明な文書、下書き、未ビルドの文書には理由を表示します。更新が失敗した場合は、最後の成功結果であることを明示して表示を残します。プレビューのために起動したサーバーは、最後のプレビューパネルを閉じると停止します。`LithoSharp: Start Server`で起動したサーバーは引き続き動作します。
 
 プレビューは保存・ビルド済みの文書が対象で、未保存の内容には対応していません。MDXワーカーはTypeScriptを変換しますが、型検査は行いません。
+
+## 参照と適用条件付きの変更
+
+Markdownの文書、見出し、xrefを解決する前に、InspectまたはBuildでプロジェクト情報を明示的に取得します。
+定義への移動と参照検索には、選択したcollection、バージョン、言語を使います。
+一つの原稿が複数のvariantに属する場合は対象を選択します。不完全なカタログは完全とは扱いません。
+
+`LithoSharp: Preview Markdown Rename`は、変更案と手動確認が必要な範囲をOutputに表示します。
+`LithoSharp: Rename Markdown References`では、確認後に文書のバージョン、原文のハッシュ、変更箇所の文字列、
+現在のプロジェクト情報を照合し、テキストだけのワークスペース変更をまとめて適用します。
+対象は静的に解決できたMarkdownの参照です。C#、生成C#、動的なMDXは別途確認してください。
+[C#の参照プレビュー](https://github.com/Htkym/lithosharp/blob/main/docs/csharp-reference-rename.ja.md)も参照してください。
+
+通常のF2による編集では、このVS Codeアダプターがサーバーの元のバージョン条件を保持できません。
+そのため、理由と明示コマンドを案内します。`LithoSharp: Preview Markdown Move`とExplorerの名前変更では、
+参照を自動編集せずに変更案を表示します。ファイルを移動する際に変更案を確認し、移動後にプロジェクト情報を再取得してください。
 
 MDX preflightでは`lithosharp.nodeExecutable`をCLIの`--node-executable`へ渡し、live解析と同じ指定Nodeを使います。待機中のcapability probeは再実行、workspace・設定の変更、拡張終了で中止し、そのprobeが所有するプロセスツリーを停止します。
 

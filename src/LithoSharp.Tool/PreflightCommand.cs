@@ -181,7 +181,8 @@ internal static class PreflightCommand
             throw new ArgumentOutOfRangeException(nameof(format));
         var diagnostics = response.Diagnostics.Select(d => new SiteDiagnostic(d.Id, Enum.Parse<SiteDiagnosticSeverity>(d.Severity), d.Message,
             d.File is null ? null : new SiteSourceLocation(d.File, d.Line, d.Column, d.EndLine, d.EndColumn), d.Category,
-            (d.RelatedLocations ?? []).Select(r => new SiteSourceLocation(r.File, r.Line, r.Column, r.EndLine, r.EndColumn))));
+            (d.RelatedLocations ?? []).Select(r => new SiteSourceLocation(r.File, r.Line, r.Column, r.EndLine, r.EndColumn)))
+        { MappingPrecision = d.MappingPrecision });
         var sarif = JsonNode.Parse(new SiteQualityReport(diagnostics).Format(SiteDiagnosticFormat.Sarif))!;
         sarif["runs"]![0]!["properties"] = JsonSerializer.SerializeToNode(response.Preflight, JsonOptions);
         return sarif.ToJsonString(JsonOptions);

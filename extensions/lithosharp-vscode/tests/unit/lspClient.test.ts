@@ -181,6 +181,8 @@ function scripted(options: { exitOnClose?: boolean; symbolsPending?: boolean; cl
         child.reply(
           frame(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { capabilities: {}, serverInfo: { name: 't', version: '1' } } })),
         );
+      } else if (message.id !== undefined && (message.method === 'textDocument/completion' || message.method === 'textDocument/hover')) {
+        child.requests.push({ id: message.id, method: message.method });
       } else if (message.id !== undefined && message.method === 'textDocument/documentSymbol') {
         child.requests.push({ id: message.id as string | number, method: 'textDocument/documentSymbol' });
         if (options.symbolsPending) return;
@@ -331,6 +333,53 @@ test('symbols map through', async () => {
   assert.equal(symbols.length, 1);
   assert.equal(symbols[0]!.name, 'H');
   client.stop();
+});
+
+test('position requests flush current text and discard obsolete document, context and trust results', async () => {
+  const double = scripted();
+  let trusted = true;
+  const client = new LspClient({ serverCommand: ['server'], cwd: '/project', spawn: double.spawn, isTrusted: () => trusted },
+    { set() {}, delete() {}, clear() {} });
+  await client.start();
+  const uri = 'file:///one.md';
+  client.didOpen({ uri, languageId: 'markdown', version: 1, text: 'title: x' });
+  const reply = (value: unknown) => {
+    const request = double.child.requests.at(-1)!;
+    double.child.reply(frame(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: value })));
+  };
+  client.didChange(uri, 2, 'title: y');
+  const current = client.requestCompletions(uri, { line: 0, character: 0 });
+  assert.ok(double.child.written.some(value => value.includes('didChange')));
+  reply([{ label: 'title' }]);
+  assert.deepEqual(await current, [{ label: 'title' }]);
+  const oldText = client.requestHover(uri, { line: 0, character: 0 });
+  client.didChange(uri, 3, 'title: z'); reply({ contents: 'old text' });
+  assert.equal(await oldText, undefined);
+  const oldContext = client.requestCompletions(uri, { line: 0, character: 0 });
+  client.sendProjectContext('site', ['/project'], null); reply([{ label: 'old context' }]);
+  assert.deepEqual(await oldContext, []);
+  const oldTrust = client.requestHover(uri, { line: 0, character: 0 });
+  trusted = false; reply({ contents: 'withdrawn' });
+  assert.equal(await oldTrust, undefined);
+  const count = double.child.requests.length;
+  assert.deepEqual(await client.requestCompletions(uri, { line: 0, character: 0 }), []);
+  assert.equal(double.child.requests.length, count);
+  client.stop();
+});
+
+test('position request cancellation stays on its originating connection', async () => {
+  const double = scripted();
+  const client = clientFor(double, { sets: [] });
+  await client.start();
+  client.didOpen({ uri: 'file:///one.md', languageId: 'markdown', version: 1, text: 'title: x' });
+  let cancel!: () => void;
+  const pending = client.requestHover('file:///one.md', { line: 0, character: 0 }, value => { cancel = value; });
+  const rejected = assert.rejects(pending, /stopped|cancel/i);
+  client.stop();
+  const count = double.child.written.length;
+  cancel();
+  await rejected;
+  assert.equal(double.child.written.length, count);
 });
 
 

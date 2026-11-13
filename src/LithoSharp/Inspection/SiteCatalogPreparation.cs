@@ -69,6 +69,8 @@ internal sealed class SiteCatalogPreparation(
             .Select(page => new SitePreflightRoute(page.Route, page.OwnerId, page.SourceLocation))
             .Concat(catalog.Assets.Select(asset => new SitePreflightRoute(
                 SiteRoute.ForFile(asset.RelativeOutputPath, context.Site.BaseUrl), "asset:" + asset.Id)))
+            .Concat(catalog.ScopedSearch.Select(projection => new SitePreflightRoute(
+                SiteRoute.ForFile(projection.RelativeOutputPath, context.Site.BaseUrl), projection.NodeId.Value)))
             .ToArray();
         return new(new(routes, catalog.Diagnostics.Concat(table.Validate().Diagnostics)), collections, prepare, validate)
         {

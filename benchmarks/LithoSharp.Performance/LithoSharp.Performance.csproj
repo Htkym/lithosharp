@@ -18,4 +18,12 @@
     <DefineConstants>$(DefineConstants);TYPED_DOCS_BENCHMARK</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(EnableMajorAcceptanceBenchmark)' == 'true'">
+    <DefineConstants>$(DefineConstants);MAJOR_ACCEPTANCE_BENCHMARK</DefineConstants>
+    <NuGetLockFilePath>packages.acceptance.lock.json</NuGetLockFilePath>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(EnableMajorAcceptanceBenchmark)' == 'true'">
+    <ProjectReference Include="..\..\src\LithoSharp.Images\LithoSharp.Images.csproj" />
+  </ItemGroup>
+
 </Project>

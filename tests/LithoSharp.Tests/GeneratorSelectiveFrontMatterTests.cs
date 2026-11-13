@@ -49,7 +49,7 @@ public sealed partial class GeneratorTests
         var (malformedOutput, malformedDiagnostics) = Generate(SelectiveFrontMatterModel, new Input("C:/site/content/intro.md", malformed));
         var syntax = malformedDiagnostics.Single();
         await Assert.That(syntax.Id).IsEqualTo("LSG005");
-        await Assert.That(syntax.Location.SourceSpan).IsEqualTo(new TextSpan(malformed.IndexOf("title", StringComparison.Ordinal), 1));
+        await Assert.That(syntax.Location.SourceSpan).IsEqualTo(new TextSpan(malformed.IndexOf("[", StringComparison.Ordinal), 3));
         await Assert.That(string.Join("\n", malformedOutput.SyntaxTrees)).DoesNotContain("StaticSiteManifest.Create");
     }
 
@@ -147,7 +147,7 @@ public sealed partial class GeneratorTests
             .Invoke([maxInput, 131072, 200, scan, "lithosharp-markdown/1", 1]);
         return adapter.GetMethod("AnalyzeForCompiler", BindingFlags.Static | BindingFlags.NonPublic)!
             .Invoke(null, [raw, options, adapter.GetField("ExpectedParserVersion", BindingFlags.Static | BindingFlags.NonPublic)!.GetRawConstantValue(),
-                "1.0", "lithosharp-markdown/1", "18.1.0", "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e", "18.1.0", CancellationToken.None])!;
+                "2.0", "lithosharp-markdown/1", "native-yaml/1", CancellationToken.None])!;
     }
 
     private static bool ValidateGeneratorFrontMatter(string raw, object scan, INamedTypeSymbol front, List<Diagnostic> diagnostics)

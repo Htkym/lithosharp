@@ -399,15 +399,41 @@ internal static class ContentPath
 {
     private const string NormalizedPathCollision = "LSC0007";
     internal const string UnsafePathDiagnosticId = "LSC0008";
+    internal const string DiscoveryLimitDiagnosticId = "LSC0011";
     private const string DiscoveryFailure = "LSC0009";
 
     public static (IReadOnlyList<ContentFile> Files, IReadOnlyList<SiteDiagnostic> Diagnostics) Discover(
         string root,
         IReadOnlyCollection<string> extensions,
         CancellationToken cancellationToken)
+        => Discover(root, extensions, cancellationToken, null);
+
+    internal static (IReadOnlyList<ContentFile> Files, IReadOnlyList<SiteDiagnostic> Diagnostics) Discover(
+        string root,
+        ContentInputProfile profile,
+        CancellationToken cancellationToken)
+        => Discover(root, [".md"], cancellationToken, profile);
+
+    internal static (IReadOnlyList<ContentFile> Files, IReadOnlyList<SiteDiagnostic> Diagnostics) Discover(
+        string root,
+        ContentInputProfile profile,
+        CancellationToken cancellationToken,
+        int maxFiles,
+        int maxEntries)
+        => Discover(root, [".md"], cancellationToken, profile, maxFiles, maxEntries);
+
+    private static (IReadOnlyList<ContentFile> Files, IReadOnlyList<SiteDiagnostic> Diagnostics) Discover(
+        string root,
+        IReadOnlyCollection<string> extensions,
+        CancellationToken cancellationToken,
+        ContentInputProfile? profile,
+        int maxFiles = int.MaxValue,
+        int maxEntries = int.MaxValue)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         ArgumentNullException.ThrowIfNull(extensions);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxFiles, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxEntries, 1);
         if (extensions.Count == 0)
         {
             throw new ArgumentException("At least one extension is required.", nameof(extensions));
@@ -443,8 +469,10 @@ internal static class ContentPath
             OperatingSystem.IsWindows()
                 ? StringComparer.OrdinalIgnoreCase
                 : StringComparer.Ordinal);
+        var visitedEntries = 0;
+        var limitReached = false;
 
-        while (pending.Count > 0)
+        while (pending.Count > 0 && !limitReached)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var directory = pending.Pop();
@@ -475,7 +503,20 @@ internal static class ContentPath
             string[] entries;
             try
             {
-                entries = Directory.GetFileSystemEntries(directory);
+                var remaining = maxEntries - visitedEntries;
+                if (remaining == 0)
+                {
+                    Limit("MaxDiscoveryEntries", maxEntries, directoryRelativePath);
+                    break;
+                }
+                entries = Directory.EnumerateFileSystemEntries(directory)
+                    .Take(remaining == int.MaxValue ? int.MaxValue : remaining + 1).ToArray();
+                if (entries.Length > remaining)
+                {
+                    Limit("MaxDiscoveryEntries", maxEntries, directoryRelativePath);
+                    entries = entries[..remaining];
+                }
+                visitedEntries += entries.Length;
             }
             catch (IOException exception)
             {
@@ -524,7 +565,17 @@ internal static class ContentPath
                     continue;
                 }
 
-                if (!configuredExtensions.Contains(Path.GetExtension(fullPath)))
+                ContentInputKind? kind;
+                try
+                {
+                    kind = profile is null ? ContentInputKind.Markdown : ContentInputPolicy.Classify(relativePath, profile.Value);
+                }
+                catch (ArgumentException exception)
+                {
+                    diagnostics.Add(ContentDiagnostic.Error(UnsafePathDiagnosticId, exception.Message, relativePath, 1, 1));
+                    continue;
+                }
+                if (kind is null || profile is null && !configuredExtensions.Contains(Path.GetExtension(fullPath)))
                 {
                     continue;
                 }
@@ -542,6 +593,11 @@ internal static class ContentPath
 
                 try
                 {
+                    if (files.Count == maxFiles)
+                    {
+                        Limit("MaxFiles", maxFiles, relativePath);
+                        break;
+                    }
                     using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(
                         fullRoot,
                         fullPath);
@@ -577,12 +633,21 @@ internal static class ContentPath
                     continue;
                 }
 
-                files.Add(new ContentFile(fullPath, relativePath));
+                files.Add(new ContentFile(fullPath, relativePath) { Kind = kind.Value });
             }
         }
 
+        void Limit(string name, int value, string relativePath)
+        {
+            if (!limitReached)
+                diagnostics.Add(ContentDiagnostic.Error(DiscoveryLimitDiagnosticId,
+                    $"{name} ({value}) was exceeded during discovery; the input set is incomplete.", relativePath, 1, 1));
+            limitReached = true;
+        }
+
+        var pathComparer = profile is null ? StringComparer.Ordinal : ContentInputPolicy.PathComparer;
         var collidedPaths = files
-            .GroupBy(static file => file.RelativePath, StringComparer.Ordinal)
+            .GroupBy(static file => file.RelativePath, pathComparer)
             .Where(static group => group.Skip(1).Any())
             .ToArray();
         foreach (var group in collidedPaths)
@@ -600,7 +665,7 @@ internal static class ContentPath
 
         var collisions = collidedPaths
             .Select(static group => group.Key)
-            .ToHashSet(StringComparer.Ordinal);
+            .ToHashSet(pathComparer);
         return (
             files
                 .Where(file => !collisions.Contains(file.RelativePath))
@@ -799,20 +864,32 @@ internal static class ContentPath
     }
 }
 
-internal sealed record ContentFile(string FullPath, string RelativePath);
+internal sealed record ContentFile(string FullPath, string RelativePath)
+{
+    internal ContentInputKind Kind { get; init; } = ContentInputKind.Markdown;
+}
 
 internal static class ContentValues
 {
-    public static Dictionary<string, object?> FromYaml(IReadOnlyDictionary<string, object?> values) =>
-        values.ToDictionary(
+    public static IReadOnlyDictionary<string, object?> FromYaml(IReadOnlyDictionary<string, object?> values)
+    {
+        var materialized = values.ToDictionary(
             static pair => pair.Key.Normalize(NormalizationForm.FormC),
             static pair => FromYamlValue(pair.Value),
             StringComparer.Ordinal);
+        return values is LocatedYamlMapping mapping
+            ? new LocatedYamlMapping(materialized,
+                values.Keys.ToDictionary(static key => key, mapping.GetKeyLocation, StringComparer.Ordinal),
+                values.Keys.ToDictionary(static key => key, mapping.GetValueLocation, StringComparer.Ordinal), mapping.Location)
+            : materialized;
+    }
 
     private static object? FromYamlValue(object? value) => value switch
     {
         LocatedYamlScalar scalar => scalar.Value,
         IReadOnlyDictionary<string, object?> mapping => FromYaml(mapping),
+        LocatedYamlSequence sequence => new LocatedYamlSequence(sequence.Select(FromYamlValue).ToArray(),
+            sequence.Location, Enumerable.Range(0, sequence.Count).Select(index => sequence.GetItemLocation(index)).ToArray()),
         IReadOnlyList<object?> sequence => sequence.Select(FromYamlValue).ToList(),
         _ => value
     };

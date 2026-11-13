@@ -129,14 +129,19 @@ public sealed partial class GeneratorTests
         """;
 
     [Test]
-    public async Task ExplicitBodyTypeGeneratesTypedMdxCompatibleReferences()
+    [Arguments("mdx")]
+    [Arguments("MDX")]
+    public async Task ExplicitBodyTypeGeneratesTypedMdxCompatibleReferences(string extension)
     {
         var source = Model.Replace("EmitJsonSchema = true", "EmitJsonSchema = true, BodyType = typeof(Child)");
-        var (compilation, diagnostics) = Generate(source, new Input("C:/site/content/intro.mdx", "---\ntitle: hello\n---\n<Counter />"));
+        var path = "C:/site/content/intro." + extension;
+        var (compilation, diagnostics) = Generate(source, new Input(path, "---\ntitle: hello\n---\n<Counter />"));
         await Assert.That(Errors(diagnostics)).IsEqualTo(string.Empty);
         await Assert.That(string.Join("\n", compilation.SyntaxTrees.Select(tree => tree.ToString()))).Contains("ContentEntry<global::Front, global::Child>");
         using var stream = new MemoryStream();
         await Assert.That(Errors(compilation.Emit(stream).Diagnostics)).IsEqualTo(string.Empty);
+        var (_, invalid) = Generate(source, new Input(path, "---\ntitle: null\n---\n<Counter />"));
+        await Assert.That(Errors(invalid)).Contains("LSG006");
     }
 
     [Test]
@@ -262,21 +267,20 @@ public sealed partial class GeneratorTests
             using System.Collections.Generic;
             using LithoSharp.Content;
             using LithoSharp.Diagnostics;
-            using YamlDotNet.Serialization;
             public class Base {
-                [YamlIgnore] public virtual string IgnoredInBase { get; set; } = "base";
+                [ContentIgnore] public virtual string IgnoredInBase { get; set; } = "base";
                 public virtual string IgnoredInDerived { get; set; } = "base";
-                [YamlMember(Alias = "base_field")] public string Field = "base";
-                [YamlMember(Alias = "base_property")] public int Variant { get; set; } = 3;
-                [YamlMember(Alias = "inherited_alias")] public virtual string Alias { get; set; } = "base";
+                [ContentName("base_field")] public string Field = "base";
+                [ContentName("base_property")] public int Variant { get; set; } = 3;
+                [ContentName("inherited_alias")] public virtual string Alias { get; set; } = "base";
             }
             public sealed class Front : Base {
                 public override string IgnoredInBase { get; set; } = "derived";
-                [YamlIgnore] public override string IgnoredInDerived { get; set; } = "derived";
-                [YamlMember(Alias = "derived_field")] public new string Field = "derived";
-                [YamlMember(Alias = "derived_property")] public new string Variant { get; set; } = "derived";
+                [ContentIgnore] public override string IgnoredInDerived { get; set; } = "derived";
+                [ContentName("derived_field")] public new string Field = "derived";
+                [ContentName("derived_property")] public new string Variant { get; set; } = "derived";
                 public override string Alias { get; set; } = "derived";
-                [YamlIgnore] public required string IgnoredRequired { get; init; }
+                [ContentIgnore] public required string IgnoredRequired { get; init; }
                 public required string Title { get; init; }
             }
             [StaticContentCollection(typeof(Front), typeof(string), "guides")]
@@ -455,7 +459,11 @@ public sealed partial class GeneratorTests
         using var document = System.Text.Json.JsonDocument.Parse(schema);
         var properties = document.RootElement.GetProperty("$defs").EnumerateObject().Single().Value.GetProperty("properties");
         await Assert.That(properties.GetProperty("payload").GetProperty("not").GetProperty("type").GetString()).IsEqualTo("null");
-        await Assert.That(properties.GetProperty("optional").EnumerateObject().Any()).IsFalse();
+        var optional = properties.GetProperty("optional");
+        await Assert.That(optional.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)
+            .SequenceEqual(new[] { "x-lithosharp-buildRequired", "x-lithosharp-requiredWhen" })).IsTrue();
+        await Assert.That(optional.GetProperty("x-lithosharp-buildRequired").GetBoolean()).IsFalse();
+        await Assert.That(optional.GetProperty("x-lithosharp-requiredWhen").GetArrayLength()).IsEqualTo(0);
     }
 
     [Test]
@@ -607,8 +615,7 @@ public sealed partial class GeneratorTests
     private static CSharpCompilation CreateCompilation(string source)
     {
         var paths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(StaticContentCollectionAttribute).Assembly.Location)
-            .Append(typeof(YamlDotNet.Serialization.YamlMemberAttribute).Assembly.Location).Distinct();
+            .Append(typeof(StaticContentCollectionAttribute).Assembly.Location).Distinct();
         var parse = new CSharpParseOptions(LanguageVersion.Preview);
         var compilation = CSharpCompilation.Create("Generated_" + Guid.NewGuid().ToString("N"),
             [CSharpSyntaxTree.ParseText(source, parse)], paths.Select(path => MetadataReference.CreateFromFile(path)),

@@ -44,7 +44,6 @@ public sealed class DocsSampleFactory : ISiteFactory
             Theme = new SiteThemeOptions
             {
                 BrandPrefix = "lithosharp / ",
-                DefaultSocialSubtitle = "Built with LithoSharp"
             },
             GenerateLlmsTxt = true
         };
@@ -92,12 +91,13 @@ public sealed class DocsSampleFactory : ISiteFactory
             derivedSurfaces: GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation);
 
         var articleSource = new SiteAsset("article-source", typedContent, "first.md", "downloads/first.md");
+        var imageFallback = new ImageVariant("sample-png", "images/sample.png", 128, System.IO.Compression.CompressionLevel.Optimal);
         var image = assetDemo ? new ImageAsset(
             new SiteAsset("sample-image", Path.GetDirectoryName(imagePath)!, Path.GetFileName(imagePath), "images/original.png"),
-            [new ImageVariant("sample-png", "images/sample.png", 128, ImageFormat.Png),
-             new ImageVariant("sample-webp", "images/sample.webp", 128, ImageFormat.WebP)]) : null;
+            [imageFallback], imageFallback) : null;
         var options = new SiteGenerationOptions
         {
+            Markdown = new MarkdownOptions { ProfileId = MarkdownOptions.DocumentationProfile, Components = DocsSampleComponents.Registry },
             Assets = image is null ? [articleSource] : [articleSource, image.Source],
             AssetTransforms = image is null ? [] : [image.Transform],
             AssetCacheDirectory = assetDemo ? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, ".lithosharp", "assets") : null,
@@ -118,7 +118,7 @@ public sealed class DocsSampleFactory : ISiteFactory
                 (entry, rendering) => rendering.RenderMarkdown(entry.Body) +
                     $"<p><a href=\"{GeneratedArticles.Entries.Typed_Content_Second.GetUrl(rendering.Site.BaseUrl).ToAttributeValue()}\">Read the related typed article</a></p>" +
                     $"<p><a href=\"{rendering.Assets.GetUrl(articleSource).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
-                    (image is null ? string.Empty : ResponsiveImage.Render(rendering.Assets, image, "LithoSharp sample icon").ToHtmlString() +
+                    (image is null ? string.Empty : ResponsiveImage.Render(rendering.Assets, image.Descriptor, "LithoSharp sample icon").ToHtmlString() +
                         $"<p><a href=\"{rendering.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>"),
                 rendererFingerprint: "article-docs-layout:v1",
                 isThreadSafe: true), topicPages]

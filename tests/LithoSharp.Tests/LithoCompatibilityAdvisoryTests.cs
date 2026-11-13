@@ -150,10 +150,20 @@ public sealed class LithoCompatibilityAdvisoryTests
     {
         foreach (var raw in new[] { "\ud800", new string('x', 8 * 1024 * 1024 + 1) })
         {
-            var diagnostic = DocumentInspection.Inspect("a.md", raw).Diagnostics.Single();
+            var info = Inspect(raw, advisory: false);
+            var diagnostic = info.Diagnostics.Single();
 
             await Assert.That(diagnostic.Id).IsEqualTo(MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId);
             await Assert.That(diagnostic.Severity).IsEqualTo(SiteDiagnosticSeverity.Error);
+            await Assert.That(diagnostic.Location!.FilePath).IsEqualTo("a.md");
+            await Assert.That((diagnostic.Location.Line, diagnostic.Location.Column,
+                    diagnostic.Location.EndLine, diagnostic.Location.EndColumn))
+                .IsEqualTo(raw.Length == 1
+                    ? ((int?)4, (int?)1, (int?)4, (int?)2)
+                    : ((int?)null, (int?)null, (int?)null, (int?)null));
+            await Assert.That(info.FrontMatter["title"]).IsEqualTo("Test");
+            await Assert.That(info.Headings).IsEmpty();
+            await Assert.That(info.Links).IsEmpty();
         }
     }
 

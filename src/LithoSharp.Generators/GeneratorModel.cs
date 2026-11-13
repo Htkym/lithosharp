@@ -5,9 +5,15 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using YamlDotNet.Serialization.NamingConventions;
+using LithoSharp.Content;
 
 namespace LithoSharp.Generators;
+
+internal sealed class RequiredWhenModel(string field, string equalsValue)
+{
+    public string Field { get; } = field;
+    public string EqualsValue { get; } = equalsValue;
+}
 
 internal sealed class MemberModel
 {
@@ -15,10 +21,13 @@ internal sealed class MemberModel
     {
         Symbol = symbol;
         Type = type;
-        var alias = GeneratorModel.GetYamlAttribute(symbol, "YamlDotNet.Serialization.YamlMemberAttribute")
-            ?.NamedArguments.FirstOrDefault(a => a.Key == "Alias").Value.Value as string;
-        YamlName = (string.IsNullOrEmpty(alias) ? UnderscoredNamingConvention.Instance.Apply(symbol.Name) : alias!).Normalize(NormalizationForm.FormC);
+        var attribute = GeneratorModel.GetYamlAttribute(symbol, "LithoSharp.Content.ContentNameAttribute");
+        var alias = attribute?.ConstructorArguments.FirstOrDefault().Value as string;
+        if (attribute is not null && string.IsNullOrWhiteSpace(alias))
+            throw new InvalidOperationException($"Content member '{symbol.Name}' requires a nonempty content name.");
+        YamlName = (attribute is null ? ContentMemberNaming.ToSnakeCase(symbol.Name) : alias!).Normalize(NormalizationForm.FormC);
         AllowsNull = GeneratorModel.AllowsNull(type);
+        RequiredWhen = GeneratorModel.GetRequiredWhen(symbol);
         Required = symbol is IPropertySymbol p ? p.IsRequired : symbol is IFieldSymbol f && f.IsRequired;
         // ponytail: constructor and metadata defaults are unknown here; the runtime binder validates them.
         HasDefault = type.IsValueType || symbol.DeclaringSyntaxReferences.Length == 0
@@ -48,6 +57,7 @@ internal sealed class MemberModel
     public bool AllowsNull { get; }
     public bool Required { get; }
     public bool HasDefault { get; }
+    public IReadOnlyList<RequiredWhenModel> RequiredWhen { get; }
 }
 
 internal static class GeneratorModel
@@ -85,12 +95,12 @@ internal static class GeneratorModel
                         continue;
                     propertySlots.Add(property);
                     if (!property.IsIndexer && property.SetMethod?.DeclaredAccessibility == Accessibility.Public
-                        && GetYamlAttribute(property, "YamlDotNet.Serialization.YamlIgnoreAttribute") is null)
+                        && GetYamlAttribute(property, "LithoSharp.Content.ContentIgnoreAttribute") is null)
                         properties.Add(new MemberModel(property, property.Type));
                 }
                 else if (member is IFieldSymbol field && field.DeclaredAccessibility == Accessibility.Public
                     && !field.IsReadOnly && !field.IsConst
-                    && GetYamlAttribute(field, "YamlDotNet.Serialization.YamlIgnoreAttribute") is null)
+                    && GetYamlAttribute(field, "LithoSharp.Content.ContentIgnoreAttribute") is null)
                     fields.Add(new MemberModel(field, field.Type));
             }
         }
@@ -113,6 +123,26 @@ internal static class GeneratorModel
                 return attribute;
         }
         return null;
+    }
+
+    internal static IReadOnlyList<RequiredWhenModel> GetRequiredWhen(ISymbol member)
+    {
+        var rules = new List<RequiredWhenModel>();
+        for (ISymbol? current = member; current is not null;
+             current = current is IPropertySymbol property ? property.OverriddenProperty : null)
+        {
+            foreach (var attribute in current.GetAttributes().Where(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "LithoSharp.Content.ContentRequiredWhenAttribute"))
+            {
+                if (attribute.ConstructorArguments.Length != 2 || attribute.ConstructorArguments[0].Value is not string field
+                    || string.IsNullOrWhiteSpace(field) || attribute.ConstructorArguments[1].Value is not string equalsValue)
+                    throw new InvalidOperationException($"Content member '{member.Name}' has an invalid conditional requirement.");
+                var normalized = field.Normalize(NormalizationForm.FormC);
+                if (!rules.Any(rule => rule.Field == normalized && rule.EqualsValue == equalsValue))
+                    rules.Add(new RequiredWhenModel(normalized, equalsValue));
+            }
+        }
+        return rules;
     }
 
     public static bool HasRequiredMembers(INamedTypeSymbol type)

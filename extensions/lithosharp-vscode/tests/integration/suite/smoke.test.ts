@@ -278,6 +278,73 @@ describe('lithosharp smoke', () => {
         }
       }
     });
+
+    describe('installed reference providers', () => {
+      let source: vscode.TextDocument;
+      let target: vscode.TextDocument;
+      let sourceText: string;
+      let targetText: string;
+      const verifiedProviders: Record<string, vscode.Location[]> = {};
+      const links = ['[First reference](./target.md#target-heading)', '[Second reference](./target.md#target-heading)'];
+
+      before(async function () {
+        this.timeout(120000);
+        const content = path.join(process.env['LITHOSHARP_TEST_WORKSPACE']!, 'content');
+        source = await vscode.workspace.openTextDocument(path.join(content, 'hello.md'));
+        target = await vscode.workspace.openTextDocument(path.join(content, 'target.md'));
+        assert.equal(source.isDirty, false);
+        assert.equal(target.isDirty, false);
+        sourceText = source.getText();
+        targetText = target.getText();
+        await vscode.window.showTextDocument(source);
+        const beforeInspect = (await ownedOutput()).length;
+        await vscode.commands.executeCommand('lithosharp.inspectSite');
+        await waitFor(async () => (await ownedOutput()).slice(beforeInspect).includes('LithoSharp inspect succeeded (exit 0)'),
+          'Real Inspect did not acquire the installed candidate project context.');
+      });
+
+      after(async () => {
+        const report = path.join(process.env['LITHOSHARP_TEST_EVIDENCE_DIR']!, 'site-provenance.json');
+        if (!fs.existsSync(report)) return;
+        const provenance = JSON.parse(await fs.promises.readFile(report, 'utf8'));
+        await fs.promises.writeFile(report, JSON.stringify({ ...provenance, referenceProviders: verifiedProviders }, null, 2));
+      });
+
+      it('resolves a Markdown link to the exact heading through the installed definition provider', async () => {
+        let locations: vscode.Location[] | undefined;
+        const position = source.positionAt(sourceText.indexOf('./target.md#target-heading') + 2);
+        await waitFor(async () => {
+          locations = await vscode.commands.executeCommand<vscode.Location[]>('vscode.executeDefinitionProvider', source.uri, position);
+          return Boolean(locations?.length);
+        }, 'Installed definition provider did not resolve the acquired link');
+        assert.equal(locations!.length, 1);
+        assert.equal(locations![0]!.uri.toString(), target.uri.toString());
+        assert.equal(target.getText(locations![0]!.range), 'Target heading');
+        assert.equal(source.getText(), sourceText);
+        assert.equal(target.getText(), targetText);
+        assert.equal(source.isDirty || target.isDirty, false);
+        verifiedProviders['definition'] = locations!;
+        console.log('[lithosharp] installed definition: ' + JSON.stringify(locations));
+      });
+
+      it('finds both exact Markdown links through the installed reference provider', async () => {
+        let locations: vscode.Location[] | undefined;
+        const position = target.positionAt(targetText.indexOf('# Target heading') + 2);
+        await waitFor(async () => {
+          locations = await vscode.commands.executeCommand<vscode.Location[]>('vscode.executeReferenceProvider', target.uri, position);
+          return Boolean(locations?.length);
+        }, 'Installed reference provider did not resolve the acquired heading');
+        const inbound = locations!.filter(location => location.uri.toString() === source.uri.toString());
+        assert.deepEqual(inbound.map(location => source.getText(location.range)).sort(), [...links].sort());
+        assert.ok(locations!.every(location => location.uri.toString() === source.uri.toString()
+          || location.uri.toString() === target.uri.toString() && target.getText(location.range) === 'Target heading'));
+        assert.equal(source.getText(), sourceText);
+        assert.equal(target.getText(), targetText);
+        assert.equal(source.isDirty || target.isDirty, false);
+        verifiedProviders['references'] = locations!;
+        console.log('[lithosharp] installed references: ' + JSON.stringify(locations));
+      });
+    });
   }
 
 });

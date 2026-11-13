@@ -1,1 +1,661 @@
 #nullable enable
+const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.InvalidInvocation = "LSM021" -> string!
+const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.ReferenceContextUnavailable = "LSM024" -> string!
+const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.RenderingFailed = "LSM023" -> string!
+const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.StaticSchemaUnavailable = "LSM022" -> string!
+const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.UnknownComponent = "LSM020" -> string!
+const LithoSharp.Content.ContentFrontMatterDiagnosticIds.ConditionalRequiredField = "LSC105" -> string!
+const LithoSharp.Content.MarkdownOptions.CommonMarkProfile = "commonmark/0.31.2" -> string!
+const LithoSharp.Content.MarkdownOptions.DocumentationProfile = "syntamark-docs/2" -> string!
+const LithoSharp.Content.MarkdownOptions.LegacyProfile = "lithosharp-markdown/1" -> string!
+LithoSharp.ComponentRenderingContext.Document.get -> LithoSharp.Documentation.DocumentSemanticDocument?
+LithoSharp.ComponentRenderingContext.DocumentSemantics.get -> LithoSharp.Documentation.DocumentSemanticSnapshot?
+LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.InputKind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.InputKind.init -> void
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.InputProfile.get -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.ContentEntry<TFrontMatter, TBody>.InputProfile.init -> void
+LithoSharp.Content.ContentRequiredWhenAttribute
+LithoSharp.Content.ContentRequiredWhenAttribute.ConditionField.get -> string!
+LithoSharp.Content.ContentRequiredWhenAttribute.ContentRequiredWhenAttribute(string! conditionField, string! expectedValue) -> void
+LithoSharp.Content.ContentRequiredWhenAttribute.ExpectedValue.get -> string!
+LithoSharp.Content.GeneratedContentBindingContext.ValidateRequiredWhen(string! yamlName, string! conditionField, string! expectedValue) -> void
+LithoSharp.Content.IContentFrontMatterSchemaProvider
+LithoSharp.Content.IContentFrontMatterSchemaProvider.SchemaJson.get -> string!
+LithoSharp.Content.MarkdownComponentRegistration
+LithoSharp.Content.MarkdownComponentRegistration.Dependencies.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentDependency!>!
+LithoSharp.Content.MarkdownComponentRegistration.DependencyRoot.get -> string?
+LithoSharp.Content.MarkdownComponentRegistration.Fingerprint.get -> string!
+LithoSharp.Content.MarkdownComponentRegistration.Name.get -> string!
+LithoSharp.Content.MarkdownComponentRegistration.PropsType.get -> System.Type!
+LithoSharp.Content.MarkdownComponentRegistration.SchemaJson.get -> string?
+LithoSharp.Content.MarkdownComponentRegistration.SemanticRules.get -> LithoSharp.Documentation.DocumentSemanticRuleSet?
+LithoSharp.Content.MarkdownComponentRegistry
+LithoSharp.Content.MarkdownComponentRegistry.Dependencies.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.ContentDependency!>!
+LithoSharp.Content.MarkdownComponentRegistry.Fingerprint.get -> string!
+LithoSharp.Content.MarkdownComponentRegistry.MarkdownComponentRegistry(System.Collections.Generic.IEnumerable<LithoSharp.Content.MarkdownComponentRegistration!>! registrations) -> void
+LithoSharp.Content.MarkdownComponentRegistry.Registrations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownComponentRegistration!>!
+LithoSharp.Content.MarkdownComponentRegistry.Schemas.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownComponentSchema!>!
+LithoSharp.Content.MarkdownComponentSchema
+LithoSharp.Content.MarkdownComponentSchema.Fingerprint.get -> string!
+LithoSharp.Content.MarkdownComponentSchema.MarkdownComponentSchema(string! name, string! propsTypeName, string? schemaJson, string! fingerprint, string? semanticRulesJson = null) -> void
+LithoSharp.Content.MarkdownComponentSchema.Name.get -> string!
+LithoSharp.Content.MarkdownComponentSchema.PropsTypeName.get -> string!
+LithoSharp.Content.MarkdownComponentSchema.SchemaJson.get -> string?
+LithoSharp.Content.MarkdownComponentSchema.SemanticRulesJson.get -> string?
+LithoSharp.Content.MarkdownOptions
+LithoSharp.Content.MarkdownOptions.<Clone>$() -> LithoSharp.Content.MarkdownOptions!
+LithoSharp.Content.MarkdownOptions.Components.get -> LithoSharp.Content.MarkdownComponentRegistry?
+LithoSharp.Content.MarkdownOptions.Components.init -> void
+LithoSharp.Content.MarkdownOptions.Equals(LithoSharp.Content.MarkdownOptions? other) -> bool
+LithoSharp.Content.MarkdownOptions.MarkdownOptions() -> void
+LithoSharp.Content.MarkdownOptions.ProfileId.get -> string!
+LithoSharp.Content.MarkdownOptions.ProfileId.init -> void
+LithoSharp.Documentation.ApiReferenceSite.Layout.get -> LithoSharp.IPageLayout<LithoSharp.PageLayoutContent!>?
+LithoSharp.Documentation.ApiReferenceSite.Layout.init -> void
+LithoSharp.Documentation.ApiReferenceSite.LayoutFingerprint.get -> string?
+LithoSharp.Documentation.ApiReferenceSite.LayoutFingerprint.init -> void
+LithoSharp.Documentation.DocumentFrontMatter.Prerequisites.get -> System.Collections.Generic.List<string!>!
+LithoSharp.Documentation.DocumentFrontMatter.Prerequisites.set -> void
+LithoSharp.Documentation.DocumentFrontMatter.SupportedVersion.get -> string?
+LithoSharp.Documentation.DocumentFrontMatter.SupportedVersion.set -> void
+LithoSharp.Documentation.DocumentSemanticAssessment
+LithoSharp.Documentation.DocumentSemanticAssessment.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.Documentation.DocumentSemanticAssessment.Document.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentSemanticAssessment.Rule.get -> LithoSharp.Documentation.DocumentSemanticRule!
+LithoSharp.Documentation.DocumentSemanticAssessment.State.get -> LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSemanticDocument
+LithoSharp.Documentation.DocumentSemanticDocument.DocumentSemanticDocument(LithoSharp.Documentation.DocumentKey! key, string! sourcePath, System.Collections.Generic.IReadOnlyDictionary<string!, object?>! values, LithoSharp.Documentation.DocumentSemanticPublication publication, bool isComplete, System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Diagnostics.SiteSourceLocation!>? locations = null) -> void
+LithoSharp.Documentation.DocumentSemanticDocument.IsComplete.get -> bool
+LithoSharp.Documentation.DocumentSemanticDocument.Key.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentSemanticDocument.Locations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Diagnostics.SiteSourceLocation!>!
+LithoSharp.Documentation.DocumentSemanticDocument.Publication.get -> LithoSharp.Documentation.DocumentSemanticPublication
+LithoSharp.Documentation.DocumentSemanticDocument.SourcePath.get -> string!
+LithoSharp.Documentation.DocumentSemanticDocument.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+LithoSharp.Documentation.DocumentSemanticPublication
+LithoSharp.Documentation.DocumentSemanticPublication.Published = 1 -> LithoSharp.Documentation.DocumentSemanticPublication
+LithoSharp.Documentation.DocumentSemanticPublication.Unknown = 0 -> LithoSharp.Documentation.DocumentSemanticPublication
+LithoSharp.Documentation.DocumentSemanticPublication.Unpublished = 2 -> LithoSharp.Documentation.DocumentSemanticPublication
+LithoSharp.Documentation.DocumentSemanticReference
+LithoSharp.Documentation.DocumentSemanticReference.Key.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentSemanticReference.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Documentation.DocumentSemanticReference.Route.get -> LithoSharp.Routing.SiteRoute?
+LithoSharp.Documentation.DocumentSemanticReference.State.get -> LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticReferenceState.Missing = 2 -> LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticReferenceState.Resolved = 0 -> LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticReferenceState.Unknown = 3 -> LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticReferenceState.Unpublished = 1 -> LithoSharp.Documentation.DocumentSemanticReferenceState
+LithoSharp.Documentation.DocumentSemanticRule
+LithoSharp.Documentation.DocumentSemanticRule.ConditionField.get -> string?
+LithoSharp.Documentation.DocumentSemanticRule.ExpectedValue.get -> string?
+LithoSharp.Documentation.DocumentSemanticRule.Field.get -> string!
+LithoSharp.Documentation.DocumentSemanticRule.Kind.get -> LithoSharp.Documentation.DocumentSemanticRuleKind
+LithoSharp.Documentation.DocumentSemanticRule.PublishedSourceOnly.get -> bool
+LithoSharp.Documentation.DocumentSemanticRule.PublishedTarget.get -> bool
+LithoSharp.Documentation.DocumentSemanticRule.SameLocale.get -> bool
+LithoSharp.Documentation.DocumentSemanticRule.SameVersion.get -> bool
+LithoSharp.Documentation.DocumentSemanticRule.Stage.get -> LithoSharp.Documentation.DocumentSemanticStage
+LithoSharp.Documentation.DocumentSemanticRuleKind
+LithoSharp.Documentation.DocumentSemanticRuleKind.Reference = 2 -> LithoSharp.Documentation.DocumentSemanticRuleKind
+LithoSharp.Documentation.DocumentSemanticRuleKind.RequiredWhen = 0 -> LithoSharp.Documentation.DocumentSemanticRuleKind
+LithoSharp.Documentation.DocumentSemanticRuleKind.RequiredWhenPublished = 1 -> LithoSharp.Documentation.DocumentSemanticRuleKind
+LithoSharp.Documentation.DocumentSemanticRuleSet
+LithoSharp.Documentation.DocumentSemanticRuleSet.DocumentSemanticRuleSet(System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSemanticRule!>! rules) -> void
+LithoSharp.Documentation.DocumentSemanticRuleSet.Evaluate(LithoSharp.Documentation.DocumentSemanticDocument! document, LithoSharp.Documentation.DocumentSemanticSnapshot? snapshot = null) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSemanticAssessment!>!
+LithoSharp.Documentation.DocumentSemanticRuleSet.Rules.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSemanticRule!>!
+LithoSharp.Documentation.DocumentSemanticRuleSet.ToJson() -> string!
+LithoSharp.Documentation.DocumentSemanticScope
+LithoSharp.Documentation.DocumentSemanticScope.<Clone>$() -> LithoSharp.Documentation.DocumentSemanticScope!
+LithoSharp.Documentation.DocumentSemanticScope.Collection.get -> string!
+LithoSharp.Documentation.DocumentSemanticScope.Collection.init -> void
+LithoSharp.Documentation.DocumentSemanticScope.Deconstruct(out string! Collection, out string! Version, out string! Locale) -> void
+LithoSharp.Documentation.DocumentSemanticScope.DocumentSemanticScope(string! Collection, string! Version, string! Locale) -> void
+LithoSharp.Documentation.DocumentSemanticScope.Equals(LithoSharp.Documentation.DocumentSemanticScope? other) -> bool
+LithoSharp.Documentation.DocumentSemanticScope.Locale.get -> string!
+LithoSharp.Documentation.DocumentSemanticScope.Locale.init -> void
+LithoSharp.Documentation.DocumentSemanticScope.Version.get -> string!
+LithoSharp.Documentation.DocumentSemanticScope.Version.init -> void
+LithoSharp.Documentation.DocumentSemanticSnapshot
+LithoSharp.Documentation.DocumentSemanticSnapshot.Catalog.get -> LithoSharp.Documentation.DocumentCatalog!
+LithoSharp.Documentation.DocumentSemanticSnapshot.CompleteScopes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSemanticScope!>?
+LithoSharp.Documentation.DocumentSemanticSnapshot.Documents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSemanticDocument!>!
+LithoSharp.Documentation.DocumentSemanticSnapshot.DocumentSemanticSnapshot(LithoSharp.Documentation.DocumentCatalog! catalog, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSemanticDocument!>! documents, bool isComplete, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSemanticScope!>? completeScopes = null) -> void
+LithoSharp.Documentation.DocumentSemanticSnapshot.IsComplete.get -> bool
+LithoSharp.Documentation.DocumentSemanticSnapshot.Resolve(LithoSharp.Documentation.DocumentKey! key) -> LithoSharp.Documentation.DocumentSemanticReference!
+LithoSharp.Documentation.DocumentSemanticSnapshot.ToJson() -> string!
+LithoSharp.Documentation.DocumentSemanticStage
+LithoSharp.Documentation.DocumentSemanticStage.Catalog = 1 -> LithoSharp.Documentation.DocumentSemanticStage
+LithoSharp.Documentation.DocumentSemanticStage.Runtime = 2 -> LithoSharp.Documentation.DocumentSemanticStage
+LithoSharp.Documentation.DocumentSemanticStage.Static = 0 -> LithoSharp.Documentation.DocumentSemanticStage
+LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSemanticState.Deferred = 2 -> LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSemanticState.Failed = 1 -> LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSemanticState.NotApplicable = 3 -> LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSemanticState.Passed = 0 -> LithoSharp.Documentation.DocumentSemanticState
+LithoSharp.Documentation.DocumentSnippet
+LithoSharp.Documentation.DocumentSnippet.DocumentPath.get -> string!
+LithoSharp.Documentation.DocumentSnippet.DocumentSnippet(string! id, string! documentPath, string! projectPath, string? testFilter = null, string? skipReason = null) -> void
+LithoSharp.Documentation.DocumentSnippet.Id.get -> string!
+LithoSharp.Documentation.DocumentSnippet.ProjectPath.get -> string!
+LithoSharp.Documentation.DocumentSnippet.SkipReason.get -> string?
+LithoSharp.Documentation.DocumentSnippet.TestFilter.get -> string?
+LithoSharp.Documentation.DocumentSnippetVerificationResult
+LithoSharp.Documentation.DocumentSnippetVerificationResult.Diagnostic.get -> LithoSharp.Diagnostics.SiteDiagnostic?
+LithoSharp.Documentation.DocumentSnippetVerificationResult.ExecutedAt.get -> System.DateTimeOffset?
+LithoSharp.Documentation.DocumentSnippetVerificationResult.Fingerprint.get -> string?
+LithoSharp.Documentation.DocumentSnippetVerificationResult.Location.get -> LithoSharp.Diagnostics.SiteSourceLocation?
+LithoSharp.Documentation.DocumentSnippetVerificationResult.Message.get -> string!
+LithoSharp.Documentation.DocumentSnippetVerificationResult.RelatedLocations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteSourceLocation!>!
+LithoSharp.Documentation.DocumentSnippetVerificationResult.Snippet.get -> LithoSharp.Documentation.DocumentSnippet!
+LithoSharp.Documentation.DocumentSnippetVerificationResult.State.get -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState.Failure = 1 -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState.NotRun = 2 -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState.OutOfScope = 4 -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState.Skipped = 3 -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Documentation.DocumentSnippetVerificationState.Success = 0 -> LithoSharp.Documentation.DocumentSnippetVerificationState
+LithoSharp.Inspection.DocumentInspectionOptions.Markdown.get -> LithoSharp.Content.MarkdownOptions?
+LithoSharp.Inspection.DocumentInspectionOptions.Markdown.init -> void
+LithoSharp.Inspection.DocumentReferenceCompletion
+LithoSharp.Inspection.DocumentReferenceCompletion.InsertText.get -> string!
+LithoSharp.Inspection.DocumentReferenceCompletion.Label.get -> string!
+LithoSharp.Inspection.DocumentReferenceCompletion.Target.get -> LithoSharp.Inspection.DocumentReferenceTarget!
+LithoSharp.Inspection.DocumentReferenceDocument
+LithoSharp.Inspection.DocumentReferenceDocument.DocumentReferenceDocument(string! sourcePath, string! text, long version, string? projectPath = null, bool isDynamic = false) -> void
+LithoSharp.Inspection.DocumentReferenceDocument.IsDynamic.get -> bool
+LithoSharp.Inspection.DocumentReferenceDocument.ProjectPath.get -> string!
+LithoSharp.Inspection.DocumentReferenceDocument.SourcePath.get -> string!
+LithoSharp.Inspection.DocumentReferenceDocument.Text.get -> string!
+LithoSharp.Inspection.DocumentReferenceDocument.TextHash.get -> string!
+LithoSharp.Inspection.DocumentReferenceDocument.Version.get -> long
+LithoSharp.Inspection.DocumentReferenceEditPlan
+LithoSharp.Inspection.DocumentReferenceEditPlan.CanApply.get -> bool
+LithoSharp.Inspection.DocumentReferenceEditPlan.Edits.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceTextEdit!>!
+LithoSharp.Inspection.DocumentReferenceEditPlan.IsComplete.get -> bool
+LithoSharp.Inspection.DocumentReferenceEditPlan.ManualScopes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.DocumentReferenceEditPlan.Moves.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceMove!>!
+LithoSharp.Inspection.DocumentReferenceEditPlan.TryApply(System.Collections.Generic.IEnumerable<LithoSharp.Inspection.DocumentReferenceDocument!>! currentDocuments, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! changedDocuments) -> bool
+LithoSharp.Inspection.DocumentReferenceLocation
+LithoSharp.Inspection.DocumentReferenceLocation.Length.get -> int
+LithoSharp.Inspection.DocumentReferenceLocation.SourcePath.get -> string!
+LithoSharp.Inspection.DocumentReferenceLocation.Start.get -> int
+LithoSharp.Inspection.DocumentReferenceMove
+LithoSharp.Inspection.DocumentReferenceMove.DestinationPath.get -> string!
+LithoSharp.Inspection.DocumentReferenceMove.SourcePath.get -> string!
+LithoSharp.Inspection.DocumentReferenceOccurrence
+LithoSharp.Inspection.DocumentReferenceOccurrence.Document.get -> LithoSharp.Inspection.DocumentReferenceDocument!
+LithoSharp.Inspection.DocumentReferenceOccurrence.Heading.get -> Syntamark.MarkdownHeading?
+LithoSharp.Inspection.DocumentReferenceOccurrence.Link.get -> Syntamark.MarkdownLink?
+LithoSharp.Inspection.DocumentReferenceOccurrence.Range.get -> Syntamark.RawSpan
+LithoSharp.Inspection.DocumentReferenceOccurrence.TargetSpan.get -> Syntamark.RawSpan?
+LithoSharp.Inspection.DocumentReferenceResolution
+LithoSharp.Inspection.DocumentReferenceResolution.Candidates.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceTarget!>!
+LithoSharp.Inspection.DocumentReferenceResolution.Reference.get -> LithoSharp.Inspection.DocumentReferenceOccurrence?
+LithoSharp.Inspection.DocumentReferenceResolution.Relation.get -> LithoSharp.Inspection.ProjectReferenceRelation?
+LithoSharp.Inspection.DocumentReferenceResolution.RelationKind.get -> LithoSharp.OpenKnowledge.OkfLinkKind?
+LithoSharp.Inspection.DocumentReferenceResolution.State.get -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceSearch
+LithoSharp.Inspection.DocumentReferenceSearch.IsComplete.get -> bool
+LithoSharp.Inspection.DocumentReferenceSearch.Locations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceLocation!>!
+LithoSharp.Inspection.DocumentReferenceSearch.ManualScopes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.DocumentReferenceSearch.State.get -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceSnapshot
+LithoSharp.Inspection.DocumentReferenceSnapshot.CatalogComplete.get -> bool
+LithoSharp.Inspection.DocumentReferenceSnapshot.Complete(string! sourcePath, string! prefix = "", System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceCompletion!>!
+LithoSharp.Inspection.DocumentReferenceSnapshot.DocumentReferenceSnapshot(LithoSharp.Inspection.ProjectInspectionSnapshot! project, System.Collections.Generic.IEnumerable<LithoSharp.Inspection.DocumentReferenceDocument!>! documents, bool catalogComplete = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> void
+LithoSharp.Inspection.DocumentReferenceSnapshot.Documents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.DocumentReferenceDocument!>!
+LithoSharp.Inspection.DocumentReferenceSnapshot.FindReferences(string! sourcePath, int offset, bool includeDeclaration = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.DocumentReferenceSearch!
+LithoSharp.Inspection.DocumentReferenceSnapshot.ManualScopes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.DocumentReferenceSnapshot.PlanHeadingRename(string! sourcePath, int offset, string! newText, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.DocumentReferenceEditPlan!
+LithoSharp.Inspection.DocumentReferenceSnapshot.PlanMove(string! sourcePath, string! newSourcePath, string? newPublicPath = null, string? newProjectPath = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.DocumentReferenceEditPlan!
+LithoSharp.Inspection.DocumentReferenceSnapshot.PlanTargetChange(string! sourcePath, int offset, string! newTarget, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.DocumentReferenceEditPlan!
+LithoSharp.Inspection.DocumentReferenceSnapshot.Project.get -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.DocumentReferenceSnapshot.ResolveAt(string! sourcePath, int offset, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.DocumentReferenceResolution!
+LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceState.Ambiguous = 1 -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceState.Resolved = 0 -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceState.Unavailable = 3 -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceState.Unresolved = 2 -> LithoSharp.Inspection.DocumentReferenceState
+LithoSharp.Inspection.DocumentReferenceTarget
+LithoSharp.Inspection.DocumentReferenceTarget.Anchor.get -> string?
+LithoSharp.Inspection.DocumentReferenceTarget.InputKind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.Inspection.DocumentReferenceTarget.Location.get -> LithoSharp.Inspection.DocumentReferenceLocation?
+LithoSharp.Inspection.DocumentReferenceTarget.Route.get -> LithoSharp.Inspection.ProjectRouteCandidate!
+LithoSharp.Inspection.DocumentReferenceTextEdit
+LithoSharp.Inspection.DocumentReferenceTextEdit.ExpectedText.get -> string!
+LithoSharp.Inspection.DocumentReferenceTextEdit.Length.get -> int
+LithoSharp.Inspection.DocumentReferenceTextEdit.Replacement.get -> string!
+LithoSharp.Inspection.DocumentReferenceTextEdit.SourcePath.get -> string!
+LithoSharp.Inspection.DocumentReferenceTextEdit.Start.get -> int
+LithoSharp.Inspection.DocumentReferenceTextEdit.Version.get -> long
+LithoSharp.Inspection.FrontMatterFieldInfo.RequiresBuildValidation.get -> bool
+LithoSharp.Inspection.FrontMatterSchema.RequiresBuildValidation.get -> bool
+LithoSharp.Inspection.FrontMatterSchemaSnapshot
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.Collection.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.Fields.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.FrontMatterFieldInfo!>!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.InputPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.InputSetHash.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.ProjectGeneration.get -> long
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.ProjectHash.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.ProjectId.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.RequiresBuildValidation.get -> bool
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.SchemaHash.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.SchemaJson.get -> string!
+LithoSharp.Inspection.FrontMatterSchemaSnapshot.SchemaVersion.get -> string!
+LithoSharp.Inspection.ProjectInputMetadata
+LithoSharp.Inspection.ProjectInputMetadata.InputKind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.Inspection.ProjectInputMetadata.InputPath.get -> string?
+LithoSharp.Inspection.ProjectInputMetadata.InputProfile.get -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Inspection.ProjectInputMetadata.InputRoot.get -> string?
+LithoSharp.Inspection.ProjectInputMetadata.ProjectInputMetadata(string! sourcePath, LithoSharp.Content.ContentInputProfile inputProfile, LithoSharp.Content.ContentInputKind inputKind, string? inputRoot = null, string? inputPath = null) -> void
+LithoSharp.Inspection.ProjectInputMetadata.SourcePath.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.InputMetadata.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectInputMetadata!>!
+LithoSharp.Inspection.ProjectInspectionSnapshot.MarkdownComponents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Content.MarkdownComponentSchema!>!
+LithoSharp.Inspection.ProjectInspectionSnapshot.MarkdownProfileId.get -> string!
+LithoSharp.Inspection.ProjectInspectionSnapshot.ProjectHash.get -> string?
+LithoSharp.Inspection.ProjectInspectionSnapshot.Schemas.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.FrontMatterSchemaSnapshot!>!
+LithoSharp.Inspection.ProjectInspectionSnapshot.SemanticRules.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.DocumentSemanticRuleSet!>!
+LithoSharp.Inspection.ProjectInspectionSnapshot.Semantics.get -> LithoSharp.Documentation.DocumentSemanticSnapshot?
+LithoSharp.Inspection.ProjectInspectionSnapshot.WithMarkdownComponents(string! projectHash, System.Collections.Generic.IEnumerable<LithoSharp.Content.MarkdownComponentSchema!>! components) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.ProjectInspectionSnapshot.WithMarkdownProfile(string! profileId) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.ProjectInspectionSnapshot.WithSchemas(string! projectHash, System.Collections.Generic.IEnumerable<LithoSharp.Inspection.FrontMatterSchemaSnapshot!>! schemas) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.ProjectInspectionSnapshot.WithSemantics(string! projectHash, LithoSharp.Documentation.DocumentSemanticSnapshot? semantics, System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.DocumentSemanticRuleSet!>! rules) -> LithoSharp.Inspection.ProjectInspectionSnapshot!
+LithoSharp.Inspection.ProjectReferenceRelation
+LithoSharp.Inspection.ProjectReferenceRelation.IsImage.get -> bool
+LithoSharp.Inspection.ProjectReferenceRelation.Kind.get -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.Inspection.ProjectReferenceRelation.ProjectReferenceRelation(string? target, string? targetSourcePath, LithoSharp.OpenKnowledge.OkfLinkKind kind, bool isImage) -> void
+LithoSharp.Inspection.ProjectReferenceRelation.Target.get -> string?
+LithoSharp.Inspection.ProjectReferenceRelation.TargetSourcePath.get -> string?
+LithoSharp.Inspection.ProjectRouteCandidate.InputKind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.Inspection.ProjectRouteCandidate.InputKind.init -> void
+LithoSharp.Inspection.ProjectRouteCandidate.InputPath.get -> string?
+LithoSharp.Inspection.ProjectRouteCandidate.InputPath.init -> void
+LithoSharp.Inspection.ProjectRouteCandidate.InputProfile.get -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Inspection.ProjectRouteCandidate.InputProfile.init -> void
+LithoSharp.Inspection.ProjectRouteCandidate.InputRoot.get -> string?
+LithoSharp.Inspection.ProjectRouteCandidate.InputRoot.init -> void
+LithoSharp.Inspection.ProjectRouteCandidate.Relations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ProjectReferenceRelation!>!
+LithoSharp.Inspection.ProjectRouteCandidate.Relations.init -> void
+LithoSharp.OpenKnowledge.OkfBundle
+LithoSharp.OpenKnowledge.OkfBundle.AsOf.get -> System.DateTimeOffset
+LithoSharp.OpenKnowledge.OkfBundle.Catalog.get -> LithoSharp.Content.StaticContentCatalog?
+LithoSharp.OpenKnowledge.OkfBundle.Conformance.get -> LithoSharp.OpenKnowledge.OkfConformance
+LithoSharp.OpenKnowledge.OkfBundle.CreateAuxiliaryAssets(string! outputPrefix) -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteGeneratedAsset!>!
+LithoSharp.OpenKnowledge.OkfBundle.CreateContentCollection(LithoSharp.Content.ContentCollectionId! collectionId, System.Func<LithoSharp.OpenKnowledge.OkfDocument!, LithoSharp.Pages.PageMetadata!>? publicationMapper = null, string? policyFingerprint = null, string? outputPrefix = null) -> LithoSharp.Content.ContentCollection<LithoSharp.OpenKnowledge.OkfDocument!, string!>!
+LithoSharp.OpenKnowledge.OkfBundle.CreateSiteOptions(LithoSharp.Content.ContentCollectionId! collectionId, System.Func<LithoSharp.OpenKnowledge.OkfDocument!, LithoSharp.Pages.PageMetadata!>? publicationMapper = null, string? policyFingerprint = null, string? outputPrefix = null) -> LithoSharp.SiteGenerationOptions!
+LithoSharp.OpenKnowledge.OkfBundle.DeclaredVersion.get -> string?
+LithoSharp.OpenKnowledge.OkfBundle.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.OpenKnowledge.OkfBundle.Documents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfDocument!>!
+LithoSharp.OpenKnowledge.OkfBundle.ExportPreservedAsync(string! outputDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+LithoSharp.OpenKnowledge.OkfBundle.Files.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfFile!>!
+LithoSharp.OpenKnowledge.OkfBundle.InputRoot.get -> string!
+LithoSharp.OpenKnowledge.OkfBundle.IsComplete.get -> bool
+LithoSharp.OpenKnowledge.OkfBundle.IsConformant.get -> bool
+LithoSharp.OpenKnowledge.OkfBundle.IsSuccess.get -> bool
+LithoSharp.OpenKnowledge.OkfBundle.Links.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfLink!>!
+LithoSharp.OpenKnowledge.OkfBundle.RenderDocs(LithoSharp.Content.ContentCollectionId! collectionId, System.Func<LithoSharp.OpenKnowledge.OkfDocument!, LithoSharp.Pages.PageMetadata!>? publicationMapper = null, string? policyFingerprint = null, string? outputPrefix = null) -> LithoSharp.Content.SiteContentCollection<LithoSharp.OpenKnowledge.OkfDocument!, string!>!
+LithoSharp.OpenKnowledge.OkfBundle.SnapshotComplete.get -> bool
+LithoSharp.OpenKnowledge.OkfBundle.SnapshotFingerprint.get -> string!
+LithoSharp.OpenKnowledge.OkfBundle.SpecificationVersion.get -> string!
+LithoSharp.OpenKnowledge.OkfCitation
+LithoSharp.OpenKnowledge.OkfCitation.Reference.get -> Syntamark.MarkdownFootnoteReference!
+LithoSharp.OpenKnowledge.OkfCitation.Source.get -> LithoSharp.OpenKnowledge.OkfSource?
+LithoSharp.OpenKnowledge.OkfConformance
+LithoSharp.OpenKnowledge.OkfConformance.Conformant = 0 -> LithoSharp.OpenKnowledge.OkfConformance
+LithoSharp.OpenKnowledge.OkfConformance.NonConformant = 1 -> LithoSharp.OpenKnowledge.OkfConformance
+LithoSharp.OpenKnowledge.OkfConformance.NotAssessed = 2 -> LithoSharp.OpenKnowledge.OkfConformance
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.Canceled = 5 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.Io = 4 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.PublicationPolicy = 6 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.Quality = 1 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.ResourceLimit = 3 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.Structure = 0 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDiagnosticCategory.Unsupported = 2 -> LithoSharp.OpenKnowledge.OkfDiagnosticCategory
+LithoSharp.OpenKnowledge.OkfDocument
+LithoSharp.OpenKnowledge.OkfDocument.Body.get -> string?
+LithoSharp.OpenKnowledge.OkfDocument.Citations.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfCitation!>!
+LithoSharp.OpenKnowledge.OkfDocument.ConceptId.get -> string?
+LithoSharp.OpenKnowledge.OkfDocument.File.get -> LithoSharp.OpenKnowledge.OkfFile!
+LithoSharp.OpenKnowledge.OkfDocument.IsAvailable.get -> bool
+LithoSharp.OpenKnowledge.OkfDocument.Kind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.OpenKnowledge.OkfDocument.LegacyCitationText.get -> string?
+LithoSharp.OpenKnowledge.OkfDocument.Metadata.get -> LithoSharp.OpenKnowledge.OkfMetadata?
+LithoSharp.OpenKnowledge.OkfDocument.Path.get -> string!
+LithoSharp.OpenKnowledge.OkfDocument.RawText.get -> string?
+LithoSharp.OpenKnowledge.OkfDocument.Syntax.get -> Syntamark.MarkdownFootnoteDocument?
+LithoSharp.OpenKnowledge.OkfDocument.Yaml.get -> Syntamark.YamlDocument?
+LithoSharp.OpenKnowledge.OkfFile
+LithoSharp.OpenKnowledge.OkfFile.GetOriginalBytes() -> byte[]!
+LithoSharp.OpenKnowledge.OkfFile.Kind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.OpenKnowledge.OkfFile.Length.get -> long
+LithoSharp.OpenKnowledge.OkfFile.Path.get -> string!
+LithoSharp.OpenKnowledge.OkfFile.Sha256.get -> string!
+LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfFreshness.Fresh = 1 -> LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfFreshness.Invalid = 3 -> LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfFreshness.NoDeadline = 0 -> LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfFreshness.Stale = 2 -> LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfLink
+LithoSharp.OpenKnowledge.OkfLink.IsConceptEdge.get -> bool
+LithoSharp.OpenKnowledge.OkfLink.IsResolved.get -> bool
+LithoSharp.OpenKnowledge.OkfLink.Kind.get -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLink.OriginalTarget.get -> string?
+LithoSharp.OpenKnowledge.OkfLink.PublicUrl.get -> string?
+LithoSharp.OpenKnowledge.OkfLink.SourcePath.get -> string!
+LithoSharp.OpenKnowledge.OkfLink.Syntax.get -> Syntamark.MarkdownLink!
+LithoSharp.OpenKnowledge.OkfLink.TargetConceptId.get -> string?
+LithoSharp.OpenKnowledge.OkfLink.TargetPath.get -> string?
+LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.Auxiliary = 2 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.Concept = 0 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.External = 3 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.OutsideBundle = 5 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.ReservedDocument = 1 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.Unresolved = 4 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfMetadata
+LithoSharp.OpenKnowledge.OkfMetadata.Attester.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.Computation.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.Description.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.DisplayChangedAt.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfMetadata.Executor.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.Freshness.get -> LithoSharp.OpenKnowledge.OkfFreshness
+LithoSharp.OpenKnowledge.OkfMetadata.Generated.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.GeneratedAt.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfMetadata.GeneratedBy.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.GetField(string! name) -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.LegacyTimestamp.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfMetadata.Parameters.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.Raw.get -> Syntamark.YamlNode!
+LithoSharp.OpenKnowledge.OkfMetadata.Resource.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.Runtime.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.Sources.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfSource!>!
+LithoSharp.OpenKnowledge.OkfMetadata.StaleAfter.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfMetadata.Status.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.Tags.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.OpenKnowledge.OkfMetadata.Title.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.TrustTier.get -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfMetadata.Type.get -> string?
+LithoSharp.OpenKnowledge.OkfMetadata.UsageWindow.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfMetadata.VerificationEvents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfVerificationEvent!>!
+LithoSharp.OpenKnowledge.OkfMetadata.VerificationIsComplete.get -> bool
+LithoSharp.OpenKnowledge.OkfNewAuxiliary
+LithoSharp.OpenKnowledge.OkfNewAuxiliary.GetOriginalBytes() -> byte[]!
+LithoSharp.OpenKnowledge.OkfNewAuxiliary.OkfNewAuxiliary(string! path, System.ReadOnlyMemory<byte> content) -> void
+LithoSharp.OpenKnowledge.OkfNewAuxiliary.Path.get -> string!
+LithoSharp.OpenKnowledge.OkfNewConcept
+LithoSharp.OpenKnowledge.OkfNewConcept.MetadataYaml.get -> string!
+LithoSharp.OpenKnowledge.OkfNewConcept.OkfNewConcept(string! path, string! metadataYaml, string! originalMarkdown, LithoSharp.OpenKnowledge.OkfSourceBodyKind sourceBodyKind = LithoSharp.OpenKnowledge.OkfSourceBodyKind.PortableMarkdown, string? portableMarkdown = null) -> void
+LithoSharp.OpenKnowledge.OkfNewConcept.OriginalMarkdown.get -> string!
+LithoSharp.OpenKnowledge.OkfNewConcept.Path.get -> string!
+LithoSharp.OpenKnowledge.OkfNewConcept.PortableMarkdown.get -> string?
+LithoSharp.OpenKnowledge.OkfNewConcept.SourceBodyKind.get -> LithoSharp.OpenKnowledge.OkfSourceBodyKind
+LithoSharp.OpenKnowledge.OkfReadOptions
+LithoSharp.OpenKnowledge.OkfReadOptions.AsOf.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfReadOptions.AsOf.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.BaseUrl.get -> string?
+LithoSharp.OpenKnowledge.OkfReadOptions.BaseUrl.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxBundleBytes.get -> long
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxBundleBytes.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxDiscoveryEntries.get -> int
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxDiscoveryEntries.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxFileBytes.get -> long
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxFileBytes.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxFiles.get -> int
+LithoSharp.OpenKnowledge.OkfReadOptions.MaxFiles.init -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.OkfReadOptions() -> void
+LithoSharp.OpenKnowledge.OkfReadOptions.StrictLint.get -> bool
+LithoSharp.OpenKnowledge.OkfReadOptions.StrictLint.init -> void
+LithoSharp.OpenKnowledge.OkfSource
+LithoSharp.OpenKnowledge.OkfSource.Id.get -> string?
+LithoSharp.OpenKnowledge.OkfSource.Raw.get -> Syntamark.YamlNode!
+LithoSharp.OpenKnowledge.OkfSource.Resource.get -> string?
+LithoSharp.OpenKnowledge.OkfSource.Title.get -> string?
+LithoSharp.OpenKnowledge.OkfSource.UsageWindow.get -> Syntamark.YamlNode?
+LithoSharp.OpenKnowledge.OkfSourceBodyKind
+LithoSharp.OpenKnowledge.OkfSourceBodyKind.MarkdownWithComponents = 1 -> LithoSharp.OpenKnowledge.OkfSourceBodyKind
+LithoSharp.OpenKnowledge.OkfSourceBodyKind.Mdx = 2 -> LithoSharp.OpenKnowledge.OkfSourceBodyKind
+LithoSharp.OpenKnowledge.OkfSourceBodyKind.PortableMarkdown = 0 -> LithoSharp.OpenKnowledge.OkfSourceBodyKind
+LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfTrustTier.HumanReviewed = 4 -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfTrustTier.Indeterminate = 2 -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfTrustTier.MachineConfirmed = 3 -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfTrustTier.NoRecords = 1 -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfTrustTier.Unverified = 0 -> LithoSharp.OpenKnowledge.OkfTrustTier
+LithoSharp.OpenKnowledge.OkfVerificationEvent
+LithoSharp.OpenKnowledge.OkfVerificationEvent.Actor.get -> string?
+LithoSharp.OpenKnowledge.OkfVerificationEvent.At.get -> System.DateTimeOffset?
+LithoSharp.OpenKnowledge.OkfVerificationEvent.IsValid.get -> bool
+LithoSharp.OpenKnowledge.OkfVerificationEvent.Raw.get -> Syntamark.YamlNode!
+LithoSharp.OpenKnowledge.OkfWriter
+LithoSharp.OpenKnowledge.OkfWriteResult
+LithoSharp.OpenKnowledge.OkfWriteResult.CanExport.get -> bool
+LithoSharp.OpenKnowledge.OkfWriteResult.Diagnostics.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Diagnostics.SiteDiagnostic!>!
+LithoSharp.OpenKnowledge.OkfWriteResult.Documents.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfNewConcept!>!
+LithoSharp.OpenKnowledge.OkfWriteResult.ExportAsync(string! outputDirectory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+LithoSharp.OpenKnowledge.OkfWriteResult.Files.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfFile!>!
+LithoSharp.Proofreading.MarkdownProofreading
+LithoSharp.Proofreading.ProofreadingEditPreview
+LithoSharp.Proofreading.ProofreadingEditPreview.Apply(Syntamark.SourceSnapshot! current) -> string!
+LithoSharp.Proofreading.ProofreadingEditPreview.CanApply.get -> bool
+LithoSharp.Proofreading.ProofreadingEditPreview.Fragments.get -> System.Collections.Generic.IReadOnlyList<Syntamark.SourceRange!>!
+LithoSharp.Proofreading.ProofreadingEditPreview.IsApplicable(Syntamark.SourceSnapshot! current) -> bool
+LithoSharp.Proofreading.ProofreadingEditPreview.MappingPrecision.get -> string!
+LithoSharp.Proofreading.ProofreadingEditPreview.OriginalText.get -> string!
+LithoSharp.Proofreading.ProofreadingEditPreview.Reason.get -> string?
+LithoSharp.Proofreading.ProofreadingEditPreview.Replacement.get -> string!
+LithoSharp.Proofreading.ProofreadingExclusion
+LithoSharp.Proofreading.ProofreadingExclusion.Range.get -> Syntamark.RawSpan?
+LithoSharp.Proofreading.ProofreadingExclusion.Reason.get -> string!
+LithoSharp.Proofreading.ProofreadingFinding
+LithoSharp.Proofreading.ProofreadingFinding.Diagnostic.get -> LithoSharp.Diagnostics.SiteDiagnostic!
+LithoSharp.Proofreading.ProofreadingFinding.Fragments.get -> System.Collections.Generic.IReadOnlyList<Syntamark.SourceRange!>!
+LithoSharp.Proofreading.ProofreadingFinding.MappingPrecision.get -> string!
+LithoSharp.Proofreading.ProofreadingFinding.Message.get -> string!
+LithoSharp.Proofreading.ProofreadingFinding.PreviewReplacement(string! replacement) -> LithoSharp.Proofreading.ProofreadingEditPreview!
+LithoSharp.Proofreading.ProofreadingFinding.Rule.get -> string!
+LithoSharp.Proofreading.ProofreadingFinding.Severity.get -> string!
+LithoSharp.Proofreading.ProofreadingResult
+LithoSharp.Proofreading.ProofreadingResult.Findings.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Proofreading.ProofreadingFinding!>!
+LithoSharp.Proofreading.ProofreadingResult.Selection.get -> LithoSharp.Proofreading.ProofreadingSelection!
+LithoSharp.Proofreading.ProofreadingResult.State.get -> string!
+LithoSharp.Proofreading.ProofreadingResult.ToolVersion.get -> string?
+LithoSharp.Proofreading.ProofreadingResult.WasRun.get -> bool
+LithoSharp.Proofreading.ProofreadingSegment
+LithoSharp.Proofreading.ProofreadingSegment.Kind.get -> string!
+LithoSharp.Proofreading.ProofreadingSegment.Text.get -> string!
+LithoSharp.Proofreading.ProofreadingSelection
+LithoSharp.Proofreading.ProofreadingSelection.Exclusions.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Proofreading.ProofreadingExclusion!>!
+LithoSharp.Proofreading.ProofreadingSelection.HasSyntax.get -> bool
+LithoSharp.Proofreading.ProofreadingSelection.ParserVersion.get -> string!
+LithoSharp.Proofreading.ProofreadingSelection.ParseStatus.get -> Syntamark.MarkdownParseStatus
+LithoSharp.Proofreading.ProofreadingSelection.PreviewReplacement(int segmentIndex, int codePointStart, int codePointLength, string! replacement) -> LithoSharp.Proofreading.ProofreadingEditPreview!
+LithoSharp.Proofreading.ProofreadingSelection.ProfileId.get -> string!
+LithoSharp.Proofreading.ProofreadingSelection.Segments.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Proofreading.ProofreadingSegment!>!
+LithoSharp.Proofreading.ProofreadingSelection.Source.get -> Syntamark.SourceSnapshot!
+LithoSharp.Proofreading.YomiyasuProofreader
+LithoSharp.SiteGenerationOptions.Markdown.get -> LithoSharp.Content.MarkdownOptions!
+LithoSharp.SiteGenerationOptions.Markdown.init -> void
+LithoSharp.SiteThemeOptions.UseExternalThemeRestoration.get -> bool
+LithoSharp.SiteThemeOptions.UseExternalThemeRestoration.init -> void
+LithoSharp.SiteText.NotFoundTitle.get -> string!
+LithoSharp.SiteText.NotFoundTitle.init -> void
+LithoSharp.SiteText.NotFoundDescription.get -> string!
+LithoSharp.SiteText.NotFoundDescription.init -> void
+LithoSharp.SiteText.NotFoundHomeLinkLabel.get -> string!
+LithoSharp.SiteText.NotFoundHomeLinkLabel.init -> void
+LithoSharp.Documentation.DocumentRevision
+LithoSharp.Documentation.DocumentRevision.ContentHash.get -> string!
+LithoSharp.Documentation.DocumentRevision.DocumentRevision(LithoSharp.Documentation.DocumentKey! key, string! sourcePath, string! contentHash) -> void
+LithoSharp.Documentation.DocumentRevision.Key.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentRevision.SourcePath.get -> string!
+LithoSharp.Documentation.DocumentTranslationReview
+LithoSharp.Documentation.DocumentTranslationReview.DocumentTranslationReview(LithoSharp.Documentation.DocumentRevision! source, LithoSharp.Documentation.DocumentRevision! translation) -> void
+LithoSharp.Documentation.DocumentTranslationReview.Source.get -> LithoSharp.Documentation.DocumentRevision!
+LithoSharp.Documentation.DocumentTranslationReview.Translation.get -> LithoSharp.Documentation.DocumentRevision!
+LithoSharp.Documentation.DocumentTranslationReviewResult
+LithoSharp.Documentation.DocumentTranslationReviewResult.Diagnostic.get -> LithoSharp.Diagnostics.SiteDiagnostic?
+LithoSharp.Documentation.DocumentTranslationReviewResult.Source.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentTranslationReviewResult.SourceRevision.get -> LithoSharp.Documentation.DocumentRevision?
+LithoSharp.Documentation.DocumentTranslationReviewResult.State.get -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewResult.Translation.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Documentation.DocumentTranslationReviewResult.TranslationRevision.get -> LithoSharp.Documentation.DocumentRevision?
+override LithoSharp.Content.MarkdownOptions.Equals(object? obj) -> bool
+override LithoSharp.Content.MarkdownOptions.GetHashCode() -> int
+override LithoSharp.Content.MarkdownOptions.ToString() -> string!
+override LithoSharp.Documentation.DocumentSemanticScope.Equals(object? obj) -> bool
+override LithoSharp.Documentation.DocumentSemanticScope.GetHashCode() -> int
+override LithoSharp.Documentation.DocumentSemanticScope.ToString() -> string!
+static LithoSharp.Content.MarkdownComponentRegistration.Create<TProps>(string! name, LithoSharp.ISiteComponent<TProps>! component, LithoSharp.Content.IContentFrontMatterBinder<TProps>! binder, string! configurationFingerprint, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? dependencies = null, string? dependencyRoot = null, LithoSharp.Documentation.DocumentSemanticRuleSet? semanticRules = null) -> LithoSharp.Content.MarkdownComponentRegistration!
+static LithoSharp.Content.MarkdownOptions.operator !=(LithoSharp.Content.MarkdownOptions? left, LithoSharp.Content.MarkdownOptions? right) -> bool
+static LithoSharp.Content.MarkdownOptions.operator ==(LithoSharp.Content.MarkdownOptions? left, LithoSharp.Content.MarkdownOptions? right) -> bool
+static LithoSharp.Documentation.DocumentationVerification.InspectSnippetsAsync(string! trustedRoot, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSnippet!>! snippets, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>! validationInputs, string! configuration, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSnippetVerificationResult!>? previousResults = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSnippetVerificationResult!>!>!
+static LithoSharp.Documentation.DocumentationVerification.VerifySnippetsAsync(string! trustedRoot, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSnippet!>! snippets, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>! validationInputs, string! configuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentSnippetVerificationResult!>!>!
+static LithoSharp.Documentation.DocumentSemanticRule.Reference(string! field, bool sameVersion = true, bool sameLocale = true, bool publishedTarget = true, bool publishedSourceOnly = false) -> LithoSharp.Documentation.DocumentSemanticRule!
+static LithoSharp.Documentation.DocumentSemanticRule.RequiredWhen(string! field, string! conditionField, string! expectedValue) -> LithoSharp.Documentation.DocumentSemanticRule!
+static LithoSharp.Documentation.DocumentSemanticRule.RequiredWhenPublished(string! field) -> LithoSharp.Documentation.DocumentSemanticRule!
+static LithoSharp.Documentation.DocumentSemanticRuleSet.Documentation.get -> LithoSharp.Documentation.DocumentSemanticRuleSet!
+static LithoSharp.Documentation.DocumentSemanticRuleSet.ParseJson(string! json) -> LithoSharp.Documentation.DocumentSemanticRuleSet!
+static LithoSharp.Documentation.DocumentSemanticScope.operator !=(LithoSharp.Documentation.DocumentSemanticScope? left, LithoSharp.Documentation.DocumentSemanticScope? right) -> bool
+static LithoSharp.Documentation.DocumentSemanticScope.operator ==(LithoSharp.Documentation.DocumentSemanticScope? left, LithoSharp.Documentation.DocumentSemanticScope? right) -> bool
+static LithoSharp.Documentation.DocumentSemanticSnapshot.ParseJson(string! json) -> LithoSharp.Documentation.DocumentSemanticSnapshot!
+static LithoSharp.Documentation.DocumentTranslationReviewResult.Inspect(System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentRevision!>! documents, System.Collections.Generic.IReadOnlyDictionary<LithoSharp.Documentation.DocumentKey!, LithoSharp.Documentation.DocumentKey!>! sources, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentTranslationReview!>! reviews, bool isComplete) -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentTranslationReviewResult!>!
+LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.Current = 0 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.Unreviewed = 1 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.SourceChanged = 2 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.TranslationChanged = 3 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.SourceReassigned = 4 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.SourceMissing = 5 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.TranslationMissing = 6 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.Documentation.DocumentTranslationReviewState.Unavailable = 7 -> LithoSharp.Documentation.DocumentTranslationReviewState
+LithoSharp.SiteGenerationOptions.CommonSocialImage.get -> LithoSharp.ImageSource?
+LithoSharp.SiteGenerationOptions.CommonSocialImage.init -> void
+LithoSharp.SiteGenerationOptions.SocialImages.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.ImageSource!>!
+LithoSharp.SiteGenerationOptions.SocialImages.init -> void
+LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.ContentInputProfile.Markdown = 0 -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.ContentInputProfile.OpenKnowledgeFormat = 1 -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentInputKind.Markdown = 0 -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentInputKind.Concept = 1 -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentInputKind.Index = 2 -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentInputKind.Log = 3 -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.ContentInputKind.Auxiliary = 4 -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.StaticContentCollectionAttribute.InputRoot.get -> string!
+LithoSharp.Content.StaticContentCollectionAttribute.InputRoot.set -> void
+LithoSharp.Content.StaticContentCollectionAttribute.InputProfile.get -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.StaticContentCollectionAttribute.InputProfile.set -> void
+LithoSharp.Content.StaticContentCatalog.StaticContentCatalog(LithoSharp.Content.ContentCollectionId! collectionId, System.Collections.Generic.IEnumerable<LithoSharp.Content.StaticContentCatalogEntry!>! entries, string! inputRoot, LithoSharp.Content.ContentInputProfile inputProfile, string! site, string! variant) -> void
+LithoSharp.Content.StaticContentCatalog.InputRoot.get -> string!
+LithoSharp.Content.StaticContentCatalog.InputProfile.get -> LithoSharp.Content.ContentInputProfile
+LithoSharp.Content.StaticContentCatalogEntry.StaticContentCatalogEntry(LithoSharp.Content.ContentEntryId! id, string! sourcePath, LithoSharp.Routing.SiteRoute! route, string! inputPath, LithoSharp.Content.ContentInputKind kind) -> void
+LithoSharp.Content.StaticContentCatalogEntry.InputPath.get -> string!
+LithoSharp.Content.StaticContentCatalogEntry.Kind.get -> LithoSharp.Content.ContentInputKind
+LithoSharp.Content.StaticContentCatalogEntry.ConceptId.get -> string?
+static LithoSharp.Content.MarkdownContentCollectionLoader<TFrontMatter>.FromCatalog(LithoSharp.Content.StaticContentCatalog! catalog, string! projectDirectory, LithoSharp.Content.ContentPublicationMapper<TFrontMatter, string!>! publicationMapper, LithoSharp.Content.IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<LithoSharp.Content.ContentEntry<TFrontMatter, string!>!>? orderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false) -> LithoSharp.Content.MarkdownContentCollectionLoader<TFrontMatter>!
+LithoSharp.Quality.SitePublicationCompatibility
+LithoSharp.Quality.SitePublicationCompatibilityState
+LithoSharp.Quality.SitePublicationCompatibilityState.Compatible = 1 -> LithoSharp.Quality.SitePublicationCompatibilityState
+LithoSharp.Quality.SitePublicationCompatibilityState.ExplicitlyAllowed = 3 -> LithoSharp.Quality.SitePublicationCompatibilityState
+LithoSharp.Quality.SitePublicationCompatibilityState.Incompatible = 2 -> LithoSharp.Quality.SitePublicationCompatibilityState
+LithoSharp.Quality.SitePublicationCompatibilityState.NotCompared = 0 -> LithoSharp.Quality.SitePublicationCompatibilityState
+LithoSharp.Quality.SitePublicationManifest
+LithoSharp.Quality.SitePublicationManifest.BaseUrl.get -> string!
+LithoSharp.Quality.SitePublicationManifest.ContentIdentity.get -> string!
+LithoSharp.Quality.SitePublicationManifest.ExcludedOutputPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Quality.SitePublicationManifest.Scope.get -> string!
+LithoSharp.Quality.SitePublicationManifest.SiteId.get -> string!
+LithoSharp.Quality.SitePublicationManifest.ToJson() -> string!
+LithoSharp.Quality.SitePublicationManifest.Version.get -> int
+LithoSharp.Quality.SiteQualityReport.PublicationCompatibility.get -> LithoSharp.Quality.SitePublicationCompatibilityState?
+LithoSharp.Quality.SiteQualityReport.PublicationCompatibilityRequired.get -> bool
+LithoSharp.Quality.SiteQualityReport.PublicationManifest.get -> LithoSharp.Quality.SitePublicationManifest?
+static LithoSharp.Inspection.FrontMatterSchemaSnapshot.Create(string! projectId, long projectGeneration, string! projectHash, string! collection, string! schemaJson, System.Collections.Generic.IEnumerable<string!>! inputPaths) -> LithoSharp.Inspection.FrontMatterSchemaSnapshot!
+static LithoSharp.OpenKnowledge.OkfBundle.ReadAsync(string! inputDirectory, LithoSharp.OpenKnowledge.OkfReadOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.OpenKnowledge.OkfBundle!>!
+static LithoSharp.OpenKnowledge.OkfMetadata.TryParseOffsetDateTime(string? text, out System.DateTimeOffset value) -> bool
+static LithoSharp.OpenKnowledge.OkfWriter.Prepare(System.Collections.Generic.IEnumerable<LithoSharp.OpenKnowledge.OkfNewConcept!>! concepts, System.Collections.Generic.IEnumerable<LithoSharp.OpenKnowledge.OkfNewAuxiliary!>? auxiliary = null, System.DateTimeOffset? asOf = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.OpenKnowledge.OkfWriteResult!
+static LithoSharp.Proofreading.MarkdownProofreading.Select(Syntamark.SourceSnapshot! source, string! profileId = "lithosharp-markdown/1", System.Collections.Generic.IEnumerable<string!>? protectedIdentifiers = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Proofreading.ProofreadingSelection!
+static LithoSharp.Proofreading.YomiyasuProofreader.CheckAsync(LithoSharp.Proofreading.ProofreadingSelection! selection, string! pythonExecutable, string! lintScript, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Proofreading.ProofreadingResult!>!
+static LithoSharp.Quality.GeneratedSiteInspector.InspectPublicationAsync(string! outputDirectory, string! baseUrl, string! siteId, System.Collections.Generic.IEnumerable<string!>! excludedOutputPaths, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Quality.SiteQualityReport!>!
+static LithoSharp.Quality.SitePublicationCompatibility.CompareAsync(LithoSharp.Quality.SitePublicationManifest! current, string? baselineFile, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! allowedRemovals, bool required, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.Quality.SiteQualityReport!>!
+static LithoSharp.Quality.SitePublicationManifest.Parse(string! json) -> LithoSharp.Quality.SitePublicationManifest!
+LithoSharp.ImageMetadata
+LithoSharp.ImageMetadata.Height.get -> int
+LithoSharp.ImageMetadata.ImageMetadata(int width, int height, string! mediaType, LithoSharp.ImageMetadataProvenance provenance) -> void
+LithoSharp.ImageMetadata.MediaType.get -> string!
+LithoSharp.ImageMetadata.Provenance.get -> LithoSharp.ImageMetadataProvenance
+LithoSharp.ImageMetadata.Width.get -> int
+LithoSharp.ImageMetadataProvenance
+LithoSharp.ImageMetadataProvenance.Declared = 0 -> LithoSharp.ImageMetadataProvenance
+LithoSharp.ImageMetadataProvenance.Decoded = 1 -> LithoSharp.ImageMetadataProvenance
+LithoSharp.ImageMetadataProvenance.Generated = 2 -> LithoSharp.ImageMetadataProvenance
+LithoSharp.ImageSource
+LithoSharp.ImageSource.ImageSource(string! url, LithoSharp.ImageMetadata? metadata = null) -> void
+LithoSharp.ImageSource.ImageSource(LithoSharp.SiteAsset! asset) -> void
+LithoSharp.ImageSource.ImageSource(LithoSharp.SiteAssetOutput! output) -> void
+LithoSharp.ImageSource.GetUrl(LithoSharp.AssetRegistry! registry) -> string!
+LithoSharp.ImageSource.GetMetadata(LithoSharp.AssetRegistry! registry) -> LithoSharp.ImageMetadata?
+LithoSharp.ImageDescriptor
+LithoSharp.ImageDescriptor.ImageDescriptor(System.Collections.Generic.IReadOnlyList<LithoSharp.ImageSource!>! variants, LithoSharp.ImageSource! fallback) -> void
+LithoSharp.ImageDescriptor.Variants.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.ImageSource!>!
+LithoSharp.ImageDescriptor.Fallback.get -> LithoSharp.ImageSource!
+LithoSharp.ResponsiveImage
+static LithoSharp.ResponsiveImage.Render(LithoSharp.AssetRegistry! registry, LithoSharp.ImageDescriptor! image, string! alt, bool lazy = true, string! sizes = "100vw") -> LithoSharp.IHtmlContent!
+LithoSharp.SiteAsset.SiteAsset(string! id, string! inputRoot, string! relativeInputPath, string! relativeOutputPath, LithoSharp.ImageMetadata! imageMetadata) -> void
+LithoSharp.SiteAsset.ImageMetadata.get -> LithoSharp.ImageMetadata?
+LithoSharp.SiteAssetOutput.SiteAssetOutput(string! id, string! relativeOutputPath, string! mediaType) -> void
+LithoSharp.SiteAssetOutput.MediaType.get -> string?
+LithoSharp.SiteAssetTransformContext.WriteAsync(LithoSharp.SiteAssetOutput! output, System.ReadOnlyMemory<byte> bytes, LithoSharp.ImageMetadata? metadata, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+LithoSharp.AssetRegistry.GetImageMetadata(LithoSharp.SiteAsset! asset) -> LithoSharp.ImageMetadata?
+LithoSharp.AssetRegistry.GetImageMetadata(LithoSharp.SiteAssetOutput! output) -> LithoSharp.ImageMetadata?
+LithoSharp.Documentation.ApiAssemblySource
+LithoSharp.Documentation.ApiAssemblySource.ApiAssemblySource(string! assemblyName, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.ApiSymbol!>! symbols, System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.DocumentKey!>! references) -> void
+LithoSharp.Documentation.ApiAssemblySource.AssemblyName.get -> string!
+LithoSharp.Documentation.ApiAssemblySource.References.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.DocumentKey!>!
+LithoSharp.Documentation.ApiAssemblySource.Symbols.get -> System.Collections.Generic.IReadOnlyDictionary<string!, LithoSharp.Documentation.ApiSymbol!>!
+LithoSharp.Documentation.ApiMember.AssemblyName.get -> string?
+LithoSharp.Documentation.ApiMember.AssemblyName.init -> void
+LithoSharp.Documentation.ApiMember.Symbol.get -> LithoSharp.Documentation.ApiSymbol?
+LithoSharp.Documentation.ApiMember.Symbol.init -> void
+LithoSharp.Documentation.ApiParameter
+LithoSharp.Documentation.ApiParameter.ApiParameter(string! name, string! type) -> void
+LithoSharp.Documentation.ApiParameter.Name.get -> string!
+LithoSharp.Documentation.ApiParameter.Type.get -> string!
+LithoSharp.Documentation.ApiReferenceSite.AddReferenceMap(System.Collections.Generic.IReadOnlyDictionary<LithoSharp.Documentation.DocumentKey!, LithoSharp.SiteUrl!>! references) -> void
+LithoSharp.Documentation.ApiReferenceSite.AddXml(LithoSharp.Documentation.ApiReferenceInput! input, LithoSharp.Documentation.ApiAssemblySource! source) -> void
+LithoSharp.Documentation.ApiSymbol
+LithoSharp.Documentation.ApiSymbol.ApiSymbol(string! id, string! signature, LithoSharp.Documentation.ApiVisibility visibility) -> void
+LithoSharp.Documentation.ApiSymbol.GenericConstraints.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Documentation.ApiSymbol.GenericConstraints.init -> void
+LithoSharp.Documentation.ApiSymbol.Id.get -> string!
+LithoSharp.Documentation.ApiSymbol.Inheritance.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Documentation.ApiSymbol.Inheritance.init -> void
+LithoSharp.Documentation.ApiSymbol.InheritDocId.get -> string?
+LithoSharp.Documentation.ApiSymbol.InheritDocId.init -> void
+LithoSharp.Documentation.ApiSymbol.ObsoleteMessage.get -> string?
+LithoSharp.Documentation.ApiSymbol.ObsoleteMessage.init -> void
+LithoSharp.Documentation.ApiSymbol.Parameters.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.ApiParameter!>!
+LithoSharp.Documentation.ApiSymbol.Parameters.init -> void
+LithoSharp.Documentation.ApiSymbol.ReturnType.get -> string?
+LithoSharp.Documentation.ApiSymbol.ReturnType.init -> void
+LithoSharp.Documentation.ApiSymbol.Signature.get -> string!
+LithoSharp.Documentation.ApiSymbol.SourcePath.get -> string?
+LithoSharp.Documentation.ApiSymbol.SourcePath.init -> void
+LithoSharp.Documentation.ApiSymbol.Visibility.get -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.Internal = 3 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.Private = 5 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.PrivateProtected = 4 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.Protected = 1 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.ProtectedInternal = 2 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Documentation.ApiVisibility.Public = 0 -> LithoSharp.Documentation.ApiVisibility
+LithoSharp.Content.ContentNameAttribute
+LithoSharp.Content.ContentNameAttribute.ContentNameAttribute(string! name) -> void
+LithoSharp.Content.ContentNameAttribute.Name.get -> string!
+LithoSharp.Content.ContentIgnoreAttribute
+LithoSharp.Content.ContentIgnoreAttribute.ContentIgnoreAttribute() -> void
+const LithoSharp.Content.MarkdownContentDiagnosticIds.UnsupportedYaml = "LSM014" -> string!
+const LithoSharp.Content.MarkdownContentDiagnosticIds.YamlResourceLimit = "LSM015" -> string!
+LithoSharp.Diagnostics.SiteDiagnostic.MappingPrecision.get -> string?

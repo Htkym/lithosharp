@@ -5,11 +5,14 @@
 ![Generated sample site](../../docs/images/docs-light.png)
 
 Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
-to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching).
 
 A console app that builds documentation with
 [LithoSharp](../../src/LithoSharp), a typed article collection, generated
 references and topic indexes. It uses the default `DocsSiteTemplate`.
+This checkout targets LithoSharp 3.0.0; the [version matrix](../../eng/version-matrix.json)
+records the selected Syntamark pair and publication state. Candidate validation
+does not establish formal package publication.
 
 ## Run it
 
@@ -24,7 +27,7 @@ dotnet run --project samples/LithoSharp.DocsSample -- --check --output _site
 - `--output <dir>`: where the site is written (default: `./_site`).
 - `--content <dir>`: Markdown source folder (default: the bundled `content/` next to the app).
 - `--check`: inspect generated HTML, local links and anchors before committing output.
-- `--asset-demo`: include public files and PNG/WebP responsive images.
+- `--asset-demo`: include public files and PNG responsive images.
 - `--redirect-demo`: add the checked `old-home.html` redirect.
 
 The program performs a clean generation and an incremental second generation
@@ -90,8 +93,11 @@ declarations used by the compiler checks. See the
    open `samples/LithoSharp.DocsSample/typed-content/first.md`, use the heading outline, and follow diagnostic
    locations. The [VS Code extension](../../extensions/lithosharp-vscode/README.md)
    supplies editing support. Syntax navigation without project context cannot establish project-bound schemas
-   or site routes, and custom C# schemas are checked only by the compiler and site
-   build rather than in the editor. Markdown outline selection jumps to the heading;
+   or site routes. An explicit Build or Inspect can supply a current snapshot of
+   generated static schemas for field validation, completion and hover. The editor
+   does not execute C# binders or custom validators, and a static schema does not
+   certify a full runtime bind; see the [project-context contract](../../docs/language-server.md#markdown-symbols-and-unavailable-analysis).
+   Markdown outline selection jumps to the heading;
    the symbol range covers its section subtree. MDX uses a separate heading-based
    outline and does not inherit this Markdown section-range contract.
 
@@ -116,7 +122,7 @@ sources; see [generated output checks](../../docs/generated-output-checks.md).
 | --- | --- | --- |
 | Missing required title or invalid date | Generator: `LSG006` | A required-member or conversion error in explicit compiler inputs; it does not validate dynamically discovered files. |
 | Known entry ID paired with the wrong declared route | Analyzer: `LSA1402` | A contradiction in a complete, current catalog (`Closed`). Dynamic values remain unproven. |
-| Headings and source diagnostics | Editor/LSP | Syntax information for the current document. `NoContext` means project/schema/route checks are unavailable. |
+| Headings and source diagnostics | Editor/LSP | Current-document syntax and explicitly acquired static project data when applicable. `NoContext` means project/schema/route checks are unavailable; a static schema is not a full runtime bind. |
 | Incomplete analysis (`Partial`) | Parsing or editing | Only available facts can be used; missing facts are not evidence that content is absent or valid. |
 | Unavailable facts after an input or resource limit | Editor: `LSM013` | Analysis stopped; unavailable facts were not validated. Editor input is limited to 8 Mi UTF-16 code units. |
 | Unavailable facts in an analyzed post body | Generation: `LSM013` | The body input limit is 1 Mi UTF-16 code units. Failure stops publication and preserves the previous output. Render-only snippets do not use this analysis path. |
@@ -126,6 +132,8 @@ sources; see [generated output checks](../../docs/generated-output-checks.md).
 ## What it shows
 
 - The default Docs template.
+- An explicitly selected documentation profile and a registered typed
+  `version-badge` Markdown component.
 - Stone-inspired typography and light/dark palettes. The header toggle saves the
   reader's choice; otherwise the site follows the operating system's preference.
 - Nested content folders for the sidebar hierarchy.
@@ -165,5 +173,9 @@ page.AssertElement("main");
 ```
 
 Reference this sample project and `LithoSharp.Testing` from your test project, and
-run the example from the repository root. See the [testing guide](../../docs/testing.md)
+run the example from the repository root. `AssetDemo = true` exercises PNG
+processing and the custom article layout. Structured route, build-plan and quality
+failures retain diagnostics with `Succeeded = false` and `Result = null`.
+Factory, renderer, I/O and cancellation exceptions propagate to the caller.
+See the [testing guide](../../docs/testing.md)
 and [Japanese sample notes](README.ja.md) for diagnostics and error conditions.

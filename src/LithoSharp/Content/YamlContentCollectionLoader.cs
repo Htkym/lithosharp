@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using LithoSharp.Diagnostics;
 
 namespace LithoSharp.Content;
@@ -29,7 +27,6 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
     where TFrontMatter : notnull
     where TBody : notnull
 {
-    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly string inputRoot;
     private readonly ContentCollectionId collectionId;
     private readonly IContentFrontMatterBinder<TFrontMatter> binder;
@@ -116,20 +113,8 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
                 continue;
             }
 
-            string yaml;
-            try
-            {
-                yaml = StrictUtf8.GetString(bytes);
-            }
-            catch (DecoderFallbackException)
-            {
-                diagnostics.Add(ContentDiagnostic.Error(YamlContentDiagnosticIds.InvalidUtf8,
-                    "YAML source must be valid UTF-8.", file.RelativePath, 1, 1));
-                continue;
-            }
-
             var parsed = MarkdownContentCollectionLoader<TFrontMatter>.ParseYamlDocument(
-                yaml, file.RelativePath, 1, cancellationToken);
+                bytes, file.RelativePath, 1, cancellationToken);
             diagnostics.AddRange(parsed.Diagnostics);
             if (!parsed.IsSuccess)
                 continue;
@@ -151,11 +136,7 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
 
                 var location = LocatedYamlValue.GetLocation(mapping) ?? ContentDiagnostic.Location(file.RelativePath);
                 var materialized = ContentValues.FromYaml(mapping);
-                IReadOnlyDictionary<string, object?> bindingValues =
-                    binder is ReflectionContentFrontMatterBinder<TFrontMatter>
-                    ? mapping
-                    : materialized;
-                var bound = binder.Bind(bindingValues, location);
+                var bound = binder.Bind(materialized, location);
                 diagnostics.AddRange(bound.Diagnostics);
                 if (!bound.IsSuccess)
                     continue;
@@ -200,5 +181,8 @@ public sealed class YamlContentCollectionLoader<TFrontMatter, TBody>
     private ContentCollection<TFrontMatter, TBody> CreateCollection(
         IEnumerable<ContentEntry<TFrontMatter, TBody>> entries) =>
         new(collectionId, inputRoot, entries, routeConvention, publicationMapper, layoutId,
-            orderingComparer, declaredDependencies, transformationId, isCacheable);
+            orderingComparer, declaredDependencies, transformationId, isCacheable)
+        {
+            StaticSchemaJson = (binder as IContentFrontMatterSchemaProvider)?.SchemaJson,
+        };
 }

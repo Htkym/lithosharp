@@ -48,6 +48,8 @@ internal sealed class BinderEmitter
                     throw new InvalidOperationException($"Front matter type '{model}' has duplicate YAML member names.");
                 if (members.Any(m => m.Symbol is IPropertySymbol property && property.GetMethod is null))
                     throw new InvalidOperationException($"Front matter type '{model}' has a property without a getter.");
+                if (members.Any(member => member.RequiredWhen.Any(rule => !members.Any(condition => condition.YamlName == rule.Field))))
+                    throw new InvalidOperationException($"Front matter type '{model}' has a conditional requirement for an unknown field.");
                 binders.Add(objectKey, objects.Count);
                 objects.Add((INamedTypeSymbol)model.WithNullableAnnotation(NullableAnnotation.NotAnnotated));
                 foreach (var member in members)
@@ -59,12 +61,14 @@ internal sealed class BinderEmitter
         return index;
     }
 
-    public string Emit(INamedTypeSymbol root)
+    public string Emit(INamedTypeSymbol root, INamedTypeSymbol schemaOwner)
     {
         var text = new StringBuilder();
         var rootName = GeneratorModel.Display(root);
-        text.AppendLine($"private sealed class BinderImpl : global::LithoSharp.Content.IContentFrontMatterBinder<{rootName}>");
+        text.AppendLine($"private sealed class BinderImpl : global::LithoSharp.Content.IContentFrontMatterBinder<{rootName}>, global::LithoSharp.Content.IContentFrontMatterSchemaProvider");
         text.AppendLine("{");
+        text.AppendLine("string global::LithoSharp.Content.IContentFrontMatterSchemaProvider.SchemaJson => "
+            + GeneratorModel.Display(schemaOwner) + ".SchemaJson;");
         text.AppendLine($"public global::LithoSharp.Content.ContentParseResult<{rootName}> Bind(global::System.Collections.Generic.IReadOnlyDictionary<string, object?> values, global::LithoSharp.Diagnostics.SiteSourceLocation? sourceLocation = null)");
         text.AppendLine("{");
         text.AppendLine("var binding = new global::LithoSharp.Content.GeneratedContentBindingContext(values, sourceLocation);");
@@ -125,6 +129,9 @@ internal sealed class BinderEmitter
             text.AppendLine($"if (!binding.Values.ContainsKey({GeneratorModel.Literal(member.YamlName)})) binding.ValidateRequired({GeneratorModel.Literal(member.YamlName)}, {getter}, {Bool(member.Required)}, {Bool(member.AllowsNull)});");
             // Present names were registered by TryRead; absent names are registered by ValidateRequired.
         }
+        foreach (var member in members)
+            foreach (var rule in member.RequiredWhen)
+                text.AppendLine($"binding.ValidateRequiredWhen({GeneratorModel.Literal(member.YamlName)}, {GeneratorModel.Literal(rule.Field)}, {GeneratorModel.Literal(rule.EqualsValue)});");
         text.AppendLine("binding.ValidateUnknownFields();");
         text.AppendLine("return instance;");
         text.AppendLine("}");

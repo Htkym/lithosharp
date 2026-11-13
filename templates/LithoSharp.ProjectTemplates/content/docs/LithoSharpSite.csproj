@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">2.2.0</LithoSharpVersion>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">3.0.0</LithoSharpVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" />
@@ -12,7 +12,7 @@
     <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="content/**/*.md" Exclude="content/**/_*.md;content/**/_*/**/*.md">
+    <AdditionalFiles Include="content/**/*">
       <LithoSharpCollection>docs</LithoSharpCollection>
       <LithoSharpId>$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\', '/'))</LithoSharpId>
       <LithoSharpRoute>$([System.String]::Copy('guide/%(RecursiveDir)%(Filename)/').Replace('\', '/'))</LithoSharpRoute>

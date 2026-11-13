@@ -220,6 +220,8 @@ if (process.env['LITHOSHARP_INSTALLED_EXTENSION']) {
       JSON.stringify({ installedAcceptanceCoverage: true, worker, lockHash, versionBeforeRestore,
         readyBeforeRestore, readyBeforeRestart, readyAfterRestart: readyCount(await output()),
         restoredUnchangedOpenDocument: true, restoredSourceHashesMatch: true, currentHeading: 'MDX restarted heading' }, null, 2));
+    assert.equal(await doc.save(), true, 'Owned MDX fixture must be clean before later project inspection.');
+    assert.equal(doc.isDirty, false);
   });
 });
 }

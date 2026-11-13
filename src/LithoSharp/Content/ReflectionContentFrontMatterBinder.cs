@@ -5,8 +5,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using LithoSharp.Inspection;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace LithoSharp.Content;
 
@@ -19,9 +17,11 @@ public static class ContentFrontMatterDiagnosticIds
     public const string InvalidValue = "LSC103";
 
     public const string MissingRequiredField = "LSC104";
+
+    public const string ConditionalRequiredField = "LSC105";
 }
 
-/// <summary>Requires a public parameterless constructor. Uses snake_case unless YamlMember supplies an alias; absent members keep constructor/initializer values.</summary>
+/// <summary>Requires a public parameterless constructor. Uses snake_case unless ContentName supplies a name; absent members keep constructor/initializer values.</summary>
 public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
     : IContentFrontMatterBinder<TFrontMatter>
     where TFrontMatter : notnull
@@ -60,9 +60,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         stack.Add(root);
         try
         {
-            var instance = plan.CreateInstance();
             var fields = plan.Members.Values.OrderBy(member => member.YamlName, StringComparer.Ordinal)
-                .Select(member => DescribeField(member, instance, stack)).ToArray();
+                .Select(member => DescribeField(member, stack)).ToArray();
             return new FrontMatterSchema(name, isBuiltIn, root, rejectUnknown, fields);
         }
         finally
@@ -72,43 +71,45 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
     }
 
     private static FrontMatterFieldInfo DescribeField(
-        ReflectionBindingMember member, object instance, HashSet<Type> stack)
+        ReflectionBindingMember member, HashSet<Type> stack)
     {
         var valueType = Nullable.GetUnderlyingType(member.ValueType) ?? member.ValueType;
         var allowsNull = AllowsNull(member.ValueType, member.Nullability);
-        var required = member.IsRequired || (member.GetValue(instance) is null && !allowsNull);
-        var description = member.Member.GetCustomAttribute<DescriptionAttribute>()?.Description;
+        var required = member.IsRequired;
+        var buildRequired = !required && !allowsNull && !member.ValueType.IsValueType;
+        var descriptionAttribute = member.Member.CustomAttributes.FirstOrDefault(attribute => attribute.AttributeType == typeof(DescriptionAttribute));
+        var description = descriptionAttribute?.ConstructorArguments.FirstOrDefault().Value as string;
         var obsolete = member.Member.GetCustomAttribute<ObsoleteAttribute>();
         var deprecated = obsolete is not null;
         if (valueType.IsEnum)
         {
             return new FrontMatterFieldInfo(member.YamlName, "enum", null, required, allowsNull,
-                Enum.GetNames(valueType), deprecated, obsolete?.Message, description, []);
+                Enum.GetNames(valueType), deprecated, obsolete?.Message, description, [], buildRequired);
         }
         if (IsScalarType(valueType))
         {
             return new FrontMatterFieldInfo(member.YamlName, FriendlyScalarName(valueType), null, required,
-                allowsNull, [], deprecated, obsolete?.Message, description, []);
+                allowsNull, [], deprecated, obsolete?.Message, description, [], buildRequired);
         }
         if (valueType == typeof(object))
         {
             return new FrontMatterFieldInfo(member.YamlName, "any", null, required,
-                allowsNull, [], deprecated, obsolete?.Message, description, []);
-        }
-        if (TryGetSequenceElementType(valueType, out var elementType))
-        {
-            var element = Nullable.GetUnderlyingType(elementType) ?? elementType;
-            return new FrontMatterFieldInfo(member.YamlName, "array", FriendlyName(element), required,
-                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(element, stack));
+                allowsNull, [], deprecated, obsolete?.Message, description, [], buildRequired);
         }
         if (TryGetDictionaryValueType(valueType, out var dictionaryValueType))
         {
             var value = Nullable.GetUnderlyingType(dictionaryValueType) ?? dictionaryValueType;
             return new FrontMatterFieldInfo(member.YamlName, "dictionary", FriendlyName(value), required,
-                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(value, stack));
+                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(value, stack), buildRequired);
+        }
+        if (TryGetSequenceElementType(valueType, out var elementType))
+        {
+            var element = Nullable.GetUnderlyingType(elementType) ?? elementType;
+            return new FrontMatterFieldInfo(member.YamlName, "array", FriendlyName(element), required,
+                allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(element, stack), buildRequired);
         }
         return new FrontMatterFieldInfo(member.YamlName, "object", null, required,
-            allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(valueType, stack));
+            allowsNull, [], deprecated, obsolete?.Message, description, NestedFields(valueType, stack), buildRequired);
     }
 
     private static IReadOnlyList<FrontMatterFieldInfo> NestedFields(Type type, HashSet<Type> stack)
@@ -121,9 +122,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         try
         {
             var nested = ReflectionBindingPlan.Create(type);
-            var instance = nested.CreateInstance();
             return nested.Members.Values.OrderBy(member => member.YamlName, StringComparer.Ordinal)
-                .Select(member => DescribeField(member, instance, stack)).ToArray();
+                .Select(member => DescribeField(member, stack)).ToArray();
         }
         finally
         {
@@ -145,13 +145,13 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         {
             return "any";
         }
-        if (TryGetSequenceElementType(type, out _))
-        {
-            return "array";
-        }
         if (TryGetDictionaryValueType(type, out _))
         {
             return "dictionary";
+        }
+        if (TryGetSequenceElementType(type, out _))
+        {
+            return "array";
         }
         return "object";
     }
@@ -255,6 +255,17 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
 
         foreach (var member in plan.Members.Values)
         {
+            foreach (var condition in member.Conditions)
+            {
+                if (!values.TryGetValue(condition.ConditionField, out var actual)
+                    || !GeneratedContentBindingContext.ConditionalMatches(actual, condition.ExpectedValue))
+                    continue;
+                values.TryGetValue(member.YamlName, out var supplied);
+                if (GeneratedContentBindingContext.ConditionalMissing(supplied))
+                    diagnostics.Add(Diagnostic(ContentFrontMatterDiagnosticIds.ConditionalRequiredField,
+                        $"Field '{member.YamlName}' is required when '{condition.ConditionField}' equals '{condition.ExpectedValue}'.",
+                        values.ContainsKey(member.YamlName) ? GetValueLocation(values, member.YamlName, sourceLocation) : sourceLocation));
+            }
             if (assignedNames.Contains(member.YamlName))
             {
                 continue;
@@ -440,7 +451,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
                 elementType,
                 nullability?.ElementType ?? nullability?.GenericTypeArguments.FirstOrDefault(),
                 $"{fieldPath}[{index}]",
-                location,
+                sequence is LocatedYamlSequence located ? located.GetItemLocation(index) : location,
                 diagnostics,
                 out var item))
             {
@@ -590,7 +601,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
             {
                 if (property.GetIndexParameters().Length != 0
                     || property.SetMethod is not { IsPublic: true }
-                    || property.GetCustomAttribute<YamlIgnoreAttribute>() is not null)
+                    || property.GetCustomAttribute<ContentIgnoreAttribute>() is not null)
                 {
                     continue;
                 }
@@ -602,6 +613,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
                         property.PropertyType,
                         nullability.Create(property),
                         property.IsDefined(typeof(RequiredMemberAttribute)),
+                        Conditions(property),
                         property.GetValue,
                         property.SetValue,
                         property));
@@ -609,7 +621,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
 
             foreach (var field in type.GetFields(BindingFlags.Instance | BindingFlags.Public))
             {
-                if (field.IsInitOnly || field.GetCustomAttribute<YamlIgnoreAttribute>() is not null)
+                if (field.IsInitOnly || field.GetCustomAttribute<ContentIgnoreAttribute>() is not null)
                 {
                     continue;
                 }
@@ -621,17 +633,26 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
                         field.FieldType,
                         nullability.Create(field),
                         field.IsDefined(typeof(RequiredMemberAttribute)),
+                        Conditions(field),
                         field.GetValue,
                         field.SetValue,
                         field));
             }
 
+            foreach (var member in members.Values)
+                foreach (var condition in member.Conditions)
+                    if (!members.ContainsKey(condition.ConditionField))
+                        throw new InvalidOperationException($"Conditional field '{condition.ConditionField}' is not declared in front matter type '{type.FullName}'.");
             return new ReflectionBindingPlan(
                 type.IsValueType
                     ? () => Activator.CreateInstance(type)!
                     : () => constructor!.Invoke(null),
                 members);
         }
+
+        private static IReadOnlyList<ContentRequiredWhenAttribute> Conditions(MemberInfo member) =>
+            Array.AsReadOnly(Attribute.GetCustomAttributes(member, typeof(ContentRequiredWhenAttribute), inherit: true)
+                .Cast<ContentRequiredWhenAttribute>().DistinctBy(condition => (condition.ConditionField, condition.ExpectedValue)).ToArray());
 
         private static void AddMember(
             IDictionary<string, ReflectionBindingMember> members,
@@ -646,10 +667,8 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
 
         private static string GetYamlName(MemberInfo member)
         {
-            var yamlMember = member.GetCustomAttribute<YamlMemberAttribute>();
-            var name = string.IsNullOrEmpty(yamlMember?.Alias)
-                ? UnderscoredNamingConvention.Instance.Apply(member.Name)
-                : yamlMember.Alias;
+            var name = member.GetCustomAttribute<ContentNameAttribute>()?.Name
+                ?? ContentMemberNaming.ToSnakeCase(member.Name);
             return name.Normalize(NormalizationForm.FormC);
         }
     }
@@ -659,6 +678,7 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
         Type ValueType,
         NullabilityInfo Nullability,
         bool IsRequired,
+        IReadOnlyList<ContentRequiredWhenAttribute> Conditions,
         Func<object, object?> GetValue,
         Action<object, object?> SetValue,
         MemberInfo Member);
@@ -685,12 +705,16 @@ internal sealed class LocatedYamlScalar(
 
 internal sealed class LocatedYamlSequence(
     IReadOnlyList<object?> values,
-    Diagnostics.SiteSourceLocation location)
+    Diagnostics.SiteSourceLocation location,
+    IReadOnlyList<Diagnostics.SiteSourceLocation?>? itemLocations = null)
     : LocatedYamlValue(location), IReadOnlyList<object?>
 {
     public object? this[int index] => values[index];
 
     public int Count => values.Count;
+
+    public Diagnostics.SiteSourceLocation GetItemLocation(int index) =>
+        itemLocations?[index] ?? GetLocation(values[index]) ?? Location;
 
     public IEnumerator<object?> GetEnumerator() => values.GetEnumerator();
 
