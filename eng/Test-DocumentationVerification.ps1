@@ -6,6 +6,20 @@ $root = Join-Path ([IO.Path]::GetTempPath()) ('dv16-' + [Guid]::NewGuid().ToStri
 $example = Join-Path $root 'example'
 $runner = Join-Path $root 'runner'
 $null = New-Item -ItemType Directory -Path $example, $runner
+# Verified reads require the physical path, including macOS /var -> /private/var.
+$segments = [Collections.Generic.Stack[string]]::new()
+for ($directory = [IO.DirectoryInfo]::new($root); $null -ne $directory.Parent; $directory = $directory.Parent) {
+    $segments.Push($directory.Name)
+}
+$physicalRoot = [IO.Path]::GetPathRoot($root)
+foreach ($segment in $segments) {
+    $directory = [IO.DirectoryInfo]::new((Join-Path $physicalRoot $segment))
+    $target = $directory.ResolveLinkTarget($true)
+    $physicalRoot = if ($target) { $target.FullName } else { $directory.FullName }
+}
+$root = $physicalRoot
+$example = Join-Path $root 'example'
+$runner = Join-Path $root 'runner'
 $config = Join-Path $root 'NuGet.Config'
 $nuget = [xml](Get-Content -LiteralPath (Join-Path $repo 'NuGet.Config') -Raw)
 ($nuget.configuration.packageSources.add | Where-Object key -eq 'markdown-fixed').value = Join-Path $repo 'eng/markdown/feed'
@@ -58,7 +72,7 @@ var declarations = new[] { new DocumentSnippet("addition", "guide.md", "example/
 var inputs = new[] { ContentDependency.FromFile("example/Example.cs") };
 var passed = (await DocumentationVerification.VerifySnippetsAsync(root, declarations, inputs, "Release")).Single();
 if (passed.State != DocumentSnippetVerificationState.Success || passed.ExecutedAt is null || passed.Location?.Line != 3)
-    throw new Exception("Explicit snippet execution was not attached to its source fence.");
+    throw new Exception($"Explicit snippet execution was not attached to its source fence. State={passed.State}; line={passed.Location?.Line}; executedAt={passed.ExecutedAt:O}. {passed.Message}");
 await File.WriteAllTextAsync(source, (await File.ReadAllTextAsync(source)).Replace("return left + right;", "return left - right;"));
 var stale = (await DocumentationVerification.InspectSnippetsAsync(root, declarations, inputs, "Release", [passed])).Single();
 if (stale.State != DocumentSnippetVerificationState.NotRun || stale.Fingerprint == passed.Fingerprint)
