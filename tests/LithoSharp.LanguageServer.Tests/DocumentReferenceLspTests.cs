@@ -7,13 +7,17 @@ namespace LithoSharp.Tests;
 public sealed class DocumentReferenceLspTests
 {
     [Test]
-    public async Task DefinitionsReferencesAndCompletionUseTheSameParsedCatalogAndCurrentBuffers()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task DefinitionsReferencesAndCompletionUseTheSameParsedCatalogAndCurrentBuffers(bool vscodeFileUris)
     {
-        await using var fixture = await ReferenceFixture.CreateAsync(versioned: false);
+        await using var fixture = await ReferenceFixture.CreateAsync(versioned: false, vscodeFileUris: vscodeFileUris);
         var capabilities = fixture.Initialize.GetProperty("result").GetProperty("capabilities");
         await Assert.That(capabilities.GetProperty("definitionProvider").GetBoolean()).IsTrue();
         await Assert.That(capabilities.GetProperty("renameProvider").GetBoolean()).IsFalse();
         var linkOffset = fixture.Text("source.md").IndexOf("target.md", StringComparison.Ordinal) + 3;
+        var scopes = (await fixture.Request("lithosharp/referenceScopes", "source.md", linkOffset)).GetProperty("result");
+        await Assert.That(scopes.GetProperty("scopes").GetArrayLength()).IsEqualTo(1);
         var definition = (await fixture.Request("textDocument/definition", "source.md", linkOffset)).GetProperty("result");
         await Assert.That(definition.GetArrayLength()).IsEqualTo(1);
         await Assert.That(definition[0].GetProperty("uri").GetString()).IsEqualTo(fixture.Uri("target.md"));
@@ -117,14 +121,22 @@ public sealed class DocumentReferenceLspTests
             ["target.md"] = "---\ntitle: Target\n---\n# Intro\n\nText.\n",
         };
         private readonly Dictionary<string, long> versions = new() { ["source.md"] = 1, ["target.md"] = 1 };
+        private bool vscodeFileUris;
         internal JsonElement Initialize { get; private set; }
         internal int HeadingOffset => texts["target.md"].IndexOf("# ", StringComparison.Ordinal) + 2;
-        internal string Uri(string file) => new System.Uri(Path.Combine(root, file)).AbsoluteUri;
+        internal string Uri(string file) => FileUri(Path.Combine(root, file));
+        private string FileUri(string file)
+        {
+            var uri = new System.Uri(file).AbsoluteUri;
+            return vscodeFileUris && OperatingSystem.IsWindows() && uri.StartsWith("file:///", StringComparison.Ordinal)
+                && uri.Length > 10 && uri[9] == ':' ? uri[..9] + "%3A" + uri[10..] : uri;
+        }
         internal string Text(string file) => texts[file];
 
-        internal static async Task<ReferenceFixture> CreateAsync(bool versioned, bool annotations = true, bool atomic = true, bool variants = false)
+        internal static async Task<ReferenceFixture> CreateAsync(bool versioned, bool annotations = true, bool atomic = true, bool variants = false,
+            bool vscodeFileUris = false)
         {
-            var fixture = new ReferenceFixture();
+            var fixture = new ReferenceFixture { vscodeFileUris = vscodeFileUris };
             var id = fixture.client.NextId();
             fixture.client.SendRequest(id, "initialize", new
             {
@@ -140,7 +152,7 @@ public sealed class DocumentReferenceLspTests
             });
             fixture.Initialize = await fixture.Response(id);
             fixture.client.SendNotification("initialized", new { });
-            var routes = fixture.texts.Keys.Select(file => new ProjectRouteCandidate(file, "/docs/" + Path.GetFileNameWithoutExtension(file) + "/",
+            var routes = fixture.texts.Keys.Select(file => new ProjectRouteCandidate(vscodeFileUris ? Path.Combine(fixture.root, file) : file, "/docs/" + Path.GetFileNameWithoutExtension(file) + "/",
                 "reference-project", "guides", "current", "en", DocumentPublicationState.Published));
             if (variants)
                 routes = routes.Concat(fixture.texts.Keys.Select(file => new ProjectRouteCandidate(file, "/docs/ja/v2/" + Path.GetFileNameWithoutExtension(file) + "/",
@@ -149,7 +161,7 @@ public sealed class DocumentReferenceLspTests
             fixture.client.SendNotification("lithosharp/projectContext", new
             {
                 projectId = "reference-project",
-                folders = new[] { new System.Uri(fixture.root + Path.DirectorySeparatorChar).AbsoluteUri },
+                folders = new[] { fixture.FileUri(fixture.root + Path.DirectorySeparatorChar) },
                 snapshot = JsonSerializer.Deserialize<JsonElement>(context.ToJson()),
                 lithosharpContextGeneration = 1,
             });

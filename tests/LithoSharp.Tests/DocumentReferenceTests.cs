@@ -147,7 +147,7 @@ public sealed class DocumentReferenceTests
     [Test]
     public async Task OkfRelationsPreserveInputKindsBundleRootsAndAuthoritativeUnresolvedReceipts()
     {
-        const string root = "C:/site/bundle";
+        var root = Path.Combine(Path.GetTempPath(), "lithosharp-reference-bundle").Replace('\\', '/');
         ProjectRouteCandidate Input(string path, ContentInputKind kind, params ProjectReferenceRelation[] relations) =>
             new(root + "/" + path, "/mounted/knowledge/" + path, "project", "docs", "v1", "en", DocumentPublicationState.Published)
             {
@@ -200,6 +200,7 @@ public sealed class DocumentReferenceTests
         var plan = snapshot.PlanMove(target.SourcePath, root + "/moved/renamed.md", newProjectPath: root + "/moved/renamed.md");
         await Assert.That(plan.TryApply([source, target], out var changed)).IsTrue();
         await Assert.That(changed[source.SourcePath]).Contains("[Concept](/moved/renamed.md#details)");
-        await Assert.That(snapshot.PlanMove(target.SourcePath, "C:/outside.md", newProjectPath: "C:/outside.md").CanApply).IsFalse();
+        var outside = Path.GetFullPath(Path.Combine(root, "..", "outside.md")).Replace('\\', '/');
+        await Assert.That(snapshot.PlanMove(target.SourcePath, outside, newProjectPath: outside).CanApply).IsFalse();
     }
 }

@@ -531,7 +531,7 @@ public sealed partial class LspServer
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var value) || !value.IsFile || value.Query.Length != 0 || value.Fragment.Length != 0)
             throw new ReferenceRequestException(-32602, "A document move requires a local file URI.");
-        return Path.GetFullPath(value.LocalPath).Replace('\\', '/');
+        return Path.GetFullPath(UriPath(value.AbsoluteUri)).Replace('\\', '/');
     }
 
     private static string NewReferenceProjectPath(ReferenceCapture capture, string newPath)

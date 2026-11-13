@@ -1438,7 +1438,11 @@ public sealed partial class LspServer
         {
             try
             {
-                return new Uri(uri).LocalPath.Replace('\\', '/');
+                var path = new Uri(uri).LocalPath.Replace('\\', '/');
+                // VS Code encodes the drive colon; System.Uri then retains its URI-leading slash.
+                return OperatingSystem.IsWindows() && path.Length >= 4 && path[0] == '/'
+                    && char.IsAsciiLetter(path[1]) && path[2] == ':' && path[3] == '/'
+                    ? path[1..] : path;
             }
             catch (Exception exception) when (exception is UriFormatException or ArgumentException)
             {
