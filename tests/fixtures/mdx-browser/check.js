@@ -77,6 +77,7 @@ async page => {
     const fallback = await noJs.newPage();
     await fallback.goto(origin + '/guide/interactive/');
     check(await fallback.getByText('日本語の本文', {exact: true}).isVisible(), 'No-JS tab content is hidden');
+    check(await fallback.locator('.mdx-tabs [role=tablist]:visible').count() === 0, 'No-JS tab controls are visible');
     check(await fallback.getByRole('button', {name: 'Count 3', exact: true}).isVisible(), 'No-JS counter fallback is missing');
   } finally { await noJs.close(); }
   check(failures.length === 0, failures.join('\n'));

@@ -195,8 +195,6 @@ export function start(config) {
         const key = url.href.split('#')[0];
         const html = await (prefetched.get(key) ?? fetchPage(url, controller.signal));
         const next = new DOMParser().parseFromString(html, 'text/html');
-        // DOMParser disables scripting; preserve native noscript raw text before importing.
-        next.querySelectorAll('noscript').forEach(element => { element.textContent = element.innerHTML; });
         if (!next.querySelector('main') || next.querySelector('meta[http-equiv=refresh]')) throw new Error('Full navigation required.');
         if (controller.signal.aborted) return;
         const scripts = [...next.querySelectorAll('script[type=module][src]')].map(script => new URL(script.getAttribute('src'), url).href);

@@ -160,10 +160,10 @@ async function checkPlacement(placement) {
     [...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'Count 3'), 'back navigation remount', pageA.pathname);
   assert.equal(await execute(() => globalThis.deliveryNavigationCanary), 'preserved');
   assert.equal(await execute(() => {
-    const fallback = document.querySelector('.mdx-tabs noscript');
-    return fallback !== null && fallback.childElementCount === 0;
-  }), true, 'History navigation activated no-script fallback markup.');
-  result.checks.push('progressive-navigation', 'load-island', 'history-remount', 'history-noscript-inert');
+    const tabs = document.querySelector('.mdx-tabs');
+    return tabs !== null && tabs.querySelector('style') === null;
+  }), true, 'History navigation included inline tab fallback styles.');
+  result.checks.push('progressive-navigation', 'load-island', 'history-remount', 'history-tabs-external-fallback');
 
   const missing = new URL('missing/deep/page/', base);
   await checkHttp(missing, 404);
