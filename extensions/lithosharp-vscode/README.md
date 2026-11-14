@@ -101,7 +101,7 @@ Project detection works in untrusted workspaces. Building, serving, language-ser
 | `lithosharp.projectPath` | Selected project file. |
 | `lithosharp.languageServerPath` | Language server executable or DLL. Empty starts the bundled server with `dotnet` on PATH. |
 | `lithosharp.workerDirectory` | MDX worker directory. Empty uses extension storage. Changing it requires `LithoSharp: Restart Language Server`. |
-| `lithosharp.nodeExecutable` | Node.js executable for MDX analysis. Empty resolves `node` from the language server environment. Changing it requires `LithoSharp: Restart Language Server`. |
+| `lithosharp.nodeExecutable` | Node.js executable for MDX analysis and Windows worker restoration. Empty uses environment defaults. Changing it requires `LithoSharp: Restart Language Server`. |
 | `lithosharp.diagnosticDebounceMs` | Diagnostic delay in milliseconds: default 150, range 50–1000. |
 
 ## Troubleshooting

@@ -20,11 +20,12 @@ import type { InspectedRoute } from './preview.js';
 import { preflightModes, serverCapabilityText } from './tooling.js';
 import { acquireInputEvidence, acquireProjectEvidence, acquireSemanticEvidence, retainStaticEvidenceForTextChange } from './projectEvidence.js';
 import {registerReferenceProviders} from './referenceProviders.js';
+import { resolveNpmCiCommand } from './npmRestore.js';
 
 const execFile = promisify(execFileCallback);
 
 /** Node file operations for MDX worker management. Only extension storage or an explicit directory is ever written. */
-function workerFileSystem(): WorkerFileSystem {
+function workerFileSystem(nodeExecutable: string): WorkerFileSystem {
   const fsPromises = nodeFs.promises;
   const skipped = new Set(['node_modules', '.cache', 'tests', '.git', '.lithosharp-worker-lock']);
   const sourceFiles = async (directory: string, prefix = ''): Promise<string[]> => {
@@ -90,12 +91,22 @@ function workerFileSystem(): WorkerFileSystem {
     sourceFiles,
     runNpmCi: async (cwd) => {
       // Lifecycle scripts stay off: restored packages never execute on install.
+      const command = await resolveNpmCiCommand({
+        platform: process.platform,
+        nodeExecutable,
+        envPath: process.env.PATH ?? '',
+        cwd,
+        isFile: async file => {
+          try { return (await fsPromises.stat(file)).isFile(); } catch { return false; }
+        },
+        readNpmPrefix: (node, script) => new Promise(resolve => {
+          // npm.cmd's FOR /F consumes stdout even when the prefix probe exits nonzero.
+          execFileCallback(node, [script], { cwd, timeout: 15000, maxBuffer: 1024 * 1024, windowsHide: true },
+            (_error, stdout) => resolve(String(stdout)));
+        }),
+      });
       try {
-        const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
-        const args = process.platform === 'win32'
-          ? ['/d', '/c', 'npm.cmd ci --ignore-scripts --no-audit --no-fund']
-          : ['ci', '--ignore-scripts', '--no-audit', '--no-fund'];
-        const { stdout } = await execFile(command, args, { cwd, maxBuffer: 16 * 1024 * 1024 });
+        const { stdout } = await execFile(command[0]!, command.slice(1), { cwd, maxBuffer: 16 * 1024 * 1024 });
         return { exit: 0, stdout: String(stdout), stderr: '' };
       } catch (error) {
         const stderr = error instanceof Error ? error.message : String(error);
@@ -112,7 +123,7 @@ export function workerDeps(context: vscode.ExtensionContext): WorkerDeps {
     workerPathSetting: vscode.workspace.getConfiguration('lithosharp').get<string>('workerDirectory', ''),
     storageDir: context.globalStorageUri.fsPath,
     bundledDir: nodePath.join(context.extensionPath, 'resources', 'worker'),
-    fs: workerFileSystem(),
+    fs: workerFileSystem(vscode.workspace.getConfiguration('lithosharp').get<string>('nodeExecutable', '')),
   };
 }
 

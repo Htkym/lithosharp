@@ -98,7 +98,7 @@ MDX preflightでは`lithosharp.nodeExecutable`をCLIの`--node-executable`へ渡
 | `lithosharp.projectPath` | 選択したプロジェクトファイル。 |
 | `lithosharp.languageServerPath` | 言語サーバーの実行ファイルまたはDLL。空の場合はPATH上の`dotnet`で同梱サーバーを起動します。 |
 | `lithosharp.workerDirectory` | MDXワーカーのディレクトリ。空の場合は拡張機能の専用ストレージを使います。変更後は`LithoSharp: Restart Language Server`が必要です。 |
-| `lithosharp.nodeExecutable` | MDX解析用のNode.js実行ファイル。空の場合は言語サーバーの環境から`node`を解決します。変更後は`LithoSharp: Restart Language Server`が必要です。 |
+| `lithosharp.nodeExecutable` | MDX解析とWindowsでのワーカー復元に使うNode.js実行ファイル。空の場合は既定の実行環境を使います。変更後は`LithoSharp: Restart Language Server`が必要です。 |
 | `lithosharp.diagnosticDebounceMs` | 診断の待ち時間。単位はミリ秒、既定は150、範囲は50〜1000です。 |
 
 ## 問題が起きたとき

@@ -135,7 +135,7 @@
         "lithosharp.nodeExecutable": {
           "type": "string",
           "default": "",
-          "description": "Explicit external Node executable for MDX analysis (Node 24.13.0 required). Empty resolves node from the language server environment. Ignored in untrusted workspaces. Changing this needs LithoSharp: Restart Language Server."
+          "description": "Explicit external Node executable for MDX analysis and Windows worker restoration (Node 24.13.0 required). Empty uses environment defaults. Ignored in untrusted workspaces. Changing this needs LithoSharp: Restart Language Server."
         },
         "lithosharp.diagnosticDebounceMs": {
           "type": "integer",
