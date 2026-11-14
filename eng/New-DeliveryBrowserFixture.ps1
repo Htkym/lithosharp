@@ -23,6 +23,20 @@ $work = Join-Path ([IO.Path]::GetTempPath()) ('ldel-' + [Guid]::NewGuid().ToStri
 $project = Join-Path $work 'p'
 $content = Join-Path $work 'input'
 $null = New-Item -ItemType Directory -Path $project, $content
+# Verified reads require the physical path, including macOS /var -> /private/var.
+$segments = [Collections.Generic.Stack[string]]::new()
+for ($directory = [IO.DirectoryInfo]::new($work); $null -ne $directory.Parent; $directory = $directory.Parent) {
+    $segments.Push($directory.Name)
+}
+$physicalRoot = [IO.Path]::GetPathRoot($work)
+foreach ($segment in $segments) {
+    $directory = [IO.DirectoryInfo]::new((Join-Path $physicalRoot $segment))
+    $target = $directory.ResolveLinkTarget($true)
+    $physicalRoot = if ($target) { $target.FullName } else { $directory.FullName }
+}
+$work = $physicalRoot
+$project = Join-Path $work 'p'
+$content = Join-Path $work 'input'
 $longest = (Join-Path $project 'obj/Release/net10.0/DeliveryBrowserFixture.AssemblyInfoInputs.cache').Length
 foreach ($packageFile in @((Get-Item -LiteralPath (Join-Path $packages "LithoSharp.$CandidateVersion.nupkg")),
     (Get-Item -LiteralPath (Join-Path $packages "LithoSharp.Mdx.$CandidateVersion.nupkg")),
