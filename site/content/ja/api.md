@@ -46,3 +46,12 @@ Tool、Generator、Analyzer、テンプレート、エディターの利用方�
 分類だけでは破壊的変更とは断定できません。
 比較するスナップショットを明示的に選び、入力を保持してください。
 根拠と公開の区別は、[運用](../operations/)を参照してください。
+
+`DocumentReferenceSnapshot.FindApiImpacts` は、明示的に選んだ API 変更と正確な版・言語のキーに対し、
+取得済みのガイドのリンクと、対応付けたスニペットを列挙します。
+スニペットが使う API のキーは、`DocumentSnippet.ApiReferences` に宣言します。
+API を削除する場合は、ガイドのリンクを解決できる削除前の参照スナップショットを保持してください。
+[サンプルの検査](https://github.com/Htkym/lithosharp/blob/main/site/checks/ExampleTests.cs)では
+実際の `HasPublishedVersion` API を削除すると仮定し、両言語でガイドのリンクとスニペットを取得します。
+クエリと手動確認が必要な範囲は、[コード例の検証](../../reference/ja/code-example-verification/)を参照してください。
+C# から API の使用箇所を抽出する機能ではないため、影響する文書をすべて見つけたことは証明しません。

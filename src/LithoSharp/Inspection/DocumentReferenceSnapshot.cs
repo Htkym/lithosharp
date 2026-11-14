@@ -404,7 +404,7 @@ public sealed partial class DocumentReferenceSnapshot
         {
             var id = path[5..];
             matches = (Project.Semantics?.Catalog.Pages ?? []).Where(page => page.Key.Version == Project.Version
-                && page.Key.Locale == Project.Locale && page.Key.Id == id).Select(RouteFor);
+                && page.Key.Locale == Project.Locale && page.Key.Id == id).SelectMany(RoutesFor).Distinct();
             if (Project.Semantics is null)
                 return new(DocumentReferenceState.Unavailable, null, []);
         }
@@ -415,7 +415,9 @@ public sealed partial class DocumentReferenceSnapshot
                 return new(DocumentReferenceState.Unavailable, null, []);
             var projectPath = ResolveProjectPath(source.Document.ProjectPath, path);
             var publicPath = ResolvePublicPath(source, path);
-            matches = Project.Routes.Where(InSelectedScope).Where(route =>
+            matches = Project.Routes.Where(InSelectedScope)
+                .Concat((Project.Semantics?.Catalog.Pages ?? []).Where(page => page.Key.Version == Project.Version
+                    && page.Key.Locale == Project.Locale).SelectMany(RoutesFor)).Distinct().Where(route =>
                 projectPath is not null && PathComparer.Equals(PathKey(route.SourcePath), projectPath)
                 || publicPath is not null && UrlKey(route.PublicPath) == publicPath);
         }
@@ -461,6 +463,13 @@ public sealed partial class DocumentReferenceSnapshot
             && route.PublicPath == page.Route.PublicPath)
         ?? new(page.SourcePath, page.Route.PublicPath, Project.ProjectId, page.Key.Collection, page.Key.Version,
             page.Key.Locale, Documentation.DocumentPublicationState.Published);
+
+    private IEnumerable<ProjectRouteCandidate> RoutesFor(Documentation.DocumentPage page)
+    {
+        var candidates = Project.Routes.Where(route => route.Collection == page.Key.Collection && route.Version == page.Key.Version
+            && route.Locale == page.Key.Locale && route.PublicPath == page.Route.PublicPath).ToArray();
+        return candidates.Length == 0 ? [RouteFor(page)] : candidates;
+    }
 
     private IReadOnlyList<ProjectRouteCandidate> SourceRoutes(DocumentReferenceDocument document) =>
         Project.Routes.Where(InSelectedScope).Where(route => PathComparer.Equals(PathKey(route.SourcePath), document.ProjectPath)).ToArray();

@@ -258,8 +258,9 @@ For a trusted project, explicitly call `DocumentationVerification.BuildApiAsync`
 after restore, then register the selected XML file with `AddXml`. Use
 `DocumentationVerification.VerifyExamplesAsync` for an existing
 Microsoft.Testing.Platform test project before importing its checked code region
-with `CodeBlock`. These operations execute project code, have a ten-minute
-timeout and do not restore dependencies. They are not automatic MDX build hooks.
+with `CodeBlock`. These operations execute project code, have no implicit time
+limit and observe caller cancellation. They do not restore dependencies and are
+not automatic MDX build hooks.
 
 ## Optional browser features
 

@@ -283,7 +283,9 @@
       "publicEntries": [
         "ApiReferenceSite",
         "ApiAssemblySource",
-        "ApiSymbol"
+        "ApiSymbol",
+        "DocumentReferenceSnapshot.FindApiImpacts",
+        "DocumentSnippet.ApiReferences"
       ],
       "pages": {
         "en": "api.md",
@@ -291,6 +293,7 @@
       },
       "examples": [
         "site/WebsiteFactory.cs",
+        "site/checks/ExampleTests.cs",
         "site/examples/source/WebsiteExamples.cs",
         "site/api/ja/WebsiteExamples.xml",
         "site/ApiMetadata.cs",

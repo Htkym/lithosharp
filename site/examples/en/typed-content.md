@@ -8,6 +8,7 @@ supported_version: "3.0"
 
 The displayed code is included from the same source file compiled into this site
 and its explicitly mapped test project.
+It calls [HasPublishedVersion](../../../api/en/M-LithoSharp.Website.Examples.WebsiteExamples.HasPublishedVersion-c2e3a4b41e3d/).
 
 ```csharp snippet="published-version" source="../source/WebsiteExamples.cs" region="PublishedVersion"
 ```

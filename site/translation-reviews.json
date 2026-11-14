@@ -5,8 +5,8 @@
   "reviews": [
     {
       "id": "api",
-      "sourceSha256": "e702b29ae76a73485b379b610e0ec743c3f23a6b37dd65d3dc7bddb45d84f1f4",
-      "translationSha256": "acef60650dc2e457624f3e915a2f0e9d637791d0e3ebcb20eae6187842e694a8"
+      "sourceSha256": "410c68d16e06aec3ba479052fe2ba17413dbeb1fa2ca17a9ef112cde30200782",
+      "translationSha256": "1c8e26321f661e5b03aa59cb6da6932cd3e1be4fbaef7bfb57e80cffb6fdf33d"
     },
     {
       "id": "documentation",

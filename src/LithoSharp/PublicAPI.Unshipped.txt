@@ -1,4 +1,17 @@
 #nullable enable
+LithoSharp.Documentation.DocumentSnippet.ApiReferences.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentKey!>!
+LithoSharp.Documentation.DocumentSnippet.ApiReferences.init -> void
+LithoSharp.Inspection.ApiChangeImpact
+LithoSharp.Inspection.ApiChangeImpact.Api.get -> LithoSharp.Documentation.DocumentKey!
+LithoSharp.Inspection.ApiChangeImpact.Changes.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.ApiChange!>!
+LithoSharp.Inspection.ApiChangeImpact.Document.get -> LithoSharp.Inspection.DocumentReferenceDocument!
+LithoSharp.Inspection.ApiChangeImpact.Location.get -> LithoSharp.Inspection.DocumentReferenceLocation!
+LithoSharp.Inspection.ApiChangeImpact.SnippetId.get -> string?
+LithoSharp.Inspection.ApiChangeImpactReport
+LithoSharp.Inspection.ApiChangeImpactReport.Impacts.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Inspection.ApiChangeImpact!>!
+LithoSharp.Inspection.ApiChangeImpactReport.IsComplete.get -> bool
+LithoSharp.Inspection.ApiChangeImpactReport.ManualScopes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.Inspection.DocumentReferenceSnapshot.FindApiImpacts(System.Collections.Generic.IReadOnlyDictionary<LithoSharp.Documentation.DocumentKey!, System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.ApiChange!>!>! changes, System.Collections.Generic.IEnumerable<LithoSharp.Documentation.DocumentSnippet!>! snippets, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.Inspection.ApiChangeImpactReport!
 const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.InvalidInvocation = "LSM021" -> string!
 const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.ReferenceContextUnavailable = "LSM024" -> string!
 const LithoSharp.Content.Compilation.MarkdownComponentDiagnosticIds.RenderingFailed = "LSM023" -> string!

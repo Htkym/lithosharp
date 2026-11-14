@@ -134,12 +134,12 @@
         "en": {
           "path": "docs/code-example-verification.md",
           "title": "Verify documented code examples",
-          "sha256": "8233f903ea7de5cddc6ed1c6560825def614797dbf2c2c6bd6069defddd18c6c"
+          "sha256": "959c288f466bfb478adb57d3057fe4a77333dba8d7f59adef82a0d87e75c0425"
         },
         "ja": {
           "path": "docs/code-example-verification.ja.md",
           "title": "文書のコード例を検証する",
-          "sha256": "d64fb2140b040c34f799adddd7eb31efe46dea8d72994f2787bb3ea89d67fa0e"
+          "sha256": "416012df34643780333a36c31206d334fdfaec0acb3233cb3f7166a81bc22d54"
         }
       }
     },
@@ -372,12 +372,12 @@
         "en": {
           "path": "docs/mdx.md",
           "title": "MDX and documentation sites",
-          "sha256": "36cc2c313f3aae9a6d55565debf5430ce4824204d05099bbe3acd391b36ef15a"
+          "sha256": "d6743f9808e1710219ff94ed4fb1bbc7f6b257ec345e1b9f94bfc7c9e19d3fd8"
         },
         "ja": {
           "path": "docs/mdx.ja.md",
           "title": "MDX とドキュメントサイト",
-          "sha256": "12b7fcee981d31e6cbb4a44a32214f4128f403317f32c135b7b8c4e4ab5c7e30"
+          "sha256": "8150a0e6cc06e6cec26cfec913e33b7e8147cbef51cd4e525389a7b54eb2c2ff"
         }
       }
     },
@@ -876,8 +876,8 @@
     },
     {
       "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
-      "sha256": "763acaf6064d77eb0175625bd5c7eeff4c12b95cf7d8927220f15db15186583b",
-      "entries": 660
+      "sha256": "9ac980692a8349028ff1d6e918e2ed2cb320aeb04db61addd60fd35b8db1ecc3",
+      "entries": 673
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
@@ -1261,7 +1261,7 @@
         },
         {
           "path": "src/LithoSharp/Documentation/DocumentSnippetVerification.cs",
-          "sha256": "147c36b6b372dedad9ba97fb93996a85caa3aa289241bf6ea2d8108dcba36bba"
+          "sha256": "4f1a03cf8692745123f332a9108b67ede2337ac0a3484d9f5d1b0a0e0f81d062"
         },
         {
           "path": "src/LithoSharp/Documentation/DocumentTranslationReview.cs",

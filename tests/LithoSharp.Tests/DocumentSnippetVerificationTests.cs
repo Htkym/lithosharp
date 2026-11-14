@@ -115,6 +115,13 @@ public sealed class DocumentSnippetVerificationTests
         var configured = (await DocumentationVerification.InspectSnippetsAsync(workspace.Root, [snippet],
             [ContentDependency.FromFile("Code.cs"), ContentDependency.FromValue("test-contract", "2")], "Debug")).Single();
         await Assert.That(configured.Fingerprint).IsNotEqualTo(changed.Fingerprint);
+        var mapped = new DocumentSnippet("sum", "guide.md", "Example.csproj")
+        { ApiReferences = [new("api", "v1", "en", "M:Arithmetic.Add(System.Int32,System.Int32)")] };
+        var referenced = (await DocumentationVerification.InspectSnippetsAsync(workspace.Root, [mapped], dependencies,
+            "Release", [changed])).Single();
+        await Assert.That(referenced.Fingerprint).IsNotEqualTo(changed.Fingerprint);
+        await Assert.That(referenced.State).IsEqualTo(DocumentSnippetVerificationState.NotRun);
+        await Assert.That(referenced.Message).Contains("changed");
     }
 
     [Test]

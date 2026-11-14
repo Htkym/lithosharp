@@ -17,8 +17,10 @@ if (args.Contains("--export-api-material", StringComparer.Ordinal))
 CheckLocalizedApi(root);
 if (args.Contains("--verify-snippets", StringComparer.Ordinal))
 {
+    const string exampleId = "M:LithoSharp.Website.Examples.WebsiteExamples.HasPublishedVersion(System.Boolean,System.String)";
     var snippets = new[] { "en", "ja" }.Select(locale => new DocumentSnippet(
-        "published-version", $"examples/{locale}/typed-content.md", "checks/LithoSharp.Website.Checks.csproj"));
+        "published-version", $"examples/{locale}/typed-content.md", "checks/LithoSharp.Website.Checks.csproj")
+        { ApiReferences = [new("examples", "3.0", locale, exampleId)] });
     var inputs = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
         .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "bin" or "obj" or "dist"))
         .Select(path => ContentDependency.FromFile(Path.GetRelativePath(root, path))).ToList();

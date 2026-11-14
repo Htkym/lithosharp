@@ -14,6 +14,8 @@ namespace LithoSharp.Documentation;
 /// <summary>An explicit mapping from a fenced snippet="id" to tests in a trusted project.</summary>
 public sealed class DocumentSnippet
 {
+    private IReadOnlyList<DocumentKey> apiReferences = [];
+
     public DocumentSnippet(string id, string documentPath, string projectPath, string? testFilter = null, string? skipReason = null)
     {
         Id = new ContentEntryId(id).Value;
@@ -37,6 +39,21 @@ public sealed class DocumentSnippet
     /// <summary>The optional TUnit tree-node filter passed as one argument.</summary>
     public string? TestFilter { get; }
     public string? SkipReason { get; }
+    /// <summary>Caller-declared exact API variants used by this example. No C# API usage is inferred.</summary>
+    public IReadOnlyList<DocumentKey> ApiReferences
+    {
+        get => apiReferences;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            var keys = value.ToArray();
+            foreach (var key in keys)
+                DocumentSemanticDocument.ValidateKey(key);
+            if (keys.Distinct().Count() != keys.Length)
+                throw new ArgumentException("A snippet's API references must be unique.", nameof(value));
+            apiReferences = Array.AsReadOnly(keys);
+        }
+    }
 }
 
 public enum DocumentSnippetVerificationState
@@ -477,6 +494,7 @@ public static partial class DocumentationVerification
             snippet.DocumentPath,
             snippet.ProjectPath,
             snippet.TestFilter,
+            apiReferences = snippet.ApiReferences.OrderBy(static key => key.ToString(), StringComparer.Ordinal),
             configuration,
             sdk = sdk.Output.Trim(),
             parser = MdParserVersion.Value,
@@ -488,5 +506,5 @@ public static partial class DocumentationVerification
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     [GeneratedRegex("(?:^|\\s)snippet=\"([^\"]+)\"(?=\\s|$)")]
-    private static partial Regex SnippetId();
+    internal static partial Regex SnippetId();
 }

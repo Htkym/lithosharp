@@ -63,3 +63,48 @@ API は暗黙の時間上限を持たず、キャンセルに応じます。
 検査対象にできる、スキップしていないスニペットでも、実行しない検査の結果は常に `NotRun` です。
 過去の成功を、新しくテストを実行した結果には変えません。
 どの結果も OKF の `verified` メタデータや公開済みの出力を更新しません。
+
+## API の変更が影響するコード例を調べる
+
+対応付けたスニペットが使う API の正確な識別情報を `ApiReferences` に宣言します。
+テストとの対応付けも引き続き明示します。この宣言はテストの網羅性を証明せず、
+C# から API の使用箇所を抽出するものでもありません。
+
+```csharp
+var api = new DocumentKey("examples", "v1", "en",
+    "M:Examples.Arithmetic.Add(System.Int32,System.Int32)");
+var snippets = new[]
+{
+    new DocumentSnippet("addition", "guide.md", "examples/Examples.csproj",
+        testFilter: "/*/*/ArithmeticTests/AdditionWorks")
+    {
+        ApiReferences = [api]
+    }
+};
+var selectedChanges = ApiReferenceSite.Compare(previous, current)
+    .Where(change => change.Id == api.Id).ToArray();
+var report = references.FindApiImpacts(
+    new Dictionary<DocumentKey, IReadOnlyList<ApiChange>> { [api] = selectedChanges },
+    snippets, cancellationToken);
+```
+
+ここでは、`previous` と `current` は選択した API メンバーのスナップショットです。
+`references` には、Markdown のバッファーと正確なセマンティックカタログを取得した
+`DocumentReferenceSnapshot` を渡します。文書の `ProjectPath` は
+スニペットの相対パス `DocumentPath` と一致させてください。選択するキーはコレクション、版、言語と、
+オーバーロードの引数を含む完全な XML メンバー ID を指定します。
+削除した API へのガイド内のリンクを調べる場合は、そのキーを解決できる削除前の参照・カタログのスナップショットを保持します。
+明示したスニペットとの対応は、API がカタログに存在しなくても見つけられます。
+その場合、カタログ内の参照先が利用できないことを `ManualScopes` に示します。
+
+`report.Impacts` は、選択した変更を、ネイティブパーサーで認識し、取得済みの正確なカタログで
+解決したリンク（`xref:`、相対パス、公開パス）と、スニペットに宣言した API 参照に対応付けます。
+画像や未使用の参照リンク定義は使用箇所に含めません。各結果には正確な `Api` キー、`Changes`、
+取得済みの `Document`、UTF-16 で表す `Location` の範囲と `SnippetId` が含まれます。
+ガイド内のリンクの場合、`SnippetId` は null です。位置を使う前に、`Document.Version` と
+`Document.TextHash` を現在のバッファーと比較してください。結果が示すのは、不変の文書スナップショットの情報です。
+
+利用できないか曖昧な参照、動的な入力、宣言されていない使用箇所は `ManualScopes` で確認します。
+この問い合わせは取得済みのバッファーを読み、コードを実行しません。
+C# や本文から使用箇所を抽出せず、すべての使用箇所が見つかったことも保証しないため、
+`IsComplete` は false のままです。

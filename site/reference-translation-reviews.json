@@ -71,9 +71,9 @@
       "version": "3.0",
       "id": "code-example-verification",
       "sourcePath": "docs/code-example-verification.md",
-      "sourceSha256": "8233f903ea7de5cddc6ed1c6560825def614797dbf2c2c6bd6069defddd18c6c",
+      "sourceSha256": "959c288f466bfb478adb57d3057fe4a77333dba8d7f59adef82a0d87e75c0425",
       "translationPath": "docs/code-example-verification.ja.md",
-      "translationSha256": "d64fb2140b040c34f799adddd7eb31efe46dea8d72994f2787bb3ea89d67fa0e"
+      "translationSha256": "416012df34643780333a36c31206d334fdfaec0acb3233cb3f7166a81bc22d54"
     },
     {
       "collection": "reference",
@@ -197,9 +197,9 @@
       "version": "3.0",
       "id": "mdx",
       "sourcePath": "docs/mdx.md",
-      "sourceSha256": "36cc2c313f3aae9a6d55565debf5430ce4824204d05099bbe3acd391b36ef15a",
+      "sourceSha256": "d6743f9808e1710219ff94ed4fb1bbc7f6b257ec345e1b9f94bfc7c9e19d3fd8",
       "translationPath": "docs/mdx.ja.md",
-      "translationSha256": "12b7fcee981d31e6cbb4a44a32214f4128f403317f32c135b7b8c4e4ab5c7e30"
+      "translationSha256": "8150a0e6cc06e6cec26cfec913e33b7e8147cbef51cd4e525389a7b54eb2c2ff"
     },
     {
       "collection": "history",

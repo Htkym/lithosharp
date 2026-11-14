@@ -2,6 +2,7 @@ using LithoSharp.Content;
 using LithoSharp.Documentation;
 using LithoSharp.Inspection;
 using LithoSharp.OpenKnowledge;
+using LithoSharp.Routing;
 
 namespace LithoSharp.Tests;
 
@@ -14,6 +15,113 @@ public sealed class DocumentReferenceTests
             .WithMarkdownProfile(MarkdownOptions.DocumentationProfile);
     private static DocumentReferenceDocument Document(string name, string body, long version = 1) =>
         new("C:/site/content/" + name, body, version, "content/" + name);
+
+    [Test]
+    public async Task ApiChangesFindExactGuideAndDeclaredSnippetImpactsAgainstCapturedBuffers()
+    {
+        const string id = "M:Box.Read(System.Int32)";
+        var key = new DocumentKey("api", "v1", "en", id);
+        var variants = new[] { key, key with { Version = "v2" }, key with { Locale = "ja" } };
+        var pages = variants.Select((api, index) => new DocumentPage(api, "api.xml", new() { Title = "Read" },
+            SiteRoute.ForDirectoryIndex("api/" + index))).Append(new(key with { Id = "M:Box.Read(System.String)" },
+                "api.xml", new() { Title = "Read overload" }, SiteRoute.ForDirectoryIndex("api/string")));
+        var project = Project(Route("content/source.md", "/source/")).WithSemantics("sha256:" + new string('a', 64),
+            new(new(pages), [], true), new Dictionary<string, DocumentSemanticRuleSet>());
+        var source = Document("source.md", """
+            ---
+            title: Source
+            ---
+            [Read][api] [Other overload](xref:M:Box.Read(System.String))
+            [Public](/api/0/) [Relative](../api/0/)
+            [Shared API source](../api.xml)
+            `[Inline](xref:M:Box.Read(System.Int32))`
+
+            [api]: xref:M:Box.Read(System.Int32)
+            [unused]: xref:M:Box.Read(System.Int32)
+
+            ```csharp snippet="read"
+            // [Code](xref:M:Box.Read(System.Int32))
+            ```
+            """, version: 7);
+        var declared = new[] { key };
+        var snippet = new DocumentSnippet("read", "content/source.md", "checks.csproj") { ApiReferences = declared };
+        declared[0] = variants[1];
+        var changes = ApiReferenceSite.Compare([new(id, "Read", "", "")], []).ToArray();
+        var selected = variants.ToDictionary(api => api, _ => (IReadOnlyList<ApiChange>)changes);
+        var snapshot = new DocumentReferenceSnapshot(project, [source], catalogComplete: true);
+        var report = snapshot.FindApiImpacts(selected, [snippet]);
+        changes[0] = new(id, "documentation");
+        selected.Clear();
+
+        await Assert.That(report.Impacts.Count).IsEqualTo(4);
+        await Assert.That(report.Impacts.All(impact => impact.Api == key && impact.Changes.Single().Kind == "removed")).IsTrue();
+        var guide = report.Impacts.Single(impact => impact.Location.Start == source.Text.IndexOf("[Read]", StringComparison.Ordinal));
+        await Assert.That(guide.Location.Start).IsEqualTo(source.Text.IndexOf("[Read]", StringComparison.Ordinal));
+        await Assert.That(source.Text.Substring(guide.Location.Start, guide.Location.Length)).IsEqualTo("[Read][api]");
+        await Assert.That(snapshot.ResolveAt(source.SourcePath, source.Text.IndexOf("[Public]", StringComparison.Ordinal)).Candidates.Single().Route.Collection).IsEqualTo("api");
+        await Assert.That(report.Impacts.Count(impact => impact.SnippetId is null)).IsEqualTo(3);
+        await Assert.That(snapshot.ResolveAt(source.SourcePath, source.Text.IndexOf("[Shared API source]", StringComparison.Ordinal)).State)
+            .IsEqualTo(DocumentReferenceState.Ambiguous);
+        var example = report.Impacts.Single(impact => impact.SnippetId == "read");
+        await Assert.That(example.Location.Start).IsEqualTo(source.Text.IndexOf("```", StringComparison.Ordinal));
+        await Assert.That(example.Document.Version).IsEqualTo(7);
+        await Assert.That(example.Document.TextHash).IsEqualTo(source.TextHash);
+        await Assert.That(Document("source.md", source.Text + "Changed", 8).TextHash).IsNotEqualTo(example.Document.TextHash);
+        await Assert.That(report.IsComplete).IsFalse();
+        await Assert.That(report.ManualScopes.Any(scope => scope.Contains("C# usage is not extracted", StringComparison.Ordinal))).IsTrue();
+
+        var collisionProject = Project(Route("content/source.md", "/source/"), Route("content/shadow.md", "/api/0/"))
+            .WithSemantics("sha256:" + new string('a', 64), project.Semantics, new Dictionary<string, DocumentSemanticRuleSet>());
+        var collision = new DocumentReferenceSnapshot(collisionProject, [source], catalogComplete: true);
+        await Assert.That(collision.ResolveAt(source.SourcePath, source.Text.IndexOf("[Public]", StringComparison.Ordinal)).State)
+            .IsEqualTo(DocumentReferenceState.Ambiguous);
+        var collisionReport = collision.FindApiImpacts(new Dictionary<DocumentKey, IReadOnlyList<ApiChange>> { [key] = [new(id, "removed")] }, [snippet]);
+        await Assert.That(collisionReport.Impacts.Count).IsEqualTo(2);
+
+        var duplicateProject = Project(Route("content/source.md", "/source/"),
+            new("api.xml", "/api/0/", "project", "api", "v1", "en", DocumentPublicationState.Published),
+            new("other-api.xml", "/api/0/", "project", "api", "v1", "en", DocumentPublicationState.Published))
+            .WithSemantics("sha256:" + new string('a', 64), project.Semantics, new Dictionary<string, DocumentSemanticRuleSet>());
+        var duplicate = new DocumentReferenceSnapshot(duplicateProject, [source], catalogComplete: true);
+        await Assert.That(duplicate.ResolveAt(source.SourcePath, source.Text.IndexOf("[Read]", StringComparison.Ordinal)).State)
+            .IsEqualTo(DocumentReferenceState.Ambiguous);
+        var duplicateReport = duplicate.FindApiImpacts(new Dictionary<DocumentKey, IReadOnlyList<ApiChange>> { [key] = [new(id, "removed")] }, [snippet]);
+        await Assert.That(duplicateReport.Impacts.Single().SnippetId).IsEqualTo("read");
+    }
+
+    [Test]
+    public async Task AmbiguousOrRemovedCatalogTargetsAndUndeclaredExamplesRemainManual()
+    {
+        const string id = "T:Box";
+        var key = new DocumentKey("api", "v1", "en", id);
+        var pages = new[] { key, key with { Collection = "other-api" } }.Select((api, index) =>
+            new DocumentPage(api, "api.xml", new() { Title = "Box" }, SiteRoute.ForDirectoryIndex("api/" + index)));
+        var source = Document("source.md", "[Box](xref:T:Box)\n\n```csharp snippet=\"box\"\nnew Box();\n```\n");
+        var dynamic = new DocumentReferenceDocument("C:/site/content/dynamic.mdx", "[Box](xref:T:Box)", 1,
+            "content/dynamic.mdx", isDynamic: true);
+        var project = Project(Route("content/source.md", "/source/"), Route("content/dynamic.mdx", "/dynamic/"));
+        var selected = new Dictionary<DocumentKey, IReadOnlyList<ApiChange>> { [key] = [new(id, "removed")] };
+        var snippet = new DocumentSnippet("box", "content/source.md", "checks.csproj");
+        var ambiguous = new DocumentReferenceSnapshot(project.WithSemantics("sha256:" + new string('a', 64),
+            new(new(pages), [], true), new Dictionary<string, DocumentSemanticRuleSet>()), [source, dynamic], true);
+        var report = ambiguous.FindApiImpacts(selected, [snippet]);
+        await Assert.That(report.Impacts.Count).IsEqualTo(0);
+        await Assert.That(report.ManualScopes.Any(scope => scope.Contains("could not be assessed", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(report.ManualScopes.Any(scope => scope.Contains("No API references", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(report.ManualScopes.Any(scope => scope.Contains("Dynamic MDX", StringComparison.Ordinal))).IsTrue();
+
+        var afterRemoval = new DocumentReferenceSnapshot(project.WithSemantics("sha256:" + new string('b', 64),
+            new(new([]), [], true), new Dictionary<string, DocumentSemanticRuleSet>()), [source], true);
+        var missing = afterRemoval.FindApiImpacts(selected, []);
+        await Assert.That(missing.Impacts.Count).IsEqualTo(0);
+        await Assert.That(missing.ManualScopes.Any(scope => scope.Contains("before removal", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(() => ambiguous.FindApiImpacts(selected, [snippet, snippet])).Throws<ArgumentException>();
+        await Assert.That(() => ambiguous.FindApiImpacts(new Dictionary<DocumentKey, IReadOnlyList<ApiChange>>
+        { [key] = [new("T:Different", "removed")] }, [])).Throws<ArgumentException>();
+        await Assert.That(() => new DocumentSnippet("box", "content/source.md", "checks.csproj")
+        { ApiReferences = [key, key] }).Throws<ArgumentException>();
+        await Assert.That(() => ambiguous.FindApiImpacts(selected, [], new CancellationToken(true))).Throws<OperationCanceledException>();
+    }
 
     [Test]
     public async Task ExactLinksUseTheSelectedContextAndUnknownCatalogsDoNotProveAbsence()

@@ -48,3 +48,13 @@ being mistaken for these four runtime assembly APIs.
 deprecation and addition/removal changes. A category alone does not prove a
 breaking change. Choose snapshots explicitly and retain their inputs. See
 [operations](../operations/) for evidence and publication boundaries.
+
+Use `DocumentReferenceSnapshot.FindApiImpacts` to list captured guide links and
+mapped snippets for explicitly selected API changes and exact variant keys.
+Declare each snippet's API keys with `DocumentSnippet.ApiReferences`. Retain a
+reference snapshot from before an API removal so its guide links still resolve.
+The [example checks](https://github.com/Htkym/lithosharp/blob/main/site/checks/ExampleTests.cs)
+preview removal of the real `HasPublishedVersion` API and find both its guide link
+and mapped snippet in each language. See [code example verification](../../reference/en/code-example-verification/)
+for the query and its manual scope. It does not extract API uses from C# or prove
+that every affected document has been found.

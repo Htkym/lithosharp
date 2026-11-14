@@ -229,8 +229,9 @@ CLI はバージョンの snapshot、翻訳キーの抽出、依存復元、Docu
 信頼するプロジェクトを復元した後、`DocumentationVerification.BuildApiAsync` を明示的に呼び、
 必要な XML を選んで `AddXml` に渡せます。コード例は既存の Microsoft.Testing.Platform の
 テストプロジェクトを `DocumentationVerification.VerifyExamplesAsync` で検証し、
-`CodeBlock` で同じコード領域を取り込めます。どちらもプロジェクトのコードを実行し、
-10 分でタイムアウトします。依存の復元や MDX ビルドからの自動実行は行いません。
+`CodeBlock` で同じコード領域を取り込めます。どちらもプロジェクトのコードを実行します。
+暗黙の制限時間はなく、呼び出し元からのキャンセルに従います。
+依存の復元や MDX ビルドからの自動実行は行いません。
 
 ## ブラウザーの追加機能
 

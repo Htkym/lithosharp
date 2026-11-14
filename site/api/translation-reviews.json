@@ -25,6 +25,10 @@
     {
       "path": "ja/units-source-revisions.json",
       "sha256": "d28a96446d60910a33fa7518d3bc3c9c017013a4f193ce4d9000237dfec9ef39"
+    },
+    {
+      "path": "ja/units-api-impacts.json",
+      "sha256": "7efd5afda98bdea6fb5411bbed772f162b4f609a68164a0ce227d9fa7e22946e"
     }
   ],
   "example": {

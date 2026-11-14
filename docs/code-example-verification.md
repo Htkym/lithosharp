@@ -65,3 +65,49 @@ without running a project. Changed code or settings invalidate previous evidence
 An inspection always reports `NotRun` for an eligible unskipped snippet; it never
 turns a previous success into a newly executed test. No result updates OKF
 `verified` metadata or published output.
+
+## Find examples affected by API changes
+
+Declare the exact API variants used by a mapped snippet with `ApiReferences`.
+The existing test mapping stays explicit; this declaration does not establish
+test coverage or extract API uses from C#.
+
+```csharp
+var api = new DocumentKey("examples", "v1", "en",
+    "M:Examples.Arithmetic.Add(System.Int32,System.Int32)");
+var snippets = new[]
+{
+    new DocumentSnippet("addition", "guide.md", "examples/Examples.csproj",
+        testFilter: "/*/*/ArithmeticTests/AdditionWorks")
+    {
+        ApiReferences = [api]
+    }
+};
+var selectedChanges = ApiReferenceSite.Compare(previous, current)
+    .Where(change => change.Id == api.Id).ToArray();
+var report = references.FindApiImpacts(
+    new Dictionary<DocumentKey, IReadOnlyList<ApiChange>> { [api] = selectedChanges },
+    snippets, cancellationToken);
+```
+
+Here, `previous` and `current` are the selected API member snapshots, and
+`references` is an acquired `DocumentReferenceSnapshot` with captured Markdown
+buffers and an exact semantic catalog. Its document `ProjectPath` must match the
+snippet's relative `DocumentPath`. The selected key fixes the collection, version,
+locale and full XML member ID, including overload parameters. To find guide links
+to a removed API, retain a reference/catalog snapshot from before removal, in which
+that key still resolves. An explicit snippet association can still match an absent
+API; the unavailable catalog target is reported in `ManualScopes`.
+
+`report.Impacts` joins the selected changes with native parsed links (`xref:`,
+relative or public paths) resolved in the acquired exact catalog, and declared
+snippet API references. Images and unused reference definitions are not uses.
+Each result carries its exact `Api` key,
+`Changes`, captured `Document`, UTF-16 `Location` range and `SnippetId` (null for
+a guide link). Compare `Document.Version` and `Document.TextHash` with the current
+buffer before using offsets; the result is evidence about that immutable capture.
+
+Review `ManualScopes` for unavailable or ambiguous references, dynamic inputs and
+undeclared uses. The query reads captured buffers without executing code. It does
+not extract uses from C# or prose and cannot guarantee that every use was found,
+so `IsComplete` remains false.
