@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "e2051acd7109a22bde1b14871fceef401ae342b0706dc9aeb047a7fea568bc15": {
+      "english": "Optional Markdown override; null uses the acquired project profile or the legacy default. YAML binding remains independent.",
+      "japanese": "Markdown の任意の上書き設定です。null の場合は取得済みのプロジェクトのプロファイル、または従来の既定値を使います。YAML のバインドは独立しています。",
+      "contexts": [
+        "P:LithoSharp.Inspection.DocumentInspectionOptions.Markdown/summary"
+      ]
+    }
+  }
+}

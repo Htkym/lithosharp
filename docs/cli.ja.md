@@ -1,31 +1,35 @@
-# CLI とサイトファクトリ
+# CLIとサイトファクトリ
 
-`LithoSharp.Tool` は .NET 10 のツールです。サイトのビルドには10.0.300以降の.NET 10 SDK、
-開発サーバーには ASP.NET Core の共有フレームワークを使います。
-以下の導入例は2.2.0を対象にしています。
+`LithoSharp.Tool`は.NET 10のツールです。サイトのビルドには10.0.300以降の.NET 10 SDKが必要で、
+配信時にはASP.NET Coreの共有フレームワークも使います。
+次のコマンドは3.0.0のパッケージ契約を対象にし、そのリリースがNuGetで入手可能になった後に適用します。
+公開状態は[バージョン一覧](../eng/version-matrix.json)で確認してください。
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```
 
-テンプレートは別パッケージです。`dotnet new lithosharp-docs`、
-`dotnet new lithosharp-blog`、`dotnet new lithosharp-empty`、`dotnet new lithosharp-mdx` でも作成できます。
-空サイトのテンプレートには独自の C# レイアウトを含めています。
+テンプレートはツールとは別のパッケージです。
+短い名前は`lithosharp-docs`、`lithosharp-blog`、`lithosharp-empty`、`lithosharp-mdx`で、`dotnet new`でも直接使えます。
+空サイトのテンプレートは、独自のC#レイアウトを示します。
 
 ## 検査と移行
 
-`preflight`と`migrate testing --dry-run`には対応するToolを使ってください。旧1.1.0のToolには含まれません。[2.2.0への移行案内](migration-2.0.ja.md)に、パッケージの依存関係、静的検査と信頼するproject検査の違い、Testingの更新手順をまとめています。
+Toolと、選択したCore・MDXのパッケージは3.0.0にそろえてください。
+`preflight`と`migrate testing --dry-run`には、その機能を通知するToolが必要です。
+[3.0への移行案内](migration-3.0.ja.md)はネイティブYAML、任意の画像処理、取得したスキーマ、検証の範囲を説明します。
+以前のTestingの移行は[2.xの履歴資料](migration-2.0.ja.md)に残しています。
 
-## CLI とライブラリで同じ定義を使う
+## CLIとライブラリで同じ定義を使う
 
-サイトには公開された引数なしコンストラクターを持つ `ISiteFactory` の具象クラスを
-1つ用意します。CLI はプロジェクトをコンパイルし、ビルドごとに別プロセスで
-ファクトリを呼び出します。終了時に DLL のロックが解放され、次回は C# の変更も
-反映されます。サイトのコードは実行した利用者の権限で動作します。
+サイトアセンブリは、publicで非抽象・非ジェネリックの`ISiteFactory`クラスを1つだけ公開します。
+publicな引数なしコンストラクターが必要です。ツールはプロジェクトをコンパイルし、新しい子プロセスでそのファクトリを読み込みます。
+これによりC#コードを読み直し、各ビルドの終了時にDLLのロックを解放します。
+サイトのコードは実行した利用者の権限で動作します。
 
 ```csharp
 using LithoSharp;
@@ -57,105 +61,103 @@ var result = await new SiteGenerator().GenerateWithOptionsAsync(
     false, definition.Customization, definition.Options, CancellationToken.None);
 ```
 
-入力のパスは `context.ProjectDirectory` を基準にします。`AppContext.BaseDirectory` は
-ホストの実行ファイルの場所です。定義の相対出力先はサイトプロジェクトを基準にし、
-CLI の `-o` はシェルの作業ディレクトリを基準にします。
-`Customization` と `Options` は通常のライブラリ API と同じ型です。
-出力のバイト列を比較する場合は、[差分ビルド](incremental-builds.ja.md)の説明に従って
-ビルド日時も固定してください。
+ソースパスには`context.ProjectDirectory`を使ってください。`AppContext.BaseDirectory`はホストプロセス側のパスです。
+相対指定の`SiteDefinition.OutputDirectory`はサイトプロジェクトを基準にし、CLIの`-o`はシェルの作業ディレクトリを基準にします。
+`Customization`と`Options`は通常のライブラリオブジェクトで、コレクション、レイアウト、アセット、品質の閾値、
+タイムスタンプ、キャッシュポリシーを含みます。生成したバイト列を比較する場合は、再現可能なタイムスタンプを設定してください。
+詳しくは[増分ビルド](incremental-builds.ja.md)を参照してください。
 
 ## コマンド
 
 | コマンド | 動作 |
 | --- | --- |
-| `new docs\|blog\|empty\|mdx` | インストール済みのテンプレートから作成する。 |
-| `build [project]` | コンパイル後に差分生成する。`--clean` は出力全体を置き換える。 |
-| `serve [project]` | ビルドし、ファイル変更を監視してループバックで配信する。ポートは `--port` で指定する。 |
-| `check [project]` | 一時出力で品質を検証し、設定済みの公開先を変更しない。 |
-| `check-output --output <directory> --base-url <url>` | コンパイルや再生成をせずに生成済みの出力を検査する。[検査対象と制約](generated-output-checks.ja.md)を参照する。 |
-| `clean [project]` | 所有情報を検証し、生成後に変更されていない成果物を削除する。 |
-| `inspect [project]` | サイトを更新し、グラフ、出力パス、所有者、キャッシュのヒットとミスの理由を表示する。 |
-| `capabilities --format json` | 選択したToolの機能情報を取得する。プロジェクトは評価しない。 |
-| `preflight --mode static --input <file>` | 明示したソースだけを解析する。MSBuild、factory、描画、公開は実行しない。 |
-| `preflight <project> --mode trusted` | 明示的にコンパイルし、信頼するfactory/catalogを検査する。`--input`は任意で、明示した入力を検査する。描画や公開は実行しない。 |
-| `migrate testing --dry-run` | 明示したC#ソースと旧DLLのmetadata参照からTesting APIの移行箇所を報告する。ソース変更や旧DLLの実行はしない。 |
-| `cache info\|clean -o <directory>` | 出力ごとのlockを取得し、キャッシュの使用量を確認するか削除する。 |
-| `markdown-compat <file> --advisory on\|off` | 明示したMarkdownを編集時と同じ構文解析で検査する。`--project <snapshot.json>`はコンパイルせずに文脈のデータを渡す。 |
-| `snapshot <source> <destination> <version>` | 文書のバージョン別snapshotを別の出力先に作る。 |
-| `extract-translations <source>` | 対応ソースの翻訳キーをJSONで報告し、ソースを変更しない。 |
-| `restore-mdx <worker>` | MDX worker の固定依存を明示的に復元する。 |
-| `migrate docusaurus <source>` | Docusaurus サイトを解析する。JavaScript 設定は実行しない。`--output <directory>` で別出力先へ変換し、入力は上書きしない。`--expected-routes <file>` はrouteをexact比較する。分類oracleと`--compare-normalized-pages`で文書page set比較を追加できる。`--base-url` と`--default-locale`で前提を定める。[移行手順](docusaurus-migration.ja.md)を参照する。 |
+| `new docs\|blog\|empty\|mdx` | インストール済みのプロジェクトテンプレートを呼び出します。 |
+| `capabilities --format json` | プロジェクトを評価せずに、このToolのCore識別情報、契約、機能を報告します。 |
+| `markdown-compat <file> --advisory on\|off` | 編集時の検査と同じ構文解析で、明示したMarkdownファイルを検査します。任意の`--project <snapshot.json>`は、プロジェクトをコンパイルせずに文脈のデータを渡します。 |
+| `preflight --mode static --input <file>` | MSBuildやファクトリを実行せずに、明示したソース入力を検査します。MDXには復元済みの解析用workerが必要です。 |
+| `preflight <project> --mode trusted` | 描画や公開をせずに、信頼して実行するfactory/catalogコードをコンパイル・実行します。任意の`--input`で明示したソースを検査します。網羅性は`Partial`のままです。 |
+| `build [project]` | コンパイルして増分生成します。`--clean`は全体を置き換えるビルドを要求します。 |
+| `serve [project]` | ビルドし、変更を監視してループバックで配信します。ポートは`--port`で選びます。 |
+| `check [project]` | 一時出力へ生成して品質を検証し、設定済みの出力先へは公開しません。 |
+| `check-output --output <directory> --base-url <url>` | コンパイルや再生成をせずに、既存の出力を読み取ります。[出力の検査](generated-output-checks.ja.md)を参照してください。 |
+| `clean [project]` | ライブラリの所有権検証を使って、未変更の所有成果物を削除します。`clean`がキャッシュを削除することはありません。 |
+| `cache info\|clean -o <directory>` | 1つの出力の増分キャッシュパーティションを明示的に報告・削除します。独自のキャッシュルートには`--cache-dir`を使います。ビルドの一部として実行されることはなく、公開出力や別の出力のパーティションを削除することもありません。 |
+| `inspect [project]` | サイトを更新し、ビルドグラフ、出力パス、所有者、実際のキャッシュヒットとミスの理由を表示します。 |
+| `restore-mdx <worker>` | MDX workerのlockfileに従って、npm依存関係を明示的に復元します。 |
+| `snapshot <source> <destination> <version>` | 別の出力先に、バージョン付きの文書スナップショットを作成します。 |
+| `extract-translations <source>` | 対応するソースファイルの翻訳キーを、ファイルを変更せずにJSONで報告します。 |
+| `migrate testing --dry-run --source <file.cs> --reference <legacy.dll>` | 明示したソースとPEメタデータから、旧Testing APIの読み取りを報告します。ファイルを編集したり、渡されたアセンブリを実行したりすることはありません。[移行の対応表](Testing-v2-api.ja.md#移行)を参照してください。 |
+| `migrate docusaurus <source>` | JavaScript設定を実行せずにDocusaurusサイトを解析します。`--output <directory>`を指定すると別のディレクトリへ変換し、入力は上書きしません。`--expected-routes <file>`はルートを正確に比較します。分類済みのoracleと`--compare-normalized-pages`で、正規化した文書ページの別の比較を明示的に有効にします。`--base-url`と`--default-locale`は移行の前提を設定します。[Docusaurusの移行案内](docusaurus-migration.ja.md)を参照してください。 |
 
-プロジェクトファイル、またはプロジェクトが1つだけあるディレクトリを指定します。
-`-c Release` で構成を変更できます。`check --format text|json|sarif` はライブラリと
-同じ診断形式を使います。`inspect --format json` はグラフとキャッシュの情報を返します。
-コンパイル失敗、プロジェクトの曖昧さ、ファクトリの読み込み失敗、サイトの検証失敗は
-コマンドの失敗として報告します。
+プロジェクトファイル、またはプロジェクトが1つだけあるディレクトリを指定してください。
+`-c Release`でビルド構成を変更します。`check --format text|json|sarif`はライブラリの診断フォーマッターを使い、
+`inspect --format json`は構造化したグラフとキャッシュの情報を返します。
+コンパイルエラーとプロジェクトの曖昧さはコマンドを失敗させます。
+ファクトリの読み込みとサイト検証の失敗は、不完全な出力を公開する代わりに報告します。
 
-`serve` は変更をまとめて処理し、ビルド出力とキャッシュを監視対象から除外します。
-本文の変更は差分生成し、C# とプロジェクトの変更では再コンパイルします。
-リロード用のスクリプトは HTTP 応答に加えるため、生成ファイルは変わりません。
-`/_lithosharp/diagnostics` とブラウザー上の表示で診断を確認できます。
-再ビルドに失敗しても、直前に確定した出力を配信します。
-プロジェクト外の入力が変わった場合は、再起動が必要です。
+静的検査、信頼して実行するpreflight、生成、出力検査は、それぞれ検証する範囲が異なります。
+ソースだけの結果は、プロジェクトに結び付いたルートやスキーマを証明しません。
+信頼して実行するpreflightは最終HTMLを描画せず、`check`は一時サイトを再生成し、
+`check-output`は既存のバイト列を読み取るためソースの最新性を証明しません。
+独自のC#スキーマの検証はコンパイルやサイトのビルドが担い、言語サーバーの組み込みスキーマのスナップショットには含まれません。
+詳しくは[preflightの契約全体](../src/LithoSharp.Tool/README.ja.md#preflight)を参照してください。
 
-JSON modeの`POST /_lithosharp/watch-barrier`は既に受け付けたwatch入力とそのビルドの完了を最大60秒待ちます。固定した世代、owner、hostの識別情報を返しますが、その後のファイルイベントがないことは保証しません。再ビルド完了の`watch`項目には、処理した再起動理由、入力revision、前後のhostが含まれます。復旧イベントは通常のhost再利用と区別されます。連携ではログの文言や再起動通知の有無から推測せず、構造化した項目を使ってください。
+`serve`はプロジェクトファイルを監視し、連続する変更をまとめ、ビルド出力とキャッシュを監視対象から除外します。
+コンテンツの変更は増分生成し、C#とプロジェクトの変更では再コンパイルも行います。
+ブラウザーのリロードスクリプトはHTTP応答に挿入し、ディスク上のファイルは変更しません。
+`/_lithosharp/diagnostics`は現在のビルド状態を公開し、ブラウザーのオーバーレイはビルドの失敗を示します。
+再ビルドが失敗しても直前にコミットした出力は利用できます。監視対象のプロジェクトディレクトリの外での変更には再起動が必要です。
 
-`SiteGenerator.CleanAsync(outputDirectory, cancellationToken)` は削除した相対パスを
-返します。利用者が編集したファイルと未所有のファイルは残します。
-所有情報が必要で、出力マニフェストだけでは削除できません。
-ファイルシステムのルートや安全でない再解析ポイントは拒否します。
-確定前にキャンセルした場合は、既存の出力を維持します。
-`build --clean` は従来どおりの全体置換で、この選択的な `clean` とは動作が異なります。
-キャッシュは削除権限の根拠にはせず、`clean` でも削除しません。
+JSONモードの`POST /_lithosharp/watch-barrier`は、すでに受け付けた監視入力とそのビルドの完了を最大60秒待ちます。
+固定した世代、所有者、ホストの識別情報を返しますが、その後のネイティブなイベントが発生しないことを保証するものではありません。
+再ビルド完了時の`watch`の記録には、処理した再起動理由、入力リビジョン、前後のホストを含めます。
+復旧イベントは通常のホストの再利用と区別します。連携では構造化した項目を使い、ログや再起動メッセージがないことから再利用の成功を推測しないでください。
 
-## 描画前の検査
-
-```powershell
-.tools/lithosharp preflight --mode static --input page.md --format json
-.tools/lithosharp preflight site.csproj --mode trusted --input page.md --format sarif
-```
-
-static modeでは明示したUTF-8入力だけを検査します。MDXは復元済みの解析用workerを使い、必要なら`--worker-directory`と`--node-executable`を指定します。preflight自身は依存関係をインストールせず、Markdownへの代替処理もしません。
-
-trusted modeはプロジェクトとfactory/catalogのコードを実行します。ソースにErrorがあればコンパイル前に停止し、コンパイル後は指定したソースを読み直してcatalogを検査します。未知の拡張prepare hookは実行せず`Deferred`として残します。いずれのmodeもcoverageは`Partial`です。成功は報告した段階でErrorがないという意味で、最終HTML、動的な処理、サイト全体、後続のビルドを検証した証明ではありません。
-
-JSONとSARIFには段階、入力の観測、診断が含まれます。`sourceCoverage`の`Inspected`だけで妥当性を判断せず、`success`、診断、終了コードも確認してください。入力のバイト列ハッシュはその時点の観測であり、その後の変更を保証しません。[Toolの詳細](../src/LithoSharp.Tool/README.md#preflight)と[機能情報](tooling-capabilities.ja.md)を参照してください。
+`SiteGenerator.CleanAsync(outputDirectory, cancellationToken)`は削除した相対パスを返します。
+変更されたファイルと所有していないファイルは残します。所有権のメタデータが必要で、出力マニフェストだけでは削除を許可できません。
+ファイルシステムのルートと安全でないリパースパスは拒否します。コミット前のキャンセルでは以前の出力を保持します。
+`build --clean`は従来の全体置換の動作を維持し、この選択的な`clean`コマンドとは異なります。
+キャッシュは削除の権限にはならず、`clean`でも削除しません。
 
 <a id="構造化出力と-1x-の互換性"></a>
 
-## 構造化出力と互換性
+## 構造化出力と1.xの互換性
 
-`build`、`check`、`inspect`、`migrate`、開発サーバーは機械可読な結果を出します。
-成功と失敗の JSON は `schemaVersion`（現在は `"1.0"`）を持つ安定した形式であり、
-未知 field は無視するため、加算的な拡張は動作を保ちます。終了コードは成功が `0`、
-失敗が `1`、使い方の誤りが `2`、移行に未対応の内容を含む場合が `3` です。
-手動対応の所見は report に残り、それだけでは終了コード `0` を変更しません。
-開発サーバーは起動、再ビルド、停止を1行1件の JSON で出します。診断 code、
-inspectionの形状、移行reportは各schemaの互換性規則に従います。未知のフィールドは無視し、互換性のないmajor schemaは拒否します。キャンセル時の終了コードは`130`です。
+`build`、`check`、`inspect`、`migrate`、開発サーバーは機械可読な結果を返します。
+成功と失敗のJSONは`schemaVersion`（現在は`"1.0"`）を持つ安定した形式です。
+未知のフィールドを無視するため、加算的な拡張後も動作を保ちます。
+終了コードは成功が`0`、失敗が`1`、使い方の誤りが`2`、Docusaurus移行に未対応の内容が含まれる場合が`3`、キャンセルが`130`です。
+通常のプロジェクトのコンパイル失敗も`2`を返します。
+信頼して実行するpreflightはコンパイル失敗をその段階のレポートに取り込み、`1`を返します。
+0以外の結果をすべて同じ種類の失敗とせず、コマンドのレポートを確認してください。
+手動対応の所見はレポートに残り、それ自体で終了コード`0`が変わることはありません。
+開発サーバーは起動、再ビルド、停止を1行1件のJSONオブジェクトで出力します。
+診断コード、検査情報の構造、移行レポートは、文書に記載した加算的な1.xの契約を維持します。
+2.xの挙動とTesting APIの移行は[過去の移行案内](migration-2.0.ja.md)を参照してください。
+パッケージのメジャーバージョンと構造化出力のスキーマバージョンは同じものではありません。
 
 ## 困ったときは
 
-- ポート競合: `serve` は構造化された起動失敗を出し、別のポートを推測しない。空いた `--port` を指定する。
-- Node 不足: Markdown のみのサイトは Node なしで build できる。MDX は `LSMDX002` で設定した実行ファイル名を示す。Node.js 24.13.0 を入れて worker 依存を復元する。
-- 未復元の依存: .NET は `dotnet restore --locked-mode`、MDX は `restore-mdx`（または worker での `npm ci --ignore-scripts --no-audit --no-fund`）で復元してから build する。
-- worker のバージョンのずれ: 固定外の Node、MDX、React、esbuild は bundle せずに拒否する。
-- 厳格な front matter と route 衝突は位置付き診断で落とす。出力を直さず内容を直す。
+- ポート競合: `serve`は構造化した起動失敗を報告し、別のポートを推測せずに終了します。空いている`--port`を選んでください。
+- Node.jsがない: MarkdownだけのサイトはNodeなしでビルドできます。MDXのビルドは`LSMDX002`で設定した実行ファイル名を示して失敗します。Node.js 24.13.0をインストールし、workerの依存関係を復元してください。
+- 依存関係が未復元: ビルド前に、.NETは`dotnet restore --locked-mode`、MDXは`restore-mdx`かworkerディレクトリでの`npm ci --ignore-scripts --no-audit --no-fund`を実行してください。
+- workerのツールチェーンのずれ: ビルドは固定した組み合わせ以外のNode、MDX、React、esbuildを使ってバンドルせずに拒否します。
+- front matterの厳格な検証で問題が見つかった場合や、ルートが衝突した場合は、位置付きの診断でビルドを失敗させます。出力ではなくコンテンツを修正してください。
 
 ## 配布方式の制限
 
-対応する配布方式は共有フレームワークを使う .NET ツールです。
-単一ファイル形式はツールのパッケージ化とは別に評価します。
-任意のサイトアセンブリは外部から読み込むため、ツールの単一ファイル化だけでは
-サイトまで同梱できません。
+対応する配布方式は、共有フレームワークを使う.NETツールです。
+単一ファイル形式の公開は、ツールのパッケージ化とは別に評価します。
+ホストは外部のサイトアセンブリを読み込みます。ツールのバンドルに、将来の任意のサイトを同梱することはできません。
 
-trimming と Native AOT は、この動的ホストでは非対応です。
-実行時に発見するファクトリと任意のサイト依存関係は、ツールの公開時には解析できません。
-Native AOT では任意のマネージドアセンブリの動的読み込みを使えません。
+trimmingとNative AOTは、この動的なサイトホストではサポートしません。
+実行時のファクトリ検出とサイトの任意の依存関係は、ツールの公開時には解析できません。
+Native AOTは任意のマネージドアセンブリの読み込みに対応しません。
+これらは明示的な制限であり、未検証のフラグによる互換性を約束するものではありません。
 
 公式資料: [カスタムテンプレート](https://learn.microsoft.com/dotnet/core/tools/custom-templates)、
 [単一ファイル配布](https://learn.microsoft.com/dotnet/core/deploying/single-file/overview)、
-[trimming の制限](https://learn.microsoft.com/dotnet/core/deploying/trimming/incompatibilities)、
+[trimmingの制限](https://learn.microsoft.com/dotnet/core/deploying/trimming/incompatibilities)、
 [Native AOT](https://learn.microsoft.com/dotnet/core/deploying/native-aot)。
 
-独自の連携には[機能情報のschema](tooling-capabilities.ja.md)と[言語サーバーのプロトコル](language-server.md)を参照してください。
+独自の連携には[機能情報のスキーマ](tooling-capabilities.ja.md)と[言語サーバーのプロトコル](language-server.ja.md)を参照してください。

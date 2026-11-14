@@ -4,7 +4,7 @@
 
 ## Typed content and the Docs shell
 
-The LithoSharp 2.2.0 `docs` project template uses `GuideFrontMatter`,
+The LithoSharp 3.0.0 `docs` project template uses `GuideFrontMatter`,
 `Guides.Binder`, generated catalog routes and `RenderDocs`; it no longer needs
 Blog-style dates. See [Quick Start](quickstart.md) for the exact generated files,
 input rules, Quality setting and commands. Existing sites keep their reader and
@@ -55,6 +55,62 @@ rendering and captured settings, and declare any external dependencies. Set
 collection cache/build-graph rules apply. Use the
 [migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content)
 when retaining an existing site's URLs or schema.
+
+## Error pages and Content Security Policy
+
+Both built-in templates generate `404.html` with the regular navigation, theme
+and a home link. Set `SiteSettings.BaseUrl` to the full publication URL,
+including a project prefix such as `https://example.com/product/`. Error-page
+links and assets then use `/product/` even when the requested URL is nested.
+Customize `SiteText.NotFoundTitle`, `NotFoundDescription` and
+`NotFoundHomeLinkLabel` for the error-page text. The page has `noindex` metadata
+and is omitted from the generated search index and sitemap.
+
+The generated file does not configure a production host or establish the HTTP
+status of a missing URL. `lithosharp serve` returns this page with HTTP 404 and
+honors the site's base path. GitHub Pages supports a `404.html` at the root of
+its publishing artifact; see its [custom error-page instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site).
+Check a nested missing URL on the actual staging host and confirm the status,
+page body, links and asset responses before deployment. A redirect or rewrite
+to `index.html` returning HTTP 200 does not provide the same behavior.
+
+For a policy that blocks inline JavaScript, opt into the external theme
+restoration script:
+
+```csharp
+Theme = new SiteThemeOptions { UseExternalThemeRestoration = true }
+```
+
+The built-in templates then emit `assets/theme.js` and reference it before the
+stylesheet without `defer`, so a saved theme is applied before rendering.
+The default remains inline restoration for existing sites. Disabling
+`EnableThemeSwitching` removes the restoration script and toggle. Custom
+templates using `HeadComponent` must supply the external asset themselves.
+
+For the built-in same-origin assets, start with this HTTP response header:
+
+```http
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+```
+
+The host supplies the header; this setting does not inject a policy or authorize
+arbitrary custom HTML. Keep custom scripts and styles external, and adapt the
+policy for explicitly enabled analytics, remote images, fonts or search
+providers. The legacy Google Analytics snippet includes inline code and needs
+its own CSP authorization or a custom external integration. MDX modules and
+hydration assets use same-origin scripts; custom MDX components must also
+respect the policy. The development reload script is external, and its
+EventSource uses `connect-src 'self'`. See the [CSP specification](https://www.w3.org/TR/CSP3/)
+for script and style source rules.
+
+The existing browser checks accept `LS_BROWSER=chromium`, `firefox` or `webkit`.
+For a CSP fixture, use `LS_CSP` with `tests/fixtures/mdx-browser/serve.mjs`, set
+`LS_BASE_PATH=/product` for a prefixed site, and run
+`node tests/fixtures/mdx-browser/delivery.mjs http://127.0.0.1:4317/product/`.
+The other Docs, Blog, MDX and sub-path checks retain their navigation, search,
+keyboard and hydration assertions. A WebKit result identifies that engine;
+actual Safari acceptance requires a separate run on Safari. Generating these
+files or passing unit tests does not establish browser or staging acceptance.
 
 ## Standard presentation settings
 

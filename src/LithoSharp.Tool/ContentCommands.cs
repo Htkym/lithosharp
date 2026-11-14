@@ -26,13 +26,21 @@ internal static class ContentCommands
                 throw new CliUsageException("Only --allow-scripts is supported.");
             if (!File.Exists(Path.Combine(root, "package-lock.json")) || !File.Exists(Path.Combine(root, "worker.mjs")))
                 throw new CliUsageException("Specify the packaged worker directory with its lockfile.");
-            // npm.cmd is a Windows launcher; fixed arguments never contain user paths or shell syntax.
-            var start = new ProcessStartInfo(OperatingSystem.IsWindows() ? "cmd.exe" : "npm") { WorkingDirectory = root, UseShellExecute = false };
+            var start = new ProcessStartInfo("npm") { WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true };
             if (OperatingSystem.IsWindows())
             {
-                start.ArgumentList.Add("/d");
-                start.ArgumentList.Add("/c");
-                start.ArgumentList.Add("npm.cmd");
+                // Launch npm with Node directly instead of relying on cmd.exe's PATH handling.
+                var directories = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                    .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(directory => directory.Trim().Trim('"'))
+                    .Where(Path.IsPathFullyQualified)
+                    .ToArray();
+                var node = directories.Select(directory => Path.Combine(directory, "node.exe")).FirstOrDefault(File.Exists);
+                var npm = directories.Select(directory => Path.Combine(directory, "node_modules", "npm", "bin", "npm-cli.js")).FirstOrDefault(File.Exists);
+                if (node is null || npm is null)
+                    throw new CliUsageException("Install Node.js with npm and add its installation directory to PATH.");
+                start.FileName = node;
+                start.ArgumentList.Add(npm);
             }
             start.ArgumentList.Add("ci");
             start.ArgumentList.Add("--no-audit");

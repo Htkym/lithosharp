@@ -168,13 +168,21 @@ public sealed class SiteTestHostTests
             home.AssertMeta("og:url", "https://example.com/index.html", property: true);
             if (factory is DocsSampleFactory)
             {
-                var image = host.Result!.Routes.Single(route => route.RelativeOutputPath.StartsWith("images/sample.", StringComparison.Ordinal)
-                    && route.RelativeOutputPath.EndsWith(".webp", StringComparison.Ordinal));
+                var imageArtifact = host.Result!.BuildPlan.Artifacts.Single(artifact => artifact.Id.Value == "asset:sample-png");
+                await Assert.That(imageArtifact.OwnerNodeId.Value).IsEqualTo("asset-transform:image:sample-image");
+                var image = host.Result.Routes.Single(route => route.RelativeOutputPath == imageArtifact.RelativeOutputPath);
+                await Assert.That(Path.GetExtension(image.RelativeOutputPath)).IsEqualTo(".png");
                 host.AssertArtifact(image.RelativeOutputPath);
-                var article = host.Result!.Routes.First(route => route.RelativeOutputPath.StartsWith("articles/", StringComparison.Ordinal));
+                var article = host.Result.Routes.Single(route => route.RelativeOutputPath == "articles/first/index.html");
                 using var document = await host.OpenPageAsync(article.PublicPath);
                 document.AssertElement("picture img[loading='lazy']");
-                document.AssertAttribute("source[type='image/webp']", "srcset", image.PublicPath + " 128w");
+                document.AssertAttribute("picture img", "src", image.PublicPath);
+                document.AssertAttribute("picture img", "srcset", image.PublicPath + " 128w");
+                document.AssertAttribute("picture img", "width", "128");
+                document.AssertAttribute("picture img", "height", "128");
+                document.AssertAttribute("picture img", "alt", "LithoSharp sample icon");
+                document.AssertAttribute("picture img", "decoding", "async");
+                await Assert.That(document.Snapshot.QueryAll("source[type='image/webp']").Count).IsEqualTo(0);
                 document.AssertAttribute("a[href='/articles/second/']", "href", "/articles/second/");
                 var sample = Path.Combine(repository.FullName, "samples", folder);
                 var source = await File.ReadAllTextAsync(Path.Combine(sample, "typed-content", "first.md"));

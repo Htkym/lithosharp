@@ -26,7 +26,7 @@ Keep an existing generator when its authoring model, plugins or hosting workflow
 already fit and the cost of changing schemas, routes or components is not
 justified. Evaluate preserved URLs, navigation, custom Markdown/MDX syntax,
 theme/CSS and CI behavior separately. A successful import is not full behavioral
-compatibility. See [migration](migration-2.0.md) and [limitations](known-limitations.md).
+compatibility. See [migration to 3.0](migration-3.0.md) and [limitations](known-limitations.md).
 
 ## Choose from existing assets and use
 

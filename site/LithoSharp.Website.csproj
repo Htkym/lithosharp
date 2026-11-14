@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">3.0.0</LithoSharpVersion>
+    <DefaultItemExcludes>$(DefaultItemExcludes);checks/**;dist/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" GeneratePathProperty="true" />
+    <PackageReference Include="LithoSharp.Mdx" Version="$(LithoSharpVersion)" GeneratePathProperty="true" />
+    <PackageReference Include="LithoSharp.Images" Version="$(LithoSharpVersion)" GeneratePathProperty="true" />
+    <PackageReference Include="LithoSharp.Testing" Version="$(LithoSharpVersion)" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="LithoSharp.Generators" Version="$(LithoSharpVersion)" PrivateAssets="all" />
+    <PackageReference Include="LithoSharp.Analyzers" Version="$(LithoSharpVersion)" PrivateAssets="all" />
+    <AdditionalFiles Include="examples/**/*.md">
+      <LithoSharpCollection>website-examples</LithoSharpCollection>
+      <LithoSharpId>$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\', '/'))</LithoSharpId>
+      <LithoSharpRoute>$([System.String]::Copy('examples/%(RecursiveDir)%(Filename)/').Replace('\', '/'))</LithoSharpRoute>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Target Name="CopyPublicApiDocumentation" AfterTargets="Build">
+    <ItemGroup>
+      <PublicApiXml Include="$(PkgLithoSharp)/lib/net10.0/LithoSharp.xml;$(PkgLithoSharp_Mdx)/lib/net10.0/LithoSharp.Mdx.xml;$(PkgLithoSharp_Images)/lib/net10.0/LithoSharp.Images.xml;$(PkgLithoSharp_Testing)/lib/net10.0/LithoSharp.Testing.xml" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublicApiXml)" DestinationFolder="$(OutDir)api-inputs" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

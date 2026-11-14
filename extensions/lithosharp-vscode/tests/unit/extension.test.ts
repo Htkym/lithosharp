@@ -207,6 +207,16 @@ async function delayedActivation(options: { nodeExecutable?: string; initializeE
   events['onDidSaveTextDocument'] = (listener: typeof saveDocument) => { saveDocument = listener; return { dispose() {} }; };
   const heldInitialization: (() => void)[] = [];
   let provider: { provideDocumentSymbols(document: unknown, token: unknown): Promise<unknown[]> } | undefined;
+  let completionProvider: { provideCompletionItems(document: unknown, position: unknown, token: unknown): Promise<unknown[]> } | undefined;
+  let hoverProvider: { provideHover(document: unknown, position: unknown, token: unknown): Promise<unknown> } | undefined;
+  fake.languages.registerCompletionItemProvider = (_selector, value) => {
+    completionProvider = value as typeof completionProvider;
+    return { disposed: false, dispose() {} };
+  };
+  fake.languages.registerHoverProvider = (_selector, value) => {
+    hoverProvider = value as typeof hoverProvider;
+    return { disposed: false, dispose() {} };
+  };
   fake.languages.registerDocumentSymbolProvider = (_selector, value) => {
     provider = value as typeof provider;
     return { disposed: false, dispose() {} };
@@ -256,7 +266,11 @@ async function delayedActivation(options: { nodeExecutable?: string; initializeE
           for (const listener of stdout) listener(frame);
         }
         if (message.id !== undefined) {
-          const result = message.method === 'initialize' ? { capabilities: {} } : [{
+          const result = message.method === 'initialize' ? { capabilities: {} }
+            : message.method === 'textDocument/completion' ? [{ label: 'priority', kind: 10,
+              documentation: { kind: 'plaintext', value: 'Priority [run](command:example)' },
+              textEdit: { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 2 } }, newText: 'priority: ' } }]
+            : message.method === 'textDocument/hover' ? { contents: { kind: 'plaintext', value: 'Priority description' } } : [{
             name: 'Heading', kind: 3, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 9 } },
             selectionRange: { start: { line: 0, character: 2 }, end: { line: 0, character: 9 } }, children: [],
           }];
@@ -287,7 +301,7 @@ async function delayedActivation(options: { nodeExecutable?: string; initializeE
     release(); worker.resolveWorker = originalResolve; processModule.spawnProcess = originalSpawn;
     throw error;
   }
-  return { fake, document, spawns, release, provider: provider!, diagnosticSets,
+  return { fake, document, spawns, release, provider: provider!, completionProvider: completionProvider!, hoverProvider: hoverProvider!, diagnosticSets,
     edit: () => { document.version++; changeDocument({ document }); },
     editDocument: (value: typeof document) => { changeDocument({ document: value }); },
     open: () => { openDocument(document); },
@@ -376,6 +390,48 @@ test('symbols completed immediately before cancellation are not returned to the 
     assert.deepEqual(await host.provider.provideDocumentSymbols(host.document, token), []);
     assert.equal(host.spawns[0]!.messages.filter((message) => message.method === 'textDocument/documentSymbol').length, 1);
     assert.equal(listeners.size, 0);
+  } finally { host.cleanup(); }
+});
+
+test('completion and hover providers forward owned edits and withdraw requests when trust is lost', async () => {
+  const host = await delayedActivation();
+  const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose() {} }) };
+  try {
+    host.release();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    const completions = await host.completionProvider.provideCompletionItems(host.document, { line: 0, character: 0 }, token);
+    assert.equal(completions.length, 1);
+    const item = completions[0] as { kind: number; insertText: string; range: { end: { character: number } }; documentation: { value: string } };
+    assert.equal(item.kind, 9);
+    assert.equal(item.insertText, 'priority: ');
+    assert.equal(item.range.end.character, 2);
+    assert.match(item.documentation.value, /command:example/);
+    const hover = await host.hoverProvider.provideHover(host.document, { line: 0, character: 0 }, token) as { contents: { value: string }[] };
+    assert.equal(hover.contents[0]!.value, 'Priority description');
+    const sent = host.spawns[0]!.messages.length;
+    host.fake.isTrusted = false;
+    assert.deepEqual(await host.completionProvider.provideCompletionItems(host.document, { line: 0, character: 0 }, token), []);
+    assert.equal(await host.hoverProvider.provideHover(host.document, { line: 0, character: 0 }, token), undefined);
+    assert.equal(host.spawns[0]!.messages.length, sent);
+  } finally { host.cleanup(); }
+});
+
+test('position provider cancellation settles during discovery without dispatching a request', async () => {
+  const host = await delayedActivation();
+  let cancelled = false;
+  const listeners = new Set<() => void>();
+  const token = { get isCancellationRequested() { return cancelled; }, onCancellationRequested: (listener: () => void) => {
+    listeners.add(listener); return { dispose: () => listeners.delete(listener) };
+  } };
+  try {
+    const pending = host.completionProvider.provideCompletionItems(host.document, { line: 0, character: 0 }, token);
+    cancelled = true;
+    for (const listener of listeners) listener();
+    assert.deepEqual(await pending, []);
+    assert.equal(listeners.size, 0);
+    host.release();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.ok(!host.spawns.flatMap(spawn => spawn.messages).some(message => message.method === 'textDocument/completion'));
   } finally { host.cleanup(); }
 });
 

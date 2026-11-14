@@ -1,0 +1,462 @@
+{
+  "schemaVersion": 1,
+  "version": "3.0",
+  "locales": [
+    "en",
+    "ja"
+  ],
+  "documentationScope": "Bilingual handbook and canonical public guides, package and sample documentation, with selected-package public metadata and translated compiler XML",
+  "publicApiPackages": ["LithoSharp", "LithoSharp.Mdx", "LithoSharp.Images", "LithoSharp.Testing"],
+  "sourceInventory": "documentation-inventory.json",
+  "generatedApiInventory": "api/public-symbols.json",
+  "generatedApiCoverage": "api/api-coverage.json",
+  "verification": {
+    "source": ["node site/validate-coverage.mjs", "node site/update-documentation-inventory.mjs"],
+    "packageConsumer": "site/Build.ps1",
+    "generatedOutput": "site/validate-generated-site.mjs",
+    "browserAndHost": "Separate keyboard, search, navigation, subpath and HTTP checks; source declarations do not report these as passed."
+  },
+  "features": [
+    {
+      "id": "syntamark-contracts",
+      "publicEntries": ["Syntamark.MarkdownParser", "MarkdownAnalysisParts", "MarkdownAnalysisSession"],
+      "pages": { "en": "profiles.md", "ja": "profiles.md" },
+      "examples": ["docs/syntamark-contracts.md", "docs/syntamark-contracts.ja.md", "site/PublicDocumentation.cs"],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Fixed runtime/Source pair; UTF-16 snapshot identity, selected availability and actual incremental fallback remain distinct from rendering and caches.",
+        "ja": "runtime と Source の組を固定します。UTF-16 スナップショットの識別情報、選択項目の取得状態、実際の増分処理の切り替えは、描画やキャッシュとは分けて扱います。"
+      }
+    },
+    {
+      "id": "reference-editing",
+      "publicEntries": ["LSP textDocument/references", "LSP textDocument/prepareRename", "LSP textDocument/rename"],
+      "pages": { "en": "tooling.md", "ja": "tooling.md" },
+      "examples": ["docs/reference-editing.md", "docs/reference-editing.ja.md", "extensions/lithosharp-vscode/README.md"],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Explicit acquired scopes and parsed original spans; unavailable or open coverage cannot prove a complete rename. Preview guarded edits before applying.",
+        "ja": "明示的に取得した範囲と、解析した原文の位置を使います。取得できない範囲や未完了の範囲から、名前変更の完全性は証明できません。保護付きの編集は適用前にプレビューしてください。"
+      }
+    },
+    {
+      "id": "csharp-reference-preview",
+      "publicEntries": ["lithosharp preview-csharp-rename"],
+      "pages": { "en": "tooling.md", "ja": "tooling.md" },
+      "examples": ["docs/csharp-reference-rename.md", "docs/csharp-reference-rename.ja.md"],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Explicit metadata assembly and caller sources; partial static-member preview without project evaluation or file writes.",
+        "ja": "メタデータのアセンブリと呼び出し側のソースを明示します。静的メンバーの部分的なプレビューであり、プロジェクトの評価やファイルの書き込みは行いません。"
+      }
+    },
+    {
+      "id": "proofreading",
+      "publicEntries": ["lithosharp proofread", "YomiyasuProofreader"],
+      "pages": { "en": "operations.md", "ja": "operations.md" },
+      "examples": ["docs/proofreading.md", "docs/proofreading.ja.md"],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Optional explicit local tool execution over protected text regions; preview does not apply a file edit or attest technical correctness.",
+        "ja": "保護したテキスト領域に対し、任意のローカルツールを明示的に実行します。プレビューはファイルの編集を適用せず、技術的な正しさも証明しません。"
+      }
+    },
+    {
+      "id": "publication-compatibility",
+      "publicEntries": ["SitePublicationCompatibility", "lithosharp check-output --require-publication-compatibility"],
+      "pages": { "en": "operations.md", "ja": "operations.md" },
+      "examples": ["docs/generated-output-checks.md", "docs/generated-output-checks.ja.md"],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Explicit site identity and confirmed-publication URL/anchor baseline; comparison never promotes the baseline or configures a host.",
+        "ja": "サイトの識別情報と、公開を確認した URL・アンカーの基準を明示します。比較は基準を更新せず、ホストの設定も行いません。"
+      }
+    },
+    {
+      "id": "typed-markdown",
+      "publicEntries": [
+        "MarkdownContentCollectionLoader<T>.FromCatalog",
+        "ContentEntry<TFrontMatter,TBody>"
+      ],
+      "pages": {
+        "en": "typed-content.md",
+        "ja": "typed-content.md"
+      },
+      "examples": [
+        "site/WebsiteModels.cs",
+        "site/WebsiteFactory.cs",
+        "site/examples/en/typed-content.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Declared DTO schema, matching static/runtime input set and supported YAML subset.",
+        "ja": "DTO スキーマ、静的入力と実行時入力の一致、対応する YAML の範囲が必要です。"
+      }
+    },
+    {
+      "id": "generated-contracts",
+      "publicEntries": [
+        "StaticContentCollectionAttribute",
+        "StaticContentCatalog",
+        "StaticContentCollectionAttribute.EmitJsonSchema"
+      ],
+      "pages": {
+        "en": "typed-content.md",
+        "ja": "typed-content.md"
+      },
+      "examples": [
+        "site/LithoSharp.Website.csproj",
+        "site/WebsiteModels.cs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Rebuild after membership changes; generated references do not prove publication.",
+        "ja": "入力集合の変更後は再ビルドが必要です。生成参照は公開を証明しません。"
+      }
+    },
+    {
+      "id": "conditional-rules",
+      "publicEntries": [
+        "ContentRequiredWhenAttribute",
+        "DocumentSemanticRuleSet"
+      ],
+      "pages": {
+        "en": "typed-content.md",
+        "ja": "typed-content.md"
+      },
+      "examples": [
+        "site/WebsiteModels.cs",
+        "site/WebsiteFactory.cs",
+        "site/content/en/typed-content.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Incomplete or unknown metadata defers catalog-dependent decisions; OKF policy is separate.",
+        "ja": "メタデータが不明または不完全なら、カタログに依存する判定を保留します。OKF のポリシーは別です。"
+      }
+    },
+    {
+      "id": "markdown-profiles",
+      "publicEntries": [
+        "MarkdownOptions"
+      ],
+      "pages": {
+        "en": "profiles.md",
+        "ja": "profiles.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs",
+        "site/content/en/profiles.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Legacy remains the default; profile changes invalidate compatible caches.",
+        "ja": "従来のプロファイルが既定値です。変更すると、互換性のあるキャッシュが無効になります。"
+      }
+    },
+    {
+      "id": "typed-components",
+      "publicEntries": [
+        "MarkdownComponentRegistry",
+        "ISiteComponent<TProps>"
+      ],
+      "pages": {
+        "en": "profiles.md",
+        "ja": "profiles.md"
+      },
+      "examples": [
+        "site/WebsiteModels.cs",
+        "site/WebsiteFactory.cs",
+        "site/content/en/profiles.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Literal attributes, explicit binder/configuration/dependencies; reference props need catalog evidence.",
+        "ja": "属性はリテラル値です。バインダー、設定、依存関係を明示します。参照属性にはカタログの根拠が必要です。"
+      }
+    },
+    {
+      "id": "documentation-variants",
+      "publicEntries": [
+        "DocumentationSite",
+        "DocumentVariant",
+        "DocsPageLayout"
+      ],
+      "pages": {
+        "en": "documentation.md",
+        "ja": "documentation.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs",
+        "site/content/en/documentation.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Separate source input for every version/locale; missing pairs fail this site's build.",
+        "ja": "バージョンと言語ごとに専用の入力が必要です。このサイトではペアが欠けるとビルドが失敗します。"
+      }
+    },
+    {
+      "id": "scoped-search",
+      "publicEntries": [
+        "DocumentationBrowserOptions",
+        "SiteGenerationOptions"
+      ],
+      "pages": {
+        "en": "documentation.md",
+        "ja": "documentation.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Published rendered bodies only; collection/version/locale partitions; external services require opt-in.",
+        "ja": "公開する描画済み本文だけが対象です。コレクション、バージョン、言語で範囲を分けます。外部サービスは明示的に有効にします。"
+      }
+    },
+    {
+      "id": "translation-reviews",
+      "publicEntries": [
+        "DocumentTranslationReview",
+        "DocumentRevision"
+      ],
+      "pages": {
+        "en": "documentation.md",
+        "ja": "documentation.md"
+      },
+      "examples": [
+        "site/translation-reviews.json",
+        "site/WebsiteFactory.cs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Exact byte hashes, explicit review; never advanced by a build; no truth attestation.",
+        "ja": "正確なバイト列のハッシュと明示的なレビューが必要です。ビルドでは更新せず、正しさの証明でもありません。"
+      }
+    },
+    {
+      "id": "source-snippets",
+      "publicEntries": [
+        "DocumentSnippet",
+        "DocumentationVerification.VerifySnippetsAsync"
+      ],
+      "pages": {
+        "en": "operations.md",
+        "ja": "operations.md"
+      },
+      "examples": [
+        "site/Program.cs",
+        "site/checks/ExampleTests.cs",
+        "site/examples/source/WebsiteExamples.cs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Only explicitly mapped trusted tests; changed inputs and absent execution records invalidate success.",
+        "ja": "明示的に対応付けた信頼するテストだけを実行します。入力の変更や実行記録の欠落は、成功を無効にします。"
+      }
+    },
+    {
+      "id": "open-knowledge",
+      "publicEntries": [
+        "OkfBundle.ReadAsync",
+        "OkfBundle.RenderDocs",
+        "OkfBundle.CreateAuxiliaryAssets"
+      ],
+      "pages": {
+        "en": "knowledge.md",
+        "ja": "knowledge.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs",
+        "site/knowledge/index.md",
+        "site/knowledge/en/typed-sites.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Independent conformance/trust/freshness; preserved export differs from serialization.",
+        "ja": "適合性、信頼性、鮮度は独立しています。保持エクスポートはシリアル化とは異なります。"
+      }
+    },
+    {
+      "id": "api-reference",
+      "publicEntries": [
+        "ApiReferenceSite",
+        "ApiAssemblySource",
+        "ApiSymbol",
+        "DocumentReferenceSnapshot.FindApiImpacts",
+        "DocumentSnippet.ApiReferences"
+      ],
+      "pages": {
+        "en": "api.md",
+        "ja": "api.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs",
+        "site/checks/ExampleTests.cs",
+        "site/examples/source/WebsiteExamples.cs",
+        "site/api/ja/WebsiteExamples.xml",
+        "site/ApiMetadata.cs",
+        "site/PublicApiDocumentation.cs",
+        "site/validate-api-localization.mjs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Actual exported package symbols and matching XML; untranslated descriptions fail, and absent declaration-specific XML is explicit. Dependency cards do not document entire dependencies.",
+        "ja": "実際のパッケージの公開シンボルと対応する XML を使います。未翻訳の説明は失敗とし、宣言固有の XML がない場合は明示します。参照カードは依存先全体の説明ではありません。"
+      }
+    },
+    {
+      "id": "image-assets",
+      "publicEntries": [
+        "ImageSource",
+        "ImageMetadata",
+        "RgbaImage",
+        "PngCodec"
+      ],
+      "pages": {
+        "en": "images.md",
+        "ja": "images.md"
+      },
+      "examples": [
+        "site/WebsiteFactory.cs"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "PNG codec format/resource limits; existing other-format files require explicit registration.",
+        "ja": "PNG コーデックには形式とリソースの上限があります。ほかの形式の既存ファイルは、明示的な登録が必要です。"
+      }
+    },
+    {
+      "id": "cli-editor-lsp",
+      "publicEntries": [
+        "ISiteFactory",
+        "ProjectInspectionSnapshot",
+        "LSP textDocument/definition"
+      ],
+      "pages": {
+        "en": "tooling.md",
+        "ja": "tooling.md"
+      },
+      "examples": [
+        "docs/cli.md",
+        "docs/tooling-capabilities.md",
+        "docs/language-server.md"
+      ],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Explicit trusted project acquisition; no runtime callbacks per keystroke; incomplete context remains unavailable.",
+        "ja": "信頼するプロジェクトの文脈を明示的に取得します。入力のたびに実行時の処理を呼ばず、不完全な文脈は利用できない状態のまま扱います。"
+      }
+    },
+    {
+      "id": "quality-build-publication",
+      "publicEntries": [
+        "SiteGenerator",
+        "SiteQualityOptions",
+        "SiteDiagnostic"
+      ],
+      "pages": {
+        "en": "operations.md",
+        "ja": "operations.md"
+      },
+      "examples": [
+        "site/Build.ps1",
+        "site/WebsiteFactory.cs",
+        "docs/generated-output-checks.md"
+      ],
+      "demonstration": "site",
+      "constraints": {
+        "en": "Output validation differs from deployment; publication baselines require confirmed publication.",
+        "ja": "出力の検証とデプロイは異なります。公開時点の基準には、確認済みの公開が必要です。"
+      }
+    },
+    {
+      "id": "templates-blog",
+      "publicEntries": [
+        "LithoSharp.ProjectTemplates",
+        "MarkdownPostReader",
+        "SiteSettings"
+      ],
+      "pages": {
+        "en": "extended.md",
+        "ja": "extended.md"
+      },
+      "examples": [
+        "samples/LithoSharp.Sample/SiteFactory.cs",
+        "docs/distribution.md"
+      ],
+      "demonstration": "existing-sample",
+      "constraints": {
+        "en": "Template restore, explicit publication dates/environments, separate feed and blog checks.",
+        "ja": "テンプレートの依存関係の復元、公開日時と環境の明示、フィードとブログの個別検査が必要です。"
+      }
+    },
+    {
+      "id": "mdx-browser-offline",
+      "publicEntries": [
+        "MdxSite",
+        "MdxOptions",
+        "DocumentationBrowserOptions.Offline"
+      ],
+      "pages": {
+        "en": "extended.md",
+        "ja": "extended.md"
+      },
+      "examples": [
+        "samples/LithoSharp.MdxSample/SiteFactory.cs",
+        "docs/mdx.md"
+      ],
+      "demonstration": "existing-sample",
+      "constraints": {
+        "en": "Trusted Node worker dependencies, declared dynamic inputs; not enabled by this handbook.",
+        "ja": "信頼する Node worker の依存関係と、動的入力の宣言が必要です。このハンドブックでは有効にしません。"
+      }
+    },
+    {
+      "id": "yaml-layout-migration-testing",
+      "publicEntries": [
+        "YamlContentCollectionLoader<TFrontMatter,TBody>",
+        "IPageLayout<T>",
+        "DocusaurusMigrationReport",
+        "LithoSharp.Testing"
+      ],
+      "pages": {
+        "en": "extended.md",
+        "ja": "extended.md"
+      },
+      "examples": [
+        "docs/typed-yaml-collections.md",
+        "docs/layout-css-contract.md",
+        "docs/docusaurus-migration.md",
+        "docs/testing.md"
+      ],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Dedicated loaders, migration reports and isolated explicit tests; canonical detailed guides have equivalent English/Japanese source pairs.",
+        "ja": "専用ローダー、移行レポート、隔離した明示的なテストを使います。正式な詳細ガイドの原稿は同等の内容の英日ペアを用意します。"
+      }
+    },
+    {
+      "id": "migration-3",
+      "publicEntries": [
+        "ContentNameAttribute",
+        "ContentIgnoreAttribute",
+        "MarkdownFrontMatterYaml"
+      ],
+      "pages": {
+        "en": "migration.md",
+        "ja": "migration.md"
+      },
+      "examples": [
+        "docs/migration-3.0.md",
+        "docs/migration-3.0.ja.md"
+      ],
+      "demonstration": "reference",
+      "constraints": {
+        "en": "Preserve previous output; candidate validation does not establish formal publication.",
+        "ja": "以前の出力を保持します。候補の検証は正式公開を証明しません。"
+      }
+    }
+  ]
+}

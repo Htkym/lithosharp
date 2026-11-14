@@ -1,0 +1,42 @@
+{
+  "en": {
+    "lastUpdated": "Last updated",
+    "theme": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "dismiss": "Dismiss",
+    "offlineUpdate": "Update offline content",
+    "searching": "Searching…",
+    "results": "{count} results",
+    "searchUnavailable": "Search unavailable. You can still browse this documentation.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyUnavailable": "Copy unavailable",
+    "breadcrumb": "Breadcrumb",
+    "adjacent": "Previous and next documents",
+    "variants": "Version and language",
+    "edit": "Edit this page",
+    "search": "Search this documentation"
+  },
+  "ja": {
+    "lastUpdated": "最終更新",
+    "theme": "テーマ",
+    "system": "システム設定",
+    "light": "ライト",
+    "dark": "ダーク",
+    "dismiss": "閉じる",
+    "offlineUpdate": "オフラインの内容を更新",
+    "searching": "検索中…",
+    "results": "{count} 件",
+    "searchUnavailable": "検索を利用できません。文書は引き続き閲覧できます。",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "copyUnavailable": "コピーを利用できません",
+    "breadcrumb": "現在の位置",
+    "adjacent": "前後の文書",
+    "variants": "バージョンと言語",
+    "edit": "このページを編集",
+    "search": "この文書を検索"
+  }
+}

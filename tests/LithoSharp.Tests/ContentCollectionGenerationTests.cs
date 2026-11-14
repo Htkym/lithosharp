@@ -77,8 +77,7 @@ public sealed class ContentCollectionGenerationTests
             Path.Combine(output, "articles", "published", "index.html"))).IsTrue();
         await Assert.That(File.Exists(
             Path.Combine(output, "articles", "draft", "index.html"))).IsFalse();
-        await Assert.That(Directory.EnumerateFiles(
-            Path.Combine(output, "assets", "social", "content"), "*.png").Count()).IsEqualTo(1);
+        await Assert.That(Directory.Exists(Path.Combine(output, "assets", "social"))).IsFalse();
 
         var generatedText = string.Join(
             "\n",
@@ -103,7 +102,7 @@ public sealed class ContentCollectionGenerationTests
     }
 
     [Test]
-    public async Task CleanFalse_RemovesTypedPageAndSocialImageWhenPageBecomesDraft()
+    public async Task CleanFalse_RemovesTypedPageWhenPageBecomesDraft()
     {
         using var workspace = new TemporaryWorkspace();
         var faviconRoot = Path.Combine(workspace.Root, "favicon");
@@ -118,10 +117,6 @@ public sealed class ContentCollectionGenerationTests
             faviconRoot,
             clean: true);
         var pagePath = Path.Combine(output, "typed", "entry.html");
-        var socialPath = Directory.EnumerateFiles(
-                Path.Combine(output, "assets", "social", "content"),
-                "*.png")
-            .Single();
         var userPath = Path.Combine(output, "user-file.txt");
         await File.WriteAllTextAsync(userPath, "unchanged");
 
@@ -134,7 +129,6 @@ public sealed class ContentCollectionGenerationTests
             clean: false);
 
         await Assert.That(File.Exists(pagePath)).IsFalse();
-        await Assert.That(File.Exists(socialPath)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(userPath)).IsEqualTo("unchanged");
         await Assert.That(result.BuildReport.UnpublishedPages)
             .IsEquivalentTo(["page:collection:5:typed:5:entry"]);
@@ -430,15 +424,6 @@ public sealed class ContentCollectionGenerationTests
         await Assert.That(invalidated).Contains("feed:rss");
         await Assert.That(invalidated).Contains("index:sitemap");
         await Assert.That(invalidated).Contains("text:llms");
-        await Assert.That(invalidated.Any(id =>
-            id.StartsWith("social:collection:", StringComparison.Ordinal))).IsTrue();
-
-        var previousSocial = previous.BuildPlan.Artifacts.Single(artifact =>
-            artifact.RelativeOutputPath.StartsWith("assets/social/content/", StringComparison.Ordinal));
-        var currentSocial = current.BuildPlan.Artifacts.Single(artifact =>
-            artifact.RelativeOutputPath.StartsWith("assets/social/content/", StringComparison.Ordinal));
-        await Assert.That(currentSocial.RelativeOutputPath)
-            .IsEqualTo(previousSocial.RelativeOutputPath);
 
         ContentCollection<Row, string> CacheableCollection(string fingerprint, string locale) =>
             new(

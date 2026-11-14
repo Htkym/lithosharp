@@ -13,15 +13,9 @@
       },
       "Syntamark.Source": {
         "type": "Direct",
-        "requested": "[1.2.0, 1.2.0]",
-        "resolved": "1.2.0",
-        "contentHash": "v92F8raDNb1uC9kWc7EL5LYOA25z4s7qlnAPAbuf8VgCvEfCsPqGx/NgKKpcsmNolfpTTevvz2qc9LdZxuRlYA=="
-      },
-      "YamlDotNet": {
-        "type": "Direct",
-        "requested": "[18.1.0, 18.1.0]",
-        "resolved": "18.1.0",
-        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
+        "requested": "[2.0.0-preview.2026111303, 2.0.0-preview.2026111303]",
+        "resolved": "2.0.0-preview.2026111303",
+        "contentHash": "9QeiUgmmTzhLmjSLrG45xTsw4OlAXRdu/szUknbh8/eAamaTYSSNWQsiVzKott1riWTXRpS5Q9Fzi+Og9ScG1A=="
       },
       "Microsoft.NETCore.Platforms": {
         "type": "Transitive",

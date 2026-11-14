@@ -63,7 +63,8 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
         long? documentVersion,
         long? projectGeneration,
         DocumentInspectionOptions? options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DocumentChangeSet? changes = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(text);
@@ -72,6 +73,7 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
 
         DocumentEntry entry;
         CancellationTokenSource supersede;
+        InspectionParseState? previous;
         long epoch;
         lock (_lifetimeLock)
         {
@@ -96,13 +98,17 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
             }
 
             entry.Pending?.Cancel();
+            previous = PreviousInspectionSession(key);
+            if (previous is not null && (previous.Generation != (projectGeneration ?? long.MaxValue)
+                || !SameOptions(entry.LastOptions, options) || entry.LastSourcePath != sourcePath))
+                previous = null;
             supersede = new CancellationTokenSource();
             entry.Pending = supersede;
             epoch = entry.Epoch;
         }
 
         var acquiredSlot = false;
-        Task<DocumentInfo>? analysis = null;
+        Task<(DocumentInfo Info, InspectionParseState? State)>? analysis = null;
         try
         {
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, supersede.Token))
@@ -118,14 +124,16 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
                         throw new OperationCanceledException(linked.Token);
                     }
 
-                    analysis = Task.Run(() => DocumentInspection.Inspect(sourcePath, text, options, linked.Token), linked.Token);
+                    analysis = Task.Run(() => InspectIncrementally(key, sourcePath, text, documentVersion,
+                        projectGeneration, options, previous, changes, linked.Token), linked.Token);
                     _activeAnalyses.Add(analysis);
                 }
 
                 DocumentInfo info;
+                InspectionParseState? next;
                 try
                 {
-                    info = await analysis.ConfigureAwait(false);
+                    (info, next) = await analysis.ConfigureAwait(false);
                 }
                 finally
                 {
@@ -150,12 +158,14 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
                         throw new OperationCanceledException(cancellationToken);
                     }
 
-                    if (IsStale(entry, documentVersion, projectGeneration))
+                    if (IsStale(entry, documentVersion, projectGeneration)
+                        || IsOlderReservation(entry, documentVersion, projectGeneration))
                     {
                         throw new OperationCanceledException(cancellationToken);
                     }
 
                     _snapshots[key] = info;
+                    PublishInspectionSession(key, next, info);
                     entry.Version = documentVersion ?? long.MaxValue;
                     entry.Generation = projectGeneration ?? long.MaxValue;
                     entry.LastText = text;
@@ -202,6 +212,8 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
         && string.Equals(previous?.Version, current?.Version, StringComparison.Ordinal)
         && string.Equals(previous?.Locale, current?.Locale, StringComparison.Ordinal)
         && (previous?.EnableCompatibilityAdvisory ?? false) == (current?.EnableCompatibilityAdvisory ?? false)
+        && string.Equals((previous?.EffectiveMarkdown ?? new Content.MarkdownOptions()).Fingerprint,
+            (current?.EffectiveMarkdown ?? new Content.MarkdownOptions()).Fingerprint, StringComparison.Ordinal)
         && ReferenceEquals(previous?.Project, current?.Project);
 
     private static bool IsOlderReservation(DocumentEntry entry, long? version, long? generation)
@@ -297,6 +309,7 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
         lock (_lifetimeLock)
         {
             RemoveMarkdownFacts(key);
+            RemoveInspectionSession(key);
             if (_entries.TryGetValue(key, out var entry))
             {
                 entry.Epoch++;
@@ -327,6 +340,7 @@ public sealed partial class DocumentWorkspace : IAsyncDisposable
         {
             _disposed = true;
             ClearMarkdownFacts();
+            ClearInspectionSessions();
             active = _activeAnalyses.ToList();
             pending = _entries.Values.Select(entry => entry.Pending).OfType<CancellationTokenSource>().ToList();
             foreach (var source in pending)

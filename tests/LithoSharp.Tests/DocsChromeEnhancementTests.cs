@@ -122,7 +122,7 @@ public sealed class DocsChromeEnhancementTests
         await Assert.That(home.Snapshot.QueryAll("header form").Count).IsEqualTo(0);
         await Assert.That(home.Snapshot.QueryAll(".docs-primary-link").Count).IsEqualTo(0);
         await Assert.That(home.Snapshot.QueryAll(".docs-hero-compact").Count).IsEqualTo(1);
-        home.AssertText("[data-docs-menu-toggle]", "Menu");
+        home.AssertText("[data-docs-menu-toggle]", SiteText.Japanese.MenuLabel);
         using var extra = SiteTestDocument.Parse(await File.ReadAllTextAsync(Path.Combine(output, "about.htm")));
         extra.AssertText(".site-footer-additional p", "Updated notice");
 

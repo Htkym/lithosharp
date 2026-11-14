@@ -37,7 +37,7 @@ public sealed partial class AnalyzerPackageHostTests
         return diagnostics;
     }
 
-    private static bool Forbidden(string name) => name is "LithoSharp" or "Syntamark" or "AngleSharp" or "SkiaSharp" or "Node"
+    private static bool Forbidden(string name) => name is "LithoSharp" or "Syntamark" or "AngleSharp" or "SkiaSharp" or "YamlDotNet" or "Node"
         || name.StartsWith("Microsoft.Build", StringComparison.Ordinal) || name.Contains("Workspaces", StringComparison.Ordinal);
     private static string Required(string key) => Environment.GetEnvironmentVariable(key) is { Length: > 0 } value
         ? value : throw new InvalidOperationException("Explicit canary input missing: " + key);
@@ -57,8 +57,8 @@ public sealed partial class AnalyzerPackageHostTests
             using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
             var dlls = zip.Entries.Where(e => e.FullName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).ToArray();
             Check(dlls.Select(e => e.FullName).Order().SequenceEqual(new[] {
-                "analyzers/dotnet/cs/LithoSharp.Analyzers.dll", "analyzers/dotnet/cs/YamlDotNet.dll" }.Order()),
-                "Pack owns analyzer and selected YAML dependency, no runtime/Roslyn payload");
+                "analyzers/dotnet/cs/LithoSharp.Analyzers.dll" }.Order()),
+                "Pack owns only its analyzer, no runtime/Roslyn/YAML dependency payload");
             Check(zip.GetEntry("analyzers/dotnet/cs/LithoSharp.Analyzers.xml") is not null, "XML payload");
             Check(!zip.Entries.Any(e => e.FullName.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)), "No consumer runtime DLL");
             using var nuspecStream = zip.Entries.Single(e => e.FullName.EndsWith(".nuspec", StringComparison.Ordinal)).Open();

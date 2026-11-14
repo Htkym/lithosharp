@@ -13,4 +13,8 @@ These existing figures cover site generation for 100 Docs pages, including input
 | One page body changed | About 0.58 s |
 | Layout changed | About 1.07 s |
 
-The values are rounded from existing results, not new measurements of 2.2.0. They exclude NuGet restore and C# compilation and do not represent total build time.
+These historical rounded values are not measurements of the 3.0 candidate. They
+exclude NuGet restore and C# compilation and do not represent total build time.
+For current evaluation, keep the same machine, inputs, profiles and validation
+settings and measure full, warm and edited builds separately. See
+[build graph](build-graph.md) and [incremental builds](incremental-builds.md).

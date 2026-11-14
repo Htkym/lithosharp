@@ -221,7 +221,9 @@ public sealed class ControlLayout : IPageLayout<ContentEntry<string, string>>
         $page = Get-Http "$url/typed/one/"
         Assert-True ($page.StatusCode -eq 200) 'Directory index was not served.'
         Assert-True ($page.Content.Contains('control-v1')) 'Served page does not match the output file.'
-        Assert-True ($page.Content.Contains("EventSource('/_lithosharp/reload')")) 'Serve omitted HTML reload injection.'
+        Assert-True ($page.Content.Contains('src="/_lithosharp/reload.js"')) 'Serve omitted HTML reload injection.'
+        $reload = Get-Http "$url/_lithosharp/reload.js"
+        Assert-True ($reload.StatusCode -eq 200 -and $reload.Content.Contains("EventSource('/_lithosharp/reload')")) 'Serve omitted the external reload client.'
         Assert-True (![IO.File]::ReadAllText((Join-Path $cliOutput 'typed/one/index.html'), [Text.Encoding]::UTF8).Contains('EventSource(')) 'Serve persisted its injected client into production output.'
         Assert-True ((Get-Http "$url/no-such-page/").StatusCode -eq 404) 'Unknown path did not fall back to 404.'
         $state = (Get-Http "$url/_lithosharp/diagnostics").Content | ConvertFrom-Json

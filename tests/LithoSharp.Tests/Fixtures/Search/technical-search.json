@@ -1,0 +1,104 @@
+{
+  "documents": [
+    {
+      "title": "非同期 API", "summary": "ジェネリック型 Task<T>", "tags": [], "url": "/guide/v1/ja/async/", "date": "",
+      "body": "Task<T>.ConfigureAwait(false) で非同期処理を設定します。",
+      "collection": "guide", "version": "v1", "locale": "ja",
+      "sections": [
+        { "title": "使用例", "anchor": "example", "body": "ConfigureAwait の使用例です。" },
+        { "title": "ConfigureAwait", "anchor": "configure-await", "body": "Task<T>.ConfigureAwait(false) で非同期処理を設定します。" }
+      ]
+    },
+    {
+      "title": "ConfigureAwait", "summary": "Asynchronous continuations with Task<T>.", "tags": [], "url": "/guide/v1/en/async/", "date": "",
+      "body": "Task<T>.ConfigureAwait(false) controls asynchronous continuations.",
+      "collection": "guide", "version": "v1", "locale": "en",
+      "sections": [{ "title": "ConfigureAwait", "anchor": "configure-await", "body": "Task<T>.ConfigureAwait(false) controls asynchronous continuations." }]
+    },
+    {
+      "title": "型付き Markdown コレクション", "summary": "型付きコンテンツを読み込みます。", "tags": ["front matter"], "url": "/guide/v1/ja/typed-markdown/", "date": "",
+      "body": "MarkdownContentCollectionLoader<TFrontMatter> は LithoSharp.Content 名前空間にあります。",
+      "collection": "guide", "version": "v1", "locale": "ja",
+      "sections": [{ "title": "MarkdownContentCollectionLoader<TFrontMatter>", "anchor": "typed-loader", "body": "LithoSharp.Content の型付きコンテンツを読み込みます。" }]
+    },
+    {
+      "title": "Typed Markdown collections", "summary": "Load typed content.", "tags": ["front matter", "schema"], "url": "/guide/v1/en/typed-markdown/", "date": "",
+      "body": "MarkdownContentCollectionLoader<TFrontMatter> belongs to the LithoSharp.Content namespace.",
+      "collection": "guide", "version": "v1", "locale": "en",
+      "sections": [{ "title": "MarkdownContentCollectionLoader<TFrontMatter>", "anchor": "typed-loader", "body": "Load typed content from the LithoSharp.Content namespace." }]
+    },
+    {
+      "title": "Networking", "summary": "Network addresses", "tags": [], "url": "/api/v1/en/networking/", "date": "",
+      "body": "Parse network addresses.", "collection": "api", "version": "v1", "locale": "en",
+      "sections": [{ "title": "System.Net.IPAddress.TryParse", "anchor": "ip-address", "body": "Parse a network address." }]
+    },
+    {
+      "title": "Example.Box`1.Get(System.Int32)", "summary": "Read a generic box.", "tags": [], "url": "/api/v1/en/box/", "date": "",
+      "body": "Read a generic box.", "collection": "api", "version": "v1", "locale": "en",
+      "sections": [{ "title": "Example.Box`1.Get(System.Int32)", "anchor": "M:Example.Box`1.Get(System.Int32)", "body": "Read a generic box." }]
+    },
+    {
+      "title": "Sample.Load(T)", "summary": "Load a value.", "tags": [], "url": "/api/v1/en/load-value/", "date": "", "body": "Load a value.",
+      "collection": "api", "version": "v1", "locale": "en",
+      "sections": [{ "title": "Sample.Load(T)", "anchor": "load-value", "body": "Load a value." }]
+    },
+    {
+      "title": "Sample.Load<T>()", "summary": "Load a generic value.", "tags": [], "url": "/api/v1/en/load-generic/", "date": "", "body": "Load a generic value.",
+      "collection": "api", "version": "v1", "locale": "en",
+      "sections": [{ "title": "Sample.Load<T>()", "anchor": "load-generic", "body": "Load a generic value." }]
+    },
+    {
+      "title": "Open Knowledge Format (OKF)", "summary": "Structured knowledge documents.", "tags": [], "url": "/guide/v1/en/okf/", "date": "",
+      "body": "Read and validate knowledge documents.", "collection": "guide", "version": "v1", "locale": "en",
+      "sections": [{ "title": "OKF metadata", "anchor": "metadata", "body": "Open Knowledge Format metadata describes knowledge documents." }]
+    },
+    {
+      "title": "Open Knowledge Format (OKF)", "summary": "構造化したナレッジ文書", "tags": [], "url": "/guide/v1/ja/okf/", "date": "",
+      "body": "ナレッジ文書の読み込みと検証を行います。", "collection": "guide", "version": "v1", "locale": "ja",
+      "sections": [{ "title": "OKF メタデータ", "anchor": "metadata", "body": "Open Knowledge Format のメタデータを検証します。" }]
+    },
+    {
+      "title": "ConfigureAwait", "summary": "非同期", "tags": [], "url": "/guide/v2/ja/async/", "date": "", "body": "Task<T>.ConfigureAwait(false) 非同期",
+      "collection": "guide", "version": "v2", "locale": "ja"
+    },
+    {
+      "title": "ConfigureAwait", "summary": "非同期", "tags": [], "url": "/api/v1/ja/async/", "date": "", "body": "Task<T>.ConfigureAwait(false) 非同期",
+      "collection": "api", "version": "v1", "locale": "ja"
+    },
+    {
+      "title": "ConfigureAwait usage notes", "summary": "A body mention ranks below the API title.", "tags": [], "url": "/guide/v1/en/notes/", "date": "",
+      "body": "Task<T>.ConfigureAwait(false) controls asynchronous continuations.", "collection": "guide", "version": "v1", "locale": "en"
+    }
+  ],
+  "cases": [
+    { "query": "  ", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#example", "/guide/v1/ja/okf/#metadata", "/guide/v1/ja/typed-markdown/#typed-loader"] },
+    { "query": "非同期", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "Task<T>", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "ConfigureAwait(false)", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "Task 非同期", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "ConfigureAwait", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "configure await", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "configureawait", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "ＣｏｎｆｉｇｕｒｅＡｗａｉｔ", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/async/#configure-await"] },
+    { "query": "ConfigureAwait", "collection": "guide", "version": "v1", "locale": "en", "expected": ["/guide/v1/en/async/#configure-await", "/guide/v1/en/notes/"] },
+    { "query": "asynchronous", "collection": "guide", "version": "v1", "locale": "en", "limit": 1, "expected": ["/guide/v1/en/async/#configure-await"] },
+    { "query": "markdown content collection loader", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/typed-markdown/#typed-loader"] },
+    { "query": "MarkdownContentCollectionLoader<TFrontMatter>", "collection": "guide", "version": "v1", "locale": "en", "expected": ["/guide/v1/en/typed-markdown/#typed-loader"] },
+    { "query": "LithoSharp.Content", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/typed-markdown/#typed-loader"] },
+    { "query": "型付き", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/typed-markdown/#typed-loader"] },
+    { "query": "front matter", "collection": "guide", "version": "v1", "locale": "en", "expected": ["/guide/v1/en/typed-markdown/#typed-loader"] },
+    { "query": "schema", "collection": "guide", "version": "v1", "locale": "en", "expected": ["/guide/v1/en/typed-markdown/"] },
+    { "query": "ip address try parse", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/networking/#ip-address"] },
+    { "query": "System.Net.IPAddress.TryParse", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/networking/#ip-address"] },
+    { "query": "Example.Box`1.Get(System.Int32)", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/box/#M%3AExample.Box%601.Get%28System.Int32%29"] },
+    { "query": "box get", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/box/#M%3AExample.Box%601.Get%28System.Int32%29"] },
+    { "query": "Sample.Load<T>()", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/load-generic/#load-generic", "/api/v1/en/load-value/#load-value"] },
+    { "query": "Sample.Load(T)", "collection": "api", "version": "v1", "locale": "en", "expected": ["/api/v1/en/load-value/#load-value", "/api/v1/en/load-generic/#load-generic"] },
+    { "query": "OKF", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/okf/#metadata"] },
+    { "query": "メタデータ", "collection": "guide", "version": "v1", "locale": "ja", "expected": ["/guide/v1/ja/okf/#metadata"] },
+    { "query": "knowledge format", "collection": "guide", "version": "v1", "locale": "en", "expected": ["/guide/v1/en/okf/#metadata"] },
+    { "query": "ConfigureAwait", "collection": "guide", "version": "v3", "locale": "ja", "expected": [] },
+    { "query": "ConfigureAwait", "collection": "guide", "version": "v1", "locale": "fr", "expected": [] },
+    { "query": "ConfigureAwait", "collection": "missing", "version": "v1", "locale": "ja", "expected": [] }
+  ]
+}

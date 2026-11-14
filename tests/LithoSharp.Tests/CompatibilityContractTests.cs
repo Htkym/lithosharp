@@ -85,7 +85,7 @@ public sealed class CompatibilityContractTests
 
         var post = await File.ReadAllTextAsync(Path.Combine(output, "posts", "guides", "install.html"));
         await Assert.That(post).Contains("<link rel=\"canonical\" href=\"https://example.test/product/posts/guides/install.html\">");
-        await Assert.That(post).Contains("<meta property=\"og:image\" content=\"https://example.test/product/assets/social/posts/efbbd97218682f5d9fb8a2b08c2e37bcb24ec6e32fb6a5ffb57b0cbadd1f9e8f.png\">");
+        await Assert.That(post).DoesNotContain("property=\"og:image\"");
         await Assert.That(post).Contains("href=\"/product/index.html\"");
         await Assert.That(post).Contains("href=\"/product/about/team.html\"");
         await Assert.That(post).Contains("href=\"/product/assets/favicon/favicon.ico\"");
@@ -93,8 +93,7 @@ public sealed class CompatibilityContractTests
         await Assert.That(post).Contains("<meta property=\"og:title\" content=\"Install - Contract Site\">");
         await Assert.That(post).Contains("<meta name=\"description\" content=\"Installation guide.\">");
         await Assert.That(post).Contains("日本語");
-        await Assert.That(ReadPngDimensions(Path.Combine(output, "assets", "social", "og-default.png")))
-            .IsEqualTo((1200, 630));
+        await Assert.That(Directory.Exists(Path.Combine(output, "assets", "social"))).IsFalse();
 
         var extra = await File.ReadAllTextAsync(Path.Combine(output, "about", "team.html"));
         await Assert.That(extra).Contains("<link rel=\"canonical\" href=\"https://example.test/product/about/team.html\">");
@@ -355,27 +354,6 @@ public sealed class CompatibilityContractTests
         await Assert.That(string.Join(Environment.NewLine, actual))
             .IsEqualTo(string.Join(Environment.NewLine, normalizedExpected));
     }
-
-    private static (int Width, int Height) ReadPngDimensions(string path)
-    {
-        var bytes = File.ReadAllBytes(path);
-        if (bytes.Length < 24 ||
-            !bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) ||
-            !bytes.AsSpan(12, 4).SequenceEqual("IHDR"u8))
-        {
-            throw new InvalidOperationException($"'{path}' is not a PNG with an IHDR chunk.");
-        }
-
-        return (
-            ReadBigEndianInt32(bytes, 16),
-            ReadBigEndianInt32(bytes, 20));
-    }
-
-    private static int ReadBigEndianInt32(byte[] bytes, int offset) =>
-        (bytes[offset] << 24) |
-        (bytes[offset + 1] << 16) |
-        (bytes[offset + 2] << 8) |
-        bytes[offset + 3];
 
     private static async Task AssertInOrderAsync(string text, params string[] values)
     {

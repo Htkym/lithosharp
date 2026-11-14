@@ -50,7 +50,7 @@ foreach ($required in @(
     }
 }
 & (Join-Path $PSScriptRoot 'Test-DependencyZero.ps1') -Paths $publishDir -Output (Join-Path $Output 'dependency-zero.json')
-foreach ($name in @('Syntamark.LICENSE.txt', 'YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt', 'THIRD-PARTY-NOTICES.md')) {
+foreach ($name in @('Syntamark.LICENSE.txt', 'THIRD-PARTY-NOTICES.md')) {
     $published = Join-Path $publishDir "licenses/$name"
     if (!(Test-Path -LiteralPath $published -PathType Leaf)) { Fail "published server is missing redistribution notice '$name'." }
     $source = if ($name -eq 'THIRD-PARTY-NOTICES.md') { Join-Path $repo $name } else { Join-Path $repo "licenses/$name" }
@@ -65,9 +65,6 @@ if (Test-Path -LiteralPath (Join-Path $publishDir 'worker/node_modules')) {
 $csproj = Get-Content -LiteralPath (Join-Path $repo 'src/LithoSharp.LanguageServer/LithoSharp.LanguageServer.csproj') -Raw
 foreach ($marker in @('PublishTrimmed', 'PublishSingleFile', 'PublishAot')) {
     if ($csproj -match "<$marker>true</$marker>") { Fail "server project enables $marker." }
-}
-if (!(Test-Path -LiteralPath (Join-Path $publishDir 'runtimes'))) {
-    Fail 'published server is missing native runtime assets.'
 }
 
 $files = @(Get-ChildItem -LiteralPath $publishDir -Recurse -File -Force | Sort-Object FullName | ForEach-Object {

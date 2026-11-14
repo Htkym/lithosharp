@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- I02/I03/I06: approved Images 3.x breaks from 2.2.0. -->
+<Suppressions>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LithoSharp.Images.ExternalAvifEncoder</Target>
+    <Left>lib/net10.0/LithoSharp.Images.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Images.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LithoSharp.Images.ImageVariant.get_Format</Target>
+    <Left>lib/net10.0/LithoSharp.Images.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Images.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LithoSharp.Images.ImageVariant.get_Quality</Target>
+    <Left>lib/net10.0/LithoSharp.Images.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Images.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:LithoSharp.Images.ImageAsset.#ctor(LithoSharp.SiteAsset,System.Collections.Generic.IReadOnlyList{LithoSharp.Images.ImageVariant},LithoSharp.Images.ExternalAvifEncoder)</Target>
+    <Left>lib/net10.0/LithoSharp.Images.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Images.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:LithoSharp.Images.ResponsiveImage</Target>
+    <Left>lib/net10.0/LithoSharp.Images.dll</Left>
+    <Right>lib/net10.0/LithoSharp.Images.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>

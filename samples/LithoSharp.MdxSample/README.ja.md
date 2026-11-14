@@ -1,11 +1,15 @@
-# MDXとReactのsample
+# MDX と React のサンプル
 
 [English](README.md)
 
-このsampleはrepositoryのprojectを参照します。公開packageを使う場合は
-[MDX Quick Start](../../docs/quickstart.ja.md)から始めてください。.NET 10 SDK（10.0.300以降の対応するfeature band）とNode.js 24.13.0を使います。
+このサンプルはリポジトリ内のプロジェクトを参照します。公開パッケージを使う場合は
+[MDX Quick Start](../../docs/quickstart.ja.md)から始めてください。
+.NET 10 SDK（10.0.300 以降の対応する feature band）と Node.js 24.13.0 を使います。
 
-repository rootで実行します。
+このリポジトリは LithoSharp 3.0.0 を対象にしています。選定した Syntamark 2 の組み合わせと、
+候補が未公開であることは[バージョン一覧](../../eng/version-matrix.json)に記録しています。
+
+リポジトリのルートで実行します。
 
 ```sh
 npm ci --prefix src/LithoSharp.Mdx/worker --ignore-scripts --no-audit --no-fund
@@ -13,19 +17,24 @@ dotnet run --project samples/LithoSharp.MdxSample -c Release
 dotnet run --project src/LithoSharp.Tool -- check-output --output samples/LithoSharp.MdxSample/.artifacts/site --base-url https://example.com/ --format json
 ```
 
-出力は`samples/LithoSharp.MdxSample/.artifacts/site`です。HTTPで配信してください。
-`file:` URLではmodule読み込みとservice workerを利用できません。
+出力は `samples/LithoSharp.MdxSample/.artifacts/site` です。HTTP で配信してください。
+`file:` URL ではモジュールの読み込みとサービスワーカーを利用できません。
 
-静的MDX、page hydrationへのfallback、load/idle/visible/media/manualの明示island、
-sandbox内のlive codeを示します。factoryではlocal search、progressive navigation、offlineを有効にしています。
-`--page-hydration`は比較用mode、`--offline-disabled`はoffline終了用revision、
-`--next-revision`は更新用fixtureを生成します。
+静的な MDX、ページ全体の hydration へのフォールバック、load・idle・visible・media・manual の
+明示的な island、隔離した環境内のライブコードを示します。
+ファクトリではローカル検索、プログレッシブナビゲーション、オフライン対応を有効にしています。
+`--page-hydration` は比較用のモードを選択し、`--offline-disabled` はオフライン対応を終了するリビジョン、
+`--next-revision` は更新用のフィクスチャーを生成します。
 
-`check-output`は現在のローカルHTML/CSSと参照先・anchorの関係を調べます。ブラウザーのhydration、offline動作、現在の原稿との一致を検証するものではありません。対話機能はブラウザーで確認してください。MDXとcomponent codeはビルド実行者の権限で動くため、信頼できるものだけを使います。
+`check-output` は現在のローカル HTML/CSS と参照先・アンカーの関係を調べます。
+ブラウザーの hydration、オフライン動作、現在の原稿との一致を検証するものではありません。
+対話機能はブラウザーで確認してください。MDX とコンポーネントのコードはビルド実行者の権限で動きます。信頼できるコードだけをビルドしてください。
 
-共通のfront matter処理はSyntamark 1.2.0を使いますが、MDX本文はworkerが解析します。エディターのMDX symbolは見出し単位であり、Markdownのセクション全体を使うアウトラインとは別です。独自C#スキーマと生成した参照は[Docsサンプル](../LithoSharp.DocsSample/README.ja.md)を参照してください。
+共通のフロントマター処理は選定した Syntamark 2 の runtime と Source の組み合わせを使います。
+MDX 本文は引き続き worker が解析します。エディターの MDX シンボルは見出し単位であり、
+ネイティブ Markdown の節全体を使うアウトラインとは別です。
+独自の C# スキーマと生成した参照は[Docs サンプル](../LithoSharp.DocsSample/README.ja.md)を参照してください。
 
-`SiteFactory.cs`はrepository sourceからworkerを解決します。NuGet consumerでは
-`new MdxOptions(context.ProjectDirectory)`でlibraryの隣にある同梱workerを解決し、そのdirectoryを
-明示的にrestoreできます。[MDX](../../docs/mdx.ja.md)、[性能](../../docs/performance.ja.md)、
-[既知の制約](../../docs/known-limitations.ja.md)も参照してください。
+`SiteFactory.cs` はリポジトリのソースから worker を解決します。NuGet の利用側では
+`new MdxOptions(context.ProjectDirectory)` でライブラリの隣にある同梱 worker を解決できます。そのディレクトリを明示的に復元してください。
+[MDX](../../docs/mdx.ja.md)、[性能](../../docs/performance.ja.md)、[既知の制約](../../docs/known-limitations.ja.md)も参照してください。

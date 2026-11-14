@@ -137,11 +137,7 @@ internal sealed class LspTestClient : IAsyncDisposable
             var completed = await Task.WhenAny(pending, Task.Delay(TimeSpan.FromMilliseconds(100))).ConfigureAwait(false);
             if (!ReferenceEquals(completed, pending))
             {
-                if (process.HasExited)
-                {
-                    throw new InvalidOperationException($"The language server exited with code {process.ExitCode} while waiting for a message. Stderr: {string.Join("\n", ReadStderr())}");
-                }
-
+                // Process exit can precede completion of the final stdout read.
                 continue;
             }
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using LithoSharp.Content;
+using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
 using LithoSharp.Routing;
 
@@ -40,6 +41,52 @@ public sealed class MarkdownContentCollectionLoaderTests
         await Assert.That(frontMatter.Tags.SequenceEqual(["alpha", "beta"])).IsTrue();
         await Assert.That(frontMatter.Details.Label).IsEqualTo("Nested");
         await Assert.That(result.Collection.Entries.Single().Body).IsEqualTo("Body");
+    }
+
+    [Test]
+    public async Task LoadAsync_BindsNativeMultilineFlowAndQuotedScalarValues()
+    {
+        using var workspace = new TemporaryWorkspace();
+        await WriteAsync(workspace.Root, "native.md", """
+            ---
+            title: |-
+              A: [#literal]
+              B
+            optional: "null"
+            count: "42"
+            published: "false"
+            tags: ["false", "1.2", "2026-11-13"]
+            details: {label: 'Nested: #literal'}
+            ---
+            Body
+            """);
+
+        var result = await Loader<TypedFrontMatter>(workspace.Root).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        var frontMatter = result.Collection!.Entries.Single().FrontMatter;
+        await Assert.That(frontMatter.Title).IsEqualTo("A: [#literal]\nB");
+        await Assert.That(frontMatter.Optional).IsEqualTo("null");
+        await Assert.That(frontMatter.Count).IsEqualTo(42);
+        await Assert.That(frontMatter.Published).IsFalse();
+        await Assert.That(frontMatter.Tags).IsEquivalentTo(["false", "1.2", "2026-11-13"]);
+        await Assert.That(frontMatter.Details.Label).IsEqualTo("Nested: #literal");
+    }
+
+    [Test]
+    public async Task ParseYaml_DistinguishesUnsupportedFeaturesFromResourceLimits()
+    {
+        var unsupported = MarkdownContentCollectionLoader<TypedFrontMatter>.ParseYaml(
+            "title: !custom value", "native.md", 2, CancellationToken.None);
+        var limited = MarkdownContentCollectionLoader<TypedFrontMatter>.ParseYaml(
+            "title: " + new string('[', 80) + "value" + new string(']', 80),
+            "native.md", 2, CancellationToken.None);
+
+        await Assert.That(unsupported.IsSuccess).IsFalse();
+        await Assert.That(unsupported.Diagnostics.Single().Id).IsEqualTo(MarkdownContentDiagnosticIds.UnsupportedYaml);
+        await Assert.That(unsupported.Diagnostics.Single().Location!.Line).IsEqualTo(2);
+        await Assert.That(limited.IsSuccess).IsFalse();
+        await Assert.That(limited.Diagnostics.Single().Id).IsEqualTo(MarkdownContentDiagnosticIds.YamlResourceLimit);
     }
 
     [Test]
@@ -130,23 +177,26 @@ public sealed class MarkdownContentCollectionLoaderTests
         await Assert.That(nullResult.Diagnostics.Single().Location!.Line).IsEqualTo(2);
 
         File.Delete(Path.Combine(workspace.Root, "null.md"));
-        await WriteAsync(workspace.Root, "malformed.md", """
-            ---
-            title: [broken
-            ---
-            Body
-            """);
+        await WriteAsync(workspace.Root, "malformed.md", "---\ntitle: [broken\n---\nBody");
+        var malformed = await new MarkdownContentCollectionLoader<TypedFrontMatter>(
+            new ContentCollectionId("tests"), workspace.Root,
+            static entry => SiteRoute.ForFile(Path.ChangeExtension(entry.SourcePath, ".html")),
+            static _ => new PageMetadata(), new UnexpectedFrontMatterBinder()).LoadAsync();
 
-        var malformed = await Loader<TypedFrontMatter>(workspace.Root).LoadAsync();
-
-        var malformedDiagnostic = malformed.Diagnostics.Single();
-        await Assert.That(malformedDiagnostic.Id)
-            .IsEqualTo(MarkdownContentDiagnosticIds.InvalidYaml);
-        var malformedLocation = malformedDiagnostic.Location!;
-        await Assert.That(malformedLocation.FilePath)
-            .IsEqualTo("malformed.md");
-        await Assert.That(malformedLocation.Line).IsNotNull();
-        await Assert.That(malformedLocation.Column).IsNotNull();
+        await Assert.That(malformed.IsSuccess).IsFalse();
+        await Assert.That(malformed.Diagnostics.Select(static diagnostic =>
+            (diagnostic.Id, diagnostic.Severity))).IsEquivalentTo(new[]
+            {
+                (MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error),
+                (MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error),
+            });
+        await Assert.That(malformed.Diagnostics.Select(static diagnostic =>
+            (diagnostic.Location!.FilePath, diagnostic.Location.Line, diagnostic.Location.Column,
+                diagnostic.Location.EndLine, diagnostic.Location.EndColumn))).IsEquivalentTo(new[]
+            {
+                ("malformed.md", (int?)3, (int?)1, (int?)3, (int?)1),
+                ("malformed.md", (int?)2, (int?)8, (int?)3, (int?)1),
+            });
     }
 
     [Test]
@@ -301,6 +351,13 @@ public sealed class MarkdownContentCollectionLoaderTests
             .Throws<InvalidOperationException>()
             .WithMessageContaining(
                 $"Markdown document '{path}' must start with YAML front matter.");
+    }
+
+    private sealed class UnexpectedFrontMatterBinder : IContentFrontMatterBinder<TypedFrontMatter>
+    {
+        public ContentParseResult<TypedFrontMatter> Bind(
+            IReadOnlyDictionary<string, object?> values, SiteSourceLocation? sourceLocation = null) =>
+            throw new InvalidOperationException("Malformed YAML must not reach the front-matter binder.");
     }
 
     private static MarkdownContentCollectionLoader<T> Loader<T>(string root)

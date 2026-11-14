@@ -114,7 +114,7 @@ public sealed class MarkdownPostReaderTests
     }
 
     [Test]
-    public async Task ReadAsync_PreservesLegacyYamlAnchorsAndAliases()
+    public async Task ReadAsync_RejectsYamlAnchorsAndAliases()
     {
         using var workspace = new TemporaryWorkspace();
         var path = Path.Combine(workspace.Root, "aliased.md");
@@ -129,9 +129,11 @@ public sealed class MarkdownPostReaderTests
             Body
             """);
 
-        var post = await new MarkdownPostReader().ReadAsync(path, workspace.Root);
+        var exception = await Assert.That(async () => await new MarkdownPostReader().ReadAsync(path, workspace.Root))
+            .Throws<FormatException>();
 
-        await Assert.That(post.FrontMatter.Summary).IsEqualTo("Shared text");
-        await Assert.That(post.FrontMatter.SidebarLabel).IsEqualTo("Shared text");
+        await Assert.That(exception!.Message).Contains(MarkdownContentDiagnosticIds.AliasNotAllowed + " (3:10):");
+        await Assert.That(exception.Message).Contains(MarkdownContentDiagnosticIds.AliasNotAllowed + " (4:16):");
+        await Assert.That(exception.Message).Contains("native-yaml/1");
     }
 }

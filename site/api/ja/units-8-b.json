@@ -1,0 +1,2207 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "8022f7d533f3ab2632382abe559e40493ea1e04e0dfdac89f84bd51f1a587ba3": {
+      "english": "Renders responsive image markup using metadata without invoking a decoder.",
+      "japanese": "デコーダーを呼び出さずに、メタデータを使ってレスポンシブ画像のマークアップを描画します。",
+      "contexts": [
+        "T:LithoSharp.ResponsiveImage/summary"
+      ]
+    },
+    "803fefabf9e0207e162876402b37c6f2e9abe72b53bb02de3de9a4bd7812508a": {
+      "english": "Trusted HTML.",
+      "japanese": "信頼するHTML。",
+      "contexts": [
+        "M:LithoSharp.Html.UnsafeRaw(System.String)/param"
+      ]
+    },
+    "8050fc28ddd9ca6a9b704c561a949f980c4891365c44ab848d4a8b70d6ecc9c8": {
+      "english": "Source path relative to {0}.",
+      "japanese": "{0}からの相対ソースパス。",
+      "contexts": [
+        "P:LithoSharp.SiteAsset.RelativeInputPath/summary"
+      ]
+    },
+    "806f364e9b2d63bdad50b32a367e0322c969973094fbe4bcf700f3bec6607175": {
+      "english": "Theme options.",
+      "japanese": "テーマのオプション。",
+      "contexts": [
+        "P:LithoSharp.ComponentRenderingContext.Theme/summary"
+      ]
+    },
+    "809c9a5e0a39475ce881e833e42f6abcf67e49304c8f826f0ee03c04963080fd": {
+      "english": "Optional output path prefixes for a subset build. Other owned outputs and shared chunks are retained.",
+      "japanese": "部分ビルド用の任意の出力パスプレフィックス。ほかの所有出力と共有チャンクは保持します。",
+      "contexts": [
+        "P:LithoSharp.SiteGenerationOptions.OutputScope/summary"
+      ]
+    },
+    "8135c41b431f416a935b24aa49762fbc9a036898e8ccb74f5e731c577161cfe9": {
+      "english": "The versioned lookup contract.",
+      "japanese": "バージョン付きのルックアップ仕様。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticSiteManifestSourceAttribute.Contract/summary"
+      ]
+    },
+    "81b22b78e76d8e6841cd68c39b6bbf4dff7c468d9680b5631ab1b455820f3878": {
+      "english": "An absolute repository edit URL prefix; source paths are appended by segment.",
+      "japanese": "リポジトリの編集先を示す絶対URLプレフィックス。ソースパスはセグメント単位で追加します。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationCollection.EditUrl/summary"
+      ]
+    },
+    "81f54095ccc9e05fe9c05a9525e0ab315eab2a76cad586128ca8afc8b34b6b63": {
+      "english": "Offers light, dark and operating-system color modes.",
+      "japanese": "ライト、ダーク、OS設定に従うカラーモードを提供します。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationBrowserOptions.Theme/summary"
+      ]
+    },
+    "820798ae2a8df6a0ed2f32c6be14427d45daed7f77124a52ec72ab4ee1222fca": {
+      "english": "The input string.",
+      "japanese": "入力文字列。",
+      "contexts": [
+        "M:LithoSharp.Html.Encode(System.String)/param"
+      ]
+    },
+    "82230572a6d9ba55ae65bd485dcab1981779b3e49586eeda38ac2d2c1790c681": {
+      "english": "Copies input sequences into an immutable declaration snapshot.",
+      "japanese": "入力シーケンスを変更不能な宣言スナップショットにコピーします。",
+      "contexts": [
+        "M:LithoSharp.Build.BuildNode.#ctor(LithoSharp.Build.BuildNodeId,System.Collections.Generic.IEnumerable{LithoSharp.Build.BuildInput},System.Collections.Generic.IEnumerable{LithoSharp.Build.BuildNodeId},System.Collections.Generic.IEnumerable{LithoSharp.Build.BuildArtifact})/summary"
+      ]
+    },
+    "8243660ef043b484747fee54736b5a892b6dcd17f8c183bde3cb269426423fb7": {
+      "english": "The generated completeness state.",
+      "japanese": "生成された網羅性の状態。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticSiteManifestSourceAttribute.Coverage/summary"
+      ]
+    },
+    "832adea0c77dc4f75296c8bfb19b0688884b07aa1201545ebefadec9c019bea9": {
+      "english": "The type bound from front matter.",
+      "japanese": "front matterからバインドする型。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCollectionAttribute.FrontMatterType/summary"
+      ]
+    },
+    "8398a4fd2bf338c1cb0330b215b92c4dfce8a053eb59b0535de48b58f5665047": {
+      "english": "Cancellation does not stop the build worker; worker failures throw SiteBuildExtensionException.",
+      "japanese": "キャンセルしてもビルドworkerは停止しません。workerの失敗時はSiteBuildExtensionExceptionを送出します。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxInspectionSession.AnalyzeAsync(System.String,System.String,LithoSharp.Mdx.MdxAnalysisOptions,System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "83ad6393ff10a67cb065c459826e84ef9d147ffee8e01196660477af9ae4de40": {
+      "english": "Content fingerprint used in the published path.",
+      "japanese": "公開パスで使用するコンテンツのフィンガープリント。",
+      "contexts": [
+        "P:LithoSharp.AssetUrl.Fingerprint/summary"
+      ]
+    },
+    "84017f0385bdd6fda4d35e65be93798ce7b550023d72f5bddd640ed75863d5e2": {
+      "english": "Content directory.",
+      "japanese": "コンテンツのディレクトリ。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.Validate(LithoSharp.Configuration.SiteSettings,System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.Content.MarkdownPost},LithoSharp.SiteCustomization)/param"
+      ]
+    },
+    "844966906555536f09929b409c54b5d996b74f699bf2377102818e46270d6c5f": {
+      "english": "Generation failed or the route exists.",
+      "japanese": "生成に失敗したか、ルートが存在します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertNoRoute(System.String)/exception"
+      ]
+    },
+    "844cb6834d05d70bb5c51c955dfd36c629e1026ad41703e5cab63d17abee24d1": {
+      "english": "Creates a symbol without executing or guessing the API's source code.",
+      "japanese": "APIのソースコードを実行したり推測したりせずに、シンボルを作成します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.ApiSymbol.#ctor(System.String,System.String,LithoSharp.Documentation.ApiVisibility)/summary"
+      ]
+    },
+    "84551228e7c74ae3d2a7664e59133824c457484bdc3ee8b8161c7edccdbf5513": {
+      "english": "Creates a site definition shared by library callers and the command-line tool.",
+      "japanese": "ライブラリの呼び出し側とコマンドラインツールで共有するサイト定義を作成します。",
+      "contexts": [
+        "T:LithoSharp.ISiteFactory/summary"
+      ]
+    },
+    "846d2f34219812ee534514f2cf6957b8e9a1eb84e2fe24ad86396108750b4516": {
+      "english": "The identifier or relative path is invalid.",
+      "japanese": "識別子または相対パスが不正です。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetOutput.#ctor(System.String,System.String)/exception"
+      ]
+    },
+    "849fecff32cfc206a37e03e90d6816ecfc90a6040c3514d391cb08a14202cd91": {
+      "english": "UTC-normalized exclusive end time.",
+      "japanese": "UTCに正規化した公開期間の終了時刻。この時刻は公開期間に含みません。",
+      "contexts": [
+        "P:LithoSharp.Pages.PageMetadata.PublishUntil/summary"
+      ]
+    },
+    "84a539581300d8abb0567890d0f23d6dd6779120a012ebc46aa2d57b3bb5d1c1": {
+      "english": "The diagnostic associated with this failure.",
+      "japanese": "この失敗に関連する診断。",
+      "contexts": [
+        "P:LithoSharp.AssetRegistryException.Diagnostic/summary"
+      ]
+    },
+    "84d5ec718aca11048e124dee239016edd4fe7994670566b8c6efe45a2b2da05e": {
+      "english": "The maximum number of articles per main listing page.",
+      "japanese": "メインの記事一覧ページごとの記事の最大数。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogCollection.PageSize/summary"
+      ]
+    },
+    "856ef87568f8b6ae28236c8ce566716059fcb699a4be779d8b46dd7778c1e260": {
+      "english": "Validates a single post.",
+      "japanese": "1つの記事を検証します。",
+      "contexts": [
+        "M:LithoSharp.Validation.IContentValidator.Validate(LithoSharp.Content.MarkdownPost,LithoSharp.Validation.ContentValidationContext)/summary"
+      ]
+    },
+    "857b4c4517e6a8fa9b992ab59882d770adcddcf0914cee049898d4e9b3016a98": {
+      "english": "Either static-inputs or trusted-catalog.",
+      "japanese": "static-inputsまたはtrusted-catalog。",
+      "contexts": [
+        "P:LithoSharp.Inspection.SitePreflightReport.Mode/summary"
+      ]
+    },
+    "85d679d30d53efd790adab17b75707d945be30ad03f49054f66a5b65b177b075": {
+      "english": "The props, root, root children, additional links, a link URL, or context is null.",
+      "japanese": "props、ルート、ルートの子要素、追加のリンク、リンクURL、またはコンテキストがnullです。",
+      "contexts": [
+        "M:LithoSharp.DocsNavigationComponent.Render(LithoSharp.DocsNavigationComponentProps,LithoSharp.ComponentRenderingContext)/exception"
+      ]
+    },
+    "85d92e5ea77db1f93c2ab7f42d8d6e97ccef27cdea1ca324c6162de04188b2c9": {
+      "english": "All published pages in stable identity order.",
+      "japanese": "安定した識別情報の順に並べた、公開済みの全ページ。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentCatalog.Pages/summary"
+      ]
+    },
+    "8619c103fb21627706863fecceb1ec564811a1071ef023ee6c2721983d6e4caa": {
+      "english": "Measured worker work for the most recent successful preparation.",
+      "japanese": "直近に成功した準備における、workerの処理の測定値。",
+      "contexts": [
+        "T:LithoSharp.Mdx.MdxBuildMetrics/summary"
+      ]
+    },
+    "861c5999d8cc1100bf900c798e8921fe06da830723c21606dca707406d558b3b": {
+      "english": "Google Analytics 4 measurement ID.",
+      "japanese": "Google Analytics 4の測定ID。",
+      "contexts": [
+        "P:LithoSharp.Configuration.SiteSettings.GoogleAnalyticsMeasurementId/summary"
+      ]
+    },
+    "862bbbfaa9269b3edb355e3e7704957c1e3cd68e82e179f7469f3270dc3ae387": {
+      "english": "Localized text.",
+      "japanese": "ローカライズされたテキスト。",
+      "contexts": [
+        "P:LithoSharp.ComponentRenderingContext.Text/summary"
+      ]
+    },
+    "8661e5a0dcb812ca4629866426cb9f59fe13d2ef351cf684f5202a11a38f362c": {
+      "english": "Heading for the posts section of llms.txt.",
+      "japanese": "llms.txtの記事セクションの見出し。",
+      "contexts": [
+        "P:LithoSharp.SiteText.LlmsPostsHeading/summary"
+      ]
+    },
+    "8671e692f59087cfd6d6ba80ac5ff2539e4ab3b41d930cabed94f616852dbc6c": {
+      "english": "Asserts an attribute value for the first matching element.",
+      "japanese": "最初に一致した要素の属性値を表明します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestDocument.AssertAttribute(System.String,System.String,System.String)/summary"
+      ]
+    },
+    "86d0c71df4f50c07c257ea417d91dc32b4ba920d7c86c1b0b462815510d1d3ba": {
+      "english": "Origin of these facts.",
+      "japanese": "これらの情報の由来。",
+      "contexts": [
+        "P:LithoSharp.ImageMetadata.Provenance/summary"
+      ]
+    },
+    "86fcc350c4871facdbbfb1c5017b90a33eb16c379a467fa4229bb13e704fdd8e": {
+      "english": "Prepares declared content and assets before the common build plan is validated.",
+      "japanese": "共通のビルド計画を検証する前に、宣言されたコンテンツとアセットを準備します。",
+      "contexts": [
+        "T:LithoSharp.Build.ISiteBuildExtension/summary"
+      ]
+    },
+    "8718a0fe7016ddb213e00ff0055d7de798f0f484946c6783b04e94d7c8ffba07": {
+      "english": "Factory, renderer, I/O, and cancellation exceptions propagate. Only structured generation validation is captured.",
+      "japanese": "factory、レンダラー、I/O、キャンセルの例外は呼び出し側へ伝播します。構造化された生成検証だけを捕捉します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.ISiteFactory,LithoSharp.SiteFactoryContext,System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "872e5eb0fba432205fd3b0948145f0cb8db54f61bc62d33ba610299949c3f508": {
+      "english": "Gets whether generation committed successfully.",
+      "japanese": "生成結果を正常にコミットしたかどうかを取得します。",
+      "contexts": [
+        "P:LithoSharp.Testing.SiteTestHost.Succeeded/summary"
+      ]
+    },
+    "8765edf460af0832434ea8686b255d0270117aeb5d7fd48bb11dc81bee69b86b": {
+      "english": "Path used in error messages.",
+      "japanese": "エラーメッセージで使用するパス。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownDocumentParser.SplitFrontMatter(System.String,System.String)/param"
+      ]
+    },
+    "87b199a3f63f3c338d57657027ee29c9af5520d9fdbdf992a9e7d09297e2571d": {
+      "english": "Asserts that a declared artifact exists as a regular contained file, returning its absolute path.",
+      "japanese": "宣言された成果物が対象範囲内の通常ファイルとして存在することを表明し、その絶対パスを返します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertArtifact(System.String)/summary"
+      ]
+    },
+    "87ca3af6989a52ed24e8a26adba0e5b4fe76483b28fc0b046b9813d30e8465e5": {
+      "english": "Excludes the entry before compilation.",
+      "japanese": "コンパイル前にエントリーを除外します。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogFrontMatter.Draft/summary"
+      ]
+    },
+    "87f8ee61c8c94d6d1a878b46c9fd490f998fb46b6eb636803694a33db9b480f3": {
+      "english": "The relative .html or .htm output file.",
+      "japanese": "相対パスで指定する.htmlまたは.htmの出力ファイル。",
+      "contexts": [
+        "P:LithoSharp.Content.FixedHtmlPageAttribute.RelativeOutputPath/summary"
+      ]
+    },
+    "8841492eab1e997eb8c46c81d23800e0d2a6259788372415cb07ef8d71a84b62": {
+      "english": "The role assigned before parsing or metadata validation.",
+      "japanese": "解析またはメタデータの検証前に割り当てた役割。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCatalogEntry.Kind/summary"
+      ]
+    },
+    "887cb0ba38aa06a1addc234def27424742cd54ebd46cbe719c6f2a6f7f990bbb": {
+      "english": "Requires a public parameterless constructor; duplicate YAML member names or an unconstructible type fail.",
+      "japanese": "publicな引数なしコンストラクターが必要です。YAMLのメンバー名が重複する場合や、型のインスタンスを作成できない場合は失敗します。",
+      "contexts": [
+        "M:LithoSharp.Inspection.FrontMatterSchemas.For``1/summary"
+      ]
+    },
+    "888cdf6f99c8911cfceb97bf99ec2d01e1aabf7343de1e47dfb5b1dca82b86b3": {
+      "english": "Resizes to the exact width, preserving aspect ratio and rounding height half up, to at least one.",
+      "japanese": "縦横比を保って指定どおりの幅にリサイズします。高さは四捨五入し、少なくとも1にします。",
+      "contexts": [
+        "M:LithoSharp.Images.RgbaImage.Resize(System.Int32,LithoSharp.Images.ImageLimits,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "88ce4d475e3da9810aa9c1a238438299530cee78a9533a1574824d4f29ae0350": {
+      "english": "Draft content is unpublished; Route is null.",
+      "japanese": "下書きの内容は未公開で、Routeはnullです。",
+      "contexts": [
+        "F:LithoSharp.Inspection.DocumentProjectStatus.Draft/summary"
+      ]
+    },
+    "890d15e07eddc6fcf2c933033e88d9b778a6fdd44f41fd38ceb761019bb4f4d1": {
+      "english": "Gets the generation result, or null when structured validation failed.",
+      "japanese": "生成結果を取得します。構造化された検証に失敗した場合はnullです。",
+      "contexts": [
+        "P:LithoSharp.Testing.SiteTestHost.Result/summary"
+      ]
+    },
+    "891357e8b0148e5075f6323bad08a83d5bd8ee4b18cdbc22b7cc00b0acdd3494": {
+      "english": "Search status shown when there are no posts to search.",
+      "japanese": "検索対象の記事がないときに表示する検索状態。",
+      "contexts": [
+        "P:LithoSharp.SiteText.SearchStatusNoPosts/summary"
+      ]
+    },
+    "89148e6b8efa58bd13dff563aa29ee6f0cf26468d721dec7f001fc7331e8d5b0": {
+      "english": "An optional absolute HTTP edit link.",
+      "japanese": "任意の絶対HTTP編集リンク。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentFrontMatter.CustomEditUrl/summary"
+      ]
+    },
+    "89215142854a987292646523be51f320be4c773fdeff7462c818b69d5c3c503a": {
+      "english": "The current generation options.",
+      "japanese": "現在の生成オプション。",
+      "contexts": [
+        "P:LithoSharp.Build.SiteBuildContext.Options/summary"
+      ]
+    },
+    "89b1a4038606c918ce56600b8dda2910ee15d5c55497f65184e93f1dee524224": {
+      "english": "Converts the date to the site time zone and formats it as \"yyyy/MM\".",
+      "japanese": "日付をサイトのタイムゾーンに変換し、\"yyyy/MM\"形式に整えます。",
+      "contexts": [
+        "M:LithoSharp.SiteFormatting.FormatMonth(LithoSharp.Configuration.SiteSettings,System.DateTimeOffset)/summary"
+      ]
+    },
+    "89ce4d37a4039157188276c1321b46ad67fbb6017c44700f54814af9334432d8": {
+      "english": "Renders the standard site footer.",
+      "japanese": "標準のサイトフッターを描画します。",
+      "contexts": [
+        "T:LithoSharp.FooterComponent/summary"
+      ]
+    },
+    "89f75f331fab48d6cd72627dcf9429582dabe5c88535a912b3be718b4cb3475c": {
+      "english": "Separates additions/removals, signatures, visibility, obsolete information and documentation changes.",
+      "japanese": "追加と削除、シグネチャ、可視性、obsolete情報、文書の変更を区別します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.ApiReferenceSite.Compare(System.Collections.Generic.IEnumerable{LithoSharp.Documentation.ApiMember},System.Collections.Generic.IEnumerable{LithoSharp.Documentation.ApiMember})/summary"
+      ]
+    },
+    "8a1b96213c23102276d600076e6de87f9d643f38196276f97c12b7142373d6a1": {
+      "english": "The page or body is null.",
+      "japanese": "ページまたは本文がnullです。",
+      "contexts": [
+        "M:LithoSharp.PageRenderingContext.RenderDocument``1(LithoSharp.Pages.SitePage{``0},LithoSharp.IHtmlContent)/exception"
+      ]
+    },
+    "8acde3cf36ab684ff8a3e2c4f9ca91f410440b1d541ed67f5b9578709ef51672": {
+      "english": "Inspects Markdown without building a project or invoking a factory.",
+      "japanese": "プロジェクトをビルドしたりfactoryを呼び出したりせずに、Markdownを検査します。",
+      "contexts": [
+        "M:LithoSharp.Inspection.SitePreflight.InspectMarkdown(System.String,System.String,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "8ad21317d9133f6bd1d741b3c3af6dc3751a087f2db8f316b54ff4fc7d425e96": {
+      "english": "Legacy format names. Existing files of any format can be referenced by Core descriptors; generation supports PNG only.",
+      "japanese": "従来の形式名。Coreの記述子では任意の形式の既存ファイルを参照できます。生成でサポートするのはPNGのみです。",
+      "contexts": [
+        "T:LithoSharp.Images.ImageFormat/summary"
+      ]
+    },
+    "8ad6581d3dc373bd0db01dd87b75fe5af3fd59f7a3321a007de9b180b2b6932b": {
+      "english": "Non-fatal preparation diagnostics (warnings and info) surfaced in the build report. Errors fail preparation with an exception instead.",
+      "japanese": "ビルドレポートに表示する、準備時の致命的ではない診断（警告と情報）。エラーの場合は、代わりに例外を送出して準備を失敗させます。",
+      "contexts": [
+        "P:LithoSharp.Build.SiteBuildContribution.Diagnostics/summary"
+      ]
+    },
+    "8b0192da384d844ef88d133960e9364d45f05fafeb7ff024adfe58f2461c2c2d": {
+      "english": "Gets a snapshot of the Markdown posts.",
+      "japanese": "Markdown記事のスナップショットを取得します。",
+      "contexts": [
+        "P:LithoSharp.SiteDefinition.Posts/summary"
+      ]
+    },
+    "8b69cacc134ca3373f4abd106391ab75fdd2c27e77c7a7e245769b9b3b338578": {
+      "english": "Stops source Error before invoking the factory, then inspects its actual catalog without rendering.",
+      "japanese": "ソースにErrorがあればfactoryを呼び出す前に停止し、なければ描画せずに実際のカタログを検査します。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.PreflightFactoryAsync(System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task{LithoSharp.SiteDefinition}},LithoSharp.Inspection.SitePreflightReport,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "8ba33a09be24b97026d6d43f31164d2d6f3e7bd3f84cf669267494121ed7bc5f": {
+      "english": "Returns the first diagnostic matching an ID and optional severity and ordinal message substring.",
+      "japanese": "IDに一致し、任意指定の重大度とメッセージ部分文字列の条件も満たす最初の診断を返します。部分文字列は序数比較で照合します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertDiagnostic(System.String,System.Nullable{LithoSharp.Diagnostics.SiteDiagnosticSeverity},System.String)/summary"
+      ]
+    },
+    "8c229777038953f92ed05ff88d7f258cb5983cb6b72967bd19b375f5598f2f0c": {
+      "english": "Maximum PNG datastream size, including metadata, in bytes.",
+      "japanese": "メタデータを含むPNGデータストリームの最大バイト数。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageLimits.MaxInputBytes/summary"
+      ]
+    },
+    "8c348d80a02f35234e4499bb2d6e5393926f7b9b1a228c7276dc229c1dadd2aa": {
+      "english": "Renders a reusable site component.",
+      "japanese": "再利用できるサイトコンポーネントを描画します。",
+      "contexts": [
+        "T:LithoSharp.ISiteComponent`1/summary"
+      ]
+    },
+    "8c88c4c8c5200ccb79cf30eb858c5ec4e2da39779e7cef3dd97cd0a2b0e1bac8": {
+      "english": "The message is null, empty, or whitespace.",
+      "japanese": "メッセージがnull、空、または空白のみです。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestException.#ctor(System.String)/exception"
+      ]
+    },
+    "8c98c81744d8e079735f5a9622f3ca051155b689078a1661e5b941fb742b16dc": {
+      "english": "The original text.",
+      "japanese": "元のテキスト。",
+      "contexts": [
+        "P:LithoSharp.HtmlText.Value/summary"
+      ]
+    },
+    "8cea7a789c2c3fc888c26257bc6547a1ce384966dc43b17930cc129634b98b9e": {
+      "english": "This is not a certificate for future rendering or final HTML publication.",
+      "japanese": "将来の描画や最終HTMLの公開を証明するものではありません。",
+      "contexts": [
+        "T:LithoSharp.Inspection.SitePreflightReport/remarks"
+      ]
+    },
+    "8d97e02fe19d3632685b2df0daf75dadccff3e4726f9a8805ea1811cd434362e": {
+      "english": "Assesses declared relationships without advancing review hashes or executing code.",
+      "japanese": "レビューハッシュを更新したりコードを実行したりせずに、宣言された関係を評価します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentTranslationReviewResult.Inspect(System.Collections.Generic.IEnumerable{LithoSharp.Documentation.DocumentRevision},System.Collections.Generic.IReadOnlyDictionary{LithoSharp.Documentation.DocumentKey,LithoSharp.Documentation.DocumentKey},System.Collections.Generic.IEnumerable{LithoSharp.Documentation.DocumentTranslationReview},System.Boolean)/summary"
+      ]
+    },
+    "8dff44fb78dd281e09c8309832cdcffb5b73339ee9a33b10246da70916ece3d2": {
+      "english": "Lede shown on the home page.",
+      "japanese": "ホームページに表示するリード文。",
+      "contexts": [
+        "P:LithoSharp.SiteText.IndexLede/summary"
+      ]
+    },
+    "8e7f7287ccac06c1cac6af3e0c46f2f6d8d0840ab28016f6aa7fb5be412b3f02": {
+      "english": "Short description of the post.",
+      "japanese": "記事の短い説明。",
+      "contexts": [
+        "P:LithoSharp.Content.PostFrontMatter.Summary/summary"
+      ]
+    },
+    "8ee0f8fcd579a03fce53c3fa7c00d816a824ea3e6f66c6ddcb5d83687610e118": {
+      "english": "Optional progressive navigation and theme controls.",
+      "japanese": "任意のプログレッシブナビゲーションとテーマ操作機能。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationSite.Browser/summary"
+      ]
+    },
+    "8f301bab6db72e5f429c149ecd891c4f70908deadab97b270007f7dc6c9ef84f": {
+      "english": "An OKF directory index, including the optional bundle root index.",
+      "japanese": "任意のバンドルルートインデックスを含む、OKFのディレクトリインデックス。",
+      "contexts": [
+        "F:LithoSharp.Content.ContentInputKind.Index/summary"
+      ]
+    },
+    "8f5abbbe9a7f96cb43e36c7809d0a916a5e993a2937a16b15467c2e74c49efde": {
+      "english": "JSON roots must be an object or an array of objects.",
+      "japanese": "JSONのルートは、オブジェクトまたはオブジェクトの配列でなければなりません。",
+      "contexts": [
+        "M:LithoSharp.Content.JsonContentCollectionLoader`2.LoadAsync(System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "8f6248e2fa75acb31b15bf12784f2e38dd1ce2e9ad532b966394e27692c460eb": {
+      "english": "Elapsed milliseconds, recorded only when CollectTimings is enabled; not CPU time.",
+      "japanese": "経過時間（ミリ秒）。CollectTimingsが有効な場合だけ記録します。CPU時間ではありません。",
+      "contexts": [
+        "T:LithoSharp.Build.SiteBuildTimings/summary"
+      ]
+    },
+    "8f846b9a47a2c9b4dc014f31088cd87443fcf8a1950b8b4d91eb817a659f1435": {
+      "english": "Output path relative to the site root.",
+      "japanese": "サイトルートからの相対出力パス。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateDocument.RelativePath/summary"
+      ]
+    },
+    "8fcaa9cd93aea16d9ec908ae7cb0344dd451b69bd18241f0ad7086061304c892": {
+      "english": "The front matter to convert.",
+      "japanese": "変換するfront matter。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownFrontMatterYaml.Serialize(LithoSharp.Content.PostFrontMatter)/param"
+      ]
+    },
+    "90761634daaca56403e00820f039b84b5993ac7a1bff173e46fa7deca53ba64a": {
+      "english": "An existing output directory. Links and reparse points, including ancestors, are rejected.",
+      "japanese": "既存の出力ディレクトリ。祖先を含め、リンクとリパースポイントは拒否します。",
+      "contexts": [
+        "M:LithoSharp.Quality.GeneratedSiteInspector.InspectAsync(System.String,System.String,System.Threading.CancellationToken)/param"
+      ]
+    },
+    "910264c6badea717d50d66975f05354ae0f812b8447d1fd7503e321bffa22b80": {
+      "english": "Uses English text, the default theme, current UTC time, Production, and an empty asset registry.",
+      "japanese": "英語のテキスト、既定のテーマ、現在のUTC時刻、Production、空のアセットレジストリを使用します。",
+      "contexts": [
+        "M:LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.SiteSettings)/remarks"
+      ]
+    },
+    "913f7389ec78264e6e93e894f92c61b2a207b6b39f79a7ae110b0f0942d30a02": {
+      "english": "Converts a scalar using the same invariant-culture rules as reflection binding.",
+      "japanese": "リフレクションバインドと同じインバリアントカルチャの規則でスカラーを変換します。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryParseScalar``1(System.Object,LithoSharp.Content.GeneratedContentBindingContext,``0@)/summary"
+      ]
+    },
+    "91668c836cf6637b68afe7f1a9a4ac027230f939e707dcec18760625251ca401": {
+      "english": "Renders the blog header.",
+      "japanese": "ブログのヘッダーを描画します。",
+      "contexts": [
+        "T:LithoSharp.BlogHeaderComponentProps/summary",
+        "M:LithoSharp.BlogHeaderComponentProps.#ctor(System.String,LithoSharp.SiteUrl,System.Collections.Generic.IReadOnlyList{LithoSharp.NavigationLink},LithoSharp.SiteUrl,System.Boolean)/summary",
+        "T:LithoSharp.BlogHeaderComponent/summary"
+      ]
+    },
+    "9176add18e7d7d3ef1c12e79b969a343054e10b8cf0f4b3e5d500bb98088e0cd": {
+      "english": "Reads a bounded PNG stream. The caller retains ownership of the stream.",
+      "japanese": "サイズに上限のあるPNGストリームを読み取ります。ストリームの所有権は呼び出し側が保持します。",
+      "contexts": [
+        "M:LithoSharp.Images.PngCodec.Decode(System.IO.Stream,LithoSharp.Images.ImageLimits,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "9187130b85b01c7142f68532e912e530b44643bc067663409095c0e1e9a946dc": {
+      "english": "Creates an opt-in MDX build extension without starting Node.",
+      "japanese": "Nodeを起動せずに、明示的に有効化するMDXビルド拡張を作成します。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxSite.#ctor(LithoSharp.Mdx.MdxOptions)/summary"
+      ]
+    },
+    "918b9b23ece6e5a8dc2d004296dd3f38ed4e9397982710e35aafbd9a9bac4ac1": {
+      "english": "Explicit public Algolia credentials. Never supply an administrative API key.",
+      "japanese": "明示的な公開用Algolia認証情報。管理用APIキーを渡してはいけません。",
+      "contexts": [
+        "T:LithoSharp.Mdx.DocumentationAlgolia/summary",
+        "M:LithoSharp.Mdx.DocumentationAlgolia.#ctor(System.String,System.String,System.String)/summary"
+      ]
+    },
+    "919842ddb66968d98e4a54dd6d37ff7029f58f9dbf48acea2edcabf5d09cf5ed": {
+      "english": "Source to register in Assets.",
+      "japanese": "Assetsに登録するソース。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageAsset.Source/summary"
+      ]
+    },
+    "91b54cebfd9c8dc366cb788c5ed8282d71e16e140cd22c0207c2f5619f0f2f23": {
+      "english": "The absolute site base used by both the compiler and the runtime owner.",
+      "japanese": "コンパイラーと実行時の所有者が共通で使用する、サイトの絶対ベースURL。",
+      "contexts": [
+        "P:LithoSharp.Content.FixedHtmlSiteAttribute.BaseUrl/summary"
+      ]
+    },
+    "92998ba0652b24cbfd48576a5eb716286f9b5cbc3279f45f73a6c7decab34318": {
+      "english": "Base URL the site is published at (for example on GitHub Pages).",
+      "japanese": "サイトの公開先となるベースURL（GitHub Pagesなど）。",
+      "contexts": [
+        "P:LithoSharp.Configuration.SiteSettings.BaseUrl/summary"
+      ]
+    },
+    "92a1f6393417363201cd5877e2400fdf982e3fcb49e61f8798ec993eff14a186": {
+      "english": "Returns unique matching descendants in tree order; :scope refers to this element.",
+      "japanese": "一致する子孫要素を重複なくツリー順に返します。:scopeはこの要素を指します。",
+      "contexts": [
+        "M:LithoSharp.Testing.HtmlTestElement.QueryAll(System.String,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "92cbd4ea8eddea2619449d69d676eb618b5938929a335b0804797f0d284b4799": {
+      "english": "Additions to the existing content and asset registries.",
+      "japanese": "既存のコンテンツレジストリとアセットレジストリへの追加。",
+      "contexts": [
+        "T:LithoSharp.Build.SiteBuildContribution/summary"
+      ]
+    },
+    "9327d1dce59ec5c1e696b3a0549228fe073f3c21a6408ba010160130133379d3": {
+      "english": "A typed reference to a static content entry and its page route.",
+      "japanese": "静的コンテンツのエントリーと、そのページルートへの型付き参照。",
+      "contexts": [
+        "T:LithoSharp.Content.ContentRef`1/summary"
+      ]
+    },
+    "937e239f937a0720c63222260abc57ecd3aee8941d75c4b7d7caa55a2fa910b3": {
+      "english": "Transforms with declared source assets and output files.",
+      "japanese": "ソースアセットと出力ファイルを宣言した変換。",
+      "contexts": [
+        "P:LithoSharp.SiteGenerationOptions.AssetTransforms/summary"
+      ]
+    },
+    "938125104038df698ae5093673082724704d2d86ea152dd0f2760538f0989f7e": {
+      "english": "The public URL.",
+      "japanese": "公開URL。",
+      "contexts": [
+        "P:LithoSharp.AssetUrl.Value/summary"
+      ]
+    },
+    "93a384a0d3a4f8e18607247b29f0abc12b3fea68c150a19ad11141478a572478": {
+      "english": "Gets the parser's canonical local tag name.",
+      "japanese": "パーサーによる正規のローカルタグ名を取得します。",
+      "contexts": [
+        "P:LithoSharp.Testing.HtmlTestElement.TagName/summary"
+      ]
+    },
+    "93baeb8fc9c2e89dfde806ba3f948f15b9992015326f19658dd830443d71cc41": {
+      "english": "Asserts that no diagnostics meet or exceed the minimum severity.",
+      "japanese": "最小重大度以上の診断がないことを表明します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertNoDiagnostics(LithoSharp.Diagnostics.SiteDiagnosticSeverity)/summary"
+      ]
+    },
+    "93c173c91357a299354347b09e4be0ac9d6a95d877082a795c74b426b51dc7f3": {
+      "english": "The page or layout is null.",
+      "japanese": "ページまたはレイアウトがnullです。",
+      "contexts": [
+        "M:LithoSharp.SiteTemplateContext.RenderLayout``1(LithoSharp.Pages.SitePage{``0},LithoSharp.IPageLayout{``0})/exception"
+      ]
+    },
+    "947d3a5155230474f3ddc7ccb8bfa4cb4dc16afc96042f42c277c3914d3cea81": {
+      "english": "The type to read.",
+      "japanese": "読み取る型。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownFrontMatterYaml.Deserialize``1(System.String)/typeparam"
+      ]
+    },
+    "9484fdfb686240e454e7c0f3f63fdd74ec577d2f08e33a00f5f4592373c7ff78": {
+      "english": "Checks published URLs and anchors; allowance keys are exact absolute URLs with optional escaped fragments, and values are nonempty reasons.",
+      "japanese": "公開済みのURLとアンカーを検査します。許可項目のキーは正確な絶対URLです。エスケープ済みフラグメントは省略可能で、値は空でない理由です。",
+      "contexts": [
+        "M:LithoSharp.Quality.SitePublicationCompatibility.CompareAsync(LithoSharp.Quality.SitePublicationManifest,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String},System.Boolean,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "9498e21e49c554ebebffba2ff5e33671fa6410e9f8546620775db8abf8a7e001": {
+      "english": "The existing entry identity.",
+      "japanese": "既存のエントリー識別情報。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCatalogEntry.Id/summary"
+      ]
+    },
+    "94ab504db0c9756ccbac29dbd731cd7933c07f14791716c92f0a6582cb330969": {
+      "english": "Creates one declared input with its root-relative path and pre-parse classification.",
+      "japanese": "ルート相対パスと解析前の分類を持つ、1つの宣言入力を作成します。",
+      "contexts": [
+        "M:LithoSharp.Content.StaticContentCatalogEntry.#ctor(LithoSharp.Content.ContentEntryId,System.String,LithoSharp.Routing.SiteRoute,System.String,LithoSharp.Content.ContentInputKind)/summary"
+      ]
+    },
+    "959e7c7805fa175b03c5db33c750c0a89482bce45d05812a147a2007330c4938": {
+      "english": "A source that a post references.",
+      "japanese": "記事が参照するソース。",
+      "contexts": [
+        "T:LithoSharp.Content.PostSourceReference/summary"
+      ]
+    },
+    "961879ad774f99306dfb2136dde010f948084dbe9f207dcdf9ae7108b6896df6": {
+      "english": "Renders the complete page.",
+      "japanese": "ページ全体を描画します。",
+      "contexts": [
+        "M:LithoSharp.IPageLayout`1.Render(LithoSharp.Pages.SitePage{`0},LithoSharp.PageRenderingContext)/summary"
+      ]
+    },
+    "9619f6104e1c6bead2b8053b7494ec9cac51b35ef75d138d97e5c7f27866c84b": {
+      "english": "Generated files.",
+      "japanese": "生成されたファイル。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateResult.Files/summary"
+      ]
+    },
+    "965d74ccb70800ff2aca8ff7482cf269d276fbdf220885f13dc295e9c67e33cb": {
+      "english": "The language used by the explicit source fallback.",
+      "japanese": "明示的なソースフォールバックで使用する言語。",
+      "contexts": [
+        "P:LithoSharp.Documentation.TranslationCatalog.SourceLocale/summary"
+      ]
+    },
+    "968c1affaec74a8d44a97e3068b220e955370028d45721921f324b18e1e8e4fd": {
+      "english": "Line-accurate declaration location; the column is unknown.",
+      "japanese": "行が正確な宣言位置。列は不明です。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxImportInfo.Location/summary"
+      ]
+    },
+    "9697efe6cf2a08172fa7cde3401559e35c96d9d09a2d695cc1486f511bd171b7": {
+      "english": "Directory-based documentation navigation.",
+      "japanese": "ディレクトリに基づく文書ナビゲーション。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateContext.Navigation/summary"
+      ]
+    },
+    "96b30fe399154a666f5d57dc6f5670c9924b72034768763b3062dda03bdd193d": {
+      "english": "Creates settings for a project and a restored worker installation.",
+      "japanese": "プロジェクトと、復元済みのworkerインストールに対する設定を作成します。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxOptions.#ctor(System.String,System.String)/summary"
+      ]
+    },
+    "96b472d34a8ea70634c6896a4357d35579046d720f27a9d15512f62ef2b27118": {
+      "english": "Records review completion. Builds never call this operation automatically.",
+      "japanese": "レビューの完了を記録します。ビルドがこの操作を自動的に呼び出すことはありません。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentTranslationReview.#ctor(LithoSharp.Documentation.DocumentRevision,LithoSharp.Documentation.DocumentRevision)/summary"
+      ]
+    },
+    "96f4aea4e2cc252040b5f35c417583e92261389d6d135d5c9983e4d875e815d9": {
+      "english": "Last part of the message shown when JavaScript is disabled.",
+      "japanese": "JavaScriptが無効なときに表示するメッセージの末尾。",
+      "contexts": [
+        "P:LithoSharp.SiteText.SearchNoscriptSuffix/summary"
+      ]
+    },
+    "972552ffc995ee4f59fa26fa92097343a9f1171448e95e17628cb3acd603f4f6": {
+      "english": "Whether concurrent calls to the selectors and renderer are safe.",
+      "japanese": "セレクターとレンダラーへの同時呼び出しが安全かどうか。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.RenderDocs(System.Func{LithoSharp.Content.ContentEntry{`0,`1},LithoSharp.Content.DocsPagePresentation},LithoSharp.Content.ContentPageRenderer{`0,`1},System.String,System.Boolean)/param"
+      ]
+    },
+    "974d0410e7815cd4cdbc075a702db689fb78817a5a54d2a70bdde525a505cfcd": {
+      "english": "A validated site URL.",
+      "japanese": "検証済みのサイトURL。",
+      "contexts": [
+        "T:LithoSharp.SiteUrl/summary"
+      ]
+    },
+    "976f0fd4e5e252a2fab439db95670ba91aad3c26666929df0b906708f653a741": {
+      "english": "The Markdown posts supplied to the generator.",
+      "japanese": "ジェネレーターに渡されたMarkdown記事。",
+      "contexts": [
+        "M:LithoSharp.SiteDefinition.#ctor(LithoSharp.Configuration.SiteSettings,System.Collections.Generic.IReadOnlyList{LithoSharp.Content.MarkdownPost})/param"
+      ]
+    },
+    "97e2901237334e5b0a0b976d5e46c0d0157f38708096ec76859abf16e437e307": {
+      "english": "Registers a derived comparison page between two explicitly loaded API variants.",
+      "japanese": "明示的に読み込んだ2つのAPIバリアントを比較する派生ページを登録します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.ApiReferenceSite.AddComparison(System.String,System.String,System.String,System.String,System.String)/summary"
+      ]
+    },
+    "97f6a3b23c474cff721df674d5ef947136221723ac17e6f6c1d74088f28d19bd": {
+      "english": "An ordinary Markdown document.",
+      "japanese": "通常のMarkdown文書。",
+      "contexts": [
+        "F:LithoSharp.Content.ContentInputKind.Markdown/summary"
+      ]
+    },
+    "9824668ea840282672e0f928f88bfb047e7863af303179833e6f21370fb07a75": {
+      "english": "Renders picture, format sources and known intrinsic dimensions. Unknown dimensions are omitted.",
+      "japanese": "picture、形式別のsource要素、判明している固有寸法を描画します。不明な寸法は省略します。",
+      "contexts": [
+        "M:LithoSharp.ResponsiveImage.Render(LithoSharp.AssetRegistry,LithoSharp.ImageDescriptor,System.String,System.Boolean,System.String)/summary"
+      ]
+    },
+    "985c7237a2ca5d15db19f679b3c46eec2290892e1eddb529b7f4ae9d868453fe": {
+      "english": "Call ValidateRequired after all assignments, so setter side effects and defaults match reflection binding.",
+      "japanese": "setterの副作用と既定値をリフレクションバインドに合わせるため、すべての代入が終わってからValidateRequiredを呼び出してください。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryRead``1(System.String,``0,System.Boolean,System.Boolean,LithoSharp.Content.GeneratedContentValueParser{``0},``0@)/remarks"
+      ]
+    },
+    "9896f921906fe50812b77917ec420076b9be899bdd850a5d429c78b23f20c35b": {
+      "english": "Declares a deterministic asset transformation.",
+      "japanese": "決定的なアセット変換を宣言します。",
+      "contexts": [
+        "T:LithoSharp.SiteAssetTransform/summary"
+      ]
+    },
+    "98ce4efc9eb9966b1b67b4614cb6009d9507afde43b463c924b71d9371415c0c": {
+      "english": "A searchable document section.",
+      "japanese": "検索可能な文書セクション。",
+      "contexts": [
+        "T:LithoSharp.Search.SearchSection/summary",
+        "M:LithoSharp.Search.SearchSection.#ctor(System.String,System.String,System.String)/summary"
+      ]
+    },
+    "98d7431233a1ef6e0125c5e3c909570cf92e26e5854634ce968866faef023a53": {
+      "english": "The article title.",
+      "japanese": "記事のタイトル。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogFrontMatter.Title/summary"
+      ]
+    },
+    "98e877169e0296a39e3a086bce41cc4b8b181317b54ed398c8c253635688bdfa": {
+      "english": "Creates a generator with the default Markdown compiler.",
+      "japanese": "既定のMarkdownコンパイラーを使うジェネレーターを作成します。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.#ctor/summary"
+      ]
+    },
+    "99097b7e3db7ee95a26198a72c7d12ee55f2f1a6c733ba60307b819a5667a28f": {
+      "english": "An identifier or path is invalid, rooted, or contains traversal segments.",
+      "japanese": "識別子またはパスが不正か、ルート付きか、トラバーサルセグメントを含んでいます。",
+      "contexts": [
+        "M:LithoSharp.SiteAsset.#ctor(System.String,System.String,System.String,System.String)/exception"
+      ]
+    },
+    "994a45aa512d5038015d7c537706deb5ade2502f1ac5de5015c079fe2da6fecf": {
+      "english": "The source parameter name.",
+      "japanese": "ソースのパラメーター名。",
+      "contexts": [
+        "P:LithoSharp.Documentation.ApiParameter.Name/summary"
+      ]
+    },
+    "99a8a90ecafae2c0c93677e257621c5d5c5f3326d130368347f18c00f0ef89df": {
+      "english": "The output is not declared by this transformation.",
+      "japanese": "この出力はこの変換で宣言されていません。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetTransformContext.WriteAsync(LithoSharp.SiteAssetOutput,System.ReadOnlyMemory{System.Byte},System.Threading.CancellationToken)/exception"
+      ]
+    },
+    "99b7de0a117a91d359f29ab71493b9ef16019b835ca9827fd4d009ebbe616d55": {
+      "english": "The instance is null.",
+      "japanese": "インスタンスがnullです。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.Complete``1(``0)/exception"
+      ]
+    },
+    "99d337aebd5ef41624c2a3c6ac15db2c568cdea87994fe7c1d3b2be64da4bb2f": {
+      "english": "The formatted year and month.",
+      "japanese": "書式化した年月。",
+      "contexts": [
+        "M:LithoSharp.SiteFormatting.FormatMonth(LithoSharp.Configuration.SiteSettings,System.DateTimeOffset)/returns"
+      ]
+    },
+    "99d8115ad535e8775695ec5252d4eee88487905c4811b539706ee6bb6e9bb02d": {
+      "english": "0 means complete, 1 failure, and 3 unconvertible content.",
+      "japanese": "0は完了、1は失敗、3は変換できない内容を示します。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocusaurusMigrationReport.ExitCode/summary"
+      ]
+    },
+    "99eee6212f943290af4e475e901426b73de6712337162f123205b46adf30df28": {
+      "english": "Apply to a top-level static partial class. AdditionalFiles identify the collection, entry ID, and route.",
+      "japanese": "トップレベルのstatic partialクラスに適用してください。AdditionalFilesがコレクション、エントリーID、ルートを識別します。",
+      "contexts": [
+        "T:LithoSharp.Content.StaticContentCollectionAttribute/remarks"
+      ]
+    },
+    "9a227706243f85e1afa9c42edcabb4be6f0ed218b79ed2ceeef57335beac4fbc": {
+      "english": "Renders the documentation sidebar using the built-in CSS and script contract.",
+      "japanese": "組み込みのCSSとスクリプトの仕様を使って、文書のサイドバーを描画します。",
+      "contexts": [
+        "T:LithoSharp.DocsNavigationComponent/summary"
+      ]
+    },
+    "9a9f8f8361e28ade13c92122759cfbcd7bcc9422d7815f0eb44daaf4ce1711c9": {
+      "english": "Excludes the published page from documentation discovery without removing its direct route.",
+      "japanese": "直接のルートは残したまま、公開済みページを文書の探索から除外します。",
+      "contexts": [
+        "P:LithoSharp.Content.DocsPagePresentation.Unlisted/summary"
+      ]
+    },
+    "9aad8d736526c9a2a8942e87993d0ba835f86f02167ba215ec37b4c948804b1e": {
+      "english": "Message shown when there are no posts.",
+      "japanese": "記事がないときに表示するメッセージ。",
+      "contexts": [
+        "P:LithoSharp.SiteText.IndexEmpty/summary"
+      ]
+    },
+    "9acc0612d59fbf610c8df79b95a2f6629f1e53e045c9c17d5969233e3c6c95be": {
+      "english": "The field name is null.",
+      "japanese": "フィールド名がnullです。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.ValidateRequired``1(System.String,``0,System.Boolean,System.Boolean)/exception"
+      ]
+    },
+    "9ad5787d0c4bfda21775b8d521a882f4016a096ffe70cbcfb102839d2ebfc3e2": {
+      "english": "Maximum number of image pixels.",
+      "japanese": "画像の最大画素数。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageLimits.MaxPixels/summary"
+      ]
+    },
+    "9b18b0f16a952827d7c44a8739f4ca9a4c63c8c6d7c4dd742d5357bb170b8502": {
+      "english": "The default, lenient validator. It only checks that the summary (the front matter {0}) is not empty.",
+      "japanese": "既定の寛容なバリデーター。要約（front matterの{0}）が空でないことだけを検査します。",
+      "contexts": [
+        "T:LithoSharp.Validation.RequiredSummaryValidator/summary"
+      ]
+    },
+    "9b3a31f797820fd79e4a2b033ebcd9d59900059f1d95353cb099b6c36609a496": {
+      "english": "Gets the normalized HTML title, or an empty string if absent.",
+      "japanese": "正規化したHTMLタイトルを取得します。存在しない場合は空文字列です。",
+      "contexts": [
+        "P:LithoSharp.Testing.HtmlTestDocument.Title/summary"
+      ]
+    },
+    "9c4df0fa990867c463a554abd7954c86b47517eea493454403ddd5866d86cbc9": {
+      "english": "Diagnostics with their original rule IDs and severity.",
+      "japanese": "元の規則IDと重大度を保持する診断。",
+      "contexts": [
+        "P:LithoSharp.Inspection.SitePreflightReport.Diagnostics/summary"
+      ]
+    },
+    "9c67dc8dde89c2a1bfac6e6f39a143ae546d74c3c4b4dcdfba69b3cfd19cf418": {
+      "english": "Explicit execution for trusted API projects and runnable documentation examples.",
+      "japanese": "信頼して実行するAPIプロジェクトと、文書内の実行可能な例の明示的な実行。",
+      "contexts": [
+        "T:LithoSharp.Documentation.DocumentationVerification/summary"
+      ]
+    },
+    "9c85e1559a8f1e25a3b83bbe1faedf0dc92a174293a68827cbac942b8693ba9f": {
+      "english": "Content validators. When empty, only the default required-summary check runs.",
+      "japanese": "コンテンツのバリデーター。空の場合は、既定の要約必須チェックだけを実行します。",
+      "contexts": [
+        "P:LithoSharp.SiteCustomization.Validators/summary"
+      ]
+    },
+    "9c8e7316648140402b17b57687c9a50b0e13f0e6d989e0540d17c3b013ebe72a": {
+      "english": "Failure description.",
+      "japanese": "失敗の説明。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestException.#ctor(System.String)/param"
+      ]
+    },
+    "9cb5683cec1de7e633f09e213af50d76a6a75756ad007ea3ce83a0ebf87b9878": {
+      "english": "Asserts exact text content for the first matching element.",
+      "japanese": "最初に一致した要素のテキスト内容が正確に一致することを表明します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestDocument.AssertText(System.String,System.String)/summary"
+      ]
+    },
+    "9cbe7a9fe8cc6de878b95ca20f18bd3e66985a5d22cafa1ad2e1a310e1ac0c4e": {
+      "english": "An optional banner for archived or development versions.",
+      "japanese": "アーカイブ済みバージョンまたは開発バージョンの任意のバナー。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentVariant.Banner/summary"
+      ]
+    },
+    "9cd388f50f63a598125329bbefde8d3dd84cb46a8f53444156c26f00af5e0266": {
+      "english": "Rejects links/reparse points and normalized input-path collisions.",
+      "japanese": "リンク、リパースポイント、正規化した入力パスの衝突を拒否します。",
+      "contexts": [
+        "T:LithoSharp.Content.JsonContentCollectionLoader`2/summary"
+      ]
+    },
+    "9cd57427a62e8d1976e2fa4675d4573a88cb4da25d78ca0a5a9300065f274a7f": {
+      "english": "A published document with resolved identity and route.",
+      "japanese": "識別情報とルートが解決済みの、公開済み文書。",
+      "contexts": [
+        "T:LithoSharp.Documentation.DocumentPage/summary",
+        "M:LithoSharp.Documentation.DocumentPage.#ctor(LithoSharp.Documentation.DocumentKey,System.String,LithoSharp.Documentation.DocumentFrontMatter,LithoSharp.Routing.SiteRoute)/summary"
+      ]
+    },
+    "9d16321286381253a26fa8ea756e67d5bff52a407837c4958f17cad7060f9618": {
+      "english": "Whether concurrent calls to this renderer are safe.",
+      "japanese": "このレンダラーへの同時呼び出しが安全かどうか。",
+      "contexts": [
+        "P:LithoSharp.Content.SiteContentCollection.IsThreadSafe/summary"
+      ]
+    },
+    "9d1c7e6b6cd4daf1557a35b3b04a225341f88d2d8d0cbda8510745bf766d8eb6": {
+      "english": "Resolves a document without changing its collection, version or language implicitly.",
+      "japanese": "コレクション、バージョン、言語を暗黙に変更せずに、文書を解決します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentCatalog.Resolve(LithoSharp.Documentation.DocumentKey)/summary"
+      ]
+    },
+    "9d2004b0b701347d2b7e80ca80a9decc1d474474b84e094ffe3fdd024804e15c": {
+      "english": "The generated compiler input fingerprint. It is not a publication certificate.",
+      "japanese": "生成されたコンパイラー入力のフィンガープリント。公開の証明ではありません。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticSiteManifest.SourceFingerprint/summary"
+      ]
+    },
+    "9d3152f49a28dc8eaa639ccca025b24f5ba20095af3581b1034fa80e4060ff2c": {
+      "english": "Optional page description.",
+      "japanese": "任意のページ説明。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateDocument.Description/summary"
+      ]
+    },
+    "9d3af8a87c6455568d88d01af889d2ccf3f05e0dee3aeca5f35340fcc6ca199a": {
+      "english": "Creates a reference using stable identifiers and a validated route.",
+      "japanese": "安定した識別子と検証済みのルートを使って参照を作成します。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentRef`1.#ctor(LithoSharp.Content.ContentCollectionId,LithoSharp.Content.ContentEntryId,LithoSharp.Routing.SiteRoute)/summary"
+      ]
+    },
+    "9d4da0e464e2313b4549f3cbd0851c2853c3fc5aa54a7e9d7251400dace7cfb0": {
+      "english": "XML comments and OpenAPI providers using typed pages and the common output transaction.",
+      "japanese": "型付きページと共通の出力トランザクションを使う、XMLコメントとOpenAPIのプロバイダー。",
+      "contexts": [
+        "T:LithoSharp.Documentation.ApiReferenceSite/summary"
+      ]
+    },
+    "9dc08a85a4424240e67d15ea33a29e9b6cacfb7171fa42458b347bce61b098c5": {
+      "english": "The input or context is null.",
+      "japanese": "入力またはコンテキストがnullです。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryParseScalar``1(System.Object,LithoSharp.Content.GeneratedContentBindingContext,``0@)/exception",
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryParseEnum``1(System.Object,LithoSharp.Content.GeneratedContentBindingContext,``0@)/exception"
+      ]
+    },
+    "9ded2cf071f8c6a86295a435d8568e2910db18f35c33f2b369a69f8bbc34650d": {
+      "english": "Explicit Remark or Rehype modules, in execution order. Their dynamic file inputs must be declared.",
+      "japanese": "実行順に並べた明示的なRemarkまたはRehypeのモジュール。これらのモジュールの動的なファイル入力は宣言する必要があります。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxOptions.Plugins/summary"
+      ]
+    },
+    "9e29d8cf7e6f5a688679f7526bd9a06a151d3aa36c4c1ce69a98b38d06776065": {
+      "english": "The slug.",
+      "japanese": "スラッグ。",
+      "contexts": [
+        "M:LithoSharp.Content.SlugHelper.ToSlug(System.String)/returns"
+      ]
+    },
+    "9e391750ef72afd88962909aefa3a213068bbc9d87da6ce517f37a23410c3adf": {
+      "english": "Renders a typed page layout.",
+      "japanese": "型付きのページレイアウトを描画します。",
+      "contexts": [
+        "T:LithoSharp.IPageLayout`1/summary"
+      ]
+    },
+    "9e50f2a81a8b77b8dae88dbee073d5b40eb7c18c58a869f12ff037233be7934c": {
+      "english": "The asset route.",
+      "japanese": "アセットのルート。",
+      "contexts": [
+        "P:LithoSharp.AssetUrl.Route/summary"
+      ]
+    },
+    "9e64627ffefbba05d699912ef3eb0c39165776a354c2939aedb8a8a154b5201c": {
+      "english": "Validates posts by applying the validators in {0} in order.",
+      "japanese": "{0}内のバリデーターを順番に適用して記事を検証します。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.Validate(LithoSharp.Configuration.SiteSettings,System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.Content.MarkdownPost},LithoSharp.SiteCustomization)/summary"
+      ]
+    },
+    "9e658b9b54ae2be49787a329d6e61f7f43add03118f0203e87abd27f8b30c657": {
+      "english": "A snapshot of explicitly declared static inputs, without a claim of runtime publication.",
+      "japanese": "明示的に宣言された静的入力のスナップショット。実行時に公開されることを主張するものではありません。",
+      "contexts": [
+        "T:LithoSharp.Content.StaticContentCatalog/summary"
+      ]
+    },
+    "9e8229e2a4bcd607f9558f41ef7f165837baf40ef9519ffd35bfaec7bf608711": {
+      "english": "The explicit behavior when translated document IDs are missing.",
+      "japanese": "翻訳された文書IDがない場合の明示的な動作。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationCollection.MissingDocuments/summary"
+      ]
+    },
+    "9ea3dd2c5f182b4ed665455bfd7699eb3e898903ff254848ec3b7d11c5a386af": {
+      "english": "Uses the background's intrinsic size and places a proportionally resized logo at pixel coordinates.",
+      "japanese": "背景の固有サイズを使い、縦横比を保ってリサイズしたロゴをピクセル座標で配置します。",
+      "contexts": [
+        "M:LithoSharp.Images.SocialImageAsset.#ctor(LithoSharp.SiteAsset,LithoSharp.SiteAsset,System.String,System.String,System.Int32,System.Int32,System.Int32,System.IO.Compression.CompressionLevel)/summary"
+      ]
+    },
+    "9f1f0e28a96b8f041b6bb78390508143ebd34a123207f673b212aaa183ef9582": {
+      "english": "Callers must ensure that {0} is safe for the output context.",
+      "japanese": "呼び出し側は{0}が出力コンテキストに対して安全であることを保証しなければなりません。",
+      "contexts": [
+        "M:LithoSharp.Html.UnsafeRaw(System.String)/remarks"
+      ]
+    },
+    "9f4eb725cb3177fbb88d4e0f6a5a3df846a260b43b8a9f1a789bbe0a8c159482": {
+      "english": "The completeness of one explicitly scoped reference universe.",
+      "japanese": "明示的に範囲を定めた1つの参照対象集合の網羅性。",
+      "contexts": [
+        "T:LithoSharp.Content.StaticCoverageState/summary"
+      ]
+    },
+    "9f8a2d00c35cd731550e715d57e620c5f1125749b3b8d44f730c01601f29f763": {
+      "english": "An identifier or output path is invalid.",
+      "japanese": "識別子または出力パスが不正です。",
+      "contexts": [
+        "M:LithoSharp.SiteGeneratedAsset.#ctor(System.String,System.String,System.ReadOnlyMemory{System.Byte},System.Collections.Generic.IEnumerable{LithoSharp.Build.BuildInput},System.Collections.Generic.IEnumerable{System.String})/exception"
+      ]
+    },
+    "9fa9cdb4ecbd95a16c058f2fdb1be1e90f62168bb74db425eefe5caf713e27b1": {
+      "english": "A change between two explicitly selected API snapshots.",
+      "japanese": "明示的に選択した2つのAPIスナップショット間の変更。",
+      "contexts": [
+        "T:LithoSharp.Documentation.ApiChange/summary",
+        "M:LithoSharp.Documentation.ApiChange.#ctor(System.String,System.String)/summary"
+      ]
+    },
+    "9fbf6fa10b7a52f8a88669df3d20bf9b872faf89273957481849f020f3c377b2": {
+      "english": "Whether the language uses right-to-left layout.",
+      "japanese": "言語が右から左へのレイアウトを使用するかどうか。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentVariant.RightToLeft/summary"
+      ]
+    },
+    "a0308ed3ce33cf6a34cc4390fd62a6dba4acde49185c264bb89957caa21696c7": {
+      "english": "A page reference whose generic type prevents accidental cross-page-type assignment.",
+      "japanese": "ジェネリック型によって、異なるページ型への誤代入を防ぐページ参照。",
+      "contexts": [
+        "T:LithoSharp.Pages.PageRef`1/summary"
+      ]
+    },
+    "a05c69eaee939974d67ceb08cbe570d3a1c53d8b06bb9929787186e536a80d3d": {
+      "english": "The value contains a control character.",
+      "japanese": "値に制御文字が含まれています。",
+      "contexts": [
+        "M:LithoSharp.HtmlAttributeValue.#ctor(System.String)/exception"
+      ]
+    },
+    "a083a5d6860dd0a1ac9dfadd726064c4646acfcea82f15d8c40da1b416206a6f": {
+      "english": "Sum of worker elapsed time reading and hashing reused artifacts; overlaps execution.",
+      "japanese": "再利用する成果物の読み込みとハッシュ計算にワーカーが費やした時間の合計。実行時間と重複します。",
+      "contexts": [
+        "P:LithoSharp.Build.SiteBuildTimings.VerificationMilliseconds/summary"
+      ]
+    },
+    "a0b3288715f29711a6ae33558cd531e986264d043edf3a0c41be5c882c6fedf6": {
+      "english": "The content directory.",
+      "japanese": "コンテンツディレクトリー。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownPostReader.ReadAllAsync(System.String)/param",
+        "M:LithoSharp.Content.MarkdownPostReader.ReadAllAsync(System.String,System.Threading.CancellationToken)/param"
+      ]
+    },
+    "a179c306ca43e85f486fc786d61cd5e490a828ad2154fe3e02eb32a1044c1857": {
+      "english": "Image media type.",
+      "japanese": "画像のメディアタイプ。",
+      "contexts": [
+        "P:LithoSharp.ImageMetadata.MediaType/summary"
+      ]
+    },
+    "a19c75805a23931bd4c98aa88428b8bc447ea481deb38e0bdd0af721254828fc": {
+      "english": "Search scope note shown when a tag filter is active. Placeholder: {0}.",
+      "japanese": "タグフィルターが有効な場合に表示する検索範囲の注記。プレースホルダーは{0}です。",
+      "contexts": [
+        "P:LithoSharp.SiteText.SearchScopeTag/summary"
+      ]
+    },
+    "a1a95c1c135ffb8a6f710bb8ed7ac3cdbe9c47f8cf76c218baf0cdd0301eb7b8": {
+      "english": "aria-label for the site navigation.",
+      "japanese": "サイトナビゲーションのaria-label。",
+      "contexts": [
+        "P:LithoSharp.SiteText.SiteNavigationLabel/summary"
+      ]
+    },
+    "a2039fa9ecd3318e49956ad1b7fab81365da12db26717e74c754716656cd4382": {
+      "english": "The stable document variant used by contextual search and navigation.",
+      "japanese": "コンテキスト検索とナビゲーションで使用する、安定したドキュメントバリアント。",
+      "contexts": [
+        "P:LithoSharp.Pages.PageMetadata.Document/summary"
+      ]
+    },
+    "a2b73acaeed10cd5627f02cde0e08df7f40561c5c68caf8278110c1c7edb92b7": {
+      "english": "Whether the document is never published.",
+      "japanese": "ドキュメントを常に非公開とするかどうか。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentFrontMatter.Draft/summary"
+      ]
+    },
+    "a2e05b2cb753873a40f09c157d4366847b474dc31dcbef6b51aa169fd30291a1": {
+      "english": "Asserts that no generated route has the exact public path.",
+      "japanese": "正確に同じ公開パスを持つ生成ルートが存在しないことを表明します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertNoRoute(System.String)/summary"
+      ]
+    },
+    "a40155fe44f32aedf9f77032fd2e05d53340914b13061ac46374b7cd4b1fa4ee": {
+      "english": "Server bundling time, including MDX compilation.",
+      "japanese": "MDXコンパイルを含む、サーバーのバンドル時間。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBuildMetrics.ServerBundleMilliseconds/summary"
+      ]
+    },
+    "a4632f42e3dfc35ea442dd2a2b3c5538b88b9be9057b51f133ec8ec57ccaea65": {
+      "english": "Fail rather than emit untranslated content.",
+      "japanese": "未翻訳の内容を出力せずに失敗します。",
+      "contexts": [
+        "F:LithoSharp.Documentation.MissingTranslationPolicy.Error/summary"
+      ]
+    },
+    "a478cb05a74b18ca3f40efd9991e842c349720fe9a9e912d5dbe9b5cf777fb9e": {
+      "english": "The host has been disposed.",
+      "japanese": "ホストは破棄されています。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertSucceeded/exception"
+      ]
+    },
+    "a4cc5b796dbef8c72f4d0bf6dcc74ce248136991e8ab330e2746ace2fc0c2263": {
+      "english": "Return no message.",
+      "japanese": "メッセージを返しません。",
+      "contexts": [
+        "F:LithoSharp.Documentation.MissingTranslationPolicy.Exclude/summary"
+      ]
+    },
+    "a4de5d2ea6287bcba6bbb2a40bb20858767248ad57e279986de90f1dc2c196c3": {
+      "english": "Article tags.",
+      "japanese": "記事のタグ。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogFrontMatter.Tags/summary"
+      ]
+    },
+    "a5107fc244627cb4ce69d89d1f0088de5096d0173cc29b44139a516a0e277373": {
+      "english": "Loads the site's settings, content, and rendering options.",
+      "japanese": "サイトの設定、コンテンツ、描画オプションを読み込みます。",
+      "contexts": [
+        "M:LithoSharp.ISiteFactory.CreateAsync(LithoSharp.SiteFactoryContext,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "a51de81c4b6bb800bc4fc3915c697a586cbbc031e45c513ab8667ac9f3599c27": {
+      "english": "Maximum image height.",
+      "japanese": "画像の最大高さ。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageLimits.MaxHeight/summary"
+      ]
+    },
+    "a52066a6b3696b8372e7dedaec5135081a59c9287f50b5281dc09ef4ae481aed": {
+      "english": "Inspects output and captures a candidate publication manifest without writing or promoting a baseline.",
+      "japanese": "ベースラインの書き込みや昇格を行わずに出力を検査し、公開マニフェストの候補を取得します。",
+      "contexts": [
+        "M:LithoSharp.Quality.GeneratedSiteInspector.InspectPublicationAsync(System.String,System.String,System.String,System.Collections.Generic.IEnumerable{System.String},System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "a52f6f9b83d3ec5cfddac4b37335cc542321ffd565e959728b5591ff2a7b4cc8": {
+      "english": "Gets exact decoded descendant text, without applying visibility rules.",
+      "japanese": "可視性の規則を適用せずに、子孫の正確なデコード済みテキストを取得します。",
+      "contexts": [
+        "P:LithoSharp.Testing.HtmlTestElement.TextContent/summary"
+      ]
+    },
+    "a555183a7c8818229d113da7263c9c5af39a2d3674ffebc0fbadcdc0ac0516d4": {
+      "english": "Prepares an offline cache for the explicitly published documentation and its chunks.",
+      "japanese": "明示的に公開したドキュメントとそのチャンクのオフラインキャッシュを準備します。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationBrowserOptions.Offline/summary"
+      ]
+    },
+    "a6273afb267d64100611f9cae9e905829fcdeff85fbb54ad1a5e8a40333aa733": {
+      "english": "The input or binder is null.",
+      "japanese": "入力またはバインダーがnullです。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryObject``1(System.Object,System.Func{LithoSharp.Content.GeneratedContentBindingContext,``0},``0@)/exception"
+      ]
+    },
+    "a63e68cd6f622ef073efe5889e73035f434977bc1bff6d25e128d82a1a13edd8": {
+      "english": "\"Latest post\" heading.",
+      "japanese": "「最新の投稿」の見出し。",
+      "contexts": [
+        "P:LithoSharp.SiteText.LatestPostHeading/summary"
+      ]
+    },
+    "a649d2ddc992c7588b07b16da1147b395a7596df1e825242a51135f326455d03": {
+      "english": "Reports missing and unused keys against a declared static and dynamic key set.",
+      "japanese": "宣言された静的・動的キー集合に対して、欠落しているキーと未使用のキーを報告します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.TranslationCatalog.Diagnose(System.Collections.Generic.IEnumerable{System.String})/summary"
+      ]
+    },
+    "a66160b59d87ffbe14d4dd3c9807a89ecfc721ca04a745f2ca04c44143b72410": {
+      "english": "Theme settings.",
+      "japanese": "テーマ設定。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateContext.Theme/summary",
+        "P:LithoSharp.SiteCustomization.Theme/summary"
+      ]
+    },
+    "a66b2f8d5f60fb18c482ea23dd2c3b15512e7f0f8a91ee8c55a141aac0043723": {
+      "english": "Content directory, used for example to validate post paths.",
+      "japanese": "コンテンツディレクトリー。たとえば投稿パスの検証に使用します。",
+      "contexts": [
+        "T:LithoSharp.Validation.ContentValidationContext/param",
+        "M:LithoSharp.Validation.ContentValidationContext.#ctor(LithoSharp.Configuration.SiteSettings,System.String)/param",
+        "P:LithoSharp.Validation.ContentValidationContext.ContentDirectory/summary"
+      ]
+    },
+    "a6b4b5b9e4caa1d47f9b3a5140dec6c296926b52d3a7c4b708530fc9d5457755": {
+      "english": "Returns only translations that actually exist in the same version.",
+      "japanese": "同じバージョンに実在する翻訳だけを返します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentCatalog.Alternates(LithoSharp.Documentation.DocumentKey)/summary"
+      ]
+    },
+    "a6e15e68b121da702c41272ee7acc726cb515b15f6f4cc2cef9ded99425b9fe9": {
+      "english": "The validation context.",
+      "japanese": "検証コンテキスト。",
+      "contexts": [
+        "M:LithoSharp.Validation.IContentValidator.Validate(LithoSharp.Content.MarkdownPost,LithoSharp.Validation.ContentValidationContext)/param"
+      ]
+    },
+    "a6f22b6c94f0480379dbb72ef9e2025cc490522db8ac1225c1b59ce92ebe62d5": {
+      "english": "Either plausible or json. Both require the lithosharp:consent event with granted=true.",
+      "japanese": "plausibleまたはjson。どちらもgranted=trueを持つlithosharp:consentイベントが必要です。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationAnalytics.Provider/summary"
+      ]
+    },
+    "a70b817f8d18f455d9b448c3af1a1b693b01903901757c87b1ec1044c63251c2": {
+      "english": "The default English set.",
+      "japanese": "既定の英語セット。",
+      "contexts": [
+        "P:LithoSharp.SiteText.English/summary"
+      ]
+    },
+    "a745f78e4428519d7aafec78d3c57dce0b90bc927e46c26df8de5ed1e746fbb0": {
+      "english": "The source-mapped diagnostics for this failure.",
+      "japanese": "この失敗について、ソース位置に対応付けた診断。",
+      "contexts": [
+        "P:LithoSharp.Build.SiteBuildExtensionException.Diagnostics/summary"
+      ]
+    },
+    "a7a3daafebfc7f20d254df8be44c8b2fe30fe6450f647672bf90269c3a68921b": {
+      "english": "Reads files in NFC-normalized ordinal relative-path order. Rejects links/reparse points, normalized path collisions, YAML anchors, aliases and duplicate keys.",
+      "japanese": "NFCで正規化した相対パスを序数順に並べてファイルを読み込みます。リンクまたはリパースポイント、正規化後のパスの衝突、YAMLのアンカー、エイリアス、重複キーを拒否します。",
+      "contexts": [
+        "T:LithoSharp.Content.MarkdownContentCollectionLoader`1/summary"
+      ]
+    },
+    "a7c8abe07b4cf0139f31e686303f7a2dfb36f5c8b59e4126d0442bea43c03f7a": {
+      "english": "An image was stopped because it exceeds a configured resource limit.",
+      "japanese": "設定されたリソース上限を超えたため、画像の処理を停止しました。",
+      "contexts": [
+        "T:LithoSharp.Images.ImageLimitException/summary"
+      ]
+    },
+    "a8273b79b0ce7a186091c2e7c5e390c10dbcf2f5e6c481b1cd95741a35fd3513": {
+      "english": "Do not mix this API with unversioned inspection for the same key.",
+      "japanese": "同じキーについて、このAPIとバージョン指定のない検査を混在させないでください。",
+      "contexts": [
+        "M:LithoSharp.Inspection.DocumentWorkspace.InspectVersionedAsync(System.String,System.String,System.Int64,System.Int64,LithoSharp.Inspection.DocumentInspectionOptions,System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "a92e951607b53096167c7d1d4996d835c848d250c04909d2ac173c1b3c13efe2": {
+      "english": "One blog's input, routes, authors and pagination.",
+      "japanese": "1つのブログの入力、ルート、著者、ページ分割。",
+      "contexts": [
+        "T:LithoSharp.Mdx.MdxBlogCollection/summary",
+        "M:LithoSharp.Mdx.MdxBlogCollection.#ctor(System.String,System.String,System.String)/summary"
+      ]
+    },
+    "a9446e7646027e776cdd5dc52853f4cde53a8248492d7dbd62a41283eba6bb2d": {
+      "english": "A URL for a registered asset.",
+      "japanese": "登録済みアセットのURL。",
+      "contexts": [
+        "T:LithoSharp.AssetUrl/summary"
+      ]
+    },
+    "a95bdd15dd13bf4d336f6cf4416a046c0a8fb04dd14926162dac69a87d3c8a37": {
+      "english": "Reuses bounded output-specific local facts; target and rule checks still run each time. Used only when quality checks are enabled.",
+      "japanese": "上限を設けて保持する出力ごとのローカル情報を再利用しますが、参照先と規則の検査は毎回実行します。品質検査が有効な場合にだけ使用します。",
+      "contexts": [
+        "P:LithoSharp.SiteGenerationOptions.HtmlFactsCacheEnabled/summary"
+      ]
+    },
+    "a9d1ef01ff9e05ed986a58d9658648dfa93e711d2997a298ea1ed7d80a8f93f5": {
+      "english": "Path to the post file.",
+      "japanese": "投稿ファイルのパス。",
+      "contexts": [
+        "T:LithoSharp.Content.MarkdownPost/param",
+        "M:LithoSharp.Content.MarkdownPost.#ctor(System.String,System.String,LithoSharp.Content.PostFrontMatter,System.String,System.String)/param",
+        "P:LithoSharp.Content.MarkdownPost.FilePath/summary"
+      ]
+    },
+    "aa29cb0addc2d1cc60bd9cad7659f824b70db814311985ada54122a33fa4b56f": {
+      "english": "The default sidebar is used when supplied, otherwise the first sidebar; absent definitions use automatic navigation.",
+      "japanese": "既定のサイドバーを指定した場合はそれを使用し、指定しない場合は最初のサイドバーを使用します。定義がない場合は自動ナビゲーションを使用します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentNavigationSnapshot.Create(LithoSharp.Documentation.DocumentCatalog,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.Documentation.SidebarItem}},System.Collections.Generic.IReadOnlyDictionary{System.String,LithoSharp.Documentation.DocumentCategory},System.String)/summary"
+      ]
+    },
+    "aa682335e6354fcf3e7cdcc88e912f615eeeb015f266dd438c77d4650907084a": {
+      "english": "When omitted, no quality checks or network requests run.",
+      "japanese": "省略した場合は品質検査もネットワークリクエストも実行しません。",
+      "contexts": [
+        "P:LithoSharp.SiteGenerationOptions.Quality/summary"
+      ]
+    },
+    "aab278646dd925c0d967d1d5c404f6392e38a7d231fdff76976eba981a68122d": {
+      "english": "Detect support through advertised capability names, not versions or logs. Unknown names are ignored; missing required capabilities disable the corresponding feature with an explanation.",
+      "japanese": "バージョンやログではなく提示された機能名でサポートを検出してください。不明な名前は無視します。必須機能がない場合は、理由を示して対応する機能を無効にします。",
+      "contexts": [
+        "T:LithoSharp.ToolingCapabilities/summary"
+      ]
+    },
+    "aab81d964720e24f87a50ad2107487f2517ec76de7fa3c28e7d272bd223fb88d": {
+      "english": "Renders the template output.",
+      "japanese": "テンプレート出力を描画します。",
+      "contexts": [
+        "M:LithoSharp.ISiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "aade9ddce7d401050dd8a1b3c86a1583dc93c8bdc93e10cf60ada465efd034e0": {
+      "english": "Width in pixels.",
+      "japanese": "ピクセル単位の幅。",
+      "contexts": [
+        "P:LithoSharp.Images.RgbaImage.Width/summary"
+      ]
+    },
+    "aaf4b39165120977ee14d324b959d3d2404ac653fb53779285f655ad86f3058e": {
+      "english": "Unknown extension prepare hooks are not called; they remain Deferred. Final HTML and asset checks still run during generation.",
+      "japanese": "不明な拡張機能の準備フックは呼び出さず、Deferredのままにします。最終HTMLとアセットの検査は生成時に引き続き実行します。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.PreflightCatalogAsync(LithoSharp.SiteDefinition,System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "aaf744000b5bc8b326a90422d06bf0e6c637a8e0511c611dc92eb9741e986587": {
+      "english": "Meta description override (Docusaurus compatibility; bound but not rendered yet).",
+      "japanese": "meta descriptionの上書き（Docusaurus互換。バインドされますが、まだ描画されません）。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogFrontMatter.Description/summary"
+      ]
+    },
+    "aaf9e168b2fdf00fea254a327ef82e828ab084e800aa5f1ae2dd21ffd27bda7e": {
+      "english": "Encodes as UTF-8 without a BOM; use MatchesSource for BOM-bearing documents.",
+      "japanese": "BOMなしのUTF-8でエンコードします。BOMを持つドキュメントにはMatchesSourceを使用してください。",
+      "contexts": [
+        "M:LithoSharp.Documentation.MigrationSuggestedAction.MatchesSourceText(System.String)/summary"
+      ]
+    },
+    "ab1808cf9fe7de38f762d8b94c53b26f6fde76e54d52621c6b1b73969c10e24b": {
+      "english": "Registered source asset declarations.",
+      "japanese": "登録済みのソースアセット宣言。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetTransform.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAsset},System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAssetOutput},System.Func{LithoSharp.SiteAssetTransformContext,System.Threading.CancellationToken,System.Threading.Tasks.Task},System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task})/param"
+      ]
+    },
+    "ab219cba18a4ba4ca6e8e65d8f119eecef046ca17749fe2bdfbb69b401e31784": {
+      "english": "Writes only to a new destination; never overwrites the source. Legacy expectedRoutes do not classify normalized page sets.",
+      "japanese": "新しい出力先にのみ書き込み、ソースを上書きしません。従来のexpectedRoutesでは、正規化したページ集合を分類しません。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocusaurusMigrationReport.ConvertAsync(System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},LithoSharp.Documentation.DocusaurusMigrationOptions,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "ab3cf6129f8c9a94a32654f5694cf2cbbf010747b3f3bebd92073283771e6df4": {
+      "english": "The filename-derived position used when front matter does not set one.",
+      "japanese": "front matterで位置を指定しない場合に使用する、ファイル名から得た位置。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentPage.Position/summary"
+      ]
+    },
+    "ab5b335bc5c2ebe73d71127e920c43c75c81e671ccf8fe7e4929d1dd8dc1e5a9": {
+      "english": "Converts a sequence to a typed list while retaining per-item locations.",
+      "japanese": "各項目の位置を保持しながら、シーケンスを型付きリストに変換します。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryList``1(System.Object,System.Boolean,LithoSharp.Content.GeneratedContentValueParser{``0},System.Collections.Generic.List{``0}@)/summary"
+      ]
+    },
+    "ab9c8c81f5b5c7e12e71403cc21071b65f960dd12b0c47a3e9eb923353b1d36a": {
+      "english": "The number of Node workers started for this preparation.",
+      "japanese": "この準備処理で起動したNodeワーカー数。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBuildMetrics.WorkerStarts/summary"
+      ]
+    },
+    "abc0b1e5dadde4183b4006c20ec85102454eb22aa597253e9e43b06fd300086d": {
+      "english": "Template rendering output.",
+      "japanese": "テンプレートの描画出力。",
+      "contexts": [
+        "T:LithoSharp.SiteTemplateResult/summary"
+      ]
+    },
+    "abfce2f3f0c09054209ca0ceb2e5b0f35ddf0978450e24cb221b263107e0b832": {
+      "english": "Requires a nonempty deterministic fingerprint for the entire collection.",
+      "japanese": "コレクション全体に対する、空でなく決定論的なフィンガープリントが必要です。",
+      "contexts": [
+        "M:LithoSharp.Build.BuildInput.FromCollection(System.String,System.String)/summary"
+      ]
+    },
+    "ac395a2985a1befba9fba0f8d44abdabe26563a53aefff3577c8f80dd5815aa7": {
+      "english": "Optional site identity used to select AdditionalFiles for this declaration.",
+      "japanese": "この宣言のAdditionalFilesの選択に使用する任意のサイト識別情報。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCollectionAttribute.Site/summary"
+      ]
+    },
+    "ac3a554768ae394e9ff4221dfde2daa867665b9009973685d25b2f01d6924e99": {
+      "english": "Returns only the declared message keys for safe browser publication.",
+      "japanese": "ブラウザーに安全に公開できるように、宣言されたメッセージキーだけを返します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.TranslationCatalog.Select(System.String,System.Collections.Generic.IEnumerable{System.String},LithoSharp.Documentation.MissingTranslationPolicy)/summary"
+      ]
+    },
+    "ac5ec5d884eedc4d6b8ca1604fb5a11741c5cdfff6d7f7845cf8950f168d18fa": {
+      "english": "Creates a standalone component context.",
+      "japanese": "独立したコンポーネントコンテキストを作成します。",
+      "contexts": [
+        "M:LithoSharp.ComponentRenderingContext.Create(LithoSharp.Configuration.SiteSettings)/summary"
+      ]
+    },
+    "aca9a34ef95abc221d6aff665040f69c6a86feb5e675387671dc1937db3ed371": {
+      "english": "Creates a definition with a snapshot of the posts.",
+      "japanese": "投稿のスナップショットを持つ定義を作成します。",
+      "contexts": [
+        "M:LithoSharp.SiteDefinition.#ctor(LithoSharp.Configuration.SiteSettings,System.Collections.Generic.IReadOnlyList{LithoSharp.Content.MarkdownPost})/summary"
+      ]
+    },
+    "acaf01047b308af59bf5447900880ad91d50d52b0e7bf29861835291d7a3f806": {
+      "english": "An optional page introduction and topic-card summary.",
+      "japanese": "任意のページ紹介文とトピックカードの要約。",
+      "contexts": [
+        "P:LithoSharp.Content.DocsPagePresentation.Description/summary"
+      ]
+    },
+    "acc5bd9591220c271dcbac5f9c2a7fa9a8a204ef329921174a9c30b2436012f3": {
+      "english": "A stable renderer configuration identity; rendering is not cached when omitted.",
+      "japanese": "安定したレンダラー設定の識別情報。省略した場合は描画をキャッシュしません。",
+      "contexts": [
+        "P:LithoSharp.Content.SiteContentCollection.RendererFingerprint/summary"
+      ]
+    },
+    "acdc68b6eb04da54d966a186c8a9f461a03082fff591d7a38b3b3bce95c7b5ee": {
+      "english": "The declared membership, in deterministic generated member order.",
+      "japanese": "宣言された所属情報。生成メンバーの決定論的な順序に従います。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCatalog.Entries/summary"
+      ]
+    },
+    "ad0b3a1b999659a4a5af9ebf7d35c1e5d001384b553f0d5c03cbf2cca8dbdd2a": {
+      "english": "Registers a blog in the same MDX graph, sharing React and all common chunks with documentation.",
+      "japanese": "同じMDXグラフにブログを登録し、Reactとすべての共通チャンクをドキュメントと共有します。",
+      "contexts": [
+        "M:LithoSharp.Mdx.DocumentationSite.AddBlog(LithoSharp.Mdx.MdxBlogCollection)/summary"
+      ]
+    },
+    "ad52e8713b8c97b0f5dfc9bb815a9b404c8a8b1eeecf07f259d174a3dca8e391": {
+      "english": "Uses a trailing-slash URL and index.html output; an empty path or slash denotes the site root. A null base URL uses the site root.",
+      "japanese": "末尾にスラッシュのあるURLとindex.html出力を使用し、空のパスまたはスラッシュはサイトルートを表します。ベースURLがnullの場合はサイトルートを使用します。",
+      "contexts": [
+        "M:LithoSharp.Routing.SiteRoute.ForDirectoryIndex(System.String,System.String)/summary"
+      ]
+    },
+    "ad6bc61dbe8fda2c352790f893d2f0342333fc771669391175708d3beb917f68": {
+      "english": "Home link label on the generated 404 page.",
+      "japanese": "生成する404ページのホームリンクのラベル。",
+      "contexts": [
+        "P:LithoSharp.SiteText.NotFoundHomeLinkLabel/summary"
+      ]
+    },
+    "ada93f0830fe31374ef8d51d506fe8a1349e8cf45d29841cd022bce93dc5e29a": {
+      "english": "Converts this URL to a quoted HTML attribute value.",
+      "japanese": "このURLを引用符付きHTML属性値に変換します。",
+      "contexts": [
+        "M:LithoSharp.AssetUrl.ToAttributeValue/summary",
+        "M:LithoSharp.SiteUrl.ToAttributeValue/summary"
+      ]
+    },
+    "ae2e331acab758ac2265b306e91db9a54f5fedd8fe31d59f3e50fc4b08bb0186": {
+      "english": "Renders the standard table of contents.",
+      "japanese": "標準の目次を描画します。",
+      "contexts": [
+        "T:LithoSharp.TableOfContentsComponent/summary"
+      ]
+    },
+    "ae61ac36ce04114c1daa647183f3eaa07294dc0e7dcd97eb29e57db5b9b27563": {
+      "english": "Fresh diagnostics for the current output. This does not establish source freshness or asset ownership.",
+      "japanese": "現在の出力に対する最新の診断。ソースが最新であることやアセットの所有権を確定するものではありません。",
+      "contexts": [
+        "M:LithoSharp.Quality.GeneratedSiteInspector.InspectAsync(System.String,System.String,System.Threading.CancellationToken)/returns"
+      ]
+    },
+    "ae8c76f406c6cda2f069df0f5044fe676ab92d2c8c7be22626fc70efb1c8b584": {
+      "english": "The component returns null.",
+      "japanese": "コンポーネントがnullを返します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestDocument.RenderComponent``1(LithoSharp.ISiteComponent{``0},``0,LithoSharp.ComponentRenderingContext)/exception",
+        "M:LithoSharp.ComponentRenderingContext.Render``1(LithoSharp.ISiteComponent{``0},``0)/exception"
+      ]
+    },
+    "aed1a4e3a5b49518cd3365ad8c97ce9d9dd2884d7796e8b94f2a6437d044d4f7": {
+      "english": "Exclusions are exact normalized output-relative file paths. The supplied base URL is retained verbatim as comparison identity.",
+      "japanese": "除外対象は正規化した出力相対の正確なファイルパスです。指定したベースURLは比較用の識別情報としてそのまま保持します。",
+      "contexts": [
+        "M:LithoSharp.Quality.GeneratedSiteInspector.InspectPublicationAsync(System.String,System.String,System.String,System.Collections.Generic.IEnumerable{System.String},System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "aed9cd98bcb5ed01f84bf9e55562067d32ba058ed7cbefcc1e4a8e56a7f2c4f5": {
+      "english": "Uses the same canonical sidebar selection; missing neighbors or unknown documents return null.",
+      "japanese": "同じ正規サイドバーの選択方法を使用します。隣接ページがない場合やドキュメントが不明な場合はnullを返します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentNavigationSnapshot.Adjacent(LithoSharp.Documentation.DocumentKey,System.String)/summary"
+      ]
+    },
+    "aee46ff97834081192a77e534df6a623a58ee367b4182406e1592ddd77922698": {
+      "english": "Existing source and loader diagnostics.",
+      "japanese": "既存のソース診断とローダー診断。",
+      "contexts": [
+        "P:LithoSharp.Inspection.SiteCatalogPreflightContribution.Diagnostics/summary"
+      ]
+    },
+    "af0ccc1561524de1606ef73b3cb7c625ea6bf4399af6f46dc83a13d45b1a79c3": {
+      "english": "Empty when the syntax is incomplete.",
+      "japanese": "構文が不完全な場合は空です。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxAnalysisResult.Headings/summary",
+        "P:LithoSharp.Mdx.MdxAnalysisResult.Links/summary"
+      ]
+    },
+    "af75b52b1055baabfa3fe3ad69fe3efbac98196897d378444bb472eea397cd6a": {
+      "english": "Generated variants.",
+      "japanese": "生成されたバリアント。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageAsset.Variants/summary"
+      ]
+    },
+    "af80f26ed53632982ef85f338f12570a27023a26d095732bfbee0a7e75b3a0da": {
+      "english": "A selector feature or complexity outside the declared Testing query grammar.",
+      "japanese": "宣言されたTestingクエリ文法の範囲外のセレクター機能または複雑さ。",
+      "contexts": [
+        "T:LithoSharp.Testing.HtmlSelectorUnsupportedException/summary"
+      ]
+    },
+    "afa0c6de0a3580158174ff9965e8866f1e86854686c11e3bf276e843ec9cbd0b": {
+      "english": "The unmodified MDX body, excluding YAML.",
+      "japanese": "YAMLを除いた、変更されていないMDX本文。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxDocument.Body/summary"
+      ]
+    },
+    "afa4d78eb7f665418a347f557a96cbb1608399533672ace619b3882336f16b91": {
+      "english": "The entry's validated public route and output path.",
+      "japanese": "エントリーの検証済み公開ルートと出力パス。",
+      "contexts": [
+        "P:LithoSharp.Content.ContentRef`1.Route/summary"
+      ]
+    },
+    "afda8c4fa0595d0a9e10f4c68e9ea543b326e04baddcb14f722534c9b8340122": {
+      "english": "All bundle files, with reserved Markdown names classified separately.",
+      "japanese": "すべてのバンドルファイル。予約されたMarkdown名は別に分類します。",
+      "contexts": [
+        "F:LithoSharp.Content.ContentInputProfile.OpenKnowledgeFormat/summary"
+      ]
+    },
+    "b060677ba0e88a51c5cf48fbac98e9573e016249b12c1c399c6ebab62ee22685": {
+      "english": "The selected site identity.",
+      "japanese": "選択したサイト識別情報。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticSiteManifest.Site/summary",
+        "P:LithoSharp.Content.StaticSiteManifestSourceAttribute.Site/summary"
+      ]
+    },
+    "b0eab4dd8f926cd2d73fcc780fc175c6ca010fe87b6cacdd915d14527a404d14": {
+      "english": "Explicit exact-ID targets outside this input's collection/version/language.",
+      "japanese": "この入力のコレクション・バージョン・言語の外部にある、明示された完全一致IDの参照先。",
+      "contexts": [
+        "P:LithoSharp.Documentation.ApiAssemblySource.References/summary"
+      ]
+    },
+    "b0fc9ffcf3288e9a07379a302cc62e30b7df5707735104027b2d58847c3e84cf": {
+      "english": "Requires a public parameterless constructor. Uses snake_case unless YamlMember supplies an alias; absent members keep constructor/initializer values.",
+      "japanese": "引数なしのpublicコンストラクターが必要です。YamlMemberでエイリアスを指定しない限りsnake_caseを使用します。指定されていないメンバーはコンストラクターまたは初期化子の値を保持します。",
+      "contexts": [
+        "T:LithoSharp.Content.ReflectionContentFrontMatterBinder`1/summary"
+      ]
+    },
+    "b14cfa2d0d6d640f27354b4a7918dbc8eb80d70da6771650335992cf282aa74e": {
+      "english": "The source or catalog phase that produced this snapshot.",
+      "japanese": "このスナップショットを生成したソースフェーズまたはカタログフェーズ。",
+      "contexts": [
+        "P:LithoSharp.Inspection.SitePreflightReport.Stage/summary"
+      ]
+    },
+    "b168b39fabc86de348c6c418f89f16a44e1d8444b4518844d5545fd4759c556b": {
+      "english": "Validated public data. Internal front matter is never added automatically.",
+      "japanese": "検証済みの公開データ。内部のfront matterを自動で追加することはありません。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxPublicData.Value/summary"
+      ]
+    },
+    "b19b4681ee93d72873e14e4015cdd62c83db04d1b2b212858bc9463b2505829c": {
+      "english": "Renders Markdown using the generator's safe pipeline.",
+      "japanese": "ジェネレーターの安全なパイプラインでMarkdownを描画します。",
+      "contexts": [
+        "M:LithoSharp.PageRenderingContext.RenderMarkdown(System.String)/summary"
+      ]
+    },
+    "b1f4b5df6197fcbe4c71bb207c2ec0bc86a8ecf006429cd37370b10f74651702": {
+      "english": "Creates a named output with a contained relative path before fingerprinting.",
+      "japanese": "フィンガープリントを付ける前に、範囲内に収まる相対パスを持つ名前付き出力を作成します。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetOutput.#ctor(System.String,System.String)/summary"
+      ]
+    },
+    "b1fb4c4d0a4cafae2ac22e02f49cb0e91566b7e780a43c8e85b5248e25fc1b49": {
+      "english": "The content inside the main article.",
+      "japanese": "メイン記事の内側のコンテンツ。",
+      "contexts": [
+        "T:LithoSharp.PageLayoutContent/param",
+        "M:LithoSharp.PageLayoutContent.#ctor(LithoSharp.IHtmlContent)/param",
+        "P:LithoSharp.PageLayoutContent.Body/summary"
+      ]
+    },
+    "b241e5930240927a96b336f79a9421ecd7566ede5f4560f1745b4d51a2e60648": {
+      "english": "The last prepared member catalog, keyed by collection, version, locale and exact API ID.",
+      "japanese": "最後に準備したメンバーカタログ。コレクション、バージョン、ロケール、正確なAPI IDをキーとします。",
+      "contexts": [
+        "P:LithoSharp.Documentation.ApiReferenceSite.Members/summary"
+      ]
+    },
+    "b27f44cf6535c9e30bf663f5ebaf85e981202abe5e896e62358d6802013e4049": {
+      "english": "Searchable sections with stable anchors.",
+      "japanese": "安定したアンカーを持つ検索可能なセクション。",
+      "contexts": [
+        "P:LithoSharp.Search.SearchDocument.Sections/summary"
+      ]
+    },
+    "b2a6c27aa2dd0aaf6e7b46560d5df70b79710682b41ccd423225c0f8eeeb648d": {
+      "english": "Gets inert template content's element children; these are excluded from ordinary queries.",
+      "japanese": "不活性なtemplateコンテンツの子要素を取得します。これらは通常のクエリから除外します。",
+      "contexts": [
+        "P:LithoSharp.Testing.HtmlTestElement.TemplateContent/summary"
+      ]
+    },
+    "b2c821b5ff2aa697a3b055809e384a93dea040f977ad084d75f0e34a3c8453f4": {
+      "english": "The total size of the cache partition files in bytes.",
+      "japanese": "キャッシュ区画のファイルの合計サイズ。単位はバイトです。",
+      "contexts": [
+        "M:LithoSharp.Build.SiteBuildCacheUsage.#ctor(System.String,System.Int32,System.Int64)/param",
+        "P:LithoSharp.Build.SiteBuildCacheUsage.TotalBytes/summary"
+      ]
+    },
+    "b37b863be55fee9cc431e1ec7ce4572ebf895e640d140a2bff22a7555821be22": {
+      "english": "A sidebar label independent of the title.",
+      "japanese": "タイトルとは独立したサイドバーのラベル。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentFrontMatter.SidebarLabel/summary"
+      ]
+    },
+    "b3c48bbea6f9ffe1649f38ebe60c473317e2f15d775a3a4e2c011a85d841976d": {
+      "english": "Opens a read-only snapshot of the prepared content.",
+      "japanese": "準備済みコンテンツの読み取り専用スナップショットを開きます。",
+      "contexts": [
+        "M:LithoSharp.SiteGeneratedAsset.OpenRead/summary"
+      ]
+    },
+    "b4210f9deb4fb1c32c48844aa71bc97efb849045d53a0fcbc03849bd45142629": {
+      "english": "An immutable prepared asset whose path has already been assigned by its producer.",
+      "japanese": "生成元によってパスがすでに割り当てられた、変更できない準備済みアセット。",
+      "contexts": [
+        "T:LithoSharp.SiteGeneratedAsset/summary"
+      ]
+    },
+    "b42e3e321e09b13095909108d0ed9c148b99471e4904ecf940e8625ac6c6f9c8": {
+      "english": "Collapses sidebar topics except those containing the current page.",
+      "japanese": "現在のページを含むトピック以外のサイドバートピックを折りたたみます。",
+      "contexts": [
+        "P:LithoSharp.DocsSiteTemplate.CollapseTopics/summary"
+      ]
+    },
+    "b430ed6a4345dfb4d6f760b7da946129785501b310f8d8e88c2bce2b9292a06b": {
+      "english": "HTML rendered from the Markdown body.",
+      "japanese": "Markdown本文から描画したHTML。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplatePage.ContentHtml/summary"
+      ]
+    },
+    "b4521acc384595f0eaf0ffef05fbdc56fbebc89807fa96841570e85ab6592c08": {
+      "english": "The role of an input before its content is parsed or validated.",
+      "japanese": "内容が解析または検証される前の、入力の役割。",
+      "contexts": [
+        "T:LithoSharp.Content.ContentInputKind/summary"
+      ]
+    },
+    "b4594e3ee7b97cfceacdb361c49d4b232695585f8f41d86733d4bd3dbb57d763": {
+      "english": "Shows the home-page start link. True preserves the default.",
+      "japanese": "ホームページの開始リンクを表示します。trueは既定の動作を維持します。",
+      "contexts": [
+        "P:LithoSharp.DocsSiteTemplate.ShowStartLink/summary"
+      ]
+    },
+    "b4821291d7964d833c00f0fb4b86f92f65036f7243ffe2b5678a0e3770d3ecd1": {
+      "english": "The props, context, or a supplied link URL is null.",
+      "japanese": "props、コンテキスト、または指定されたリンクURLがnullです。",
+      "contexts": [
+        "M:LithoSharp.PreviousNextComponent.Render(LithoSharp.PreviousNextComponentProps,LithoSharp.ComponentRenderingContext)/exception"
+      ]
+    },
+    "b4b259d0a9f6b0d50e66a262e27f69dcfee9b4232e153e8c3b90b9ecb2d128c3": {
+      "english": "Splits the document into front matter and body.",
+      "japanese": "ドキュメントをfront matterと本文に分割します。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownDocumentParser.SplitFrontMatter(System.String,System.String)/summary"
+      ]
+    },
+    "b4d1f87de1e13b95f3dcdd8859575b7ea9f05ee0a156a89017633c5dfb1f6b85": {
+      "english": "Generates an explicit immutable route lookup manifest; does not certify site publication.",
+      "japanese": "明示的で不変のルート検索マニフェストを生成します。サイトの公開を保証するものではありません。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCollectionAttribute.EmitStaticSiteManifest/summary"
+      ]
+    },
+    "b56338cb7fcfaefd1c83ffc00f07174dfc15d7796b66072efd8d568a2f4d43c3": {
+      "english": "Established by the image producer.",
+      "japanese": "画像の生成元が確定した情報。",
+      "contexts": [
+        "F:LithoSharp.ImageMetadataProvenance.Generated/summary"
+      ]
+    },
+    "b5bb7f54f35849c556d5e2deb81d04d2345d9b55ad8762cddb41150573a59711": {
+      "english": "Placeholder for the header search form.",
+      "japanese": "ヘッダーの検索フォームのプレースホルダー。",
+      "contexts": [
+        "P:LithoSharp.SiteText.HeaderSearchPlaceholder/summary"
+      ]
+    },
+    "b5f9fdf306ed1223e0e50a5e6a58edcfd4fc2c1419c2773738713a1e24ecee33": {
+      "english": "UI text.",
+      "japanese": "UIテキスト。",
+      "contexts": [
+        "P:LithoSharp.SiteTemplateContext.Text/summary",
+        "P:LithoSharp.SiteCustomization.Text/summary"
+      ]
+    },
+    "b67489fae33b4f5055123d106707346b533308b8e792015a08f5069f148b6f67": {
+      "english": "Starts a binding operation over parsed front matter.",
+      "japanese": "解析済みのfront matterに対するバインド操作を開始します。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.#ctor(System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object},LithoSharp.Diagnostics.SiteSourceLocation,System.Boolean)/summary"
+      ]
+    },
+    "b67bd2610d321db58eee9edf24e8c030a5f31b8f50716d66a902927064e4ac9f": {
+      "english": "How a collection handles documents missing from a translated variant.",
+      "japanese": "翻訳バリアントに存在しないドキュメントをコレクションがどのように扱うか。",
+      "contexts": [
+        "T:LithoSharp.Mdx.MissingDocumentPolicy/summary"
+      ]
+    },
+    "b6818c2e9d6fe519c09eb53b143f0703995e6e8ff220c0702f94e5d98956e0cb": {
+      "english": "The declared inputs used to prepare the asset.",
+      "japanese": "アセットの準備に使用する宣言済み入力。",
+      "contexts": [
+        "P:LithoSharp.SiteGeneratedAsset.Inputs/summary"
+      ]
+    },
+    "b68a69ac20008692a56ead6193e7f9711aa03c6627b6363e61099e12c2abc5a4": {
+      "english": "The publication date.",
+      "japanese": "公開日。",
+      "contexts": [
+        "P:LithoSharp.Mdx.MdxBlogFrontMatter.Date/summary"
+      ]
+    },
+    "b68abd3e76a35e2a5b592321ce98f6853da685fbded794ccdb06d9a599cd6ece": {
+      "english": "The page heading and navigation label.",
+      "japanese": "ページの見出しとナビゲーションラベル。",
+      "contexts": [
+        "P:LithoSharp.Content.DocsPagePresentation.Title/summary"
+      ]
+    },
+    "b6a1c0902903d6a376de4aa1e629aa3bcf968ab35d992f6e65a470b58dee0087": {
+      "english": "Nested category entries.",
+      "japanese": "ネストしたカテゴリーエントリー。",
+      "contexts": [
+        "P:LithoSharp.Documentation.SidebarItem.Items/summary"
+      ]
+    },
+    "b6ad26b688bf026901334d9689e5e0c46220c4a7085e93f512d3ca8f162691ff": {
+      "english": "Whether to omit the layout's table of contents.",
+      "japanese": "レイアウトの目次を省略するかどうか。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentFrontMatter.HideTableOfContents/summary"
+      ]
+    },
+    "b6d51902a9b9baa548c12743a1c5ec5a5c083dac410970a74385ceb30de3cb04": {
+      "english": "Accessible in the assembly or by derived types.",
+      "japanese": "アセンブリー内、または派生型からアクセスできます。",
+      "contexts": [
+        "F:LithoSharp.Documentation.ApiVisibility.ProtectedInternal/summary"
+      ]
+    },
+    "b73378cb2c7d7662448fe1aed13fb8f705215681ac6ab96f02b08f5005a4ee96": {
+      "english": "Selects the rules shared by compiler declarations and runtime discovery.",
+      "japanese": "コンパイラーの宣言と実行時検出で共有する規則を選択します。",
+      "contexts": [
+        "T:LithoSharp.Content.ContentInputProfile/summary"
+      ]
+    },
+    "b745ff5ee925d99ef9e30ce8d5333af4d0b9b26b76d32176f9a1503f30ab7e7b": {
+      "english": "Ignore unknown fields and accept additive minor-schema changes; compatibility requires equal major versions.",
+      "japanese": "不明なフィールドを無視し、スキーマのマイナーバージョンでの追加変更を受け入れます。互換性にはメジャーバージョンの一致が必要です。",
+      "contexts": [
+        "T:LithoSharp.ToolingContracts/summary"
+      ]
+    },
+    "b74dcfc318df5cf7f31cd53025e1f6adb25a6a545ab961a3df00100a61c15e14": {
+      "english": "The path within the declared input root, separate from the project path and public route.",
+      "japanese": "宣言された入力ルート内のパス。プロジェクトパスと公開ルートとは別です。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticContentCatalogEntry.InputPath/summary"
+      ]
+    },
+    "b7e6ad168a811a2b719d0892c8598fbb43c4020f0ce51d43c2f36a3beb3821b3": {
+      "english": "Gets exact decoded text from the connected tree, including script and style text.",
+      "japanese": "接続済みツリーから、scriptとstyleのテキストを含む正確なデコード済みテキストを取得します。",
+      "contexts": [
+        "P:LithoSharp.Testing.HtmlTestDocument.TextContent/summary"
+      ]
+    },
+    "b7f23d125d2dadfa8457bc5321a6eefd7723b1199da3e202d8a40285892f4137": {
+      "english": "A malformed selector in the declared Testing query grammar.",
+      "japanese": "宣言されたTestingクエリ文法における不正なセレクター。",
+      "contexts": [
+        "T:LithoSharp.Testing.HtmlSelectorSyntaxException/summary"
+      ]
+    },
+    "b82b75f4c0a3b9796adc787a98541fe2a64380d524e08e3a219fec78e0ae46cd": {
+      "english": "Additional plain text. HTML is escaped.",
+      "japanese": "追加のプレーンテキスト。HTMLはエスケープします。",
+      "contexts": [
+        "P:LithoSharp.SiteFooterOptions.Text/summary"
+      ]
+    },
+    "b8991ad208d130c8dd01585a5651acdccdb1d0ce3fcfb9216e2f44073d24f2a9": {
+      "english": "Search status template for the number of results. Placeholder: {0}.",
+      "japanese": "検索結果の件数を示す検索状態のテンプレート。プレースホルダーは{0}です。",
+      "contexts": [
+        "P:LithoSharp.SiteText.SearchStatusHits/summary"
+      ]
+    },
+    "b8b08aeb7eced870d2e2c33637b53c87c6456bf5bbb27b6c5695b63931de6f50": {
+      "english": "A hand-written attribute alone is not compiler evidence of complete or fresh coverage.",
+      "japanese": "手書きの属性だけでは、対象範囲が完全であることや最新であることを示すコンパイラーの証拠にはなりません。",
+      "contexts": [
+        "T:LithoSharp.Content.StaticSiteManifestSourceAttribute/remarks",
+        "M:LithoSharp.Content.StaticSiteManifestSourceAttribute.#ctor(System.String,System.String,System.String,System.String,System.String,System.String[])/remarks"
+      ]
+    },
+    "b8bc48cef4e74208c1c33b6fbb257cfb6b5625baa710350e1c8f85468ea757dc": {
+      "english": "UTC-normalized build time.",
+      "japanese": "UTCに正規化したビルド時刻。",
+      "contexts": [
+        "P:LithoSharp.Content.ContentPageRenderingContext.BuildTimestamp/summary"
+      ]
+    },
+    "b9149a05973b6d16fd83967265b19d0c684b47eda598ab53d7c42d95696bbdda": {
+      "english": "Lossless PNG compression setting.",
+      "japanese": "可逆PNG圧縮の設定。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageVariant.CompressionLevel/summary"
+      ]
+    },
+    "b94b351e69e32e18eaecc17a6a6bd413d82bcba5d328dd499ffa77a55c3f5349": {
+      "english": "Existing WebP files can be copied; WebP conversion is unsupported.",
+      "japanese": "既存のWebPファイルはコピーできます。WebP変換はサポートしません。",
+      "contexts": [
+        "F:LithoSharp.Images.ImageFormat.WebP/summary"
+      ]
+    },
+    "b9532a95c6fd51c1de7c73d5aad5df5e0aaa01f00764a70a759e2f8d640ed468": {
+      "english": "A configured resource limit is exceeded.",
+      "japanese": "設定されたリソース上限を超えています。",
+      "contexts": [
+        "M:LithoSharp.Images.PngCodec.Decode(System.IO.Stream,LithoSharp.Images.ImageLimits,System.Threading.CancellationToken)/exception"
+      ]
+    },
+    "b979b567861913d9eeb16bb865daa6eb18487177a7857712eb1c9e6f72b338a3": {
+      "english": "Opens the HTML artifact for an exact public route without running scripts or network requests.",
+      "japanese": "スクリプトやネットワークリクエストを実行せずに、正確な公開ルートに対応するHTML成果物を開きます。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.OpenPageAsync(System.String,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "ba38a780f0f737bebc2e22ac384cc944a52a94f96f19748fbe3fbda839a3f9ef": {
+      "english": "Converts a present field; absent fields retain their current value.",
+      "japanese": "存在するフィールドを変換します。存在しないフィールドは現在の値を保持します。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryRead``1(System.String,``0,System.Boolean,System.Boolean,LithoSharp.Content.GeneratedContentValueParser{``0},``0@)/summary"
+      ]
+    },
+    "baaa42209723c5f892000b2af4fbd3c2c774b5a1a11f3f26bd49a886768fb2fe": {
+      "english": "The page language; null uses the site language.",
+      "japanese": "ページの言語。nullの場合はサイトの言語を使用します。",
+      "contexts": [
+        "P:LithoSharp.Pages.PageMetadata.Language/summary"
+      ]
+    },
+    "bb225f34a01374d321723fe7db706801a75a6d1dfc4714c251b654234f6daad3": {
+      "english": "Creates the result.",
+      "japanese": "結果を作成します。",
+      "contexts": [
+        "M:LithoSharp.SiteTemplateResult.#ctor(System.Collections.Generic.IReadOnlyList{LithoSharp.SiteTemplateFile})/summary"
+      ]
+    },
+    "bb65e6083211593653c1e9dadf6a14dcb8b426989ec53b0ac9b6a49373815d68": {
+      "english": "Converts an enumeration without runtime type discovery.",
+      "japanese": "実行時の型検出を使わずに列挙型を変換します。",
+      "contexts": [
+        "M:LithoSharp.Content.GeneratedContentBindingContext.TryParseEnum``1(System.Object,LithoSharp.Content.GeneratedContentBindingContext,``0@)/summary"
+      ]
+    },
+    "bbcd3a6b1a0f3df03cbfe23865f3d4c10ff716ffdd18fba5d83a047abcf206a4": {
+      "english": "Measured MDX work, including valid no-op cache hits.",
+      "japanese": "有効なno-opキャッシュヒットを含む、測定したMDX処理。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationSite.MdxMetrics/summary"
+      ]
+    },
+    "bc123fe49798c3a02e53b520d8598e23f25f43058598ffd7bd1f93595e676b2d": {
+      "english": "Caching requires a cacheable source, complete external dependencies and a versioned transformationId. Default derived surfaces include search, sitemap and llms.txt, excluding RSS and site navigation. Social images require explicit generation options.",
+      "japanese": "キャッシュには、キャッシュ可能なソース、完全な外部依存関係、バージョンを持つtransformationIdが必要です。既定の派生出力には検索、サイトマップ、llms.txtを含み、RSSとサイトナビゲーションを含みません。ソーシャル画像には明示的な生成オプションが必要です。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.GeneratePages``1(LithoSharp.Content.ContentCollectionId,LithoSharp.Content.ContentPageGroupSelector{`0,`1},LithoSharp.Content.GeneratedPageFactory{`0,`1,``0},LithoSharp.Content.GeneratedPageRenderer{``0},System.Collections.Generic.IEnumerable{System.String},LithoSharp.Content.ContentLayoutId,System.Collections.Generic.IComparer{System.String},System.Collections.Generic.IEnumerable{LithoSharp.Content.ContentDependency},LithoSharp.Content.ContentTransformationId,System.Boolean,LithoSharp.Content.GeneratedPageDerivedSurfaces)/remarks"
+      ]
+    },
+    "bc632fd5b2fc548d1f1e5b3145f95b4555e86680bb3489fc128692b9615b38b3": {
+      "english": "Existing AVIF files can be copied; AVIF conversion is unsupported.",
+      "japanese": "既存のAVIFファイルはコピーできます。AVIF変換はサポートしません。",
+      "contexts": [
+        "F:LithoSharp.Images.ImageFormat.Avif/summary"
+      ]
+    },
+    "bc949d4e991e58d812a291fe27cdc62d1fdbbd9588726e6ceb7141b0405631e9": {
+      "english": "Loads and checks the same input set and routes declared in a generated Markdown catalog.",
+      "japanese": "生成されたMarkdownカタログで宣言されたものと同じ入力集合とルートを読み込み、検査します。",
+      "contexts": [
+        "M:LithoSharp.Content.MarkdownContentCollectionLoader`1.#ctor(LithoSharp.Content.StaticContentCatalog,System.String,LithoSharp.Content.ContentPublicationMapper{`0,System.String},LithoSharp.Content.IContentFrontMatterBinder{`0},LithoSharp.Content.ContentLayoutId,System.Collections.Generic.IComparer{LithoSharp.Content.ContentEntry{`0,System.String}},System.Collections.Generic.IEnumerable{LithoSharp.Content.ContentDependency},LithoSharp.Content.ContentTransformationId,System.Boolean)/summary"
+      ]
+    },
+    "bca5be04deb415a716e414c682cec552947bf5b694a70385488f2522c67ddf5d": {
+      "english": "The last committed document update or an explicit front-matter override.",
+      "japanese": "最後にコミットしたドキュメント更新、またはfront matterで明示的に上書きした値。",
+      "contexts": [
+        "T:LithoSharp.Documentation.DocumentUpdate/summary"
+      ]
+    },
+    "bcbe0180a21ea68fc89c78d6528884bdd1919f42c3f8bb75cb7ab27259641c94": {
+      "english": "URL encoding or the base URL is invalid.",
+      "japanese": "URLエンコーディングまたはベースURLが不正です。",
+      "contexts": [
+        "M:LithoSharp.SiteUrl.ForDirectory(System.String,System.String)/exception",
+        "M:LithoSharp.SiteUrl.ForFile(System.String,System.String)/exception"
+      ]
+    },
+    "bceccbb2f79f7b7078e82f466101374fb1f288b4d0e20cfa265ea8c95176ade6": {
+      "english": "The source collection identity.",
+      "japanese": "ソースコレクションの識別情報。",
+      "contexts": [
+        "P:LithoSharp.Content.StaticSiteManifest.CollectionId/summary"
+      ]
+    },
+    "bdbfc807c8d8cbe01e92eba782d2cfb9c8a40d4c722e84276bc940416dc9bbe3": {
+      "english": "Outputs that the handler must write exactly once.",
+      "japanese": "ハンドラーがそれぞれ正確に1回書き込まなければならない出力。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetTransform.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAsset},System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAssetOutput},System.Func{LithoSharp.SiteAssetTransformContext,System.Threading.CancellationToken,System.Threading.Tasks.Task},System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task})/param"
+      ]
+    },
+    "bdf4c3521d200f514f956b56e896c5fd82390b087732eb38793d4fb6d02af279": {
+      "english": "References a registered asset by its identifier.",
+      "japanese": "識別子を使って登録済みアセットを参照します。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentDependency.FromAsset(System.String)/summary"
+      ]
+    },
+    "bdf505501539cab1a03e0afff2e77e641bfbdc95f492a0f5989e618d6ee47d68": {
+      "english": "Heading for the generated 404 page.",
+      "japanese": "生成する404ページの見出し。",
+      "contexts": [
+        "P:LithoSharp.SiteText.NotFoundTitle/summary"
+      ]
+    },
+    "be47b41c48f23901a8c5b618508a1f495dc14f804932fe97f0011f27a4d00603": {
+      "english": "Whether to omit the layout's title.",
+      "japanese": "レイアウトのタイトルを省略するかどうか。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentFrontMatter.HideTitle/summary"
+      ]
+    },
+    "be5dca7d6692d63609a82ba8b950438ebd3ac886c99a0e8b0359140363cebdeb": {
+      "english": "The artifact crosses a link or escapes the output directory.",
+      "japanese": "成果物がリンクを経由するか、出力ディレクトリーの外に出ています。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.AssertArtifact(System.String)/exception"
+      ]
+    },
+    "be609717409c9f81178737d958ad6ff4d8b269119e60107ef78e7296e3cfd490": {
+      "english": "The single extension point for the generator. Inject text, theme, validation, and extra pages to drive site-specific behavior.",
+      "japanese": "ジェネレーターの単一の拡張ポイント。テキスト、テーマ、検証、追加ページを注入して、サイト固有の動作を制御します。",
+      "contexts": [
+        "T:LithoSharp.SiteCustomization/summary"
+      ]
+    },
+    "be8cad40abc685a116a27db752bdee98e86f3cc568bbed749b8db6fdb2633f5f": {
+      "english": "Renders SEO metadata.",
+      "japanese": "SEOメタデータを描画します。",
+      "contexts": [
+        "T:LithoSharp.SeoComponent/summary"
+      ]
+    },
+    "bea81116e0591924b22bd3626bd65adf160d96f9adb6eb296e006d7612db3b65": {
+      "english": "Uses a compact introduction on the home page.",
+      "japanese": "ホームページに短い紹介文を使用します。",
+      "contexts": [
+        "P:LithoSharp.DocsSiteTemplate.CompactHome/summary"
+      ]
+    },
+    "beda7e5f0206b085c3e8c5006c37e8b5e857ba5701206f8741bb7885c12f14ba": {
+      "english": "A stable output route derived from the exact XML or OpenAPI identity.",
+      "japanese": "正確なXMLまたはOpenAPIの識別情報から得た、安定した出力ルート。",
+      "contexts": [
+        "M:LithoSharp.Documentation.ApiReferenceSite.RouteFor(System.String,System.String,System.String)/summary"
+      ]
+    },
+    "bedd99337c79183cd8e261a1ea613914ce90b990f23a18c4ddd45d478d27606c": {
+      "english": "Declares one transformed asset output.",
+      "japanese": "変換済みアセットの出力を1つ宣言します。",
+      "contexts": [
+        "T:LithoSharp.SiteAssetOutput/summary"
+      ]
+    },
+    "bee1a99bc072b029f544c296dd7f0c31477477cf3bc54801977579dd0a9c75af": {
+      "english": "Transformation to register in AssetTransforms.",
+      "japanese": "AssetTransformsに登録する変換。",
+      "contexts": [
+        "P:LithoSharp.Images.ImageAsset.Transform/summary"
+      ]
+    },
+    "bf138b7500ef35ac48d36d800f0bc38051c90a4cc0eae3d01a4fb30e0627d6b9": {
+      "english": "Copies documents, relative components, code, images and sidebar data as one new version.",
+      "japanese": "ドキュメント、相対指定のコンポーネント、コード、画像、サイドバーデータを、1つの新しいバージョンとしてコピーします。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentSnapshot.CreateAsync(System.String,System.String,System.String,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "bf2041088be865cbc1d4e6b9b60bf2c74820f555c6e78d4894f4b0537f78eec8": {
+      "english": "Stable transform identifier.",
+      "japanese": "安定した変換識別子。",
+      "contexts": [
+        "M:LithoSharp.SiteAssetTransform.#ctor(System.String,System.String,System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAsset},System.Collections.Generic.IReadOnlyList{LithoSharp.SiteAssetOutput},System.Func{LithoSharp.SiteAssetTransformContext,System.Threading.CancellationToken,System.Threading.Tasks.Task},System.Func{System.Threading.CancellationToken,System.Threading.Tasks.Task})/param",
+        "P:LithoSharp.SiteAssetTransform.Id/summary"
+      ]
+    },
+    "bf3bd49a275ec87656d901986c5722e112d9bffd0a2ac1438fb4da12ede6487b": {
+      "english": "Gets the absolute project directory.",
+      "japanese": "プロジェクトの絶対ディレクトリーを取得します。",
+      "contexts": [
+        "P:LithoSharp.SiteFactoryContext.ProjectDirectory/summary"
+      ]
+    },
+    "bf3eeb581b3f642afa16bc844b265d1f3b7a85d2dc7c3ff8a1957db00cbbd8f5": {
+      "english": "Resolves a sidebar once for use by every navigation surface.",
+      "japanese": "すべてのナビゲーション表示で使用するために、サイドバーを一度だけ解決します。",
+      "contexts": [
+        "M:LithoSharp.Documentation.DocumentCatalog.Sidebar(System.String,System.String,System.String,System.Collections.Generic.IEnumerable{LithoSharp.Documentation.SidebarItem},System.Collections.Generic.IReadOnlyDictionary{System.String,LithoSharp.Documentation.DocumentCategory})/summary"
+      ]
+    },
+    "bf7051df0a20825fb3f5a8d22349ba3501e4e061bfb9e0d7540cee0234fb0890": {
+      "english": "Known intrinsic image dimensions, media type and their origin. Core never decodes images.",
+      "japanese": "判明している画像固有の寸法、メディアタイプ、およびその由来。Coreでは画像をデコードしません。",
+      "contexts": [
+        "T:LithoSharp.ImageMetadata/summary"
+      ]
+    },
+    "bf7394378d2c995a9021c12ec7117df22d34534e19693756aa56b4738e433b47": {
+      "english": "Syntax-only; Route retains the caller-supplied value.",
+      "japanese": "構文のみを検査します。Routeは呼び出し元が指定した値を保持します。",
+      "contexts": [
+        "F:LithoSharp.Inspection.DocumentProjectStatus.NoContext/summary"
+      ]
+    },
+    "bf9569d09ff975fe072429f795b7c4d64cd5145a3a28b6e64a8606b600562a33": {
+      "english": "Gets a decoded attribute by local name and namespace URI, or null if absent.",
+      "japanese": "ローカル名と名前空間URIでデコード済み属性を取得します。存在しない場合はnullです。",
+      "contexts": [
+        "M:LithoSharp.Testing.HtmlTestElement.GetAttribute(System.String,System.String)/summary"
+      ]
+    },
+    "bfa6bd21ab09160ed5f32b63ae4ba2ebcbd78477207100ce8e10e38fb46ca5fe": {
+      "english": "The factory returns null.",
+      "japanese": "ファクトリーがnullを返します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.ISiteFactory,LithoSharp.SiteFactoryContext,System.Threading.CancellationToken)/exception"
+      ]
+    },
+    "bfd75ece3935b3bb35477ce6d8030bb17a2007cbb32dae437381e9bf690dc895": {
+      "english": "A literal relative output path before fingerprinting.",
+      "japanese": "フィンガープリントを付ける前のリテラルな相対出力パス。",
+      "contexts": [
+        "M:LithoSharp.SiteAsset.#ctor(System.String,System.String,System.String,System.String)/param"
+      ]
+    },
+    "bfe2e7b58f8ab479619ac50ee8f3c7fd129939423a09d3bbf449cdd38cb357a8": {
+      "english": "Loads and generates a factory's site using the supplied source context.",
+      "japanese": "指定されたソースコンテキストを使用して、ファクトリーのサイトを読み込み、生成します。",
+      "contexts": [
+        "M:LithoSharp.Testing.SiteTestHost.CreateAsync(LithoSharp.ISiteFactory,LithoSharp.SiteFactoryContext,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "bfe61cd477dccf92e2e345d3f34114f2786782ac8460910ec3458bd9ad25c769": {
+      "english": "Additional dependencies specific to this entry.",
+      "japanese": "このエントリー固有の追加依存関係。",
+      "contexts": [
+        "P:LithoSharp.Content.ContentEntry`2.DeclaredDependencies/summary"
+      ]
+    },
+    "bfef989739b36341e7c64dfe124405540df2ad2118f7f492cdfa038553330e88": {
+      "english": "Atomically removes unchanged owned artifacts while preserving modified and unowned files.",
+      "japanese": "変更されていない所有対象の成果物をアトミックに削除し、変更されたファイルと所有対象外のファイルを保持します。",
+      "contexts": [
+        "M:LithoSharp.SiteGenerator.CleanAsync(System.String,System.Threading.CancellationToken)/summary"
+      ]
+    },
+    "bffa510851c633bd1485e1f677f9f8a0a8a4063cf15b114c9a9e2a0f8014a9cb": {
+      "english": "An optional parent entry in the same collection, version, and locale. Otherwise source directories form topics.",
+      "japanese": "同じコレクション、バージョン、ロケールに属する任意の親エントリー。それ以外の場合はソースディレクトリーからトピックを構成します。",
+      "contexts": [
+        "P:LithoSharp.Content.DocsPagePresentation.ParentId/summary"
+      ]
+    }
+  }
+}

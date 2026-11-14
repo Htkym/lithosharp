@@ -139,7 +139,7 @@ public sealed class MdxSemanticsTests
         var source = Path.Combine(workspace.Root, "content");
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "intro.mdx"),
-            "---\ntitle: Guide\n---\nimport Counter from './Counter.jsx'\n\n## Guide <Counter />\n\nStatic text here.\n\n<Counter />\n");
+            "---\nid: stable-guide\ntitle: Guide\n---\nimport Counter from './Counter.jsx'\n\n## Guide <Counter />\n\nStatic text here.\n\n<Counter />\n");
         await File.WriteAllTextAsync(Path.Combine(source, "Counter.jsx"),
             "import {useState} from 'react';export default function Counter(){const [n,set]=useState(0);return <button onClick={()=>set(n+1)}>Count {n}</button>}");
         await using var docs = new DocumentationSite(new(workspace.Root, WorkerDirectory()) { Cacheable = true })
@@ -197,7 +197,10 @@ public sealed class MdxSemanticsTests
             new() { Template = new DocsSiteTemplate { EnableSearch = true } }, options, CancellationToken.None);
         await Assert.That(second.QualityReport.HtmlParseCount).IsEqualTo(0);
         await Assert.That(second.QualityReport.HtmlFactsCacheHitCount > 0).IsTrue();
-        await Assert.That(second.HtmlFactsSharing.ParseCount).IsEqualTo(1);
+        await Assert.That(second.HtmlFactsSharing.ParseCount).IsEqualTo(0);
+        await Assert.That(second.BuildReport.Nodes.Single(static node => node.NodeId.StartsWith("asset:docs:search:", StringComparison.Ordinal))
+            .CacheHit).IsTrue();
+        await Assert.That(second.BuildReport.Nodes.Single(static node => node.NodeId == "index:search").CacheHit).IsTrue();
         await Assert.That(observer.Owner!.Counters.RetainedBytes).IsEqualTo(0);
         await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "search-index.json"))).IsEquivalentTo(coreBefore);
         await Assert.That(await File.ReadAllBytesAsync(Path.Combine(output, "guide", "_search.json"))).IsEquivalentTo(docsBefore);

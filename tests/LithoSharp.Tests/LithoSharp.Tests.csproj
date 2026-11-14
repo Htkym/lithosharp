@@ -32,6 +32,8 @@
     <Compile Include="../LithoSharp.Html.Portability/HtmlBridgeObservations.cs" Link="HtmlPortability/HtmlBridgeObservations.cs" />
     <Compile Include="../../src/LithoSharp.Tool/WatchEventQueue.cs" Link="Tool/WatchEventQueue.cs" />
     <Compile Include="../../src/LithoSharp.Tool/WatchBuildProgress.cs" Link="Tool/WatchBuildProgress.cs" />
+    <Compile Include="../../src/LithoSharp.Tool/ExplicitCSharpSnapshot.cs" Link="Tool/ExplicitCSharpSnapshot.cs" />
+    <Compile Include="../../src/LithoSharp.Tool/CSharpRenamePreview.cs" Link="Tool/CSharpRenamePreview.cs" />
   </ItemGroup>
 
 </Project>

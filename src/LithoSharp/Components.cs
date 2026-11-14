@@ -1,5 +1,6 @@
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Documentation;
 using LithoSharp.Pages;
 
 namespace LithoSharp;
@@ -43,13 +44,17 @@ public class ComponentRenderingContext
     public string EnvironmentName { get; internal init; } = "Production";
     /// <summary>Registered assets.</summary>
     public AssetRegistry Assets { get; internal init; } = AssetRegistry.Empty;
+    /// <summary>The captured current documentation identity and publication decision, when available.</summary>
+    public DocumentSemanticDocument? Document { get; internal init; }
+    /// <summary>The captured reference universe for this document, when available.</summary>
+    public DocumentSemanticSnapshot? DocumentSemantics { get; internal init; }
     /// <summary>Creates a standalone component context.</summary>
     /// <exception cref="ArgumentNullException">The site is null.</exception>
     /// <remarks>Uses English text, the default theme, current UTC time, Production, and an empty asset registry.</remarks>
     public static ComponentRenderingContext Create(SiteSettings site)
     {
         ArgumentNullException.ThrowIfNull(site);
-        var configuration = new SiteGenerator.RenderContext(site, SiteText.English, new SiteThemeOptions(), [], [], string.Empty, false, false, DateTimeOffset.UtcNow, new Routing.SiteRouteCatalog(site.BaseUrl, [], []));
+        var configuration = new SiteGenerator.RenderContext(site, SiteText.English, new SiteThemeOptions(), [], [], string.Empty, false, DateTimeOffset.UtcNow, new Routing.SiteRouteCatalog(site.BaseUrl, [], []));
         return new ComponentRenderingContext(null, configuration);
     }
     /// <summary>Renders a component with this context.</summary>
@@ -67,11 +72,15 @@ public class ComponentRenderingContext
 public sealed class PageRenderingContext : ComponentRenderingContext
 {
     private readonly ContentPageRenderingContext? legacyContext;
-    internal PageRenderingContext(SiteGenerator? generator, SiteGenerator.RenderContext configuration, ContentPageRenderingContext? legacyContext = null) : base(generator, configuration)
+    internal PageRenderingContext(SiteGenerator? generator, SiteGenerator.RenderContext configuration,
+        ContentPageRenderingContext? legacyContext = null, DocumentKey? document = null) : base(generator, configuration)
     {
         this.legacyContext = legacyContext;
-        EnvironmentName = legacyContext?.EnvironmentName ?? "Production";
-        Assets = legacyContext?.Assets ?? AssetRegistry.Empty;
+        EnvironmentName = legacyContext?.EnvironmentName ?? configuration.EnvironmentName;
+        Assets = legacyContext?.Assets ?? configuration.Assets;
+        var referenceContext = generator?.CreateMarkdownComponentContext(configuration, legacyContext?.Metadata.Document ?? document);
+        Document = referenceContext?.Document;
+        DocumentSemantics = referenceContext?.DocumentSemantics;
     }
     /// <summary>Creates a standalone page context.</summary>
     /// <exception cref="ArgumentNullException">The site is null.</exception>
@@ -86,7 +95,7 @@ public sealed class PageRenderingContext : ComponentRenderingContext
     {
         ArgumentNullException.ThrowIfNull(markdown);
         return Html.UnsafeRaw(legacyContext is null
-            ? Generator.RenderMarkdown(markdown)
+            ? Generator.RenderMarkdown(markdown, this)
             : legacyContext.RenderMarkdown(markdown));
     }
     /// <summary>Renders a typed page using the existing document renderer.</summary>

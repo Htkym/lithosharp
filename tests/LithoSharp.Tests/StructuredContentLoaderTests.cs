@@ -3,7 +3,6 @@ using LithoSharp.Diagnostics;
 using LithoSharp.Pages;
 using LithoSharp.Routing;
 using System.Text.Json;
-using YamlDotNet.Serialization;
 
 namespace LithoSharp.Tests;
 
@@ -60,6 +59,30 @@ public sealed class StructuredContentLoaderTests
         await Assert.That(((IReadOnlyDictionary<string, object?>)result.Collection.Entries[1].Body["nested"]!)
             ["name"]).IsEqualTo("N");
         await Assert.That(result.Collection.Entries[0].SourceFingerprint).StartsWith("sha256:");
+    }
+
+    [Test]
+    [Arguments("value")]
+    [Arguments("- value")]
+    public async Task YamlLoader_RejectsNonMappingRootEntries(string yaml)
+    {
+        using var workspace = new TemporaryWorkspace();
+        await File.WriteAllTextAsync(Path.Combine(workspace.Root, "item.yaml"), yaml);
+        var callbackCalled = false;
+        var result = await new YamlContentCollectionLoader<Row, string>(
+            workspace.Root, new ContentCollectionId("items"),
+            new CallbackBinder<Row>(() => callbackCalled = true, new Row("item", "Item")),
+            values =>
+            {
+                callbackCalled = true;
+                return "body";
+            },
+            static entry => SiteRoute.ForFile(entry.Id.Value + ".html"),
+            static entry => new PageMetadata(entry.FrontMatter.Title)).LoadAsync();
+
+        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.Diagnostics.Single().Id).IsEqualTo(YamlContentDiagnosticIds.InvalidRoot);
+        await Assert.That(callbackCalled).IsFalse();
     }
 
     [Test]
@@ -523,7 +546,7 @@ public sealed class StructuredContentLoaderTests
     {
         public string Id { get; init; } = string.Empty;
 
-        [YamlMember(Alias = "café")]
+        [ContentName("café")]
         public string Cafe { get; init; } = string.Empty;
     }
 

@@ -1,0 +1,448 @@
+{
+  "schemaVersion": 1,
+  "sourceLocale": "en",
+  "translationLocale": "ja",
+  "reviews": [
+    {
+      "collection": "overview",
+      "version": "3.0",
+      "id": "introduction",
+      "sourcePath": "README.md",
+      "sourceSha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b",
+      "translationPath": "README.ja.md",
+      "translationSha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "README",
+      "sourcePath": "docs/README.md",
+      "sourceSha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074",
+      "translationPath": "docs/README.ja.md",
+      "translationSha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "Testing-v2-api",
+      "sourcePath": "docs/Testing-v2-api.md",
+      "sourceSha256": "053623a532067b95623fd582f0e94b7bebbbe6255ae27f1a63a1572d89846be6",
+      "translationPath": "docs/Testing-v2-api.ja.md",
+      "translationSha256": "592b121f96eb14814860f963ee79947d2b662eb085651f13d6712fdfa612307b"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "adoption-guide",
+      "sourcePath": "docs/adoption-guide.md",
+      "sourceSha256": "e066062ee0cf390003907f1a2caee100c6ba1ba544379331292ae2c18ce3eed8",
+      "translationPath": "docs/adoption-guide.ja.md",
+      "translationSha256": "f0c0345bd32d6b00a858b01b730121075ffe4eea816adf8b120a0d7ac0263f48"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "assets-and-images",
+      "sourcePath": "docs/assets-and-images.md",
+      "sourceSha256": "0bc4491339723209b4d2ce53219728dfa5450c75ee6c153f8ce715ac92c781a0",
+      "translationPath": "docs/assets-and-images.ja.md",
+      "translationSha256": "463d658dfc444dd90f4323f0b9bf04e1ea12e6f10b3b468515880b14197f8edc"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "build-graph",
+      "sourcePath": "docs/build-graph.md",
+      "sourceSha256": "a8960766533dbd0712c7258900046e1ac0f4cfb1022bbf99a45c1f0811333176",
+      "translationPath": "docs/build-graph.ja.md",
+      "translationSha256": "904fb737dda474e21bf18e5fc59e549f2751b49bd1c05a5ed0b8274ac58108ca"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "cli",
+      "sourcePath": "docs/cli.md",
+      "sourceSha256": "695d3f4fb0ca48223c325b12dfe46011b24869430a5accab9f62baea521cf5e7",
+      "translationPath": "docs/cli.ja.md",
+      "translationSha256": "8a2cc7a8db61f1ef566daa9f4861df9fa2bf566579f84342d08379e73f592cd5"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "code-example-verification",
+      "sourcePath": "docs/code-example-verification.md",
+      "sourceSha256": "959c288f466bfb478adb57d3057fe4a77333dba8d7f59adef82a0d87e75c0425",
+      "translationPath": "docs/code-example-verification.ja.md",
+      "translationSha256": "416012df34643780333a36c31206d334fdfaec0acb3233cb3f7166a81bc22d54"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "compatibility-contract",
+      "sourcePath": "docs/compatibility-contract.md",
+      "sourceSha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7",
+      "translationPath": "docs/compatibility-contract.ja.md",
+      "translationSha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "csharp-reference-rename",
+      "sourcePath": "docs/csharp-reference-rename.md",
+      "sourceSha256": "446a4ed2ee9176caf60164df70f2a10faa6c937f09365af196f53f239f40f6d0",
+      "translationPath": "docs/csharp-reference-rename.ja.md",
+      "translationSha256": "0c94102b08561e5da6a69efd495473d7e47d962c61165e3920bec366df3af3ab"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "diagnostics",
+      "sourcePath": "docs/diagnostics.md",
+      "sourceSha256": "24a7491e0dddc9e1a85cea8b694642a55f689ed7d4f5a7b6ae83778c9d4dd19d",
+      "translationPath": "docs/diagnostics.ja.md",
+      "translationSha256": "539b7848169fe8e547c260f43f3039df04be68ec9cb40592aef4042c5e238b3b"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "sourcePath": "docs/distribution.md",
+      "sourceSha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58",
+      "translationPath": "docs/distribution.ja.md",
+      "translationSha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "docs-template",
+      "sourcePath": "docs/docs-template.md",
+      "sourceSha256": "624038b7513d8fb3f74e62c1d501e6e26bce72b4763ce50b36a21c671bef6fad",
+      "translationPath": "docs/docs-template.ja.md",
+      "translationSha256": "b126f042a0fccef655a7580855bd8294143971c80bca2d82013b1468ea5d70a5"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "docusaurus-migration",
+      "sourcePath": "docs/docusaurus-migration.md",
+      "sourceSha256": "aa43b31b0b59b3fef159595668cf6f7700a9314fac2c5d27c2173869f98f0efe",
+      "translationPath": "docs/docusaurus-migration.ja.md",
+      "translationSha256": "aa5da5e4231c6f8820d11b1e0d126e90a5e84cc504c871963bd121138306c551"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "generated-output-checks",
+      "sourcePath": "docs/generated-output-checks.md",
+      "sourceSha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147",
+      "translationPath": "docs/generated-output-checks.ja.md",
+      "translationSha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "golden-path",
+      "sourcePath": "docs/golden-path.md",
+      "sourceSha256": "404136748deaf12254a64b1b18ca5beb01e8171a9ff3d89df044903f6c2feeeb",
+      "translationPath": "docs/golden-path.ja.md",
+      "translationSha256": "a5ffd3677f5adfdc2647bd974e2eb6d3b399e1ab7ad7ca2bfb9ee15c83a624e5"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "incremental-builds",
+      "sourcePath": "docs/incremental-builds.md",
+      "sourceSha256": "b6cd7a70862f4432f8a3a86ccc72b90d26d1423ef3911b2d24ceacd1fd2d9406",
+      "translationPath": "docs/incremental-builds.ja.md",
+      "translationSha256": "81eb7a5879d18f76bd36da3a724647a2c230c24a8eb2c4e8995490d16d455129"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "known-limitations",
+      "sourcePath": "docs/known-limitations.md",
+      "sourceSha256": "b03f3bbf320a44d0872bb5c8dddf8438c5c1f716a5538a772653f1386d974605",
+      "translationPath": "docs/known-limitations.ja.md",
+      "translationSha256": "6638cc51608bd48c28b2ad41ab55bcba7dc8b663cba3f779f622436019aa8805"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "language-server",
+      "sourcePath": "docs/language-server.md",
+      "sourceSha256": "45f4e903bbce11c2257ab3e958830c58a81795a5157112382a20a374fa44ea28",
+      "translationPath": "docs/language-server.ja.md",
+      "translationSha256": "d4c4fe1f25f3ba3cb8e5fe950a941731ec1cd07798da42ddc29a13f1b55bef7c"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "layout-css-contract",
+      "sourcePath": "docs/layout-css-contract.md",
+      "sourceSha256": "2373b8161a4cbc064bc60d87078c022d1b7e040f8a6c4980136af538cb79a95e",
+      "translationPath": "docs/layout-css-contract.ja.md",
+      "translationSha256": "dc3015ca2b64221b3dffb7b611fa7cb6dfebd602aef27e73886c3a8c272dbd78"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "markdown-profiles",
+      "sourcePath": "docs/markdown-profiles.md",
+      "sourceSha256": "0a5957ffbf2fa24fe4e95cef3e093665b98a57be19794a5043a33a292d6589d9",
+      "translationPath": "docs/markdown-profiles.ja.md",
+      "translationSha256": "3db9e4b89023f9b8d4dfd43bb2ab0363dad5b18752992d98ab4cc635dff18ee1"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "mdx",
+      "sourcePath": "docs/mdx.md",
+      "sourceSha256": "d6743f9808e1710219ff94ed4fb1bbc7f6b257ec345e1b9f94bfc7c9e19d3fd8",
+      "translationPath": "docs/mdx.ja.md",
+      "translationSha256": "8150a0e6cc06e6cec26cfec913e33b7e8147cbef51cd4e525389a7b54eb2c2ff"
+    },
+    {
+      "collection": "history",
+      "version": "2.2",
+      "id": "migration-2.0",
+      "sourcePath": "docs/migration-2.0.md",
+      "sourceSha256": "4eb6b81d2ae6b008132c970ab1ff9e4a136e4b366f3260dc65d8b5c83706daf2",
+      "translationPath": "docs/migration-2.0.ja.md",
+      "translationSha256": "290f5f311d5ac9689bc08ba34415d02d935ccc81b6877c3c1b43d10d2f7dc477"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "migration-3.0",
+      "sourcePath": "docs/migration-3.0.md",
+      "sourceSha256": "114c18c4d9ed948fbf250995333a7025c2adcd8771c467a19dfade86ea514870",
+      "translationPath": "docs/migration-3.0.ja.md",
+      "translationSha256": "ec9d29eef5d4c879ebdec03c04f64d49c7b6063fb2a12ec9925afe7a2d6a6bd0"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "open-knowledge-format",
+      "sourcePath": "docs/open-knowledge-format.md",
+      "sourceSha256": "8a1083714c002f60407d6f79fbd7cf1f8828218947912b6f8d816d05156637a3",
+      "translationPath": "docs/open-knowledge-format.ja.md",
+      "translationSha256": "0dd90281ea3d7cdfba060f275345ae632630b559e98cce058677e9b35e78b345"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "performance",
+      "sourcePath": "docs/performance.md",
+      "sourceSha256": "31d61875672dbd01fe2c51c56524bbcdf49a458786693d0937f0a0ad0e5d8af7",
+      "translationPath": "docs/performance.ja.md",
+      "translationSha256": "1b0d34d0e7031db87f399eb80431c774f13d540dc500ad4a9a0edbd035e61484"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "proofreading",
+      "sourcePath": "docs/proofreading.md",
+      "sourceSha256": "b067a157c77bbd1c89b6999d27f1e69243d6039af4f24bbb287c34dc48a5ba69",
+      "translationPath": "docs/proofreading.ja.md",
+      "translationSha256": "b00b602b46b39f0f5122ed3ccbed9ff9235861c46f36cb607cecb6a17234dfe4"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "quickstart",
+      "sourcePath": "docs/quickstart.md",
+      "sourceSha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be",
+      "translationPath": "docs/quickstart.ja.md",
+      "translationSha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "reference-editing",
+      "sourcePath": "docs/reference-editing.md",
+      "sourceSha256": "f1d76bba42dff8b1630845a532f61f884e9e3c08ff8c50b33b263b36600f69d9",
+      "translationPath": "docs/reference-editing.ja.md",
+      "translationSha256": "29337b55bb9f5a8afaf7c2d570c2d565fa80812b9fc670478b592f37df965ae3"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "semantic-constraints",
+      "sourcePath": "docs/semantic-constraints.md",
+      "sourceSha256": "d3c6584f75ee17e39d3edba65a998dc7fd2c831df586f1961111d5095e87704c",
+      "translationPath": "docs/semantic-constraints.ja.md",
+      "translationSha256": "5265402cda2e354bb2bd50512bc3a8df22bc52cdc0d72fb460fbcdcd7e195cb3"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "site-quality",
+      "sourcePath": "docs/site-quality.md",
+      "sourceSha256": "460d79519f2fe71ec1e04de0d03e045f5af398d88774ebc46cd359fac946f2d9",
+      "translationPath": "docs/site-quality.ja.md",
+      "translationSha256": "6d4620b5e19d5d06058559aca80af8054d378dcbb126db3687abe14a733270a1"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "source-generators",
+      "sourcePath": "docs/source-generators.md",
+      "sourceSha256": "cc51bf552385dab6d7ff466569fe076c5a961c1be031b3c913674efd4c9cc5b3",
+      "translationPath": "docs/source-generators.ja.md",
+      "translationSha256": "04a4a80852072f082544db244f44fe3e31043d978905b2eb9d7f2ee5682e819c"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "syntamark-contracts",
+      "sourcePath": "docs/syntamark-contracts.md",
+      "sourceSha256": "bebcab3d80df609ff511c3c8689696e3de7acd7ee9be7374611548061aebc5e2",
+      "translationPath": "docs/syntamark-contracts.ja.md",
+      "translationSha256": "5dfbf4c90ff3adbbaeb420f4a723ab860ce5832fc4c073911784f48bed131aa6"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "testing",
+      "sourcePath": "docs/testing.md",
+      "sourceSha256": "7e0ed0a4263d2a01935e6be438bf0a75ba8b6d248ecbf7198cafe972fd8d27e9",
+      "translationPath": "docs/testing.ja.md",
+      "translationSha256": "6ccee122c8139fce4e7f9c6879ed64614b4069a7df75b17a4c33f6e3d8fbfdaf"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "tooling-capabilities",
+      "sourcePath": "docs/tooling-capabilities.md",
+      "sourceSha256": "4bec71602ddf18872a19347157e8be8105d83341b424b6461e1ba9bdf33600b9",
+      "translationPath": "docs/tooling-capabilities.ja.md",
+      "translationSha256": "6914dbfa2802c66ba5b843c5fc1c819cb6b8890ca0689f8780d55d191a87d21d"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "typed-markdown-collections",
+      "sourcePath": "docs/typed-markdown-collections.md",
+      "sourceSha256": "1b69495d2b3ce86a7ed972a90d6dae80150c7d64970c7b7998a3aab34e48cf31",
+      "translationPath": "docs/typed-markdown-collections.ja.md",
+      "translationSha256": "54d416ab39bbd429f59d931da7b918f10b73c5aa2c59d3792f61cdc105e06edb"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "typed-yaml-collections",
+      "sourcePath": "docs/typed-yaml-collections.md",
+      "sourceSha256": "8fdd028c1998cef5c6ff1d4e47c01f77a7a12c26cc9d753e4130a4bf2b8fce1b",
+      "translationPath": "docs/typed-yaml-collections.ja.md",
+      "translationSha256": "ddcc116d37fa98a79d13b3402e3b1f4963abffb823b4aca685eeb4334429758d"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "extensions-lithosharp-vscode",
+      "sourcePath": "extensions/lithosharp-vscode/README.md",
+      "sourceSha256": "7c8cd31bf097911abc3053bf6166a6df18ed5239ac50faa904bf89ec6abb0702",
+      "translationPath": "extensions/lithosharp-vscode/README.ja.md",
+      "translationSha256": "3c5533f36a51e6b49c4a41cda351931d6b519e944f401cd2f8c22171a99406d7"
+    },
+    {
+      "collection": "samples",
+      "version": "3.0",
+      "id": "samples-lithosharp-docssample",
+      "sourcePath": "samples/LithoSharp.DocsSample/README.md",
+      "sourceSha256": "35799b0f4d09dc65b9da8976f65c5a9b72dd8e09d76984a7a982c30fd62922e5",
+      "translationPath": "samples/LithoSharp.DocsSample/README.ja.md",
+      "translationSha256": "61651a6a5e48e6ea17b55d2ece03ca5e986ecd6cbffd815ea3d080e7a7930c44"
+    },
+    {
+      "collection": "samples",
+      "version": "3.0",
+      "id": "samples-lithosharp-mdxsample",
+      "sourcePath": "samples/LithoSharp.MdxSample/README.md",
+      "sourceSha256": "bc955f166c681cf4b94617616badfd4ea1ef6c2b908238bb85b92ec0f0788dd8",
+      "translationPath": "samples/LithoSharp.MdxSample/README.ja.md",
+      "translationSha256": "ca56cea0b20f3a9890c16a4dc95027f1ad54ef216f3f69ae8c2ee9719ba08464"
+    },
+    {
+      "collection": "samples",
+      "version": "3.0",
+      "id": "samples-lithosharp-sample",
+      "sourcePath": "samples/LithoSharp.Sample/README.md",
+      "sourceSha256": "45b67d09ae2ea17835e9bd90c28c5942e0995db395af92c676ba7ebc31911ef6",
+      "translationPath": "samples/LithoSharp.Sample/README.ja.md",
+      "translationSha256": "08902d51fb22e9ca6f78964bbbc320704f28f8f989041272bc0aa501dbf3a791"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-analyzers",
+      "sourcePath": "src/LithoSharp.Analyzers/README.md",
+      "sourceSha256": "520bc45fca391552e4bdecdf2e71eb172cd8837c16634397206a90f92a7c5858",
+      "translationPath": "src/LithoSharp.Analyzers/README.ja.md",
+      "translationSha256": "aead25c46ad852f7395740c1aa3856d0e406bb2f38dfb99ee0f005d4ba8fb5e9"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-codefixes",
+      "sourcePath": "src/LithoSharp.CodeFixes/README.md",
+      "sourceSha256": "17f1460cf252437b0676f72f44077f2e44ee513a6b8382ec76458b3bbcf6820c",
+      "translationPath": "src/LithoSharp.CodeFixes/README.ja.md",
+      "translationSha256": "30a6336ab4cdad2f660a570afcfd0fdfb357a9c9d37f8335de1a075c58b18584"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-generators",
+      "sourcePath": "src/LithoSharp.Generators/README.md",
+      "sourceSha256": "d477d70aafc3c547b25ca846abf3dd412e984228ff2f176ca53f332ab83d4e03",
+      "translationPath": "src/LithoSharp.Generators/README.ja.md",
+      "translationSha256": "ea3d562f77bf8073ad8de73ab48d9089f8ebb2e30a40955aeb033689be9794e8"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-images",
+      "sourcePath": "src/LithoSharp.Images/README.md",
+      "sourceSha256": "0f7e66b1ae018fc246465b87a9b3f85f2d625fee258ad0ae4fedd7eee8596ce9",
+      "translationPath": "src/LithoSharp.Images/README.ja.md",
+      "translationSha256": "604a190f048f72c0a7c0f96ab7090f5868a9700968fff921823be053790a84ae"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-mdx",
+      "sourcePath": "src/LithoSharp.Mdx/README.md",
+      "sourceSha256": "1da891042b2b30d27ddc57686cf9a6577d7c30aa802cc8431a6b737bf831b9bc",
+      "translationPath": "src/LithoSharp.Mdx/README.ja.md",
+      "translationSha256": "9f92e636234896354f5dc1a5b07e233602cc0256e49d8867d1e3be7398bd01b1"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-testing",
+      "sourcePath": "src/LithoSharp.Testing/README.md",
+      "sourceSha256": "0f6fabd79551fff3990fd8bb68467779879640fe632186647ed51abb7ae6389b",
+      "translationPath": "src/LithoSharp.Testing/README.ja.md",
+      "translationSha256": "c9c55c3d3220574d58118e06331424c2d4031253e3e021e54b48e6a8ea7988fb"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "src-lithosharp-tool",
+      "sourcePath": "src/LithoSharp.Tool/README.md",
+      "sourceSha256": "74ed4a9f390b4d96d5a1775a2d954dba0cc024b95afd408c7688feab902e45fb",
+      "translationPath": "src/LithoSharp.Tool/README.ja.md",
+      "translationSha256": "fd72c1b43c1dbab99317b425a374cdf9d0025c69dbc0a42f82493a690c7a2f0c"
+    },
+    {
+      "collection": "packages",
+      "version": "3.0",
+      "id": "templates-lithosharp-projecttemplates",
+      "sourcePath": "templates/LithoSharp.ProjectTemplates/README.md",
+      "sourceSha256": "7ba6439db2be8c53dc0f85e03a72f749d6bca01f594954f1b3665cd8ed56723c",
+      "translationPath": "templates/LithoSharp.ProjectTemplates/README.ja.md",
+      "translationSha256": "6201867156204d22a8130ff5a0a45c9e1cd3943dca37228ffd6e2cf4e164a95c"
+    }
+  ]
+}

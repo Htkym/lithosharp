@@ -2,11 +2,13 @@
 
 `LithoSharp.Tool` is a .NET 10 tool. Building sites requires the .NET 10 SDK
 (10.0.300 or later);
-serving also uses the ASP.NET Core shared framework. Install from NuGet:
+serving also uses the ASP.NET Core shared framework. The following commands target
+the 3.0.0 package contract and apply when that release is available from NuGet.
+The [version matrix](../eng/version-matrix.json) records publication state.
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -18,7 +20,11 @@ with `dotnet new`. The empty template demonstrates a custom C# layout.
 
 ## Inspection and migration
 
-The installation example targets 2.2.0. `preflight` and `migrate testing --dry-run` are part of the 2.x Tool; keep the Tool and selected Core/MDX packages at matching versions. The [upgrade notes](migration-2.0.md) explain dependencies, static versus trusted project inspection, and Testing updates.
+Keep the Tool and selected Core/MDX packages at matching 3.0.0 versions.
+`preflight` and `migrate testing --dry-run` require a Tool that advertises those
+capabilities. The [3.0 upgrade notes](migration-3.0.md) explain native YAML,
+optional image processing, acquired schemas and verification boundaries. The
+[historical 2.x notes](migration-2.0.md) retain the earlier Testing migration.
 
 ## One definition for both hosts
 
@@ -137,7 +143,7 @@ report rather than treating every nonzero result as the same failure class.
 Manual-action findings remain in the report and do not by themselves change exit `0`.
 The development server emits one JSON object per line for
 startup, rebuilds and shutdown. Diagnostic codes, inspection shapes and the
-migration report retain the documented additive 1.x contract. The current 2.x behavior and Testing API migration are described in the [upgrade notes](migration-2.0.md); a package major version is not the same as the structured-output schema version.
+migration report retain the documented additive 1.x contract. The historical 2.x behavior and Testing API migration are described in the [upgrade notes](migration-2.0.md); a package major version is not the same as the structured-output schema version.
 
 ## Troubleshooting
 

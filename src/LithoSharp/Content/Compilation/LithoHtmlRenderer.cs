@@ -3,6 +3,8 @@ using System.Text;
 
 namespace LithoSharp.Content.Compilation;
 
+internal readonly record struct MarkdownLinkProjection(string? Url, string? OriginalTarget);
+
 /// <summary>
 /// HTML and plain-text renderer for the Litho node tree. Text encoding matches
 /// the reference output (&amp;, &lt;, &gt;, &quot;; apostrophes stay literal).
@@ -12,24 +14,52 @@ internal static class LithoHtmlRenderer
     /// <summary>Renders blocks to HTML.</summary>
     /// <param name="blocks">Blocks in document order.</param>
     /// <param name="headingIds">Pre-assigned heading ids in pre-order document order.</param>
-    public static string RenderHtml(IReadOnlyList<LithoBlock> blocks, IReadOnlyList<string> headingIds)
+    /// <param name="resolveLink">Optional resolved document and asset targets.</param>
+    /// <param name="componentHtml">Prepared component HTML indexed by directive start.</param>
+    /// <param name="footnotes">Prepared footnote identities and references.</param>
+    /// <param name="origins">Optional collection of emitted source ranges.</param>
+    public static string RenderHtml(IReadOnlyList<LithoBlock> blocks, IReadOnlyList<string> headingIds,
+        Func<string, bool, MarkdownLinkProjection?>? resolveLink = null,
+        IReadOnlyDictionary<int, string>? componentHtml = null, MarkdownFootnoteRenderPlan? footnotes = null,
+        ICollection<MarkdownRenderOrigin>? origins = null)
     {
         ArgumentNullException.ThrowIfNull(blocks);
         ArgumentNullException.ThrowIfNull(headingIds);
         var writer = new StringBuilder();
-        var state = new RenderState(headingIds);
+        var state = new RenderState(blocks, headingIds, resolveLink, componentHtml,
+            footnotes ?? MarkdownFootnoteRenderPlan.Create(blocks, headingIds), origins);
         foreach (var block in blocks)
         {
             RenderBlock(block, writer, state);
         }
 
+        RenderFootnotes(writer, state);
         return writer.ToString();
     }
 
-    private sealed class RenderState(IReadOnlyList<string> headingIds)
+    private sealed class RenderState
     {
-        public int HeadingIndex;
-        public string NextId() => HeadingIndex < headingIds.Count ? headingIds[HeadingIndex++] : "section";
+        private readonly Dictionary<LithoHeading, string> headingIds = new(ReferenceEqualityComparer.Instance);
+        internal RenderState(IReadOnlyList<LithoBlock> blocks, IReadOnlyList<string> ids,
+            Func<string, bool, MarkdownLinkProjection?>? resolveLink, IReadOnlyDictionary<int, string>? componentHtml,
+            MarkdownFootnoteRenderPlan footnotes, ICollection<MarkdownRenderOrigin>? origins)
+        {
+            var index = 0;
+            foreach (var heading in LithoMarkdownCompiler.WalkHeadings(blocks))
+            {
+                headingIds.Add(heading, index < ids.Count ? ids[index] : "section");
+                index++;
+            }
+            ResolveLink = resolveLink;
+            ComponentHtml = componentHtml;
+            Footnotes = footnotes;
+            Origins = origins;
+        }
+        internal Func<string, bool, MarkdownLinkProjection?>? ResolveLink { get; }
+        internal IReadOnlyDictionary<int, string>? ComponentHtml { get; }
+        internal MarkdownFootnoteRenderPlan Footnotes { get; }
+        internal ICollection<MarkdownRenderOrigin>? Origins { get; }
+        internal string IdFor(LithoHeading heading) => headingIds.GetValueOrDefault(heading, "section");
     }
 
     /// <summary>Renders inlines to HTML.</summary>
@@ -54,14 +84,18 @@ internal static class LithoHtmlRenderer
         {
             case LithoParagraph paragraph:
                 writer.Append("<p>");
-                RenderInlineTree(paragraph.Inlines, writer);
+                RenderInlineTree(paragraph.Inlines, writer, state.ResolveLink, state.Footnotes, state.Origins);
 
                 writer.Append("</p>\n");
                 break;
             case LithoHeading heading:
-                var id = state.NextId();
-                writer.Append($"<h{heading.Level} id=\"{id}\">");
-                RenderInlineTree(heading.Inlines, writer);
+                var id = state.IdFor(heading);
+                writer.Append($"<h{heading.Level} id=\"");
+                var idStart = writer.Length;
+                writer.Append(id);
+                MarkdownRenderOrigin.Capture(state.Origins, idStart, writer.Length, heading.Span, tokenOnly: true);
+                writer.Append("\">");
+                RenderInlineTree(heading.Inlines, writer, state.ResolveLink, state.Footnotes, state.Origins);
 
                 writer.Append($"</h{heading.Level}>\n");
                 break;
@@ -83,6 +117,13 @@ internal static class LithoHtmlRenderer
                 writer.Append("</aside>\n");
                 break;
             case LithoDirective directive:
+                if (state.ComponentHtml?.TryGetValue(directive.Span.Start, out var html) == true)
+                {
+                    var componentStart = writer.Length;
+                    writer.Append(html);
+                    MarkdownRenderOrigin.Capture(state.Origins, componentStart, writer.Length, directive.Span, generatedCause: true);
+                    break;
+                }
                 // Unrecognized container names render as plain divs (Markdig parity).
                 if (directive.Name.Length == 0)
                 {
@@ -129,12 +170,12 @@ internal static class LithoHtmlRenderer
                 break;
             case LithoTable table:
                 writer.Append("<table>\n<thead>\n<tr>\n");
-                RenderRow(table.Rows[0], table.Align, true, writer);
+                RenderRow(table.Rows[0], table.Align, true, writer, state);
                 writer.Append("</tr>\n</thead>\n<tbody>\n");
                 for (var i = 1; i < table.Rows.Count; i++)
                 {
                     writer.Append("<tr>\n");
-                    RenderRow(table.Rows[i], table.Align, false, writer);
+                    RenderRow(table.Rows[i], table.Align, false, writer, state);
                     writer.Append("</tr>\n");
                 }
 
@@ -142,6 +183,13 @@ internal static class LithoHtmlRenderer
                 break;
             case LithoBreak:
                 writer.Append("<hr />\n");
+                break;
+            case LithoHtmlBlock rawHtml:
+                writer.Append("<p>");
+                AppendEncoded(writer, rawHtml.Text);
+                writer.Append("</p>\n");
+                break;
+            case LithoFootnoteDefinition:
                 break;
         }
     }
@@ -246,7 +294,7 @@ internal static class LithoHtmlRenderer
                 if (child is LithoParagraph paragraph)
                 {
                     ArgumentNullException.ThrowIfNull(paragraph.Inlines, "inlines");
-                    RenderInlineTree(paragraph.Inlines, writer);
+                    RenderInlineTree(paragraph.Inlines, writer, state.ResolveLink, state.Footnotes, state.Origins);
                 }
                 else
                 {
@@ -282,30 +330,44 @@ internal static class LithoHtmlRenderer
         IReadOnlyList<IReadOnlyList<LithoInline>> cells,
         IReadOnlyList<string> align,
         bool header,
-        StringBuilder writer)
+        StringBuilder writer, RenderState state)
     {
         for (var i = 0; i < cells.Count; i++)
         {
             var style = i < align.Count && align[i].Length != 0 ? $" style=\"text-align: {align[i]};\"" : string.Empty;
             writer.Append(header ? $"<th{style}>" : $"<td{style}>");
-            RenderInlineTree(cells[i], writer);
+            RenderInlineTree(cells[i], writer, state.ResolveLink, state.Footnotes, state.Origins);
 
             writer.Append(header ? "</th>\n" : "</td>\n");
         }
     }
 
-    private static void RenderInlineTree(IReadOnlyList<LithoInline> inlines, StringBuilder writer)
+    private static void RenderInlineTree(IReadOnlyList<LithoInline> inlines, StringBuilder writer,
+        Func<string, bool, MarkdownLinkProjection?>? resolveLink = null, MarkdownFootnoteRenderPlan? footnotes = null,
+        ICollection<MarkdownRenderOrigin>? origins = null)
     {
+        var linkClosings = new Stack<string>();
+        var deferredFootnotes = new Stack<List<LithoFootnoteReference>>();
         foreach (var (inline, exit) in LithoInline.Walk(inlines, includeImageLabels: false))
         {
             if (exit)
             {
+                if (inline is LithoLink)
+                {
+                    writer.Append(linkClosings.Pop());
+                    var references = deferredFootnotes.Pop();
+                    if (deferredFootnotes.TryPeek(out var outer))
+                        outer.AddRange(references);
+                    else
+                        foreach (var reference in references)
+                            RenderFootnoteReference(reference, writer, footnotes);
+                    continue;
+                }
                 writer.Append(inline switch
                 {
                     LithoEmphasis { Level: 2 } => "</strong>",
                     LithoEmphasis => "</em>",
                     LithoStrike => "</del>",
-                    LithoLink => "</a>",
                     _ => string.Empty,
                 });
                 continue;
@@ -327,10 +389,33 @@ internal static class LithoHtmlRenderer
                     writer.Append("</code>");
                     break;
                 case LithoLink link:
+                    var projection = resolveLink?.Invoke(link.Url, link.Image);
+                    if (projection is { Url: null } unavailable)
+                    {
+                        writer.Append("<span class=\"okf-unresolved\" data-okf-target=\"");
+                        AppendEncoded(writer, unavailable.OriginalTarget ?? link.Url);
+                        writer.Append("\">");
+                        if (link.Image)
+                        {
+                            AppendEncoded(writer, RenderLabelText(link.Label));
+                            writer.Append("</span>");
+                        }
+                        else
+                        {
+                            linkClosings.Push("</span>");
+                            deferredFootnotes.Push([]);
+                        }
+                        break;
+                    }
+                    var target = projection?.Url ?? link.Url;
                     if (link.Image)
                     {
                         writer.Append("<img src=\"");
-                        AppendEncoded(writer, link.Url);
+                        var sourceStart = writer.Length;
+                        AppendEncoded(writer, target);
+                        MarkdownRenderOrigin.Capture(origins, sourceStart, writer.Length,
+                            link.LinkSyntax?.Target is { Length: > 0 } imageTarget ? imageTarget : link.Span,
+                            tokenOnly: link.LinkSyntax?.Target is not { Length: > 0 });
                         writer.Append("\" alt=\"");
                         AppendEncoded(writer, RenderLabelText(link.Label));
                         writer.Append('"');
@@ -345,8 +430,14 @@ internal static class LithoHtmlRenderer
                     }
                     else
                     {
+                        linkClosings.Push("</a>");
+                        deferredFootnotes.Push([]);
                         writer.Append("<a href=\"");
-                        AppendEncoded(writer, link.Url);
+                        var targetStart = writer.Length;
+                        AppendEncoded(writer, target);
+                        MarkdownRenderOrigin.Capture(origins, targetStart, writer.Length,
+                            link.LinkSyntax?.Target is { Length: > 0 } linkTarget ? linkTarget : link.Span,
+                            tokenOnly: link.LinkSyntax?.Target is not { Length: > 0 });
                         writer.Append('"');
                         if (link.Title is not null)
                         {
@@ -360,8 +451,20 @@ internal static class LithoHtmlRenderer
 
                     break;
                 case LithoAutolink autolink:
+                    var autolinkProjection = resolveLink?.Invoke(autolink.Href, false);
+                    if (autolinkProjection is { Url: null } unavailableAutolink)
+                    {
+                        writer.Append("<span class=\"okf-unresolved\" data-okf-target=\"");
+                        AppendEncoded(writer, unavailableAutolink.OriginalTarget ?? autolink.Href);
+                        writer.Append("\">");
+                        AppendEncoded(writer, autolink.Text);
+                        writer.Append("</span>");
+                        break;
+                    }
                     writer.Append("<a href=\"");
-                    AppendEncoded(writer, autolink.Href);
+                    var autolinkStart = writer.Length;
+                    AppendEncoded(writer, autolinkProjection?.Url ?? autolink.Href);
+                    MarkdownRenderOrigin.Capture(origins, autolinkStart, writer.Length, autolink.Span, tokenOnly: true);
                     writer.Append("\">");
                     AppendEncoded(writer, autolink.Text);
                     writer.Append("</a>");
@@ -374,6 +477,16 @@ internal static class LithoHtmlRenderer
                 case LithoLineBreak lineBreak:
                     writer.Append(lineBreak.Hard ? "<br />\n" : "\n");
                     break;
+                case LithoFootnoteReference reference:
+                    if (reference.Number is { } number && footnotes?.ReferenceId(number, reference.Occurrence) is not null
+                        && deferredFootnotes.TryPeek(out var deferred))
+                        deferred.Add(reference);
+                    else
+                        RenderFootnoteReference(reference, writer, footnotes);
+                    break;
+                case LithoHtmlInline html:
+                    AppendEncoded(writer, html.Text);
+                    break;
                 case LithoRawText:
                     throw new InvalidOperationException("Unresolved raw text reached the renderer.");
             }
@@ -381,6 +494,54 @@ internal static class LithoHtmlRenderer
     }
 
     private static string RenderLabelText(IReadOnlyList<LithoInline> label) => LithoLegacyTextPolicy.Label(label);
+
+    private static void RenderFootnoteReference(LithoFootnoteReference reference, StringBuilder writer,
+        MarkdownFootnoteRenderPlan? footnotes)
+    {
+        if (reference.Number is { } number && footnotes?.DefinitionId(number) is { } definitionId
+            && footnotes.ReferenceId(number, reference.Occurrence) is { } referenceId)
+        {
+            writer.Append("<sup class=\"footnote-ref\" id=\"").Append(referenceId)
+                .Append("\"><a href=\"#").Append(definitionId).Append("\" role=\"doc-noteref\">")
+                .Append(MarkdownFootnoteRenderPlan.Number(number)).Append("</a></sup>");
+        }
+        else
+        {
+            writer.Append("[^");
+            AppendEncoded(writer, reference.Label);
+            writer.Append(']');
+        }
+    }
+
+    private static void RenderFootnotes(StringBuilder writer, RenderState state)
+    {
+        if (state.Footnotes.Definitions.Count == 0)
+            return;
+        writer.Append("<section class=\"footnotes\" role=\"doc-endnotes\">\n<ol>\n");
+        foreach (var definition in state.Footnotes.Definitions)
+        {
+            var number = definition.Number!.Value;
+            writer.Append("<li id=\"").Append(state.Footnotes.DefinitionId(number)).Append("\" value=\"")
+                .Append(MarkdownFootnoteRenderPlan.Number(number)).Append("\">\n");
+            foreach (var child in definition.Children)
+                RenderBlock(child, writer, state);
+            var backlinks = state.Footnotes.ReferencesFor(number);
+            if (backlinks.Count != 0)
+            {
+                writer.Append("<p class=\"footnote-backlinks\">");
+                foreach (var reference in backlinks)
+                {
+                    writer.Append("<a href=\"#").Append(state.Footnotes.ReferenceId(number, reference.Occurrence))
+                        .Append("\" role=\"doc-backlink\" aria-label=\"Back to reference ")
+                        .Append(MarkdownFootnoteRenderPlan.Number(number)).Append('-')
+                        .Append(MarkdownFootnoteRenderPlan.Number(reference.Occurrence)).Append("\">&#8617;</a> ");
+                }
+                writer.Append("</p>\n");
+            }
+            writer.Append("</li>\n");
+        }
+        writer.Append("</ol>\n</section>\n");
+    }
 
     private static void AppendEncodedDiagram(StringBuilder writer, string text)
     {

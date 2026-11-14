@@ -15,6 +15,24 @@ internal static partial class LithoLimits
         var advisories = new List<(int Offset, SiteDiagnostics.SiteDiagnostic Diagnostic)>();
         var seen = new HashSet<MdUnsupportedSyntaxKind>();
         var source = new SourceText(analysis.RawText);
+        foreach (var diagnostic in analysis.Diagnostics.Where(static item => item.Origin == "footnote"))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SiteDiagnostics.SiteSourceLocation? location = null;
+            if (!string.IsNullOrWhiteSpace(filePath) && diagnostic.RawSpan is { } range)
+            {
+                var (line, column) = source.GetLineAndColumn(range.Start);
+                var (endLine, endColumn) = source.GetLineAndColumn(range.End);
+                location = new SiteDiagnostics.SiteSourceLocation(filePath, bodyStartLine + line - 1, column,
+                    bodyStartLine + endLine - 1, endColumn);
+            }
+            result.Add(new SiteDiagnostics.SiteDiagnostic(diagnostic.Id, diagnostic.Severity switch
+            {
+                MdDiagnosticSeverity.Error => SiteDiagnostics.SiteDiagnosticSeverity.Error,
+                MdDiagnosticSeverity.Warning => SiteDiagnostics.SiteDiagnosticSeverity.Warning,
+                _ => SiteDiagnostics.SiteDiagnosticSeverity.Info,
+            }, diagnostic.Message, location));
+        }
         if (analysis.GetAvailability(MdAnalysisParts.UnsupportedSyntax) is MdAnalysisAvailability.Complete or MdAnalysisAvailability.Partial
             && analysis.UnsupportedSyntax is { } candidates)
         {
@@ -131,6 +149,9 @@ internal static partial class LithoLimits
                         break;
                     case LithoDirective directive:
                         pending.Push(directive.Children);
+                        break;
+                    case LithoFootnoteDefinition footnote:
+                        pending.Push(footnote.Children);
                         break;
                     case LithoList list:
                         foreach (var item in list.Items)

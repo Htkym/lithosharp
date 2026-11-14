@@ -84,7 +84,7 @@ public sealed class SiteTemplateContext
     internal SiteTemplateResult RenderBlogTemplate() => _generator.RenderBlogTemplate(this);
 
     /// <summary>Renders Markdown with LithoSharp's safe configuration.</summary>
-    public string RenderMarkdown(string markdown) => _generator.RenderMarkdown(markdown);
+    public string RenderMarkdown(string markdown) => _generator.RenderMarkdown(markdown, _generator.CreateMarkdownComponentContext(Configuration));
 
     /// <summary>Builds a root-relative URL for the configured base URL.</summary>
     public string GetSitePath(string relativePath) => _generator.GetSitePath(Configuration, relativePath);
@@ -101,7 +101,7 @@ public sealed class SiteTemplateContext
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(layout);
-        return layout.Render(page, new PageRenderingContext(_generator, Configuration)
+        return layout.Render(page, new PageRenderingContext(_generator, Configuration, document: page.Metadata.Document)
         {
             Assets = Assets,
             EnvironmentName = _environmentName

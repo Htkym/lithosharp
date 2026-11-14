@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using LithoSharp.Build;
 using LithoSharp.Content;
+using LithoSharp.Content.Compilation;
 
 namespace LithoSharp;
 
@@ -19,12 +20,15 @@ public sealed partial class SiteGenerator
         var routes = configuration.Routes;
         var posts = context.Posts;
         var renders = new Dictionary<string, Func<string?, string>>(StringComparer.Ordinal);
+        if (HasExternalThemeRestoration(configuration))
+            renders.Add(routes.ThemeRestorationScript.RelativeOutputPath, _ => ThemeRestorationScript);
         if (template is DocsSiteTemplate)
         {
             var orderedPosts = FlattenDocsNavigation(BuildDocsNavigation(posts)).ToArray();
             renders.Add(routes.SiteCss.RelativeOutputPath, _ => BuildDocsCss(configuration));
             renders.Add(routes.SiteScript.RelativeOutputPath, _ => BuildDocsScript(configuration));
             renders.Add(routes.Home.RelativeOutputPath, _ => RenderDocsIndex(configuration, context.Navigation, orderedPosts, template is DocsSiteTemplate { SearchEnabled: true }));
+            renders.Add(routes.NotFound.RelativeOutputPath, _ => RenderNotFound(configuration, context.Navigation));
             for (var index = 0; index < orderedPosts.Length; index++)
             {
                 var currentIndex = index;
@@ -48,6 +52,7 @@ public sealed partial class SiteGenerator
             renders.Add(routes.SearchScript.RelativeOutputPath, _ => BuildSearchScript(configuration.Text));
             renders.Add(routes.SearchIndex.RelativeOutputPath, _ => BuildSearchIndex(configuration, posts, configuration.ContentPages));
             renders.Add(routes.Home.RelativeOutputPath, _ => RenderIndex(configuration, posts));
+            renders.Add(routes.NotFound.RelativeOutputPath, _ => RenderNotFound(configuration));
             renders.Add(routes.Archives.RelativeOutputPath, _ => RenderArchives(configuration, posts));
             renders.Add(routes.Tags.RelativeOutputPath, _ => RenderTags(configuration, posts));
             renders.Add(routes.SearchPage.RelativeOutputPath, hash => RenderSearch(configuration, hash!));
@@ -102,13 +107,25 @@ public sealed partial class SiteGenerator
         var completed = new Dictionary<string, CachedBuildNode>(StringComparer.Ordinal);
         var reports = new Dictionary<string, SiteBuildReportNode>(StringComparer.Ordinal);
         var pagesByNode = pages.ToDictionary(page => page.OwnerId, StringComparer.Ordinal);
+        var postsByPath = context.Posts.ToDictionary(post => configuration.Routes.Post(post).RelativeOutputPath, StringComparer.Ordinal);
+        var postsByNode = postsByPath.ToDictionary(pair => "page:markdown:" + pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var renders = new Dictionary<string, Func<CancellationToken, Task<byte[]>>>(StringComparer.Ordinal);
         foreach (var pair in textRenders)
-            renders.Add(pair.Key, _ => Task.FromResult(GetTextContentBytes(pair.Value(
-                completed.TryGetValue("index:search", out var search) ? search.Artifacts.SingleOrDefault()?.Sha256 : null))));
+            renders.Add(pair.Key, _ =>
+            {
+                var html = pair.Value(completed.TryGetValue("index:search", out var search) ? search.Artifacts.SingleOrDefault()?.Sha256 : null);
+                if (postsByPath.TryGetValue(pair.Key, out var post) && configuration.CompiledBodies.GetExisting(post) is { RenderedOrigins: { } origins } compiled)
+                    configuration.HtmlOrigins[pair.Key] = Content.Compilation.RenderedHtmlOrigins.Embed(html, [new(compiled.Html, origins)]);
+                return Task.FromResult(GetTextContentBytes(html));
+            });
         foreach (var page in pages)
-            renders.Add(page.Route.RelativeOutputPath, token => Task.FromResult(GetTextContentBytes(
-                page.Render(this, configuration, context.EnvironmentName, assets, token).Content)));
+            renders.Add(page.Route.RelativeOutputPath, token =>
+            {
+                var html = page.Render(this, configuration, context.EnvironmentName, assets, token).Content;
+                if (page.RenderedOrigins is { } origins)
+                    configuration.HtmlOrigins[page.Route.RelativeOutputPath] = origins;
+                return Task.FromResult(GetTextContentBytes(html));
+            });
         foreach (var file in redirects)
             renders.Add(file.RelativePath, _ => Task.FromResult(GetTextContentBytes(file.Content)));
         foreach (var file in assets.Files)
@@ -126,14 +143,6 @@ public sealed partial class SiteGenerator
                     return buffer.ToArray();
                 });
             renders.Add(routes.WebManifest.RelativeOutputPath, _ => Task.FromResult(GetTextContentBytes(BuildWebManifest(configuration))));
-        }
-        if (configuration.HasSocialImage)
-        {
-            renders.Add(routes.DefaultSocialImage.RelativeOutputPath, token => BuildDefaultSocialImageAsync(configuration, token));
-            foreach (var post in context.Posts)
-                renders.Add(routes.PostSocialImage(post).RelativeOutputPath, token => BuildPostSocialImageAsync(configuration, post, token));
-            foreach (var page in pages.Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)))
-                renders.Add(routes.ContentSocialImage(page.Route).RelativeOutputPath, token => BuildContentSocialImageAsync(configuration, page, token));
         }
         if (plan.Artifacts.Any(artifact => artifact.RelativeOutputPath == routes.Llms.RelativeOutputPath))
             renders.Add(routes.Llms.RelativeOutputPath, _ => Task.FromResult(GetTextContentBytes(BuildLlmsTxt(configuration, context.Posts, pages))));
@@ -205,6 +214,9 @@ public sealed partial class SiteGenerator
                 ? previous[node.Id.Value].NodeKey
                 : ComputeNodeKey(node, id => completed[id].NodeKey)!;
             pagesByNode.TryGetValue(node.Id.Value, out var page);
+            postsByNode.TryGetValue(node.Id.Value, out var post);
+            var postBodyHash = post is null ? null : MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody);
+            var postSnapshotIdentity = post is null ? null : PostDiagnosticSnapshotIdentity(post, postBodyHash!);
             var needsBody = page?.IsIncludedIn(GeneratedPageDerivedSurfaces.Search) == true;
             var reason = clean ? "Clean build." : assets.ExecutedTransformNodes.Contains(node.Id.Value) ? "The asset transform was executed."
                 : node.Inputs.Any(input => input.Key.EndsWith("cachePolicy", StringComparison.Ordinal) && input.Value == "always-rebuild")
@@ -214,8 +226,14 @@ public sealed partial class SiteGenerator
             previous.TryGetValue(node.Id.Value, out var old);
             if (reason is null && old is not null)
             {
-                if (page is not null && old.CollectionDiagnostics is null)
-                    reason = "The collection Markdown diagnostic outcome is unavailable.";
+                if ((page is not null || post is not null) && old.CollectionDiagnostics is null)
+                    reason = "The Markdown diagnostic outcome is unavailable.";
+                else if (post is not null && (old.Inputs.Count(input => input.Key == "page.body") != 1
+                        || !old.Inputs.Any(input => input.Key == "page.body" && input.Value == postBodyHash)))
+                    reason = "The post Markdown body fingerprint does not match its input.";
+                else if (post is not null && old.CollectionDiagnostics!.Diagnostics.Any(diagnostic =>
+                        diagnostic.SnapshotIdentity != postSnapshotIdentity))
+                    reason = "The post Markdown diagnostic snapshot does not match its input.";
                 else if (old.Artifacts.Count != node.Artifacts.Count || !old.Artifacts.Zip(node.Artifacts).All(pair =>
                         pair.First.ArtifactId == pair.Second.Id.Value && pair.First.RelativePath == pair.Second.RelativeOutputPath))
                     reason = "Artifact declarations changed.";
@@ -240,6 +258,10 @@ public sealed partial class SiteGenerator
             {
                 if (page is not null && old.CollectionDiagnostics is { } cachedDiagnostics)
                     page.SetMarkdownDiagnostics(cachedDiagnostics.Restore());
+                if (post is not null && old.CollectionDiagnostics is { } postDiagnostics)
+                    configuration.CompiledBodies.RestoreDiagnostics(post, postDiagnostics.Restore());
+                foreach (var origins in old.HtmlOrigins)
+                    configuration.HtmlOrigins[origins.OutputPath] = origins.Origins;
                 SetBodyProvider(page, old.DerivedBodyHash);
                 return (old, new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheHit = true });
             }
@@ -287,8 +309,11 @@ public sealed partial class SiteGenerator
             {
                 Inputs = node.Inputs.Select(input => new CachedBuildInput(input.Kind, input.Key, input.Value)).ToArray(),
                 Dependencies = node.Dependencies.Select(id => id.Value).ToArray(),
-                CollectionDiagnostics = page?.MarkdownDiagnostics is { } renderedDiagnostics
+                CollectionDiagnostics = (page?.MarkdownDiagnostics
+                    ?? (post is null ? null : configuration.CompiledBodies.GetExistingDiagnostics(post))) is { } renderedDiagnostics
                     ? CachedCollectionDiagnostics.Capture(renderedDiagnostics) : null,
+                HtmlOrigins = artifacts.Where(artifact => configuration.HtmlOrigins.ContainsKey(artifact.RelativePath))
+                    .Select(artifact => new CachedRenderedHtmlOrigins(artifact.RelativePath, configuration.HtmlOrigins[artifact.RelativePath])).ToArray(),
             },
                 new SiteBuildReportNode(node.Id.Value, node.Artifacts.Select(artifact => artifact.RelativeOutputPath).ToArray()) { CacheMissReason = reason ?? "No reusable cache." });
         }
@@ -300,6 +325,14 @@ public sealed partial class SiteGenerator
                     ?? throw new InvalidOperationException("A verified rendered body became unavailable during generation."));
         }
     }
+
+    private string PostDiagnosticSnapshotIdentity(MarkdownPost post, string bodyHash) =>
+        Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            post.FilePath,
+            Body = bodyHash,
+            Compiler = _markdownCompiler.Fingerprint,
+        })));
 
     private static bool IsOptionalCacheWriteFailure(Exception exception) =>
         exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException

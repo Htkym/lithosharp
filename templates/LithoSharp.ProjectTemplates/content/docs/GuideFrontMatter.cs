@@ -7,7 +7,7 @@ public sealed class GuideFrontMatter
     public int Order { get; init; }
 }
 
-[StaticContentCollection(typeof(GuideFrontMatter), typeof(ContentEntry<GuideFrontMatter, string>), "docs", EmitStaticSiteManifest = true)]
+[StaticContentCollection(typeof(GuideFrontMatter), typeof(ContentEntry<GuideFrontMatter, string>), "docs", InputRoot = "content", EmitStaticSiteManifest = true)]
 public static partial class Guides
 {
 }

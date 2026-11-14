@@ -4,7 +4,7 @@
 
 ## 型付きコンテンツとDocsの表示
 
-LithoSharp 2.2.0の`docs`テンプレートは、`GuideFrontMatter`、
+LithoSharp 3.0.0 の `docs` テンプレートは、`GuideFrontMatter`、
 `Guides.Binder`、生成Catalogのルート、`RenderDocs`を使います。Blog向けの日付は不要です。
 生成するファイル、入力規則、Qualityの設定、コマンドは[Quick Start](quickstart.ja.md)を
 参照してください。既存サイトのreaderと表示は、明示的に変更するまで維持されます。
@@ -48,6 +48,52 @@ renderer fingerprintには、表示selector、本文描画、取り込んだ設�
 外部依存も宣言してください。`isThreadSafe`はcallbackを並行実行できる場合だけ指定します。
 通常のcollectionと同じcache・build graphの規則を使います。既存URLやスキーマを維持する場合は
 [移行手順](migration-2.0.ja.md#既存docsを型付きコンテンツへ移す)を参照してください。
+
+## エラーページとContent Security Policy
+
+2つの組み込みテンプレートは、通常のナビゲーション、テーマ、ホームへのリンクを持つ`404.html`を生成します。
+`SiteSettings.BaseUrl`には、`https://example.com/product/`のようなプロジェクトのプレフィックスを含む、完全な公開URLを設定してください。
+要求されたURLが入れ子でも、エラーページのリンクとアセットには`/product/`を使います。
+エラーページの文言は`SiteText.NotFoundTitle`、`NotFoundDescription`、`NotFoundHomeLinkLabel`で変更します。
+ページには`noindex`メタデータを付け、生成する検索インデックスとサイトマップから除外します。
+
+生成されたファイルだけでは、本番ホストの設定や、存在しないURLに対するHTTPステータスは決まりません。
+`lithosharp serve`はこのページをHTTP 404で返し、サイトのベースパスを使います。
+GitHub Pagesは公開成果物のルートに置いた`404.html`に対応しています。
+詳しくは[カスタムエラーページの手順](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site)を参照してください。
+デプロイ前に、実際のステージングホストで入れ子の存在しないURLを調べ、ステータス、本文、リンク、アセットの応答を確認してください。
+HTTP 200を返す`index.html`へのリダイレクトや書き換えでは、同じ動作にはなりません。
+
+インラインJavaScriptを禁止するポリシーでは、外部のテーマ復元スクリプトを明示的に有効にします。
+
+```csharp
+Theme = new SiteThemeOptions { UseExternalThemeRestoration = true }
+```
+
+組み込みテンプレートは`assets/theme.js`を生成し、スタイルシートの前で`defer`を付けずに参照します。
+これにより、保存済みのテーマを描画前に適用します。既存サイトの既定値はインラインの復元処理のままです。
+`EnableThemeSwitching`を無効にすると、復元スクリプトと切り替え操作を削除します。
+`HeadComponent`を使う独自テンプレートでは、外部アセットを自身で用意する必要があります。
+
+組み込みの同一オリジンのアセットでは、次のHTTP応答ヘッダーを出発点にします。
+
+```http
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+```
+
+ヘッダーを設定するのはホストです。この設定がポリシーを挿入したり、任意の独自HTMLを許可したりすることはありません。
+独自のスクリプトとスタイルは外部ファイルに置き、明示的に有効化したアクセス解析、リモート画像、フォント、検索プロバイダーに合わせてポリシーを調整してください。
+従来のGoogle Analyticsのスニペットにはインラインコードが含まれるため、個別のCSPでの許可か、独自の外部連携が必要です。
+MDXモジュールとハイドレーション用のアセットは同一オリジンのスクリプトを使います。独自のMDXコンポーネントもポリシーに従う必要があります。
+開発時のリロードスクリプトは外部ファイルで、そのEventSourceは`connect-src 'self'`を使います。
+スクリプトとスタイルのソース規則は[CSP仕様](https://www.w3.org/TR/CSP3/)を参照してください。
+
+既存のブラウザー検査には`LS_BROWSER=chromium`、`firefox`、`webkit`を指定できます。
+CSPのfixtureでは`tests/fixtures/mdx-browser/serve.mjs`で`LS_CSP`を使い、プレフィックス付きサイトには`LS_BASE_PATH=/product`を設定して、
+`node tests/fixtures/mdx-browser/delivery.mjs http://127.0.0.1:4317/product/`を実行します。
+ほかのDocs、Blog、MDX、サブパスの検査でも、ナビゲーション、検索、キーボード操作、ハイドレーションの表明は維持します。
+WebKitの結果は、そのエンジンで検証したことを示します。実際のSafariでの受け入れには、Safariでの別の実行が必要です。
+これらのファイルを生成したことや単体テストの成功だけでは、ブラウザーやステージング環境での受け入れを証明できません。
 
 ## 標準の表示設定
 
@@ -151,7 +197,7 @@ var sidebar = context.Render(new DocsNavigationComponent(),
 
 サイト固有の文字組、色、余白には`SiteThemeOptions.AdditionalCss`を使います。
 それ以外の配置や構造を変える場合は、組み込みのレイアウトや部品を再利用するか、
-`ISiteTemplate`を実装してください。[レイアウトの契約](layout-css-contract.md)も参照できます。
+`ISiteTemplate`を実装してください。[レイアウトの契約](layout-css-contract.ja.md)も参照できます。
 これらの設定はテーマエディターを提供するものではありません。
 
 AngleSharpを使った生成後のHTML処理を削除する場合は、必要な注意書きとリンクを`Footer`へ移し、

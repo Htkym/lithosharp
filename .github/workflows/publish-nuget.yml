@@ -53,6 +53,18 @@ jobs:
           dotnet build LithoSharp.slnx --no-restore --configuration Release
           dotnet test --solution LithoSharp.slnx --no-build --configuration Release
 
+      - name: Check actual runtime and Source consumers
+        shell: pwsh
+        run: ./eng/markdown/Test-FixedPairConsumers.ps1
+
+      - name: Preserve runtime and Source consumer evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: markdown-pair-consumers-publish-${{ github.run_attempt }}
+          path: artifacts/markdown-pair-consumers/**/*.json
+          if-no-files-found: ignore
+
       - name: Pack and validate all release packages
         shell: pwsh
         run: |
@@ -67,6 +79,15 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             ./eng/Validate-Package.ps1 -PackageDirectory artifacts/packages -PackageId $id -ExpectedVersion $version
           }
+
+      - name: Check final packaged compiler and template consumers
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'stable-package-consumers'
+          $feed = Join-Path $output 'feed'
+          $null = New-Item -ItemType Directory -Path $feed
+          Copy-Item -Path 'artifacts/packages/*nupkg' -Destination $feed
+          ./eng/Test-PackageDistribution.ps1 -Output $output -SkipPack
 
       - name: Check previous-stable consumer against final packages
         shell: pwsh

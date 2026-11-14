@@ -1,148 +1,124 @@
-using System.Globalization;
-using System.Text;
-using System.Text.Json;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
-using SkiaSharp;
+using System.Text.Json;
 
 namespace LithoSharp.Images;
 
-/// <summary>Supported output encodings. AVIF requires an explicitly configured avifenc executable.</summary>
+/// <summary>Legacy format names. Existing files of any format can be referenced by Core descriptors; generation supports PNG only.</summary>
 public enum ImageFormat
 {
-    /// <summary>Portable Network Graphics.</summary>
+    /// <summary>PNG.</summary>
     Png,
-    /// <summary>JPEG.</summary>
+    /// <summary>Existing JPEG files can be copied; JPEG conversion is unsupported.</summary>
     Jpeg,
-    /// <summary>WebP.</summary>
+    /// <summary>Existing WebP files can be copied; WebP conversion is unsupported.</summary>
     WebP,
-    /// <summary>AVIF using avifenc.</summary>
+    /// <summary>Existing AVIF files can be copied; AVIF conversion is unsupported.</summary>
     Avif
 }
 
-/// <summary>A responsive image output with an exact width and a proportional height.</summary>
+/// <summary>A generated PNG at an exact width with proportional height.</summary>
 public sealed class ImageVariant
 {
-    /// <summary>Declares an image variant.</summary>
-    /// <exception cref="ArgumentOutOfRangeException">Width is not positive, quality is outside 0–100, or format is unknown.</exception>
-    public ImageVariant(string id, string relativeOutputPath, int width, ImageFormat format, int quality = 80)
+    /// <summary>Declares PNG generation with lossless zlib compression.</summary>
+    public ImageVariant(string id, string relativeOutputPath, int width, CompressionLevel compressionLevel = CompressionLevel.Optimal)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        if (quality is < 0 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(quality));
-        if (!Enum.IsDefined(format))
-            throw new ArgumentOutOfRangeException(nameof(format));
-        Output = new SiteAssetOutput(id, relativeOutputPath);
+        if (!Enum.IsDefined(compressionLevel))
+            throw new ArgumentOutOfRangeException(nameof(compressionLevel));
+        if (!string.Equals(Path.GetExtension(relativeOutputPath), ".png", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("LSI001: Generated variants are PNG; use a .png output path or reference an existing image with ImageSource.", nameof(relativeOutputPath));
+        Output = new SiteAssetOutput(id, relativeOutputPath, "image/png");
         Width = width;
-        Format = format;
-        Quality = quality;
+        CompressionLevel = compressionLevel;
     }
 
-    /// <summary>Declared output used to resolve the fingerprinted URL.</summary>
+    /// <summary>Reports migration from the removed format and lossy quality settings.</summary>
+    [Obsolete("Use ImageVariant(id, relativeOutputPath, width, CompressionLevel). Only PNG generation is supported; reference existing JPEG/WebP/AVIF files with Core ImageSource.")]
+    public ImageVariant(string id, string relativeOutputPath, int width, ImageFormat format, int quality = 80)
+        => throw new NotSupportedException(format == ImageFormat.Png
+            ? "LSI002: PNG has no lossy quality setting. Use ImageVariant(id, path, width, CompressionLevel.Optimal)."
+            : "LSI001: JPEG, WebP and AVIF conversion is unsupported. Pre-generate the file and use Core ImageSource, or generate PNG.");
+
+    /// <summary>Declared PNG output.</summary>
     public SiteAssetOutput Output { get; }
-    /// <summary>Output width in pixels.</summary>
+    /// <summary>Exact output width in pixels.</summary>
     public int Width { get; }
-    /// <summary>Output encoding.</summary>
-    public ImageFormat Format { get; }
-    /// <summary>Encoder quality from 0 through 100.</summary>
-    public int Quality { get; }
+    /// <summary>Lossless PNG compression setting.</summary>
+    public CompressionLevel CompressionLevel { get; }
 }
 
-/// <summary>A raster source and its declared, cacheable responsive variants.</summary>
-/// <remarks>Register Source in Assets and Transform in AssetTransforms. PNG or JPEG is required as the HTML fallback.</remarks>
+/// <summary>An explicitly registered PNG transformation with existing-result descriptors.</summary>
 public sealed class ImageAsset
 {
-    /// <summary>Creates an image transformation. Encoder and all variant settings are included in its fingerprint.</summary>
-    /// <exception cref="ArgumentException">Variants are empty, repeat format/width pairs, lack a PNG/JPEG fallback, or require an absent AVIF encoder.</exception>
-    /// <exception cref="ArgumentNullException">Source or variants is null.</exception>
-    public ImageAsset(SiteAsset source, IReadOnlyList<ImageVariant> variants, ExternalAvifEncoder? avifEncoder = null)
+    /// <summary>Declares PNG variants and explicitly selects one as fallback.</summary>
+    public ImageAsset(SiteAsset source, IReadOnlyList<ImageVariant> variants, ImageVariant fallback)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(variants);
-        if (variants.Count == 0 || variants.Any(v => v is null)
-            || !variants.Any(v => v.Format is ImageFormat.Png or ImageFormat.Jpeg)
-            || variants.GroupBy(v => (v.Format, v.Width)).Any(group => group.Count() > 1))
-            throw new ArgumentException("Declare distinct format/width variants including a PNG or JPEG fallback.", nameof(variants));
-        if (variants.Any(v => v.Format == ImageFormat.Avif) && avifEncoder is null)
-            throw new ArgumentException("AVIF variants require an explicit ExternalAvifEncoder.", nameof(avifEncoder));
+        ArgumentNullException.ThrowIfNull(fallback);
+        if (variants.Count == 0 || variants.Any(v => v is null) || !variants.Contains(fallback)
+            || variants.Select(v => v.Width).Distinct().Count() != variants.Count)
+            throw new ArgumentException("Declare distinct PNG widths and explicitly select an existing variant as fallback.", nameof(variants));
         Source = source;
         Variants = Array.AsReadOnly(variants.ToArray());
-        var fingerprint = JsonSerializer.Serialize(new
+        var sources = Variants.Select(v => new ImageSource(v.Output)).ToArray();
+        Descriptor = new ImageDescriptor(sources, sources[Array.IndexOf(Variants.ToArray(), fallback)]);
+        Transform = new SiteAssetTransform($"image:{source.Id}", ImplementationFingerprint(new
         {
-            Adapter = "LithoSharp.Images/1",
-            Skia = typeof(SKBitmap).Assembly.FullName,
-            NativeSkia = SkiaSharpVersion.Native.ToString(),
-            RuntimeInformation.RuntimeIdentifier,
-            Architecture = RuntimeInformation.ProcessArchitecture.ToString(),
-            Encoder = variants.Any(v => v.Format == ImageFormat.Avif) ? avifEncoder!.Fingerprint : null,
-            Variants = Variants.Select(v => new { v.Output.Id, v.Output.RelativeOutputPath, v.Width, v.Format, v.Quality })
-        });
-        Transform = new SiteAssetTransform($"image:{source.Id}", fingerprint, [source],
-            Variants.Select(v => v.Output).ToArray(), async (context, cancellationToken) =>
+            Variants = Variants.Select(v => new { v.Output.Id, v.Output.RelativeOutputPath, v.Width, v.CompressionLevel })
+        }), [source], Variants.Select(v => v.Output).ToArray(), async (context, cancellationToken) =>
+        {
+            using var stream = context.OpenRead(source);
+            RgbaImage image;
+            try
             {
-                using var stream = context.OpenRead(source);
-                using var bitmap = SKBitmap.Decode(stream) ?? throw new InvalidDataException($"Image '{source.Id}' cannot be decoded.");
-                foreach (var variant in Variants)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var height = Math.Max(1, checked((int)Math.Round((double)bitmap.Height * variant.Width / bitmap.Width)));
-                    using var resized = bitmap.Resize(new SKImageInfo(variant.Width, height), new SKSamplingOptions(SKFilterMode.Linear))
-                        ?? throw new InvalidDataException($"Image '{source.Id}' cannot be resized.");
-                    using var image = SKImage.FromBitmap(resized);
-                    var format = variant.Format switch
-                    {
-                        ImageFormat.Jpeg => SKEncodedImageFormat.Jpeg,
-                        ImageFormat.WebP => SKEncodedImageFormat.Webp,
-                        _ => SKEncodedImageFormat.Png
-                    };
-                    using var encoded = image.Encode(format, variant.Quality)
-                        ?? throw new InvalidDataException($"Image '{source.Id}' cannot be encoded as {variant.Format}.");
-                    var bytes = encoded.ToArray();
-                    if (variant.Format == ImageFormat.Avif)
-                        bytes = await avifEncoder!.EncodeAsync(bytes, variant.Quality, cancellationToken).ConfigureAwait(false);
-                    await context.WriteAsync(variant.Output, bytes, cancellationToken).ConfigureAwait(false);
-                }
-            }, Variants.Any(v => v.Format == ImageFormat.Avif) ? avifEncoder!.ValidateAsync : null);
+                image = PngCodec.Decode(stream, cancellationToken: cancellationToken);
+            }
+            catch (NotSupportedException exception)
+            {
+                throw new NotSupportedException($"LSI003: Image '{source.Id}' is outside the supported PNG profile. Copy the original with SiteAsset and use ImageSource for existing variants. {exception.Message}", exception);
+            }
+            catch (InvalidDataException exception)
+            {
+                throw new InvalidDataException($"LSI005: Image '{source.Id}' is not a valid supported PNG. JPEG/WebP/AVIF conversion is unavailable; use SiteAsset and ImageSource to publish existing files. {exception.Message}", exception);
+            }
+            foreach (var variant in Variants)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var resized = image.Resize(variant.Width, cancellationToken: cancellationToken);
+                var bytes = PngCodec.Encode(resized, variant.CompressionLevel, cancellationToken: cancellationToken);
+                await context.WriteAsync(variant.Output, bytes,
+                    new ImageMetadata(resized.Width, resized.Height, "image/png", ImageMetadataProvenance.Generated), cancellationToken).ConfigureAwait(false);
+            }
+        });
     }
 
-    /// <summary>Source asset to register in generation options.</summary>
+    /// <summary>Reports migration to explicit fallback selection.</summary>
+    [Obsolete("Select a fallback explicitly with ImageAsset(source, variants, fallback).")]
+    public ImageAsset(SiteAsset source, IReadOnlyList<ImageVariant> variants)
+        => throw new NotSupportedException("LSI004: Select an existing PNG variant explicitly with ImageAsset(source, variants, fallback).");
+
+    /// <summary>Source to register in Assets.</summary>
     public SiteAsset Source { get; }
-    /// <summary>Declared image variants.</summary>
+    /// <summary>Generated variants.</summary>
     public IReadOnlyList<ImageVariant> Variants { get; }
-    /// <summary>Transformation to register in generation options.</summary>
+    /// <summary>Core descriptor rendered without decoding.</summary>
+    public ImageDescriptor Descriptor { get; }
+    /// <summary>Transformation to register in AssetTransforms.</summary>
     public SiteAssetTransform Transform { get; }
-}
 
-/// <summary>Renders encoded responsive image markup using registered variant URLs.</summary>
-public static class ResponsiveImage
-{
-    /// <summary>Renders a picture element with intrinsic dimensions, format sources, srcset and optional lazy loading.</summary>
-    /// <exception cref="ArgumentNullException">A required argument is null.</exception>
-    /// <exception cref="AssetRegistryException">An image variant is not registered.</exception>
-    /// <exception cref="InvalidDataException">The fallback image cannot be decoded.</exception>
-    public static IHtmlContent Render(AssetRegistry registry, ImageAsset image, string alt, bool lazy = true, string sizes = "100vw")
+    internal static string ImplementationFingerprint(object settings) => JsonSerializer.Serialize(new
     {
-        ArgumentNullException.ThrowIfNull(registry);
-        ArgumentNullException.ThrowIfNull(image);
-        ArgumentNullException.ThrowIfNull(alt);
-        ArgumentNullException.ThrowIfNull(sizes);
-        var fallback = image.Variants.Where(v => v.Format is ImageFormat.Png or ImageFormat.Jpeg).OrderByDescending(v => v.Width).First();
-        using var stream = registry.OpenRead(fallback.Output);
-        using var codec = SKCodec.Create(stream) ?? throw new InvalidDataException("The registered image fallback cannot be decoded.");
-        var html = new StringBuilder("<picture>");
-        foreach (var group in image.Variants.Where(v => v.Format != fallback.Format).GroupBy(v => v.Format)
-            .OrderBy(g => g.Key switch { ImageFormat.Avif => 0, ImageFormat.WebP => 1, _ => 2 }))
-            html.Append("<source type=\"image/").Append(group.Key switch { ImageFormat.Jpeg => "jpeg", ImageFormat.WebP => "webp", ImageFormat.Avif => "avif", _ => "png" })
-                .Append("\" srcset=\"").Append(Attr(SrcSet(group))).Append("\" sizes=\"").Append(Attr(sizes)).Append("\">");
-        html.Append("<img src=\"").Append(registry.GetUrl(fallback.Output).ToAttributeValue().ToHtmlString())
-            .Append("\" srcset=\"").Append(Attr(SrcSet(image.Variants.Where(v => v.Format == fallback.Format))))
-            .Append("\" sizes=\"").Append(Attr(sizes)).Append("\" alt=\"").Append(Attr(alt))
-            .Append("\" width=\"").Append(codec.Info.Width.ToString(CultureInfo.InvariantCulture))
-            .Append("\" height=\"").Append(codec.Info.Height.ToString(CultureInfo.InvariantCulture))
-            .Append("\" loading=\"").Append(lazy ? "lazy" : "eager").Append("\" decoding=\"async\"></picture>");
-        return Html.UnsafeRaw(html.ToString());
-
-        string SrcSet(IEnumerable<ImageVariant> variants) => string.Join(", ", variants.OrderBy(v => v.Width)
-            .Select(v => $"{registry.GetUrl(v.Output).Value} {v.Width.ToString(CultureInfo.InvariantCulture)}w"));
-        static string Attr(string value) => new HtmlAttributeValue(value).ToHtmlString();
-    }
+        Implementation = "LithoSharp.Images/2",
+        Module = typeof(ImageAsset).Module.ModuleVersionId,
+        PngCodec.Profile,
+        RgbaImage.ProcessingProfile,
+        RuntimeInformation.RuntimeIdentifier,
+        Architecture = RuntimeInformation.ProcessArchitecture.ToString(),
+        RuntimeInformation.OSDescription,
+        Framework = RuntimeInformation.FrameworkDescription,
+        CompressionRuntime = typeof(System.IO.Compression.ZLibStream).Assembly.FullName,
+        Settings = settings
+    });
 }

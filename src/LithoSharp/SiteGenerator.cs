@@ -53,7 +53,6 @@ public sealed partial class SiteGenerator
     private const string OutputManifestRelativePath = ".lithosharp-output-manifest.json";
     private const int OutputManifestVersion = 1;
     private const int OutputOwnershipStateVersion = 1;
-    internal const string SocialImageSourceFileName = "android-chrome-192x192.png";
     private static readonly (string FileName, string Sizes)[] PngFaviconAssets =
     [
         ("favicon-16x16.png", "16x16"),
@@ -110,7 +109,6 @@ public sealed partial class SiteGenerator
         IReadOnlyList<IntegratedContentPage> ContentPages,
         string FaviconSourceDirectory,
         bool HasFaviconAssets,
-        bool HasSocialImage,
         DateTimeOffset BuildTimestamp,
         SiteRouteCatalog Routes)
     {
@@ -119,12 +117,23 @@ public sealed partial class SiteGenerator
 
         /// <summary>Build cancellation, honored by post analysis and parse-cache IO.</summary>
         public CancellationToken Cancellation { get; init; }
+        internal string EnvironmentName { get; init; } = "Production";
+        internal AssetRegistry Assets { get; init; } = AssetRegistry.Empty;
+        internal IReadOnlyList<LithoSharp.Documentation.DocumentSemanticSnapshot> DocumentSemantics { get; init; } = [];
+        internal IReadOnlyList<ScopedSearchProjection> ScopedSearch { get; init; } = [];
+        internal System.Collections.Concurrent.ConcurrentDictionary<string, RenderedHtmlOrigins> HtmlOrigins { get; } = new(StringComparer.Ordinal);
         internal BuildHtmlFacts? HtmlFacts { get; init; }
         internal SiteFooterOptions? Footer { get; init; }
         internal DocsSiteTemplate? DocsTemplate { get; init; }
+        internal ResolvedSocialImage? CommonSocialImage { get; init; }
+        internal IReadOnlyDictionary<string, ResolvedSocialImage> SocialImages { get; init; } = new Dictionary<string, ResolvedSocialImage>();
+        internal ResolvedSocialImage? SocialImageFor(string relativeOutputPath) =>
+            SocialImages.TryGetValue(relativeOutputPath, out var image) ? image : CommonSocialImage;
         internal System.Collections.Concurrent.ConcurrentDictionary<(string Collection, string? Version, string? Locale), Lazy<TypedDocsSnapshot>> TypedDocsNavigation { get; } = new();
         internal System.Collections.Concurrent.ConcurrentDictionary<SiteTemplateNavigationNode, Lazy<DocsPresentationNode>> DocsPresentationNavigation { get; } = new(ReferenceEqualityComparer.Instance);
     }
+
+    internal sealed record ResolvedSocialImage(string Url, ImageMetadata? Metadata);
 
     private sealed record PageClaim<TContent>(
         SitePage<TContent> Page,
@@ -139,7 +148,6 @@ public sealed partial class SiteGenerator
     private sealed record OutputOwnershipState(
         string OutputIdentity,
         IReadOnlyList<GeneratedArtifactState> Artifacts);
-
 
     /// <inheritdoc cref="GenerateWithOptionsAsync" />
     /// <remarks>Uses default generation options; omitted customization uses English text.</remarks>
@@ -174,6 +182,14 @@ public sealed partial class SiteGenerator
         ArgumentNullException.ThrowIfNull(posts);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.Markdown);
+        options.Markdown.Validate();
+        if (_markdownCompiler.Options.Markdown != options.Markdown)
+        {
+            var configured = new SiteGenerator(new LithoMarkdownCompiler(_markdownCompiler.Options with { Markdown = options.Markdown }));
+            return await configured.GenerateWithOptionsAsync(site, posts, outputDirectory, clean,
+                customization, options, cancellationToken).ConfigureAwait(false);
+        }
         ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxDegreeOfParallelism, 1);
         if (options.EnvironmentName is null)
         {
@@ -198,6 +214,14 @@ public sealed partial class SiteGenerator
             throw new ArgumentNullException(nameof(options.Assets));
         }
 
+        ArgumentNullException.ThrowIfNull(options.SocialImages);
+        var socialImageSources = new Dictionary<string, ImageSource>(StringComparer.Ordinal);
+        foreach (var (path, image) in options.SocialImages)
+        {
+            ArgumentNullException.ThrowIfNull(image);
+            socialImageSources.Add(SiteRoute.NormalizeRelativeOutputPath(path), image);
+        }
+        var commonSocialImageSource = options.CommonSocialImage;
         ArgumentNullException.ThrowIfNull(options.Redirects);
         var redirectDeclarations = options.Redirects.ToArray();
         if (redirectDeclarations.Any(redirect => redirect is null))
@@ -279,14 +303,19 @@ public sealed partial class SiteGenerator
         // Keep this actual core catalog for rendering; do not re-run route callbacks.
         // Known errors must stop before an extension can perform SSR or bundling.
         pageRouteTable.ValidateOrThrow();
+        bool SourceOriginsRequired() => options.Quality is not null
+            && (publishedMarkdownClaims.Any(claim => claim.Page.Content.BodySource is not null)
+                || contentPages.Any(static page => page.BodySource is not null));
         await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null,
-            rawDemand: options.RawHtmlFactsDemand);
+            rawDemand: options.RawHtmlFactsDemand | (SourceOriginsRequired() ? HtmlRawFactsDemand.Quality : HtmlRawFactsDemand.None));
         var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
         var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
             catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
         var extensionDiagnostics = preflight.Diagnostics.ToList();
         extensionDiagnostics.AddRange(preflight.DeferredReasons.Where(reason => reason.StartsWith("Extension '", StringComparison.Ordinal)).Select(reason => new SiteDiagnostic(
             "LSPREFLIGHT001", SiteDiagnosticSeverity.Info, reason, null, "Preflight", null)));
+        var documentSemantics = new List<LithoSharp.Documentation.DocumentSemanticSnapshot>();
+        var scopedSearch = new List<ScopedSearchProjection>();
         for (var extensionIndex = 0; extensionIndex < options.Extensions.Count; extensionIndex++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -300,6 +329,10 @@ public sealed partial class SiteGenerator
             ArgumentNullException.ThrowIfNull(contribution.ContentCollections);
             ArgumentNullException.ThrowIfNull(contribution.Assets);
             ArgumentNullException.ThrowIfNull(contribution.Diagnostics);
+            ArgumentNullException.ThrowIfNull(contribution.DocumentSemantics);
+            documentSemantics.AddRange(contribution.DocumentSemantics);
+            ArgumentNullException.ThrowIfNull(contribution.ScopedSearch);
+            scopedSearch.AddRange(contribution.ScopedSearch);
             extensionDiagnostics.AddRange(contribution.Diagnostics);
             if (extensionDiagnostics.Any(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
                 throw new SiteQualityValidationException(new SiteQualityReport(extensionDiagnostics));
@@ -317,6 +350,9 @@ public sealed partial class SiteGenerator
         // Match the original global collection ordering, preserving each collection's
         // own page ordering after the batches were admitted at different phases.
         contentPages = contentPages.OrderBy(page => page.CollectionId.Value, StringComparer.Ordinal).ToList();
+        // Admit extension-contributed source provenance before freezing the first shared parse plan.
+        if (SourceOriginsRequired())
+            sharedHtmlFacts.RequireQualityOrigins();
         var assetRegistry = (await AssetRegistry.CreateAsync(options.Assets, options.AssetTransforms,
             options.PublicDirectory, options.AssetCacheDirectory, site.BaseUrl, cancellationToken).ConfigureAwait(false))
             .WithGenerated(options.GeneratedAssets, site.BaseUrl);
@@ -334,7 +370,9 @@ public sealed partial class SiteGenerator
             routes.Add(page.Route);
         var faviconSource = customization.FaviconSourceDirectory ?? Path.Combine(AppContext.BaseDirectory, "favicon");
         var hasFaviconAssets = BundledFaviconAssets.All(asset => File.Exists(Path.Combine(faviconSource, asset)));
-        var hasSocialImage = File.Exists(Path.Combine(faviconSource, SocialImageSourceFileName));
+        ResolvedSocialImage ResolveSocialImage(ImageSource image) => new(
+            new Uri(new Uri(site.BaseUrl, UriKind.Absolute), image.GetUrl(assetRegistry)).AbsoluteUri,
+            image.GetMetadata(assetRegistry));
         var configuration = new RenderContext(
             site,
             customization.Text,
@@ -343,14 +381,19 @@ public sealed partial class SiteGenerator
             contentPages,
             faviconSource,
             hasFaviconAssets,
-            hasSocialImage,
             buildTimestamp,
             routes)
         {
             Cancellation = cancellationToken,
+            EnvironmentName = options.EnvironmentName,
+            Assets = assetRegistry,
+            DocumentSemantics = Array.AsReadOnly(documentSemantics.ToArray()),
+            ScopedSearch = Array.AsReadOnly(scopedSearch.ToArray()),
             HtmlFacts = sharedHtmlFacts,
             Footer = customization.Footer,
             DocsTemplate = template as DocsSiteTemplate,
+            CommonSocialImage = commonSocialImageSource is null ? null : ResolveSocialImage(commonSocialImageSource),
+            SocialImages = socialImageSources.ToDictionary(pair => pair.Key, pair => ResolveSocialImage(pair.Value), StringComparer.Ordinal),
         };
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
@@ -389,6 +432,9 @@ public sealed partial class SiteGenerator
             ? new SiteTemplateResult(plannedText!.Keys.Select(path => new SiteTemplateFile { RelativePath = path, Content = string.Empty }).ToArray())
             : await template.RenderAsync(templateContext, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Template '{template.GetType().FullName}' returned no result.");
+        if (plannedText is not null)
+            foreach (var projection in configuration.ScopedSearch)
+                plannedText.Add(projection.RelativeOutputPath, _ => BuildScopedSearchIndex(configuration, projection));
         var artifactRouteTable = new SiteRouteTable();
         artifactRouteTable.ReserveOutputPath(
             OutputManifestRelativePath,
@@ -397,20 +443,11 @@ public sealed partial class SiteGenerator
         {
             artifactRouteTable.Register(asset.Route, $"asset:{asset.Asset.Id}");
         }
+        foreach (var projection in configuration.ScopedSearch)
+            artifactRouteTable.Register(SiteRoute.ForFile(projection.RelativeOutputPath, site.BaseUrl), projection.NodeId.Value);
         var commonArtifacts = GetCommonArtifactRoutes(
             configuration,
-            publishedPosts,
-            contentPages,
             customization.GenerateLlmsTxt);
-        var contentSocialImageOwners = new Dictionary<string, IntegratedContentPage>(StringComparer.Ordinal);
-        if (commonArtifacts.Count != 0)
-        {
-            foreach (var page in contentPages)
-            {
-                if (page.IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage))
-                    contentSocialImageOwners.TryAdd(configuration.Routes.ContentSocialImage(page.Route).RelativeOutputPath, page);
-            }
-        }
         var builtInTemplateOwners = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.CreateTemplateOwnerMap(
                 template,
@@ -419,24 +456,14 @@ public sealed partial class SiteGenerator
                 routes)
             : null;
         var builtInCommonOwners = builtInTemplate
-            ? BuiltInSiteTemplateBuildPlanAdapter.CreateCommonOwnerMap(
-                publishedPosts,
-                routes)
+            ? BuiltInSiteTemplateBuildPlanAdapter.CreateCommonOwnerMap(routes)
             : null;
         RegisterCommonRoutes(
             artifactRouteTable,
             commonArtifacts,
-            route =>
-            {
-                if (contentSocialImageOwners.TryGetValue(route.RelativeOutputPath, out var contentOwner))
-                {
-                    return ContentCollectionBuildPlanAdapter.SocialNodeId(contentOwner).Value;
-                }
-
-                return builtInTemplate
-                    ? builtInCommonOwners![route.RelativeOutputPath].Value
-                    : LegacySiteTemplateBuildPlanAdapter.CommonNodeId.Value;
-            });
+            route => builtInTemplate
+                ? builtInCommonOwners![route.RelativeOutputPath].Value
+                : LegacySiteTemplateBuildPlanAdapter.CommonNodeId.Value);
         var templateFiles = RegisterTemplateRoutes(
             artifactRouteTable,
             routes,
@@ -452,10 +479,8 @@ public sealed partial class SiteGenerator
             contentPages);
         var redirectOutputs = PrepareRedirects(redirectDeclarations, site.BaseUrl, artifactRouteTable,
             templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
-                .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath)));
-        var baseCommonArtifacts = commonArtifacts
-            .Where(route => !contentSocialImageOwners.ContainsKey(route.RelativeOutputPath))
-            .ToArray();
+                .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath))
+                .Concat(configuration.ScopedSearch.Select(static projection => projection.RelativeOutputPath)));
         var basePlan = builtInTemplate
             ? BuiltInSiteTemplateBuildPlanAdapter.Create(
                 template,
@@ -470,7 +495,6 @@ public sealed partial class SiteGenerator
                 buildTimestamp,
                 faviconSource,
                 hasFaviconAssets,
-                hasSocialImage,
                 customization.GenerateLlmsTxt)
             : LegacySiteTemplateBuildPlanAdapter.Create(
                 template,
@@ -482,12 +506,11 @@ public sealed partial class SiteGenerator
                 contentPages,
                 routes,
                 templateFiles,
-                baseCommonArtifacts,
+                commonArtifacts,
                 buildTimestamp,
                 options.EnvironmentName,
                 faviconSource,
                 hasFaviconAssets,
-                hasSocialImage,
                 customization.GenerateLlmsTxt);
         var collectionNodes = ContentCollectionBuildPlanAdapter.Create(
             contentPages,
@@ -497,9 +520,7 @@ public sealed partial class SiteGenerator
             customization.Theme,
             buildTimestamp,
             options.EnvironmentName,
-            faviconSource,
             hasFaviconAssets,
-            hasSocialImage,
             routes);
         var assetNodes = assetRegistry.CreateBuildNodes();
         var contentOwnersWithAssetDependencies = new HashSet<string>(StringComparer.Ordinal);
@@ -521,20 +542,38 @@ public sealed partial class SiteGenerator
                     ? new BuildNode(node.Id, node.Inputs, node.Dependencies.Concat(assetNodes.Select(static item => item.Id)), node.Artifacts)
                     : node))
                 .Concat(assetNodes);
+        allNodes = allNodes.Concat(CreateScopedSearchNodes(configuration));
         if (redirectOutputs.Count != 0)
         {
             var redirectPlan = SiteBuildPlan.Create(allNodes);
             allNodes = redirectPlan.Nodes.Concat(CreateRedirectNodes(redirectOutputs, site.BaseUrl, redirectPlan));
         }
-        var socialImplementation = hasSocialImage ? SocialImageGenerator.GetImplementationFingerprint() : null;
         // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
         string? docsTemplateJson = null;
         string? docsHeaderTextJson = null;
+        var componentInputs = CaptureMarkdownComponentInputs(outputRoot, configuration.DocumentSemantics);
+        var postOrigins = publishedPosts.ToDictionary(post => routes.Post(post).RelativeOutputPath,
+            post => MarkdownOriginIdentity(post.BodySource), StringComparer.Ordinal);
+        var assetNodeIds = assetNodes.Select(static node => node.Id).ToHashSet();
         var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
         {
             IEnumerable<BuildInput> inputs = node.Inputs;
+            IEnumerable<BuildNodeId> dependencies = node.Id.Value == "index:search" ? node.Dependencies.Concat(contentPages
+                .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)).Select(page => new BuildNodeId(page.OwnerId))) : node.Dependencies;
+            if (!assetNodeIds.Contains(node.Id))
+            {
+                inputs = inputs.Concat(componentInputs.Inputs);
+                dependencies = dependencies.Concat(componentInputs.Assets);
+            }
             if (node.Artifacts.Any(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
             {
+                foreach (var artifact in node.Artifacts.Where(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (postOrigins.TryGetValue(artifact.RelativeOutputPath, out var originIdentity))
+                        inputs = inputs.Append(BuildInput.FromConfiguration("markdown.origins:" + artifact.RelativeOutputPath, originIdentity));
+                    inputs = inputs.Append(BuildInput.FromConfiguration("assets.socialImage:" + artifact.RelativeOutputPath,
+                        JsonSerializer.Serialize(configuration.SocialImageFor(artifact.RelativeOutputPath))));
+                }
                 inputs = inputs.Append(BuildInput.FromConfiguration("customization.footer", JsonSerializer.Serialize(customization.Footer)))
                     .Append(BuildInput.FromConfiguration("template.docs", docsTemplateJson ??= JsonSerializer.Serialize(configuration.DocsTemplate)));
                 if (configuration.DocsTemplate?.EnableHeaderSearch == true)
@@ -543,17 +582,7 @@ public sealed partial class SiteGenerator
                     inputs = inputs.Append(BuildInput.FromCollection("docs.topicSummaries",
                         JsonSerializer.Serialize(publishedPosts.Select(post => post.FrontMatter.Summary))));
             }
-            if (node.Id.Value.StartsWith("social:", StringComparison.Ordinal))
-                inputs = inputs.Append(socialImplementation is null
-                    ? BuildInput.FromValue("social.cachePolicy", "always-rebuild")
-                    : BuildInput.FromConfiguration("social.implementation", socialImplementation));
-            if (builtInTemplate && node.Id.Value.StartsWith("page:", StringComparison.Ordinal)
-                && !node.Id.Value.StartsWith("page:collection:", StringComparison.Ordinal))
-                inputs = inputs.Append(BuildInput.FromConfiguration("assets.hasSocialImage", hasSocialImage.ToString(CultureInfo.InvariantCulture)));
-            return new BuildNode(node.Id, inputs,
-                node.Id.Value == "index:search" ? node.Dependencies.Concat(contentPages
-                    .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)).Select(page => new BuildNodeId(page.OwnerId))) : node.Dependencies,
-                node.Artifacts);
+            return new BuildNode(node.Id, inputs, dependencies, node.Artifacts);
         }));
         var ownedArtifactPaths = buildPlan.Artifacts
             .Select(static artifact => artifact.RelativeOutputPath)
@@ -648,6 +677,9 @@ public sealed partial class SiteGenerator
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
+                foreach (var projection in configuration.ScopedSearch)
+                    await WriteTextAsync(outputTransaction.StagingRoot, projection.RelativeOutputPath,
+                        BuildScopedSearchIndex(configuration, projection), generatedInStaging, cancellationToken).ConfigureAwait(false);
 
                 foreach (var redirect in redirectOutputs)
                     await WriteTextAsync(outputTransaction.StagingRoot, redirect.File.RelativePath, redirect.File.Content,
@@ -681,48 +713,6 @@ public sealed partial class SiteGenerator
                         .ConfigureAwait(false);
                 }
 
-                if (configuration.HasSocialImage)
-                {
-                    await WriteBinaryAssetAsync(
-                            outputTransaction.StagingRoot,
-                            routes.DefaultSocialImage.RelativeOutputPath,
-                            await BuildDefaultSocialImageAsync(configuration, cancellationToken).ConfigureAwait(false),
-                            generatedInStaging,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                if (configuration.HasSocialImage)
-                {
-                    foreach (var post in publishedPosts)
-                    {
-                        await WriteBinaryAssetAsync(
-                                outputTransaction.StagingRoot,
-                                routes.PostSocialImage(post).RelativeOutputPath,
-                                await BuildPostSocialImageAsync(configuration, post, cancellationToken).ConfigureAwait(false),
-                                generatedInStaging,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-
-                    foreach (var page in contentPages
-                                 .Where(page => page.IsIncludedIn(
-                                     GeneratedPageDerivedSurfaces.SocialImage)))
-                    {
-                        await WriteBinaryAssetAsync(
-                                outputTransaction.StagingRoot,
-                                routes.ContentSocialImage(page.Route).RelativeOutputPath,
-                                await BuildContentSocialImageAsync(
-                                        configuration,
-                                        page,
-                                        cancellationToken)
-                                    .ConfigureAwait(false),
-                                generatedInStaging,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                }
-
                 if (customization.GenerateLlmsTxt)
                 {
                     await WriteTextAsync(
@@ -741,7 +731,8 @@ public sealed partial class SiteGenerator
             // Otherwise reuse the final body's compilation, including on no-op builds
             // after its persistent cache is attached. Never merge these snapshots.
             compilerWarnings = publishedPosts
-                .SelectMany(post => post.CompilerDiagnostics ?? CompilePostBody(configuration, post).Diagnostics)
+                .SelectMany(post => post.CompilerDiagnostics ?? configuration.CompiledBodies.GetExistingDiagnostics(post)
+                    ?? CompilePostBody(configuration, post).Diagnostics)
                 .Concat(contentPages.SelectMany(page => page.MarkdownDiagnostics ?? []))
                 .ToArray();
 
@@ -778,6 +769,8 @@ public sealed partial class SiteGenerator
                     redirectOutputs.ToDictionary(redirect => redirect.Source.RelativeOutputPath, redirect => redirect.Target, StringComparer.Ordinal),
                     qualityOptions, cancellationToken, assetRegistry.CreateBuildNodes(), htmlFactsCache, sharedHtmlFacts,
                     referenceIdentities).ConfigureAwait(false);
+                qualityReport = MapQualityOrigins(qualityReport, configuration, publishedPosts, contentPages,
+                    templateFiles, inspectedQualityOutput);
                 if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
                 buildPlan = QualityAnchorBuildPlan.Attach(buildPlan, qualityReport, cancellationToken);
@@ -1165,7 +1158,8 @@ public sealed partial class SiteGenerator
         var sourceHash = MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody);
         var retained = post.BodyAnalysis is null ? null
             : MarkdownAnalysisAdapter.RetainForBody(post.BodyAnalysis, post.MarkdownBody, post.FilePath);
-        var originalSource = retained is not null ? post.BodySource : null;
+        var originalSource = post.BodySource.CanMapBody(post.MarkdownBody, post.FilePath) || retained is not null
+            ? post.BodySource : null;
         var sourceOffset = originalSource?.BodyStartOffset ?? 0;
         var persistent = configuration.CompiledBodies.PersistentParseCache;
         if (persistent is not null)
@@ -1194,7 +1188,7 @@ public sealed partial class SiteGenerator
                         cached.Assets.Select(asset => new DocumentAsset(
                             asset.Url, new SourceSpan(sourceOffset + asset.SpanStart, asset.SpanLength))).ToArray(),
                         [],
-                        []));
+                        []), post.MarkdownBody, cached.RenderOrigins);
             }
         }
 
@@ -1202,12 +1196,26 @@ public sealed partial class SiteGenerator
         // Directly constructed posts retain their body-relative warning policy;
         // reader warnings keep their original-file channel in CompilerDiagnostics.
         var analyzed = _markdownCompiler.Analyze(post.MarkdownBody,
-            originalSource ?? new DocumentSource(post.FilePath, 0), cancellation, retained);
+            originalSource ?? new DocumentSource(post.FilePath, 0), cancellation, retained, CreateMarkdownComponentContext(configuration));
         IReadOnlyList<SiteDiagnostic> finalDiagnostics = analyzed.Semantics?.Diagnostics
             ?? [new SiteDiagnostic(MarkdownAnalysisAdapter.IncompleteAnalysisDiagnosticId,
                 SiteDiagnosticSeverity.Error,
                 "Markdown analysis is incomplete; unavailable facts were not validated.",
                 string.IsNullOrWhiteSpace(post.FilePath) ? null : new SiteSourceLocation(post.FilePath))];
+        if (originalSource is not null)
+            finalDiagnostics = finalDiagnostics.Select(originalSource.MapDiagnostic).ToArray();
+        if (finalDiagnostics.Count != 0)
+        {
+            var snapshotIdentity = PostDiagnosticSnapshotIdentity(post, sourceHash);
+            finalDiagnostics = finalDiagnostics.Select(diagnostic => new SiteDiagnostic(
+                diagnostic.Id, diagnostic.Severity, diagnostic.Message, diagnostic.Location,
+                diagnostic.Category, diagnostic.RelatedLocations)
+            {
+                SnapshotIdentity = snapshotIdentity,
+                MappingPrecision = diagnostic.MappingPrecision,
+                GeneratedReferenceSpan = diagnostic.GeneratedReferenceSpan,
+            }).ToArray();
+        }
         var errors = finalDiagnostics
             .Where(diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error)
             // An incomplete final-body analysis has no mapping through header removal,
@@ -1243,7 +1251,8 @@ public sealed partial class SiteGenerator
                             link.RawText, link.Url, link.Title, link.IsImage,
                             link.Span.Start - semantics.Source.BodyStartOffset, link.Span.Length)).ToArray(),
                         semantics.Assets.Select(asset => new CachedPostAsset(
-                            asset.Url, asset.Span.Start - semantics.Source.BodyStartOffset, asset.Span.Length)).ToArray()),
+                            asset.Url, asset.Span.Start - semantics.Source.BodyStartOffset, asset.Span.Length)).ToArray())
+                    { RenderOrigins = analyzed.RenderOrigins },
                     cancellation).GetAwaiter().GetResult();
             }
             catch (Exception exception) when (IsOptionalCacheWriteFailure(exception))
@@ -1252,18 +1261,23 @@ public sealed partial class SiteGenerator
             }
         }
 
-        return BuildCompiledBody(configuration, analyzed.Html, analyzed.Semantics);
+        return BuildCompiledBody(configuration, analyzed.Html, analyzed.Semantics, post.MarkdownBody, analyzed.RenderOrigins) with
+        {
+            Diagnostics = Array.AsReadOnly(finalDiagnostics.ToArray()),
+        };
     }
 
     private static CompiledPostBody BuildCompiledBody(
-        RenderContext configuration, string rawHtml, DocumentSemantics? semantics)
+        RenderContext configuration, string rawHtml, DocumentSemantics? semantics, string? markdown = null,
+        IReadOnlyList<MarkdownRenderOrigin>? renderOrigins = null)
     {
         // Heading demotion and external link attributes stay single-pass string transforms
         // over the shared HTML: positions refer to Markdown, so the model cannot rewrite HTML.
         // The demotion rule mirrors DocumentHeading.OutputLevel.
+        var insertions = new List<RenderedHtmlInsertion>();
         var html = AddNewTabAttributesToExternalPostLinks(
             configuration,
-            NormalizePostBodyHeadings(rawHtml));
+            NormalizePostBodyHeadings(rawHtml), insertions);
         var toc = semantics?.Headings
             .Where(heading => heading.OutputLevel is 2 or 3
                 && !string.IsNullOrWhiteSpace(heading.Id)
@@ -1277,6 +1291,8 @@ public sealed partial class SiteGenerator
             semantics?.Links ?? [],
             semantics?.Assets ?? [])
         {
+            RenderedOrigins = markdown is null ? null : RenderedHtmlOrigins.Bind(rawHtml, markdown,
+                renderOrigins ?? [], semantics?.Source).Rebase(rawHtml, html, insertions),
             Diagnostics = semantics is { Diagnostics.Count: > 0 }
                 ? Array.AsReadOnly(semantics.Diagnostics.ToArray())
                 : [],
@@ -1316,9 +1332,13 @@ public sealed partial class SiteGenerator
             new() { RelativePath = configuration.Routes.SearchScript.RelativeOutputPath, Content = BuildSearchScript(configuration.Text) },
             new() { RelativePath = configuration.Routes.SearchIndex.RelativeOutputPath, Content = searchIndex },
             new() { RelativePath = configuration.Routes.Home.RelativeOutputPath, Content = RenderIndex(configuration, posts) },
+            new() { RelativePath = configuration.Routes.NotFound.RelativeOutputPath, Content = RenderNotFound(configuration) },
             new() { RelativePath = configuration.Routes.Archives.RelativeOutputPath, Content = RenderArchives(configuration, posts) },
             new() { RelativePath = configuration.Routes.Tags.RelativeOutputPath, Content = RenderTags(configuration, posts) }
         };
+
+        if (HasExternalThemeRestoration(configuration))
+            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeRestorationScript });
 
         foreach (var extraPage in configuration.ExtraPages)
         {
@@ -1384,6 +1404,10 @@ public sealed partial class SiteGenerator
             files.Add(new() { RelativePath = configuration.Routes.Sitemap.RelativeOutputPath, Content = RenderSitemap(configuration, templateContext.Posts, configuration.ContentPages, docs: true) });
         }
 
+        files.Add(new() { RelativePath = configuration.Routes.NotFound.RelativeOutputPath, Content = RenderNotFound(configuration, templateContext.Navigation) });
+        if (HasExternalThemeRestoration(configuration))
+            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeRestorationScript });
+
         for (var index = 0; index < orderedPosts.Length; index++)
         {
             var post = orderedPosts[index];
@@ -1408,8 +1432,6 @@ public sealed partial class SiteGenerator
 
     private static IReadOnlyList<SiteRoute> GetCommonArtifactRoutes(
         RenderContext configuration,
-        IReadOnlyList<MarkdownPost> posts,
-        IReadOnlyList<IntegratedContentPage> contentPages,
         bool generateLlmsTxt)
     {
         var artifacts = new List<SiteRoute>();
@@ -1421,22 +1443,6 @@ public sealed partial class SiteGenerator
             }
 
             artifacts.Add(configuration.Routes.WebManifest);
-        }
-
-        if (configuration.HasSocialImage)
-        {
-            artifacts.Add(configuration.Routes.DefaultSocialImage);
-            foreach (var post in posts)
-            {
-                artifacts.Add(configuration.Routes.PostSocialImage(post));
-            }
-
-            foreach (var page in contentPages
-                         .Where(page => page.IsIncludedIn(
-                             GeneratedPageDerivedSurfaces.SocialImage)))
-            {
-                artifacts.Add(configuration.Routes.ContentSocialImage(page.Route));
-            }
         }
 
         if (generateLlmsTxt)
@@ -1775,7 +1781,7 @@ public sealed partial class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
+            null);
     }
 
     private static string RenderDocsExtraPage(
@@ -1965,7 +1971,6 @@ public sealed partial class SiteGenerator
         return Layout(configuration, "Tags", body.ToString(), "tags.html");
     }
 
-
     private string RenderPost(RenderContext configuration, MarkdownPost post)
     {
         var compiled = CompilePostBody(configuration, post);
@@ -2004,7 +2009,7 @@ public sealed partial class SiteGenerator
             post.FrontMatter.Summary,
             "article",
             post.FrontMatter.Date,
-            configuration.HasSocialImage ? configuration.Routes.PostSocialImage(post).RelativeOutputPath : null);
+            null);
     }
 
     internal static IReadOnlyList<SiteTemplateHeading> ExtractTemplateHeadings(string postBody) =>
@@ -2019,13 +2024,14 @@ public sealed partial class SiteGenerator
             .Select(heading => new SiteTemplateHeading(heading.Level, heading.Id, heading.Text))
             .ToArray();
 
-    private static string NormalizePostBodyHeadings(string postBody)
+    internal static string NormalizePostBodyHeadings(string postBody)
     {
         var withoutNestedTitle = BodyHeadingOneOpenRegex.Replace(postBody, "<h2${attributes}>");
         return BodyHeadingOneCloseRegex.Replace(withoutNestedTitle, "</h2>");
     }
 
-    private static string AddNewTabAttributesToExternalPostLinks(RenderContext configuration, string postBody)
+    private static string AddNewTabAttributesToExternalPostLinks(RenderContext configuration, string postBody,
+        ICollection<RenderedHtmlInsertion>? insertions = null)
     {
         var siteUri = new Uri(configuration.Routes.AbsoluteRootUrl, UriKind.Absolute);
 
@@ -2039,7 +2045,10 @@ public sealed partial class SiteGenerator
 
             var targetAttribute = HasAnchorAttribute(match.Value, "target") ? string.Empty : " target=\"_blank\"";
             var relAttribute = HasAnchorAttribute(match.Value, "rel") ? string.Empty : " rel=\"noopener noreferrer\"";
-            return $"<a{match.Groups["before"].Value} href=\"{match.Groups["href"].Value}\"{match.Groups["after"].Value}{targetAttribute}{relAttribute}>";
+            var replacement = $"<a{match.Groups["before"].Value} href=\"{match.Groups["href"].Value}\"{match.Groups["after"].Value}{targetAttribute}{relAttribute}>";
+            if (replacement.Length > match.Length)
+                insertions?.Add(new(match.Index + match.Length - 1, replacement.Length - match.Length));
+            return replacement;
         });
     }
 
@@ -2142,8 +2151,18 @@ public sealed partial class SiteGenerator
             : DocsLayout(configuration, docsNavigation, "Search", body.ToString(), "search.html", "search.html", null, includeBlogNavigation: false);
     }
 
-
     private string BuildSearchIndex(
+        RenderContext configuration,
+        IReadOnlyList<MarkdownPost> posts,
+        IReadOnlyList<IntegratedContentPage> contentPages)
+    {
+        var index = new SearchIndex(configuration.Site.Title,
+            configuration.BuildTimestamp.ToString("O", CultureInfo.InvariantCulture),
+            BuildSearchDocuments(configuration, posts, contentPages));
+        return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
+    }
+
+    private IReadOnlyList<SearchDocument> BuildSearchDocuments(
         RenderContext configuration,
         IReadOnlyList<MarkdownPost> posts,
         IReadOnlyList<IntegratedContentPage> contentPages)
@@ -2172,7 +2191,7 @@ public sealed partial class SiteGenerator
             documents.Add(new SearchDocument(
                 page.Metadata.Title ?? page.EntryId.Value,
                 page.Metadata.Description ?? string.Empty,
-                [],
+                page.SearchTags,
                 configuration.Routes.PublicPath(page.Route),
                 page.Metadata.PublishFrom is { } published
                     ? SiteFormatting.FormatDateTime(configuration.Site, published)
@@ -2186,16 +2205,11 @@ public sealed partial class SiteGenerator
             });
         }
 
-        var index = new SearchIndex(
-            configuration.Site.Title,
-            configuration.BuildTimestamp.ToString("O", CultureInfo.InvariantCulture),
-            documents);
-        return JsonSerializer.Serialize(index, SearchSerializerContext.SearchIndex);
+        return documents;
     }
 
     internal static IReadOnlyList<SearchSection> ExtractSearchSections(string html, CancellationToken cancellationToken = default) =>
         HtmlFacts.Parse(html, cancellationToken).SearchSections();
-
 
     internal static string NormalizeForIndex(string text)
     {
@@ -2734,35 +2748,6 @@ public sealed partial class SiteGenerator
         }
 
         return File.ReadAllBytes(sourcePath);
-    }
-
-    private static async Task<byte[]> BuildDefaultSocialImageAsync(RenderContext configuration, CancellationToken cancellationToken)
-    {
-        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SocialImageSourceFileName, "favicon asset"));
-        return await generator.BuildSiteImageAsync(configuration.Site.Title, configuration.Theme.DefaultSocialSubtitle, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<byte[]> BuildPostSocialImageAsync(RenderContext configuration, MarkdownPost post, CancellationToken cancellationToken)
-    {
-        var generator = new SocialImageGenerator(LoadBundledBytes(configuration.FaviconSourceDirectory, SocialImageSourceFileName, "favicon asset"));
-        return await generator.BuildPostImageAsync(configuration.Site.Title, post.FrontMatter.Title, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<byte[]> BuildContentSocialImageAsync(
-        RenderContext configuration,
-        IntegratedContentPage page,
-        CancellationToken cancellationToken)
-    {
-        var generator = new SocialImageGenerator(
-            LoadBundledBytes(
-                configuration.FaviconSourceDirectory,
-                SocialImageSourceFileName,
-                "favicon asset"));
-        return await generator.BuildPostImageAsync(
-                configuration.Site.Title,
-                page.Metadata.Title ?? page.EntryId.Value,
-                cancellationToken)
-            .ConfigureAwait(false);
     }
 
     internal static string CreateTemporaryDirectory(string prefix)
@@ -5284,6 +5269,7 @@ public sealed partial class SiteGenerator
           .docs-brand::before {
             content: "";
             flex: 0 0 1.4rem;
+            inline-size: 1.4rem;
             block-size: 1.6rem;
             border: 1px solid var(--accent);
             border-inline-start-width: 0.4rem;
@@ -5478,7 +5464,7 @@ public sealed partial class SiteGenerator
         @media (max-width: 52rem) {
           .docs-header { padding-inline: 0.75rem; gap: 0.75rem; }
           .docs-brand { font-size: 0.9rem; gap: 0.5rem; }
-          .docs-brand::before { flex-basis: 1rem; block-size: 1.35rem; }
+          .docs-brand::before { flex-basis: 1rem; inline-size: 1rem; block-size: 1.35rem; }
           .docs-shell {
             grid-template-columns: minmax(0, 1fr);
           }
@@ -6291,7 +6277,9 @@ public sealed partial class SiteGenerator
             ["scopeTag"] = text.SearchScopeTag,
             ["loadError"] = text.SearchStatusLoadError,
         };
-        return (contextual ? ContextualSearchTemplate() : SearchScriptTemplate).Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal);
+        return (contextual ? ContextualSearchTemplate() : SearchScriptTemplate)
+            .Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal)
+            .Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal);
     }
 
     private static string SerializeSearchMessages(Dictionary<string, string> messages)
@@ -6326,9 +6314,8 @@ public sealed partial class SiteGenerator
         .Replace("""
             const rows = entries.map(({ doc }) => (
         """, """
-            const rows = entries.map(({ doc }) => {
-              const section = tokens.length ? doc.sections.find(section => tokens.every(token => normalizeText(section.title + " " + section.body).includes(token))) : null;
-              const target = doc.url + (section ? "#" + encodeURIComponent(section.anchor) : "");
+            const rows = entries.map(({ doc, section, url, body }) => {
+              const target = url || doc.url;
               return (
         """, StringComparison.Ordinal)
         .Replace("""
@@ -6336,7 +6323,7 @@ public sealed partial class SiteGenerator
               "<p>" + highlight(doc.summary, tokens) + "</p>" +
         """, """
               '<h3><a href="' + escapeHtml(safeUrl(target)) + '">' + highlight(doc.title + (section ? " — " + section.title : ""), tokens) + "</a></h3>" +
-              "<p>" + highlight((section?.body || doc.summary || doc.body).slice(0, 240), tokens) + "</p>" +
+              "<p>" + highlight((body || doc.summary || doc.body).slice(0, 240), tokens) + "</p>" +
         """, StringComparison.Ordinal)
         .Replace("""
             ));
@@ -6348,7 +6335,7 @@ public sealed partial class SiteGenerator
         """, """
               date: doc.date || "",
               collection: doc.collection, version: doc.version, locale: doc.locale,
-              sections: doc.sections || [], body: doc.body || "",
+              sections: doc.sections || [],
         """, StringComparison.Ordinal)
         .Replace("""
           });
@@ -6365,6 +6352,7 @@ public sealed partial class SiteGenerator
     private const string SearchScriptTemplate = """
         (() => {
           "use strict";
+          /*__LITHOSHARP_LOCAL_SEARCH__*/
           const app = document.getElementById("search-app");
           const input = document.getElementById("search-input");
           const results = document.getElementById("search-results");
@@ -6402,51 +6390,6 @@ public sealed partial class SiteGenerator
               .trim();
 
           const normalizedSelectedTag = normalizeText(selectedTag);
-
-          // Prefer substring matches; fall back to fuzzy subsequence scoring.
-          const scoreField = (needle, hay) => {
-            const idx = hay.indexOf(needle);
-            if (idx !== -1) {
-              let score = 1000 - Math.min(idx, 500);
-              if (idx === 0 || /\s/.test(hay[idx - 1])) {
-                score += 250;
-              }
-              return score;
-            }
-            let cursor = 0;
-            let streak = 0;
-            let score = 0;
-            for (let i = 0; i < needle.length; i += 1) {
-              const ch = needle[i];
-              let found = -1;
-              for (; cursor < hay.length; cursor += 1) {
-                if (hay[cursor] === ch) {
-                  found = cursor;
-                  break;
-                }
-              }
-              if (found === -1) {
-                return -1;
-              }
-              streak = found > 0 && /\s/.test(hay[found - 1]) ? streak + 3 : streak + 1;
-              score += streak;
-              cursor = found + 1;
-            }
-            return score;
-          };
-
-          const scoreDoc = (tokens, doc) => {
-            let total = 0;
-            for (const token of tokens) {
-              const hayScore = scoreField(token, doc.hay);
-              if (hayScore < 0) {
-                return -1;
-              }
-              const titleScore = scoreField(token, doc.titleLc);
-              total += hayScore + (titleScore > 0 ? titleScore * 2 : 0);
-            }
-            return total;
-          };
 
           const highlight = (text, tokens) => {
             if (!tokens.length) {
@@ -6547,14 +6490,8 @@ public sealed partial class SiteGenerator
               return;
             }
             const tokens = normalized.split(/\s+/).filter(Boolean);
-            const matches = [];
-            for (const doc of scopedDocs) {
-              const score = scoreDoc(tokens, doc);
-              if (score >= 0) {
-                matches.push({ doc, score });
-              }
-            }
-            matches.sort((a, b) => b.score - a.score || a.doc.title.localeCompare(b.doc.title));
+            const matches = queryDocuments(scopedDocs, query, {fuzzy: true, limit: Number.MAX_SAFE_INTEGER})
+              .map(hit => ({...hit, doc: hit.document}));
             render(matches.slice(0, RESULT_LIMIT), tokens, query, matches.length);
           };
 
@@ -6566,9 +6503,7 @@ public sealed partial class SiteGenerator
               tagsNormalized: (doc.tags || []).map((tag) => normalizeText(tag)),
               url: doc.url || "#",
               date: doc.date || "",
-              titleLc: normalizeText(doc.title),
-              hay: normalizeText([doc.title, doc.summary, (doc.tags || []).join(" "), doc.body]
-                .join(" \n ")),
+              body: doc.body || "",
             }));
             if (scope && selectedTag) {
               scope.hidden = false;

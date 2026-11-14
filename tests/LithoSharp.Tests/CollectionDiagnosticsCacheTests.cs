@@ -47,7 +47,7 @@ public sealed class CollectionDiagnosticsCacheTests
         [
             new("LSM001", SiteDiagnosticSeverity.Warning, "First warning.",
                 new SiteSourceLocation("content/page.md", 3, 5, 3, 9), "Markdown", related)
-            { SnapshotIdentity = new string('d', 64) },
+            { SnapshotIdentity = new string('d', 64), MappingPrecision = "Exact" },
             new("LSM001", SiteDiagnosticSeverity.Warning, "Second warning.")
             { SnapshotIdentity = new string('e', 64) },
         ];
@@ -70,6 +70,7 @@ public sealed class CollectionDiagnosticsCacheTests
         await Assert.That(restored.Select(diagnostic => diagnostic.Message).SequenceEqual(
             ["First warning.", "Second warning."])).IsTrue();
         await Assert.That(restored[0].Category).IsEqualTo("Markdown");
+        await Assert.That(restored[0].MappingPrecision).IsEqualTo("Exact");
         var location = restored[0].Location ?? throw new InvalidOperationException("Expected a restored source location.");
         await Assert.That(location.FilePath).IsEqualTo("content/page.md");
         await Assert.That((location.Line, location.Column, location.EndLine, location.EndColumn))
@@ -100,6 +101,7 @@ public sealed class CollectionDiagnosticsCacheTests
     [Arguments("missing-snapshot-identity")]
     [Arguments("null-snapshot-identity")]
     [Arguments("invalid-snapshot-identity")]
+    [Arguments("unknown-mapping-precision")]
     public async Task SelfHashedMalformedOutcomeIsRejectedInsteadOfReplayed(string corruption)
     {
         using var workspace = new TemporaryWorkspace();
@@ -161,6 +163,9 @@ public sealed class CollectionDiagnosticsCacheTests
                 break;
             case "invalid-snapshot-identity":
                 diagnostic["SnapshotIdentity"] = new string('g', 64);
+                break;
+            case "unknown-mapping-precision":
+                diagnostic["MappingPrecision"] = "Guessed";
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(corruption));

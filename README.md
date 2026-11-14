@@ -21,8 +21,9 @@ custom schema on every keystroke, and a valid typed reference does not certify
 the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
 for fit, dependencies and evaluation examples.
 
-This documentation targets the published LithoSharp 2.2.0 packages and VS Code extension 0.4.0.
-For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
+This documentation describes LithoSharp 3.0.0 and VS Code extension 0.5.0.
+For an existing site, follow the [3.0 migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
+Check the linked package registries for published versions before installation.
 
 ## Features
 
@@ -38,31 +39,37 @@ For an existing site, follow the [upgrade guide](https://github.com/Htkym/lithos
   ownership validation.
 - Structured link, anchor, canonical, redirect and SEO diagnostics.
 - XML .NET API documentation, OpenAPI 3 JSON, exact xrefs and checked examples.
+- Schema-based editor completion, document and heading references, guarded rename
+  previews, conditional requirements and publication compatibility checks.
+- Explicit Markdown profiles, typed C# components, source-mapped diagnostics,
+  snippet execution evidence and translation review records.
+- Native YAML parsing and binding, preserved Open Knowledge Format bundles,
+  existing image variants and optional limited PNG processing.
 - .NET testing APIs for sites, routes, artifacts, DOM, components and layouts.
 - Fingerprinted assets, responsive images and explicit extension points for C#
   rendering and trusted MDX plugins.
 
 ## Quick Start
 
-With the .NET 10 SDK installed, use matching 2.2.0 packages:
+With the .NET 10 SDK installed, use matching 3.0.0 packages when available:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
 On Windows the executable is `.tools/lithosharp.exe`. The template defaults to
-LithoSharp 2.2.0. Edit `GuideFrontMatter.cs`
+LithoSharp 3.0.0. Edit `GuideFrontMatter.cs`
 and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
 to the Docs shell. The factory enables Quality at Error without external HTTP.
 Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 2.2.0`
+Existing applications can use `dotnet add package LithoSharp --version 3.0.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites
@@ -70,7 +77,7 @@ and call the library directly; a CLI host is not required.
 Generated from the included factories. Both built-in templates support light/dark
 switching, responsive menus and keyboard navigation. Set
 `SiteThemeOptions.EnableThemeSwitching = false` to disable switching; see
-[theme configuration](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+[theme configuration](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md#theme-switching).
 
 | Docs — light | Blog — dark |
 | --- | --- |
@@ -91,9 +98,11 @@ model connects the binder, typed references and site layout.
 | Unavailable header or body analysis | Generator/build/editor | `Unknown` or input/resource limits do not establish absence or validity; see the walkthrough for diagnostics and limits. |
 | Internal URLs, anchors and HTML | Generated output inspection | Current output artifacts; source freshness and external HTTP responses require separate context/checks. |
 
-Syntamark 1.2.0 owns Markdown syntax and raw source ranges. LithoSharp retains
-C# schemas, routes, display policy and product diagnostics; the default profile
-remains `lithosharp-markdown/1`. See the [adoption and limits](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md#package-versions).
+Syntamark 2 owns Markdown and YAML syntax and raw source ranges. LithoSharp retains
+C# schemas, routes, display policy and product diagnostics. The default profile
+remains `lithosharp-markdown/1`; `commonmark/0.31.2` and `syntamark-docs/2` are
+explicit choices. See [Markdown profiles](https://github.com/Htkym/lithosharp/blob/main/docs/markdown-profiles.md)
+and the [migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
 
 | Goal | Start here |
 | --- | --- |
@@ -122,18 +131,20 @@ Use the [documentation index](https://github.com/Htkym/lithosharp/blob/main/docs
 - [CLI and site factories](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md), [MDX and documentation sites](https://github.com/Htkym/lithosharp/blob/main/docs/mdx.md)
 - [Typed Markdown collections](https://github.com/Htkym/lithosharp/blob/main/docs/typed-markdown-collections.md),
   [typed YAML](https://github.com/Htkym/lithosharp/blob/main/docs/typed-yaml-collections.md), [source generators](https://github.com/Htkym/lithosharp/blob/main/docs/source-generators.md)
-- [Build graph (Japanese)](https://github.com/Htkym/lithosharp/blob/main/docs/build-graph.ja.md), [incremental builds](https://github.com/Htkym/lithosharp/blob/main/docs/incremental-builds.md)
+- [Build graph](https://github.com/Htkym/lithosharp/blob/main/docs/build-graph.md), [incremental builds](https://github.com/Htkym/lithosharp/blob/main/docs/incremental-builds.md)
 - [Assets and images](https://github.com/Htkym/lithosharp/blob/main/docs/assets-and-images.md), [site quality](https://github.com/Htkym/lithosharp/blob/main/docs/site-quality.md)
 - [Testing](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md), [HTML/CSS contract](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md),
   [compatibility contract](https://github.com/Htkym/lithosharp/blob/main/docs/compatibility-contract.md)
 
-## Upgrade to 2.2.0
+## Upgrade to 3.0.0
 
 Keep selected packages, CLI and templates at the same version.
-Version 2.2.0 changes newly created Docs projects; existing sites opt into
-the typed loader/Docs adapter and Quality settings explicitly. Preserve URLs
-through catalog route declarations and do not regenerate over existing files.
-See the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-2.0.md).
+Replace YamlDotNet attributes with `ContentName` and `ContentIgnore`. Image
+conversion is limited to supported PNG; use existing JPEG, WebP, AVIF and SVG
+assets directly or supply pre-generated variants. Register PNG social images
+explicitly through the optional Images package. Preserve URLs through catalog
+route declarations and compare publication manifests before deployment.
+See the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
 From 1.x, also apply the Testing API change from `Document` to `Snapshot`.
 Rebuild and check content diagnostics, final links and custom CSS. MDX is optional.
 

@@ -25,6 +25,8 @@ public sealed class ContentPageRenderingContext
     private readonly DocumentSource? bodySource;
     private readonly Dictionary<string, string> renderedMarkdown = new(StringComparer.Ordinal);
     private readonly List<SiteDiagnostic> markdownDiagnostics = [];
+    private readonly List<RenderedHtmlFragment> renderedOrigins = [];
+    private bool normalizeDocsHeadings;
     private readonly List<SiteTemplateHeading>? markdownHeadings;
 
     internal string? DerivedContent { get; private set; }
@@ -71,7 +73,9 @@ public sealed class ContentPageRenderingContext
 
     public string EnvironmentName { get; }
 
-    internal PageRenderingContext CreateLayoutContext() => new(generator, configuration, this);
+    internal CancellationToken RenderCancellation => configuration.Cancellation;
+
+    internal PageRenderingContext CreateLayoutContext() => new(generator, SiteGenerator.ForPageLanguage(configuration, Metadata.Language), this);
 
     public AssetRegistry Assets { get; }
 
@@ -82,8 +86,10 @@ public sealed class ContentPageRenderingContext
         if (renderedMarkdown.TryGetValue(markdown, out var html))
             return html;
         var compiled = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
-            bodyAnalysis, bodySource, markdownDiagnostics);
+            bodyAnalysis, bodySource, markdownDiagnostics, Metadata.Document);
         html = compiled.Html;
+        if (compiled.SourceOrigins is { } origins)
+            renderedOrigins.Add(new(html, origins));
         markdownHeadings?.AddRange(compiled.Semantics?.Headings
             .Where(heading => heading.OutputLevel is 2 or 3
                 && !string.IsNullOrWhiteSpace(heading.Id) && !string.IsNullOrWhiteSpace(heading.Text))
@@ -92,8 +98,23 @@ public sealed class ContentPageRenderingContext
         return html;
     }
 
+    internal string AcceptProjectedMarkdown(MarkdownCompilationResult compiled)
+    {
+        if (compiled.Semantics is not { } semantics)
+            throw new InvalidOperationException("Projected Markdown rendering requires semantic evidence from the same parse.");
+        var errors = semantics.Diagnostics.Where(static diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error).ToArray();
+        if (errors.Length != 0)
+            throw new Quality.SiteQualityValidationException(new Quality.SiteQualityReport(errors));
+        markdownDiagnostics.AddRange(semantics.Diagnostics);
+        markdownHeadings?.AddRange(semantics.Headings
+            .Where(static heading => heading.OutputLevel is 2 or 3 && !string.IsNullOrWhiteSpace(heading.Id) && !string.IsNullOrWhiteSpace(heading.Text))
+            .Select(static heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text)));
+        return compiled.Html;
+    }
+
     internal string RenderDocsDocument(string bodyHtml, DocsContentPage page)
     {
+        normalizeDocsHeadings = true;
         DerivedContent = bodyHtml;
         return generator.RenderTypedDocsDocument(configuration, page, bodyHtml, markdownHeadings ?? [],
             Metadata, socialImageRelativePath);
@@ -101,6 +122,12 @@ public sealed class ContentPageRenderingContext
 
     internal IReadOnlyList<SiteDiagnostic> SnapshotMarkdownDiagnostics() =>
         Array.AsReadOnly(markdownDiagnostics.ToArray());
+    internal RenderedHtmlOrigins SnapshotRenderedOrigins(string html) => RenderedHtmlOrigins.Embed(html,
+        normalizeDocsHeadings ? renderedOrigins.Select(fragment =>
+        {
+            var normalized = SiteGenerator.NormalizePostBodyHeadings(fragment.Html);
+            return new RenderedHtmlFragment(normalized, fragment.Origins.Rebase(fragment.Html, normalized, []));
+        }) : renderedOrigins);
 
     public string RenderDocument(string bodyHtml)
     {
@@ -325,7 +352,13 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                         : this.RendererFingerprint + "|" + rendererImplementationIdentity,
                     IsThreadSafe = this.IsThreadSafe,
                     FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
+                    InputProfile = entry.InputProfile,
+                    InputKind = entry.InputKind,
+                    InputRelations = entry.InputRelations,
+                    StaticSchemaJson = Collection.StaticSchemaJson,
+                    StaticSchemaInputs = Collection.Entries.Select(item => item.SourcePath).Distinct(StringComparer.Ordinal).ToArray(),
                     IsUnlisted = isUnlisted,
+                    SearchTags = entry.FrontMatter is DocumentFrontMatter searchFrontMatter ? Array.AsReadOnly(searchFrontMatter.Tags.ToArray()) : [],
                     Docs = docs,
                     MarkdownSourcePath = entry.SourcePath,
                     BodyAnalysis = entry.BodyAnalysis,
@@ -399,7 +432,16 @@ internal sealed class IntegratedContentPage(
 
     public string FrontMatterSchema { get; init; } = "custom";
 
+    internal ContentInputProfile InputProfile { get; init; } = ContentInputProfile.Markdown;
+    internal ContentInputKind InputKind { get; init; } = ContentInputKind.Markdown;
+    internal IReadOnlyList<OpenKnowledge.OkfLink> InputRelations { get; init; } = [];
+
+    internal string? StaticSchemaJson { get; init; }
+
+    internal IReadOnlyList<string> StaticSchemaInputs { get; init; } = [];
+
     public bool IsUnlisted { get; init; }
+    internal IReadOnlyList<string> SearchTags { get; init; } = [];
 
     internal DocsContentPage? Docs { get; init; }
 
@@ -415,6 +457,7 @@ internal sealed class IntegratedContentPage(
 
     // Null means the renderer has not completed and no verified cache outcome was replayed.
     internal IReadOnlyList<SiteDiagnostic>? MarkdownDiagnostics { get; private set; }
+    internal RenderedHtmlOrigins? RenderedOrigins { get; private set; }
 
     public IReadOnlyList<ContentDependency> DeclaredDependencies { get; } = declaredDependencies;
 
@@ -447,9 +490,7 @@ internal sealed class IntegratedContentPage(
             Route,
             Metadata,
             LayoutId,
-            configuration.HasSocialImage && IsIncludedIn(GeneratedPageDerivedSurfaces.SocialImage)
-                ? configuration.Routes.ContentSocialImage(Route).RelativeOutputPath
-                : null,
+            null,
             environmentName,
             assets,
             MarkdownSourcePath,
@@ -461,11 +502,13 @@ internal sealed class IntegratedContentPage(
                 $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
         derivedContent = context.DerivedContent ?? Content;
         MarkdownDiagnostics = context.SnapshotMarkdownDiagnostics();
+        RenderedOrigins = context.SnapshotRenderedOrigins(Content);
         return new RenderedPage(PageId, Route, Content, Metadata);
     }
 
     internal void SetMarkdownDiagnostics(IReadOnlyList<SiteDiagnostic> diagnostics) =>
         MarkdownDiagnostics = Array.AsReadOnly(diagnostics.ToArray());
+    internal void SetRenderedOrigins(RenderedHtmlOrigins? origins) => RenderedOrigins = origins;
 
     internal void SetDerivedContentProvider(Func<string?> provider) =>
         derivedContentProvider = provider ?? throw new ArgumentNullException(nameof(provider));

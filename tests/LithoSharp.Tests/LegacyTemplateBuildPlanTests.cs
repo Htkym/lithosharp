@@ -103,10 +103,24 @@ public sealed class LegacyTemplateBuildPlanTests
 
         await Assert.That(result.BuildPlan.Nodes.Count(node =>
             node.Id.Value.StartsWith("asset:favicon:", StringComparison.Ordinal))).IsEqualTo(14);
-        await Assert.That(result.BuildPlan.Nodes
-            .Where(node => node.Id.Value.StartsWith("asset:favicon:", StringComparison.Ordinal))
-            .All(node => node.Inputs.Single().Kind == BuildInputKind.File
-                         && node.Inputs.Single().Value is not null)).IsTrue();
+        foreach (var node in result.BuildPlan.Nodes
+            .Where(node => node.Id.Value.StartsWith("asset:favicon:", StringComparison.Ordinal)))
+        {
+            var fileName = node.Id.Value["asset:favicon:".Length..];
+            var fileInput = node.Inputs.Single(input => input.Kind == BuildInputKind.File);
+            var sourceBytes = await File.ReadAllBytesAsync(Path.Combine(faviconSource, fileName));
+            await Assert.That(fileInput.Key).IsEqualTo("favicon/" + fileName);
+            await Assert.That(fileInput.Value).IsEqualTo(
+                Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(sourceBytes)));
+            await Assert.That(node.Artifacts.Single().RelativeOutputPath).IsEqualTo("assets/favicon/" + fileName);
+            await Assert.That(node.Inputs.Where(input => input.Kind == BuildInputKind.Configuration)
+                .Select(input => (input.Key, input.Value))).IsEquivalentTo(new (string Key, string? Value)[]
+                {
+                    ("markdown.profile", MarkdownOptions.LegacyProfile),
+                    ("markdown.components", "[]"),
+                    ("markdown.componentReferences", "[]"),
+                });
+        }
 
         var artifactPaths = result.BuildPlan.Artifacts
             .Select(artifact => artifact.RelativeOutputPath)

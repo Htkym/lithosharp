@@ -84,6 +84,10 @@ public sealed class SiteDiagnostic
     // Distinguishes diagnostics from separate immutable rendering snapshots without
     // adding invented source positions or exposing provenance in public output.
     internal string? SnapshotIdentity { get; init; }
+    internal (int Start, int Length)? GeneratedReferenceSpan { get; init; }
+
+    /// <summary>Precision of a composed source mapping, or null when no transformation mapping was used.</summary>
+    public string? MappingPrecision { get; internal init; }
 
     // RS0027: preserve optional arguments on the legacy overload; the longer overload has no defaults.
 #pragma warning disable RS0027

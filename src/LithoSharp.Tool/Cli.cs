@@ -25,6 +25,12 @@ internal static class Cli
             return CapabilitiesCommand.Run(args[1..]);
         if (args[0] == "check-output")
             return await CheckOutputCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "okf")
+            return await OkfCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "proofread")
+            return await ProofreadCommand.RunAsync(args[1..], cancellationToken);
+        if (args[0] == "preview-csharp-rename")
+            return await CSharpRenameCommand.RunAsync(args[1..], cancellationToken);
         if (args[0] == "cache")
             return CacheCommand.Run(args[1..]);
         if (args[0] == "markdown-compat")
@@ -70,7 +76,7 @@ internal static class Cli
     {
         if (args.Length == 0 || args[0] == "__host")
             return false;
-        if (args[0] is "migrate-docusaurus" or "migrate" or "extract-translations")
+        if (args[0] is "migrate-docusaurus" or "migrate" or "extract-translations" or "preview-csharp-rename")
             return true;
         for (var index = 1; index < args.Length; index++)
         {
@@ -235,7 +241,11 @@ internal static class Cli
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration] (regenerates into temporary output)
-          lithosharp check-output -o directory --base-url url [--format text|json|sarif] (reads existing output; no generation or cache writes)
+          lithosharp check-output -o directory --base-url url [--format text|json|sarif] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; no generation or cache writes)
+          lithosharp check-output -o directory --base-url url --site-id id --initialize-baseline file (explicit create-only baseline initialization after verified publication)
+          lithosharp okf <inspect|validate|export> --input bundle-directory [--format text|json|sarif] [--as-of offset-datetime] [--strict-lint] [--base-url url] [--max-files count] [--max-discovery-entries count] [--max-file-bytes bytes] [--max-bundle-bytes bytes] [--output new-export-directory] (standalone bundle read; no project or computation execution)
+          lithosharp proofread <markdown-file> --python executable --yomiyasu lint-script [--profile id] [--protect identifier] [--format text|json] [--preview segment:start:length --replacement text] (explicit optional Yomiyasu execution; diagnostics and edit previews only)
+          lithosharp preview-csharp-rename --source caller.cs --reference metadata.dll --type metadata-type --member member --new-name identifier [--define symbol] [--format json] (explicit Roslyn caller preview; no project evaluation, generated-source edits or file writes)
           lithosharp clean [project] [-o directory] [-c configuration]
           lithosharp inspect [project] [--format text|json] [-c configuration]
           lithosharp preflight --mode static --input file.md [--input file.mdx] [--format text|json|sarif] [--worker-directory directory]

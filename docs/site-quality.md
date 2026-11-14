@@ -1,6 +1,11 @@
-# Site quality checks / サイト品質検査
+# Site quality checks
 
-## English
+<a id="site-quality-checks--サイト品質検査"></a>
+<a id="english"></a>
+<a id="日本語"></a>
+
+[日本語](site-quality.ja.md)
+
 
 Quality checks run after artifacts are written to staging and before the output
 transaction is committed. Enable them per generation with
@@ -127,81 +132,3 @@ var options = new SiteGenerationOptions
     ]
 };
 ```
-
-## 日本語
-
-品質検査は成果物をステージング領域へ書き込んだ後、出力を確定する前に実行します。検証済みの完全な無変更ビルドでは、複製せずに公開済みの出力を直接検査する場合があります。この場合も現在のバイト列とサイト全体の規則を確認します。
-生成ごとに `SiteGenerationOptions.Quality` で有効にします。`null` の場合は品質検査をせず、品質検査器からのネットワーク通信も行いません。
-
-コンパイルとコンテンツ読み込みの検査に通っていても、レイアウトによって生成後のリンクやanchorに不整合が生じる場合があります。[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では問題のある例を分離して各段階を示しています。コンパイルや再生成をせずに既存ファイルを調べる場合は[check-output](generated-output-checks.ja.md)を使ってください。
-
-```csharp
-using LithoSharp.Diagnostics;
-using LithoSharp.Quality;
-
-var options = new SiteGenerationOptions
-{
-    Quality = new SiteQualityOptions(
-        failureThreshold: SiteDiagnosticSeverity.Warning,
-        checkOrphans: true)
-};
-```
-
-既定では `Error` 以上の診断で生成に失敗します。`Warning` を指定すると警告も失敗として
-扱います。検査が失敗しても、前回確定した出力は維持されます。レポートは
-`SiteQualityReport.Format` により `Text`、`Json`、SARIF 2.1.0 の各形式で出力できます。
-
-最終 HTML の検査には宣言済みの `.html`／`.htm` 資産と部分ビルドで保持するページも
-含まれます。解析器の未対応範囲や処理上限、キャンセル、検査後の bytes の変更を
-検出した場合は公開を止め、前回公開した出力を維持します。
-
-HTML の局所的な観測値は内容ハッシュと解析・観測処理の実装版をキーにして、
-出力別の既存 build cache に保存します。参照先、anchor、canonical URL、サイト全体の
-規則は毎回現在の計画で検査します。再利用を無効にする場合は
-`SiteGenerationOptions.HtmlFactsCacheEnabled = false` を指定します。`QualityReport.HtmlParseCount` と
-`HtmlFactsCacheHitCount` は最終 HTML の解析件数と再利用件数です。検査未実施時は
-どちらも 0 です。
-
-出力ごとに最大 128 レコード・32 MiB、1 レコードあたり最大 1 MiB を保存します。保存待ちの
-レコードも同じ上限を持ち、生成後に解放します。tree やキャンセルトークンは保持しません。
-公開が成功した後に保存し、古いレコードを削除します。欠落、破損、実装版の不一致、
-上限超過、読み書きの失敗は再解析で回復します。必要な観測値が全て cache に残る
-無変更ビルドでは、最終 HTML の解析は 0 件になります。出力 bytes の読み取りと
-照合は省略しません。`SiteGenerator.ClearCache` で出力別の cache を削除できます。
-その他の build cache の保持方針は従来どおりです。
-失敗時は `SiteQualityValidationException.Report` から同じレポートを取得できます。
-
-外部 HTTP リンク検査は既定で無効です。有効にする場合は、出力ディレクトリの外にある
-キャッシュファイルを指定します。
-
-```csharp
-Quality = new SiteQualityOptions(
-    externalLinks: new ExternalLinkCheckOptions(
-        cacheFilePath: Path.Combine(cacheDirectory, "external-links.json")))
-```
-
-キャッシュの有効期間は既定で24時間、通信間隔は同一プロセス内で500ミリ秒以上、
-タイムアウトは10秒です。これらは設定で変更できます。最大10回のリダイレクトをたどり、
-HEADがHTTP 405または501を返した場合だけGETで再試行します。プライベートアドレスや
-予約・移行用アドレスへの接続は拒否し、IPv6はグローバルユニキャストに制限します。
-DNSの結果を検査してから、そのIPアドレスへ接続します。キャンセルで検査を中止できます。
-キャッシュが壊れている場合は再検査し、保存できない場合も今回の診断は返します。
-
-検査対象は内部 URL、フラグメント、canonical URL、SEO 項目、重複タイトル、ホームから
-到達できないページ、未使用の登録済みアセット、任意の外部 HTTP リンクです。HTML の URL
-属性と CSS のリテラルな `url(...)` を調べます。登録済みの `.css` アセットは正しい UTF-8
-である必要があり、不正なバイトがある場合は出力確定前に生成を中止します。生成時に組み立てる
-など、動的な CSS URL は推測できないため、検査対象になりません。
-
-組み込みレイアウトは元になる画像がない場合に画像メタデータを省き、Twitterカードを
-`summary` にします。明示した独自の画像URLは引き続き使用できます。これにより、生成されていない
-画像を従来の出力が参照していた不具合を修正しました。
-
-診断 ID と重大度は上の表のとおりです。`LSQ001` から `LSQ006` は URL、アンカー、
-canonical、リダイレクトのエラーです。`LSQ007` から `LSQ011` は孤立ページ、未使用アセット、
-重複タイトル、SEO 項目、外部リンクの警告です。
-
-リダイレクトは所有権を持つ通常のビルド成果物であり、ルート競合検査の対象です。source は
-一意で、ほかの出力と競合できません。target は存在する最終ルートを指定します。チェーンと
-循環は、品質検査を無効にしている場合も拒否されます。設定例は英語節の
-`SiteRedirect` コードを参照してください。

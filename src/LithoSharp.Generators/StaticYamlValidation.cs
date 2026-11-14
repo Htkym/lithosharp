@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -10,15 +8,12 @@ using Syntamark.Compilation;
 using SourceText = Microsoft.CodeAnalysis.Text.SourceText;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.CodeAnalysis.CSharp;
-using YamlDotNet.RepresentationModel;
-using YamlDotNet.Core;
-using YamlDotNet.Core.Events;
 
 namespace LithoSharp.Generators;
 
 internal static class StaticYamlValidation
 {
+    private static readonly MdYamlOptions TypedYamlOptions = new(maxNestingDepth: 64);
     private static readonly System.Reflection.MethodInfo? DateOnlyParser = DateTimeParser("System.DateOnly");
     private static readonly System.Reflection.MethodInfo? TimeOnlyParser = DateTimeParser("System.TimeOnly");
     private static readonly DiagnosticDescriptor StrictYaml = new("LSG005", "Invalid static content YAML", "{0}", "LithoSharp", DiagnosticSeverity.Error, true);
@@ -51,60 +46,53 @@ internal static class StaticYamlValidation
         var offset = yamlSpan.Start;
         try
         {
-            var parser = new Parser(new StringReader(yaml));
-            var depth = 0;
-            while (parser.MoveNext())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (parser.Current is AnchorAlias || parser.Current is NodeEvent nodeEvent && !nodeEvent.Anchor.IsEmpty)
-                {
-                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "YAML aliases and anchors are not supported."));
-                    return true;
-                }
-                if (parser.Current is MappingStart or SequenceStart && ++depth > 64)
-                {
-                    report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "YAML nesting is too deep."));
-                    return true;
-                }
-                if (parser.Current is MappingEnd or SequenceEnd)
-                    depth--;
-            }
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
+            var parsed = MdYamlParser.Parse(yaml, TypedYamlOptions, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            if (stream.Documents.Count != 1)
+            foreach (var diagnostic in parsed.Diagnostics)
             {
-                report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), "Front matter must contain exactly one YAML document."));
+                report(Diagnostic.Create(StrictYaml,
+                    Location(path, markdown, offset + diagnostic.RawSpan.Start, diagnostic.RawSpan.Length), diagnostic.Message));
+            }
+            if (parsed.Diagnostics.Count != 0)
+                return true;
+            if (parsed.Status != MdParseStatus.Complete)
+                return false;
+            if (parsed.Root is null)
+            {
+                report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 0), "Front matter must contain one YAML mapping."));
                 return true;
             }
-            ValidateNode(path, markdown, offset, stream.Documents[0].RootNode, frontMatter, report, string.Empty);
+            if (!parsed.Root.IsComplete)
+                return false;
+            ValidateNode(path, markdown, offset, parsed.Root, frontMatter, report, string.Empty);
         }
         catch (NotSupportedException error)
         {
             report(Diagnostic.Create(StaticContentGenerator.InvalidDeclaration, Location(path, markdown, offset, 1), error.Message));
         }
-        catch (Exception error) when (error is YamlException or ArgumentException)
+        catch (ArgumentException error)
         {
             report(Diagnostic.Create(StrictYaml, Location(path, markdown, offset, 1), error.Message));
         }
         return true;
     }
 
-    private static void ValidateNode(string path, string source, int offset, YamlNode node, ITypeSymbol type, Action<Diagnostic> report, string field)
+    private static void ValidateNode(string path, string source, int offset, MdYamlSyntaxNode node, ITypeSymbol type, Action<Diagnostic> report, string field)
     {
         if (field.Count(static character => character == '.') > 64)
         {
             report(Diagnostic.Create(StrictYaml, NodeLocation(path, source, offset, node), "YAML nesting is too deep."));
             return;
         }
-        if (node is YamlMappingNode mapping)
+        if (node.Kind == MdYamlKind.Mapping)
         {
             var members = GeneratorModel.GetMembers((INamedTypeSymbol)type);
             var byName = members.ToDictionary(member => member.YamlName, StringComparer.Ordinal);
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var pair in mapping.Children)
+            foreach (var pair in node.Entries)
             {
-                if (pair.Key is not YamlScalarNode key || IsNull(key))
+                var key = pair.Key;
+                if (key.Kind != MdYamlKind.Scalar || IsNull(key))
                 {
                     report(Diagnostic.Create(StrictYaml, NodeLocation(path, source, offset, pair.Key), "YAML mapping keys must be strings."));
                     continue;
@@ -123,17 +111,31 @@ internal static class StaticYamlValidation
             {
                 if (!seen.Contains(member.YamlName) && (member.Required || !member.AllowsNull && !member.HasDefault))
                     report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, node), $"Required YAML field '{member.YamlName}' is missing."));
+                foreach (var rule in member.RequiredWhen)
+                {
+                    var conditions = node.Entries.Where(entry => entry.Key.Kind == MdYamlKind.Scalar
+                        && string.Equals(entry.Key.Value?.Normalize(NormalizationForm.FormC), rule.Field, StringComparison.Ordinal)).ToArray();
+                    if (conditions.Length != 1 || conditions[0].Value.Kind != MdYamlKind.Scalar || IsNull(conditions[0].Value)
+                        || !string.Equals(conditions[0].Value.Value, rule.EqualsValue, StringComparison.Ordinal))
+                        continue;
+                    var target = node.Entries.FirstOrDefault(entry => entry.Key.Kind == MdYamlKind.Scalar
+                        && string.Equals(entry.Key.Value?.Normalize(NormalizationForm.FormC), member.YamlName, StringComparison.Ordinal))?.Value;
+                    if (target is null || IsNull(target) || target.Kind == MdYamlKind.Scalar && string.IsNullOrWhiteSpace(target.Value)
+                        || target.Kind == MdYamlKind.Sequence && target.Children.Count == 0 || target.Kind == MdYamlKind.Mapping && target.Entries.Count == 0)
+                        report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, target ?? node),
+                            $"Field '{member.YamlName}' is required when '{rule.Field}' equals '{rule.EqualsValue}'."));
+                }
             }
             return;
         }
         report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, node), $"Expected a mapping for '{field}'."));
     }
 
-    private static void ValidateValue(string path, string source, int offset, YamlNode node, ITypeSymbol type, bool allowsNull, Action<Diagnostic> report, string field)
+    private static void ValidateValue(string path, string source, int offset, MdYamlSyntaxNode node, ITypeSymbol type, bool allowsNull, Action<Diagnostic> report, string field)
     {
         if (type is INamedTypeSymbol nullable && nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
             type = nullable.TypeArguments[0];
-        if (node is YamlScalarNode scalar && IsNull(scalar))
+        if (IsNull(node))
         {
             if (!allowsNull)
                 report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, node), $"Field '{field}' does not allow null."));
@@ -158,15 +160,16 @@ internal static class StaticYamlValidation
             }
             if (GeneratorModel.IsDictionary(named))
             {
-                if (node is not YamlMappingNode dictionary)
+                if (node.Kind != MdYamlKind.Mapping)
                 {
                     Invalid(path, source, offset, node, report, field, "Expected a mapping.");
                     return;
                 }
                 var keys = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var pair in dictionary.Children)
+                foreach (var pair in node.Entries)
                 {
-                    if (pair.Key is not YamlScalarNode key || IsNull(key) || !keys.Add((key.Value ?? string.Empty).Normalize(NormalizationForm.FormC)))
+                    var key = pair.Key;
+                    if (key.Kind != MdYamlKind.Scalar || IsNull(key) || !keys.Add((key.Value ?? string.Empty).Normalize(NormalizationForm.FormC)))
                         report(Diagnostic.Create(StrictYaml, NodeLocation(path, source, offset, pair.Key), "Dictionary keys must be unique non-null strings."));
                     ValidateValue(path, source, offset, pair.Value, named.TypeArguments[1], GeneratorModel.AllowsNull(named.TypeArguments[1]), report, field);
                 }
@@ -176,8 +179,8 @@ internal static class StaticYamlValidation
         if (type.TypeKind == TypeKind.Enum)
         {
             var names = type.GetMembers().OfType<IFieldSymbol>().Where(static field => field.HasConstantValue).Select(static field => field.Name).ToArray();
-            if (node is not YamlScalarNode enumScalar || !(ScalarValid(enumScalar.Value, ((INamedTypeSymbol)type).EnumUnderlyingType!)
-                || enumScalar.Value is not null && enumScalar.Value.Split(',').All(part => names.Contains(part.Trim(), StringComparer.Ordinal))))
+            if (node.Kind != MdYamlKind.Scalar || !(ScalarValid(node.Value, ((INamedTypeSymbol)type).EnumUnderlyingType!)
+                || node.Value is not null && node.Value.Split(',').All(part => names.Contains(part.Trim(), StringComparer.Ordinal))))
                 Invalid(path, source, offset, node, report, field, "Invalid enum value.");
             return;
         }
@@ -186,35 +189,36 @@ internal static class StaticYamlValidation
             ValidateNode(path, source, offset, node, type, report, field);
             return;
         }
-        if (node is not YamlScalarNode value || !ScalarValid(value.Value, type))
+        if (node.Kind != MdYamlKind.Scalar || !ScalarValid(node.Value, type))
             Invalid(path, source, offset, node, report, field, "Value cannot be converted to the declared type.");
     }
 
-    private static void ValidateSequence(string path, string source, int offset, YamlNode node, ITypeSymbol element, Action<Diagnostic> report, string field)
+    private static void ValidateSequence(string path, string source, int offset, MdYamlSyntaxNode node, ITypeSymbol element, Action<Diagnostic> report, string field)
     {
-        if (node is not YamlSequenceNode sequence)
+        if (node.Kind != MdYamlKind.Sequence)
         {
             Invalid(path, source, offset, node, report, field, "Expected a sequence.");
             return;
         }
-        foreach (var item in sequence.Children)
+        foreach (var item in node.Children)
             ValidateValue(path, source, offset, item, element, GeneratorModel.AllowsNull(element), report, field);
     }
 
-    private static void ValidateUntypedNode(string path, string source, int offset, YamlNode node, Action<Diagnostic> report)
+    private static void ValidateUntypedNode(string path, string source, int offset, MdYamlSyntaxNode node, Action<Diagnostic> report)
     {
-        if (node is YamlMappingNode mapping)
+        if (node.Kind == MdYamlKind.Mapping)
         {
             var keys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var pair in mapping.Children)
+            foreach (var pair in node.Entries)
             {
-                if (pair.Key is not YamlScalarNode key || IsNull(key) || !keys.Add((key.Value ?? string.Empty).Normalize(NormalizationForm.FormC)))
+                var key = pair.Key;
+                if (key.Kind != MdYamlKind.Scalar || IsNull(key) || !keys.Add((key.Value ?? string.Empty).Normalize(NormalizationForm.FormC)))
                     report(Diagnostic.Create(StrictYaml, NodeLocation(path, source, offset, pair.Key), "Mapping keys must be unique non-null strings."));
                 ValidateUntypedNode(path, source, offset, pair.Value, report);
             }
         }
-        else if (node is YamlSequenceNode sequence)
-            foreach (var item in sequence.Children)
+        else if (node.Kind == MdYamlKind.Sequence)
+            foreach (var item in node.Children)
                 ValidateUntypedNode(path, source, offset, item, report);
     }
 
@@ -251,7 +255,7 @@ internal static class StaticYamlValidation
         if (type.SpecialType == SpecialType.System_Decimal)
             return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
         if (type.SpecialType == SpecialType.System_DateTime)
-            return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
+            return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out _);
         var name = type.ToDisplayString().TrimEnd('?');
         if (name is "System.DateOnly" or "System.TimeOnly")
         {
@@ -261,7 +265,7 @@ internal static class StaticYamlValidation
             return (bool)method.Invoke(null, new object?[] { value, CultureInfo.InvariantCulture, DateTimeStyles.None, null })!;
         }
         if (name == "System.DateTimeOffset")
-            return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
+            return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out _);
         if (name == "System.TimeSpan")
             return TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out _);
         if (name == "System.Guid")
@@ -271,20 +275,14 @@ internal static class StaticYamlValidation
         return true;
     }
 
-    private static bool IsNull(YamlScalarNode node) =>
-        node.Style is ScalarStyle.Any or ScalarStyle.Plain
-        && (string.Equals(node.Value, "null", StringComparison.OrdinalIgnoreCase) || node.Value == "~" || (node.Value ?? string.Empty).Length == 0);
+    private static bool IsNull(MdYamlSyntaxNode node) =>
+        node.Kind == MdYamlKind.Scalar && node.ScalarKind == MdYamlScalarKind.Null;
 
-    private static void Invalid(string path, string source, int offset, YamlNode node, Action<Diagnostic> report, string field, string message) =>
+    private static void Invalid(string path, string source, int offset, MdYamlSyntaxNode node, Action<Diagnostic> report, string field, string message) =>
         report(Diagnostic.Create(Conversion, NodeLocation(path, source, offset, node), $"{field}: {message}"));
 
-    private static Location NodeLocation(string path, string source, int offset, YamlNode node)
-    {
-        var text = SourceText.From(source);
-        var baseLine = text.Lines.GetLineFromPosition(Math.Min(offset, text.Length)).LineNumber;
-        var yamlStart = text.Lines[Math.Min(baseLine + checked((int)node.Start.Line) - 1, text.Lines.Count - 1)].Start;
-        return Location(path, source, yamlStart + checked((int)node.Start.Column) - 1, Math.Max(1, checked((int)(node.End.Column - node.Start.Column))));
-    }
+    private static Location NodeLocation(string path, string source, int offset, MdYamlSyntaxNode node) =>
+        Location(path, source, offset + node.RawSpan.Start, node.RawSpan.Length);
 
     private static System.Reflection.MethodInfo? DateTimeParser(string name)
     {

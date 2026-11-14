@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
@@ -21,7 +21,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>2.2.0 connects typed content collections to the Docs shell and navigation, provides a typed Docs template with explicit output quality checks, and clarifies editor validation scope. Syntamark remains at the verified 1.2.0 runtime/Source pair. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>3.0.0 adopts native YAML, separates optional PNG processing from Core, and adds typed Markdown components, profile selection, schema-based editing and explicit publication checks. See https://github.com/Htkym/lithosharp/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -29,6 +29,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('3.'))">2.2.0</PackageValidationBaselineVersion>
     <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.'))">1.1.0</PackageValidationBaselineVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <ApiCompatValidateAssemblies>true</ApiCompatValidateAssemblies>
@@ -36,6 +37,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Search/query.mjs" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="icon.png" Pack="true" PackagePath="\" />
     <None Include="..\..\licenses\WHATWG.HTML.LICENSE.txt" Pack="true" PackagePath="licenses/WHATWG.HTML.LICENSE.txt" />
@@ -43,6 +45,8 @@
 
   <ItemGroup>
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Internal/StaticApiGuards.cs" />
+    <Compile Include="../Shared/ContentInputPolicy.cs" Link="Content/ContentInputPolicy.cs" />
+    <Compile Include="../Shared/ContentMemberNaming.cs" Link="Content/ContentMemberNaming.cs" />
     <Compile Include="../Shared/SiteQualityUrlRules.cs" Link="Internal/SiteQualityUrlRules.cs" />
     <Compile Include="..\..\eng\markdown\MarkdownYamlIdentity.cs" Link="Hosting\MarkdownYamlIdentity.cs" />
     <!-- Immutable MD-05 runtime; component version is independent of the Core version. -->
@@ -50,9 +54,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="4.153.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
-    <PackageReference Include="YamlDotNet" Version="18.1.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0"
                       PrivateAssets="all"
                       IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />

@@ -9,6 +9,9 @@ internal sealed record MarkdownCompilerOptions(
     string SyntaxProfile,
     string OutputProfile)
 {
+    /// <summary>The shared parser profile and explicit component registrations.</summary>
+    public MarkdownOptions Markdown { get; init; } = new();
+
     /// <summary>Current behavior: Litho with advanced extensions and disabled HTML.</summary>
     public static MarkdownCompilerOptions Default { get; } =
         new(Frontend: "lithosharp", SyntaxProfile: "advanced", OutputProfile: "disable-html");

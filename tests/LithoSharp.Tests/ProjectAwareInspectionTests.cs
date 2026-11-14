@@ -36,6 +36,31 @@ public sealed class ProjectAwareInspectionTests
     private const string Body = "---\ntitle: Hello\n---\n# Hello\n";
 
     [Test]
+    public async Task AcquiredSemanticRulesCheckLiteralFieldsAndDeferPublicationCode()
+    {
+        var path = Path.GetFullPath("semantic-intro.md");
+        var key = new DocumentKey("guides", "current", "en", "intro");
+        var semanticSnapshot = new DocumentSemanticSnapshot(new DocumentCatalog([]),
+            [new DocumentSemanticDocument(key, path, new Dictionary<string, object?> { ["kind"] = "api" },
+                DocumentSemanticPublication.Unknown, true)], true);
+        var rules = new DocumentSemanticRuleSet([
+            DocumentSemanticRule.RequiredWhen("supported_version", "kind", "api"),
+            DocumentSemanticRule.RequiredWhenPublished("license"),
+        ]);
+        var project = ProjectInspectionSnapshot.Create("semantic-project", 1, "guides", "markdown", "custom", "current", "en")
+            .WithSemantics("sha256:" + new string('1', 64), semanticSnapshot,
+                new Dictionary<string, DocumentSemanticRuleSet> { ["guides"] = rules });
+        var restored = ProjectInspectionSnapshot.ParseJson(project.ToJson());
+        var info = Inspect(path, "---\nkind: api\nsupported_version: ''\n---\nBody", restored);
+
+        var literal = info.SemanticAssessments.Single(assessment => assessment.Rule.Kind == DocumentSemanticRuleKind.RequiredWhen);
+        await Assert.That(literal.State).IsEqualTo(DocumentSemanticState.Failed);
+        await Assert.That(literal.Diagnostics.Single().Location!.Line).IsEqualTo(3);
+        await Assert.That(info.SemanticAssessments.Single(assessment => assessment.Rule.Kind == DocumentSemanticRuleKind.RequiredWhenPublished).State)
+            .IsEqualTo(DocumentSemanticState.Deferred);
+    }
+
+    [Test]
     public async Task NoContext_KeepsLegacyEchoBehavior()
     {
         var info = Inspect("docs/a.md", Body, project: null, route: "/docs/a/", version: "v1", locale: "en");

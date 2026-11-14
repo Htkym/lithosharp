@@ -520,7 +520,9 @@ finally {
         try { return (Get-Http "$url/typed/one/").StatusCode -eq 200 } catch { return $false }
     } 'serve startup'
     $html = (Get-Http "$url/typed/one/").Content
-    Assert-True ($html.Contains("EventSource('/_lithosharp/reload')") -and $html.Contains('layout-v1')) 'Serve omitted HTML reload injection or custom layout.'
+    Assert-True ($html.Contains('src="/_lithosharp/reload.js"') -and $html.Contains('layout-v1')) 'Serve omitted HTML reload injection or custom layout.'
+    $reloadClient = Get-Http "$url/_lithosharp/reload.js"
+    Assert-True ($reloadClient.StatusCode -eq 200 -and $reloadClient.Content.Contains("EventSource('/_lithosharp/reload')")) 'Serve omitted the external reload client.'
     Assert-True (!(Get-Content -LiteralPath (Join-Path $serverOutput 'typed/one/index.html') -Raw).Contains('EventSource(')) 'Serve persisted its injected client into production output.'
 
     $handler = [Net.Http.HttpClientHandler]::new()

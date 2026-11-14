@@ -1,6 +1,6 @@
 # Testing v2 snapshot and query contract
 
-LithoSharp.Testing 2.2.0 uses the v2 read-only snapshot API. It replaces the 1.x mutable third-party DOM getter with a LithoSharp-owned tree. Existing Parse, RenderComponent, RenderLayout, AssertElement/Text/Attribute/Meta/Link/Image and the disposable SiteTestDocument ownership pattern remain. Document removal is a source and binary breaking change; the old DOM type is not emulated. For an introduction and whole-site tests, start with [Testing sites](testing.md).
+LithoSharp.Testing 3.0.0 uses the v2 read-only snapshot API. It replaces the 1.x mutable third-party DOM getter with a LithoSharp-owned tree. Existing Parse, RenderComponent, RenderLayout, AssertElement/Text/Attribute/Meta/Link/Image and the disposable SiteTestDocument ownership pattern remain. Document removal is a source and binary breaking change; the old DOM type is not emulated. For an introduction and whole-site tests, start with [Testing sites](testing.md).
 
 Testing and its Core dependency have no AngleSharp package dependency or assembly reference. The product uses its own HTML parser and query snapshots.
 

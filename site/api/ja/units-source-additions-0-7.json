@@ -1,0 +1,446 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "04254d9d2dd3612e86b353f23619dbdeefd4961c5401f06f8778dd5fb01acafa": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/5031/summary"
+      ],
+      "english": "Explicit optional Yomiyasu 3.x JSON-format-2 integration. No executable is discovered or installed automatically.",
+      "japanese": "明示的に選択する、任意の Yomiyasu 3.x JSON 形式2との連携です。実行ファイルを自動で検出したりインストールしたりすることはありません。"
+    },
+    "063ee49796d6d09c4132941987f5303ac85c4aad3cd2f52093d9c7c3fb8821d5": {
+      "contexts": [
+        "src/LithoSharp/Inspection/FrontMatterSchemaSnapshot.cs/1429/summary"
+      ],
+      "english": "Constructors, setters, dynamic defaults and custom validators still require a build.",
+      "japanese": "コンストラクター、setter、動的な既定値、カスタムバリデーターの検証には、引き続きビルドが必要です。"
+    },
+    "06c3b0504073f0a7c1a25dc48c8a74e1191efefee84fc8b25541429120ba9fa9": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/3933/summary"
+      ],
+      "english": "The declared props type. Editors use the schema instead of inspecting or instantiating this type.",
+      "japanese": "宣言された props の型。エディターはこの型の検査やインスタンス化をせず、スキーマを使用します。"
+    },
+    "08dd01182dbae369f8295ead0e18ca4c4f09d2795fd663cea75d6fbd4c7d3395": {
+      "contexts": [
+        "src/LithoSharp.Mdx/DocumentationSite.cs/6724/summary"
+      ],
+      "english": "Assessments from the latest metadata capture; deferred constraints are not validated.",
+      "japanese": "直近に取得したメタデータに基づく評価結果。保留された制約は検証していません。"
+    },
+    "09071aa952060d0a1a34fc66431de7a406d94c2c2597ffbe3d6768208adf8e4f": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/560/summary"
+      ],
+      "english": "Decoded prose from one native projection. Gaps around excluded content remain separate segments.",
+      "japanese": "1つのネイティブな投影からデコードした文章。除外した内容の前後にある部分は、別々のセグメントのまま保持します。"
+    },
+    "0977068550e3e856f1846625c660c84a9696613c85135f3a8a63b5441c57b4c2": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownFrontMatterYaml.cs/3529/summary"
+      ],
+      "english": "Reads a DTO mapping using the strict reflection binder, snake_case names, and ContentName/ContentIgnore.",
+      "japanese": "厳密なリフレクションバインダー、snake_case の名前、ContentName／ContentIgnore を使用して DTO のマッピングを読み取ります。"
+    },
+    "09f49c7793508cd516587fbfb96ec2cdf9b47864c146cd62554d2e6d553c27ba": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/970/summary"
+      ],
+      "english": "A declarative constraint evaluated without executing document or component code.",
+      "japanese": "文書やコンポーネントのコードを実行せずに評価する、宣言的な制約。"
+    },
+    "09f9a0662cb6bcf5c87f536a633fbf9fef6ee59d792c17b19865f253f2bfd1f3": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentCatalog.cs/1887/summary"
+      ],
+      "english": "The product version supported by this document, checked only by an explicitly registered semantic rule.",
+      "japanese": "この文書が対応する製品バージョン。明示的に登録した意味規則だけが検査します。"
+    },
+    "0b3a29f4bef09be53dc7004fb8bd833a379e4d2dcafccc960e7c78a11533926f": {
+      "contexts": [
+        "src/LithoSharp/SiteGenerationOptions.cs/265/summary"
+      ],
+      "english": "Markdown interpretation used for body rendering and persistent parse-cache identities.",
+      "japanese": "本文のレンダリングと永続的な解析キャッシュの識別に使用する、Markdown の解釈方法。"
+    },
+    "0dacbe5b517d2041fada9480a50f157da031377e01d441075c0455b312c0b0a5": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfSite.cs/623/summary"
+      ],
+      "english": "Connects available bundle documents to existing content publication, routing and Docs navigation.",
+      "japanese": "利用できるバンドル文書を、既存のコンテンツ公開、ルーティング、Docs ナビゲーションに接続します。"
+    },
+    "0daf330c05d69fcf60691fb19eeaecf7e8017feb89b389671aef59415b7b27c8": {
+      "contexts": [
+        "src/LithoSharp.Mdx/DocumentationSite.cs/2613/summary"
+      ],
+      "english": "Explicit ordinary-document constraints. OKF bundles use their own conformance policy.",
+      "japanese": "通常の文書に明示的に指定する制約。OKF バンドルは独自の適合性ポリシーを使用します。"
+    },
+    "127782d168f2e760ff7a8716ae25c690185f0f0811a451e0dc237512a56dc496": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfSite.cs/5959/summary"
+      ],
+      "english": "Publishes captured auxiliary files through the existing transactional asset pipeline without image transforms.",
+      "japanese": "画像変換を行わず、既存のトランザクション方式のアセット処理を使って、取得済みの補助ファイルを公開します。"
+    },
+    "12b92f9c49a911b5f69032d8f46c76fbaf44e623ddcbabefec814416b2744b87": {
+      "contexts": [
+        "src/LithoSharp/Content/Compilation/MarkdownComponentRendering.cs/251/summary"
+      ],
+      "english": "Diagnostics for explicitly selected static Markdown components.",
+      "japanese": "明示的に選択した静的 Markdown コンポーネントの診断。"
+    },
+    "1569c784a765c203269775b3a2518d531f227b962b165d24be447facee35a88d": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/2188/summary"
+      ],
+      "english": "Serializable static descriptors for explicitly acquired editor contexts.",
+      "japanese": "明示的に取得したエディターコンテキスト用の、シリアライズ可能な静的 descriptor。"
+    },
+    "191a27c5d95545f6711e53ab284f224d6e0e658dddcd2fe0053716e81952808b": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/ProseSelection.cs/222/summary"
+      ],
+      "english": "One excluded source range and the editorial policy responsible for excluding it.",
+      "japanese": "除外した1つのソース範囲と、その除外の根拠となった編集ポリシー。"
+    },
+    "1b4ec84210a32e22e68d68062770931e14cbb63c0325d220651a6d716fd97f08": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfBundle.cs/493/summary"
+      ],
+      "english": "The maximum number of files and directories inspected during discovery.",
+      "japanese": "入力の検出中に検査する、ファイルとディレクトリの最大数。"
+    },
+    "1c28babb51925d32236df028c1c6df66e72ae6456c9e201f3a1a24d9753558f9": {
+      "contexts": [
+        "src/LithoSharp/Diagnostics/SiteDiagnostic.cs/3037/summary"
+      ],
+      "english": "Precision of a composed source mapping, or null when no transformation mapping was used.",
+      "japanese": "合成したソース対応付けの精度。変換の対応付けを使っていない場合は null。"
+    },
+    "1f1756cae2269abd528165ffe54caa52044ba8080459b6e841b47cfa69bc66c4": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/9680/summary"
+      ],
+      "english": "Static component metadata. It contains no component instance, binder, or factory.",
+      "japanese": "静的なコンポーネントのメタデータ。コンポーネントのインスタンス、バインダー、ファクトリーは含みません。"
+    },
+    "201de307c99238775b053e7c3940d638ca230ad66cf5dec0bd1d92715cbbccf1": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/952/summary"
+      ],
+      "english": "Explicitly registered typed components. Only the documentation profile enables their syntax.",
+      "japanese": "明示的に登録した型付きコンポーネント。その構文を有効にするのはドキュメント用プロファイルだけです。"
+    },
+    "228a0d3ee79b55ec4b68f5547c5f6920ecaf8682f6b86590048901a3b3624cef": {
+      "contexts": [
+        "src/LithoSharp/Content/ReflectionContentFrontMatterBinder.cs/727/summary"
+      ],
+      "english": "Requires a public parameterless constructor. Uses snake_case unless ContentName supplies a name; absent members keep constructor/initializer values.",
+      "japanese": "public で引数のないコンストラクターが必要です。ContentName で名前を指定しない場合は snake_case を使用します。入力にないメンバーはコンストラクターや初期化子の値を保持します。"
+    },
+    "22fc94b1a7ff7162f43ec62c4c10aa6e66d1a0f7907063068525b8fcdfff7f77": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfExport.cs/395/remarks"
+      ],
+      "english": "Requires a complete file snapshot and a new destination outside the input tree. Syntax conformance is independent of preservation.",
+      "japanese": "完全なファイルスナップショットと、入力ツリーの外にある新しい出力先が必要です。構文への適合性と、内容の保持は独立しています。"
+    },
+    "23182f4b248f0958f689c58846af9033c5c68ff8e4c2f25e7542e0e19f575d77": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/9940/summary"
+      ],
+      "english": "The result of resolving one declared document identity against captured catalog evidence.",
+      "japanese": "宣言した1つの文書の識別情報を、取得済みのカタログ情報に照らして解決した結果。"
+    },
+    "234d0bf9dc58ae6b9e0bc2faa5c34549b01ad11175eb494e3bbda6a382373bbe": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/3876/remarks"
+      ],
+      "english": "Declare all reference, package-lock, SDK configuration, source and test inputs in validationInputs. Asset dependencies are not supported. The effective SDK version is captured separately.",
+      "japanese": "すべての参照、パッケージロック、SDK 設定、ソース、テストの入力を validationInputs に宣言してください。アセットの依存関係には対応しません。実際に使用する SDK バージョンは別に取得します。"
+    },
+    "27d14906456c41d8da9662f3449ead0d3f7271da649ce382d8341765eed1dad4": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceSnapshot.cs/2252/summary"
+      ],
+      "english": "A parser-recognized link or heading; no positions are inferred from string searches.",
+      "japanese": "パーサーが認識したリンクまたは見出し。文字列検索から位置を推測することはありません。"
+    },
+    "2b4f25e1e6d5167f219a3b3c8f0f0049a74edf33ecb17a3b97da82341ea132b1": {
+      "contexts": [
+        "src/LithoSharp/Inspection/FrontMatterSchemaSnapshot.cs/238/summary"
+      ],
+      "english": "Generated static constraints for an explicitly acquired project revision and exact input membership.",
+      "japanese": "明示的に取得したプロジェクトのリビジョンと、正確な入力集合に対応する、生成された静的制約。"
+    },
+    "307224e8965095807f8b17cc4ab8b2f006d5dbb35889f3414ad497fb8669fc9f": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticJson.cs/2085/summary"
+      ],
+      "english": "Captures evidence for explicit editor context. This operation does not execute a project.",
+      "japanese": "明示的なエディターコンテキスト用に情報を取得します。この処理はプロジェクトを実行しません。"
+    },
+    "33b8da1f4a5e9ef59c6692bd35493121f68741acbd0158f1c07be3506a16913b": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/2082/summary"
+      ],
+      "english": "One editorial finding. Line-only findings deliberately cannot certify an exact replacement.",
+      "japanese": "1件の編集上の指摘。行だけを示す指摘では、仕様上、正確な置換を証明できません。"
+    },
+    "359a894517a63bf84b03da6ee70f64b2036e2ecf2217cbe65e10132b9a7f7ca9": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceEdits.cs/12694/summary"
+      ],
+      "english": "Plans a physical move and known Markdown references. A new public route is never inferred from the filename.",
+      "japanese": "物理的なファイル移動と、既知の Markdown 参照の変更を計画します。ファイル名から新しい公開ルートを推測することはありません。"
+    },
+    "359ae609ae8894081d0b443aeda571dc8222915563174da61135755961b818b8": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/2086/summary"
+      ],
+      "english": "One explicit execution or inspection; a previous success is never implicitly promoted to a new run.",
+      "japanese": "明示的に行う1回の実行または検査。以前の成功を、暗黙に新しい実行の成功として扱うことはありません。"
+    },
+    "362197f3a3c252877f7cff38e729c6937186efdc03561a8b71510d14b0804e38": {
+      "contexts": [
+        "src/LithoSharp/Inspection/FrontMatterSchema.cs/1494/summary"
+      ],
+      "english": "Whether runtime defaults or member code can add constraints unavailable to static inspection.",
+      "japanese": "実行時の既定値やメンバーのコードによって、静的検査では取得できない制約が追加される可能性があるかどうか。"
+    },
+    "381cfdce6a869118cdafcb141f52bd15692f8e1d68cfc9a625226cb3dbd641c3": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/272/summary"
+      ],
+      "english": "The compatibility profile retained by existing sites.",
+      "japanese": "既存サイトで維持する互換性プロファイル。"
+    },
+    "3921071e04a5d1f8715628aab0c37074a77c7d0bc99df8984f7ab7ecd7c89f76": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/3783/summary"
+      ],
+      "english": "The input policy explicitly captured during project acquisition.",
+      "japanese": "プロジェクトの取得時に明示的に記録した入力ポリシー。"
+    },
+    "3a12b083fbe714d1319d2d1b5aae8d92fb3077419cde71f06bcaa7f48e5d4d00": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentNameAttribute.cs/413/summary"
+      ],
+      "english": "Sets the name used by content binders and schemas.",
+      "japanese": "コンテンツのバインダーとスキーマが使用する名前を設定します。"
+    },
+    "3ad93d3ce9b01a59db33d2a330bac123a143b7741f13a9903fb2401d68f5a47d": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/4331/summary"
+      ],
+      "english": "Inputs consumed by binding or rendering.",
+      "japanese": "バインドまたはレンダリングで使用する入力。"
+    },
+    "3b685c7d86fa16cc500e526798d7d3b2d2288448da6203c6b3c907d3cd6ca5ab": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfLinks.cs/307/summary"
+      ],
+      "english": "An original Markdown relation and its optional public URL projection.",
+      "japanese": "元の Markdown の関係と、省略可能な公開 URL への投影。"
+    },
+    "3dd43b25fa011846f3e669b5511f2e5a8b9da38bb520a5791fcbb20290a17ed3": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "A stable identity for all captured configuration. Change it when that configuration changes.",
+      "japanese": "取得したすべての設定に対する安定した識別情報。設定が変わった場合は、この識別情報も変更してください。"
+    },
+    "3e9a2a6969bc5d83dc8f7df172f584f20eeaa8bd829984a8757e0b1d07186e55": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfSite.cs/623/remarks"
+      ],
+      "english": "Draft, stale and unverified OKF records remain readable by default. Supply an explicit mapper and fingerprint to change publication.",
+      "japanese": "下書きの OKF レコード、古いレコード、未検証のレコードも、既定では読める状態を維持します。公開方法を変更するには、明示的なマッパーとフィンガープリントを指定してください。"
+    },
+    "421bab14aabe4e1e8eb7630c73ce276cbbb86f7a7b0f0d881f0e7e5b4f7866bd": {
+      "contexts": [
+        "src/LithoSharp/Content/ContentNameAttribute.cs/600/summary"
+      ],
+      "english": "The content field name.",
+      "japanese": "コンテンツのフィールド名。"
+    },
+    "4781e3c4d7010c0e56d7af1b9d901ad99e1f3dcb83cb45d8f0cc3896aca7a095": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/570/summary"
+      ],
+      "english": "Copies registrations and rejects duplicate component names.",
+      "japanese": "登録内容をコピーし、コンポーネント名の重複を拒否します。"
+    },
+    "491b4bf0c2902f68d2d10ab3db89d24ddff94a2fb2a5d522705d955ec04eb0e9": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/771/summary"
+      ],
+      "english": "The exact supported parser profile identifier. The default preserves existing output.",
+      "japanese": "対応するパーサープロファイルの正確な識別子。既定値は既存の出力を維持します。"
+    },
+    "497f27f90f1b2f1c48518dacfeef69b5bfdae4b2d58d4adf5c963bee8e5e4674": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/1458/summary"
+      ],
+      "english": "A captured OKF relation from the bundle reader, attached to its existing acquired source route.",
+      "japanese": "バンドルリーダーから取得し、既存の取得済みソースルートに付けた OKF の関係。"
+    },
+    "4a9231ac3af2b0f23d75b2f1ea4aa5548627eb492c0aed629d5e2e0e85de0984": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/9826/summary"
+      ],
+      "english": "Creates metadata for one explicitly acquired component registration.",
+      "japanese": "明示的に取得した1つのコンポーネント登録のメタデータを作成します。"
+    },
+    "4e3ad1ab7376fa0a0f4c3038f747f577afd1b0f3f5623a306591fc093e5a4a45": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceEdits.cs/3342/summary"
+      ],
+      "english": "Validates every version and entire original buffer before returning changed text; performs no file writes.",
+      "japanese": "変更後のテキストを返す前に、すべてのバージョンと元のバッファー全体を検証します。ファイルへの書き込みは行いません。"
+    },
+    "557335af7a769d70923f41dc6cd72ea3120dfb4c7610f62c1167b6f6985b4d85": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceSnapshot.cs/4645/remarks"
+      ],
+      "english": "Construction performs no disk access or user-code execution. Missing captures do not prove that references are absent.",
+      "japanese": "構築時には、ディスクへのアクセスもユーザーコードの実行も行いません。取得情報の不足は参照が存在しないことの証明にはなりません。"
+    },
+    "5667a111d0db46aca0bbd4dc29eef9b89d62013f837d31b88a11b2d2e3d578cf": {
+      "contexts": [
+        "src/LithoSharp/Content/GeneratedContentBindingContext.cs/3572/summary"
+      ],
+      "english": "Checks a declarative conditional requirement against the original parsed values.",
+      "japanese": "宣言された条件付きの必須要件を、元の解析済みの値に照らして検査します。"
+    },
+    "57a4d1be5ba65621b382669d2703d3c14651bf0e21930f01d0acdd3e79ce9418": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownOptions.cs/429/summary"
+      ],
+      "english": "The CommonMark 0.31.2 profile without documentation extensions.",
+      "japanese": "ドキュメント用の拡張を含まない CommonMark 0.31.2 プロファイル。"
+    },
+    "5e351ceed82a8fa4c6332a48c438ad55d4a31bfdfc194e89aaa4add7732d56fc": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/3140/summary"
+      ],
+      "english": "A component and typed binder selected explicitly by trusted site configuration.",
+      "japanese": "信頼するサイト設定で明示的に選択したコンポーネントと型付きバインダー。"
+    },
+    "60a54ba78b9b675be98d76d32cea8e5c1a112c43a19057e5146de8f85cb48b5f": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfWriter.cs/1627/summary"
+      ],
+      "english": "A new auxiliary snapshot. Scripts and computation files remain inert bytes.",
+      "japanese": "新しい補助スナップショット。スクリプトと計算用ファイルは、実行しないバイト列のまま保持します。"
+    },
+    "640107eb94072a9690bf0a99b0939a2d4afe66147726cee6765c4a797ccf7ee2": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSnippetVerification.cs/1769/summary"
+      ],
+      "english": "The optional TUnit tree-node filter passed as one argument.",
+      "japanese": "1つの引数として渡す、省略可能な TUnit のツリーノードフィルター。"
+    },
+    "6517b3fd646704d71b287d0fa323810235ca3a89c07ab8e3287d8bb220a4d553": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/2365/summary"
+      ],
+      "english": "Declared inputs. File paths are relative to their registration's dependency root.",
+      "japanese": "宣言した入力。ファイルパスは各登録の依存関係ルートからの相対パスです。"
+    },
+    "6b48833bbf44d83f4a1111ee29f96ee578eaa8060342aee77e2c95506008092b": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "An ASCII letter followed by letters, digits, underscores, or hyphens.",
+      "japanese": "先頭が ASCII の英字で、その後に英字、数字、アンダースコア、ハイフンを使用する名前。"
+    },
+    "6b5170befbed9716a7dd426532ecb6722ed918cd58dc01144cd1e57ffeb2d0b7": {
+      "contexts": [
+        "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/1526/summary"
+      ],
+      "english": "Requires the same source identity, version, text hash and expected original text.",
+      "japanese": "同じソース識別情報、バージョン、テキストハッシュ、元の期待テキストが必要です。"
+    },
+    "6c6d002c7df3fc850954c0c6669d586c0852eba6da62cbcd35049c6b424054d5": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/12452/summary"
+      ],
+      "english": "Null explicitly asserts a global universe; otherwise absence is proved only within these scopes.",
+      "japanese": "null は、対象集合が全体であるという明示的な宣言です。それ以外の場合、不存在を証明できるのはこれらのスコープ内だけです。"
+    },
+    "6c8b46989b014a4ce452541b8fcd12b6add12efaac56cc2e86e2ec74657488c2": {
+      "contexts": [
+        "src/LithoSharp/Inspection/ProjectInspectionSnapshot.cs/273/summary"
+      ],
+      "english": "Static input classification acquired with the project; it makes no route or reference-closure claim.",
+      "japanese": "プロジェクトとともに取得した静的な入力分類。ルートや参照の網羅性を主張するものではありません。"
+    },
+    "7029726832b02197708b1cb7f11fa85b2ce72d0b86df0647002f6652867e1222": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfWriter.cs/3582/remarks"
+      ],
+      "english": "No Date, Draft or Sources property is inferred from ordinary content. An explicitly supplied alternative is a producer declaration, not a guarantee about every Markdown implementation.",
+      "japanese": "通常のコンテンツから Date、Draft、Sources のプロパティを推測することはありません。明示的に指定した代替本文は、生成側による宣言であり、すべての Markdown 実装に対する保証ではありません。"
+    },
+    "7196cefb59ad7fcdf85cfe7d8233abdbb612f53c994dc180ac500fcbba65ed1e": {
+      "contexts": [
+        "src/LithoSharp/Documentation/DocumentSemanticRules.cs/10548/summary"
+      ],
+      "english": "Published routing plus captured metadata. Completeness must cover the entire declared reference universe.",
+      "japanese": "公開済みのルーティングと取得済みのメタデータ。完全性は宣言した参照対象の範囲全体を満たす必要があります。"
+    },
+    "71daba29b6283468623ee9928745ecbf30befadbae5a7e5373ba536a4cecebe3": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfExport.cs/395/summary"
+      ],
+      "english": "Copies the captured bundle without executing code or changing any file bytes.",
+      "japanese": "コードを実行せず、どのファイルのバイト列も変更せずに、取得済みのバンドルをコピーします。"
+    },
+    "72437e07688fa4d856fa51d1413859360447765a05ca7b574f51c59456f3e228": {
+      "contexts": [
+        "src/LithoSharp/OpenKnowledge/OkfMetadata.cs/1785/summary"
+      ],
+      "english": "Noncoercing known views over the original ordered YAML tree.",
+      "japanese": "元の順序付き YAML ツリーに対する、型の強制変換を行わない既知のビュー。"
+    },
+    "727d6743cbc3c7eff53426e5cd48e63514ace8ea4db36af9502f85e2c87f0c75": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/10975/summary"
+      ],
+      "english": "Serializable declarative prop constraints without component or binder instances.",
+      "japanese": "コンポーネントやバインダーのインスタンスを含まない、シリアライズ可能で宣言的な props の制約。"
+    },
+    "741a7ce6b82716ff239561fcb49453140f540021aff108465c5b040b30be09ef": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/3776/summary"
+      ],
+      "english": "The ordinal name selected by {0}.",
+      "japanese": "{0} が選択する、Ordinal 比較で扱う名前。"
+    },
+    "78831a6730e721bd527bf7f591e528db64c143f85a2f5023559036c21725470a": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/4506/summary"
+      ],
+      "english": "Explicit root for relative file dependencies, or null when no files are consumed.",
+      "japanese": "相対パスで指定する依存ファイルの明示的な基準ルート。ファイルを使用しない場合は null。"
+    },
+    "78f8adeadd3c0bdfcbc9b54ddd9f205f04528a79ad32e45c6bb95242e09c06d2": {
+      "contexts": [
+        "src/LithoSharp/Inspection/DocumentReferenceSnapshot.cs/4645/summary"
+      ],
+      "english": "A bounded Markdown reference view over an explicitly acquired route catalog and exact editor buffers.",
+      "japanese": "明示的に取得したルートカタログと正確なエディターバッファーに基づく、範囲を限定した Markdown 参照のビュー。"
+    },
+    "7e9ce657ec2b269440908a7132cfb5c7cf52b692cf8127314b4164e7da39abab": {
+      "contexts": [
+        "src/LithoSharp/Content/MarkdownComponentRegistry.cs/5672/param"
+      ],
+      "english": "Additional values, files, or registered assets used by binding or rendering.",
+      "japanese": "バインドまたはレンダリングで使用する、追加の値、ファイル、登録済みアセット。"
+    }
+  }
+}

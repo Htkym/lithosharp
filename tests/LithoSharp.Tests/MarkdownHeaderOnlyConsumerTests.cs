@@ -1,5 +1,6 @@
 using LithoSharp.Content;
 using LithoSharp.Content.Compilation;
+using LithoSharp.Diagnostics;
 using LithoSharp.Documentation;
 
 namespace LithoSharp.Tests;
@@ -43,7 +44,17 @@ public sealed class MarkdownHeaderOnlyConsumerTests
         await Assert.That(split.Yaml).IsEqualTo("title: [broken\n");
         await Assert.That(split.Body).IsEqualTo("Body\n");
         await Assert.That(yaml.IsSuccess).IsFalse();
-        await Assert.That(yaml.Diagnostics.Single().Id).IsEqualTo(MarkdownContentDiagnosticIds.InvalidYaml);
+        await Assert.That(yaml.Value).IsNull();
+        await Assert.That(yaml.Diagnostics.Select(diagnostic =>
+            (diagnostic.Id, diagnostic.Severity, diagnostic.Location!.FilePath,
+                diagnostic.Location.Line, diagnostic.Location.Column,
+                diagnostic.Location.EndLine, diagnostic.Location.EndColumn))).IsEquivalentTo(new[]
+            {
+                (MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
+                    "invalid-yaml.md", (int?)3, (int?)1, (int?)3, (int?)1),
+                (MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
+                    "invalid-yaml.md", (int?)2, (int?)8, (int?)3, (int?)1),
+            });
     }
 
     [Test]

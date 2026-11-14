@@ -44,6 +44,21 @@ public sealed class LithoTightItemRendererTests
     }
 
     [Test]
+    public async Task DistinctEqualHeadingsKeepTheirAssignedIds()
+    {
+        LithoInline[] inlines = [new LithoText("same", default)];
+        var span = new SourceSpan(7, 4);
+        LithoBlock[] blocks =
+        [
+            new LithoHeading(2, inlines, span),
+            new LithoHeading(2, inlines, span)
+        ];
+
+        await Assert.That(LithoHtmlRenderer.RenderHtml(blocks, ["first", "second"]))
+            .IsEqualTo("<h2 id=\"first\">same</h2>\n<h2 id=\"second\">same</h2>\n");
+    }
+
+    [Test]
     public async Task TightParagraphNullInlinesKeepTheArgumentName()
     {
         LithoBlock[] blocks =

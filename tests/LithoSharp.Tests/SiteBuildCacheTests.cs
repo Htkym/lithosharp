@@ -15,8 +15,35 @@ public sealed class SiteBuildCacheTests
         var body = new string('x', 1_048_575) + "\u00e9";
         var hash = await cache.StoreBodyAsync(body, CancellationToken.None);
         await Assert.That(await cache.ReadBodyAsync(hash, CancellationToken.None)).IsEqualTo(body);
-        await File.WriteAllTextAsync(Path.Combine(root, identity, "blobs", hash + ".utf8"), "corrupt");
+        var bodyPath = Path.Combine(root, identity, "blobs", hash + ".utf8");
+        using (var heldBody = new FileStream(bodyPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var duplicates = await Task.WhenAll(cache.StoreBodyAsync(body, CancellationToken.None),
+                cache.StoreBodyAsync(body, CancellationToken.None));
+            await Assert.That(duplicates).IsEquivalentTo(new[] { hash, hash });
+        }
+        await File.WriteAllTextAsync(bodyPath, "corrupt");
         await Assert.That(await cache.ReadBodyAsync(hash, CancellationToken.None)).IsNull();
+        if (OperatingSystem.IsWindows())
+        {
+            using var heldCorruptBody = new FileStream(bodyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var writeFailed = false;
+            try
+            {
+                await cache.StoreBodyAsync(body, CancellationToken.None);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                writeFailed = true;
+            }
+            await Assert.That(writeFailed).IsTrue();
+            await Assert.That(await cache.ReadBodyAsync(hash, CancellationToken.None)).IsNull();
+        }
+        await Assert.That(await cache.StoreBodyAsync(body, CancellationToken.None)).IsEqualTo(hash);
+        await Assert.That(await cache.ReadBodyAsync(hash, CancellationToken.None)).IsEqualTo(body);
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() => cache.StoreBodyAsync(body, canceled.Token));
 
         var emptyHash = await cache.StoreBodyAsync(string.Empty, CancellationToken.None);
         await Assert.That(await cache.ReadBodyAsync(emptyHash, CancellationToken.None)).IsEqualTo(string.Empty);

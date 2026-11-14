@@ -5,11 +5,15 @@
 ![Generated sample site](../../docs/images/blog-dark.png)
 
 Theme switching is enabled by default. Set `SiteThemeOptions.EnableThemeSwitching = false`
-to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching--テーマ切り替え).
+to disable it; see the [configuration and fixed dark example](../../docs/layout-css-contract.md#theme-switching).
 
 A minimal console app that builds a blog with [LithoSharp](../../src/LithoSharp).
 It depends only on the LithoSharp library, so it doubles as a check that the generator
 works without any daily-update code.
+
+This repository sample targets LithoSharp 3.0.0. The selected Syntamark 2
+runtime/Source pair and unpublished candidate state are recorded in the
+[version matrix](../../eng/version-matrix.json).
 
 ## Run it
 
@@ -26,7 +30,7 @@ dotnet run --project samples/LithoSharp.Sample -- --output _site
 - `--redirect-demo`: add the checked `old-home.html` redirect.
 
 Open `_site/index.html` in a browser to view the result. This sample explicitly uses
-`BlogSiteTemplate`, with an editorial layout for listings, archives, tags, and posts.
+`BlogSiteTemplate`, with an editorial layout for listings, archives, tags, posts and search.
 Light and dark palettes follow the operating system until the reader saves a
 preference with the header toggle.
 
@@ -34,8 +38,8 @@ preference with the header toggle.
 
 - Reading Markdown posts with `MarkdownPostReader`.
 - Validating posts with the default validator via `SiteGenerator.Validate`.
-- Generating the site with `SiteGenerator.GenerateAsync` and a custom `SiteCustomization`
-  (social preview subtitle and opt-in `llms.txt`).
+- Generating the site with `SiteGenerator.GenerateWithOptionsAsync` and a custom
+  `SiteCustomization` with opt-in `llms.txt`.
 - Explicit selection of `BlogSiteTemplate`.
 
 For the default documentation layout and the full custom C# schema, generated
@@ -58,7 +62,7 @@ dotnet run --project src/LithoSharp.Tool -- check-output --output _site --base-u
 
 This reads the current files without rebuilding the site or proving source freshness.
 Use the base URL configured in the factory if you change it. The native Markdown
-path retains `lithosharp-markdown/1` with Syntamark 1.2.0; see
+path retains `lithosharp-markdown/1` with the selected Syntamark 2 pair; see
 [analysis limits](../../docs/known-limitations.md#markdown-compatibility).
 
 ## Testing
@@ -79,5 +83,6 @@ page.AssertElement("main");
 ```
 
 Reference this sample project and `LithoSharp.Testing` from your test project, and
-run the example from the repository root. The host isolates output and caches.
+run the example from the repository root. The host isolates output and caches;
+external-link checks are disabled by default.
 See the [testing guide](../../docs/testing.md) and [Japanese sample notes](README.ja.md).

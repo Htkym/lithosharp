@@ -2,7 +2,8 @@
 
 [日本語](known-limitations.ja.md)
 
-These limitations apply to LithoSharp 2.2.0 and VS Code extension 0.4.0.
+These limitations apply to the LithoSharp 3.0.0 and VS Code extension 0.5.0 contract.
+The [version matrix](../eng/version-matrix.json) records candidate/publication state.
 See [MDX](mdx.md) for configuration and execution rules.
 
 ## Markdown compatibility
@@ -12,11 +13,16 @@ and GFM 0.29. It supports tables, task lists, strikethrough, autolinks,
 admonitions, containers and code metadata. Math and diagrams need browser assets
 provided by the template; `LIT002` identifies this requirement.
 
-The Markdig extensions for footnotes, definition lists, abbreviations, citations,
+The documentation profile `syntamark-docs/2` supports native footnotes and typed
+component directives. The default remains `lithosharp-markdown/1`; profile selection
+is explicit and independent of YAML binding and publication. See
+[Markdown profiles](markdown-profiles.md) for exact differences.
+
+The Markdig extensions for definition lists, abbreviations, citations,
 figures, footers, media embeds, grid tables, generic attributes, alphabetical or
 Roman list markers, subscript/superscript, inserted/marked text, emoji and smart
 punctuation are not implemented. Unsupported syntax remains literal text;
-footnotes additionally produce `LIT001`. Replace those constructs with supported
+legacy-profile footnotes additionally produce `LIT001`. Replace unsupported constructs with supported
 Markdown before upgrading. The compiler is not a complete CommonMark/GFM implementation.
 An opt-in compatibility advisory reports high-confidence definition lists (`LIT003`),
 generic attributes (`LIT004`), and grid tables (`LIT005`) without changing default
@@ -24,7 +30,7 @@ output: `DocumentInspectionOptions.EnableCompatibilityAdvisory` and
 `lithosharp markdown-compat --advisory on` share the same scan. The shared scan
 with the editor covers these advisories; full conformance to the official specifications is not claimed.
 
-The verified Syntamark 1.2.0 runtime/Source pair supplies syntax and raw UTF-16
+The selected fixed Syntamark 2 runtime/Source pair supplies syntax and raw UTF-16
 ranges. The default product profile remains `lithosharp-markdown/1`; upgrading
 the component does not opt into a different CommonMark profile. LithoSharp still
 owns YAML/C# binding, heading display and slug policy, routes, and diagnostic IDs.
@@ -37,13 +43,14 @@ owns YAML/C# binding, heading display and slug policy, routes, and diagnostic ID
 
 Other resource limits can also stop analysis. Render-only snippets do not use
 the final-body analysis path. The generator checks explicit header inputs, not
-body validity, and custom C# schemas are compiler/site-build checks rather than
-per-keystroke editor execution. `NoContext` means project/schema/route evidence
+body validity, and arbitrary C# validators are explicit compiler/site-build checks
+rather than per-keystroke execution. Editors can validate acquired static schema
+descriptors without running DTO constructors, setters or callbacks. `NoContext` means project/schema/route evidence
 is unavailable; `Partial` means analysis is incomplete; `Unknown` means a fact
 could not be established. None of these statuses means the content passed validation. A definitive
 typed-reference contradiction also needs a complete, current (`Closed`) catalog.
 See the [Docs sample](../samples/LithoSharp.DocsSample/README.md) and
-[analysis and cache contracts](migration-2.0.md#package-versions).
+[analysis and cache contracts](migration-3.0.md).
 
 Markdown outlines use section subtree ranges and separate heading selection
 ranges. MDX keeps its worker heading-based outline; the Markdown section-range
@@ -53,8 +60,9 @@ as valid front matter.
 
 ## Build cost and platform coverage
 
-Large MDX rebuilds may bundle many interactive entries even when only one page
-changes. A no-op still validates inputs and output. `MdxOptions.Timeout` defaults
+Dependency changes can invalidate multiple interactive MDX entries. Supported
+page-specific changes use the declared graph to narrow work; this is not a promise
+that every edit affects one bundle. A no-op still validates inputs and output. `MdxOptions.Timeout` defaults
 to two minutes per worker request; increase it explicitly for large inputs.
 See [incremental builds](incremental-builds.md) and [reference times](performance.md).
 
@@ -64,13 +72,19 @@ established. Static content and ordinary links work without JavaScript, while
 interactive features require the relevant browser APIs. Trimming and Native AOT
 are unsupported for the dynamically loaded CLI/site path.
 
-PNG, JPEG and WebP use Skia. AVIF requires an explicitly configured trusted `avifenc`.
+Core copies existing images and consumes declared dimensions without a codec.
+Optional `LithoSharp.Images` supports limited 8-bit noninterlaced grayscale, RGB,
+grayscale-alpha and RGBA PNG decoding, RGBA8 encoding, resize and composition.
+Palette/16-bit/interlaced PNG, animation, EXIF orientation, non-sRGB color management,
+font/text drawing and JPEG/WebP/AVIF encoding are unsupported. Existing files in
+those formats can be registered without conversion. There is no Skia dependency
+or external AVIF encoder fallback. See [assets/images](assets-and-images.md).
 
 ## MDX and browser scope
 
 The standard Docs/Blog palettes require CSS `light-dark()` support. Restoring
 a saved theme uses an inline head script, which must be allowed by the host's CSP.
-See [theme configuration](layout-css-contract.md#theme-switching--テーマ切り替え).
+See [theme configuration](layout-css-contract.md#theme-switching).
 
 Markdown-only sites need no Node.js. MDX uses Node.js 24.13.0 and the packaged
 lockfile. Arbitrary Node versions and npm packages are not certified. Browser
@@ -109,7 +123,7 @@ not an operating-system sandbox. Trusted code can perform network or process wor
 Normal MDX generation does not restore npm dependencies. `restore-mdx` explicitly
 runs `npm ci --ignore-scripts --no-audit --no-fund` and needs network access unless
 packages are cached. `dotnet restore` can also access configured feeds. Git metadata,
-external-link checking, API builds, example tests and external AVIF encoding are
+external-link checking, API builds, snippet/example tests and proofreading are
 explicit options/commands, not automatic hidden build steps. External OpenAPI
 references are diagnosed rather than fetched.
 
@@ -138,8 +152,9 @@ After-build observer failures occur after commit and cannot roll back publicatio
 In Docusaurus migration, published routes use trailing slashes with directory
 indexes; originals built with `trailingSlash: false` use flat files, so the
 default route comparison uses raw public paths while the optional page-set
-comparison normalizes the slash style. No `404.html` is emitted; unknown paths
-fall back to the host's default 404 response. Docusaurus category indexes and
+comparison normalizes the slash style. Built-in templates emit `404.html`, but
+the host must be configured to serve it for unknown paths and the selected base
+path; generating the file does not configure hosting. Docusaurus category indexes and
 blog authors, archive, pagination and tag indexes have no 1:1 source documents
 and stay outside the migration route scope; monthly archives and directory
 indexes may appear as a documented superset.
@@ -155,3 +170,6 @@ report missing local targets as `LSQ001` and missing anchors as `LSQ002`.
 
 Editor diagnostics run in stages: Markdown first, MDX through the restored worker.
 Preview shows saved documents only. The worker transpiles TypeScript without type-checking.
+Native document edits are applied in order and stale generations are suppressed.
+Reference navigation and guarded rename/move require their declared source/catalog
+coverage; unavailable or partial evidence does not authorize a global rewrite.

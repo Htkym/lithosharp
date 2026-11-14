@@ -18,6 +18,9 @@ internal interface IMarkdownCompiler
     /// <summary>Compiles Markdown to HTML.</summary>
     MarkdownCompilationResult Compile(string markdown);
 
+    /// <summary>Compiles with the explicit page rendering context used by registered components.</summary>
+    MarkdownCompilationResult Compile(string markdown, ComponentRenderingContext context) => Compile(markdown);
+
     /// <summary>
     /// Parses once and returns HTML with the syntax tree and semantic model
     /// from the same parse result.
@@ -38,6 +41,11 @@ internal interface IMarkdownCompiler
     /// <summary>Analyzes a body, reusing matching authoritative evidence when supported.</summary>
     MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
         MarkdownBodyAnalysisSnapshot? retainedAnalysis) => Analyze(markdown, source, cancellationToken);
+
+    /// <summary>Analyzes using an explicit component rendering context.</summary>
+    MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        MarkdownBodyAnalysisSnapshot? retainedAnalysis, ComponentRenderingContext? context) =>
+        Analyze(markdown, source, cancellationToken, retainedAnalysis);
 
     /// <summary>Renders Markdown to plain text for search indexing.</summary>
     string RenderPlainText(string markdown);

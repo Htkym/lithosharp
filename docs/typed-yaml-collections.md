@@ -59,11 +59,18 @@ entries use that filename plus `#1`, `#2`, and so on. Use explicit IDs when entr
 may be reordered or moved. Duplicate normalized entry IDs report `LSY003`.
 
 The loader uses the same strict YAML parser as Markdown front matter. Duplicate
-keys, anchors, aliases, non-string keys, invalid roots, and invalid UTF-8 are
+keys, anchors, aliases, null or complex keys, invalid roots, and invalid UTF-8 are
 reported with source locations where available. Unknown fields and type or
 required-member failures follow the [binder rules](typed-markdown-collections.md#yaml-rules).
 Standalone YAML does not use Markdown's `---` front-matter envelope or its
 header-only scan. It is not an MDX input.
+
+The native syntax profile and explicit typed-input limits are shared with
+[typed Markdown](typed-markdown-collections.md#yaml-rules). Both reflection and
+generated binders receive decoded scalar values with nested source locations;
+the body factory receives the same values. Standalone YAML roots must be a
+mapping or a sequence of mappings. A scalar root or a non-mapping sequence item
+is rejected by the collection loader.
 
 Source fingerprints are `sha256:` followed by the lowercase SHA-256 of the exact
 file bytes. Entries from one YAML sequence share the same file fingerprint.

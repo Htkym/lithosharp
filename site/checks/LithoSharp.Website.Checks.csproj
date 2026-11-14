@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LithoSharp" Version="$(LithoSharpVersion)" />
+    <PackageReference Include="TUnit" Version="1.81.16" />
+    <Using Include="TUnit.Core" />
+    <Compile Include="../examples/source/WebsiteExamples.cs" Link="WebsiteExamples.cs" />
+  </ItemGroup>
+</Project>
