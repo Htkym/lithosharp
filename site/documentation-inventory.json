@@ -644,12 +644,12 @@
         "en": {
           "path": "extensions/lithosharp-vscode/README.md",
           "title": "LithoSharp for VS Code",
-          "sha256": "7c8cd31bf097911abc3053bf6166a6df18ed5239ac50faa904bf89ec6abb0702"
+          "sha256": "16bfce29b78b86b7692b283e0279b8fad985cd5c0b02b1702f37a792a052d124"
         },
         "ja": {
           "path": "extensions/lithosharp-vscode/README.ja.md",
           "title": "LithoSharp for VS Code",
-          "sha256": "3c5533f36a51e6b49c4a41cda351931d6b519e944f401cd2f8c22171a99406d7"
+          "sha256": "c87740dfffde8e9bf0ddd2b14878dc84efe9213d76c570ec7f374d4a36135531"
         }
       }
     },
@@ -938,7 +938,7 @@
     "editor": {
       "source": {
         "path": "extensions/lithosharp-vscode/package.json",
-        "sha256": "30ddc9a3d03b895cd62919dbf9f201eeffa74088a4b031cf6489f6d4abe8d885"
+        "sha256": "0f4be83caab5d2caaf0180e252ec271e3f1592758eb438abf43a0b8a265384c4"
       },
       "commands": [
         "lithosharp.build",

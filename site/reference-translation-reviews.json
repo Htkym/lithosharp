@@ -341,9 +341,9 @@
       "version": "3.0",
       "id": "extensions-lithosharp-vscode",
       "sourcePath": "extensions/lithosharp-vscode/README.md",
-      "sourceSha256": "7c8cd31bf097911abc3053bf6166a6df18ed5239ac50faa904bf89ec6abb0702",
+      "sourceSha256": "16bfce29b78b86b7692b283e0279b8fad985cd5c0b02b1702f37a792a052d124",
       "translationPath": "extensions/lithosharp-vscode/README.ja.md",
-      "translationSha256": "3c5533f36a51e6b49c4a41cda351931d6b519e944f401cd2f8c22171a99406d7"
+      "translationSha256": "c87740dfffde8e9bf0ddd2b14878dc84efe9213d76c570ec7f374d4a36135531"
     },
     {
       "collection": "samples",
