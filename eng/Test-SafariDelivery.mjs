@@ -66,6 +66,34 @@ async function element(selector) {
   const value = await request('POST', '/element', {using: 'css selector', value: selector});
   return value[elementKey];
 }
+function pointerTargetState(selector, details = false) {
+  const target = document.querySelector(selector), style = target && getComputedStyle(target);
+  const rect = target?.getClientRects()[0];
+  const left = Math.max(0, rect?.left ?? 0), right = Math.min(innerWidth, rect?.right ?? 0);
+  const top = Math.max(0, rect?.top ?? 0), bottom = Math.min(innerHeight, rect?.bottom ?? 0);
+  const center = right > left && bottom > top ? {x: Math.floor((left + right) / 2), y: Math.floor((top + bottom) / 2)} : null;
+  const hit = center && document.elementFromPoint(center.x, center.y);
+  const ready = !!(target?.isConnected && rect?.width > 0 && rect.height > 0 && style.visibility === 'visible' &&
+    style.display !== 'none' && style.pointerEvents !== 'none' && hit && (hit === target || target.contains(hit)));
+  if (!details) return ready;
+  return {selector, ready, viewport: {innerWidth, innerHeight, outerWidth, outerHeight, devicePixelRatio, scrollX, scrollY},
+    rect: rect ? {left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height} : null,
+    style: style ? {display: style.display, visibility: style.visibility, pointerEvents: style.pointerEvents} : null,
+    center, hit: hit ? {tag: hit.tagName, id: hit.id, class: hit.getAttribute('class')} : null};
+}
+async function waitForPointerTarget(selector, label) {
+  try { await wait(pointerTargetState, label, selector); }
+  catch (error) {
+    try {
+      const state = await execute(pointerTargetState, selector, true);
+      evidence.pointerReadinessFailure = {label, state};
+      error.message += '; pointer readiness: ' + JSON.stringify(state);
+    }
+    catch (diagnosticError) { error.message += '; pointer readiness diagnostics unavailable: ' + diagnosticError.message; }
+    throw error;
+  }
+  return execute(pointerTargetState, selector, true);
+}
 const click = async selector => request('POST', `/element/${await element(selector)}/click`, {});
 const keys = async (selector, text) => request('POST', `/element/${await element(selector)}/value`, {text});
 async function clickText(text) {
@@ -92,7 +120,7 @@ async function checkPlacement(placement) {
   activeServer.listen(0, '127.0.0.1');
   await once(activeServer, 'listening');
   const base = new URL(`http://127.0.0.1:${activeServer.address().port}${placement.basePath}`);
-  const result = {name: placement.name, basePath: base.pathname, checks: [], events};
+  const result = {name: placement.name, basePath: base.pathname, checks: [], events, layoutReadiness: []};
   evidence.placements.push(result);
   const home = new URL('index.html', base), pageA = new URL('guide/a/', base), pageB = new URL('guide/b/', base);
   await checkHttp(home, 200);
@@ -116,6 +144,7 @@ async function checkPlacement(placement) {
 
   await request('POST', '/window/rect', {width: 640, height: 900});
   const menu = '[data-docs-menu-toggle], [data-site-menu-toggle]';
+  result.layoutReadiness.push({phase: 'narrow-menu', state: await waitForPointerTarget(menu, 'narrow menu pointer readiness')});
   await click(menu);
   assert.equal(await execute(selector => document.querySelector(selector).getAttribute('aria-expanded'), menu), 'true');
   await keys(menu, '\uE00C');
@@ -148,7 +177,9 @@ async function checkPlacement(placement) {
   await execute(() => { globalThis.deliveryNavigationCanary = 'preserved'; });
   // Select the real sidebar link in the wide layout.
   await request('POST', '/window/rect', {width: 1200, height: 900});
-  await click(`#docs-sidebar a[href="${pageB.pathname}"]`);
+  const nextLink = `#docs-sidebar a[href="${pageB.pathname}"]`;
+  result.layoutReadiness.push({phase: 'wide-sidebar', state: await waitForPointerTarget(nextLink, 'wide sidebar pointer readiness')});
+  await click(nextLink);
   await wait(pathname => location.pathname === pathname && document.querySelector('main h1')?.textContent.trim() === 'Page B', 'progressive next page', pageB.pathname);
   assert.equal(await execute(() => globalThis.deliveryNavigationCanary), 'preserved');
   await wait(() => globalThis[Symbol.for('lithosharp.islands')]?.get(document.querySelector('[data-island=load]'))?.root &&
