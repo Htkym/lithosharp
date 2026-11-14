@@ -271,6 +271,7 @@ jobs:
         run: |
           ./eng/Test-ReleasePipeline.ps1
           ./eng/Test-ExtensionPublishGuards.ps1
+          ./eng/Test-PagesPublishGuards.ps1
 
       # Separate stages identify a stuck validation script; each has an outer
       # deadline even if an owned process or redirected stream never completes.
@@ -365,7 +366,7 @@ jobs:
         if: matrix.check-name == 'windows-latest'
         shell: pwsh
         run: |
-          ./site/Build.ps1 -LithoSharpVersion $env:LITHOSHARP_CANDIDATE_VERSION -PackageFeed @((Join-Path $PWD 'artifacts/packages'), (Join-Path $PWD 'eng/markdown/feed')) -WorkDirectory (Join-Path $env:RUNNER_TEMP 'lsw') -Output (Join-Path $env:RUNNER_TEMP 'ls-site') -BaseUrl 'https://example.invalid/docs/'
+          ./site/Build.ps1 -LithoSharpVersion $env:LITHOSHARP_CANDIDATE_VERSION -PackageFeed @((Join-Path $PWD 'artifacts/packages'), (Join-Path $PWD 'eng/markdown/feed')) -WorkDirectory (Join-Path $env:RUNNER_TEMP 'lsw') -Output (Join-Path $env:RUNNER_TEMP 'ls-site') -BaseUrl 'https://htkym.github.io/lithosharp/'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Preserve candidate bilingual site evidence

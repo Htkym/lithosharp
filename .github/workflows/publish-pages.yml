@@ -1,0 +1,115 @@
+name: publish-pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing stable LithoSharp vX.Y.Z tag at current main, already published to NuGet.org
+        required: true
+        type: string
+      publish:
+        description: Publish the checked site to the official GitHub Pages URL
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: official-github-pages
+  cancel-in-progress: false
+
+env:
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+  RELEASE_TAG: ${{ inputs.release_tag }}
+  SITE_BASE_URL: https://htkym.github.io/lithosharp/
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24.13.0
+
+      - name: Check Pages guards without publication
+        shell: pwsh
+        run: ./eng/Test-PagesPublishGuards.ps1
+
+      - name: Verify current main and published stable packages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-PagesPublish.ps1 -Check Published -ReleaseTag $env:RELEASE_TAG -PackageDirectory (Join-Path $env:RUNNER_TEMP 'ls-published')
+
+      - name: Build and check package-only bilingual site
+        shell: pwsh
+        run: |
+          ./site/Build.ps1 -LithoSharpVersion ($env:RELEASE_TAG -replace '^v', '') -WorkDirectory (Join-Path $env:RUNNER_TEMP 'lsw') -Output (Join-Path $env:RUNNER_TEMP 'ls-site') -BaseUrl $env:SITE_BASE_URL -PublishedPackageDirectory (Join-Path $env:RUNNER_TEMP 'ls-published')
+          ./eng/Test-PagesPublish.ps1 -Check Output -Output (Join-Path $env:RUNNER_TEMP 'ls-site')
+
+      - name: Preserve checked Pages artifact
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: ${{ runner.temp }}/ls-site
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout verified source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24.13.0
+
+      - name: Recheck current main and publication before deploying
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/Test-PagesPublish.ps1 -Check Published -ReleaseTag $env:RELEASE_TAG -PackageDirectory (Join-Path $env:RUNNER_TEMP 'ls-published')
+
+      - name: Read existing Pages configuration
+        id: pages
+        uses: actions/configure-pages@v6.0.0
+        with:
+          enablement: false
+
+      - name: Verify official destination
+        shell: pwsh
+        env:
+          CONFIGURED_BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: |
+          if ($env:CONFIGURED_BASE_URL.TrimEnd('/') -cne $env:SITE_BASE_URL.TrimEnd('/')) {
+            throw 'Configured Pages destination differs from the checked official BaseUrl.'
+          }
+
+      - name: Deploy checked artifact
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1

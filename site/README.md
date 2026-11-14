@@ -5,7 +5,10 @@
 This package consumer builds the English/Japanese 3.0 handbook, canonical public
 guides, package/sample documentation and runtime-library API reference.
 `LithoSharpVersion` defaults to the intended `3.0.0` package contract. It does not
-assert formal package or site publication. No deployment host is configured.
+assert formal package or site publication. The manual GitHub Pages workflow targets
+https://htkym.github.io/lithosharp/; configuring the workflow does not establish
+successful publication. Check that URL and the
+[publication prerequisites](../eng/github-pages.md).
 
 Use the SDK in `global.json`, Node for the lightweight declaration check, and
 PowerShell 7. From the repository root:

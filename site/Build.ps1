@@ -3,7 +3,8 @@ param(
     [string[]]$PackageFeed = @(),
     [string]$Output = (Join-Path $PSScriptRoot 'dist'),
     [string]$WorkDirectory,
-    [string]$BaseUrl = 'https://example.invalid/'
+    [string]$BaseUrl = 'https://example.invalid/',
+    [string]$PublishedPackageDirectory
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -64,8 +65,27 @@ Push-Location $root
 $previousVersion = $env:LITHOSHARP_SITE_PACKAGE_VERSION
 $env:LITHOSHARP_SITE_PACKAGE_VERSION = $LithoSharpVersion
 try {
-    Invoke-Checked { dotnet restore $project --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
-    Invoke-Checked { dotnet restore $checks --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+    if ($PublishedPackageDirectory) {
+        if ($PackageFeed.Count) { throw 'Published Pages builds cannot use candidate feeds.' }
+        # The Actions checkout is disposable. Preserve both provisional source
+        # locks, then generate fresh locks from actual official stable packages.
+        $lockBackup = Join-Path $work 'provisional-locks'
+        $null = New-Item -ItemType Directory -Path $lockBackup
+        foreach ($relative in @('packages.lock.json', 'checks/packages.lock.json')) {
+            $lock = Join-Path $root $relative
+            $backup = Join-Path $lockBackup $relative
+            $null = New-Item -ItemType Directory -Force -Path (Split-Path $backup)
+            Move-Item -LiteralPath $lock -Destination $backup
+        }
+        Invoke-Checked { dotnet restore $project --force-evaluate --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+        Invoke-Checked { dotnet restore $checks --force-evaluate --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+        Invoke-Checked { dotnet restore $project --locked-mode --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+        Invoke-Checked { dotnet restore $checks --locked-mode --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+        & (Join-Path $root '../eng/Test-PagesPackageConsumption.ps1') -SiteRoot $root -PackageCache $packages -PublishedPackageDirectory $PublishedPackageDirectory -Version $LithoSharpVersion
+    } else {
+        Invoke-Checked { dotnet restore $project --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+        Invoke-Checked { dotnet restore $checks --configfile $config --packages $packages "-p:LithoSharpVersion=$LithoSharpVersion" }
+    }
     Invoke-Checked { dotnet build $project --configuration Release --no-restore "-p:LithoSharpVersion=$LithoSharpVersion" }
     Invoke-Checked { dotnet build $checks --configuration Release --no-restore "-p:LithoSharpVersion=$LithoSharpVersion" }
     Invoke-Checked { dotnet run --project $project --configuration Release --no-build --no-restore -- --project $root --export-api-material --generated-inputs (Join-Path $work 'g/api') }
