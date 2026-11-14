@@ -159,7 +159,11 @@ async function checkPlacement(placement) {
   await wait(pathname => location.pathname === pathname && globalThis[Symbol.for('lithosharp.react-roots')]?.size === 1 &&
     [...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'Count 3'), 'back navigation remount', pageA.pathname);
   assert.equal(await execute(() => globalThis.deliveryNavigationCanary), 'preserved');
-  result.checks.push('progressive-navigation', 'load-island', 'history-remount');
+  assert.equal(await execute(() => {
+    const fallback = document.querySelector('.mdx-tabs noscript');
+    return fallback !== null && fallback.childElementCount === 0;
+  }), true, 'History navigation activated no-script fallback markup.');
+  result.checks.push('progressive-navigation', 'load-island', 'history-remount', 'history-noscript-inert');
 
   const missing = new URL('missing/deep/page/', base);
   await checkHttp(missing, 404);
