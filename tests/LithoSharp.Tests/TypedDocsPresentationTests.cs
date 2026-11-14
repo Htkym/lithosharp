@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Pages;
@@ -135,9 +136,11 @@ public sealed class TypedDocsPresentationTests
         using var workspace = new TemporaryWorkspace();
         var output = Path.Combine(workspace.Root, "incremental");
         var initial = new[] { Entry("one.md", "One", "one/", 1), Entry("two.md", "Two", "two/", 2) };
-        await Generate(new SiteGenerator(), output, [Docs(Collection(workspace.Root, "guides", initial))]);
+        var cold = await Generate(new SiteGenerator(), output, [Docs(Collection(workspace.Root, "guides", initial))]);
         var warm = await Generate(new SiteGenerator(), output, [Docs(Collection(workspace.Root, "guides", initial))], clean: false);
-        await Assert.That(warm.BuildReport.CacheMissCount).IsEqualTo(0);
+        await Assert.That(warm.BuildReport.CacheMissCount).IsEqualTo(0)
+            .Because(warm.BuildReport.CacheMissCount == 0 ? string.Empty
+                : await DescribeWarmCacheFailure(output, cold, warm));
         // Source fingerprints deliberately stay fixed: selectors and canonical routes are independent graph inputs.
         var changed = new[] { initial[0], Entry("two.md", "Renamed", "new-location/", 0),
             Entry("three.md", "New page", "three/", 3) };
@@ -235,6 +238,58 @@ public sealed class TypedDocsPresentationTests
                 Quality = new SiteQualityOptions(),
                 MaxDegreeOfParallelism = 2
             }, CancellationToken.None);
+
+    private static async Task<string> DescribeWarmCacheFailure(
+        string output, SiteGenerationResult cold, SiteGenerationResult warm)
+    {
+        var missedNodeIds = warm.BuildReport.Nodes.Where(node => !node.CacheHit)
+            .Select(node => node.NodeId).ToHashSet(StringComparer.Ordinal);
+        var cacheSnapshots = new List<object>();
+        string? publishedCacheKey = null;
+        string? observationError = null;
+        try
+        {
+            using var outputManifest = JsonDocument.Parse(await File.ReadAllBytesAsync(
+                Path.Combine(output, ".lithosharp-output-manifest.json")));
+            publishedCacheKey = outputManifest.RootElement.GetProperty("buildCache").GetString();
+            var cacheDirectory = SiteGenerator.MeasureCache(output).CacheDirectory;
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(cacheDirectory, "builds"), "*.json")
+                .Order(StringComparer.Ordinal))
+            {
+                using var manifest = JsonDocument.Parse(await File.ReadAllBytesAsync(file));
+                cacheSnapshots.Add(new
+                {
+                    ManifestPath = file,
+                    CacheKey = Path.GetFileNameWithoutExtension(file),
+                    Nodes = manifest.RootElement.GetProperty("Nodes").EnumerateArray().Select(node =>
+                    {
+                        var nodeId = node.GetProperty("NodeId").GetString();
+                        return new
+                        {
+                            NodeId = nodeId,
+                            NodeKey = node.GetProperty("NodeKey").GetString(),
+                            DerivedBodyHash = node.GetProperty("DerivedBodyHash").GetString(),
+                            Inputs = missedNodeIds.Contains(nodeId!)
+                                ? node.GetProperty("Inputs").Clone() : (JsonElement?)null,
+                        };
+                    }).ToArray(),
+                });
+            }
+        }
+        catch (Exception exception)
+        {
+            // Observation failures must not replace the original cache assertion.
+            observationError = exception.ToString();
+        }
+        return "Identical inputs should reuse every node. Cache diagnostics: " + JsonSerializer.Serialize(new
+        {
+            Cold = cold.BuildReport,
+            Warm = warm.BuildReport,
+            PublishedCacheKey = publishedCacheKey,
+            CacheSnapshots = cacheSnapshots,
+            ObservationError = observationError,
+        });
+    }
 
     private static async Task<string[]> Snapshot(string root) =>
         await Task.WhenAll(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)

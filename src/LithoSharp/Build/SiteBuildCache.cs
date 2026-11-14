@@ -248,8 +248,29 @@ internal sealed class SiteBuildCache
             cancellationToken.ThrowIfCancellationRequested();
             EnsureSafePath(temporary);
             EnsureSafePath(path);
-            // Repair corrupted bytes at the same content address; valid records retain identical bytes.
-            File.Move(temporary, path, overwrite: true);
+            // Content addresses are immutable once another writer has published the same bytes.
+            try
+            {
+                File.Move(temporary, path, overwrite: false);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                if (!await HasMatchingStoredBytesAsync(folder, digest, extension, bytes, cancellationToken).ConfigureAwait(false))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    EnsureSafePath(temporary);
+                    EnsureSafePath(path);
+                    try
+                    {
+                        File.Move(temporary, path, overwrite: true);
+                    }
+                    catch (Exception repairException) when (repairException is IOException or UnauthorizedAccessException)
+                    {
+                        if (!await HasMatchingStoredBytesAsync(folder, digest, extension, bytes, cancellationToken).ConfigureAwait(false))
+                            throw;
+                    }
+                }
+            }
             return digest;
         }
         finally
@@ -260,6 +281,23 @@ internal sealed class SiteBuildCache
                 File.Delete(temporary);
             }
             catch (Exception exception) when (IsCacheReadFailure(exception)) { }
+        }
+    }
+
+    private async Task<bool> HasMatchingStoredBytesAsync(
+        string folder, string digest, string extension, byte[] bytes, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var stored = await ReadVerifiedAsync(folder, digest, extension, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return stored is { } persisted && persisted.AsSpan().SequenceEqual(bytes);
+        }
+        catch (Exception exception) when (IsCacheReadFailure(exception))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
         }
     }
 
