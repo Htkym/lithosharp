@@ -60,7 +60,7 @@ export function editorPresentation(project: ProjectState, analysis: AnalysisStat
     detail: [
       `${language} analysis: ${parsed}${analysis ? ` (version ${analysis.version})` : ''}. ${analysis?.message ?? ''}`,
       `Project information: ${context}; document resolution: ${analysis?.projectStatus ?? 'unknown'}.`,
-      analysis?.projectId ? `Applied context: ${analysis.projectId}; generation ${analysis.projectGeneration ?? 'unknown'}; acquired ${analysis.contextAcquiredAt ?? 'unknown'}.`
+      analysis?.projectId ? `Applied context: ${analysis.projectId.replaceAll('\0', ' | ')}; generation ${analysis.projectGeneration ?? 'unknown'}; acquired ${analysis.contextAcquiredAt ?? 'unknown'}.`
         : 'Applied context: unreported for this document.',
       'Only detected changes invalidate the context; unmonitored inputs are not guaranteed current.',
       `Schema: ${analysis?.schemaName ?? 'unknown'}. ${schema}`,

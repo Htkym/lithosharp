@@ -32,6 +32,19 @@ test('four status axes and serving remain independent and preflight preserves re
   assert.match(generated.detail, /Static schema available; constructors and custom validation require Build/);
 });
 
+test('context status displays the internal separator without truncating copied output', () => {
+  const projectId = '/workspace/docs\0/workspace/docs/site.csproj';
+  const analysis = { uri: 'file:///workspace/docs/intro.md', version: 1, language: 'markdown' as const,
+    state: 'ready' as const, message: '', projectStatus: 'Resolved', schemaName: 'custom',
+    projectId, projectGeneration: 2, contextAcquiredAt: '2026-11-14T23:30:53Z' };
+  const view = editorPresentation({ kind: 'none', candidates: 0 }, analysis, 'acquired');
+  assert.ok(view.detail.includes('Applied context: /workspace/docs | /workspace/docs/site.csproj; generation 2; acquired 2026-11-14T23:30:53Z.'));
+  assert.equal(view.detail.includes('\0'), false);
+  assert.match(view.detail, /Schema: custom/);
+  assert.match(view.detail, /Next: Inspect to acquire project information/);
+  assert.equal(analysis.projectId, projectId);
+});
+
 test('quick pick keeps workspace identity visible', () => {
   const items = quickPickItems([
     { workspaceFolder: '/a', workspaceName: 'a', projectPath: '/a/site.csproj', displayName: 'site', kind: 'lithosharp' },
