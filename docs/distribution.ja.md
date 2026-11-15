@@ -6,7 +6,7 @@
 これらは開発対象のバージョンであり、公開の告知ではありません。
 拡張の識別子は`htkym.lithosharp`で、本体とは別のバージョンを使います。
 
-[バージョン一覧](../eng/version-matrix.json)では現在、Syntamark `2.0.0-preview.2026111303`を選定しています。
+[バージョン一覧](../eng/version-matrix.json)では現在、Syntamark `2.0.0-preview.89831114732901`を選定しています。
 選定した成果物は[候補の来歴情報](../eng/markdown/candidate-provenance.json)と
 [runtimeとSourceの組み合わせを記録したマニフェスト](../eng/markdown/component-pair.json)で識別します。
 この候補は正式には公開されていません。正式採用には、レビューとマージを経たruntimeとSourceの組み合わせが、正式なリリース手順で公開される必要があります。

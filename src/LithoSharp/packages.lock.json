@@ -10,9 +10,9 @@
       },
       "Syntamark": {
         "type": "Direct",
-        "requested": "[2.0.0-preview.2026111303, 2.0.0-preview.2026111303]",
-        "resolved": "2.0.0-preview.2026111303",
-        "contentHash": "VP8SuaTSd3U/z2sdU0EVABDkGAhO1V1hadejfDD4flBFZcJlxnz6lml/JA4/c7U8NaS3t9IQAVaZmCLeYBBG6g=="
+        "requested": "[2.0.0-preview.89831114732901, 2.0.0-preview.89831114732901]",
+        "resolved": "2.0.0-preview.89831114732901",
+        "contentHash": "YkWya0zJ/kMbgbU2I0KS2W2O5b4sZFoPbT0mgBnoYmaYNihZ73xI6JvmbYnnL2McyJz3HRwlaCH0edCt8X8LCA=="
       }
     }
   }

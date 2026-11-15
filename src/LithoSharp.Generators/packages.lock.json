@@ -31,9 +31,9 @@
       },
       "Syntamark.Source": {
         "type": "Direct",
-        "requested": "[2.0.0-preview.2026111303, 2.0.0-preview.2026111303]",
-        "resolved": "2.0.0-preview.2026111303",
-        "contentHash": "9QeiUgmmTzhLmjSLrG45xTsw4OlAXRdu/szUknbh8/eAamaTYSSNWQsiVzKott1riWTXRpS5Q9Fzi+Og9ScG1A=="
+        "requested": "[2.0.0-preview.89831114732901, 2.0.0-preview.89831114732901]",
+        "resolved": "2.0.0-preview.89831114732901",
+        "contentHash": "HCD5xUYmdUhynBOQXF3v0JJWyZawKFnhcMBa2xy8Zqt8uZQohfQThiB2AdFOiElhh7zJwlgsoO5Wx8Lt+6DnZg=="
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Transitive",

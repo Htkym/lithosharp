@@ -7,7 +7,7 @@ namespace Syntamark.Hosting;
 internal static class MarkdownYamlIdentity
 {
     internal const string ProfileId = "native-yaml/1";
-    internal const string ParserVersion = "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0";
+    internal const string ParserVersion = "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f";
 
     internal static void RequirePinned() => Require(ProfileId);
     internal static void Require(string expectedProfile)

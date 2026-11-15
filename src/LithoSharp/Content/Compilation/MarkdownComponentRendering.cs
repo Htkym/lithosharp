@@ -18,14 +18,18 @@ public static class MarkdownComponentDiagnosticIds
 internal sealed record MarkdownComponentRenderPlan(
     IReadOnlyDictionary<int, string> HtmlByDirectiveStart,
     IReadOnlyList<DocumentComponent> Components,
-    IReadOnlyList<SiteDiagnostic> Diagnostics);
+    IReadOnlyList<SiteDiagnostic> Diagnostics)
+{
+    internal IReadOnlySet<int> PublicMarkdownFailures { get; init; } = new HashSet<int>();
+    internal IReadOnlyDictionary<int, string?> PublicMarkdownByDirectiveStart { get; init; } = new Dictionary<int, string?>();
+}
 
 internal static class MarkdownComponentRendering
 {
     internal static MarkdownComponentRenderPlan Prepare(MdAnalysisResult analysis, DocumentSource source,
-        MarkdownComponentRegistry registry, ComponentRenderingContext? context, bool renderHtml, CancellationToken cancellationToken)
+        MarkdownComponentRegistry registry, ComponentRenderingContext? context, bool renderHtml, CancellationToken cancellationToken, bool publicMarkdown = false)
         => PrepareCore(analysis, source, registry, registry.Schemas.ToDictionary(static schema => schema.Name, StringComparer.Ordinal),
-            context, renderHtml, cancellationToken, context?.Document, context?.DocumentSemantics);
+            context, renderHtml, cancellationToken, context?.Document, context?.DocumentSemantics, publicMarkdown);
 
     internal static MarkdownComponentRenderPlan Inspect(MdAnalysisResult analysis, DocumentSource source,
         IReadOnlyList<MarkdownComponentSchema> schemas, CancellationToken cancellationToken,
@@ -36,13 +40,15 @@ internal static class MarkdownComponentRendering
     private static MarkdownComponentRenderPlan PrepareCore(MdAnalysisResult analysis, DocumentSource source,
         MarkdownComponentRegistry? registry, IReadOnlyDictionary<string, MarkdownComponentSchema> schemas,
         ComponentRenderingContext? context, bool renderHtml, CancellationToken cancellationToken,
-        DocumentSemanticDocument? document, DocumentSemanticSnapshot? semantics)
+        DocumentSemanticDocument? document, DocumentSemanticSnapshot? semantics, bool publicMarkdown = false)
     {
         var html = new Dictionary<int, string>();
+        var markdown = new Dictionary<int, string?>();
+        var markdownFailures = new HashSet<int>();
         var components = new List<DocumentComponent>();
         var diagnostics = new List<SiteDiagnostic>();
         if (analysis.Root is null)
-            return new MarkdownComponentRenderPlan(html, components, diagnostics);
+            return new MarkdownComponentRenderPlan(html, components, diagnostics) { PublicMarkdownByDirectiveStart = markdown, PublicMarkdownFailures = markdownFailures };
         var text = new SourceText(analysis.RawText);
         var pending = new Stack<MdSyntaxNode>();
         pending.Push(analysis.Root);
@@ -156,10 +162,15 @@ internal static class MarkdownComponentRendering
             {
                 if (registry is null || !registry.TryGet(name, out var registration))
                     throw new InvalidOperationException("The component registration is unavailable.");
-                var result = registration.Render(located, location, context);
+                var result = registration.Render(located, location, context, publicMarkdown);
                 diagnostics.AddRange(result.Diagnostics);
                 if (result.IsSuccess)
-                    html.Add(envelope.Start - (analysis.BodySpan?.Start ?? 0), result.Value!);
+                {
+                    var start = envelope.Start - (analysis.BodySpan?.Start ?? 0);
+                    html.Add(start, result.Value!.Html);
+                    if (publicMarkdown) markdown.Add(start, result.Value.PublicMarkdown);
+                    if (result.Value.PublicMarkdownFailed) markdownFailures.Add(start);
+                }
             }
             catch (Exception failure) when (failure is ArgumentException or FormatException or InvalidOperationException)
             {
@@ -167,7 +178,7 @@ internal static class MarkdownComponentRendering
                     $"Component '{name}' could not render: {failure.Message}", location));
             }
         }
-        return new MarkdownComponentRenderPlan(html, components, diagnostics);
+        return new MarkdownComponentRenderPlan(html, components, diagnostics) { PublicMarkdownByDirectiveStart = markdown, PublicMarkdownFailures = markdownFailures };
 
         void Error(string message, MdRawRange span) => diagnostics.Add(new SiteDiagnostic(
             MarkdownComponentDiagnosticIds.InvalidInvocation, SiteDiagnosticSeverity.Error, message, Locate(span)));

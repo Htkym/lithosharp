@@ -13,7 +13,7 @@ candidate packages using the same official BaseUrl and never deploys them.
 ## Publication order
 
 1. Complete the stable Syntamark intake described in `eng/markdown/README.md`.
-   The active `2.0.0-preview.2026111303` pair is not accepted for publication;
+   The active `2.0.0-preview.89831114732901` pair is not accepted for publication;
    `2.0.0` is the intended component target, not evidence of availability.
 2. Complete review and normal push CI on current default `main`, tag that exact
    SHA with the stable LithoSharp release version, and finish its existing NuGet
