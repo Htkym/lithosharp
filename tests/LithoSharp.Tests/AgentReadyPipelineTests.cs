@@ -47,6 +47,7 @@ public sealed class AgentReadyPipelineTests
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "guide.html"))).DoesNotContain("text/markdown");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "llms.txt"))).Contains("guide.html");
         await Assert.That(result.BuildPlan!.Nodes.Any(node => node.Id.Value.StartsWith("agent-ready:", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(result.AgentReadyPages.Count).IsEqualTo(0);
     }
 
     [Test]
@@ -75,6 +76,10 @@ public sealed class AgentReadyPipelineTests
         var result = await generator.GenerateWithOptionsAsync(Site(), [post], Output(workspace), false, Custom(), Options, default);
         await Assert.That(File.Exists(Path.Combine(Output(workspace), "guide.md"))).IsFalse();
         await Assert.That(result.BuildReport.Diagnostics.Any(item => item.Id == "LSQ012")).IsTrue();
+        var outcome = result.AgentReadyPages.Single();
+        await Assert.That(outcome.Status).IsEqualTo(PublicMarkdownStatus.Unsupported);
+        await Assert.That(outcome.MarkdownPath).IsNull();
+        await Assert.That(outcome.Reason).IsNotNull();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "guide.html"))).DoesNotContain("text/markdown");
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "llms.txt"))).Contains("guide.html");
     }
@@ -337,6 +342,51 @@ public sealed class AgentReadyPipelineTests
         using var workspace = new AgentReadyWorkspace();
         await new SiteGenerator().GenerateWithOptionsAsync(Site(), [Post(workspace, "[Index](llms.txt)")], Output(workspace), true, Custom(), Options, default);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "guide.md"))).Contains("https://example.test/product/llms.txt");
+    }
+
+
+    [Test]
+    [Arguments("target.md", false)]
+    [Arguments("/product/target.html", true)]
+    public async Task ChangedMappedProviderNeverGuessesRelativeIncludeOrigins(string destination, bool complete)
+    {
+        using var workspace = new AgentReadyWorkspace();
+        var raw = "[Target](" + destination + ")";
+        var sourcePath = Path.Combine(workspace.Root, "source.md");
+        var included = new Syntamark.Compilation.MdSourceSnapshot(Path.Combine(workspace.Root, "includes", "chapter.md"), "included", raw);
+        var expanded = new Syntamark.Compilation.MdSourceSnapshot(sourcePath, "expanded", raw);
+        var map = new Syntamark.Compilation.MdSourceMap(expanded,
+            [new(new(0, raw.Length), new(included, new(0, raw.Length)), Syntamark.Compilation.MdSegmentKind.Linear)]);
+        var entry = new ContentEntry<string, string>(new("source"), "source.md", "source:v1", "Source", raw)
+        {
+            BodySource = new DocumentSource(sourcePath, 0) { SourceMap = map, ExactBody = raw },
+        };
+        var target = new ContentEntry<string, string>(new("target"), "target.md", "target:v1", "Target", "Target body");
+        var collection = new ContentCollection<string, string>(new("mapped"), workspace.Root, [entry, target],
+            item => LithoSharp.Routing.SiteRoute.ForFile(item.Id.Value + ".html"), item => new LithoSharp.Pages.PageMetadata(item.FrontMatter));
+        var pages = new SiteContentCollection<string, string>(collection,
+            (item, context) => context.RenderDocument(context.RenderMarkdown(item.Body)))
+        { MarkdownProvider = (item, _) => item.Body + "\n\nAdditional public text" };
+        var result = await new SiteGenerator().GenerateWithOptionsAsync(Site(), [], Output(workspace), true, Custom(),
+            Options with { ContentCollections = [pages] }, default);
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "source.md"))).IsEqualTo(complete);
+        await Assert.That(result.AgentReadyPages.Single(page => page.HtmlPath == "source.html").Status)
+            .IsEqualTo(complete ? PublicMarkdownStatus.Automatic : PublicMarkdownStatus.Unsupported);
+    }
+
+
+    [Test]
+    public async Task RootRobotsIsAFormalArtifactAndResolvablePublicTarget()
+    {
+        using var workspace = new AgentReadyWorkspace();
+        var custom = Custom() with { Template = new BlogSiteTemplate(), AgentReady = Custom().AgentReady with { Robots = new() { Mode = AgentReadyRobotsMode.Generated } } };
+        var result = await new SiteGenerator().GenerateWithOptionsAsync(Site("https://example.test/"), [Post(workspace, "[Robots](/robots.txt)")],
+            Output(workspace), true, custom, Options, default);
+        var robots = await File.ReadAllTextAsync(Path.Combine(Output(workspace), "robots.txt"));
+        await Assert.That(robots).Contains("Sitemap: https://example.test/sitemap.xml");
+        await Assert.That(robots).DoesNotContain("User-agent:");
+        await Assert.That(result.BuildPlan.Artifacts.Single(artifact => artifact.RelativeOutputPath == "robots.txt").OwnerNodeId.Value).IsEqualTo("agent-ready:robots");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "guide.md"))).Contains("https://example.test/robots.txt");
     }
 
 

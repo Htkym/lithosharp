@@ -73,7 +73,8 @@ public sealed class AgentReadyUrlResolverTests
     {
         var resolver = Create();
         await Assert.That(resolver.Resolve("../en/target.md", "unknown.md", Page)).IsNull();
-        await Assert.That(resolver.Resolve("#part", "unknown.md", Page)).IsNull();
+        await Assert.That(resolver.Resolve("#part", "unknown.md", Page)).IsEqualTo("https://example.test/product/ja/v3/guide.html#part");
+        await Assert.That(resolver.Resolve("/product/en/v4/renamed/", "generated:group", Page)).IsEqualTo("https://example.test/product/en/v4/renamed/");
         await Assert.That(resolver.Resolve("#part", "content/ja/start.md", SiteRoute.ForFile("hidden.html", BaseUrl))).IsNull();
     }
 

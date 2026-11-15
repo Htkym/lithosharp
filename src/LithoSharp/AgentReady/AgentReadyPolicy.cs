@@ -4,7 +4,7 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.AgentReady;
 
-internal enum PublicMarkdownStatus
+public enum PublicMarkdownStatus
 {
     NotRequested,
     Automatic,

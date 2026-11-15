@@ -64,6 +64,8 @@ public sealed partial class SiteGenerator
                     .Select(path => routes.File(EscapeOutputPath(path)))
                 : Enumerable.Empty<SiteRoute>();
             publicRoutes = publicRoutes.Concat(GetCommonArtifactRoutes(configuration, state.GenerateLlms))
+                .Concat(state.Options.Robots.Mode == AgentReadyRobotsMode.Generated ? [routes.File("robots.txt")] : [])
+                .Concat(assetNodes.SelectMany(node => node.Artifacts).Select(artifact => routes.File(EscapeOutputPath(artifact.RelativeOutputPath))))
                 .Concat(configuration.ScopedSearch.Select(projection => routes.File(EscapeOutputPath(projection.RelativeOutputPath))))
                 .Concat(options.Redirects.Select(redirect => redirect.Source.WithBaseUrl(configuration.Site.BaseUrl)))
                 .ToArray();
@@ -123,7 +125,8 @@ public sealed partial class SiteGenerator
                     return provided.Status switch
                     {
                         ContentPageMarkdownStatus.Provided => Convert(page.CompilePublicMarkdown(provided.Markdown!),
-                            provided.BodySource.CanMapBody(provided.Markdown!, provided.SourcePath) ? provided.BodySource : null, page.Route),
+                            provided.BodySource.CanMapBody(provided.Markdown!, provided.SourcePath) ? provided.BodySource : null, page.Route,
+                            allowSourceRelative: provided.BodySource?.SourceMap is null || provided.BodySource.CanMapBody(provided.Markdown!, provided.SourcePath)),
                         ContentPageMarkdownStatus.Failed => new(PublicMarkdownStatus.Failed, null, "The typed public Markdown provider failed."),
                         _ => new(PublicMarkdownStatus.Unsupported, null, "The page has no complete public Markdown provider."),
                     };
@@ -158,9 +161,11 @@ public sealed partial class SiteGenerator
                     ? JsonSerializer.Serialize(new { configuration.Text, configuration.Theme, configuration.BuildTimestamp }) : null,
                 configuration.EnvironmentName,
             }));
-            PublicMarkdownBodyResult Convert(MarkdownCompilationResult compiled, DocumentSource? source, SiteRoute route) =>
+            PublicMarkdownBodyResult Convert(MarkdownCompilationResult compiled, DocumentSource? source, SiteRoute route, bool allowSourceRelative = true) =>
                 PublicMarkdownBody.Convert(compiled, _markdownCompiler.Options.Markdown, source,
-                    link => resolver.Resolve(link.Target, link.SourceId, route), token);
+                    link => !allowSourceRelative && IsSourceRelative(link.Target) ? null : resolver.Resolve(link.Target, link.SourceId, route), token);
+            static bool IsSourceRelative(string target) => !target.StartsWith('/') && !target.StartsWith('#')
+                && !target.StartsWith('?') && !Uri.TryCreate(target, UriKind.Absolute, out _);
             async Task AddAsync(SiteRoute route, PageMetadata metadata, bool unlisted, bool llms, string key,
                 bool cacheable, string sourceId, DocumentSource? source, Func<PublicMarkdownBodyResult> create)
             {

@@ -918,6 +918,8 @@ public sealed partial class SiteGenerator
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            AgentReadyPages = configuration.AgentReady is { } outcomes ? Array.AsReadOnly(outcomes.Pages.Select(page =>
+                new AgentReady.PublicMarkdownPageResult(page.Html.RelativeOutputPath, page.Markdown?.RelativeOutputPath, page.Outcome.Status, page.Outcome.Reason)).ToArray()) : [],
             HtmlFactsSharing = sharedHtmlFacts.Counters,
             Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(

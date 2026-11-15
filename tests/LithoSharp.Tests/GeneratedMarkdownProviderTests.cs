@@ -21,8 +21,19 @@ public sealed class GeneratedMarkdownProviderTests
         {
             factories++;
             return factoryPage = new(new("group"), SiteRoute.ForFile("group.html"), group.Entries[0].Body, new("Title"));
-        }, (page, context) => { htmlPage = page; htmlContext = context; return "<p>HTML</p>"; },
-        (page, context) => { providers++; markdownPage = page; markdownContext = context; return page.Content; },
+        }, (page, context) =>
+        {
+            htmlPage = page;
+            htmlContext = context;
+            return "<p>HTML</p>";
+        },
+        (page, context) =>
+        {
+            providers++;
+            markdownPage = page;
+            markdownContext = context;
+            return page.Content;
+        },
         "configuration:v1", transformationId: new("generated:v1"), isCacheable: true);
         var page = Page(collection);
         var generator = new SiteGenerator();
@@ -42,7 +53,11 @@ public sealed class GeneratedMarkdownProviderTests
     public async Task GeneratedProvider_OffDoesNotInvoke_AndMissingFingerprintDisablesCache()
     {
         var calls = 0;
-        var page = Page(Register((_, _) => { calls++; return "Body"; }));
+        var page = Page(Register((_, _) =>
+        {
+            calls++;
+            return "Body";
+        }));
         page.Render(new SiteGenerator(), Configuration(page), "Production", AssetRegistry.Empty, default);
         await Assert.That(calls).IsEqualTo(0);
         await Assert.That(page.CanCacheRendering).IsFalse();
@@ -63,8 +78,13 @@ public sealed class GeneratedMarkdownProviderTests
             ContentPageMarkdownResult? result = null;
             var cancelled = false;
             try
-            { result = page.GetPublicMarkdown(new SiteGenerator(), Configuration(page), "Production", AssetRegistry.Empty, default); }
-            catch (OperationCanceledException) { cancelled = true; }
+            {
+                result = page.GetPublicMarkdown(new SiteGenerator(), Configuration(page), "Production", AssetRegistry.Empty, default);
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
+            }
             if (mode == "cancel")
                 await Assert.That(cancelled).IsTrue();
             else

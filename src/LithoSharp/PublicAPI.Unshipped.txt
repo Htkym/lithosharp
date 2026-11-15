@@ -860,3 +860,22 @@ LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.MarkdownProvider.i
 LithoSharp.SiteExtraPage.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
 LithoSharp.SiteExtraPage.AgentReady.init -> void
 virtual LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry, LithoSharp.Content.ContentPageRenderingContext! context) -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult
+LithoSharp.AgentReady.PublicMarkdownPageResult.HtmlPath.get -> string!
+LithoSharp.AgentReady.PublicMarkdownPageResult.MarkdownPath.get -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult.Reason.get -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult.Status.get -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Automatic = 1 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.ExplicitReplacement = 2 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Failed = 6 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.IntentionallyExcluded = 3 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.NotRequested = 0 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Unavailable = 5 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Unsupported = 4 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.GeneratePagesWithMarkdown<TPageContent>(LithoSharp.Content.ContentCollectionId! generatedCollectionId, LithoSharp.Content.ContentPageGroupSelector<TFrontMatter, TBody>! groupSelector, LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>! pageFactory, LithoSharp.Content.GeneratedPageRenderer<TPageContent>! renderer, LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>! markdownProvider, string? rendererFingerprint = null, System.Collections.Generic.IEnumerable<string!>? groupKeys = null, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<string!>? groupOrderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false, LithoSharp.Content.GeneratedPageDerivedSurfaces derivedSurfaces = LithoSharp.Content.GeneratedPageDerivedSurfaces.Default) -> LithoSharp.Content.SiteContentCollection!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.RenderDocsWithMarkdown(System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!, LithoSharp.Content.DocsPagePresentation!>! presentation, LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>! bodyRenderer, LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>! markdownProvider, string? rendererFingerprint = null, bool isThreadSafe = false) -> LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>!
+LithoSharp.SiteGenerationResult.AgentReadyPages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.AgentReady.PublicMarkdownPageResult!>!
+LithoSharp.SiteGenerationResult.AgentReadyPages.init -> void
+virtual LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string?
+LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>

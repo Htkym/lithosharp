@@ -35,7 +35,11 @@ public sealed class MdxMarkdownProviderTests
             providedContext = context;
             return "Complete explicit body";
         }, fingerprint, renderer: (entry, context) =>
-        { rendered = entry; renderedContext = context; return entry.Body.ToHtmlString(); });
+        {
+            rendered = entry;
+            renderedContext = context;
+            return entry.Body.ToHtmlString();
+        });
         var contribution = await site.PrepareAsync(Context(workspace.Root));
         var registration = (SiteContentCollection<MdxIntegrationTests.FrontMatter, MdxDocument>)contribution.ContentCollections.Single();
         var page = GeneratedMarkdownProviderTests.Page(registration);
@@ -67,7 +71,10 @@ public sealed class MdxMarkdownProviderTests
         await using var blog = new MdxBlogSite(new MdxOptions(workspace.Root, worker));
         var calls = 0;
         blog.AddCollectionWithMarkdown(new("news", source, "news"), (_, _) =>
-        { calls++; throw new InvalidOperationException("private-secret"); });
+        {
+            calls++;
+            throw new InvalidOperationException("private-secret");
+        });
         var contribution = await blog.PrepareAsync(Context(workspace.Root));
         var collection = contribution.ContentCollections.OfType<SiteContentCollection<MdxBlogFrontMatter, MdxDocument>>().Single();
         var page = collection.CreatePages("https://example.com/", DateTimeOffset.Parse("2021-01-01T00:00:00Z"),
@@ -112,8 +119,13 @@ public sealed class MdxMarkdownProviderTests
             ContentPageMarkdownResult? result = null;
             var cancelled = false;
             try
-            { result = page.GetPublicMarkdown(new SiteGenerator(), GeneratedMarkdownProviderTests.Configuration(page), "Production", AssetRegistry.Empty, default); }
-            catch (OperationCanceledException) { cancelled = true; }
+            {
+                result = page.GetPublicMarkdown(new SiteGenerator(), GeneratedMarkdownProviderTests.Configuration(page), "Production", AssetRegistry.Empty, default);
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
+            }
             if (mode == "cancel")
                 await Assert.That(cancelled).IsTrue();
             else

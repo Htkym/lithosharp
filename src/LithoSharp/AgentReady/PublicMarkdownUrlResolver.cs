@@ -97,8 +97,7 @@ internal sealed class PublicMarkdownUrlResolver
             return new Uri(expanded).UserInfo.Length == 0 ? expanded : null;
         }
         var source = NormalizeSource(sourceId);
-        if (source is null || !knownSources.Contains(source)
-            || (sources.TryGetValue(source, out var sourceRoute) && sourceRoute is null)
+        if ((source is not null && sources.TryGetValue(source, out var sourceRoute) && sourceRoute is null)
             || !publicPaths.TryGetValue(new Uri(origin + sourceHtmlRoute.PublicPath).AbsolutePath, out var current)
             || current is null || !current.Equals(sourceHtmlRoute))
             return null;
@@ -109,6 +108,8 @@ internal sealed class PublicMarkdownUrlResolver
             return origin + sourceHtmlRoute.PublicPath + suffix;
         if (!path.StartsWith('/'))
         {
+            if (source is null || !knownSources.Contains(source))
+                return null;
             var decoded = DecodeRelativePath(path);
             if (decoded is null)
                 return null;

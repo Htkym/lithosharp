@@ -27,6 +27,9 @@ public sealed record SiteGenerationResult(
         "Production",
         "Unknown");
 
+    /// <summary>Published-page Markdown outcomes. Empty when Agent Ready is disabled; no HTTP delivery is implied.</summary>
+    public IReadOnlyList<AgentReady.PublicMarkdownPageResult> AgentReadyPages { get; init; } = [];
+
     public SiteBuildTimings? Timings { get; init; }
 
     public bool Equals(SiteGenerationResult? other) =>
