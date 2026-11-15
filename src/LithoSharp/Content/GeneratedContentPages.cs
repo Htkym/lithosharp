@@ -25,6 +25,13 @@ public delegate string GeneratedPageRenderer<TPageContent>(
     ContentPageRenderingContext context)
     where TPageContent : notnull;
 
+/// <summary>Provides the complete public Markdown counterpart of a generated page.
+/// Null means unsupported; an empty string explicitly supplies an empty body.</summary>
+public delegate string? GeneratedPageMarkdownProvider<TPageContent>(
+    SitePage<TPageContent> page,
+    ContentPageRenderingContext context)
+    where TPageContent : notnull;
+
 [Flags]
 public enum GeneratedPageDerivedSurfaces
 {
@@ -84,6 +91,7 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
     private readonly ContentPageGroupSelector<TFrontMatter, TBody> groupSelector;
     private readonly GeneratedPageFactory<TFrontMatter, TBody, TPageContent> pageFactory;
     private readonly GeneratedPageRenderer<TPageContent> renderer;
+    private readonly GeneratedPageMarkdownProvider<TPageContent>? markdownProvider;
     private readonly string rendererImplementationIdentity;
     private readonly IReadOnlyList<string?> groupKeys;
     private readonly ContentLayoutId? layoutId;
@@ -105,17 +113,20 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
         IEnumerable<ContentDependency>? declaredDependencies,
         ContentTransformationId? transformationId,
         bool isCacheable,
-        GeneratedPageDerivedSurfaces derivedSurfaces)
+        GeneratedPageDerivedSurfaces derivedSurfaces,
+        GeneratedPageMarkdownProvider<TPageContent>? markdownProvider = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         ArgumentNullException.ThrowIfNull(id);
         this.groupSelector = groupSelector ?? throw new ArgumentNullException(nameof(groupSelector));
         this.pageFactory = pageFactory ?? throw new ArgumentNullException(nameof(pageFactory));
         this.renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        this.markdownProvider = markdownProvider;
         rendererImplementationIdentity = string.Join("|",
             CaptureRendererIdentity(renderer),
             CaptureRendererIdentity(pageFactory),
-            CaptureRendererIdentity(groupSelector));
+            CaptureRendererIdentity(groupSelector))
+            + (markdownProvider is null ? "" : "|markdown:" + CaptureRendererIdentity(markdownProvider));
         if (id.Equals(source.Id))
         {
             throw new ArgumentException(
@@ -303,6 +314,7 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
                 RendererFingerprint = this.RendererFingerprint is null
                     ? null
                     : this.RendererFingerprint + "|" + rendererImplementationIdentity,
+                PublicMarkdownProvider = markdownProvider is null ? null : context => markdownProvider(page, context),
                 IsThreadSafe = this.IsThreadSafe,
                 FrontMatterSchema = SiteContentCollection.FrontMatterSchemaName(typeof(TFrontMatter)),
                 StaticSchemaJson = source.StaticSchemaJson,

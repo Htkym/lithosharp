@@ -64,6 +64,32 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
     public void AddCollection<TFrontMatter>(IContentCollectionLoader<TFrontMatter, MdxDocument> loader,
         Func<ContentEntry<TFrontMatter, MdxDocument>, MdxPublicData>? publicData = null,
         ContentPageRenderer<TFrontMatter, MdxDocument>? renderer = null)
+        where TFrontMatter : notnull => AddCollectionCore(loader, publicData, renderer, null, null);
+
+    /// <summary>Registers MDX with a complete public Markdown provider evaluated against the prepared HTML entry.</summary>
+    /// <remarks>No Markdown completeness is inferred from MDX source, plain text, or hydration settings.
+    /// The configuration fingerprint and declared collection/entry inputs must cover both C# renderers.
+    /// A missing fingerprint disables rendering reuse even when the MDX worker is cacheable.</remarks>
+    public void AddCollectionWithMarkdown<TFrontMatter>(IContentCollectionLoader<TFrontMatter, MdxDocument> loader,
+        ContentPageMarkdownProvider<TFrontMatter, MdxDocument> markdownProvider,
+        string? rendererFingerprint = null,
+        Func<ContentEntry<TFrontMatter, MdxDocument>, MdxPublicData>? publicData = null,
+        ContentPageRenderer<TFrontMatter, MdxDocument>? renderer = null)
+        where TFrontMatter : notnull
+    {
+        ArgumentNullException.ThrowIfNull(markdownProvider);
+        if (rendererFingerprint is not null && string.IsNullOrWhiteSpace(rendererFingerprint))
+        {
+            throw new ArgumentException("A renderer fingerprint must not be empty.", nameof(rendererFingerprint));
+        }
+        AddCollectionCore(loader, publicData, renderer, markdownProvider, rendererFingerprint);
+    }
+
+    private void AddCollectionCore<TFrontMatter>(IContentCollectionLoader<TFrontMatter, MdxDocument> loader,
+        Func<ContentEntry<TFrontMatter, MdxDocument>, MdxPublicData>? publicData,
+        ContentPageRenderer<TFrontMatter, MdxDocument>? renderer,
+        ContentPageMarkdownProvider<TFrontMatter, MdxDocument>? markdownProvider,
+        string? rendererFingerprint)
         where TFrontMatter : notnull
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -126,7 +152,13 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 var prepared = Pinned(entries);
                 return new SiteContentCollection<TFrontMatter, MdxDocument>(prepared,
                     renderer ?? ((entry, rendering) => rendering.RenderDocument(entry.Body.ToHtmlString())))
-                { RendererFingerprint = options.Cacheable ? "mdx-v1" : null, IsThreadSafe = renderer is null };
+                {
+                    MarkdownProvider = markdownProvider,
+                    RendererFingerprint = !options.Cacheable ? null
+                        : markdownProvider is null ? "mdx-v1"
+                        : rendererFingerprint is null ? null : "mdx-v1|" + rendererFingerprint,
+                    IsThreadSafe = renderer is null && markdownProvider is null,
+                };
             }, loadDiagnostics, catalog);
         });
     }

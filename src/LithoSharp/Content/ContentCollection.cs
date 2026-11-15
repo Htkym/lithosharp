@@ -136,6 +136,36 @@ public sealed class ContentCollection<TFrontMatter, TBody>
             isCacheable,
             derivedSurfaces);
 
+    /// <summary>Groups entries into pages with an explicit complete public Markdown provider.</summary>
+    /// <remarks>The provider receives the same factory result and context as the HTML renderer.
+    /// Use public absolute or root-relative URLs when the generated page combines multiple source files.
+    /// Caching requires a configuration fingerprint and complete declared dependencies for both renderers.</remarks>
+    public SiteContentCollection GeneratePagesWithMarkdown<TPageContent>(
+        ContentCollectionId generatedCollectionId,
+        ContentPageGroupSelector<TFrontMatter, TBody> groupSelector,
+        GeneratedPageFactory<TFrontMatter, TBody, TPageContent> pageFactory,
+        GeneratedPageRenderer<TPageContent> renderer,
+        GeneratedPageMarkdownProvider<TPageContent> markdownProvider,
+        string? rendererFingerprint = null,
+        IEnumerable<string>? groupKeys = null,
+        ContentLayoutId? layoutId = null,
+        IComparer<string>? groupOrderingComparer = null,
+        IEnumerable<ContentDependency>? declaredDependencies = null,
+        ContentTransformationId? transformationId = null,
+        bool isCacheable = false,
+        GeneratedPageDerivedSurfaces derivedSurfaces = GeneratedPageDerivedSurfaces.Default)
+        where TPageContent : notnull
+    {
+        ArgumentNullException.ThrowIfNull(markdownProvider);
+        return new GeneratedSiteContentCollection<TFrontMatter, TBody, TPageContent>(
+            this, generatedCollectionId, groupSelector, pageFactory, renderer, groupKeys,
+            layoutId, groupOrderingComparer, declaredDependencies, transformationId, isCacheable,
+            derivedSurfaces, markdownProvider)
+        {
+            RendererFingerprint = rendererFingerprint,
+        };
+    }
+
     private static ReadOnlyCollection<ContentEntry<TFrontMatter, TBody>> SnapshotEntries(
         IEnumerable<ContentEntry<TFrontMatter, TBody>> entries,
         IComparer<ContentEntry<TFrontMatter, TBody>> comparer)
