@@ -29,6 +29,10 @@
     {
       "path": "ja/units-api-impacts.json",
       "sha256": "7efd5afda98bdea6fb5411bbed772f162b4f609a68164a0ce227d9fa7e22946e"
+    },
+    {
+      "path": "ja/units-agent-ready.json",
+      "sha256": "614632f54e89f10833d03c7c5ca21ce545e9799569d9ed56f688a1dd2461d173"
     }
   ],
   "example": {

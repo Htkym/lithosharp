@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "088653a4cbf0bb01697fa831c2b9db0f39e94ef0108ece15e29cedfa87af76a0": {
+      "english": "Head additions for custom layouts, using the same explicit public facts as built-in layouts.",
+      "japanese": "独自レイアウト用のhead追加要素です。標準レイアウトと同じ、明示された公開情報を使います。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyMetadata/summary"
+      ]
+    },
+    "12ea239c5af5eaa1c5c2e7fcc010f123f2d2bdc5ee4e70ddfb9b38811404cd82": {
+      "english": "An explicitly supplied public author or publisher.",
+      "japanese": "明示的に指定された公開用の著者または発行主体です。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyIdentity/summary"
+      ]
+    },
+    "131bf0050352f198afbb5a38dea49974d11f490b82e4f84cfdfc245843dff87b": {
+      "english": "An emitted index that includes this page, or null.",
+      "japanese": "このページを含む生成済みの索引、またはnullです。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyHeadData.LlmsUrl/summary"
+      ]
+    },
+    "15d1a428169ad72d4b13f8e6f5a16cbd00c7a20e306805a49fd407da1d3c8b35": {
+      "english": "Public facts shared by built-in and custom document heads. URLs are absolute HTTP(S) URLs.",
+      "japanese": "標準と独自の文書headで共有する公開情報です。URLは絶対HTTP(S) URLです。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyHeadData/summary"
+      ]
+    },
+    "17add45819239b6439baa16b736ddd15a2ce2417afeadb7dfecc71eae359d6cb": {
+      "english": "Registers a blog with a complete public Markdown provider, including any essential article or author information.",
+      "japanese": "完全な公開Markdownのproviderを指定してブログを登録します。記事や著者に関する重要な情報も含めます。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxBlogSite.AddCollectionWithMarkdown(LithoSharp.Mdx.MdxBlogCollection,LithoSharp.Content.ContentPageMarkdownProvider{LithoSharp.Mdx.MdxBlogFrontMatter,LithoSharp.Mdx.MdxDocument},System.String)/summary"
+      ]
+    },
+    "17c4e4e0e22675fe2fbd8ac787b9f54b8062eb91a657e4406081473a446ba228": {
+      "english": "Optional complete public Markdown provider. It shares the renderer's entry, configuration fingerprint, declared dependencies, and thread-safety contract.",
+      "japanese": "完全な公開Markdownを提供する任意のproviderです。レンダラーとentry、設定のfingerprint、宣言済みの依存入力、スレッドセーフの条件を共有します。",
+      "contexts": [
+        "P:LithoSharp.Content.SiteContentCollection`2.MarkdownProvider/summary"
+      ]
+    },
+    "1d93d74a1860eb849079752c2561d0930d0f48df94d0dc4df9276ab59eba9b35": {
+      "english": "Markdown provision and index listing, independent from this page's HTML publication policy.",
+      "japanese": "このページのHTMLの公開方針とは独立した、Markdownの提供と索引への掲載の設定です。",
+      "contexts": [
+        "P:LithoSharp.Pages.PageMetadata.AgentReady/summary"
+      ]
+    },
+    "370a03e0a877149cb27dceee3a1e6781cb6920470d6bb78a35cd068e09533244": {
+      "english": "Existing custom head additions, inspected for JSON-LD ownership; not emitted by this helper.",
+      "japanese": "既存の独自headの追加要素です。JSON-LDの管理方式を検査するために使い、このヘルパーからは出力しません。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyHeadData.ExistingHead/summary"
+      ]
+    },
+    "3cfcdf53dd7d28effb137820805115c7715b8e125882dc4ece39ee419303e881": {
+      "english": "Optional public Markdown and discovery metadata. Disabled by default.",
+      "japanese": "公開Markdownと発見用リンクに関する任意のメタデータです。既定では無効です。",
+      "contexts": [
+        "P:LithoSharp.SiteCustomization.AgentReady/summary"
+      ]
+    },
+    "433f49a42afe0930e8132fa696e41fbb533eaef57849046af9ebef986cbd4bd4": {
+      "english": "Disabled by default. Existing HTML and llms.txt behavior is unchanged when disabled.",
+      "japanese": "既定では無効です。無効な場合は既存のHTMLとllms.txtの動作を維持します。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyOptions.Enabled/summary"
+      ]
+    },
+    "46b4beffe6b8c0f06b8378e1f8ebc474d5c40bf7d266519c3c40ab5ab19da970": {
+      "english": "Connects typed Docs rendering to an explicit complete public Markdown provider.",
+      "japanese": "型付きDocsの描画に、明示的な完全な公開Markdownのproviderを接続します。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.RenderDocsWithMarkdown(System.Func{LithoSharp.Content.ContentEntry{`0,`1},LithoSharp.Content.DocsPagePresentation},LithoSharp.Content.ContentPageRenderer{`0,`1},LithoSharp.Content.ContentPageMarkdownProvider{`0,`1},System.String,System.Boolean)/summary"
+      ]
+    },
+    "56cf28aa178f49d8c8ee68dc10c80f3c21d295c75f8a26b81837b161de96aa66": {
+      "english": "No Markdown completeness is inferred from MDX source, plain text, or hydration settings. The configuration fingerprint and declared collection/entry inputs must cover both C# renderers. A missing fingerprint disables rendering reuse even when the MDX worker is cacheable.",
+      "japanese": "MDXの原文、プレーンテキスト、hydrationの設定から、Markdownが完全であるとは推測しません。設定のfingerprintと宣言済みのコレクション・entryの入力は、両方のC#レンダラーを反映する必要があります。MDX workerがキャッシュ可能でも、fingerprintがなければ描画結果を再利用しません。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxSite.AddCollectionWithMarkdown``1(LithoSharp.Content.IContentCollectionLoader{``0,LithoSharp.Mdx.MdxDocument},LithoSharp.Content.ContentPageMarkdownProvider{``0,LithoSharp.Mdx.MdxDocument},System.String,System.Func{LithoSharp.Content.ContentEntry{``0,LithoSharp.Mdx.MdxDocument},LithoSharp.Mdx.MdxPublicData},LithoSharp.Content.ContentPageRenderer{``0,LithoSharp.Mdx.MdxDocument})/remarks"
+      ]
+    },
+    "5f9966ae2e1825536ededc1d4622b8724edbbf132a598c10dd6cfc3dd7483e39": {
+      "english": "The HTML and Markdown renderers receive the same bound props. The registration's configuration fingerprint and declared dependencies must describe both renderers. Returning null means unsupported; an empty string explicitly means an empty public alternative. This provider never runs during inspection.",
+      "japanese": "HTMLとMarkdownのレンダラーは同じバインド済みpropsを受け取ります。登録に指定した設定のfingerprintと宣言済みの依存入力は、両方のレンダラーを反映する必要があります。nullを返すと未対応、空文字列を返すと空の公開用の代替内容を明示したことになります。検査中にこのproviderを呼ぶことはありません。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.IPublicMarkdownComponent`1/remarks"
+      ]
+    },
+    "6054f1f97aee8e2a91952c62e82fe8d4a07ab27e7677b1b4deb97a83b9b48dd2": {
+      "english": "Explicit robots rules. No crawler or training policy is added implicitly.",
+      "japanese": "明示的なrobotsの規則です。クローラーや学習に関する方針を暗黙に追加しません。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyRobotsGroup/summary"
+      ]
+    },
+    "626deb4ff62dbddfc4e5f1f5e84b0b128503bc279e2dffa8f37773de75652811": {
+      "english": "Summary and feed text are not complete Markdown alternatives. Declare all provider inputs and a configuration fingerprint to enable rendering reuse.",
+      "japanese": "要約やfeed用テキストは、完全なMarkdownの代替本文ではありません。描画結果を再利用するには、providerのすべての入力と設定のfingerprintを宣言してください。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxBlogSite.AddCollectionWithMarkdown(LithoSharp.Mdx.MdxBlogCollection,LithoSharp.Content.ContentPageMarkdownProvider{LithoSharp.Mdx.MdxBlogFrontMatter,LithoSharp.Mdx.MdxDocument},System.String)/remarks"
+      ]
+    },
+    "641068b7da96d9920dc059efda1694e04f8f6e96dd18dcb73b9c4b08e114286c": {
+      "english": "Registers MDX with a complete public Markdown provider evaluated against the prepared HTML entry.",
+      "japanese": "準備済みのHTML用entryに対して評価する、完全な公開Markdownのproviderを指定してMDXを登録します。",
+      "contexts": [
+        "M:LithoSharp.Mdx.MdxSite.AddCollectionWithMarkdown``1(LithoSharp.Content.IContentCollectionLoader{``0,LithoSharp.Mdx.MdxDocument},LithoSharp.Content.ContentPageMarkdownProvider{``0,LithoSharp.Mdx.MdxDocument},System.String,System.Func{LithoSharp.Content.ContentEntry{``0,LithoSharp.Mdx.MdxDocument},LithoSharp.Mdx.MdxPublicData},LithoSharp.Content.ContentPageRenderer{``0,LithoSharp.Mdx.MdxDocument})/summary"
+      ]
+    },
+    "6edbe0da550d11d0f86a1451119639d46fffb64f073ba9013f282e466770c6c7": {
+      "english": "Supplies a complete public alternative for an explicitly registered static component.",
+      "japanese": "明示的に登録した静的コンポーネントに、完全な公開用の代替内容を提供します。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.IPublicMarkdownComponent`1/summary"
+      ]
+    },
+    "705c3adfa329cb3a29962fba591dd06abecc3e930c34afd28db6997c232e27ad": {
+      "english": "The provider receives the same factory result and context as the HTML renderer. Use public absolute or root-relative URLs when the generated page combines multiple source files. Caching requires a configuration fingerprint and complete declared dependencies for both renderers.",
+      "japanese": "providerはHTMLレンダラーと同じfactoryの生成結果とcontextを受け取ります。生成ページが複数の原文ファイルをまとめる場合は、公開先の絶対URLまたはルート相対URLを使ってください。キャッシュには両方のレンダラーを反映する設定のfingerprintと、漏れのない依存入力の宣言が必要です。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.GeneratePagesWithMarkdown``1(LithoSharp.Content.ContentCollectionId,LithoSharp.Content.ContentPageGroupSelector{`0,`1},LithoSharp.Content.GeneratedPageFactory{`0,`1,``0},LithoSharp.Content.GeneratedPageRenderer{``0},LithoSharp.Content.GeneratedPageMarkdownProvider{``0},System.String,System.Collections.Generic.IEnumerable{System.String},LithoSharp.Content.ContentLayoutId,System.Collections.Generic.IComparer{System.String},System.Collections.Generic.IEnumerable{LithoSharp.Content.ContentDependency},LithoSharp.Content.ContentTransformationId,System.Boolean,LithoSharp.Content.GeneratedPageDerivedSurfaces)/remarks"
+      ]
+    },
+    "70c51443b1f10f494fe7c02b1bfea1e9cabd0fea06b8cb0d7bf11f5baae53460": {
+      "english": "The provider must include essential additions made by the body renderer. Both delegates share the prepared entry and context. A configuration fingerprint and declared dependencies enable cache reuse.",
+      "japanese": "providerには、本文レンダラーが加える重要な内容も含める必要があります。両方のデリゲートは準備済みのentryとcontextを共有します。設定のfingerprintと依存入力の宣言により、キャッシュを再利用できます。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.RenderDocsWithMarkdown(System.Func{LithoSharp.Content.ContentEntry{`0,`1},LithoSharp.Content.DocsPagePresentation},LithoSharp.Content.ContentPageRenderer{`0,`1},LithoSharp.Content.ContentPageMarkdownProvider{`0,`1},System.String,System.Boolean)/remarks"
+      ]
+    },
+    "8241ab8dfd8464eb730ff187d31ec4bf674616d24a13cc7dad1ce8bf20d208a0": {
+      "english": "Selects index listing without changing HTML publication or Markdown provision.",
+      "japanese": "HTMLの公開やMarkdownの提供を変えずに、索引への掲載を選びます。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentIndexMode/summary"
+      ]
+    },
+    "8f794a75c739f9d3111a4e6cd81e434b8572001d0ff7c142db42cfbc4fd76b5b": {
+      "english": "Provides the complete public Markdown counterpart of a generated page. Null means unsupported; an empty string explicitly supplies an empty body.",
+      "japanese": "生成ページに対応する完全な公開Markdownを提供します。nullは未対応を表し、空文字列は空の本文を明示的に提供します。",
+      "contexts": [
+        "T:LithoSharp.Content.GeneratedPageMarkdownProvider`1/summary"
+      ]
+    },
+    "95f789809012a4d43b9a5df0eb102886c801e1035351f3e47544e55dc2b64e80": {
+      "english": "Renders public Markdown without private configuration, execution details, or omitted trust statements.",
+      "japanese": "非公開の設定や実行の詳細を含めず、信頼条件の説明を省略しない公開Markdownを生成します。",
+      "contexts": [
+        "M:LithoSharp.AgentReady.IPublicMarkdownComponent`1.RenderPublicMarkdown(`0,LithoSharp.ComponentRenderingContext)/summary"
+      ]
+    },
+    "a8411ed9a951eab7a679c789137dc45c6ee6279eff3765df8f447c0dd1b98681": {
+      "english": "A complete replacement body. Null requests automatic conversion; an empty string is an explicit body.",
+      "japanese": "完全な代替本文です。nullは自動変換の指定で、空文字列は明示的な本文です。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownReplacement/summary"
+      ]
+    },
+    "be44f0063ede107ebb6f3f8007a691036ad44db50bea977b63ae4e6648b49d07": {
+      "english": "Agent-readable alternatives for one page that is otherwise eligible for HTML publication.",
+      "japanese": "HTMLとしての公開条件を満たす1ページに対応する、エージェント向けの代替内容です。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyPageOptions/summary"
+      ]
+    },
+    "bed5fa37f911eb67c2748e6e80d2e0ec036d92cfb652caf456b59a4ea989d8c8": {
+      "english": "An explicit Markdown output route. Null derives the route from the final HTML output path.",
+      "japanese": "明示的なMarkdownの出力ルートです。nullの場合は、最終的なHTML出力のパスからルートを決定します。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownRoute/summary"
+      ]
+    },
+    "c5ae58dfc246a3e19faab6fc2a0f74c5c905226cd6964ea5223c24529b8ec484": {
+      "english": "Groups entries into pages with an explicit complete public Markdown provider.",
+      "japanese": "entryをページへグループ化し、完全な公開Markdownのproviderを明示的に指定します。",
+      "contexts": [
+        "M:LithoSharp.Content.ContentCollection`2.GeneratePagesWithMarkdown``1(LithoSharp.Content.ContentCollectionId,LithoSharp.Content.ContentPageGroupSelector{`0,`1},LithoSharp.Content.GeneratedPageFactory{`0,`1,``0},LithoSharp.Content.GeneratedPageRenderer{``0},LithoSharp.Content.GeneratedPageMarkdownProvider{``0},System.String,System.Collections.Generic.IEnumerable{System.String},LithoSharp.Content.ContentLayoutId,System.Collections.Generic.IComparer{System.String},System.Collections.Generic.IEnumerable{LithoSharp.Content.ContentDependency},LithoSharp.Content.ContentTransformationId,System.Boolean,LithoSharp.Content.GeneratedPageDerivedSurfaces)/summary"
+      ]
+    },
+    "c6424874b8659ac10a1ef9180b9801b85a0e432f206748c05b3da9eb65af8b32": {
+      "english": "A public, sanitized explanation when complete Markdown was unavailable.",
+      "japanese": "完全なMarkdownを提供できなかった場合の、非公開情報を除いた公開用の説明です。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.PublicMarkdownPageResult.Reason/summary"
+      ]
+    },
+    "dc385bb1f9e8d086526e0ed5623708de0c0aaf78b755fbfca42efcbca98ac62c": {
+      "english": "Selects Markdown provision independently from HTML publication and index listing.",
+      "japanese": "HTMLの公開や索引への掲載とは独立して、Markdownの提供を選びます。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.PublicMarkdownMode/summary"
+      ]
+    },
+    "dfa7b757646722973f60c7fa44c76922e8381876f2a8f174915cd6f199a790b6": {
+      "english": "Published-page Markdown outcomes. Empty when Agent Ready is disabled; no HTTP delivery is implied.",
+      "japanese": "公開ページのMarkdown提供結果です。Agent Readyが無効な場合は空で、HTTP配信を示すものではありません。",
+      "contexts": [
+        "P:LithoSharp.SiteGenerationResult.AgentReadyPages/summary"
+      ]
+    },
+    "ec89ac2a349f1ee1dd16915ffdb5e9b29b840515c30cfba4a484b959451fa715": {
+      "english": "A complete, registered Markdown artifact, or null.",
+      "japanese": "完全な登録済みMarkdown成果物、またはnullです。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyHeadData.MarkdownUrl/summary"
+      ]
+    },
+    "ee64d67571e94c724a8d24bbdabaf22d196c1917720f036b509aacafa48c12b3": {
+      "english": "Explicitly enables public Markdown and its related publication metadata.",
+      "japanese": "公開Markdownと関連する公開メタデータを明示的に有効にします。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.AgentReadyOptions/summary"
+      ]
+    },
+    "fa5d4031458c2747311590653929a273ad552372f3234f69a93a26c36c5d092a": {
+      "english": "The public Markdown provision outcome for one published HTML page. This is not an HTTP delivery check.",
+      "japanese": "HTMLとして公開する1ページに対するMarkdownの提供結果です。HTTP配信の検査結果ではありません。",
+      "contexts": [
+        "T:LithoSharp.AgentReady.PublicMarkdownPageResult/summary"
+      ]
+    },
+    "fa7526eca360b4686fa74b2ac6846b1bd82367406185e01fa1fc4c0ba7a883e5": {
+      "english": "Provides the complete public Markdown counterpart of a rendered page. Null means unsupported; an empty string explicitly provides an empty body.",
+      "japanese": "描画するページに対応する完全な公開Markdownを提供します。nullは未対応を表し、空文字列は空の本文を明示的に提供します。",
+      "contexts": [
+        "T:LithoSharp.Content.ContentPageMarkdownProvider`2/summary"
+      ]
+    },
+    "fb6535e8cfbaa6b659c7a67137965ada5482af7d30e9ff00e47dae557f470975": {
+      "english": "Null inherits the site policy.",
+      "japanese": "nullの場合はサイト全体の方針を引き継ぎます。",
+      "contexts": [
+        "P:LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Mode/summary"
+      ]
+    }
+  }
+}
