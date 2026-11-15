@@ -286,6 +286,9 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
     /// configuration fingerprint, declared dependencies, and thread-safety contract.</summary>
     public ContentPageMarkdownProvider<TFrontMatter, TBody>? MarkdownProvider { get; init; }
 
+    // Trusted package adapters preserve an unavailable contract separately from unsupported content.
+    internal Func<ContentEntry<TFrontMatter, TBody>, ContentPageRenderingContext, (ContentPageMarkdownStatus Status, string? Markdown)>? MarkdownOutcomeProvider { get; init; }
+
     /// <inheritdoc />
     public override ContentCollectionId Id => Collection.Id;
 
@@ -375,8 +378,10 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                     RendererFingerprint = this.RendererFingerprint is null
                         ? null
                         : this.RendererFingerprint + "|" + rendererImplementationIdentity
-                            + (MarkdownProvider is null ? string.Empty : "|markdown:" + CaptureRendererIdentity(MarkdownProvider)),
+                            + (MarkdownProvider is null ? string.Empty : "|markdown:" + CaptureRendererIdentity(MarkdownProvider))
+                            + (MarkdownOutcomeProvider is null ? string.Empty : "|markdown-outcome:" + CaptureRendererIdentity(MarkdownOutcomeProvider)),
                     PublicMarkdownProvider = MarkdownProvider is null ? null : context => MarkdownProvider(entry, context),
+                    PublicMarkdownOutcomeProvider = MarkdownOutcomeProvider is null ? null : context => MarkdownOutcomeProvider(entry, context),
                     IsThreadSafe = this.IsThreadSafe,
                     FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
                     InputProfile = entry.InputProfile,
@@ -479,6 +484,7 @@ internal sealed class IntegratedContentPage(
     internal bool CanCacheRendering => IsCacheable && RendererFingerprint is not null;
 
     internal Func<ContentPageRenderingContext, string?>? PublicMarkdownProvider { get; init; }
+    internal Func<ContentPageRenderingContext, (ContentPageMarkdownStatus Status, string? Markdown)>? PublicMarkdownOutcomeProvider { get; init; }
 
     internal string? MarkdownSourcePath { get; init; }
 
@@ -538,13 +544,21 @@ internal sealed class IntegratedContentPage(
         cancellationToken.ThrowIfCancellationRequested();
         if (publicMarkdown is not null)
             return publicMarkdown;
-        if (PublicMarkdownProvider is null)
+        if (PublicMarkdownProvider is null && PublicMarkdownOutcomeProvider is null)
             return publicMarkdown = Result(ContentPageMarkdownStatus.Unsupported);
         try
         {
-            var markdown = PublicMarkdownProvider(renderingContext ??= CreateRenderingContext(generator, configuration, environmentName, assets));
+            var context = renderingContext ??= CreateRenderingContext(generator, configuration, environmentName, assets);
+            if (PublicMarkdownProvider is not null)
+            {
+                var markdown = PublicMarkdownProvider(context);
+                cancellationToken.ThrowIfCancellationRequested();
+                return publicMarkdown = Result(markdown is null ? ContentPageMarkdownStatus.Unsupported : ContentPageMarkdownStatus.Provided, markdown);
+            }
+            var outcome = PublicMarkdownOutcomeProvider!(context);
             cancellationToken.ThrowIfCancellationRequested();
-            return publicMarkdown = Result(markdown is null ? ContentPageMarkdownStatus.Unsupported : ContentPageMarkdownStatus.Provided, markdown);
+            return publicMarkdown = outcome.Status == ContentPageMarkdownStatus.Provided && outcome.Markdown is null
+                ? Result(ContentPageMarkdownStatus.Unavailable) : Result(outcome.Status, outcome.Markdown);
         }
         catch (Exception exception) when (exception is not OperationCanceledException and not OutOfMemoryException)
         {
@@ -616,6 +630,7 @@ internal enum ContentPageMarkdownStatus
     Unsupported,
     Provided,
     Failed,
+    Unavailable,
 }
 
 internal sealed record ContentPageMarkdownResult(

@@ -16,7 +16,50 @@
   "producerRestoredVerification": {
     "scope": "Producer exact-head runtime/Source packaged consumers including destination-edit parity.",
     "state": "PASS",
-    "consumerAcceptance": "pending",
+    "consumerAcceptance": "PASS_FOR_LISTED_CONSUMER_SCOPE",
     "evidenceSha256": "b10e80d7cb4f7ea7c35b8fe0f3d5d38bf422db82a88c47bb07ba53b473fcf35f"
+  },
+  "consumerVerification": {
+    "state": "PASS",
+    "scope": "LithoSharp fixed-pair runtime, generated Source, stamp rejection, and portability consumers only; not whole CI or formal release acceptance.",
+    "consumerCommit": "1456010d367edbfce0b19a30c9772f997b9bfdee",
+    "workflowRun": "https://github.com/Htkym/lithosharp/actions/runs/43671756742",
+    "platforms": [
+      "ubuntu-24.04",
+      "windows-2025",
+      "macos-15"
+    ],
+    "receipts": [
+      {
+        "os": "macos-15",
+        "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/artifacts.json",
+        "sha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f"
+      },
+      {
+        "os": "macos-15",
+        "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/consumers.json",
+        "sha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641"
+      },
+      {
+        "os": "ubuntu-24.04",
+        "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/artifacts.json",
+        "sha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53"
+      },
+      {
+        "os": "ubuntu-24.04",
+        "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/consumers.json",
+        "sha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb"
+      },
+      {
+        "os": "windows-2025",
+        "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/artifacts.json",
+        "sha256": "8dfabe61b77f6a1972c25744ace0721febb1086b248bb83e8c4e7d7d5e14f307"
+      },
+      {
+        "os": "windows-2025",
+        "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/consumers.json",
+        "sha256": "af793cbd2c360ae8faadfd9cd5bac8a14437b67b0b41f1207c67387c685a8f4e"
+      }
+    ]
   }
 }

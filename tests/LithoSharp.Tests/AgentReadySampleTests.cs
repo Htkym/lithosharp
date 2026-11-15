@@ -16,7 +16,7 @@ public sealed class AgentReadySampleTests
             repository = repository.Parent;
         if (repository is null)
             throw new InvalidOperationException("Repository root not found.");
-        var root = Path.Combine(Path.GetTempPath(), "lithosharp-agent-ready-sample-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(OperatingSystem.IsWindows() ? Path.GetTempPath() : AppContext.BaseDirectory, "lithosharp-agent-ready-sample-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {

@@ -94,7 +94,7 @@ public sealed partial class SiteGenerator
         var timestamp = ResolveBuildTimestamp(options.BuildTimestamp);
         var output = Path.GetFullPath(definition.OutputDirectory);
         var cache = Path.GetFullPath(options.BuildCacheDirectory ?? Path.Combine(Path.GetDirectoryName(output)!, DefaultBuildCacheDirectoryName));
-        var context = new SiteBuildContext(definition.Site, options, output, cache, timestamp);
+        var context = new SiteBuildContext(definition.Site, options, output, cache, timestamp) { AgentReadyEnabled = customization.AgentReady.Enabled };
         var diagnostics = definition.Posts.SelectMany(p => p.CompilerDiagnostics ?? []).ToList();
         var deferred = new List<string> { "Final HTML, template-owned output and generated assets have not been inspected." };
         var routes = new SiteRouteTable();

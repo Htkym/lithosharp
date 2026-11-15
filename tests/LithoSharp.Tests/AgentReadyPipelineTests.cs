@@ -112,7 +112,9 @@ public sealed class AgentReadyPipelineTests
     }
 
     [Test]
-    public async Task ExactHtmlScopeRejectsChangedPairButPairedPathsKeepUnchangedIndex()
+    [Arguments("guide.html")]
+    [Arguments("guide.md")]
+    public async Task ExactSingleArtifactScopeRejectsChangedPairButPairedPathsKeepUnchangedIndex(string selected)
     {
         using var workspace = new AgentReadyWorkspace();
         var generator = new SiteGenerator();
@@ -122,7 +124,7 @@ public sealed class AgentReadyPipelineTests
         var llms = await File.ReadAllTextAsync(Path.Combine(Output(workspace), "llms.txt"));
         var changed = post with { MarkdownBody = "Changed body" };
         await Assert.That(async () => await generator.GenerateWithOptionsAsync(Site(), [changed], Output(workspace), false, Custom(),
-            Options with { OutputScope = ["guide.html"] }, default)).Throws<ArgumentException>();
+            Options with { OutputScope = [selected] }, default)).Throws<ArgumentException>();
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "guide.html"))).IsEqualTo(before);
         await generator.GenerateWithOptionsAsync(Site(), [changed], Output(workspace), false, Custom(),
             Options with { OutputScope = ["guide.html", "guide.md"] }, default);
@@ -390,11 +392,52 @@ public sealed class AgentReadyPipelineTests
     }
 
 
+    [Test]
+    public async Task CancellationPreservesPublishedPairIndexAndUserFiles()
+    {
+        using var workspace = new AgentReadyWorkspace();
+        var generator = new SiteGenerator();
+        var post = Post(workspace);
+        await generator.GenerateWithOptionsAsync(Site(), [post], Output(workspace), true, Custom(), Options, default);
+        var files = new[] { "guide.html", "guide.md", "llms.txt", ".lithosharp-output-manifest.json" };
+        var before = files.ToDictionary(path => path, path => File.ReadAllBytes(Path.Combine(Output(workspace), path)));
+        var manual = Path.Combine(Output(workspace), "manual.md");
+        await File.WriteAllTextAsync(manual, "user-owned");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.That(async () => await generator.GenerateWithOptionsAsync(Site(), [post with { MarkdownBody = "Changed" }],
+            Output(workspace), false, Custom(), Options, cancellation.Token)).Throws<OperationCanceledException>();
+        foreach (var entry in before)
+            await Assert.That((await File.ReadAllBytesAsync(Path.Combine(Output(workspace), entry.Key))).SequenceEqual(entry.Value)).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(manual)).IsEqualTo("user-owned");
+        await generator.GenerateWithOptionsAsync(Site(), [], Output(workspace), false, Custom(), Options, default);
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "guide.html"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "guide.md"))).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(manual)).IsEqualTo("user-owned");
+    }
+
+    [Test]
+    public async Task RouteMoveRemovesOldPairAndUpdatesActualDiscovery()
+    {
+        using var workspace = new AgentReadyWorkspace();
+        var generator = new SiteGenerator();
+        var post = Post(workspace);
+        await generator.GenerateWithOptionsAsync(Site(), [post], Output(workspace), true, Custom(), Options, default);
+        var moved = post with { RelativeOutputPath = "moved/page.html" };
+        await generator.GenerateWithOptionsAsync(Site(), [moved], Output(workspace), false, Custom(), Options, default);
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "guide.html"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "guide.md"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(Output(workspace), "moved/page.md"))).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(Output(workspace), "moved/page.html"))).Contains("https://example.test/product/moved/page.md");
+        var llms = await File.ReadAllTextAsync(Path.Combine(Output(workspace), "llms.txt"));
+        await Assert.That(llms).Contains("https://example.test/product/moved/page.md");
+        await Assert.That(llms).DoesNotContain("https://example.test/product/guide.md");
+    }
     // Generation owns private transaction directories. Keep integration outputs in the normal
     // temporary workspace, independent of a source checkout's inherited ACL shape.
     private sealed class AgentReadyWorkspace : IDisposable
     {
-        public string Root { get; } = Path.Combine(Path.GetTempPath(), "lithosharp-agent-ready-" + Guid.NewGuid().ToString("N"));
+        public string Root { get; } = Path.Combine(OperatingSystem.IsWindows() ? Path.GetTempPath() : AppContext.BaseDirectory, "lithosharp-agent-ready-" + Guid.NewGuid().ToString("N"));
         public AgentReadyWorkspace() => Directory.CreateDirectory(Root);
         public void Dispose()
         {

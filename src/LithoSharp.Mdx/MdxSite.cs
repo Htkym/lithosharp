@@ -131,6 +131,8 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                     var body = new MdxDocument(entry.Body.Body, entry.Body.BodyStartLine, entry.Body.BodyStartOffset)
                     {
                         RenderedHtml = html,
+                        HasOriginalBodySnapshot = entry.Body.HasOriginalBodySnapshot,
+                        PublicMarkdown = context.AgentReadyEnabled ? MdxPublicMarkdownCandidate.FromWorker(page, entry.Body) : null,
                         CapturedInputs = entry.Body.CapturedInputs,
                         PlainText = page.GetProperty("text").GetString(),
                         Semantics = MdxSemantics.FromWorker(
@@ -154,8 +156,15 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                     renderer ?? ((entry, rendering) => rendering.RenderDocument(entry.Body.ToHtmlString())))
                 {
                     MarkdownProvider = markdownProvider,
+                    MarkdownOutcomeProvider = !context.AgentReadyEnabled || markdownProvider is not null || renderer is not null ? null
+                        : static (entry, _) => entry.Body.PublicMarkdown switch
+                        {
+                            { Status: MdxPublicMarkdownStatus.Complete, Markdown: { } text } => (ContentPageMarkdownStatus.Provided, text),
+                            { Status: MdxPublicMarkdownStatus.Unsupported } => (ContentPageMarkdownStatus.Unsupported, null),
+                            _ => (ContentPageMarkdownStatus.Unavailable, null),
+                        },
                     RendererFingerprint = !options.Cacheable ? null
-                        : markdownProvider is null ? "mdx-v1"
+                        : markdownProvider is null ? "mdx-v1" + (context.AgentReadyEnabled && renderer is null ? "|" + MdxPublicMarkdownCandidate.CurrentImplementationId : "")
                         : rendererFingerprint is null ? null : "mdx-v1|" + rendererFingerprint,
                     IsThreadSafe = renderer is null && markdownProvider is null,
                 };
@@ -268,6 +277,7 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                 pages,
                 context.Site.BaseUrl,
                 context.BuildTimestamp,
+                context.AgentReadyEnabled,
                 tools,
                 runtime = CompiledRuntimeFingerprint,
                 resolutionCandidates,
@@ -342,6 +352,7 @@ public sealed class MdxSite : ISiteBuildExtension, ISiteCatalogPreflightExtensio
                                 plugins = options.Plugins,
                                 componentsModule = options.ComponentsModule,
                                 hydration = options.Hydration,
+                                publicMarkdown = context.AgentReadyEnabled,
                                 staticComponents = options.StaticComponents
                             }, requestId, cancellationToken).ConfigureAwait(false);
                             work.Observe(response);

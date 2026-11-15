@@ -43,6 +43,7 @@ public sealed class SiteBuildContext
     public DateTimeOffset BuildTimestamp { get; }
 
     internal BuildHtmlFacts? HtmlFacts { get; }
+    internal bool AgentReadyEnabled { get; init; }
 }
 
 /// <summary>Additions to the existing content and asset registries.</summary>

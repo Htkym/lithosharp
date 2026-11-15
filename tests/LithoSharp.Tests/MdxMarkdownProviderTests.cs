@@ -141,7 +141,7 @@ public sealed class MdxMarkdownProviderTests
         Path.Combine(root, "out"), Path.Combine(root, "cache"), DateTimeOffset.Parse("2021-01-01T00:00:00Z"));
 
     // Exercises bridge preparation and captured inputs without executing arbitrary MDX modules.
-    private static async Task<string> WriteWorkerAsync(string root)
+    internal static async Task<string> WriteWorkerAsync(string root)
     {
         var worker = Path.Combine(root, "worker");
         Directory.CreateDirectory(worker);
@@ -159,7 +159,11 @@ public sealed class MdxMarkdownProviderTests
               console.log(JSON.stringify({protocol:1,requestId:request.requestId,success:true,result:{
                 inputs:Object.entries(request.capturedInputs).map(([file,hash])=>({file:path.resolve(request.projectRoot,file),hash})),
                 assets:[{path:'third-party-notices.txt',bytes:'',hash:createHash('sha256').update('').digest('hex'),imports:[]}],
-                pages:request.pages.map(page=>({id:page.id,html:'<p>Prepared HTML</p>',text:'Excerpt only',entry:null,css:[],headings:[],links:[],islands:[],hydration:'static',fallback:null})),
+                pages:request.pages.map(page=>({id:page.id,html:'<p>Prepared HTML</p>',text:'Excerpt only',entry:null,css:[],headings:[],links:[],islands:[],hydration:'static',fallback:null,
+                  ...(request.publicMarkdown===true ? {publicMarkdown:{schemaVersion:1,implementationId:'mdx-static-markdown/1',
+                    sourceHash:request.sources[page.source].includes('mismatch')?'wrong':createHash('sha256').update(request.sources[page.source]).digest('hex'),
+                    status:request.sources[page.source].includes('unsupported')?'unsupported':'complete',
+                    markdown:request.sources[page.source].includes('empty')?'':request.sources[page.source].replace(/^\n+/, '')}} : {})})),
                 compiledModules:request.pages.length,renderedPages:request.pages.length,bundledPages:0,rebundledPages:[],
                 timings:{totalMilliseconds:1,serverBundleMilliseconds:1,browserBundleMilliseconds:0,renderMilliseconds:0},memory:{heapUsed:1}}}));
             }

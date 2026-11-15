@@ -310,7 +310,7 @@ public sealed partial class SiteGenerator
                 || contentPages.Any(static page => page.BodySource is not null));
         await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null,
             rawDemand: options.RawHtmlFactsDemand | (SourceOriginsRequired() ? HtmlRawFactsDemand.Quality : HtmlRawFactsDemand.None));
-        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts) { AgentReadyEnabled = customization.AgentReady.Enabled };
         var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
             catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
         var extensionDiagnostics = preflight.Diagnostics.ToList();
@@ -323,7 +323,7 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             var extension = options.Extensions[extensionIndex];
             ArgumentNullException.ThrowIfNull(extension);
-            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts) { AgentReadyEnabled = customization.AgentReady.Enabled };
             var contribution = await (catalogs[extensionIndex] is { } catalog
                 ? catalog.PrepareAsync(prepareContext, cancellationToken)
                 : extension.PrepareAsync(prepareContext, cancellationToken)).ConfigureAwait(false)

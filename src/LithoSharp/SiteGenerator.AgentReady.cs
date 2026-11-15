@@ -128,6 +128,7 @@ public sealed partial class SiteGenerator
                             provided.BodySource.CanMapBody(provided.Markdown!, provided.SourcePath) ? provided.BodySource : null, page.Route,
                             allowSourceRelative: provided.BodySource?.SourceMap is null || provided.BodySource.CanMapBody(provided.Markdown!, provided.SourcePath)),
                         ContentPageMarkdownStatus.Failed => new(PublicMarkdownStatus.Failed, null, "The typed public Markdown provider failed."),
+                        ContentPageMarkdownStatus.Unavailable => new(PublicMarkdownStatus.Unavailable, null, "The page has no verified complete public Markdown source."),
                         _ => new(PublicMarkdownStatus.Unsupported, null, "The page has no complete public Markdown provider."),
                     };
                 });
