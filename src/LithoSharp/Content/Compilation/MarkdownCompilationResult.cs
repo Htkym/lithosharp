@@ -12,4 +12,5 @@ internal readonly record struct MarkdownCompilationResult(
 {
     internal IReadOnlyList<MarkdownRenderOrigin> RenderOrigins { get; init; } = [];
     internal RenderedHtmlOrigins? SourceOrigins { get; init; }
+    internal MarkdownBodyAnalysisSnapshot? BodyAnalysis { get; init; }
 }

@@ -672,3 +672,44 @@ LithoSharp.Content.ContentIgnoreAttribute.ContentIgnoreAttribute() -> void
 const LithoSharp.Content.MarkdownContentDiagnosticIds.UnsupportedYaml = "LSM014" -> string!
 const LithoSharp.Content.MarkdownContentDiagnosticIds.YamlResourceLimit = "LSM015" -> string!
 LithoSharp.Diagnostics.SiteDiagnostic.MappingPrecision.get -> string?
+
+LithoSharp.AgentReady.AgentReadyOptions
+LithoSharp.AgentReady.AgentReadyOptions.AgentReadyOptions() -> void
+LithoSharp.AgentReady.AgentReadyOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyOptions!
+LithoSharp.AgentReady.AgentReadyOptions.Equals(LithoSharp.AgentReady.AgentReadyOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyOptions.Enabled.get -> bool
+LithoSharp.AgentReady.AgentReadyOptions.Enabled.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions
+LithoSharp.AgentReady.AgentReadyPageOptions.AgentReadyPageOptions() -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.AgentReady.AgentReadyPageOptions.Equals(LithoSharp.AgentReady.AgentReadyPageOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownMode.get -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownMode.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.Indexing.get -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentReadyPageOptions.Indexing.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownReplacement.get -> string?
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownReplacement.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownRoute.get -> LithoSharp.Routing.SiteRoute?
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownRoute.init -> void
+LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Auto = 0 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Required = 1 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Disabled = 2 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Auto = 0 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Include = 1 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Exclude = 2 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.SiteCustomization.AgentReady.get -> LithoSharp.AgentReady.AgentReadyOptions!
+LithoSharp.SiteCustomization.AgentReady.init -> void
+LithoSharp.Pages.PageMetadata.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.Pages.PageMetadata.AgentReady.init -> void
+override LithoSharp.AgentReady.AgentReadyOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyOptions.Equals(object? obj) -> bool
+static LithoSharp.AgentReady.AgentReadyOptions.operator ==(LithoSharp.AgentReady.AgentReadyOptions? left, LithoSharp.AgentReady.AgentReadyOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyOptions.operator !=(LithoSharp.AgentReady.AgentReadyOptions? left, LithoSharp.AgentReady.AgentReadyOptions? right) -> bool
+override LithoSharp.AgentReady.AgentReadyPageOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyPageOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyPageOptions.Equals(object? obj) -> bool
+static LithoSharp.AgentReady.AgentReadyPageOptions.operator ==(LithoSharp.AgentReady.AgentReadyPageOptions? left, LithoSharp.AgentReady.AgentReadyPageOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyPageOptions.operator !=(LithoSharp.AgentReady.AgentReadyPageOptions? left, LithoSharp.AgentReady.AgentReadyPageOptions? right) -> bool

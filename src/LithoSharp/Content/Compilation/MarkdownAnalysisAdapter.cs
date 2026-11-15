@@ -21,9 +21,12 @@ internal static class MarkdownAnalysisAdapter
         return new MdOptions(MdInputKind.Body, profileId: options.ProfileId);
     }
 
-    internal static MdAnalysisParts BodyPartsFor(MarkdownOptions options) => BodyParts
+    internal static MdAnalysisParts BodyPartsFor(MarkdownOptions options) => BodyPartsFor(options, false);
+
+    internal static MdAnalysisParts BodyPartsFor(MarkdownOptions options, bool retainAgentReadyFacts) => BodyParts
         | (options.ProfileId == MarkdownOptions.LegacyProfile ? MdAnalysisParts.None : MdAnalysisParts.Headings)
-        | (options.ProfileId == MarkdownOptions.DocumentationProfile ? MdAnalysisParts.Syntax : MdAnalysisParts.None);
+        | (options.ProfileId == MarkdownOptions.DocumentationProfile ? MdAnalysisParts.Syntax : MdAnalysisParts.None)
+        | (retainAgentReadyFacts ? MdAnalysisParts.Links | MdAnalysisParts.Syntax | MdAnalysisParts.UnsupportedSyntax : MdAnalysisParts.None);
 
     // Eager public-reader warnings inspect the original, pre-inclusion body. Choose
     // its budget up front so larger accepted originals do not inherit the final
@@ -59,8 +62,15 @@ internal static class MarkdownAnalysisAdapter
 
     internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, MdOptions options,
         MdAnalysisParts parts, CancellationToken cancellationToken) =>
+        AnalyzeBody(body, sourcePath, options, parts, null, cancellationToken);
+
+    internal static MdAnalysisResult AnalyzeBody(string body, string? sourcePath, MdOptions options,
+        MdAnalysisParts parts, string? sourceVersion, CancellationToken cancellationToken) =>
         MdParser.AnalyzeWithBlocks(body, parts, BodyScope,
-            BodySourceId(sourcePath), null, options, cancellationToken);
+            BodySourceId(sourcePath), sourceVersion, options, cancellationToken);
+
+    internal static string AgentReadySourceVersion(string body) =>
+        "agent-ready/" + MarkdownDocumentFingerprints.ExactBodyCacheHash(body);
 
     internal static MarkdownBodyAnalysisSnapshot AnalyzeOriginalBody(
         string body, string? sourcePath, CancellationToken cancellationToken)
@@ -78,6 +88,11 @@ internal static class MarkdownAnalysisAdapter
 
     internal static MarkdownBodyAnalysisSnapshot? RetainForBody(
         MarkdownBodyAnalysisSnapshot snapshot, string body, string? sourcePath, MdOptions options, MdAnalysisParts parts)
+        => RetainForBody(snapshot, body, sourcePath, options, parts, null);
+
+    internal static MarkdownBodyAnalysisSnapshot? RetainForBody(
+        MarkdownBodyAnalysisSnapshot snapshot, string body, string? sourcePath, MdOptions options, MdAnalysisParts parts,
+        string? sourceVersion)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(body);
@@ -88,7 +103,7 @@ internal static class MarkdownAnalysisAdapter
             || !string.Equals(analysis.OptionsHash, options.Hash, StringComparison.Ordinal)
             || !string.Equals(analysis.ScopeId, BodyScope, StringComparison.Ordinal)
             || !string.Equals(analysis.SourceId, BodySourceId(sourcePath), StringComparison.Ordinal)
-            || analysis.SourceVersion is not null
+            || !string.Equals(analysis.SourceVersion, sourceVersion, StringComparison.Ordinal)
             || analysis.RequestedParts != parts)
             return null;
 

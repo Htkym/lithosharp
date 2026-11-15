@@ -37,4 +37,7 @@ public sealed record SiteCustomization
     /// Off by default. It is built from the site title, description, and post list.
     /// </summary>
     public bool GenerateLlmsTxt { get; init; }
+
+    /// <summary>Optional public Markdown and discovery metadata. Disabled by default.</summary>
+    public AgentReady.AgentReadyOptions AgentReady { get; init; } = new();
 }
