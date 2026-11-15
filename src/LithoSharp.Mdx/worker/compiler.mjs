@@ -415,7 +415,8 @@ export async function compileSite(request, workMetrics = {}) {
   function authoring(file, info, source, preprocessedSource) {
     return function () {
       return async tree => {
-        info.publicMarkdown = publicMarkdownFromTree(tree, source, {plugins: request.plugins, componentsModule: request.componentsModule, preprocessedSource});
+        if (request.publicMarkdown === true)
+          info.publicMarkdown = publicMarkdownFromTree(tree, source, {plugins: request.plugins, componentsModule: request.componentsModule, preprocessedSource});
         const jobs = [];
         const imported = new Map();
         visit(tree, 'mdxjsEsm', node => {
@@ -605,7 +606,7 @@ export async function compileSite(request, workMetrics = {}) {
         const source = request.sources[relative(projectRoot, file)];
         if (source === undefined) throw Object.assign(new Error(`MDX import needs C# validation: ${relative(projectRoot, file)}`), {requiredSource: file});
         if (!compiled.has(file)) {
-          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents, request.componentsModule, publicMarkdownImplementationId, cardKeys.get(path.dirname(file))]));
+          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents, request.componentsModule, request.publicMarkdown === true, publicMarkdownImplementationId, cardKeys.get(path.dirname(file))]));
           const cached = request.cacheable && moduleCache.get(key);
           if (cached && (await Promise.all(cached.dependencies.map(async ([file, fingerprint]) => hash(await readInput(file)) === fingerprint))).every(Boolean)) {
             compiled.set(file, cached.code); metadata.set(file, cached.info);
@@ -751,7 +752,7 @@ export async function compileSite(request, workMetrics = {}) {
       }).join('\n') + '}mount();');
     }
     results.push({id: page.id, ...renderedPage, entry: null, css: [], hydration: selective ? renderedPage.islands.length ? 'selective' : 'static' : 'page', fallback: request.hydration === 'selective' ? fallback : null,
-      headings: info.headings, links: info.links, text: info.text.join('\n'), publicMarkdown: info.publicMarkdown});
+      headings: info.headings, links: info.links, text: info.text.join('\n'), ...(request.publicMarkdown === true ? {publicMarkdown: info.publicMarkdown} : {})});
   }
   } finally { workMetrics.renderMilliseconds += performance.now() - renderStarted; }
   const renderMilliseconds = performance.now() - renderStarted;

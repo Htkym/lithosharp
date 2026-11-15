@@ -105,7 +105,7 @@ test('missing ranges cannot turn a wrapper into a complete Markdown body', () =>
   assert.equal(result.reason, 'unknownSourceRange');
 });
 
-test('the actual HTML worker returns the same-AST candidate and reuses it without another compile', async () => {
+test('the actual HTML worker projects only when opted in and separates on/off cache entries', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lithosharp-public-mdx-'));
   try {
     const projectRoot = path.join(root, 'project'), workRoot = path.join(root, 'work');
@@ -113,8 +113,13 @@ test('the actual HTML worker returns the same-AST candidate and reuses it withou
     const source = `${note}\n\n${tabs}\n`;
     await writeFile(path.join(projectRoot, 'page.mdx'), source);
     const request = {projectRoot, workRoot, assetBaseUrl: '/_mdx/', basePath: '/', hydration: 'selective',
-      cacheable: true, resolutionFingerprint: 'public-markdown-fixture-v1', linkMap: {},
+      cacheable: true, publicMarkdown: true, resolutionFingerprint: 'public-markdown-fixture-v1', linkMap: {},
       sources: {'page.mdx': source}, pages: [{id: 'page', source: 'page.mdx', url: '/page/', title: 'Page', locale: 'en', props: {}}]};
+    const offRequest = {...request};
+    delete offRequest.publicMarkdown;
+    const off = await compileSite(offRequest);
+    assert.equal(off.workMetrics.mdxCompileInvocations, 1);
+    assert.equal(Object.hasOwn(off.pages[0], 'publicMarkdown'), false);
     const cold = await compileSite(request);
     assert.equal(cold.workMetrics.mdxCompileInvocations, 1);
     assert.equal(cold.pages[0].publicMarkdown.status, 'complete');
@@ -125,6 +130,9 @@ test('the actual HTML worker returns the same-AST candidate and reuses it withou
     const warm = await compileSite(request);
     assert.equal(warm.workMetrics.mdxCompileInvocations, 0);
     assert.deepEqual(warm.pages[0].publicMarkdown, cold.pages[0].publicMarkdown);
+    const offAgain = await compileSite({...request, publicMarkdown: false});
+    assert.equal(offAgain.workMetrics.mdxCompileInvocations, 0);
+    assert.equal(Object.hasOwn(offAgain.pages[0], 'publicMarkdown'), false);
     await writeFile(path.join(projectRoot, 'overrides.mjs'), 'export default {};\n');
     const changed = await compileSite({...request, componentsModule: './overrides.mjs'});
     assert.equal(changed.pages[0].publicMarkdown.status, 'unsupported');
