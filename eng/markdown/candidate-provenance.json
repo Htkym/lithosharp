@@ -1,5 +1,5 @@
 {
-  "scope": "PUBLISHED_PAIR_PENDING_DOWNSTREAM_ACCEPTANCE",
+  "scope": "PUBLISHED_PAIR_DOWNSTREAM_RECEIPTS_VERIFIED",
   "published": true,
   "componentVersion": "2.0.0",
   "sourceRepository": "https://github.com/Htkym/syntamark",
@@ -13,7 +13,28 @@
   "publicationProvenancePath": "eng/markdown/release-provenance.json",
   "previousCandidateProvenancePath": "eng/markdown/history/2.0.0-preview.89831114732901/candidate-provenance.json",
   "consumerVerification": {
-    "state": "NOT_RUN",
-    "scope": "Published runtime/Source pair requires fresh LithoSharp three-OS, package and installed-extension acceptance. Previous preview results do not qualify this pair."
+    "state": "PASS",
+    "scope": "Published runtime/Source pair checked by fresh three-OS consumers and installed-extension receipts. This is not final LithoSharp publication, performance, or production-host acceptance.",
+    "lithoSharpCommit": "95e61006631919b3278f8ccfae37a13f1a10ba51",
+    "workflowRun": "https://github.com/Htkym/lithosharp/actions/runs/43730458161",
+    "workflowAttempt": 1,
+    "platforms": [
+      "ubuntu-24.04",
+      "windows-2025",
+      "macos-15"
+    ],
+    "consumerFixtureCountPerPlatform": 7,
+    "sourceParseCompiled": true,
+    "runtimeAssemblySha256": "b7b69d4879d8bede4a12a94557deacc6a64300077580abdf44bd91f1502f2264",
+    "actualRoslynHost": "Not run by these consumer receipts; separate real-compiler-host acceptance must not be inferred.",
+    "installedExtension": {
+      "version": "3.0.0-rc.43730458161",
+      "vsixSha256": "8ecc8e9197fa80af4c91d1e489a805c5a03d4ac23b0fec0452810cd16cee261f",
+      "checksPerPlatform": 7,
+      "nodeVersion": "24.13.0",
+      "runtimePackageSha256": "527d0a1c601fcd694525af2a41961a0122275fed0010b62403a5adaca350e804",
+      "unchangedMdxDocumentRestore": true,
+      "mdxWorkerRestart": true
+    }
   }
 }
