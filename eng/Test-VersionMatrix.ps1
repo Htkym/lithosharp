@@ -4,6 +4,15 @@ $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $matrix = Get-Content -LiteralPath (Join-Path $repo 'eng/version-matrix.json') -Raw | ConvertFrom-Json
 if ($matrix.schemaVersion -ne 1) { throw 'Unsupported version matrix schema.' }
+if ([string]::IsNullOrWhiteSpace($matrix.coreApiCompatibilityBaseline)) { throw 'Core API compatibility baseline is required.' }
+foreach ($workflow in @('build.yml', 'publish-nuget.yml')) {
+    $text = Get-Content -LiteralPath (Join-Path $repo ".github/workflows/$workflow") -Raw
+    $declarations = [regex]::Matches($text, '(?m)^\s*[''"]?LITHOSHARP_PREVIOUS_STABLE_VERSION[''"]?\s*:')
+    $baseline = [regex]::Matches($text, '(?m)^\s*LITHOSHARP_PREVIOUS_STABLE_VERSION:\s*''([^''\r\n]+)''\s*$')
+    if ($declarations.Count -ne 1 -or $baseline.Count -ne 1 -or $baseline[0].Groups[1].Value -cne $matrix.coreApiCompatibilityBaseline) {
+        throw "Previous-stable consumer baseline differs from the matrix: $workflow"
+    }
+}
 $projects = @(
     'src/LithoSharp/LithoSharp.csproj',
     'src/LithoSharp.Mdx/LithoSharp.Mdx.csproj',
