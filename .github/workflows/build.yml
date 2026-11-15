@@ -415,6 +415,9 @@ jobs:
       - name: Performance comparison runner checks
         run: python -B eng/test_compare_site_generation.py
 
+      - name: MDX measurement input checks
+        run: node --test eng/Test-MdxWorkerInputs.mjs
+
       - name: Performance smoke
         run: dotnet run --project benchmarks/LithoSharp.Performance --configuration Release --no-build -- --size 100 --smoke --output artifacts/performance-baselines/smoke.json
 

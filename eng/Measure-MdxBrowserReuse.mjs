@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile} from 'node:fs/promises';
+import {mkdtemp, mkdir, readFile, realpath, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {captureMdxWorkerInputs} from './Capture-MdxWorkerInputs.mjs';
 
 const usage = 'node eng/Measure-MdxBrowserReuse.mjs --compiler <restored-worker/compiler.mjs> --output <new-report.json> [--pages 100]';
 if (process.argv.includes('--help')) {console.log(usage); process.exit(0);}
@@ -22,10 +23,11 @@ const manifest = JSON.parse(await readFile(path.join(workerDirectory, 'package.j
 if (process.versions.node !== manifest.engines.node) throw new Error('Use the worker locked Node version: ' + manifest.engines.node);
 const {compileSite, getRetainedCacheMetrics} = await import(pathToFileURL(compilerFile).href);
 const digest = value => createHash('sha256').update(value).digest('hex');
-const files = ['compiler.mjs', 'worker.mjs', 'package-lock.json', ...(await readdir(path.join(workerDirectory, 'runtime')))
-  .filter(name => name.endsWith('.mjs') || name.endsWith('.css')).map(name => 'runtime/' + name)];
-const workerInputs = Object.fromEntries(await Promise.all(files.sort().map(async name =>
-  [name, digest(await readFile(path.join(workerDirectory, name)))])));
+const workerInputs = await captureMdxWorkerInputs(workerDirectory);
+const runnerInputs = {
+  'Measure-MdxBrowserReuse.mjs': digest(await readFile(fileURLToPath(import.meta.url))),
+  'Capture-MdxWorkerInputs.mjs': digest(await readFile(new URL('./Capture-MdxWorkerInputs.mjs', import.meta.url)))
+};
 const temporaryRoot = await realpath(os.tmpdir());
 const root = await mkdtemp(path.join(temporaryRoot, 'mx19-'));
 try {
@@ -95,7 +97,7 @@ try {
   assert.equal(unknown.workMetrics.browserEntryBuildAttempts, pages);
   const report = {schemaVersion: 1, scope: 'worker-compile-site', pages,
     node: process.version, platform: process.platform, architecture: process.arch,
-    runnerSha256: digest(await readFile(fileURLToPath(import.meta.url))), workerInputs,
+    runnerSha256: runnerInputs['Measure-MdxBrowserReuse.mjs'], runnerInputs, workerInputs,
     note: 'Run the same runner and page count for baseline and candidate in separate fresh processes. Memory fields are snapshots, not peaks. Canonical resource counters are not elapsed timings. Full-site, allocation and hydration/browser acceptance remain separate.',
     measurements};
   await mkdir(path.dirname(output), {recursive: true});
