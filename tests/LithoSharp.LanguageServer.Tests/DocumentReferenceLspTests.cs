@@ -59,6 +59,34 @@ public sealed class DocumentReferenceLspTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task RenameUsesTheUtf8ClientHashAndStillRejectsStaleSourceText(bool vscodeFileUris)
+    {
+        await using var fixture = await ReferenceFixture.CreateAsync(versioned: true, vscodeFileUris: vscodeFileUris);
+        const string text = "---\r\ntitle: Target\r\n---\r\n# Intro\r\n\r\n日本語 😀\r\n";
+        const string clientHash = "7322a186d7bcb0916b20b77d04abfce98ec85fc101016e80e71cfb24d7f82acc";
+        await fixture.Change("target.md", text);
+        await Assert.That(new DocumentReferenceDocument("target.md", text, 2).TextHash)
+            .IsEqualTo("d14f0f54fc85d5184da03644d45cac42c5aaa92ef6ab4f009b9a056585f5f29a");
+        var preview = (await fixture.Request("lithosharp/previewRename", "target.md", fixture.HeadingOffset,
+            "Renamed title", expectedVersion: 2, expectedSourceTextHash: clientHash)).GetProperty("result");
+        await Assert.That(preview.GetProperty("sourceTextHash").GetString()).IsEqualTo(clientHash);
+        await Assert.That(preview.GetProperty("canApply").GetBoolean()).IsTrue();
+        var renamed = (await fixture.Request("textDocument/rename", "target.md", fixture.HeadingOffset,
+            "Renamed title", expectedVersion: 2, expectedSourceTextHash: clientHash)).GetProperty("result");
+        await Assert.That(renamed.GetProperty("documentChanges").GetArrayLength()).IsEqualTo(2);
+        await fixture.Apply(renamed);
+        var currentText = fixture.Text("target.md");
+        await Assert.That(currentText).Contains("# Renamed title");
+        var stale = await fixture.Request("lithosharp/previewRename", "target.md", fixture.HeadingOffset,
+            "Again", expectedVersion: 3, expectedSourceTextHash: clientHash);
+        await Assert.That(stale.GetProperty("error").GetProperty("code").GetInt32()).IsEqualTo(-32801);
+        await Assert.That(stale.TryGetProperty("result", out _)).IsFalse();
+        await Assert.That(fixture.Text("target.md")).IsEqualTo(currentText);
+    }
+
+    [Test]
     public async Task MissingConfirmationOrAtomicEditSupportDoesNotFallBackToBlindChanges()
     {
         await using (var fixture = await ReferenceFixture.CreateAsync(versioned: true, annotations: false))
@@ -176,7 +204,8 @@ public sealed class DocumentReferenceLspTests
             return fixture;
         }
 
-        internal async Task<JsonElement> Request(string method, string file, int offset, string? newName = null, long? expectedVersion = null, object? referenceScope = null)
+        internal async Task<JsonElement> Request(string method, string file, int offset, string? newName = null, long? expectedVersion = null,
+            object? referenceScope = null, string? expectedSourceTextHash = null)
         {
             var id = client.NextId();
             var document = new Dictionary<string, object?> { ["uri"] = Uri(file) };
@@ -193,6 +222,8 @@ public sealed class DocumentReferenceLspTests
                 parameters["newName"] = newName;
             if (referenceScope is not null)
                 parameters["referenceScope"] = referenceScope;
+            if (expectedSourceTextHash is not null)
+                parameters["expectedSourceTextHash"] = expectedSourceTextHash;
             client.SendRequest(id, method, parameters);
             return await Response(id);
         }

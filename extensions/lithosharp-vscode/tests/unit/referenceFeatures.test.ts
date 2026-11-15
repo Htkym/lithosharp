@@ -21,6 +21,11 @@ function workspace() {
     {textDocument: {uri: other.uri, version: 3}, edits: [{range: {start: {line: 0, character: 6}, end: {line: 0, character: 9}}, newText: 'new', annotationId: 'review'}]},
   ], changeAnnotations: {review: {label: 'Captured Markdown', needsConfirmation: true, description: 'C# references'}}};
 }
+test('reference source hash matches the UTF-8 LSP vector with CRLF and Unicode', () => {
+  const text = '---\r\ntitle: Target\r\n---\r\n# Intro\r\n\r\n日本語 😀\r\n';
+  assert.equal(textHash(text), '7322a186d7bcb0916b20b77d04abfce98ec85fc101016e80e71cfb24d7f82acc');
+});
+
 test('reference previews retain UTF-16 expected text and versioned multi-document edits', () => {
   const plan = validateReferencePlan(preview(), source, documents);
   assert.equal(plan.replacements.length, 2);

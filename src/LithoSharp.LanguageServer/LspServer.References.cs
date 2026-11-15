@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using LithoSharp.Content;
@@ -357,7 +359,9 @@ public sealed partial class LspServer
             {
                 var snapshot = ReferenceSnapshot(capture, token);
                 var sourcePath = UriPath(capture.Source.Uri);
-                var sourceHash = snapshot.Documents.FirstOrDefault(document => document.SourcePath == sourcePath)?.TextHash;
+                var sourceText = snapshot.Documents.FirstOrDefault(document => document.SourcePath == sourcePath)?.Text;
+                // The protocol hashes UTF-8; edit plans keep their internal UTF-16 document hash.
+                var sourceHash = sourceText is null ? null : Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(sourceText)));
                 if (expectedHash is not null && expectedHash != sourceHash)
                     throw new ReferenceRequestException(-32801, "The expected source text differs from the captured buffer.");
                 JsonElement response;
