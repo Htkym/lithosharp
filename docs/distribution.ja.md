@@ -2,13 +2,12 @@
 
 [English](distribution.md)
 
-このガイドの対象はLithoSharp 3.0.0、言語サーバー3.0.0、VS Code拡張0.5.0、Syntamark 2.0.0です。
+このガイドの対象はLithoSharp 3.0.0、言語サーバー3.0.0、VS Code拡張0.5.0です。
 これらは開発対象のバージョンであり、公開の告知ではありません。
 拡張の識別子は`htkym.lithosharp`で、本体とは別のバージョンを使います。
 
-選定している依存パッケージはSyntamark `2.0.0-preview.89831114732901`です。
-この候補は正式には公開されていません。
-候補を利用する場合は対応するruntimeとSourceの組み合わせを使い、インストール前にパッケージの提供状況を確認してください。
+選定している依存パッケージは公開済みの[Syntamark 2.0.0](https://github.com/Htkym/syntamark/releases/tag/v2.0.0)です。
+runtimeとSourceのバージョンをそろえてください。この依存パッケージの公開はLithoSharp 3.0.0のパッケージを入手できることを意味しません。
 
 ## NuGetパッケージ
 
