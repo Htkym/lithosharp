@@ -55,7 +55,7 @@
       "sourcePath": "docs/agent-ready-metadata.md",
       "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
       "translationPath": "docs/agent-ready-metadata.ja.md",
-      "translationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306"
+      "translationSha256": "eb1fd15423c1bd24d533b0bcc719b3084a4584fdd4d59cb455ce2404e6f2221f"
     },
     {
       "collection": "reference",
@@ -528,6 +528,16 @@
       "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
       "translationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
       "scope": "Metadata guide pair was reviewed in c2551e9 and 6174e13. The current pair and reciprocal language link were checked; the unchanged Japanese file still matches its recorded local Yomiyasu verification."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "previousTranslationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
+      "translationSha256": "eb1fd15423c1bd24d533b0bcc719b3084a4584fdd4d59cb455ce2404e6f2221f",
+      "scope": "Only the Japanese HTTP-inspection link fragment changed from the untranslated Japanese heading to http, matching the compiled ASCII heading-ID contract. No prose or English link changed. Earlier whole-document review remains intact; local Yomiyasu diff/lint/material comparison and final-file verification cover this correction."
     }
   ]
 }

@@ -136,4 +136,4 @@ Robots = new AgentReadyRobotsOptions
 
 Requiredで求めるMarkdownの提供、ルートの衝突、誤った発見用リンクの検査は、任意の品質検査を無効にしても回避できません。既存のSEO項目の欠落は通常の品質レポートで扱い、説明の欠落を重複して診断しません。
 
-通常のビルドは本番HTTPの確認を行いません。公開後は[`check-output --http`](generated-output-checks.ja.md#公開後の明示的なhttp検査)を使うか、実際の公開HTMLとMarkdownのURL、リダイレクト、Content-Type、未知URLのHTTP 404応答、オリジンの`/robots.txt`を確認してください。ローカル配信ではMarkdownを`text/markdown; charset=utf-8`で返します。本番のMIMEやヘッダーはホスト側で設定する必要があり、ファイルを生成しただけでは実際の配信動作を確認したことになりません。
+通常のビルドは本番HTTPの確認を行いません。公開後は[`check-output --http`](generated-output-checks.ja.md#http)を使うか、実際の公開HTMLとMarkdownのURL、リダイレクト、Content-Type、未知URLのHTTP 404応答、オリジンの`/robots.txt`を確認してください。ローカル配信ではMarkdownを`text/markdown; charset=utf-8`で返します。本番のMIMEやヘッダーはホスト側で設定する必要があり、ファイルを生成しただけでは実際の配信動作を確認したことになりません。
