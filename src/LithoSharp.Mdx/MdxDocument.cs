@@ -27,6 +27,8 @@ public sealed class MdxDocument : IHtmlContent
     internal string CompilerSource => new string('\n', BodyStartLine - 1) + Body;
     internal IReadOnlyList<CapturedContentInput> CapturedInputs { get; init; } = [];
     internal string? RenderedHtml { get; init; }
+    internal bool HasOriginalBodySnapshot { get; init; }
+    internal MdxPublicMarkdownCandidate? PublicMarkdown { get; init; }
     /// <summary>Plain text extracted from the MDX syntax tree during compilation.</summary>
     public string? PlainText { get; internal init; }
     /// <summary>Worker-extracted information in the common semantic model (set after compilation).</summary>
@@ -99,7 +101,11 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
             if (bodyOffset < 0 || bodyOffset > original.Length)
                 throw new IOException("MDX source changed while loading; retry the build.");
             var start = original.AsSpan(0, bodyOffset).Count('\n') + 1;
-            var mdxBody = new MdxDocument(entry.Body, start, bodyOffset) { CapturedInputs = entry.CapturedInputs };
+            var mdxBody = new MdxDocument(entry.Body, start, bodyOffset)
+            {
+                CapturedInputs = entry.CapturedInputs,
+                HasOriginalBodySnapshot = string.Equals(entry.Body, original[bodyOffset..], StringComparison.Ordinal),
+            };
             var mdxEntry = new ContentEntry<TFrontMatter, MdxDocument>(
                 entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter,
                 mdxBody, entry.SourceLocation)
