@@ -11,7 +11,7 @@
     {
       "id": "documentation",
       "sourceSha256": "009b2b277a013cd99ee3836a6eb311ed0c0e9ec7d304546d5ca3e4406470c3bb",
-      "translationSha256": "56736902396460b84d78f955266e5928964630e5e6124a3449253187e5654082"
+      "translationSha256": "bc6748e8d803e4f3c6074ce34b8216b80ff60faf257314553bcd2f276595c315"
     },
     {
       "id": "extended",
@@ -21,7 +21,7 @@
     {
       "id": "features",
       "sourceSha256": "844a5a1906f4a92417332fb43434606ccf83e7432c18e6902a74637f9a0d31c3",
-      "translationSha256": "0834705ebab4a83f5bcf7c594cad244b1a4c1ebecbb1fa223fe1106601e440ec"
+      "translationSha256": "c0c0e352fdca43544560bca7fdc7cfee3e830e1b2b0f0ca0c578d0a0c3b20460"
     },
     {
       "id": "images",
@@ -36,7 +36,7 @@
     {
       "id": "knowledge",
       "sourceSha256": "07893b372f5447e79a023ca3524968eb1b97f05a6b2acbdebab8abd15229b905",
-      "translationSha256": "a0fb31d2f035cf6c543a84ee2d238e7a25739de2a3fce72f30d4b95acf4adb34"
+      "translationSha256": "ab94ebd23b2a7710f37f5ce8d105d2aa5deb771a016c589542e771c16c952146"
     },
     {
       "id": "migration",
@@ -46,7 +46,7 @@
     {
       "id": "operations",
       "sourceSha256": "68a99440027f181e8d82585fe674724bc348310173290a8c5ff68a706f59e9ac",
-      "translationSha256": "3212e1a5610642faf8cc268e5d12f97c2c54581b0fdccca0241dc6d004235285"
+      "translationSha256": "5d5f9ae56fbea80adf6d8c391c60bdd5ae8d08572d3ed2c8b5d5a4b303ad4234"
     },
     {
       "id": "profiles",

@@ -4,7 +4,7 @@
 
 LithoSharp は固定した Syntamark runtime と Source の組み合わせを使います。
 選択したバージョンと公開の状態は、[バージョン一覧](../eng/version-matrix.json)に記録しています。
-runtime は公開解析 API を提供し、Source はコンパイラーホストへ移植可能なパーサーを組み込みます。
+runtime は公開解析 API を提供し、Source は移植可能なパーサーをコンパイラーホストへ組み込みます。
 Source は runtime の公開 API をもう一式提供するパッケージではありません。
 バージョンを混在させたり、名前が同じという理由だけで Source を置き換えたりしないでください。
 単独で使う場合の API 全体と導入方法は、[Syntamark のリポジトリ](https://github.com/Htkym/syntamark)で説明します。

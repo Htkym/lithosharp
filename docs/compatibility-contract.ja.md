@@ -13,7 +13,7 @@
 
 既存 API は代替 API と移行方法を用意するまで維持します。
 非推奨にする場合は、代替 API、移行方法、削除予定のバージョンを明記します。
-`SiteGenerator.GenerateAsync`、`MarkdownPostReader`、`SiteCustomization`、`ISiteTemplate` の既存の呼び出し方法を維持します。
+`SiteGenerator.GenerateAsync`、`MarkdownPostReader`、`SiteCustomization`、`ISiteTemplate` は、サポート対象のエントリーポイントを維持します。
 
 2.x では例外として `LithoSharp.Testing.SiteTestDocument.Document` を削除し、読み取り専用の `Snapshot` API へ移行しました。
 これは意図したソース・バイナリ互換性の破壊であり、[移行表](Testing-v2-api.ja.md#移行)を用意しています。
@@ -61,7 +61,7 @@ HTML、見出し ID、重複スラッグ、目次、検索文、ルートの方�
 ディレクトリインデックス形式へ自動変更することはありません。
 Markdown ページの ID は `markdown:{normalized-output-path}`、追加ページの ID は `extra:{normalized-output-path}` です。
 ルート型とページ ID 型が区切りと Unicode を正規化するため、ID はホストの OS に依存しません。
-これらの変換は従来の公開ジェネレーターとテンプレートの呼び出し方法に対応します。
+これらの変換は従来の公開ジェネレーターとテンプレートのエントリーポイントに対応します。
 
 <a id="公開条件"></a>
 

@@ -93,7 +93,7 @@ var result = await new SiteGenerator().GenerateWithOptionsAsync(
 `-c Release`でビルド構成を変更します。`check --format text|json|sarif`はライブラリの診断フォーマッターを使い、
 `inspect --format json`は構造化したグラフとキャッシュの情報を返します。
 コンパイルエラーとプロジェクトの曖昧さはコマンドを失敗させます。
-ファクトリの読み込みとサイト検証の失敗は、不完全な出力を公開する代わりに報告します。
+ファクトリや読み込み、サイト検証の失敗は、不完全な出力を公開する代わりに報告します。
 
 静的検査、信頼して実行するpreflight、生成、出力検査は、それぞれ検証する範囲が異なります。
 ソースだけの結果は、プロジェクトに結び付いたルートやスキーマを証明しません。
@@ -110,7 +110,7 @@ var result = await new SiteGenerator().GenerateWithOptionsAsync(
 
 JSONモードの`POST /_lithosharp/watch-barrier`は、すでに受け付けた監視入力とそのビルドの完了を最大60秒待ちます。
 固定した世代、所有者、ホストの識別情報を返しますが、その後のネイティブなイベントが発生しないことを保証するものではありません。
-再ビルド完了時の`watch`の記録には、処理した再起動理由、入力リビジョン、前後のホストを含めます。
+再ビルド終了時の`watch`の記録には、処理した再起動理由、入力リビジョン、前後のホストを含めます。
 復旧イベントは通常のホストの再利用と区別します。連携では構造化した項目を使い、ログや再起動メッセージがないことから再利用の成功を推測しないでください。
 
 `SiteGenerator.CleanAsync(outputDirectory, cancellationToken)`は削除した相対パスを返します。
@@ -141,7 +141,7 @@ JSONモードの`POST /_lithosharp/watch-barrier`は、すでに受け付けた�
 - ポート競合: `serve`は構造化した起動失敗を報告し、別のポートを推測せずに終了します。空いている`--port`を選んでください。
 - Node.jsがない: MarkdownだけのサイトはNodeなしでビルドできます。MDXのビルドは`LSMDX002`で設定した実行ファイル名を示して失敗します。Node.js 24.13.0をインストールし、workerの依存関係を復元してください。
 - 依存関係が未復元: ビルド前に、.NETは`dotnet restore --locked-mode`、MDXは`restore-mdx`かworkerディレクトリでの`npm ci --ignore-scripts --no-audit --no-fund`を実行してください。
-- workerのツールチェーンのずれ: ビルドは固定した組み合わせ以外のNode、MDX、React、esbuildを使ってバンドルせずに拒否します。
+- workerのツールチェーンのずれ: ビルドは固定した組み合わせ以外のNode、MDX、React、esbuildのバージョンでバンドルを行わず、拒否します。
 - front matterの厳格な検証で問題が見つかった場合や、ルートが衝突した場合は、位置付きの診断でビルドを失敗させます。出力ではなくコンテンツを修正してください。
 
 ## 配布方式の制限

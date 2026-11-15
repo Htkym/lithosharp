@@ -83,7 +83,7 @@ factoryはQualityのError閾値と外部HTTP検査の無効を明示していま
 | 必須項目の不足や型の不一致 | Generator/compiler | 明示したコンテンツ入力と、静的に分かるスキーマの条件。 |
 | エントリーとルートの矛盾 | Analyzer | 完全で最新のカタログと既知の値。実行時の値は未検証です。 |
 | 見出しと原文位置の診断 | Editor/LSP | `NoContext`ではプロジェクトに結び付かず、`Partial`では取得できた情報だけを扱います。 |
-| headerや本文の情報を取得できない | Generator・runtime・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
+| headerや本文の情報を取得できない | Generator・build・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
 | 内部URL、anchor、HTML | 生成物検査 | 現在の出力ファイル。原稿との一致や外部HTTP応答は別途確認が必要です。 |
 
 | 目的 | 入口 |

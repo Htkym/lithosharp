@@ -31,7 +31,7 @@
     },
     "17add45819239b6439baa16b736ddd15a2ce2417afeadb7dfecc71eae359d6cb": {
       "english": "Registers a blog with a complete public Markdown provider, including any essential article or author information.",
-      "japanese": "完全な公開Markdownのproviderを指定してブログを登録します。記事や著者に関する重要な情報も含めます。",
+      "japanese": "記事や著者に関する重要な情報も含む完全な公開Markdownのproviderを指定してブログを登録します。",
       "contexts": [
         "M:LithoSharp.Mdx.MdxBlogSite.AddCollectionWithMarkdown(LithoSharp.Mdx.MdxBlogCollection,LithoSharp.Content.ContentPageMarkdownProvider{LithoSharp.Mdx.MdxBlogFrontMatter,LithoSharp.Mdx.MdxDocument},System.String)/summary"
       ]
@@ -59,7 +59,7 @@
     },
     "3cfcdf53dd7d28effb137820805115c7715b8e125882dc4ece39ee419303e881": {
       "english": "Optional public Markdown and discovery metadata. Disabled by default.",
-      "japanese": "公開Markdownと発見用リンクに関する任意のメタデータです。既定では無効です。",
+      "japanese": "公開Markdownと発見用メタデータに関する任意の設定です。既定では無効です。",
       "contexts": [
         "P:LithoSharp.SiteCustomization.AgentReady/summary"
       ]

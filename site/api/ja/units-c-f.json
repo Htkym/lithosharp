@@ -994,7 +994,7 @@
       "english": "Renders a component with this context."
     },
     "f9e3611be680b09d2b612a59414c8e43c7e62eea62f41089637a19bbee07d908": {
-      "japanese": "ノードに関連するページ。存在する場合に指定します。",
+      "japanese": "ノードに関連するページ（存在する場合）。",
       "english": "Page associated with the node, when present."
     },
     "f9ea336a56c67b49135909b895e599b340006f43666446ca129991912ef3199a": {
@@ -1050,7 +1050,7 @@
       "english": "Registers XML with caller-supplied assembly symbols and exact cross-assembly references. Symbols are not automatically extracted from projects or assemblies."
     },
     "fb742018d7c10952a464c1a435339d1e6401088401299791a72a7ff8db6deb60": {
-      "japanese": "JSON を検証してスナップショットに保存します。ルートはオブジェクトである必要があります。",
+      "japanese": "JSON を検証してスナップショットを作成します。ルートはオブジェクトである必要があります。",
       "english": "Validates and snapshots JSON. The root must be an object."
     },
     "fbca7aa2d99941d718bd1d2df22e299523f58ee33343f0c9d64b26d62027f729": {

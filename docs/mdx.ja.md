@@ -20,10 +20,10 @@ dotnet build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-Windows では `.tools/lithosharp.exe` を使います。復元は、`npm ci --ignore-scripts --no-audit --no-fund` でネットワークを
-使う明示的な操作です。通常のビルドは npm パッケージを取得しません。`dotnet build` の段階では、NuGet パッケージを復元する場合があります。
+Windows では `.tools/lithosharp.exe` を使います。復元は `npm ci --ignore-scripts --no-audit --no-fund` を使う明示的な
+ネットワーク操作です。通常のビルドは npm パッケージを取得しません。`dotnet build` の段階では、NuGet パッケージを復元する場合があります。
 サイトの `node_modules` からパッケージを取り込む場合は、サイト固有の npm 依存も別に復元してください。TypeScript は変換のみを
-行うため、型検査にはサイトの TypeScript チェッカーを使います。
+行うため、型検査にはサイトの TypeScript チェッカーを別に実行してください。
 
 テンプレートの `ISiteFactory` が `DocumentationSite` を登録します。
 API から登録する場合も同じ設定を使えます。
@@ -69,7 +69,7 @@ C# スキーマと生成参照の一連の例には、ネイティブ Markdown �
 この指定を含みます。名前が `_` で始まるファイルとディレクトリは import 専用です。
 front matter は C# の strict binder で検証し、不明なキーや重複を診断します。
 
-`DocumentFrontMatter` では `id`、`slug`、タイトル、説明、サイドバー、タグ、
+`DocumentFrontMatter` では安定した `id`、`slug`、タイトル、説明、サイドバー、タグ、
 公開期間、`draft`、`unlisted`、`search_exclude`、タイトルと目次の表示、編集リンク、
 前後ページを指定できます。
 
@@ -88,7 +88,7 @@ import Counter from './_components/Counter.tsx';
 
 JS、JSX、TS、TSX、JSON、CSS、CSS modules、画像、`?raw` import は esbuild で
 処理します。import は宣言したプロジェクトまたは復元済み worker の範囲に限ります。
-公開ページから draft や未登録の文書を import することはできません。共有する内容は
+公開ページから draft、除外対象、または未登録の文書を import することはできません。共有する内容は
 `_` で始まる partial へ移してください。MDX の export は JavaScript の意味を保ちます。
 公開するブラウザーデータは、選んだものだけです。
 
@@ -139,7 +139,7 @@ JS、JSX、TS、TSX、JSON、CSS、CSS modules、画像、`?raw` import は esbu
 ネイティブ変換では、フロントマターは厳密な snake_case キーを使う `DocumentFrontMatter` に対応し、未知・重複キーを診断します。
 ルート、サイドバー、カテゴリ、前後のリンクは、`SidebarItem` と `DocumentCategory` を持つ `DocumentCatalog` に対応します。
 バージョンと言語は `DocumentVariant`、UI メッセージは言語別の入力ディレクトリを使う `TranslationCatalog` に対応します。
-アセットはプロジェクトの範囲を制限する既存のアセット経路を使います。
+アセットはプロジェクト内に範囲を制限する既存のアセット経路を使います。
 CommonMark と GFM はプリセットの経路、Litho Markdown の拡張は共通の注意書き・コードメタデータの構造、上表は Docusaurus の解釈層です。
 任意のプラグイン・テーマ、一覧外のテーマ上書き、JavaScript 設定の実行は未対応です。
 移行は設定を実行せず、`LSMIG001` と `LSMIG003` で報告します。
@@ -153,8 +153,8 @@ React が管理する DOM を別のスクリプトで書き換えないでくだ
 参照する部品も分離できます。
 
 `MdxPublicData` は JSON と明示的な schema を受け取ります。オブジェクトには
-`additionalProperties: false` が必要です。サービス、関数、内部設定、認証情報を
-渡さず、ブラウザーで必要な値だけを選んでください。
+`additionalProperties: false` が必要です。サービス、関数、任意の CLR オブジェクトはブラウザーとのデータ契約になりません。
+認証情報や内部設定を渡さず、ブラウザーで必要な値だけを選んでください。
 Island の属性にも同じ制限付きの JSON スキーマ規則を適用します。
 
 Selective hydration では Island を明示します。`Island` は既定の部品に含まれます。
@@ -263,11 +263,11 @@ sandbox ではありません。信頼できないリポジトリは制限した
 環境変数は明示した値と実行に必要なものに絞り、`NODE_OPTIONS` や実行パスの上書きを
 拒否します。
 
-`Cacheable` は動的入力を宣言できるコードでだけ有効にしてください。比較時はビルド
+`Cacheable` は動的入力と環境を宣言したコードでだけ有効にしてください。比較時はビルド
 時刻を固定します。キャッシュは入力 hash を検証し、変更がなければ compile、render、
 bundle を省きます。部品変更後のブラウザーバンドルは全 entry を処理する場合があります。
-.NET の割当量に Node のメモリは含まれません。公開する Node heap 値は処理後の値であり、
-最大 RSS ではありません。
+C# の割り当てカウンターに Node のメモリは含まれません。worker の処理時間と使用中ヒープの
+スナップショットは個別に公開され、最大 RSS の計測値ではありません。
 
 `MdxOptions.Timeout` は worker への 1 要求あたり既定で 2 分です。大量の文書を扱う場合は
 明示的に延長してください。

@@ -125,11 +125,11 @@ This explanation remains in public Markdown even when initially collapsed.
 
 通常のMarkdownのリンク、画像、参照定義、コード、数式は、通常の公開URL変換の前まで原文の形で保持します。コード外のMDXコメントは除去し、コード例の内容はそのまま残します。未知のJSX、実行する式、利用者のimportやexport、コンパイラープラグイン、`ComponentsModule`による上書き、原文を変える`mdx-code-block`の前処理、リストや引用内のwrapper、`Tabs values={...}`は未対応です。`StaticComponents`を指定しても、任意のコンポーネントに完全なMarkdown表現があるとは判断しません。AutoではHTMLを維持し、Markdownを提供できない理由を報告します。Requiredでは完全な代替内容がなければ失敗します。
 
-`MdxSite.AddCollectionWithMarkdown`と`MdxBlogSite.AddCollectionWithMarkdown`には完全なproviderを明示的に登録でき、静的な生成候補より優先します。providerはHTMLレンダラーが使う準備済みのMDX entryを受け取ります。抜粋、feed用テキスト、抽出したプレーンテキスト、hydrationの無効化だけでは、完全なMarkdownを提供できると判断しません。限定された静的変換では公開内容全体を確定できない場合は、明示的な代替本文またはproviderを用意してください。既存のビルドコードの信頼条件とworkerの範囲は[MDXサイト](mdx.ja.md)で確認してください。静的変換によってMDXの実行がsandboxになることはありません。
+`MdxSite.AddCollectionWithMarkdown`と`MdxBlogSite.AddCollectionWithMarkdown`には完全なproviderを明示的に登録でき、静的な生成候補より優先します。providerはHTMLレンダラーが使う準備済みのMDX entryを受け取ります。抜粋、feed用テキスト、抽出したプレーンテキスト、hydrationの無効化だけでは、完全なMarkdownを提供できると判断しません。限定された静的変換で公開内容全体を確定できない場合は、明示的な代替本文またはproviderを用意してください。既存のビルドコードの信頼条件とworkerの範囲は[MDXサイト](mdx.ja.md)で確認してください。静的変換によってMDXの実行がsandboxになることはありません。
 
 ## 提供結果の確認
 
-生成後は`SiteGenerationResult.AgentReadyPages`でページごとの結果を確認できます。`PublicMarkdownPageResult`には`HtmlPath`、提供時の`MarkdownPath`、`Status`、提供できなかった場合の公開用の`Reason`を含めます。パスは原文のファイル名ではなく、出力先のパスです。Agent Readyが無効な場合、この一覧は空になります。
+生成後は`SiteGenerationResult.AgentReadyPages`でページごとの結果を確認できます。`PublicMarkdownPageResult`には`HtmlPath`、提供時の`MarkdownPath`、`Status`、提供できなかった場合の公開用の`Reason`が含まれます。パスは原文のファイル名ではなく、出力先のパスです。Agent Readyが無効な場合、この一覧は空になります。
 
 ```csharp
 foreach (var page in result.AgentReadyPages)
@@ -161,7 +161,7 @@ var options = new SiteGenerationOptions
 };
 ```
 
-変更しない範囲外の成果物は、既存の部分ビルドの動作に従って維持します。Agent Ready全体、robots、索引方針の変更には全体ビルドが必要です。Agent Readyを無効にした後は全体をビルドし、所有済みの不要なMarkdownと発見用リンクを削除してください。利用者が所有するファイルは既存の所有権・衝突検査で保護します。失敗やキャンセルでは、通常の出力トランザクションにより、公開済みの出力を維持します。[ビルドグラフと所有権](build-graph.ja.md)も参照してください。
+対象範囲外で変更されていない成果物は、既存の部分ビルドの動作に従って維持します。Agent Ready全体、robots、索引方針の変更には全体ビルドが必要です。Agent Readyを無効にした後は全体をビルドし、所有済みの不要なMarkdownと発見用リンクを削除してください。利用者が所有するファイルは既存の所有権・衝突検査で保護します。失敗やキャンセルでは、通常の出力トランザクションにより、公開済みの出力を維持します。[ビルドグラフと所有権](build-graph.ja.md)も参照してください。
 
 ## Qualityと配信の検査
 

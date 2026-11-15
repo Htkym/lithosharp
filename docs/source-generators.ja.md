@@ -45,7 +45,7 @@ public static partial class GeneratedArticles;
 
 `LithoSharpCollection` は宣言と一致させ、`LithoSharpId` は固定した項目 ID とします。
 `LithoSharpRoute` は、実行時と同じルート規則を使います。入力は `MSBuildProjectDirectory` の内側に置きます。
-メンバー名はプロジェクト相対パスを基に、パスや句読点の区切りをアンダースコアに変換して生成します。
+メンバー名はプロジェクト相対パスを基に、パス区切りや記号をアンダースコアに変換して生成します。
 項目 ID は実行時のローダーとそろえます。Docs サンプルは、Markdown ローダーが相対ファイル名を ID に使うため、拡張子を含めます。
 
 ## 生成 API
@@ -95,7 +95,7 @@ Markdown のプロファイルは、アンダースコアで始まるファイ�
 `.editorconfig` では、`dotnet_diagnostic.LSG005.severity = warning` などで重大度を設定できます。
 重大度を変えても、拒否した入力の参照は生成せず、実行時の検証も省略しません。
 DateOnly と TimeOnly の静的検証には、その実行時の型を提供するコンパイラーホストが必要です。
-対応しないホストは `LSG001` を報告するので、現在の `dotnet build` を使ってください。
+対応しないホストは `LSG001` を報告するので、これらの型に対応する現行 SDK の `dotnet build` を使ってください。
 
 入力の移動や削除でメンバーが消えると、古い参照には `CS0117` などの通常のコンパイルエラーが出ます。
 不正なジェネリックの代入は `CS0029` です。

@@ -363,7 +363,7 @@
         "src/LithoSharp/Proofreading/YomiyasuProofreader.cs/1526/summary"
       ],
       "english": "Requires the same source identity, version, text hash and expected original text.",
-      "japanese": "同じソース識別情報、バージョン、テキストハッシュ、元の期待テキストが必要です。"
+      "japanese": "同じソース識別情報、バージョン、テキストハッシュ、期待される元のテキストが必要です。"
     },
     "6c6d002c7df3fc850954c0c6669d586c0852eba6da62cbcd35049c6b424054d5": {
       "contexts": [

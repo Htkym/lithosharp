@@ -20,7 +20,7 @@
         "ja": {
           "path": "README.ja.md",
           "title": "LithoSharp",
-          "sha256": "5374f6ac5c3f2b285b858cce946763d5a85b7e507e90a07c5693f519eb605ae3"
+          "sha256": "87d07dbd3ea35343cb091120f6e45288ad1a893161ae6f28fa8063621ff620ed"
         }
       }
     },
@@ -54,7 +54,7 @@
         "ja": {
           "path": "docs/Testing-v2-api.ja.md",
           "title": "Testing v2 のスナップショットとクエリの契約",
-          "sha256": "592b121f96eb14814860f963ee79947d2b662eb085651f13d6712fdfa612307b"
+          "sha256": "65e970796de604e09e29caa026de9642d6c8680cf379e06782969045143adc0f"
         }
       }
     },
@@ -71,7 +71,7 @@
         "ja": {
           "path": "docs/adoption-guide.ja.md",
           "title": "LithoSharpの導入を判断する",
-          "sha256": "f0c0345bd32d6b00a858b01b730121075ffe4eea816adf8b120a0d7ac0263f48"
+          "sha256": "1204cf95311a876cecf556e946dd342de8975fbd0cb7c3bfde276a28da896907"
         }
       }
     },
@@ -105,7 +105,7 @@
         "ja": {
           "path": "docs/agent-ready.ja.md",
           "title": "Agent Readyの公開Markdown",
-          "sha256": "4c5434a3a3aec190985ef321b14240a275367cfde9e88928d946fb4c8ce657f7"
+          "sha256": "ddbd56daf29ac12de157ff582bd659ea47baf4d7ec15893022ec1bd4373f2a79"
         }
       }
     },
@@ -139,7 +139,7 @@
         "ja": {
           "path": "docs/build-graph.ja.md",
           "title": "ビルドグラフ",
-          "sha256": "904fb737dda474e21bf18e5fc59e549f2751b49bd1c05a5ed0b8274ac58108ca"
+          "sha256": "a07274192b3a98895f7ebf440023be398bf375b593fd0df6cdfd680b1316baeb"
         }
       }
     },
@@ -156,7 +156,7 @@
         "ja": {
           "path": "docs/cli.ja.md",
           "title": "CLIとサイトファクトリ",
-          "sha256": "8a2cc7a8db61f1ef566daa9f4861df9fa2bf566579f84342d08379e73f592cd5"
+          "sha256": "daa539f268dcc47a8dc8412c4fb87ee213d4226100ae8ac92f142bf0f508d5d7"
         }
       }
     },
@@ -190,7 +190,7 @@
         "ja": {
           "path": "docs/compatibility-contract.ja.md",
           "title": "生成サイトの互換性契約",
-          "sha256": "a7bca3657e5a8b1b26e0fbe1a39fdf58da9b365400bea5bb35ff4109b3290573"
+          "sha256": "3f0e33653c92cc05a26da0b01b9d6a82f0672d820fc9e3401ee1ea89c3836445"
         }
       }
     },
@@ -224,7 +224,7 @@
         "ja": {
           "path": "docs/diagnostics.ja.md",
           "title": "診断リファレンス",
-          "sha256": "539b7848169fe8e547c260f43f3039df04be68ec9cb40592aef4042c5e238b3b"
+          "sha256": "be83de7ebd7a1d1d7b66d056b26f18090f7d07a38f87f6493e3c4264f4b0117b"
         }
       }
     },
@@ -258,7 +258,7 @@
         "ja": {
           "path": "docs/docs-template.ja.md",
           "title": "Docsテンプレートの設定",
-          "sha256": "b126f042a0fccef655a7580855bd8294143971c80bca2d82013b1468ea5d70a5"
+          "sha256": "0f317ffb1638655bc5bf8d493eacebb85579e38ec0db21205658878a85d3e1be"
         }
       }
     },
@@ -275,7 +275,7 @@
         "ja": {
           "path": "docs/docusaurus-migration.ja.md",
           "title": "Docusaurus 移行",
-          "sha256": "aa5da5e4231c6f8820d11b1e0d126e90a5e84cc504c871963bd121138306c551"
+          "sha256": "ef7cd707f28b127a86208501316a886b5b841e955dddc347d9a5058b90238563"
         }
       }
     },
@@ -292,7 +292,7 @@
         "ja": {
           "path": "docs/generated-output-checks.ja.md",
           "title": "生成済み出力の検査",
-          "sha256": "58e2090622a4b9d65e2f0e9f64df02ab6c0c82822a6c02e7fbfaec69cd064d67"
+          "sha256": "15ce57be2121c4f1257796cd8f90394f35398670d0a7a51c7e5d45bf4341ad21"
         }
       }
     },
@@ -326,7 +326,7 @@
         "ja": {
           "path": "docs/incremental-builds.ja.md",
           "title": "差分ビルド",
-          "sha256": "81eb7a5879d18f76bd36da3a724647a2c230c24a8eb2c4e8995490d16d455129"
+          "sha256": "9b1dad9d9a9178674d6a7b7a7ca2b6770a0a2a47b8b326cf808902e85d607210"
         }
       }
     },
@@ -343,7 +343,7 @@
         "ja": {
           "path": "docs/known-limitations.ja.md",
           "title": "既知の制約",
-          "sha256": "6638cc51608bd48c28b2ad41ab55bcba7dc8b663cba3f779f622436019aa8805"
+          "sha256": "904271b0563a1e6e49fbfa13cecf4b3c9b3610789ee8f6386c201784f28fbe80"
         }
       }
     },
@@ -360,7 +360,7 @@
         "ja": {
           "path": "docs/language-server.ja.md",
           "title": "言語サーバープロトコル",
-          "sha256": "d4c4fe1f25f3ba3cb8e5fe950a941731ec1cd07798da42ddc29a13f1b55bef7c"
+          "sha256": "798a59ae47550aed9851abece465468c267bb3491c296a49cfc9714aeb61d265"
         }
       }
     },
@@ -394,7 +394,7 @@
         "ja": {
           "path": "docs/markdown-profiles.ja.md",
           "title": "Markdown プロファイル",
-          "sha256": "3db9e4b89023f9b8d4dfd43bb2ab0363dad5b18752992d98ab4cc635dff18ee1"
+          "sha256": "221976e74d71cf62aaae4fffa20f3abc818d7893983bb9b49f380d92690bb134"
         }
       }
     },
@@ -411,7 +411,7 @@
         "ja": {
           "path": "docs/mdx.ja.md",
           "title": "MDX とドキュメントサイト",
-          "sha256": "8150a0e6cc06e6cec26cfec913e33b7e8147cbef51cd4e525389a7b54eb2c2ff"
+          "sha256": "fdd2c729684752082f7c15dc3fc64f754453595dcf2d0dccc51e05bcc1450160"
         }
       }
     },
@@ -428,7 +428,7 @@
         "ja": {
           "path": "docs/migration-2.0.ja.md",
           "title": "2.2.0への更新",
-          "sha256": "290f5f311d5ac9689bc08ba34415d02d935ccc81b6877c3c1b43d10d2f7dc477"
+          "sha256": "940b7fc95ee8ca543d8afdd90b905d90c781edf286a46f91d518a33d58bf0572"
         }
       }
     },
@@ -445,7 +445,7 @@
         "ja": {
           "path": "docs/migration-3.0.ja.md",
           "title": "LithoSharp 3 への移行",
-          "sha256": "ec9d29eef5d4c879ebdec03c04f64d49c7b6063fb2a12ec9925afe7a2d6a6bd0"
+          "sha256": "6994273f46d60bef718c518d5a7025878f18f82d8c94015a62f09b01989e70fe"
         }
       }
     },
@@ -513,7 +513,7 @@
         "ja": {
           "path": "docs/quickstart.ja.md",
           "title": "Quick Start",
-          "sha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f"
+          "sha256": "a26033ce8ac788e6b1463225ed775347cf94ed6bf464cb189c575ff404b2cded"
         }
       }
     },
@@ -581,7 +581,7 @@
         "ja": {
           "path": "docs/source-generators.ja.md",
           "title": "静的コンテンツのソースジェネレーター",
-          "sha256": "04a4a80852072f082544db244f44fe3e31043d978905b2eb9d7f2ee5682e819c"
+          "sha256": "3022473f1afcb2ecbfc177f43b561435b3b28fb640987f1f3b342524b3a2149c"
         }
       }
     },
@@ -598,7 +598,7 @@
         "ja": {
           "path": "docs/syntamark-contracts.ja.md",
           "title": "LithoSharp で使う Syntamark の契約",
-          "sha256": "5dfbf4c90ff3adbbaeb420f4a723ab860ce5832fc4c073911784f48bed131aa6"
+          "sha256": "533eee61b9879e6312411d39121a97e88157d457af32de2f667ebed466ee7e87"
         }
       }
     },
@@ -615,7 +615,7 @@
         "ja": {
           "path": "docs/testing.ja.md",
           "title": "サイトのテスト",
-          "sha256": "6ccee122c8139fce4e7f9c6879ed64614b4069a7df75b17a4c33f6e3d8fbfdaf"
+          "sha256": "3c88767c5b36776a5de67a16ea9e795db19c2d0b0c44a6adeaa7d47af7878d02"
         }
       }
     },
@@ -632,7 +632,7 @@
         "ja": {
           "path": "docs/tooling-capabilities.ja.md",
           "title": "Toolingの機能情報と互換性（schema 1.0）",
-          "sha256": "6914dbfa2802c66ba5b843c5fc1c819cb6b8890ca0689f8780d55d191a87d21d"
+          "sha256": "6ea40f3b1e2c835475dad025b05b4bb306bc635e01d3f410cc1d0ee9b71141f9"
         }
       }
     },
@@ -649,7 +649,7 @@
         "ja": {
           "path": "docs/typed-markdown-collections.ja.md",
           "title": "型付き Markdown コレクション",
-          "sha256": "54d416ab39bbd429f59d931da7b918f10b73c5aa2c59d3792f61cdc105e06edb"
+          "sha256": "82e6f0a8db665607bdb5e5498aa4d2f040416f89fbc1283b4727a93d095d27ff"
         }
       }
     },
@@ -683,7 +683,7 @@
         "ja": {
           "path": "extensions/lithosharp-vscode/README.ja.md",
           "title": "LithoSharp for VS Code",
-          "sha256": "c87740dfffde8e9bf0ddd2b14878dc84efe9213d76c570ec7f374d4a36135531"
+          "sha256": "ace3077c1eecd84c35da714eabbb6fecdbbf396ea34ff9091ab51308e20acb5d"
         }
       }
     },
@@ -751,7 +751,7 @@
         "ja": {
           "path": "src/LithoSharp.Analyzers/README.ja.md",
           "title": "LithoSharp.Analyzers",
-          "sha256": "aead25c46ad852f7395740c1aa3856d0e406bb2f38dfb99ee0f005d4ba8fb5e9"
+          "sha256": "3fc1b055accf82216bfc7e6bd04ae49192ee4fe88487e41ee2c50e6c4ba5fdc0"
         }
       }
     },
@@ -853,7 +853,7 @@
         "ja": {
           "path": "src/LithoSharp.Tool/README.ja.md",
           "title": "LithoSharp.Tool",
-          "sha256": "fd72c1b43c1dbab99317b425a374cdf9d0025c69dbc0a42f82493a690c7a2f0c"
+          "sha256": "a3593d6f672c583a7247dbec18640016cec03083980f7bac559b96154e24859e"
         }
       }
     },

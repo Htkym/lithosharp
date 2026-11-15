@@ -636,7 +636,7 @@
     },
     "9484fdfb686240e454e7c0f3f63fdd74ec577d2f08e33a00f5f4592373c7ff78": {
       "english": "Checks published URLs and anchors; allowance keys are exact absolute URLs with optional escaped fragments, and values are nonempty reasons.",
-      "japanese": "公開済みのURLとアンカーを検査します。許可項目のキーは正確な絶対URLです。エスケープ済みフラグメントは省略可能で、値は空でない理由です。",
+      "japanese": "公開済みのURLとアンカーを検査します。許可項目のキーはエスケープ済みフラグメントを任意で含む正確な絶対URLで、値は空でない理由です。",
       "contexts": [
         "M:LithoSharp.Quality.SitePublicationCompatibility.CompareAsync(LithoSharp.Quality.SitePublicationManifest,System.String,System.Collections.Generic.IReadOnlyDictionary{System.String,System.String},System.Boolean,System.Threading.CancellationToken)/summary"
       ]
@@ -769,7 +769,7 @@
     },
     "9896f921906fe50812b77917ec420076b9be899bdd850a5d429c78b23f20c35b": {
       "english": "Declares a deterministic asset transformation.",
-      "japanese": "決定的なアセット変換を宣言します。",
+      "japanese": "決定論的なアセット変換を宣言します。",
       "contexts": [
         "T:LithoSharp.SiteAssetTransform/summary"
       ]

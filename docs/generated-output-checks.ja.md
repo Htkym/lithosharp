@@ -9,7 +9,7 @@
 | `check [project]` | 新しく一時生成するサイト | プロジェクトをコンパイルし、ファクトリの実行、生成、検証を行います。 |
 | `check-output --output <directory> --base-url <url>` | 既存の配布用ディレクトリ | 再生成せずに、現在のファイルを読み取って検証します。 |
 
-C#スキーマ、型付き参照、コンテンツ読み込みの検査を通った後も、独自レイアウトやファイルの編集で出力が変わる場合があります。[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では正常な生成と、生成後の不正なリンクを`LSQ001`で検出する例を分けています。診断の一覧は[サイト品質](site-quality.md)を参照してください。
+C#スキーマ、型付き参照、コンテンツ読み込みの段階の後に本検査を使ってください。これらの段階では、独自レイアウトやその後のファイル編集によって実際に出力された内容を証明できません。[Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では正常な生成と、生成後の不正なリンクを`LSQ001`で検出する例を分けています。診断の一覧は[サイト品質](site-quality.ja.md)を参照してください。
 
 ```powershell
 lithosharp check-output --output dist --base-url https://example.com/guide/ --format json

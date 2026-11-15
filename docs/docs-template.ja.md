@@ -44,7 +44,7 @@ unlistedのページと`DerivedSurfaces.Navigation`に参加しないentryは、
 ホーム、開始リンク、任意のトピックカードは標準テンプレートが生成するため、ホームと同じ
 出力先へ別のページを登録しないでください。全ページの本文をツリーへ複製せず、表示情報を共有します。
 
-renderer fingerprintには、表示selector、本文描画、取り込んだ設定を識別できる値を使い、
+安定したrenderer fingerprintを使うのは、表示selector、本文描画、取り込んだ設定をすべて網羅している場合だけにし、
 外部依存も宣言してください。`isThreadSafe`はcallbackを並行実行できる場合だけ指定します。
 通常のcollectionと同じcache・build graphの規則を使います。既存URLやスキーマを維持する場合は
 [移行手順](migration-2.0.ja.md#既存docsを型付きコンテンツへ移す)を参照してください。
@@ -91,7 +91,7 @@ MDXモジュールとハイドレーション用のアセットは同一オリ�
 既存のブラウザー検査には`LS_BROWSER=chromium`、`firefox`、`webkit`を指定できます。
 CSPのfixtureでは`tests/fixtures/mdx-browser/serve.mjs`で`LS_CSP`を使い、プレフィックス付きサイトには`LS_BASE_PATH=/product`を設定して、
 `node tests/fixtures/mdx-browser/delivery.mjs http://127.0.0.1:4317/product/`を実行します。
-ほかのDocs、Blog、MDX、サブパスの検査でも、ナビゲーション、検索、キーボード操作、ハイドレーションの表明は維持します。
+ほかのDocs、Blog、MDX、サブパスの検査でも、ナビゲーション、検索、キーボード操作、ハイドレーションのアサーションは維持します。
 WebKitの結果は、そのエンジンで検証したことを示します。実際のSafariでの受け入れには、Safariでの別の実行が必要です。
 これらのファイルを生成したことや単体テストの成功だけでは、ブラウザーやステージング環境での受け入れを証明できません。
 

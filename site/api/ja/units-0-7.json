@@ -103,7 +103,7 @@
     },
     "07972dbd03d8de4220e567cd86bf2b8f42a8877561bbfdb7e966ad56af7a599d": {
       "english": "Explicit build-only MDX execution and dependency settings.",
-      "japanese": "ビルド時だけ明示的に実行するMDXと、その依存関係の設定。"
+      "japanese": "ビルド時のみのMDX実行および依存関係に関する明示的な設定。"
     },
     "07da2bbc53f640a87b89ca607802df6c7857237de419e18e9424528f0f951a64": {
       "english": "Searches a document set without a network service.",
@@ -131,7 +131,7 @@
     },
     "08d51c014decd9c5bc061110331522b8ec184d007d69a32769f118437f03d6f8": {
       "english": "Serializes cooperating processes by normalized output identity. Private sidecars, not the public manifest, authorize stale removal. Links and name-surrogate reparse points are rejected.",
-      "japanese": "正規化した出力の識別情報を使い、協調するプロセスを直列化します。古い出力を削除する根拠には、公開manifestではなく非公開の付随ファイルを使用します。リンクと名前の代替となる再解析ポイントは拒否します。"
+      "japanese": "正規化した出力の識別情報を使い、協調するプロセスを直列化します。古い出力を削除する根拠には、公開manifestではなく非公開の付随ファイルを使用します。リンクおよび名前サロゲートの再解析ポイントは拒否します。"
     },
     "09ec9d1311c5c01d4523738d35e5cfc8778a53a83d425443413e3f92ce838ab0": {
       "english": "A bundle file retained without interpreting it as a concept.",
@@ -663,7 +663,7 @@
     },
     "29154eef71de8c04de70c1834f6a7db51f17ce7294f0fbc79388e0f01e5fa033": {
       "english": "An extension point that validates a Markdown post. Use it to plug in site-specific rules (such as required headings or summary quality). Throw an {0} when validation fails.",
-      "japanese": "Markdown記事を検証する拡張点。必須の見出しや要約の品質など、サイト固有の規則を追加できます。検証に失敗した場合は{0}を送出します。"
+      "japanese": "Markdown記事を検証する拡張点。必須の見出しや要約の品質など、サイト固有の規則を追加できます。検証に失敗した場合は{0}を送出してください。"
     },
     "292d67346c44ae14cdd9b49b9acf558fb33ad5647bcec527fc0fdea62dd9fd94": {
       "english": "Creates one declared membership record.",
@@ -751,7 +751,7 @@
     },
     "2d453268a409bb790a59a016a5cfc2355316edc843b9a9eb13afa074e4b61233": {
       "english": "Shows a GET search form in the header except on the search page. Also enables local search.",
-      "japanese": "検索ページ以外のヘッダーにGET検索フォームを表示します。ローカル検索も有効にします。"
+      "japanese": "検索ページを除き、ヘッダーにGET検索フォームを表示します。ローカル検索も有効にします。"
     },
     "2d8ad913cd78f4f1a2a9be9f020a92e8496c60e0a4543a8eaddeadeaf024335d": {
       "english": "Implementation, configuration and tool version fingerprint.",
@@ -815,7 +815,7 @@
     },
     "3235c1b635661d0267e589bef9933ed3e82d5820cebf39199715ebb17010cc2b": {
       "english": "Compiler diagnostics additionally require a verified generated origin and matching current fingerprint.",
-      "japanese": "コンパイラー診断には検証済みの生成元情報と、現在一致するフィンガープリントも必要です。"
+      "japanese": "コンパイラー診断には検証済みの生成元情報と、現在のフィンガープリントとの一致も必要です。"
     },
     "3243e0cad15fec5fc38a1028c9452e2054348a0eab17b1b731b9368a984a1188": {
       "english": "Creates a value containing explicitly trusted raw HTML.",
@@ -907,7 +907,7 @@
     },
     "3945ca315417911465fd07375dcea297e6bb617cdc5c95686355b30346a7206e": {
       "english": "Declares existing variants. The exact fallback reference must appear in the variant list.",
-      "japanese": "既成のvariantを宣言します。正確に一致するfallback参照がvariant一覧に必要です。"
+      "japanese": "既存のvariantを宣言します。正確に一致するfallback参照がvariant一覧に必要です。"
     },
     "3a227b54fe1beb001d88099f8d2ae4cd444cbc674f1b126fc346bfe04ae0d5d1": {
       "english": "Optional transform cache directory outside the output directory. Null disables the disk cache.",

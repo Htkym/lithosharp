@@ -5,7 +5,7 @@ prerequisites: [quickstart]
 ---
 
 `DocumentationSite` は、二つの `DocumentVariant` を持つ `handbook` コレクションを登録します。
-`3.0/en` の入力は `en/`、`3.0/ja` の入力は `ja/` に出力します。
+`3.0/en` の入力は `en/`、`3.0/ja` の入力は `ja/` から読み込みます。
 共通の文書 ID が言語間の移動先を結び、明示した `MissingDocumentPolicy.Error` がペアの欠落を拒否します。
 バージョンを追加する場合は、専用の入力ソースとルートの接頭辞が必要です。
 ラベルを付けても、現在の文章が過去の文書になるわけではありません。
