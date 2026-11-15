@@ -98,9 +98,9 @@
       "version": "3.0",
       "id": "compatibility-contract",
       "sourcePath": "docs/compatibility-contract.md",
-      "sourceSha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7",
+      "sourceSha256": "d03fc78ab35e07ac1003b800b643792ef822fbb4b84b0fc489763e346f027e65",
       "translationPath": "docs/compatibility-contract.ja.md",
-      "translationSha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d"
+      "translationSha256": "a7bca3657e5a8b1b26e0fbe1a39fdf58da9b365400bea5bb35ff4109b3290573"
     },
     {
       "collection": "reference",
@@ -125,9 +125,9 @@
       "version": "3.0",
       "id": "distribution",
       "sourcePath": "docs/distribution.md",
-      "sourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
+      "sourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
       "translationPath": "docs/distribution.ja.md",
-      "translationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c"
+      "translationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070"
     },
     {
       "collection": "reference",
@@ -269,9 +269,9 @@
       "version": "3.0",
       "id": "quickstart",
       "sourcePath": "docs/quickstart.md",
-      "sourceSha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be",
+      "sourceSha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573",
       "translationPath": "docs/quickstart.ja.md",
-      "translationSha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0"
+      "translationSha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f"
     },
     {
       "collection": "reference",
@@ -538,6 +538,39 @@
       "previousTranslationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
       "translationSha256": "eb1fd15423c1bd24d533b0bcc719b3084a4584fdd4d59cb455ce2404e6f2221f",
       "scope": "Only the Japanese HTTP-inspection link fragment changed from the untranslated Japanese heading to http, matching the compiled ASCII heading-ID contract. No prose or English link changed. Earlier whole-document review remains intact; local Yomiyasu diff/lint/material comparison and final-file verification cover this correction."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "compatibility-contract",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7",
+      "previousTranslationSha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d",
+      "sourceSha256": "d03fc78ab35e07ac1003b800b643792ef822fbb4b84b0fc489763e346f027e65",
+      "translationSha256": "a7bca3657e5a8b1b26e0fbe1a39fdf58da9b365400bea5bb35ff4109b3290573",
+      "scope": "Removed internal API-baseline and CI maintenance instructions only; supported compatibility and migration contracts are unchanged. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
+      "previousTranslationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c",
+      "sourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
+      "translationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070",
+      "scope": "Removed internal candidate-evidence and merge/release procedure links; retained the exact preview version, matching runtime/Source requirement and unpublished caveat. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "quickstart",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be",
+      "previousTranslationSha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0",
+      "sourceSha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573",
+      "translationSha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f",
+      "scope": "Replaced the internal verification-script link with the public code-example verification guide only. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
     }
   ]
 }

@@ -20,8 +20,8 @@
     },
     {
       "id": "features",
-      "sourceSha256": "6ab85b75b22d544c8ac573a5ce5d1e7261df8449907304a42f9a40c31420b8fb",
-      "translationSha256": "fec3465daa13d7872f87b73c1861ebc742e45617395f3b339842542a2539a6d3"
+      "sourceSha256": "844a5a1906f4a92417332fb43434606ccf83e7432c18e6902a74637f9a0d31c3",
+      "translationSha256": "0834705ebab4a83f5bcf7c594cad244b1a4c1ebecbb1fa223fe1106601e440ec"
     },
     {
       "id": "images",
@@ -67,6 +67,17 @@
       "id": "typed-content",
       "sourceSha256": "9e549e285861cc2d9bdfda076153c72e33f15118bd971641c2bc1ae293401846",
       "translationSha256": "539020885a88612c7c1075608a0fa688483f2fd2f53af1d108d43c14dffa2b79"
+    }
+  ],
+  "reviewUpdates": [
+    {
+      "id": "features",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "6ab85b75b22d544c8ac573a5ce5d1e7261df8449907304a42f9a40c31420b8fb",
+      "previousTranslationSha256": "fec3465daa13d7872f87b73c1861ebc742e45617395f3b339842542a2539a6d3",
+      "sourceSha256": "844a5a1906f4a92417332fb43434606ccf83e7432c18e6902a74637f9a0d31c3",
+      "translationSha256": "0834705ebab4a83f5bcf7c594cad244b1a4c1ebecbb1fa223fe1106601e440ec",
+      "scope": "Removed internal coverage IDs and revision/source-inventory review mechanics from the final two paragraphs. Kept guide/example navigation, API origin and the non-exhaustive-test caveat. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Unchanged text retains its prior review. AGY proofreading remains a separate pending publication gate."
     }
   ]
 }

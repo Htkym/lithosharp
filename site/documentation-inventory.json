@@ -185,12 +185,12 @@
         "en": {
           "path": "docs/compatibility-contract.md",
           "title": "Generated site compatibility contract",
-          "sha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7"
+          "sha256": "d03fc78ab35e07ac1003b800b643792ef822fbb4b84b0fc489763e346f027e65"
         },
         "ja": {
           "path": "docs/compatibility-contract.ja.md",
           "title": "生成サイトの互換性契約",
-          "sha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d"
+          "sha256": "a7bca3657e5a8b1b26e0fbe1a39fdf58da9b365400bea5bb35ff4109b3290573"
         }
       }
     },
@@ -236,12 +236,12 @@
         "en": {
           "path": "docs/distribution.md",
           "title": "Distribution and installation",
-          "sha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398"
+          "sha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0"
         },
         "ja": {
           "path": "docs/distribution.ja.md",
           "title": "配布とインストール",
-          "sha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c"
+          "sha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070"
         }
       }
     },
@@ -508,12 +508,12 @@
         "en": {
           "path": "docs/quickstart.md",
           "title": "Quick Start",
-          "sha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be"
+          "sha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573"
         },
         "ja": {
           "path": "docs/quickstart.ja.md",
           "title": "Quick Start",
-          "sha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0"
+          "sha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f"
         }
       }
     },
