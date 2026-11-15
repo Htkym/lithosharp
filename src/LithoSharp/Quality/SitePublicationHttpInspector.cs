@@ -162,7 +162,8 @@ internal static class SitePublicationHttpInspector
         while (true)
         {
             var count = await input.ReadAsync(buffer, token).ConfigureAwait(false);
-            if (count == 0) return output.ToArray();
+            if (count == 0)
+                return output.ToArray();
             if (output.Length + count > limit)
                 throw new InvalidDataException("The HTTP body exceeded the inspection size limit.");
             output.Write(buffer, 0, count);

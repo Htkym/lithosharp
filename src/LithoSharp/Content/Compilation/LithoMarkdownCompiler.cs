@@ -120,7 +120,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         var (syntax, semantics) = Map(prepared, analysis, resolved, cancellationToken);
         var componentPlan = Options.Markdown.ProfileId == MarkdownOptions.DocumentationProfile
             ? MarkdownComponentRendering.Prepare(analysis, resolved, Options.Markdown.Components ?? MarkdownComponentRegistry.Empty,
-                context, renderHtml, cancellationToken, Options.RetainAgentReadyFacts) : null;
+                context, renderHtml, cancellationToken, Options.RetainAgentReadyFacts && context?.SuppressPublicMarkdown != true) : null;
         if (componentPlan is not null)
             semantics = semantics with { Components = componentPlan.Components, Diagnostics = semantics.Diagnostics.Concat(componentPlan.Diagnostics).ToArray() };
         var origins = renderHtml ? new List<MarkdownRenderOrigin>() : null;

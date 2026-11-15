@@ -45,7 +45,8 @@ internal static class PublicMarkdownBody
                 return Unavailable("The inclusion source map describes another body.");
             origins = previous.Output.Matches(original) ? previous : Identity(original, previous.Output).Compose([previous]);
         }
-        else origins = Identity(original, new(original.SourceId, "original/" + original.Version, original.Text));
+        else
+            origins = Identity(original, new(original.SourceId, "original/" + original.Version, original.Text));
 
         var admonitions = Admonitions(analysis, cancellationToken);
         var structural = new List<MdSourceEdit>();
@@ -67,7 +68,8 @@ internal static class PublicMarkdownBody
                 // Preserve line and token boundaries, without publishing comment text.
                 Add(span, string.Create(raw.Length, raw, static (output, input) =>
                 {
-                    for (var i = 0; i < output.Length; i++) output[i] = input[i] is '\r' or '\n' ? input[i] : ' ';
+                    for (var i = 0; i < output.Length; i++)
+                        output[i] = input[i] is '\r' or '\n' ? input[i] : ' ';
                 }));
                 continue;
             }
@@ -78,7 +80,8 @@ internal static class PublicMarkdownBody
                 {
                     // The same parser recognizes GitHub alert quotes; their ordinary source form already
                     // preserves the kind and every body line. Continue visiting children for safe link edits.
-                    for (var index = node.Children.Count - 1; index >= 0; index--) nodes.Push(node.Children[index]);
+                    for (var index = node.Children.Count - 1; index >= 0; index--)
+                        nodes.Push(node.Children[index]);
                     continue;
                 }
                 if (node.RawSpan is not { } span || node.Directive is not { IsComplete: true } directive)
@@ -111,7 +114,8 @@ internal static class PublicMarkdownBody
                 Add(new(span.Start, directive.ContentRawSpan.Start - span.Start), heading);
                 Add(new(directive.ContentRawSpan.End, span.End - directive.ContentRawSpan.End), string.Empty);
             }
-            for (var index = node.Children.Count - 1; index >= 0; index--) nodes.Push(node.Children[index]);
+            for (var index = node.Children.Count - 1; index >= 0; index--)
+                nodes.Push(node.Children[index]);
         }
 
         if (CheckLiteralMarkup(analysis, original, structural, removeComments: true, cancellationToken) is { } literalFailure)
@@ -124,7 +128,8 @@ internal static class PublicMarkdownBody
             {
                 var providerEdits = structural.Where(edit => providers.Contains(edit.Target.Span)).ToArray();
                 var ordinaryEdits = structural.Where(edit => !providers.Contains(edit.Target.Span)).OrderBy(edit => edit.Target.Span.Start).ToArray();
-                if (ordinaryEdits.Length == 0) preservedSyntax = PreservedSyntax(analysis, providerEdits, cancellationToken);
+                if (ordinaryEdits.Length == 0)
+                    preservedSyntax = PreservedSyntax(analysis, providerEdits, cancellationToken);
                 else
                 {
                     // Removing comments or known wrappers intentionally merges literal nodes and
@@ -196,7 +201,8 @@ internal static class PublicMarkdownBody
             // An unresolved reference is literal in the paired HTML parser. There is no destination
             // to rewrite; nested real links still have their own facts and are handled normally.
             if (link.Kind == MdLinkKind.ReferenceUse && link.Resolution == MdLinkResolution.UnresolvedReference
-                && link.Target is null && link.TargetRawSpan is null) continue;
+                && link.Target is null && link.TargetRawSpan is null)
+                continue;
             if (link.Target is null || link.Resolution == MdLinkResolution.UnresolvedReference)
                 return Unavailable("A link's destination evidence is inconsistent.");
             var range = link.TargetRawSpan ?? link.RawSpan;
@@ -207,7 +213,8 @@ internal static class PublicMarkdownBody
             var destination = resolveLink(new(link.Target, link.Image, origin.Source.SourceId, origin.Span));
             if (destination is null)
                 return Unsupported("A link has no verified public route or asset destination.");
-            if (string.Equals(destination, link.Target, StringComparison.Ordinal)) continue;
+            if (string.Equals(destination, link.Target, StringComparison.Ordinal))
+                continue;
             if (!MdLinkEdits.TryCreateDestinationEdit(current, analysis, index, destination,
                 out var edit, out var failure, cancellationToken))
                 return Unavailable($"A link destination cannot be edited safely ({failure}).");
@@ -230,14 +237,19 @@ internal static class PublicMarkdownBody
         while (pending.TryPop(out var block))
         {
             token.ThrowIfCancellationRequested();
-            if (block is LithoAdmonition admonition) result[admonition.Span.Start] = admonition;
+            if (block is LithoAdmonition admonition)
+                result[admonition.Span.Start] = admonition;
             IEnumerable<LithoBlock> children = block switch
             {
-                LithoAdmonition item => item.Children, LithoDirective item => item.Children,
-                LithoQuote item => item.Children, LithoFootnoteDefinition item => item.Children,
-                LithoList item => item.Items.SelectMany(child => child.Children), _ => [],
+                LithoAdmonition item => item.Children,
+                LithoDirective item => item.Children,
+                LithoQuote item => item.Children,
+                LithoFootnoteDefinition item => item.Children,
+                LithoList item => item.Items.SelectMany(child => child.Children),
+                _ => [],
             };
-            foreach (var child in children.Reverse()) pending.Push(child);
+            foreach (var child in children.Reverse())
+                pending.Push(child);
         }
         return result;
     }
@@ -261,7 +273,8 @@ internal static class PublicMarkdownBody
         var result = new List<PreservedNode>();
         foreach (var node in analysis.Root!.DescendantsAndSelf(token))
         {
-            if (node.Kind == MdSyntaxKind.Document || node.RawSpan is not { Length: > 0 } span) continue;
+            if (node.Kind == MdSyntaxKind.Document || node.RawSpan is not { Length: > 0 } span)
+                continue;
             // Find the first edit not entirely before this span. Overlapping parents are
             // intentionally transformed, but their unaffected descendants are still checked.
             var low = 0;
@@ -269,10 +282,13 @@ internal static class PublicMarkdownBody
             while (low < high)
             {
                 var middle = low + (high - low) / 2;
-                if (ordered[middle].Target.Span.End <= span.Start) low = middle + 1;
-                else high = middle;
+                if (ordered[middle].Target.Span.End <= span.Start)
+                    low = middle + 1;
+                else
+                    high = middle;
             }
-            if (low < ordered.Length && ordered[low].Target.Span.Start < span.End) continue;
+            if (low < ordered.Length && ordered[low].Target.Span.Start < span.End)
+                continue;
             result.Add(new(new(checked(span.Start + deltas[low]), span.Length), Meaning(node)));
         }
         return result;
@@ -298,10 +314,17 @@ internal static class PublicMarkdownBody
     private static string? ReferenceOrigin(MdSourceMap map, MdRawRange span, CancellationToken cancellationToken)
     {
         var mapped = map.Map(span, cancellationToken);
-        if (mapped.Precision != MdMappingPrecision.Exact || mapped.Origins.Count != 1) return null;
+        if (mapped.Precision != MdMappingPrecision.Exact || mapped.Origins.Count != 1)
+            return null;
         var origin = mapped.Origins[0];
-        return System.Text.Json.JsonSerializer.Serialize(new { origin.Source.SourceId, origin.Source.Version,
-            origin.Source.TextHash, origin.Span.Start, origin.Span.Length });
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            origin.Source.SourceId,
+            origin.Source.Version,
+            origin.Source.TextHash,
+            origin.Span.Start,
+            origin.Span.Length
+        });
     }
 
     private static bool Complete(MdAnalysisResult analysis, MarkdownOptions options) =>
@@ -327,33 +350,44 @@ internal static class PublicMarkdownBody
             if (node.Kind is MdSyntaxKind.FencedCodeBlock or MdSyntaxKind.IndentedCodeBlock or MdSyntaxKind.CodeSpan
                 or MdSyntaxKind.MathBlock or MdSyntaxKind.MathInline or MdSyntaxKind.Autolink)
             {
-                if (node.RawSpan is { } range) opaque.Add(range);
-                else unknownOpaque = true;
+                if (node.RawSpan is { } range)
+                    opaque.Add(range);
+                else
+                    unknownOpaque = true;
             }
             if (node.Kind is MdSyntaxKind.Text or MdSyntaxKind.Emphasis or MdSyntaxKind.StrongEmphasis or MdSyntaxKind.Strikethrough
-                && node.RawSpan is { } literalRange) literalRanges.Add(literalRange);
-            if (node.Kind != MdSyntaxKind.Text || node.Text?.Contains('<') != true) continue;
-            if (node.RawSpan is not { } span) return Unavailable("A literal markup source range is unavailable.");
+                && node.RawSpan is { } literalRange)
+                literalRanges.Add(literalRange);
+            if (node.Kind != MdSyntaxKind.Text || node.Text?.Contains('<') != true)
+                continue;
+            if (node.RawSpan is not { } span)
+                return Unavailable("A literal markup source range is unavailable.");
             for (var at = span.Start; at < span.End; at++)
-                if (source.Text[at] == '<') candidates.Add(at);
+                if (source.Text[at] == '<')
+                    candidates.Add(at);
         }
-        if (candidates.Count == 0) return null;
-        if (unknownOpaque) return Unavailable("An opaque source range is unavailable for literal markup checking.");
+        if (candidates.Count == 0)
+            return null;
+        if (unknownOpaque)
+            return Unavailable("An opaque source range is unavailable for literal markup checking.");
         foreach (var link in analysis.Links!)
-            if (link.TargetRawSpan is { } span) opaque.Add(span);
+            if (link.TargetRawSpan is { } span)
+                opaque.Add(span);
         var blocked = new List<MdRawRange>();
         foreach (var span in opaque.Concat(edits.Select(edit => edit.Target.Span)).OrderBy(span => span.Start))
         {
             if (blocked.Count != 0 && span.Start <= blocked[^1].End)
                 blocked[^1] = new(blocked[^1].Start, Math.Max(span.End, blocked[^1].End) - blocked[^1].Start);
-            else blocked.Add(span);
+            else
+                blocked.Add(span);
         }
         var allowed = new List<MdRawRange>();
         foreach (var span in literalRanges.OrderBy(span => span.Start))
         {
             if (allowed.Count != 0 && span.Start <= allowed[^1].End)
                 allowed[^1] = new(allowed[^1].Start, Math.Max(span.End, allowed[^1].End) - allowed[^1].Start);
-            else allowed.Add(span);
+            else
+                allowed.Add(span);
         }
         var allowedIndex = 0;
         var blockedIndex = 0;
@@ -361,12 +395,17 @@ internal static class PublicMarkdownBody
         foreach (var at in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (at < commentEnd) continue;
-            while (blockedIndex < blocked.Count && blocked[blockedIndex].End <= at) blockedIndex++;
-            if (blockedIndex < blocked.Count && blocked[blockedIndex].Start <= at) continue;
+            if (at < commentEnd)
+                continue;
+            while (blockedIndex < blocked.Count && blocked[blockedIndex].End <= at)
+                blockedIndex++;
+            if (blockedIndex < blocked.Count && blocked[blockedIndex].Start <= at)
+                continue;
             var slashes = 0;
-            for (var previous = at - 1; previous >= 0 && source.Text[previous] == '\\'; previous--) slashes++;
-            if ((slashes & 1) != 0) continue;
+            for (var previous = at - 1; previous >= 0 && source.Text[previous] == '\\'; previous--)
+                slashes++;
+            if ((slashes & 1) != 0)
+                continue;
             if (!CommonMarkHtml.TryReadInline(source.Text, at, out var length))
             {
                 if (at + 1 < source.Text.Length && (char.IsAsciiLetter(source.Text[at + 1]) || source.Text[at + 1] is '!' or '/' or '?' or '>' or '{'))
@@ -375,18 +414,21 @@ internal static class PublicMarkdownBody
             }
             if (!source.Text.AsSpan(at).StartsWith("<!--", StringComparison.Ordinal))
                 return Unsupported("Literal HTML or JSX has no declared public Markdown alternative.");
-            if (!removeComments) return Unsupported("A supplied public alternative still contains a comment.");
+            if (!removeComments)
+                return Unsupported("A supplied public alternative still contains a comment.");
             var comment = new MdRawRange(at, length);
             if (blockedIndex < blocked.Count && blocked[blockedIndex].Start < comment.End)
                 return Unavailable("A literal comment intersects an opaque or transformed source range.");
-            while (allowedIndex < allowed.Count && allowed[allowedIndex].End <= at) allowedIndex++;
+            while (allowedIndex < allowed.Count && allowed[allowedIndex].End <= at)
+                allowedIndex++;
             if (allowedIndex == allowed.Count || allowed[allowedIndex].Start > at || allowed[allowedIndex].End < comment.End
                 || source.Text.AsSpan(at, length).IndexOfAny('\r', '\n') >= 0)
                 return Unavailable("A literal comment crosses an unverified inline or structural boundary.");
             var raw = source.Text.Substring(at, length);
             var replacement = string.Create(raw.Length, raw, static (output, input) =>
             {
-                for (var index = 0; index < output.Length; index++) output[index] = input[index] is '\r' or '\n' ? input[index] : ' ';
+                for (var index = 0; index < output.Length; index++)
+                    output[index] = input[index] is '\r' or '\n' ? input[index] : ' ';
             });
             edits.Add(new(new(source, comment), raw, replacement));
             commentEnd = comment.End;
@@ -399,9 +441,15 @@ internal static class PublicMarkdownBody
         var index = 0;
         while (index < raw.Length)
         {
-            if (char.IsWhiteSpace(raw[index])) { index++; continue; }
-            if (!raw.AsSpan(index).StartsWith("<!--", StringComparison.Ordinal)) return false;
-            if (!CommonMarkHtml.TryReadInline(raw, index, out var length)) return false;
+            if (char.IsWhiteSpace(raw[index]))
+            {
+                index++;
+                continue;
+            }
+            if (!raw.AsSpan(index).StartsWith("<!--", StringComparison.Ordinal))
+                return false;
+            if (!CommonMarkHtml.TryReadInline(raw, index, out var length))
+                return false;
             index += length;
         }
         return true;
@@ -415,14 +463,16 @@ internal static class PublicMarkdownBody
     {
         output = input;
         map = upstream;
-        if (edits.Count == 0) return true;
+        if (edits.Count == 0)
+            return true;
         var ordered = edits.OrderBy(edit => edit.Target.Span.Start).ThenBy(edit => edit.Target.Span.End).ToArray();
         var text = new StringBuilder(input.Text.Length);
         var segments = new List<MdSourceMapSegment>();
         var cursor = 0;
         foreach (var edit in ordered)
         {
-            if (!edit.IsApplicable(input) || edit.Target.Span.Start < cursor) return false;
+            if (!edit.IsApplicable(input) || edit.Target.Span.Start < cursor)
+                return false;
             AppendOriginal(cursor, edit.Target.Span.Start - cursor);
             if (edit.Replacement.Length != 0)
             {
@@ -433,14 +483,16 @@ internal static class PublicMarkdownBody
         }
         AppendOriginal(cursor, input.Text.Length - cursor);
         var body = text.ToString();
-        if (body == input.Text) return true;
+        if (body == input.Text)
+            return true;
         output = new(input.SourceId, MarkdownAnalysisAdapter.AgentReadySourceVersion(body), body);
         map = new MdSourceMap(output, segments).Compose([upstream]);
         return true;
 
         void AppendOriginal(int start, int length)
         {
-            if (length == 0) return;
+            if (length == 0)
+                return;
             segments.Add(new(new(text.Length, length), new(input, new(start, length)), MdSegmentKind.Linear));
             text.Append(input.Text, start, length);
         }

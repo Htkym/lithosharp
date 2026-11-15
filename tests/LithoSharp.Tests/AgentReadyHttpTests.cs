@@ -156,7 +156,8 @@ public sealed class AgentReadyHttpTests
             var markdownFile = Path.Combine(fixture.Output, markdownPath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(markdownFile)!);
             await File.WriteAllTextAsync(markdownFile, Markdown);
-            if (rootRobots) await File.WriteAllTextAsync(Path.Combine(fixture.Output, "robots.txt"), Robots);
+            if (rootRobots)
+                await File.WriteAllTextAsync(Path.Combine(fixture.Output, "robots.txt"), Robots);
             if (notFoundArtifact)
                 await File.WriteAllTextAsync(Path.Combine(fixture.Output, "404.html"),
                     $"<html><head><title>Not found</title><meta name='description' content='Not found'><meta property='og:title' content='Not found'><meta property='og:description' content='Not found'><meta property='og:url' content='{baseUrl}404.html'><link rel='canonical' href='{baseUrl}404.html'></head><body>Not found</body></html>");
@@ -177,7 +178,8 @@ public sealed class AgentReadyHttpTests
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
             var path = Path.Combine(directory.FullName, "src", "LithoSharp.Tool", "bin", "Release", "net10.0", "LithoSharp.Tool.dll");
-            if (File.Exists(path)) return path;
+            if (File.Exists(path))
+                return path;
         }
         throw new InvalidOperationException("Build the Release Tool before running the pure local-serve MIME mapping test. No server is started by this test.");
     }

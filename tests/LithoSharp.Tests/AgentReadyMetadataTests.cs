@@ -13,8 +13,13 @@ public sealed class AgentReadyMetadataTests
     private static readonly AgentReadyStructuredDataOptions Automatic = new() { Mode = AgentReadyStructuredDataMode.Automatic };
     private static AgentReadyHeadData Data => new()
     {
-        SiteTitle = "Example", SiteUrl = "https://example.test/project/", SiteLanguage = "en", CanonicalUrl = "https://example.test/project/guide.html",
-        Title = "Guide", Description = "Published description", Language = "ja",
+        SiteTitle = "Example",
+        SiteUrl = "https://example.test/project/",
+        SiteLanguage = "en",
+        CanonicalUrl = "https://example.test/project/guide.html",
+        Title = "Guide",
+        Description = "Published description",
+        Language = "ja",
     };
 
     [Test]
@@ -54,8 +59,11 @@ public sealed class AgentReadyMetadataTests
         {
             Page = new()
             {
-                Kind = AgentReadyPageKind.BlogPosting, Published = published, Modified = published.AddDays(1),
-                ImageUrl = "https://example.test/image.png", Author = new() { Name = "Author" },
+                Kind = AgentReadyPageKind.BlogPosting,
+                Published = published,
+                Modified = published.AddDays(1),
+                ImageUrl = "https://example.test/image.png",
+                Author = new() { Name = "Author" },
                 Publisher = new() { Kind = AgentReadyIdentityKind.Organization, Name = "Publisher", Url = "https://example.test/" },
             },
         };
@@ -224,8 +232,10 @@ public sealed class AgentReadyMetadataTests
         var markdownRoute = markdown ? SiteRoute.ForFile("guide.md", Data.SiteUrl) : null;
         var indexRoute = index ? SiteRoute.ForFile("llms.txt", Data.SiteUrl) : null;
         var artifacts = new Dictionary<string, SiteRoute> { ["guide.html"] = htmlRoute };
-        if (markdownRoute is not null && !omitMarkdown) artifacts["guide.md"] = markdownRoute;
-        if (indexRoute is not null) artifacts["llms.txt"] = indexRoute;
+        if (markdownRoute is not null && !omitMarkdown)
+            artifacts["guide.md"] = markdownRoute;
+        if (indexRoute is not null)
+            artifacts["llms.txt"] = indexRoute;
         return AgentReadyArtifactValidator.ValidateAsync([new(htmlRoute, data, options, markdownRoute, indexRoute)], artifacts,
             (_, _) => Task.FromResult("<!doctype html>\n<html lang='ja'><head><link rel=canonical href='https://example.test/project/guide.html'>" + head + "</head><body></body></html>"), default);
     }

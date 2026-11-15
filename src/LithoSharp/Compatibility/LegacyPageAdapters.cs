@@ -43,7 +43,8 @@ internal static class LegacyPageAdapters
             post.FrontMatter.Draft,
             post.FrontMatter.PublishFrom,
             post.FrontMatter.PublishUntil,
-            post.FrontMatter.Environments);
+            post.FrontMatter.Environments)
+        { AgentReady = post.AgentReady };
     }
 
     public static SitePage<SiteExtraPage> ToSitePage(SiteExtraPage page, string? baseUrl = null)
@@ -54,7 +55,7 @@ internal static class LegacyPageAdapters
             new PageId($"extra:{route.RelativeOutputPath}"),
             route,
             page,
-            new PageMetadata(title: page.Title));
+            new PageMetadata(title: page.Title) { AgentReady = page.AgentReady });
     }
 
     public static IReadOnlyList<SitePage<TContent>> FilterPublished<TContent>(

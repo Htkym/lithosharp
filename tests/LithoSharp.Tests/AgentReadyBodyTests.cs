@@ -337,12 +337,14 @@ public sealed class AgentReadyBodyTests
         internal Props? HtmlProps, MarkdownProps;
         public IHtmlContent Render(Props props, ComponentRenderingContext context)
         {
-            HtmlCalls++; HtmlProps = props;
+            HtmlCalls++;
+            HtmlProps = props;
             return new HtmlText(props.Text);
         }
         public string RenderPublicMarkdown(Props props, ComponentRenderingContext context)
         {
-            MarkdownCalls++; MarkdownProps = props;
+            MarkdownCalls++;
+            MarkdownProps = props;
             return "**" + props.Text + "**";
         }
     }

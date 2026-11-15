@@ -16,6 +16,7 @@ public sealed partial class SiteGenerator
         return new(this, configuration)
         {
             EnvironmentName = configuration.EnvironmentName,
+            SuppressPublicMarkdown = configuration.AgentReady is { Preparing: false },
             Assets = configuration.Assets,
             Document = matches.Length == 1 ? matches[0].Document : null,
             DocumentSemantics = matches.Length == 1 ? matches[0].Snapshot : null,

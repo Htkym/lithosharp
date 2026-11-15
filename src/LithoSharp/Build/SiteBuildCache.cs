@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace LithoSharp.Build;
 
-internal sealed class SiteBuildCache
+internal sealed partial class SiteBuildCache
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly string _directory;

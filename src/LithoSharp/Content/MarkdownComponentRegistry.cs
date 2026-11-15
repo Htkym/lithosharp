@@ -150,7 +150,10 @@ public abstract class MarkdownComponentRegistration
                 var markdownFailed = false;
                 if (publicMarkdown && component is AgentReady.IPublicMarkdownComponent<TProps> provider)
                 {
-                    try { markdown = provider.RenderPublicMarkdown(bound.Value, context); }
+                    try
+                    {
+                        markdown = provider.RenderPublicMarkdown(bound.Value, context);
+                    }
                     catch (Exception failure) when (failure is not OperationCanceledException and not OutOfMemoryException)
                     {
                         // Auto provision can fail closed without discarding successful HTML.

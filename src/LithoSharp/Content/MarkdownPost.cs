@@ -15,6 +15,8 @@ public sealed record MarkdownPost(
     string MarkdownBody,
     string RelativeOutputPath)
 {
+    public AgentReady.AgentReadyPageOptions AgentReady { get; init; } = new();
+
     // The reader retains diagnostics before trimming or expanding code inclusions.
     internal IReadOnlyList<Diagnostics.SiteDiagnostic>? CompilerDiagnostics { get; init; }
 

@@ -852,3 +852,11 @@ static LithoSharp.AgentReady.AgentReadyRobotsOptions.operator !=(LithoSharp.Agen
 static LithoSharp.AgentReady.AgentReadyRobotsOptions.operator ==(LithoSharp.AgentReady.AgentReadyRobotsOptions? left, LithoSharp.AgentReady.AgentReadyRobotsOptions? right) -> bool
 static LithoSharp.AgentReady.AgentReadyStructuredDataOptions.operator !=(LithoSharp.AgentReady.AgentReadyStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyStructuredDataOptions? right) -> bool
 static LithoSharp.AgentReady.AgentReadyStructuredDataOptions.operator ==(LithoSharp.AgentReady.AgentReadyStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyStructuredDataOptions? right) -> bool
+LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>
+LithoSharp.Content.MarkdownPost.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.Content.MarkdownPost.AgentReady.init -> void
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.MarkdownProvider.get -> LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>?
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.MarkdownProvider.init -> void
+LithoSharp.SiteExtraPage.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.SiteExtraPage.AgentReady.init -> void
+virtual LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry, LithoSharp.Content.ContentPageRenderingContext! context) -> string?

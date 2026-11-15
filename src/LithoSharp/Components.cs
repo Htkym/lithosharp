@@ -32,6 +32,7 @@ public class ComponentRenderingContext
 
     internal SiteGenerator Generator => generator ??= new SiteGenerator();
     internal SiteGenerator.RenderContext Configuration { get; }
+    internal bool SuppressPublicMarkdown { get; init; }
     /// <summary>Site settings.</summary>
     public SiteSettings Site => Configuration.Site;
     /// <summary>Localized text.</summary>

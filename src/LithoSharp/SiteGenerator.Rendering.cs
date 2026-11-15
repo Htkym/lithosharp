@@ -41,6 +41,11 @@ public sealed partial class SiteGenerator
         if (metadata is not null)
             seo += string.Concat(metadata.Alternates.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair =>
                 $"  <link rel=\"alternate\" hreflang=\"{Html.Encode(pair.Key)}\" href=\"{pair.Value.ToAttributeValue()}\">\n"));
+        if (configuration.AgentReady is { } agent)
+        {
+            if (agent.ByCanonical.TryGetValue(canonicalUrl, out var planned))
+                seo += AgentReady.AgentReadyMetadata.RenderHead(planned.Head with { ExistingHead = head }, agent.Options.StructuredData).ToHtmlString();
+        }
         return HeadComponent.RenderCore(configuration.Site.Title, configuration.Theme.ThemeColor, seo + head?.ToHtmlString(),
             configuration.Routes.PublicPath(configuration.Routes.SiteCss), BuildFaviconLinks(configuration),
             BuildGoogleAnalyticsSnippet(configuration),

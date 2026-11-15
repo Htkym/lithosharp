@@ -168,8 +168,10 @@ internal static class MarkdownComponentRendering
                 {
                     var start = envelope.Start - (analysis.BodySpan?.Start ?? 0);
                     html.Add(start, result.Value!.Html);
-                    if (publicMarkdown) markdown.Add(start, result.Value.PublicMarkdown);
-                    if (result.Value.PublicMarkdownFailed) markdownFailures.Add(start);
+                    if (publicMarkdown)
+                        markdown.Add(start, result.Value.PublicMarkdown);
+                    if (result.Value.PublicMarkdownFailed)
+                        markdownFailures.Add(start);
                 }
             }
             catch (Exception failure) when (failure is ArgumentException or FormatException or InvalidOperationException)

@@ -175,13 +175,15 @@ internal static class AgentReadyArtifactValidator
         if (element.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in element.EnumerateArray())
-                foreach (var node in Nodes(item)) yield return node;
+                foreach (var node in Nodes(item))
+                    yield return node;
         }
         else if (element.ValueKind == JsonValueKind.Object)
         {
             yield return element;
             if (element.TryGetProperty("@graph", out var graph))
-                foreach (var node in Nodes(graph)) yield return node;
+                foreach (var node in Nodes(graph))
+                    yield return node;
         }
     }
 

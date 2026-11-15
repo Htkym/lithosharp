@@ -15,6 +15,14 @@ public delegate string ContentPageRenderer<TFrontMatter, TBody>(
     where TFrontMatter : notnull
     where TBody : notnull;
 
+/// <summary>Provides the complete public Markdown counterpart of a rendered page.
+/// Null means unsupported; an empty string explicitly provides an empty body.</summary>
+public delegate string? ContentPageMarkdownProvider<TFrontMatter, TBody>(
+    ContentEntry<TFrontMatter, TBody> entry,
+    ContentPageRenderingContext context)
+    where TFrontMatter : notnull
+    where TBody : notnull;
+
 public sealed class ContentPageRenderingContext
 {
     private readonly SiteGenerator generator;
@@ -23,6 +31,7 @@ public sealed class ContentPageRenderingContext
     private readonly string? markdownSourcePath;
     private readonly MarkdownBodyAnalysisSnapshot? bodyAnalysis;
     private readonly DocumentSource? bodySource;
+    private readonly Dictionary<string, MarkdownCompilationResult> compiledMarkdown = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> renderedMarkdown = new(StringComparer.Ordinal);
     private readonly List<SiteDiagnostic> markdownDiagnostics = [];
     private readonly List<RenderedHtmlFragment> renderedOrigins = [];
@@ -85,8 +94,7 @@ public sealed class ContentPageRenderingContext
         configuration.Cancellation.ThrowIfCancellationRequested();
         if (renderedMarkdown.TryGetValue(markdown, out var html))
             return html;
-        var compiled = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
-            bodyAnalysis, bodySource, markdownDiagnostics, Metadata.Document);
+        var compiled = GetMarkdownCompilation(markdown);
         html = compiled.Html;
         if (compiled.SourceOrigins is { } origins)
             renderedOrigins.Add(new(html, origins));
@@ -96,6 +104,19 @@ public sealed class ContentPageRenderingContext
             .Select(heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text)) ?? []);
         renderedMarkdown.Add(markdown, html);
         return html;
+    }
+
+    // Public conversion and HTML rendering share the exact compilation for this text.
+    internal MarkdownCompilationResult GetMarkdownCompilation(string markdown)
+    {
+        ArgumentNullException.ThrowIfNull(markdown);
+        configuration.Cancellation.ThrowIfCancellationRequested();
+        if (compiledMarkdown.TryGetValue(markdown, out var compiled))
+            return compiled;
+        compiled = generator.RenderContentMarkdown(configuration, Route.RelativeOutputPath, markdown, markdownSourcePath,
+            bodyAnalysis, bodySource, markdownDiagnostics, Metadata.Document);
+        compiledMarkdown.Add(markdown, compiled);
+        return compiled;
     }
 
     internal string AcceptProjectedMarkdown(MarkdownCompilationResult compiled)
@@ -261,6 +282,10 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
 
     public ContentPageRenderer<TFrontMatter, TBody> Renderer { get; }
 
+    /// <summary>Optional complete public Markdown provider. It shares the renderer's entry,
+    /// configuration fingerprint, declared dependencies, and thread-safety contract.</summary>
+    public ContentPageMarkdownProvider<TFrontMatter, TBody>? MarkdownProvider { get; init; }
+
     /// <inheritdoc />
     public override ContentCollectionId Id => Collection.Id;
 
@@ -349,7 +374,9 @@ public sealed class SiteContentCollection<TFrontMatter, TBody> : SiteContentColl
                 {
                     RendererFingerprint = this.RendererFingerprint is null
                         ? null
-                        : this.RendererFingerprint + "|" + rendererImplementationIdentity,
+                        : this.RendererFingerprint + "|" + rendererImplementationIdentity
+                            + (MarkdownProvider is null ? string.Empty : "|markdown:" + CaptureRendererIdentity(MarkdownProvider)),
+                    PublicMarkdownProvider = MarkdownProvider is null ? null : context => MarkdownProvider(entry, context),
                     IsThreadSafe = this.IsThreadSafe,
                     FrontMatterSchema = FrontMatterSchemaName(typeof(TFrontMatter)),
                     InputProfile = entry.InputProfile,
@@ -401,6 +428,8 @@ internal sealed class IntegratedContentPage(
     GeneratedPageDerivedSurfaces derivedSurfaces,
     Func<ContentPageRenderingContext, string> renderer)
 {
+    private ContentPageRenderingContext? renderingContext;
+    private ContentPageMarkdownResult? publicMarkdown;
     private string? derivedContent;
     private Func<string?>? derivedContentProvider;
 
@@ -449,6 +478,8 @@ internal sealed class IntegratedContentPage(
 
     internal bool CanCacheRendering => IsCacheable && RendererFingerprint is not null;
 
+    internal Func<ContentPageRenderingContext, string?>? PublicMarkdownProvider { get; init; }
+
     internal string? MarkdownSourcePath { get; init; }
 
     internal MarkdownBodyAnalysisSnapshot? BodyAnalysis { get; init; }
@@ -484,7 +515,59 @@ internal sealed class IntegratedContentPage(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var context = new ContentPageRenderingContext(
+        // Only explicit public Markdown preparation retains a context. Ordinary HTML
+        // rendering keeps its original fresh-context behavior, including after cache cleanup.
+        var context = renderingContext ?? CreateRenderingContext(generator, configuration, environmentName, assets);
+        Content = renderer(context)
+            ?? throw new InvalidOperationException(
+                $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
+        derivedContent = context.DerivedContent ?? Content;
+        MarkdownDiagnostics = context.SnapshotMarkdownDiagnostics();
+        RenderedOrigins = context.SnapshotRenderedOrigins(Content);
+        return new RenderedPage(PageId, Route, Content, Metadata);
+    }
+
+    // Call only after publication and feature/page-policy selection. Normal HTML never invokes this provider.
+    internal ContentPageMarkdownResult GetPublicMarkdown(
+        SiteGenerator generator,
+        SiteGenerator.RenderContext configuration,
+        string environmentName,
+        AssetRegistry assets,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (publicMarkdown is not null)
+            return publicMarkdown;
+        if (PublicMarkdownProvider is null)
+            return publicMarkdown = Result(ContentPageMarkdownStatus.Unsupported);
+        try
+        {
+            var markdown = PublicMarkdownProvider(renderingContext ??= CreateRenderingContext(generator, configuration, environmentName, assets));
+            cancellationToken.ThrowIfCancellationRequested();
+            return publicMarkdown = Result(markdown is null ? ContentPageMarkdownStatus.Unsupported : ContentPageMarkdownStatus.Provided, markdown);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException and not OutOfMemoryException)
+        {
+            // Never expose exception messages, stack traces, paths, or captured provider data.
+            return publicMarkdown = Result(ContentPageMarkdownStatus.Failed);
+        }
+
+        ContentPageMarkdownResult Result(ContentPageMarkdownStatus status, string? markdown = null) =>
+            new(status, markdown, MarkdownSourcePath, BodyAnalysis, BodySource);
+    }
+
+    internal MarkdownCompilationResult CompilePublicMarkdown(string markdown) =>
+        (renderingContext ?? throw new InvalidOperationException("The public Markdown provider must be evaluated before compilation."))
+            .GetMarkdownCompilation(markdown);
+
+    // Planning and HTML must share the same per-build state reference; freeze that state
+    // after planning instead of replacing configuration with a different plan.
+    private ContentPageRenderingContext CreateRenderingContext(
+        SiteGenerator generator,
+        SiteGenerator.RenderContext configuration,
+        string environmentName,
+        AssetRegistry assets) =>
+        new ContentPageRenderingContext(
             generator,
             configuration,
             Route,
@@ -497,14 +580,6 @@ internal sealed class IntegratedContentPage(
             BodyAnalysis,
             BodySource,
             collectDocsHeadings: Docs is not null);
-        Content = renderer(context)
-            ?? throw new InvalidOperationException(
-                $"Content renderer for collection '{CollectionId}' and entry '{EntryId}' returned null.");
-        derivedContent = context.DerivedContent ?? Content;
-        MarkdownDiagnostics = context.SnapshotMarkdownDiagnostics();
-        RenderedOrigins = context.SnapshotRenderedOrigins(Content);
-        return new RenderedPage(PageId, Route, Content, Metadata);
-    }
 
     internal void SetMarkdownDiagnostics(IReadOnlyList<SiteDiagnostic> diagnostics) =>
         MarkdownDiagnostics = Array.AsReadOnly(diagnostics.ToArray());
@@ -535,3 +610,17 @@ internal static class ContentPageIdentity
     public static string Create(ContentCollectionId collectionId, string pageId) =>
         $"page:collection:{collectionId.Value.Length}:{collectionId.Value}:{pageId.Length}:{pageId}";
 }
+
+internal enum ContentPageMarkdownStatus
+{
+    Unsupported,
+    Provided,
+    Failed,
+}
+
+internal sealed record ContentPageMarkdownResult(
+    ContentPageMarkdownStatus Status,
+    string? Markdown,
+    string? SourcePath,
+    MarkdownBodyAnalysisSnapshot? BodyAnalysis,
+    DocumentSource? BodySource);

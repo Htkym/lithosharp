@@ -37,13 +37,17 @@ public static class AgentReadyMetadata
             throw new ArgumentOutOfRangeException(nameof(data), "Unknown structured-data page kind.");
         var webSite = new Dictionary<string, object?>
         {
-            ["@type"] = "WebSite", ["@id"] = site + "#website", ["url"] = site,
+            ["@type"] = "WebSite",
+            ["@id"] = site + "#website",
+            ["url"] = site,
         };
         Put(webSite, "name", data.SiteTitle);
         Put(webSite, "inLanguage", data.SiteLanguage);
         var page = new Dictionary<string, object?>
         {
-            ["@type"] = data.Page.Kind.ToString(), ["@id"] = canonical + "#webpage", ["url"] = canonical,
+            ["@type"] = data.Page.Kind.ToString(),
+            ["@id"] = canonical + "#webpage",
+            ["url"] = canonical,
             ["isPartOf"] = new Dictionary<string, object?> { ["@id"] = site + "#website" },
         };
         Put(page, "name", data.Title);
@@ -64,7 +68,8 @@ public static class AgentReadyMetadata
         // The default encoder escapes HTML-sensitive characters, including a closing script tag.
         return JsonSerializer.Serialize(new Dictionary<string, object?>
         {
-            ["@context"] = "https://schema.org", ["@graph"] = new[] { webSite, page },
+            ["@context"] = "https://schema.org",
+            ["@graph"] = new[] { webSite, page },
         });
     }
 
