@@ -19,7 +19,8 @@ PAGES = 100
 HARNESS = Path("benchmarks/LithoSharp.Performance")
 PROJECT = HARNESS / "LithoSharp.Performance.csproj"
 ORDER = ("baseline", "candidate", "candidate", "baseline")
-RELEASE_BASELINE = "25d92d4605533260b22abffd2618971dd6f60c8a"
+RELEASE_BASELINE = "b6e315db13a5b07ddd77696c9c0a5eefe6e9341f"
+WORKLOADS = ("clean", "warm-cache", "no-op", "single-page-change", "layout-change")
 
 
 def capture(args, cwd):
@@ -38,6 +39,37 @@ def files_manifest(root, exclude=()):
 
 def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def overlay_harness(harness, common):
+    """Use identical measurement sources, but retain this revision's locked graph."""
+    lock = harness / "packages.lock.json"
+    if not lock.is_file():
+        raise RuntimeError("Selected revision needs its own committed harness packages.lock.json")
+    lock_bytes = lock.read_bytes()
+    # Fail before changing the worktree if the checked-in lock is not a lock graph.
+    graph = json.loads(lock_bytes)
+    if graph.get("version") != 1 or not graph.get("dependencies"):
+        raise RuntimeError("Invalid selected-revision harness lock graph")
+    if any(name.endswith(".lock.json") for name in common):
+        raise RuntimeError("Common measurement sources must not replace revision-specific locks")
+    shutil.rmtree(harness)
+    harness.mkdir(parents=True)
+    for name, data in common.items():
+        (harness / name).write_bytes(data)
+    lock.write_bytes(lock_bytes)
+    return lock
+
+
+def verify_lock(lock, expected):
+    if not lock.is_file() or sha(lock) != expected:
+        raise RuntimeError("Selected-revision harness lock changed during restore or build")
+
+
+def validate_workloads(workloads):
+    names = [item["Name"] for item in workloads]
+    if len(names) != len(WORKLOADS) or set(names) != set(WORKLOADS):
+        raise RuntimeError("Expected exactly one sample for each of the five site workloads")
 
 
 def run(args, cwd, log, limit):
@@ -61,13 +93,16 @@ def resolve_baseline(repo, candidate, supplied):
             subprocess.run(["git", "fetch", "--no-tags", "origin", supplied],
                            cwd=repo, check=True, timeout=120)
         return capture(["git", "rev-parse", supplied + "^{commit}"], repo), "requested-or-push-before"
-    return capture(["git", "rev-parse", RELEASE_BASELINE + "^{commit}"], repo), "released-2.1.3"
+    return capture(["git", "rev-parse", RELEASE_BASELINE + "^{commit}"], repo), "released-2.2.0"
 
 
 def summarize(report):
     lines = ["# Site generation comparison", "",
              "Approximate trends on one hosted runner, not a precise ranking.",
-             "The ordinary build and unit tests ran before this job.",
+             "When invoked by the build workflow, ordinary build and unit tests precede this job.",
+             "Feature-scope-difference: raw Blog total costs, not equal-feature speed or acceptance claims.",
+             "Released 2.2.0 has no automatic 404.html; 3.x includes it. Each observation records actual output scope.",
+             "Each arm retains its own committed dependency lock; setup records its hash and restore/build verification status.",
              "Generation time excludes restore, compilation and corpus parsing.",
              "Fresh processes do not imply a cold OS filesystem cache.", "",
              f"Status: **{report['status']}**",
@@ -110,7 +145,8 @@ def main():
     output = (options.output or repo / ".local/site-generation-comparison").resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {"status": "incomplete", "sdk": SDK, "runtime": RUNTIME,
-              "pages": PAGES, "observations": [], "setup": {}}
+              "pages": PAGES, "comparisonKind": "feature-scope-difference",
+              "acceptance": "not-evaluated", "observations": [], "setup": {}}
     try:
         candidate = capture(["git", "rev-parse", "HEAD"], repo)
         report["candidate"] = candidate
@@ -121,7 +157,7 @@ def main():
         report["sharedHarnessFiles"] = files_manifest(shared)
         # Preserve the common input code independently from both measured revisions.
         common = {p.name: p.read_bytes() for p in (repo / HARNESS).iterdir()
-                  if p.is_file() and (p.suffix in (".cs", ".csproj") or p.name == "packages.lock.json")}
+                  if p.is_file() and p.suffix in (".cs", ".csproj")}
         report["runner"] = {key: os.environ.get(key) for key in
                             ("RUNNER_OS", "RUNNER_ARCH", "ImageOS", "ImageVersion", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")}
         (output / "dotnet-info.txt").write_text(capture(["dotnet", "--info"], repo) + "\n")
@@ -137,11 +173,16 @@ def main():
             if not (tree / "src/LithoSharp/LithoSharp.csproj").is_file():
                 raise RuntimeError(f"{label} does not contain the compatible LithoSharp project")
             # A common harness prevents changed measurement code from skewing the pair.
-            if harness.exists():
-                shutil.rmtree(harness)
-            harness.mkdir(parents=True)
-            for name, data in common.items():
-                (harness / name).write_bytes(data)
+            lock = overlay_harness(harness, common)
+            lock_hash = sha(lock)
+            lock_evidence = output / f"{label}-packages.lock.json"
+            shutil.copyfile(lock, lock_evidence)
+            report["setup"][label] = {
+                "status": "prepared", "commit": commit,
+                "lockSource": "selected revision's committed harness lock",
+                "lockSha256": lock_hash, "lockEvidence": lock_evidence.name,
+                "restoreMode": "locked"}
+            write_json(output / "comparison.json", report)
             shutil.copytree(shared, tree / "eng/performance", dirs_exist_ok=True)
             global_path = tree / "global.json"
             config = json.loads(global_path.read_text()) if global_path.exists() else {}
@@ -151,11 +192,14 @@ def main():
                 raise RuntimeError("Unexpected SDK selection")
             restore = run(["dotnet", "restore", str(PROJECT), "--locked-mode"], tree,
                           output / f"{label}-restore.log", 300)
+            verify_lock(lock, lock_hash)
             build = run(["dotnet", "build", str(PROJECT), "--no-restore", "--configuration", "Release"], tree,
                         output / f"{label}-build.log", 300)
             dll = tree / HARNESS / "bin/Release/net10.0/LithoSharp.Performance.dll"
-            report["setup"][label] = {"restoreSeconds": restore, "buildSeconds": build,
-                                      "assemblies": files_manifest(dll.parent)}
+            verify_lock(lock, lock_hash)
+            report["setup"][label].update(status="completed", restoreSeconds=restore,
+                                         buildSeconds=build, lockVerifiedAfterBuild=True,
+                                         assemblies=files_manifest(dll.parent))
             write_json(output / "comparison.json", report)
         for index, label in enumerate(ORDER, 1):
             tree = trees[label]
@@ -179,8 +223,7 @@ def main():
                     raise RuntimeError(f"{section} SDK did not match the pin")
             if data["Corpus"]["PageCount"] != PAGES:
                 raise RuntimeError("Actual corpus page count did not match the requested size")
-            if {x["Name"] for x in data["Workloads"]} != {"clean", "no-op", "single-page-change", "layout-change"}:
-                raise RuntimeError("Expected site workloads missing")
+            validate_workloads(data["Workloads"])
             # The harness mutates the corpus and site in place; these are final-state hashes.
             inputs = files_manifest(run_dir / f"corpus-{PAGES}")
             generated = files_manifest(run_dir / f"site-{PAGES}", (".lithosharp-output-manifest.json",))
@@ -190,6 +233,9 @@ def main():
             write_json(run_dir / "final-output-files.json", generated)
             observation.update(status="completed", workloads=data["Workloads"], finalInputFiles=inputs,
                                finalOutputFiles=generated, provenance=data["Provenance"], identity=data.get("Identity"),
+                               featureScope={"profile": "blog", "quality": "disabled",
+                                             "automaticNotFoundPage": "404.html" in generated,
+                                             "finalArtifactCount": len(generated)},
                                rawResult=str(result.relative_to(output)))
             write_json(output / "comparison.json", report)
         first = report["observations"][0]
@@ -197,7 +243,7 @@ def main():
             raise RuntimeError("The paired observations did not use the same inputs")
         report["finalStateOutputBytesEqual"] = all(x["finalOutputFiles"] == first["finalOutputFiles"] for x in report["observations"])
         report["comparison"] = []
-        for name in ("clean", "no-op", "single-page-change", "layout-change"):
+        for name in WORKLOADS:
             row = {"workload": name}
             for label in ("baseline", "candidate"):
                 row[label] = [next(w["ElapsedMilliseconds"] for w in o["workloads"] if w["Name"] == name)
