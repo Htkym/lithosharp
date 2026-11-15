@@ -110,6 +110,7 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 
 [目的別のドキュメント案内](docs/README.ja.md)から、導入、型付きコンテンツ、編集支援、検査、運用のガイドを選べます。英語・日英併記の技術リファレンスも区別しています。
 
+- [Agent Readyの公開Markdown](docs/agent-ready.ja.md)で、有効化、発見用リンク、検証範囲を確認できます。
 - [Docsの標準設定](docs/docs-template.ja.md)、[生成済み成果物の検査](docs/generated-output-checks.ja.md)
 - [CLIとsite factory](docs/cli.ja.md)、[MDXと文書サイト](docs/mdx.ja.md)
 - [型付きMarkdown collection](docs/typed-markdown-collections.md)、

@@ -100,11 +100,32 @@ var pages = collection.RenderDocsWithMarkdown(
 
 [Docsサンプル](../samples/LithoSharp.DocsSample/SiteFactory.cs)にはHTMLで追加するリンクや画像も含めた型付きDocsとグループ別ページのproviderがあります。[登録済みコンポーネント](../samples/LithoSharp.DocsSample/MarkdownComponents.cs)もMarkdownを提供します。[Blogサンプル](../samples/LithoSharp.Sample/SiteFactory.cs)は既存のBlog生成経路でAgent Readyを有効にしています。
 
-## MDXのprovider
+## 静的MDXと明示的provider
 
-`MdxSite.AddCollectionWithMarkdown`と`MdxBlogSite.AddCollectionWithMarkdown`には完全な公開Markdownのproviderを明示的に登録できます。providerはHTMLレンダラーが使う準備済みのMDX entryを受け取ります。抜粋、feed用テキスト、抽出したプレーンテキスト、hydrationの無効化だけでは、完全なMarkdownを提供できると判断しません。既存のビルドコードの信頼条件とworkerの範囲は、[MDXサイト](mdx.ja.md)で確認してください。
+Agent Readyが有効な場合、`MdxSite`の既定のHTMLレンダラーではproviderを明示しなくても限定範囲の静的Markdownを生成できます。HTMLで使うものと同じworkerのASTを使い、通常の原文を保持し、既知のwrapperの範囲だけを置き換えます。生成候補は単一の原文に対応する本文snapshot、source hash、workerの実装契約と一致する必要があります。合成した本文や検証できない本文を完全と仮定しません。独自のC# HTMLレンダラーではこの候補を自動的に使わず、完全なproviderを用意してください。
 
-providerを登録しても、任意のJavaScript、JSX、import、Reactコンポーネントを静的に変換できるわけではありません。対応する構文だけでは公開内容全体を確定できないページには、明示的な代替本文またはproviderを用意してください。
+対応するflow wrapperと属性は次のとおりです。
+
+- `Admonition`: リテラルの`type`と`title`。種類、タイトル、本文を保持します。
+- `Details`: リテラルの`summary`と`open`。要約と本文全体を含め、HTMLで初期表示時に折りたたまれる内容も省略しません。
+- `Tabs`: リテラルの`defaultValue`、`groupId`、`queryString`。選択中のタブだけでなく、すべての`TabItem`の本文を含めます。`TabItem`ではリテラルの`value`、`label`、`default`に対応し、labelまたはvalueを見出しとして保持します。
+- 既知の`note`、`tip`、`info`、`warning`、`danger`、`caution`のdirective。種類、指定されているラベル、本文を保持します。
+
+これらのコンポーネントは固定された`@theme/Admonition`、`@theme/Details`、`@theme/Tabs`、`@theme/TabItem`のdefault import、または`@lithosharp/runtime`の名前付きexportを使えます。安全な大文字始まりの別名にも対応します。属性には対応するリテラル文字列や属性の有無で表す真偽値を使い、式は使わないでください。
+
+```mdx
+import Details from '@theme/Details';
+
+<Details summary="Important background">
+
+This explanation remains in public Markdown even when initially collapsed.
+
+</Details>
+```
+
+通常のMarkdownのリンク、画像、参照定義、コード、数式は、通常の公開URL変換の前まで原文の形で保持します。コード外のMDXコメントは除去し、コード例の内容はそのまま残します。未知のJSX、実行する式、利用者のimportやexport、コンパイラープラグイン、`ComponentsModule`による上書き、原文を変える`mdx-code-block`の前処理、リストや引用内のwrapper、`Tabs values={...}`は未対応です。`StaticComponents`を指定しても、任意のコンポーネントに完全なMarkdown表現があるとは判断しません。AutoではHTMLを維持し、Markdownを提供できない理由を報告します。Requiredでは完全な代替内容がなければ失敗します。
+
+`MdxSite.AddCollectionWithMarkdown`と`MdxBlogSite.AddCollectionWithMarkdown`には完全なproviderを明示的に登録でき、静的な生成候補より優先します。providerはHTMLレンダラーが使う準備済みのMDX entryを受け取ります。抜粋、feed用テキスト、抽出したプレーンテキスト、hydrationの無効化だけでは、完全なMarkdownを提供できると判断しません。限定された静的変換では公開内容全体を確定できない場合は、明示的な代替本文またはproviderを用意してください。既存のビルドコードの信頼条件とworkerの範囲は[MDXサイト](mdx.ja.md)で確認してください。静的変換によってMDXの実行がsandboxになることはありません。
 
 ## 提供結果の確認
 

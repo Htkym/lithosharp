@@ -127,6 +127,7 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 
 Use the [documentation index](https://github.com/Htkym/lithosharp/blob/main/docs/README.md) for an ordered reading path, package choices and the full guide map.
 
+- [Agent Ready publishing](https://github.com/Htkym/lithosharp/blob/main/docs/agent-ready.md): opt-in public Markdown, discovery, and verification boundaries.
 - [Docs template settings](https://github.com/Htkym/lithosharp/blob/main/docs/docs-template.md), [existing output checks](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.md)
 - [CLI and site factories](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md), [MDX and documentation sites](https://github.com/Htkym/lithosharp/blob/main/docs/mdx.md)
 - [Typed Markdown collections](https://github.com/Htkym/lithosharp/blob/main/docs/typed-markdown-collections.md),

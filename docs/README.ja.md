@@ -17,6 +17,7 @@
 
 ## コンテンツと表示を選ぶ
 
+- [Agent Readyの公開Markdown](agent-ready.ja.md)は有効化、発見用リンク、検証範囲を説明します。
 - [Docsテンプレート](docs-template.ja.md)はサイドバー、ナビゲーション、検索、metadata、テーマの設定を説明します。
 - [型付きMarkdown collection](typed-markdown-collections.ja.md)と[型付きYAML collection](typed-yaml-collections.ja.md)はモデル、binder、ルート、厳密な入力規則を説明します。
 - [Source Generator](source-generators.ja.md)と[Analyzer](../src/LithoSharp.Analyzers/README.ja.md)は、宣言したカタログとコンパイル時の検証範囲を説明します。動的な値には実行時の検証が必要です。

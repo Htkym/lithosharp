@@ -167,17 +167,60 @@ Its [registered component](../samples/LithoSharp.DocsSample/MarkdownComponents.c
 also supplies Markdown. The [Blog sample](../samples/LithoSharp.Sample/SiteFactory.cs)
 enables Agent Ready on the existing Blog pipeline.
 
-## MDX providers
+## Static MDX and explicit providers
+
+With Agent Ready enabled, `MdxSite` can derive a limited static Markdown body
+when using its default HTML renderer without an explicit provider. It consumes
+the same worker AST used for HTML, preserves ordinary source text, and replaces
+only known wrapper ranges. The candidate must match the original single-source
+body snapshot, source hash, and worker implementation contract. A synthetic or
+unverified body is not assumed complete. A custom C# HTML renderer requires its
+own complete provider rather than automatically inheriting this candidate.
+
+The supported flow wrappers and attributes are:
+
+- `Admonition`: literal `type` and `title`; retains the kind, title, and body.
+- `Details`: literal `summary` and `open`; includes the summary and full body,
+  including content that is initially collapsed in HTML.
+- `Tabs`: literal `defaultValue`, `groupId`, and `queryString`; includes every
+  `TabItem` body, not just the selected tab. `TabItem` accepts literal `value`,
+  `label`, and `default`, with its label or value kept as a heading.
+- Known `note`, `tip`, `info`, `warning`, `danger`, and `caution` directives;
+  retains the kind, optional label, and body.
+
+These components may use their fixed `@theme/Admonition`, `@theme/Details`,
+`@theme/Tabs`, and `@theme/TabItem` default imports, or named exports from
+`@lithosharp/runtime`, including safe uppercase aliases. Attributes must use
+supported literal strings or boolean-presence syntax rather than expressions.
+
+```mdx
+import Details from '@theme/Details';
+
+<Details summary="Important background">
+
+This explanation remains in public Markdown even when initially collapsed.
+
+</Details>
+```
+
+Ordinary Markdown links, images, reference definitions, code, and math retain
+their source form before the normal public-URL conversion. MDX comments outside
+code are removed while literal code examples remain. Unknown JSX, executable
+expressions, user imports or exports, compiler plugins, `ComponentsModule`
+overrides, source-changing `mdx-code-block` preprocessing, wrappers inside lists
+or blockquotes, and `Tabs values={...}` are unsupported. `StaticComponents` is
+not a declaration that an arbitrary component has a complete Markdown meaning.
+Auto keeps the HTML page and reports why Markdown is not provided. Required
+needs a complete alternative or fails.
 
 `MdxSite.AddCollectionWithMarkdown` and `MdxBlogSite.AddCollectionWithMarkdown`
-accept explicit complete providers. They receive the prepared MDX entry used by
-the HTML renderer. An excerpt, feed text, extracted plain text, or disabled
-hydration is not proof of a complete Markdown counterpart. See
-[MDX sites](mdx.md) for the existing trusted-build-code and worker boundaries.
-
-A provider does not make arbitrary JavaScript, JSX, imports, or React components
-statically convertible. Keep an explicit replacement or provider for content
-whose full public meaning cannot be established from supported syntax.
+accept explicit complete providers, which take priority over a static candidate.
+They receive the prepared MDX entry used by the HTML renderer. An excerpt, feed
+text, extracted plain text, or disabled hydration is not proof of a complete
+Markdown counterpart. Keep an explicit replacement or provider when the limited
+static rules cannot establish the full public meaning. See [MDX sites](mdx.md)
+for the existing trusted-build-code and worker boundaries; static conversion does
+not make MDX execution a sandbox.
 
 ## Inspect provision outcomes
 

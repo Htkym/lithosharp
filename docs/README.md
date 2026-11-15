@@ -23,6 +23,7 @@ Start with the Quick Start for requirements and installation, or the
 
 ## Choose the content and presentation
 
+- [Agent Ready publishing](agent-ready.md): opt-in public Markdown, discovery, and verification boundaries.
 - [Docs template](docs-template.md): sidebars, navigation, search, metadata and theme options.
 - [Typed Markdown collections](typed-markdown-collections.md) and
   [typed YAML collections](typed-yaml-collections.md): models, binders, routes and strict input rules.

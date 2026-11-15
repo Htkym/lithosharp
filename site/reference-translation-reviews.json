@@ -8,18 +8,18 @@
       "version": "3.0",
       "id": "introduction",
       "sourcePath": "README.md",
-      "sourceSha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b",
+      "sourceSha256": "7469d40efb99af5523efca66743fc56c2749060b795f08e2dc9d11ffe0fbaffc",
       "translationPath": "README.ja.md",
-      "translationSha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6"
+      "translationSha256": "5374f6ac5c3f2b285b858cce946763d5a85b7e507e90a07c5693f519eb605ae3"
     },
     {
       "collection": "reference",
       "version": "3.0",
       "id": "README",
       "sourcePath": "docs/README.md",
-      "sourceSha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074",
+      "sourceSha256": "b91286ba72df10d2186cd5bcd8c980e6d2bbde37b14907d54e4267dfd20304b3",
       "translationPath": "docs/README.ja.md",
-      "translationSha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d"
+      "translationSha256": "f83bdbf7c6a7138bd301f9ed796ca0a524f455d266833f77137f63f309e97153"
     },
     {
       "collection": "reference",
@@ -38,6 +38,24 @@
       "sourceSha256": "e066062ee0cf390003907f1a2caee100c6ba1ba544379331292ae2c18ce3eed8",
       "translationPath": "docs/adoption-guide.ja.md",
       "translationSha256": "f0c0345bd32d6b00a858b01b730121075ffe4eea816adf8b120a0d7ac0263f48"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready",
+      "sourcePath": "docs/agent-ready.md",
+      "sourceSha256": "dbfe0f20e2d76e62cbb1795fd9b08f89de02848d8562b3c75097ee9923722d07",
+      "translationPath": "docs/agent-ready.ja.md",
+      "translationSha256": "4c5434a3a3aec190985ef321b14240a275367cfde9e88928d946fb4c8ce657f7"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "sourcePath": "docs/agent-ready-metadata.md",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "translationPath": "docs/agent-ready-metadata.ja.md",
+      "translationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306"
     },
     {
       "collection": "reference",
@@ -107,9 +125,9 @@
       "version": "3.0",
       "id": "distribution",
       "sourcePath": "docs/distribution.md",
-      "sourceSha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58",
+      "sourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
       "translationPath": "docs/distribution.ja.md",
-      "translationSha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538"
+      "translationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c"
     },
     {
       "collection": "reference",
@@ -134,9 +152,9 @@
       "version": "3.0",
       "id": "generated-output-checks",
       "sourcePath": "docs/generated-output-checks.md",
-      "sourceSha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147",
+      "sourceSha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc",
       "translationPath": "docs/generated-output-checks.ja.md",
-      "translationSha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f"
+      "translationSha256": "58e2090622a4b9d65e2f0e9f64df02ab6c0c82822a6c02e7fbfaec69cd064d67"
     },
     {
       "collection": "reference",
@@ -443,6 +461,73 @@
       "sourceSha256": "7ba6439db2be8c53dc0f85e03a72f749d6bca01f594954f1b3665cd8ed56723c",
       "translationPath": "templates/LithoSharp.ProjectTemplates/README.ja.md",
       "translationSha256": "6201867156204d22a8130ff5a0a45c9e1cd3943dca37228ffd6e2cf4e164a95c"
+    }
+  ],
+  "reviewUpdates": [
+    {
+      "collection": "overview",
+      "version": "3.0",
+      "id": "introduction",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b",
+      "previousTranslationSha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6",
+      "sourceSha256": "7469d40efb99af5523efca66743fc56c2749060b795f08e2dc9d11ffe0fbaffc",
+      "translationSha256": "5374f6ac5c3f2b285b858cce946763d5a85b7e507e90a07c5693f519eb605ae3",
+      "scope": "Agent Ready guide link only. The prior whole-document translation review is retained; unchanged text was not re-reviewed."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "README",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074",
+      "previousTranslationSha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d",
+      "sourceSha256": "b91286ba72df10d2186cd5bcd8c980e6d2bbde37b14907d54e4267dfd20304b3",
+      "translationSha256": "f83bdbf7c6a7138bd301f9ed796ca0a524f455d266833f77137f63f309e97153",
+      "scope": "Agent Ready guide link only. The prior whole-document translation review is retained; unchanged text was not re-reviewed."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "generated-output-checks",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147",
+      "previousTranslationSha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f",
+      "sourceSha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc",
+      "translationSha256": "58e2090622a4b9d65e2f0e9f64df02ab6c0c82822a6c02e7fbfaec69cd064d67",
+      "scope": "Explicit HTTP inspection section from commits 6a6d028 and 6174e13 was paired-reviewed. Existing prose outside that section retains its previous review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58",
+      "previousTranslationSha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538",
+      "sourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
+      "translationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c",
+      "scope": "Only the selected Syntamark preview version token changed from 2026111303 to 89831114732901 in both languages. The integration owner checked the token against the selected runtime/Source manifest; prior whole-document translation review is retained."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "dbfe0f20e2d76e62cbb1795fd9b08f89de02848d8562b3c75097ee9923722d07",
+      "translationSha256": "4c5434a3a3aec190985ef321b14240a275367cfde9e88928d946fb4c8ce657f7",
+      "scope": "The full guide pair was reviewed at f156a9e. This update checks only the limited static MDX section and unchanged example parity, against the confirmed worker/bridge contracts; local Yomiyasu lint/diff/materials and final-file verification completed.",
+      "previousSourceSha256": "749c3f5cca3de386e472878c25b5e2c338814d088163ac3054d37de581d4668e",
+      "previousTranslationSha256": "6e0b102b09d3b644981cafd81f2f9ec3ab50760f2dfdcdd6c9c5392a04e77532",
+      "basis": "Prior full EN/JP guide review at f156a9e; current delta independently read against the fixed static MDX implementation."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "translationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
+      "scope": "Metadata guide pair was reviewed in c2551e9 and 6174e13. The current pair and reciprocal language link were checked; the unchanged Japanese file still matches its recorded local Yomiyasu verification."
     }
   ]
 }
