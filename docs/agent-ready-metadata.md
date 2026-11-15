@@ -1,5 +1,7 @@
 # Agent Ready metadata and discovery
 
+[日本語](agent-ready-metadata.ja.md)
+
 Agent Ready is an opt-in group of publishing features. It does not promise that
 an external agent will use a page, that a search engine will show a rich result,
 or that a site will achieve a scanner score. `llms.txt` is a proposal, not an

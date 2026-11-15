@@ -77,6 +77,23 @@
     },
     {
       "collection": "reference",
+      "id": "agent-ready-metadata",
+      "historical": false,
+      "source": {
+        "en": {
+          "path": "docs/agent-ready-metadata.md",
+          "title": "Agent Ready metadata and discovery",
+          "sha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c"
+        },
+        "ja": {
+          "path": "docs/agent-ready-metadata.ja.md",
+          "title": "Agent Readyのメタデータと発見用リンク",
+          "sha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306"
+        }
+      }
+    },
+    {
+      "collection": "reference",
       "id": "assets-and-images",
       "historical": false,
       "source": {
@@ -202,12 +219,12 @@
         "en": {
           "path": "docs/distribution.md",
           "title": "Distribution and installation",
-          "sha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58"
+          "sha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398"
         },
         "ja": {
           "path": "docs/distribution.ja.md",
           "title": "配布とインストール",
-          "sha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538"
+          "sha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c"
         }
       }
     },
@@ -253,12 +270,12 @@
         "en": {
           "path": "docs/generated-output-checks.md",
           "title": "Inspect existing generated output",
-          "sha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147"
+          "sha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc"
         },
         "ja": {
           "path": "docs/generated-output-checks.ja.md",
           "title": "生成済み出力の検査",
-          "sha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f"
+          "sha256": "58e2090622a4b9d65e2f0e9f64df02ab6c0c82822a6c02e7fbfaec69cd064d67"
         }
       }
     },
@@ -876,8 +893,8 @@
     },
     {
       "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
-      "sha256": "9ac980692a8349028ff1d6e918e2ed2cb320aeb04db61addd60fd35b8db1ecc3",
-      "entries": 673
+      "sha256": "c832f126f92ff1604d9832a5c71c0e8b34b4889aba82d2b3876979aa99d85619",
+      "entries": 852
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
@@ -904,7 +921,7 @@
     "cli": {
       "source": {
         "path": "src/LithoSharp.Tool/Cli.cs",
-        "sha256": "d7aeff27b35300438d509ddd070c628c2b145300c7d27a0e851f81719393dd89"
+        "sha256": "59a075017b84f437af38b621c119fee4138b665e22c932d98ad8b44c9e620e7b"
       },
       "usage": [
         "capabilities [-f json] (tool, core, contract and capability report; never evaluates a project)",
@@ -920,7 +937,7 @@
         "build [project] [-o directory] [--clean] [-c configuration]",
         "serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]",
         "check [project] [--format text|json|sarif] [-c configuration] (regenerates into temporary output)",
-        "check-output -o directory --base-url url [--format text|json|sarif] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; no generation or cache writes)",
+        "check-output -o directory --base-url url [--format text|json|sarif] [--http] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; public HTTP only with --http; no generation or cache writes)",
         "check-output -o directory --base-url url --site-id id --initialize-baseline file (explicit create-only baseline initialization after verified publication)",
         "okf <inspect|validate|export> --input bundle-directory [--format text|json|sarif] [--as-of offset-datetime] [--strict-lint] [--base-url url] [--max-files count] [--max-discovery-entries count] [--max-file-bytes bytes] [--max-bundle-bytes bytes] [--output new-export-directory] (standalone bundle read; no project or computation execution)",
         "proofread <markdown-file> --python executable --yomiyasu lint-script [--profile id] [--protect identifier] [--format text|json] [--preview segment:start:length --replacement text] (explicit optional Yomiyasu execution; diagnostics and edit previews only)",
@@ -1113,6 +1130,11 @@
         "LSMIG005",
         "LSOKF900",
         "LSOKF901",
+        "LSPHTTP000",
+        "LSPHTTP001",
+        "LSPHTTP002",
+        "LSPHTTP003",
+        "LSPHTTP004",
         "LSPREFLIGHT001",
         "LSPROOF001",
         "LSPUB001",
@@ -1130,6 +1152,9 @@
         "LSQ009",
         "LSQ010",
         "LSQ011",
+        "LSQ013",
+        "LSQ014",
+        "LSQ015",
         "LSR001",
         "LSR002",
         "LSR003",
@@ -1201,7 +1226,7 @@
         },
         {
           "path": "src/LithoSharp.Tool/CheckOutputCommand.cs",
-          "sha256": "593e447c88de6bf63e4f403a2484485137f16f00bbdef27e9a68f7a3a508bc2c"
+          "sha256": "7c6c36299e2d9097293911d0e385e5f3ea59bda86d4b3ad1259ecb05a3144555"
         },
         {
           "path": "src/LithoSharp.Tool/OkfCommand.cs",
@@ -1221,11 +1246,11 @@
         },
         {
           "path": "src/LithoSharp/Content/Compilation/MarkdownAnalysisAdapter.cs",
-          "sha256": "ef56d8e94292a1cfbed5eeb0be42fdc2a64c2065140c609c1ecdb2f536a76962"
+          "sha256": "2c31ed2a6bdb2898d8d06971a393338eb1f1bd6790ca566a49f6a9c6ffd7c29b"
         },
         {
           "path": "src/LithoSharp/Content/Compilation/MarkdownComponentRendering.cs",
-          "sha256": "0460dd8b4643247a546bb649e6b6c501ff4cb8b1bbe2e68abb1e1f7c491b20be"
+          "sha256": "9c3e92b8ee1658b78aab470d9ba4615e5dea791e9974db2dea1dce9d5927d332"
         },
         {
           "path": "src/LithoSharp/Content/GeneratedContentPages.cs",
@@ -1300,8 +1325,12 @@
           "sha256": "926467257149bba9ae4120605e1fcc6b5766dd7e7acedb97d5873c433c659014"
         },
         {
+          "path": "src/LithoSharp/Quality/AgentReadyArtifactValidator.cs",
+          "sha256": "8a2e039a3b64661568c7b84e9b2036a5ce00f2dc4e5933a212b7ab4bc1bc5167"
+        },
+        {
           "path": "src/LithoSharp/Quality/ExternalLinkChecker.cs",
-          "sha256": "c19674f9c87585b712531c92599df251d1ed9a1abad52df8a57fe5a0740b0abb"
+          "sha256": "319e74d2ebdb52801b9c9f01c921e30fac1098efbd1432f9b49f631a3aa90753"
         },
         {
           "path": "src/LithoSharp/Quality/GeneratedSiteInspector.cs",
@@ -1310,6 +1339,10 @@
         {
           "path": "src/LithoSharp/Quality/SitePublicationCompatibility.cs",
           "sha256": "77941fde0e448a5d2541b47c8af60fd5e2910cad4581005c361a994714393602"
+        },
+        {
+          "path": "src/LithoSharp/Quality/SitePublicationHttpInspector.cs",
+          "sha256": "ab906747a900aed88776a1e9cb7a8b4277a886dd2c1e6c82a5e988434f957df2"
         },
         {
           "path": "src/LithoSharp/Quality/SiteQualityValidator.cs",
