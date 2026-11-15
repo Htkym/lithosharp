@@ -1,6 +1,8 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Keep XML documentation output while suppressing only missing public XML comments. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <SyntamarkComponentVersion>2.0.0-preview.2026111303</SyntamarkComponentVersion>
     <SyntamarkSourceVersion Condition="'$(SyntamarkSourceVersion)' == ''">$(SyntamarkComponentVersion)</SyntamarkSourceVersion>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
