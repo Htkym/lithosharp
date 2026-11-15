@@ -16,7 +16,10 @@ internal static class AgentReadyArtifactValidator
         IReadOnlyList<AgentReadyArtifactExpectation> expectations,
         IReadOnlyDictionary<string, SiteRoute> artifacts,
         Func<string, CancellationToken, Task<string>> readText,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, CancellationToken, Task<QualityHtmlFacts>>? getFacts = null,
+        bool validateJson = true,
+        Action? onDirectParse = null)
     {
         var diagnostics = new List<SiteDiagnostic>();
         foreach (var expected in expectations.OrderBy(value => value.HtmlRoute.RelativeOutputPath, StringComparer.Ordinal))
@@ -29,47 +32,57 @@ internal static class AgentReadyArtifactValidator
                 continue;
             }
             var html = await readText(path, cancellationToken).ConfigureAwait(false);
-            var facts = HtmlFacts.Parse(html, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (validateJson || getFacts is null)
+                onDirectParse?.Invoke();
+            // Always read the current artifact. Reuse only local observations, never validity.
+            var tree = validateJson ? HtmlFacts.Parse(html, cancellationToken) : null;
+            var facts = tree is not null ? QualityHtmlFacts.From(tree, cancellationToken)
+                : getFacts is not null ? await getFacts(html, cancellationToken).ConfigureAwait(false)
+                : QualityHtmlFacts.Parse(html, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             var canonicals = facts.Elements.Where(element => element.Name == "link" && HasRel(element, "canonical")).ToArray();
-            if (canonicals.Length != 1 || !SameAddress(HtmlFacts.Attribute(canonicals[0], "href"), expected.Head.CanonicalUrl, expected.Head.CanonicalUrl))
+            if (canonicals.Length != 1 || !SameAddress(QualityHtmlFacts.Attribute(canonicals[0], "href"), expected.Head.CanonicalUrl, expected.Head.CanonicalUrl))
                 Add("LSQ014", "The public HTML canonical must match the shared Agent Ready page plan.", canonicals.FirstOrDefault());
             var languageElement = facts.Elements.FirstOrDefault(element => element.Name == "html");
-            if (!string.IsNullOrWhiteSpace(expected.Head.Language) && (languageElement is null || HtmlFacts.Attribute(languageElement, "lang") != expected.Head.Language))
+            if (!string.IsNullOrWhiteSpace(expected.Head.Language) && (languageElement is null || QualityHtmlFacts.Attribute(languageElement, "lang") != expected.Head.Language))
                 Add("LSQ014", "The HTML language must match the shared Agent Ready page plan.", languageElement);
             var resolutionBase = expected.Head.CanonicalUrl;
             if (facts.BaseHref is { } baseHref && Uri.TryCreate(new Uri(resolutionBase, UriKind.Absolute), baseHref, out var documentBase))
                 resolutionBase = documentBase.AbsoluteUri;
             var markdownLinks = facts.Elements.Where(element => element.Name == "link" && HasRel(element, "alternate")
-                && string.Equals(HtmlFacts.Attribute(element, "type")?.Trim(), "text/markdown", StringComparison.OrdinalIgnoreCase)).ToArray();
+                && string.Equals(QualityHtmlFacts.Attribute(element, "type")?.Trim(), "text/markdown", StringComparison.OrdinalIgnoreCase)).ToArray();
             if (expected.MarkdownRoute is null)
             {
                 if (markdownLinks.Length != 0)
                     Add("LSQ014", "A Markdown alternate was emitted without a complete planned Markdown artifact.", markdownLinks[0]);
             }
             else if (!artifacts.ContainsKey(expected.MarkdownRoute.RelativeOutputPath)
-                || markdownLinks.Length != 1 || !SameAddress(HtmlFacts.Attribute(markdownLinks[0], "href"), expected.Head.MarkdownUrl, resolutionBase))
+                || markdownLinks.Length != 1 || !SameAddress(QualityHtmlFacts.Attribute(markdownLinks[0], "href"), expected.Head.MarkdownUrl, resolutionBase))
                 Add("LSQ014", "The Markdown alternate must identify the one complete planned Markdown artifact.", markdownLinks.FirstOrDefault());
 
             var describedBy = facts.Elements.Where(element => element.Name == "link" && HasRel(element, "describedby")
-                && IsLlmsReference(HtmlFacts.Attribute(element, "href"))).ToArray();
+                && IsLlmsReference(QualityHtmlFacts.Attribute(element, "href"))).ToArray();
             if (expected.LlmsRoute is not null)
             {
                 if (!artifacts.ContainsKey(expected.LlmsRoute.RelativeOutputPath) || describedBy.Length != 1
-                    || !SameAddress(HtmlFacts.Attribute(describedBy[0], "href"), expected.Head.LlmsUrl, resolutionBase))
+                    || !SameAddress(QualityHtmlFacts.Attribute(describedBy[0], "href"), expected.Head.LlmsUrl, resolutionBase))
                     Add("LSQ014", "The describedby link must identify an emitted llms.txt index that includes this page.", describedBy.FirstOrDefault());
             }
             else if (describedBy.Length != 0)
                 Add("LSQ014", "An llms.txt describedby link was emitted for a page outside that index.", describedBy[0]);
 
-            ValidateJson(facts, expected, Add, cancellationToken);
+            if (tree is not null)
+                ValidateJson(tree, expected, (id, message, element) =>
+                {
+                    var position = tree.Position(element);
+                    diagnostics.Add(new(id, SiteDiagnosticSeverity.Error, message,
+                        new(path, position?.Line, position?.Column), "AgentReady", null));
+                }, cancellationToken);
 
-            void Add(string id, string message, HtmlTreeNode? element = null)
-            {
-                var location = factsPosition(element);
-                diagnostics.Add(new(id, SiteDiagnosticSeverity.Error, message, location, "AgentReady", null));
-            }
-            SiteSourceLocation factsPosition(HtmlTreeNode? element) => facts.Position(element) is { } position
-                ? new(path, position.Line, position.Column) : new(path);
+            void Add(string id, string message, QualityHtmlElement? element = null) =>
+                diagnostics.Add(new(id, SiteDiagnosticSeverity.Error, message,
+                    new(path, element?.Line, element?.Column), "AgentReady", null));
         }
         return diagnostics;
     }
@@ -190,7 +203,7 @@ internal static class AgentReadyArtifactValidator
     private static bool PageType(JsonElement type) => type.ValueKind == JsonValueKind.String
         ? type.GetString() is "WebPage" or "TechArticle" or "BlogPosting"
         : type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Any(PageType);
-    private static bool HasRel(HtmlTreeNode element, string value) => (HtmlFacts.Attribute(element, "rel") ?? string.Empty)
+    private static bool HasRel(QualityHtmlElement element, string value) => (QualityHtmlFacts.Attribute(element, "rel") ?? string.Empty)
         .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Contains(value, StringComparer.OrdinalIgnoreCase);
     private static bool IsLlmsReference(string? value) => value is not null && value.Split('?', '#')[0].EndsWith("llms.txt", StringComparison.OrdinalIgnoreCase);
     private static bool SameAddress(string? value, string? expected, string canonical) => value is not null && expected is not null

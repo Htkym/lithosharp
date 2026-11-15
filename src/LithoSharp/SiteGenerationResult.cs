@@ -14,6 +14,8 @@ public sealed record SiteGenerationResult(
     // a new public generation API or authorizing any later build.
     internal Inspection.SitePreflightReport? Preflight { get; init; }
     internal (int ParseCount, int ReuseCount, long RetainedBytes, int EntryCount) HtmlFactsSharing { get; init; }
+    // Agent Ready validation only; excludes the earlier optional Quality phase.
+    internal (int DirectParseCount, int CacheParseCount, int CacheHitCount) AgentReadyValidationFacts { get; init; }
 
     public SiteBuildPlan BuildPlan { get; init; } = SiteBuildPlan.Create([]);
 

@@ -33,33 +33,40 @@
       {
         "os": "macos-15",
         "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/artifacts.json",
-        "sha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f"
+        "sha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f",
+        "downloadedSha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f"
       },
       {
         "os": "macos-15",
         "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/consumers.json",
-        "sha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641"
+        "sha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641",
+        "downloadedSha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641"
       },
       {
         "os": "ubuntu-24.04",
         "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/artifacts.json",
-        "sha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53"
+        "sha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53",
+        "downloadedSha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53"
       },
       {
         "os": "ubuntu-24.04",
         "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/consumers.json",
-        "sha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb"
+        "sha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb",
+        "downloadedSha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb"
       },
       {
         "os": "windows-2025",
         "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/artifacts.json",
-        "sha256": "8dfabe61b77f6a1972c25744ace0721febb1086b248bb83e8c4e7d7d5e14f307"
+        "sha256": "8e98e8087b2e97c6498089da05df146f4b7b736471e91c4f47296bb9af5f3df9",
+        "downloadedSha256": "8dfabe61b77f6a1972c25744ace0721febb1086b248bb83e8c4e7d7d5e14f307"
       },
       {
         "os": "windows-2025",
         "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/consumers.json",
-        "sha256": "af793cbd2c360ae8faadfd9cd5bac8a14437b67b0b41f1207c67387c685a8f4e"
+        "sha256": "caa37ff8a7b3b1aa7aeca3dbd400c5d830e4e64831a9118de7380160ad8135c2",
+        "downloadedSha256": "af793cbd2c360ae8faadfd9cd5bac8a14437b67b0b41f1207c67387c685a8f4e"
       }
-    ]
+    ],
+    "receiptEncoding": "UTF-8 without BOM, LF; sha256 identifies repository-normalized bytes, downloadedSha256 preserves original CI download identity."
   }
 }

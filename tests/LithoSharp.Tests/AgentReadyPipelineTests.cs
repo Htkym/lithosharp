@@ -64,6 +64,9 @@ public sealed class AgentReadyPipelineTests
         await Assert.That(parses).IsEqualTo(1);
         await Assert.That(compiler.ParseCount).IsEqualTo(parses);
         await Assert.That(second.BuildReport.Nodes.Single(node => node.NodeId == "agent-ready:page:guide.html").CacheHit).IsTrue();
+        await Assert.That(second.AgentReadyValidationFacts.DirectParseCount).IsEqualTo(0);
+        await Assert.That(second.AgentReadyValidationFacts.CacheParseCount).IsEqualTo(0);
+        await Assert.That(second.AgentReadyValidationFacts.CacheHitCount).IsEqualTo(1);
     }
 
     [Test]

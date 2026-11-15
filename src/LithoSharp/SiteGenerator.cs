@@ -660,13 +660,15 @@ public sealed partial class SiteGenerator
                 cacheOptions: options)
             .ConfigureAwait(false);
         timing.MarkTransaction();
-        using var htmlFactsCache = options.Quality is not null && options.HtmlFactsCacheEnabled
-            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity), sharedHtmlFacts) : null;
+        using var htmlFactsCache = (options.Quality is not null || configuration.AgentReady is not null) && options.HtmlFactsCacheEnabled
+            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity),
+                options.Quality is not null ? sharedHtmlFacts : null) : null;
         var generatedInStaging = new List<string>();
         var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
+        (int DirectParseCount, int CacheParseCount, int CacheHitCount) agentReadyValidationFacts = default;
         IReadOnlyList<SiteDiagnostic> compilerWarnings = [];
         var committed = false;
         var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
@@ -838,8 +840,15 @@ public sealed partial class SiteGenerator
                 var expected = agentValidation.Pages.Where(page => outputScope.Length == 0 || InScope(page.Html.RelativeOutputPath))
                     .Select(page => new AgentReadyArtifactExpectation(page.Html, page.Head, agentValidation.Options.StructuredData,
                         page.Markdown, page.Head.LlmsUrl is null ? null : routes.Llms)).ToArray();
+                var validationCacheParses = htmlFactsCache?.ParseCount ?? 0;
+                var validationCacheHits = htmlFactsCache?.HitCount ?? 0;
                 var integrity = await AgentReadyArtifactValidator.ValidateAsync(expected, existingArtifacts,
-                    (path, token) => ReadQualityTextAsync(validationRoot, path, inspectedQualityOutput, token), cancellationToken).ConfigureAwait(false);
+                    (path, token) => ReadQualityTextAsync(validationRoot, path, inspectedQualityOutput, token), cancellationToken,
+                    getFacts: options.Quality is null && htmlFactsCache is not null ? htmlFactsCache.GetAsync : null,
+                    validateJson: options.Quality is not null,
+                    onDirectParse: () => agentReadyValidationFacts.DirectParseCount++).ConfigureAwait(false);
+                agentReadyValidationFacts.CacheParseCount = (htmlFactsCache?.ParseCount ?? 0) - validationCacheParses;
+                agentReadyValidationFacts.CacheHitCount = (htmlFactsCache?.HitCount ?? 0) - validationCacheHits;
                 if (agentValidation.TextArtifacts.TryGetValue("robots.txt", out var robots))
                     integrity = integrity.Concat(AgentReadyArtifactValidator.ValidateRobots(site.BaseUrl, robots, existingArtifacts)).ToArray();
                 // Artifact/discovery/robots integrity is mandatory. JSON-LD quality follows the existing opt-in threshold.
@@ -921,6 +930,7 @@ public sealed partial class SiteGenerator
             AgentReadyPages = configuration.AgentReady is { } outcomes ? Array.AsReadOnly(outcomes.Pages.Select(page =>
                 new AgentReady.PublicMarkdownPageResult(page.Html.RelativeOutputPath, page.Markdown?.RelativeOutputPath, page.Outcome.Status, page.Outcome.Reason)).ToArray()) : [],
             HtmlFactsSharing = sharedHtmlFacts.Counters,
+            AgentReadyValidationFacts = agentReadyValidationFacts,
             Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
