@@ -172,6 +172,7 @@ foreach ($required in @(
     'extension/resources/language-server/licenses/Syntamark.LICENSE.txt',
     'extension/resources/language-server/licenses/THIRD-PARTY-NOTICES.md',
     'extension/resources/worker/worker.mjs', 'extension/resources/worker/compiler.mjs',
+    'extension/resources/worker/public-markdown.mjs',
     'extension/resources/worker/package.json', 'extension/resources/worker/package-lock.json',
     'extension/resources/worker/worker.json', 'extension/resources/worker/runtime/components.mjs',
     'extension/resources/language-server/LithoSharp.LanguageServer.dll',
@@ -181,6 +182,7 @@ foreach ($required in @(
     'extension/resources/language-server/LithoSharp.Mdx.dll',
     'extension/resources/language-server/worker/worker.mjs',
     'extension/resources/language-server/worker/compiler.mjs',
+    'extension/resources/language-server/worker/public-markdown.mjs',
     'extension/resources/language-server/worker/package.json',
     'extension/resources/language-server/worker/package-lock.json',
     'extension/resources/language-server/worker/runtime/components.mjs'
