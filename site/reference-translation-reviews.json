@@ -125,9 +125,9 @@
       "version": "3.0",
       "id": "distribution",
       "sourcePath": "docs/distribution.md",
-      "sourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
+      "sourceSha256": "ea648074ec90afff8d7d01db095d34f1c3e1617004fb6abfebea2246f1c44b7c",
       "translationPath": "docs/distribution.ja.md",
-      "translationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070"
+      "translationSha256": "c294856c155ee9075b768d8e085c60701ad06c2ab87868d211d0d81a37fc5246"
     },
     {
       "collection": "reference",
@@ -571,6 +571,17 @@
       "sourceSha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573",
       "translationSha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f",
       "scope": "Replaced the internal verification-script link with the public code-example verification guide only. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
+      "previousTranslationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070",
+      "sourceSha256": "ea648074ec90afff8d7d01db095d34f1c3e1617004fb6abfebea2246f1c44b7c",
+      "translationSha256": "c294856c155ee9075b768d8e085c60701ad06c2ab87868d211d0d81a37fc5246",
+      "scope": "Updated only the dependency paragraph and opening target list for the now-published Syntamark 2.0.0 release. Matching runtime/Source versions and still-unpublished LithoSharp targets remain explicit. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. AGY proofreading remains a separate pending publication gate."
     }
   ]
 }

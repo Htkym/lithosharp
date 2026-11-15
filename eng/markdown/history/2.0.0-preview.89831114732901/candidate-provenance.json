@@ -1,0 +1,72 @@
+{
+  "scope": "SEALED_LOCAL_CANDIDATE_NOT_FORMAL_ADOPTION",
+  "published": false,
+  "componentVersion": "2.0.0-preview.89831114732901",
+  "sourceRepository": "https://github.com/Htkym/syntamark",
+  "sourceCommit": "51b36faef56510cedccee288326874e31dbdefd2",
+  "producerWorkflowRun": "https://github.com/Htkym/syntamark/actions/runs/43662685388",
+  "pairManifestPath": "eng/markdown/component-pair.json",
+  "pairManifestSha256": "1131b00d90f5fcc9e92ec1ace6aae600be756bc0139fca5403ba10f60ea8a63b",
+  "canonicalSourceHash": "42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "parserVersion": "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "yamlProfileId": "native-yaml/1",
+  "dependencies": [],
+  "formalAdoptionRequires": "Reviewed and merged Syntamark runtime/Source pair published through the formal release workflow.",
+  "producerManifestSha256": "1131b00d90f5fcc9e92ec1ace6aae600be756bc0139fca5403ba10f60ea8a63b",
+  "producerRestoredVerification": {
+    "scope": "Producer exact-head runtime/Source packaged consumers including destination-edit parity.",
+    "state": "PASS",
+    "consumerAcceptance": "PASS_FOR_LISTED_CONSUMER_SCOPE",
+    "evidenceSha256": "b10e80d7cb4f7ea7c35b8fe0f3d5d38bf422db82a88c47bb07ba53b473fcf35f"
+  },
+  "consumerVerification": {
+    "state": "PASS",
+    "scope": "LithoSharp fixed-pair runtime, generated Source, stamp rejection, and portability consumers only; not whole CI or formal release acceptance.",
+    "consumerCommit": "1456010d367edbfce0b19a30c9772f997b9bfdee",
+    "workflowRun": "https://github.com/Htkym/lithosharp/actions/runs/43671756742",
+    "platforms": [
+      "ubuntu-24.04",
+      "windows-2025",
+      "macos-15"
+    ],
+    "receipts": [
+      {
+        "os": "macos-15",
+        "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/artifacts.json",
+        "sha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f",
+        "downloadedSha256": "f54ca47311b43ef44e28d8ebc387bde6a3f141d3bf555da00a6c8eac0b82755f"
+      },
+      {
+        "os": "macos-15",
+        "path": "eng/markdown/evidence/agent-ready-1456010/macos-15/consumers.json",
+        "sha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641",
+        "downloadedSha256": "2f72787b24a925a0747d8e7587883c5067c7243b0a728a9ed3fc0c87eaac7641"
+      },
+      {
+        "os": "ubuntu-24.04",
+        "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/artifacts.json",
+        "sha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53",
+        "downloadedSha256": "41e8e5977c6b92873ef084610c981553fc70b4a167876aeaf30b97123f8fdc53"
+      },
+      {
+        "os": "ubuntu-24.04",
+        "path": "eng/markdown/evidence/agent-ready-1456010/ubuntu-24.04/consumers.json",
+        "sha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb",
+        "downloadedSha256": "57544650707f9a55bc4eab543711faf8ea9d5c0d17aec692b39391cecbc66efb"
+      },
+      {
+        "os": "windows-2025",
+        "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/artifacts.json",
+        "sha256": "8e98e8087b2e97c6498089da05df146f4b7b736471e91c4f47296bb9af5f3df9",
+        "downloadedSha256": "8dfabe61b77f6a1972c25744ace0721febb1086b248bb83e8c4e7d7d5e14f307"
+      },
+      {
+        "os": "windows-2025",
+        "path": "eng/markdown/evidence/agent-ready-1456010/windows-2025/consumers.json",
+        "sha256": "caa37ff8a7b3b1aa7aeca3dbd400c5d830e4e64831a9118de7380160ad8135c2",
+        "downloadedSha256": "af793cbd2c360ae8faadfd9cd5bac8a14437b67b0b41f1207c67387c685a8f4e"
+      }
+    ],
+    "receiptEncoding": "UTF-8 without BOM, LF; sha256 identifies repository-normalized bytes, downloadedSha256 preserves original CI download identity."
+  }
+}

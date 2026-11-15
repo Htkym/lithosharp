@@ -5,7 +5,7 @@
   "languageServerTarget": "3.0.0",
   "vscodeExtensionTarget": "0.5.0",
   "syntamarkTarget": "2.0.0",
-  "selectedSyntamarkCandidate": "2.0.0-preview.89831114732901",
+  "selectedSyntamarkCandidate": "2.0.0",
   "selectedPairManifest": "eng/markdown/component-pair.json",
   "coreApiCompatibilityBaseline": "2.2.0",
   "toolingProtocol": "1.0",

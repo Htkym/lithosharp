@@ -236,12 +236,12 @@
         "en": {
           "path": "docs/distribution.md",
           "title": "Distribution and installation",
-          "sha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0"
+          "sha256": "ea648074ec90afff8d7d01db095d34f1c3e1617004fb6abfebea2246f1c44b7c"
         },
         "ja": {
           "path": "docs/distribution.ja.md",
           "title": "配布とインストール",
-          "sha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070"
+          "sha256": "c294856c155ee9075b768d8e085c60701ad06c2ab87868d211d0d81a37fc5246"
         }
       }
     },

@@ -13,8 +13,8 @@ candidate packages using the same official BaseUrl and never deploys them.
 ## Publication order
 
 1. Complete the stable Syntamark intake described in `eng/markdown/README.md`.
-   The active `2.0.0-preview.89831114732901` pair is not accepted for publication;
-   `2.0.0` is the intended component target, not evidence of availability.
+   The selected `2.0.0` pair has verified official publication provenance.
+   Its publication does not establish LithoSharp downstream acceptance or release.
 2. Complete review and normal push CI on current default `main`, tag that exact
    SHA with the stable LithoSharp release version, and finish its existing NuGet
    publication workflow. Every release package must be available from NuGet.org
