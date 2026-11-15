@@ -15,10 +15,6 @@ Deprecation notices must identify the replacement, migration guidance and
 intended removal version. `SiteGenerator.GenerateAsync`, `MarkdownPostReader`,
 `SiteCustomization` and `ISiteTemplate` retain their supported entry points.
 
-Public signatures are recorded in each library's `PublicAPI.Shipped.txt` and
-`PublicAPI.Unshipped.txt`. Update these analyzer baselines when changing APIs.
-CI validates NuGet package compatibility against published package baselines.
-
 The 2.x exception is `LithoSharp.Testing.SiteTestDocument.Document`, removed in
 favor of the read-only `Snapshot` API. It is an intentional source and binary
 break with a [migration map](Testing-v2-api.md#migration); it does not imply

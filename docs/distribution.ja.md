@@ -6,10 +6,9 @@
 これらは開発対象のバージョンであり、公開の告知ではありません。
 拡張の識別子は`htkym.lithosharp`で、本体とは別のバージョンを使います。
 
-[バージョン一覧](../eng/version-matrix.json)では現在、Syntamark `2.0.0-preview.89831114732901`を選定しています。
-選定した成果物は[候補の来歴情報](../eng/markdown/candidate-provenance.json)と
-[runtimeとSourceの組み合わせを記録したマニフェスト](../eng/markdown/component-pair.json)で識別します。
-この候補は正式には公開されていません。正式採用には、レビューとマージを経たruntimeとSourceの組み合わせが、正式なリリース手順で公開される必要があります。
+選定している依存パッケージはSyntamark `2.0.0-preview.89831114732901`です。
+この候補は正式には公開されていません。
+候補を利用する場合は対応するruntimeとSourceの組み合わせを使い、インストール前にパッケージの提供状況を確認してください。
 
 ## NuGetパッケージ
 

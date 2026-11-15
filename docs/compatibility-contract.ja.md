@@ -15,10 +15,6 @@
 非推奨にする場合は、代替 API、移行方法、削除予定のバージョンを明記します。
 `SiteGenerator.GenerateAsync`、`MarkdownPostReader`、`SiteCustomization`、`ISiteTemplate` の既存の呼び出し方法を維持します。
 
-公開シグネチャは各ライブラリの `PublicAPI.Shipped.txt` と `PublicAPI.Unshipped.txt` で管理します。
-API の変更時には、これらのアナライザーの基準ファイルも更新してください。
-CI では公開済みパッケージを基準に NuGet パッケージの互換性も検証します。
-
 2.x では例外として `LithoSharp.Testing.SiteTestDocument.Document` を削除し、読み取り専用の `Snapshot` API へ移行しました。
 これは意図したソース・バイナリ互換性の破壊であり、[移行表](Testing-v2-api.ja.md#移行)を用意しています。
 任意の API 削除を認めるものではありません。

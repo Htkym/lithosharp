@@ -219,7 +219,7 @@ cache directoryは公開出力の外に置きます。開発用reload scriptは�
 | 従来のBlog、feed、search | [Blog sample](../samples/LithoSharp.Sample/README.ja.md) |
 | React island、progressive navigation、live code、PWA | [MDX sample](../samples/LithoSharp.MdxSample/README.ja.md) |
 | 複数version/locale、Blog/Pages、API reference | [MDXガイド](mdx.ja.md)と[実行可能な統合fixture](../tests/LithoSharp.Tests/DocumentationTests.cs) |
-| XML API buildと検証済みコード例 | [documentation verification](../eng/Test-DocumentationVerification.ps1) |
+| XML API buildと検証済みコード例 | [コード例の検証](code-example-verification.ja.md) |
 | 独自C# layout | `lithosharp new empty MySite -o MySite` |
 
 testは高度な設定を実行できる例であり、追加のtemplate製品ではありません。
