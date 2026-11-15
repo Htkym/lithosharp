@@ -241,7 +241,7 @@ internal static class Cli
           lithosharp build [project] [-o directory] [--clean] [-c configuration]
           lithosharp serve [project] [-o directory] [--port number] [--host address] [--format text|json] [--control-stdin] [-c configuration]
           lithosharp check [project] [--format text|json|sarif] [-c configuration] (regenerates into temporary output)
-          lithosharp check-output -o directory --base-url url [--format text|json|sarif] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; no generation or cache writes)
+          lithosharp check-output -o directory --base-url url [--format text|json|sarif] [--http] [--baseline file --require-publication-compatibility --site-id id] [--allow-removals file] [--exclude-output path] (reads existing output; public HTTP only with --http; no generation or cache writes)
           lithosharp check-output -o directory --base-url url --site-id id --initialize-baseline file (explicit create-only baseline initialization after verified publication)
           lithosharp okf <inspect|validate|export> --input bundle-directory [--format text|json|sarif] [--as-of offset-datetime] [--strict-lint] [--base-url url] [--max-files count] [--max-discovery-entries count] [--max-file-bytes bytes] [--max-bundle-bytes bytes] [--output new-export-directory] (standalone bundle read; no project or computation execution)
           lithosharp proofread <markdown-file> --python executable --yomiyasu lint-script [--profile id] [--protect identifier] [--format text|json] [--preview segment:start:length --replacement text] (explicit optional Yomiyasu execution; diagnostics and edit previews only)

@@ -184,6 +184,7 @@ continues to handle existing missing SEO fields rather than inventing a second
 missing-description rule.
 
 A normal build performs no production HTTP checks. After explicitly publishing,
+use [`check-output --http`](generated-output-checks.md#explicit-post-publication-http-inspection) or
 verify the actual public HTML and Markdown URLs, redirects, content type, unknown
 URL 404 behavior, and the origin's `/robots.txt`. Local serving should return
 Markdown as `text/markdown; charset=utf-8`; production MIME types and headers are
