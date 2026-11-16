@@ -12,7 +12,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>LithoSharp.Analyzers</PackageId>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <Authors>Htkym</Authors>
     <Description>Compiler diagnostics for proven LithoSharp API, HTML and generated-reference mistakes in .NET documentation builds.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -22,6 +22,7 @@
   <ItemGroup>
     <Compile Include="../Shared/LegacyTestingDomContract.cs" Link="Shared/LegacyTestingDomContract.cs" />
     <Compile Include="../Shared/StaticManifestFingerprint.cs" Link="Shared/StaticManifestFingerprint.cs" />
+    <Compile Include="../Shared/ContentInputPolicy.cs" Link="Shared/ContentInputPolicy.cs" />
     <Compile Include="../Shared/FixedHtmlPlanModel.cs" Link="Shared/FixedHtmlPlanModel.cs" />
     <None Include="buildTransitive/LithoSharp.Analyzers.props" Pack="true" PackagePath="buildTransitive" />
     <Compile Include="../Shared/StaticApiGuards.cs" Link="Shared/StaticApiGuards.cs" />
@@ -45,11 +46,8 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(SyntamarkSourceVersion)' != ''">
     <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkSourceVersion)]" PrivateAssets="all" IncludeAssets="build" />
-    <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
     <Compile Include="../../eng/markdown/MarkdownYamlIdentity.cs" Link="Hosting/MarkdownYamlIdentity.cs" />
     <Compile Include="../LithoSharp.Generators/MarkdownSourceHostAdapter.cs" Link="Hosting/MarkdownSourceHostAdapter.cs" />
-    <None Include="$(TargetDir)YamlDotNet.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="../../licenses/YamlDotNet.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <None Include="../../licenses/Syntamark.LICENSE.txt" Pack="true" PackagePath="licenses/" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
@@ -60,8 +58,5 @@
            Text="Markdown source version must be one fixed full version, without wildcard or range syntax." />
     <Error Condition="'$(SyntamarkIncludeSource)' == 'true' and '$(SyntamarkSourceVersion)' == ''"
            Text="Select an immutable SyntamarkSourceVersion before enabling Markdown source." />
-  </Target>
-  <Target Name="CheckSelectedYamlPackInput" BeforeTargets="GenerateNuspec" Condition="'$(SyntamarkSourceVersion)' != ''">
-    <Error Condition="!Exists('$(TargetDir)YamlDotNet.dll')" Text="The selected source consumer requires the actual YamlDotNet dependency in the analyzer payload." />
   </Target>
 </Project>

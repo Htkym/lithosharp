@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using LithoSharp.Routing;
 using LithoSharp.Internal;
+using LithoSharp.Content;
 
 namespace LithoSharp.Generators;
 
@@ -59,7 +60,9 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
         var metadata = provider.GetOptions(text);
         string Get(string key) => metadata.TryGetValue("build_metadata.AdditionalFiles." + key, out var value) ? value : string.Empty;
         provider.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var projectDirectory);
-        return new Input(text.Path, text.GetText(cancellation), Get("LithoSharpCollection"), Get("LithoSharpId"), Get("LithoSharpRoute"),
+        return new Input(text.Path, text.Path.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            || text.Path.EndsWith(".mdx", StringComparison.OrdinalIgnoreCase) ? text.GetText(cancellation) : null,
+            Get("LithoSharpCollection"), Get("LithoSharpId"), Get("LithoSharpRoute"),
             Get("LithoSharpSite"), Get("LithoSharpVariant"), projectDirectory ?? string.Empty);
     }
 
@@ -127,12 +130,29 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                     continue;
                 }
                 var emitter = new BinderEmitter(front);
+                if (attribute.Attributes[0].NamedArguments.Any(pair => pair.Key == "InputRoot" && pair.Value.Value is not string))
+                    throw new InvalidOperationException("The input root must be a non-null relative path or empty for legacy declarations.");
+                var inputRoot = attribute.Attributes[0].NamedArguments.FirstOrDefault(pair => pair.Key == "InputRoot").Value.Value as string ?? string.Empty;
+                if (inputRoot.Length != 0)
+                {
+                    _ = ContentInputPolicy.NormalizePath(inputRoot);
+                    inputRoot = inputRoot.Replace('\\', '/');
+                }
+                var inputProfile = (ContentInputProfile)(attribute.Attributes[0].NamedArguments.FirstOrDefault(pair => pair.Key == "InputProfile").Value.Value as int? ?? 0);
+                if (!Enum.IsDefined(typeof(ContentInputProfile), inputProfile))
+                    throw new InvalidOperationException("The input profile is invalid.");
+                if (inputProfile == ContentInputProfile.OpenKnowledgeFormat && inputRoot.Length == 0)
+                    throw new InvalidOperationException("An OKF collection requires an explicit bundle InputRoot.");
                 var body = attribute.Attributes[0].NamedArguments.FirstOrDefault(pair => pair.Key == "BodyType").Value.Value as ITypeSymbol;
                 if (body is not null && (body.SpecialType == SpecialType.System_Void || body.TypeKind is TypeKind.Pointer or TypeKind.Error || body is INamedTypeSymbol { IsUnboundGenericType: true } or { IsRefLikeType: true }))
                     throw new InvalidOperationException("The content body must be a closed, non-ref type.");
-                collections.Add(new Collection(symbol, front, page, id, site, variant, emitSchema, emitManifest, emitter, body));
+                collections.Add(new Collection(symbol, front, page, id, site, variant, emitSchema, emitManifest, emitter, body, inputRoot, inputProfile));
             }
             catch (InvalidOperationException failure)
+            {
+                Fail(InvalidDeclaration, location, failure.Message);
+            }
+            catch (ArgumentException failure)
             {
                 Fail(InvalidDeclaration, location, failure.Message);
             }
@@ -141,25 +161,47 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
         var routes = new List<(string Site, string Variant, SiteRoute Route)>();
         foreach (var input in files)
         {
+            output.CancellationToken.ThrowIfCancellationRequested();
             if (input.Collection.Length == 0 && input.Id.Length == 0 && input.Route.Length == 0 && input.Site.Length == 0 && input.Variant.Length == 0)
                 continue;
             var collection = TryId(input.Collection, out var collectionId) && TryScope(input.Site, out var site) && TryScope(input.Variant, out var variant)
                 ? collections.FirstOrDefault(item => item.Id == collectionId && item.Site == site && item.Variant == variant) : null;
-            if (collection is null || input.Text is null || !TryId(input.Id, out var entryId) || input.Route.Length == 0)
+            if (collection is null)
             {
                 Fail(MissingInput, input.Location, "The input requires an existing collection in its site/variant scope, readable content, a valid entry ID, and a route.");
                 continue;
             }
             string name;
             string sourcePath;
+            string inputPath;
+            ContentInputKind? kind;
             try
             {
-                sourcePath = RelativeInputPath(input);
+                var physicalSourcePath = ContentInputPolicy.ProjectRelativePath(input.Path, input.ProjectDirectory);
+                sourcePath = ContentInputPolicy.NormalizePath(physicalSourcePath);
+                inputPath = ContentInputPolicy.RelativeToDeclaredRoot(physicalSourcePath, collection.InputRoot);
+                kind = ContentInputPolicy.Classify(inputPath, collection.InputProfile);
+                // Legacy explicit MDX inputs do not belong to checked Markdown directory discovery.
+                if (kind is null && collection.InputRoot.Length == 0 && collection.InputProfile == ContentInputProfile.Markdown
+                    && inputPath.EndsWith(".mdx", StringComparison.OrdinalIgnoreCase) && !ContentInputPolicy.IsPartial(inputPath))
+                    kind = ContentInputKind.Markdown;
+                if (kind is null)
+                    continue;
                 name = InputName(sourcePath);
             }
             catch (ArgumentException failure)
             {
                 Fail(MissingInput, input.Location, failure.Message);
+                continue;
+            }
+            if ((kind != ContentInputKind.Auxiliary && input.Text is null) || !TryId(input.Id, out var entryId) || input.Route.Length == 0)
+            {
+                Fail(MissingInput, input.Location, "The input requires readable content, a valid entry ID, and a route.");
+                continue;
+            }
+            if (collection.Entries.Any(entry => ContentInputPolicy.PathComparer.Equals(entry.InputPath, inputPath)))
+            {
+                Fail(DuplicateId, input.Location, "Static inputs collide at normalized relative path '" + inputPath + "'.");
                 continue;
             }
             if (name is "Pages" or "Entries" or "Ids" or "Catalog" || collection.Entries.Any(entry => entry.Id == entryId || entry.Name == name))
@@ -185,17 +227,20 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
                 continue;
             }
             routes.Add((collection.Site, collection.Variant, route));
-            var raw = input.Text.ToString();
-            var markdown = MarkdownSourceHostAdapter.ParseForCompiler(raw, output.CancellationToken);
-            if (!StaticYamlValidation.Validate(input.Path, raw, markdown, collection.Front, diagnostic =>
+            if (collection.InputProfile == ContentInputProfile.Markdown)
+            {
+                var raw = input.Text!.ToString();
+                var markdown = MarkdownSourceHostAdapter.ParseForCompiler(raw, output.CancellationToken);
+                if (!StaticYamlValidation.Validate(input.Path, raw, markdown, collection.Front, diagnostic =>
                 {
                     if (diagnostic.Severity == DiagnosticSeverity.Error)
                         complete = false;
                     output.ReportDiagnostic(diagnostic);
                 }, output.CancellationToken))
-                Fail(MissingInput, input.Location, "Markdown front matter could not be verified ("
-                    + string.Join(", ", markdown.Diagnostics.Select(diagnostic => diagnostic.Id)) + ").");
-            collection.Entries.Add(new Entry(name, entryId, sourcePath, input.Route, route.PublicPath.EndsWith("/", StringComparison.Ordinal)));
+                    Fail(MissingInput, input.Location, "Markdown front matter could not be verified ("
+                        + string.Join(", ", markdown.Diagnostics.Select(diagnostic => diagnostic.Id)) + ").");
+            }
+            collection.Entries.Add(new Entry(name, entryId, sourcePath, input.Route, route.PublicPath.EndsWith("/", StringComparison.Ordinal), inputPath, kind.Value));
         }
         foreach (var collection in collections)
         {
@@ -233,12 +278,15 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
         {
             var route = "global::LithoSharp.Routing.SiteRoute." + (entry.Directory ? "ForDirectoryIndex" : "ForFile") + "(" + GeneratorModel.Literal(entry.Route) + ")";
             text.AppendLine("new(new global::LithoSharp.Content.ContentEntryId(" + GeneratorModel.Literal(entry.Id) + "), "
-                + GeneratorModel.Literal(entry.SourcePath) + ", " + route + "),");
+                + GeneratorModel.Literal(entry.SourcePath) + ", " + route + ", " + GeneratorModel.Literal(entry.InputPath)
+                + ", global::LithoSharp.Content.ContentInputKind." + entry.Kind + "),");
         }
-        text.AppendLine("}, " + GeneratorModel.Literal(collection.Site) + ", " + GeneratorModel.Literal(collection.Variant) + ");");
+        text.AppendLine("}, " + GeneratorModel.Literal(collection.InputRoot) + ", global::LithoSharp.Content.ContentInputProfile."
+            + collection.InputProfile + ", " + GeneratorModel.Literal(collection.Site) + ", " + GeneratorModel.Literal(collection.Variant) + ");");
         if (collection.EmitManifest)
         {
-            var closed = complete && fingerprint is not null;
+            // Discovery preserves OKF roles; ordinary typed-schema validation cannot certify them.
+            var closed = complete && fingerprint is not null && collection.InputProfile == ContentInputProfile.Markdown;
             var paths = collection.Entries.OrderBy(entry => entry.Name, StringComparer.Ordinal).Select(entry =>
                 entry.Directory ? SiteRoute.ForDirectoryIndex(entry.Route).PublicPath : SiteRoute.ForFile(entry.Route).PublicPath);
             text.AppendLine("/// <summary>Explicit immutable route lookup; anchors/assets and site publication are not certified.</summary>");
@@ -270,47 +318,15 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
             }
             text.AppendLine("}");
         }
-        text.Append(collection.Emitter.Emit(collection.Front));
+        text.Append(collection.Emitter.Emit(collection.Front, collection.Symbol));
         return text.AppendLine("}").ToString();
     }
 
-    private static bool TryId(string value, out string id)
-    {
-        id = string.Empty;
-        if (string.IsNullOrWhiteSpace(value) || value != value.Trim() || value.Any(char.IsControl))
-            return false;
-        try
-        {
-            id = value.Normalize(NormalizationForm.FormC);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-    }
+    private static bool TryId(string value, out string id) => ContentInputPolicy.TryIdentity(value, out id);
 
     private static bool TryScope(string value, out string id)
     {
-        id = string.Empty;
-        return value.Length == 0 || TryId(value, out id);
-    }
-
-    private static string RelativeInputPath(Input input)
-    {
-        var relative = input.Path.Replace('\\', '/');
-        var root = input.ProjectDirectory.Replace('\\', '/').TrimEnd('/');
-        if (relative.Split('/').Any(segment => segment is "." or "..") || root.Split('/').Any(segment => segment is "." or ".."))
-            throw new ArgumentException("Static input paths must not contain traversal segments.");
-        if (root.Length != 0)
-        {
-            if (!relative.StartsWith(root + "/", System.IO.Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                throw new ArgumentException("Static content files must be inside MSBuildProjectDirectory.");
-            relative = relative.Substring(root.Length + 1);
-        }
-        else if (relative.StartsWith("/", StringComparison.Ordinal) || relative.IndexOf(':') >= 0)
-            throw new ArgumentException("MSBuildProjectDirectory is required for absolute AdditionalFiles paths.");
-        return SiteRoute.NormalizeRelativeOutputPath(relative);
+        return ContentInputPolicy.TryScope(value, out id);
     }
 
     private static string InputName(string relative)
@@ -333,7 +349,7 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
 
     private sealed class Collection
     {
-        public Collection(INamedTypeSymbol symbol, INamedTypeSymbol front, ITypeSymbol page, string id, string site, string variant, bool emitSchema, bool emitManifest, BinderEmitter emitter, ITypeSymbol? body)
+        public Collection(INamedTypeSymbol symbol, INamedTypeSymbol front, ITypeSymbol page, string id, string site, string variant, bool emitSchema, bool emitManifest, BinderEmitter emitter, ITypeSymbol? body, string inputRoot, ContentInputProfile inputProfile)
         {
             Symbol = symbol;
             Front = front;
@@ -345,7 +361,11 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
             EmitManifest = emitManifest;
             Emitter = emitter;
             Body = body;
+            InputRoot = inputRoot;
+            InputProfile = inputProfile;
         }
+        public string InputRoot { get; }
+        public ContentInputProfile InputProfile { get; }
         public string Site { get; }
         public string Variant { get; }
         public ITypeSymbol? Body { get; }
@@ -360,14 +380,18 @@ public sealed class StaticContentGenerator : IIncrementalGenerator
     }
     private sealed class Entry
     {
-        public Entry(string name, string id, string sourcePath, string route, bool directory)
+        public Entry(string name, string id, string sourcePath, string route, bool directory, string inputPath, ContentInputKind kind)
         {
             Name = name;
             Id = id;
             SourcePath = sourcePath;
             Route = route;
             Directory = directory;
+            InputPath = inputPath;
+            Kind = kind;
         }
+        public string InputPath { get; }
+        public ContentInputKind Kind { get; }
         public string SourcePath { get; }
         public string Name { get; }
         public string Id { get; }

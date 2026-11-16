@@ -30,6 +30,16 @@ public sealed class SiteAsset
         RelativeOutputPath = SiteRoute.NormalizeRelativeOutputPath(relativeOutputPath);
     }
 
+    /// <summary>Declares an existing image with caller supplied dimensions. Copying does not verify decoding.</summary>
+    public SiteAsset(string id, string inputRoot, string relativeInputPath, string relativeOutputPath, ImageMetadata imageMetadata)
+        : this(id, inputRoot, relativeInputPath, relativeOutputPath)
+    {
+        ArgumentNullException.ThrowIfNull(imageMetadata);
+        if (imageMetadata.Provenance != ImageMetadataProvenance.Declared)
+            throw new ArgumentException("Source declarations must use Declared image metadata.", nameof(imageMetadata));
+        ImageMetadata = imageMetadata;
+    }
+
     /// <summary>Stable asset identifier.</summary>
     public string Id { get; }
     /// <summary>Directory containing the source file.</summary>
@@ -38,6 +48,8 @@ public sealed class SiteAsset
     public string RelativeInputPath { get; }
     /// <summary>Output path before fingerprinting.</summary>
     public string RelativeOutputPath { get; }
+    /// <summary>Caller declared image metadata, or null when unknown.</summary>
+    public ImageMetadata? ImageMetadata { get; }
 }
 
 /// <summary>A URL for a registered asset.</summary>
@@ -169,11 +181,12 @@ public sealed class AssetRegistry
                 Handler = Content.SiteContentCollection.CaptureRendererIdentity(transform.Handler),
                 Validator = transform.ValidateInputs is null ? null : Content.SiteContentCollection.CaptureRendererIdentity(transform.ValidateInputs),
                 Inputs = transform.Inputs.Select(input => new { input.Id, input.RelativeInputPath, Hash = map[input.Id].Fingerprint, Url = map[input.Id].Route.PublicPath }),
-                Outputs = transform.Outputs.Select(output => new { output.Id, output.RelativeOutputPath })
+                CacheVersion = 2,
+                Outputs = transform.Outputs.Select(output => new { output.Id, output.RelativeOutputPath, output.MediaType })
             }))));
             var cachePath = cacheDirectory is null ? null : Path.Combine(Path.GetFullPath(cacheDirectory), key + ".json");
-            var bytesByOutput = cachePath is null ? null : ReadTransformCache(cachePath, key, transform);
-            if (bytesByOutput is null)
+            var cached = cachePath is null ? null : ReadTransformCache(cachePath, key, transform);
+            if (cached is null)
             {
                 executedTransforms.Add("asset-transform:" + transform.Id);
                 var context = new SiteAssetTransformContext(inputs, transform.Outputs, inputUrls);
@@ -182,18 +195,20 @@ public sealed class AssetRegistry
                 foreach (var output in transform.Outputs)
                     if (!context.Written.ContainsKey(output.Id))
                         throw new InvalidOperationException($"Transform '{transform.Id}' did not write output '{output.Id}'.");
-                bytesByOutput = context.Written;
+                cached = context.Written.ToDictionary(pair => pair.Key,
+                    pair => new CachedOutput(pair.Key, pair.Value, Convert.ToHexStringLower(SHA256.HashData(pair.Value)),
+                        CachedImageMetadata.From(context.ImageMetadata.GetValueOrDefault(pair.Key)), string.Empty), StringComparer.Ordinal);
                 if (cachePath is not null)
-                    WriteTransformCache(cachePath, key, bytesByOutput);
+                    WriteTransformCache(cachePath, key, cached);
             }
             var owner = new BuildNodeId("asset-transform:" + transform.Id);
             foreach (var output in transform.Outputs)
             {
-                var bytes = bytesByOutput[output.Id];
+                var bytes = cached[output.Id].Bytes;
                 var synthetic = new SiteAsset(output.Id, Path.GetPathRoot(Environment.CurrentDirectory)!, output.RelativeOutputPath, output.RelativeOutputPath);
                 var hash = Convert.ToHexStringLower(SHA256.HashData(bytes));
                 map.Add(output.Id, new RegisteredAsset(synthetic, bytes, hash,
-                    SiteRoute.ForFile(EscapeRoutePath(FingerprintedPath(output.RelativeOutputPath, hash)), baseUrl), output));
+                    SiteRoute.ForFile(EscapeRoutePath(FingerprintedPath(output.RelativeOutputPath, hash)), baseUrl), output, cached[output.Id].Metadata?.ToMetadata()));
             }
             nodes.Add(new BuildNode(owner,
                 transform.Inputs.Select(input => BuildInput.FromFile(input.RelativeInputPath, map[input.Id].Fingerprint))
@@ -226,7 +241,8 @@ public sealed class AssetRegistry
     }
 
     private static BuildNode CopyNode(RegisteredAsset value) => new(new BuildNodeId("asset:" + value.Asset.Id),
-        [BuildInput.FromFile(value.Asset.RelativeInputPath, value.Fingerprint)],
+        [BuildInput.FromFile(value.Asset.RelativeInputPath, value.Fingerprint),
+         BuildInput.FromConfiguration("image-metadata", JsonSerializer.Serialize(value.Asset.ImageMetadata))],
         artifacts: [new BuildArtifact(new BuildArtifactId("asset:" + value.Asset.Id), new BuildNodeId("asset:" + value.Asset.Id), value.Route.RelativeOutputPath)]);
 
     internal AssetRegistry WithGenerated(IEnumerable<SiteGeneratedAsset> declarations, string baseUrl)
@@ -299,6 +315,20 @@ public sealed class AssetRegistry
             : throw new AssetRegistryException(new SiteDiagnostic("LSA001", SiteDiagnosticSeverity.Error, $"Asset output '{output.Id}' is not registered."));
     }
 
+    /// <summary>Gets producer metadata for a registered asset, falling back to declared source facts, or null when unknown.</summary>
+    public ImageMetadata? GetImageMetadata(SiteAsset asset)
+    {
+        _ = GetUrl(asset);
+        return assets[asset.Id].Metadata ?? asset.ImageMetadata;
+    }
+
+    /// <summary>Gets image metadata associated with the registered output bytes, or null when unknown.</summary>
+    public ImageMetadata? GetImageMetadata(SiteAssetOutput output)
+    {
+        _ = GetUrl(output);
+        return assets[output.Id].Metadata;
+    }
+
     /// <summary>Read-only copy, fingerprint and transform build nodes.</summary>
     public IReadOnlyList<BuildNode> BuildNodes => CreateBuildNodes();
 
@@ -330,40 +360,54 @@ public sealed class AssetRegistry
     internal IEnumerable<(SiteAsset Asset, SiteRoute Route)> RegisteredRoutes =>
         assets.Values.Select(value => (value.Asset, value.Route));
 
-    private sealed record RegisteredAsset(SiteAsset Asset, byte[] Bytes, string Fingerprint, SiteRoute Route, SiteAssetOutput? Output = null)
+    private sealed record RegisteredAsset(SiteAsset Asset, byte[] Bytes, string Fingerprint, SiteRoute Route, SiteAssetOutput? Output = null, ImageMetadata? Metadata = null)
     {
         public string Integrity => "sha256-" + Convert.ToBase64String(Convert.FromHexString(Fingerprint));
     }
 
-    private sealed record CachedOutput(byte[] Bytes, string Hash);
+    private sealed record CachedImageMetadata(int? Width, int? Height, string? MediaType, ImageMetadataProvenance? Provenance)
+    {
+        public static CachedImageMetadata? From(ImageMetadata? value) => value is null ? null
+            : new(value.Width, value.Height, value.MediaType, value.Provenance);
+        public ImageMetadata ToMetadata() => new(Width ?? throw new ArgumentException("Missing image width."),
+            Height ?? throw new ArgumentException("Missing image height."), MediaType ?? throw new ArgumentException("Missing image media type."),
+            Provenance ?? throw new ArgumentException("Missing image provenance."));
+    }
+    private sealed record CachedOutput(string Id, byte[] Bytes, string Hash, CachedImageMetadata? Metadata, string AssociationHash);
     private sealed record TransformCache(int Version, string Key, Dictionary<string, CachedOutput> Outputs);
 
-    private static IReadOnlyDictionary<string, byte[]>? ReadTransformCache(string path, string key, SiteAssetTransform transform)
+    private static Dictionary<string, CachedOutput>? ReadTransformCache(string path, string key, SiteAssetTransform transform)
     {
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
         try
         {
             using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(Path.GetDirectoryName(path)!, path);
             var cache = JsonSerializer.Deserialize<TransformCache>(stream);
-            if (cache is null || cache.Version != 1 || cache.Key != key || cache.Outputs is null || cache.Outputs.Count != transform.Outputs.Count)
+            if (cache is null || cache.Version != 2 || cache.Key != key || cache.Outputs is null || cache.Outputs.Count != transform.Outputs.Count)
                 return null;
-            var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            var result = new Dictionary<string, CachedOutput>(StringComparer.Ordinal);
             foreach (var output in transform.Outputs)
             {
-                if (!cache.Outputs.TryGetValue(output.Id, out var entry) || entry is null || entry.Bytes is null
-                    || entry.Hash != Convert.ToHexStringLower(SHA256.HashData(entry.Bytes)))
+                if (!cache.Outputs.TryGetValue(output.Id, out var entry) || entry is null || entry.Bytes is null || entry.Id != output.Id
+                    || entry.Hash != Convert.ToHexStringLower(SHA256.HashData(entry.Bytes))
+                    || output.MediaType is not null && entry.Metadata?.MediaType != output.MediaType
+                    || entry.AssociationHash != AssociationHash(key, entry))
                     return null;
-                result.Add(output.Id, entry.Bytes);
+                _ = entry.Metadata?.ToMetadata();
+                result.Add(output.Id, entry);
             }
             return result;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
         {
             return null;
         }
     }
 
-    private static void WriteTransformCache(string path, string key, IReadOnlyDictionary<string, byte[]> outputs)
+    private static string AssociationHash(string key, CachedOutput output) => Convert.ToHexStringLower(SHA256.HashData(
+        JsonSerializer.SerializeToUtf8Bytes(new { Version = 2, Key = key, output.Id, output.Hash, output.Metadata })));
+
+    private static void WriteTransformCache(string path, string key, IReadOnlyDictionary<string, CachedOutput> outputs)
     {
         SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, path);
         var temp = path + ".tmp." + Guid.NewGuid().ToString("N");
@@ -373,8 +417,8 @@ public sealed class AssetRegistry
             SiteGenerator.EnsureContainedPathHasNoNameSurrogateReparsePoints(Path.GetPathRoot(path)!, temp);
             using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                JsonSerializer.Serialize(stream, new TransformCache(1, key, outputs.ToDictionary(pair => pair.Key,
-                    pair => new CachedOutput(pair.Value, Convert.ToHexStringLower(SHA256.HashData(pair.Value))), StringComparer.Ordinal)));
+                JsonSerializer.Serialize(stream, new TransformCache(2, key, outputs.ToDictionary(pair => pair.Key,
+                    pair => pair.Value with { AssociationHash = AssociationHash(key, pair.Value) }, StringComparer.Ordinal)));
                 stream.Flush(flushToDisk: true);
             }
             File.Move(temp, path, overwrite: true);

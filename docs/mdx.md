@@ -9,9 +9,13 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 
 ## Start a site
 
+The commands target the 3.0.0 package contract. The
+[version matrix](../eng/version-matrix.json) distinguishes the selected development
+candidate from formal release availability.
+
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker
@@ -49,7 +53,7 @@ published output.
 
 ## Markdown and MDX analysis boundaries
 
-The Syntamark 1.2.0 runtime/Source pair supplies shared Markdown front-matter
+The pinned Syntamark 2 runtime/Source pair supplies shared Markdown front-matter
 boundaries and the native Markdown path; it does not replace the MDX worker's
 JavaScript/JSX body parser. The product Markdown profile remains
 `lithosharp-markdown/1`. The header-only scan allows 1 Mi UTF-16 code units for
@@ -212,8 +216,11 @@ or presented as translated content.
 `TranslationCatalog` supplies shared C#/React UI messages with source, omit or
 error policies. Locale-specific input directories hold translated documents and
 assets. Alternate links include only published variants. Local search partitions
-documents by collection, version and locale and indexes rendered text and
-sections. Optional Algolia configuration accepts a public search-only key.
+documents by collection, version and locale. Its MDX document bodies use static
+worker text when available and rendered article text otherwise. Markdown bodies
+and all search sections use rendered article text.
+The Core site index also uses rendered article text for MDX bodies. Optional
+Algolia configuration accepts a public search-only key.
 
 `MdxBlogSite` supports multiple blogs, author/tag/archive lists, pagination and
 RSS, Atom and JSON Feed. Excerpts and feed text are explicit plain-text fields;
@@ -251,8 +258,9 @@ For a trusted project, explicitly call `DocumentationVerification.BuildApiAsync`
 after restore, then register the selected XML file with `AddXml`. Use
 `DocumentationVerification.VerifyExamplesAsync` for an existing
 Microsoft.Testing.Platform test project before importing its checked code region
-with `CodeBlock`. These operations execute project code, have a ten-minute
-timeout and do not restore dependencies. They are not automatic MDX build hooks.
+with `CodeBlock`. These operations execute project code, have no implicit time
+limit and observe caller cancellation. They do not restore dependencies and are
+not automatic MDX build hooks.
 
 ## Optional browser features
 

@@ -67,6 +67,18 @@ if (!$SkipPack) {
     $pack = [Diagnostics.ProcessStartInfo]::new($packExe)
     $pack.WorkingDirectory = $ExtensionDirectory
     $pack.UseShellExecute = $false
+    if ($IsWindows) {
+        # VSCE invokes npm through cmd.exe, which cannot retain an oversized PATH.
+        $toolDirectories = @((Split-Path -Parent $nodePath), (Join-Path $env:SystemRoot 'System32'), $env:SystemRoot)
+        foreach ($name in @('dotnet', 'git', 'pwsh')) {
+            $resolved = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($resolved) { $toolDirectories += Split-Path -Parent $resolved.Source }
+        }
+        foreach ($name in @($pack.Environment.Keys)) {
+            if ($name.Equals('PATH', [StringComparison]::OrdinalIgnoreCase)) { $null = $pack.Environment.Remove($name) }
+        }
+        $pack.Environment['PATH'] = ($toolDirectories | Select-Object -Unique) -join [IO.Path]::PathSeparator
+    }
     if (!$VsceCli) {
         # npm exec locks its cache while preparing the pinned CLI. Give only
         # this child a fresh cache, away from every packaged/uploaded tree.
@@ -111,8 +123,7 @@ if (!$SkipPack) {
     }
     foreach ($argument in ($packArguments + @('package', '--no-dependencies', '--no-update-package-json', '--out', $vsix))) { $pack.ArgumentList.Add($argument) }
     $packing = [Diagnostics.Process]::Start($pack)
-    $null = $packing.WaitForExit(600000)
-    if (!$packing.HasExited) { $packing.Kill($true); throw 'vsce packaging timed out.' }
+    $packing.WaitForExit()
     if ($packing.ExitCode -ne 0) { throw "vsce packaging failed with exit $($packing.ExitCode)." }
     $packing.Dispose()
 }
@@ -159,9 +170,6 @@ foreach ($pattern in $forbidden) {
 foreach ($required in @(
     'extension/package.json', 'extension/out/src/extension.js', 'extension/LICENSE.txt',
     'extension/resources/language-server/licenses/Syntamark.LICENSE.txt',
-    'extension/resources/language-server/licenses/YamlDotNet.LICENSE.txt',
-    'extension/resources/language-server/licenses/SkiaSharp.LICENSE.txt',
-    'extension/resources/language-server/licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt',
     'extension/resources/language-server/licenses/THIRD-PARTY-NOTICES.md',
     'extension/resources/worker/worker.mjs', 'extension/resources/worker/compiler.mjs',
     'extension/resources/worker/package.json', 'extension/resources/worker/package-lock.json',
@@ -175,10 +183,7 @@ foreach ($required in @(
     'extension/resources/language-server/worker/compiler.mjs',
     'extension/resources/language-server/worker/package.json',
     'extension/resources/language-server/worker/package-lock.json',
-    'extension/resources/language-server/worker/runtime/components.mjs',
-    'extension/resources/language-server/runtimes/win-x64/native/libSkiaSharp.dll',
-    'extension/resources/language-server/runtimes/linux-x64/native/libSkiaSharp.so',
-    'extension/resources/language-server/runtimes/osx/native/libSkiaSharp.dylib'
+    'extension/resources/language-server/worker/runtime/components.mjs'
 )) {
     if ($entries -notcontains $required) { Fail "missing required entry '$required'." }
 }

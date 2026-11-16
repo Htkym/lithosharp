@@ -1,9 +1,9 @@
 // Generate DocsSample and serve its output with serve.mjs before running this check.
 // node tests/fixtures/mdx-browser/docs.mjs http://127.0.0.1:4328
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { browserType, browserName } from './browser.mjs';
 
-const browser = await chromium.launch();
+const browser = await browserType.launch();
 const base = (process.argv[2] ?? 'http://127.0.0.1:4328/').replace(/\/?$/, '/');
 const url = new URL('posts/getting-started/installation.html', base).href;
 try {
@@ -88,7 +88,7 @@ try {
   await blocked.goto(url);
   await blocked.locator('[data-site-theme-toggle]').click();
   assert.equal(await blocked.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), 'true');
-  console.log('Docs: light/dark layouts, system preference, saved choice, blocked storage, menu, sidebar navigation, skip link, optional header search and no-JavaScript checks passed.');
+  console.log(`${browserName} Docs: light/dark layouts, system preference, saved choice, blocked storage, menu, sidebar navigation, skip link, optional header search and no-JavaScript checks passed.`);
 } finally {
   await browser.close();
 }

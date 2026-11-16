@@ -48,7 +48,7 @@ internal sealed class MarkdownFactCache(int maxEntries = 64, long maxBytes = 16 
         // Exact raw equality proves the retained TextHash without hashing a cache hit again.
         var matches = key.ScopeId == scopeId && key.SourceId == sourceId
             && key.SourceVersion == sourceVersion && key.ParserVersion == MdParserVersion.Value
-            && key.ContractVersion == "1.0" && key.ProfileId == options.ProfileId
+            && key.ContractVersion == "2.0" && key.ProfileId == options.ProfileId
             && key.OptionsHash == options.Hash
             && string.Equals(candidate.Value.Facts.RawText, raw, StringComparison.Ordinal);
         cancellationToken.ThrowIfCancellationRequested();
@@ -80,7 +80,7 @@ internal sealed class MarkdownFactCache(int maxEntries = 64, long maxBytes = 16 
             while (_bySource.Count >= _maxEntries || _retainedBytes + bytes > _maxBytes)
                 RemoveCore((_lru.Last!.Value.Key.ScopeId, _lru.Last.Value.Key.SourceId));
             var key = new Key(facts.ScopeId, facts.SourceId, facts.SourceVersion, facts.TextHash,
-                facts.ParserVersion, "1.0", "lithosharp-markdown/1", facts.OptionsHash);
+                facts.ParserVersion, facts.ContractVersion, facts.ProfileId, facts.OptionsHash);
             var node = _lru.AddFirst(new Entry(key, facts, bytes));
             _bySource.Add((facts.ScopeId, facts.SourceId), node);
             _retainedBytes += bytes;

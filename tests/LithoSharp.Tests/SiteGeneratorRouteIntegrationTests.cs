@@ -66,8 +66,7 @@ public sealed class SiteGeneratorRouteIntegrationTests
             await Assert.That(File.Exists(Path.Combine(output, "posts", $"{slug}.html"))).IsFalse();
         }
 
-        await Assert.That(Directory.EnumerateFiles(
-            Path.Combine(output, "assets", "social", "posts"), "*.png").Count()).IsEqualTo(1);
+        await Assert.That(Directory.Exists(Path.Combine(output, "assets", "social"))).IsFalse();
         var generatedText = string.Join(
             "\n",
             await Task.WhenAll(
@@ -484,8 +483,7 @@ public sealed class SiteGeneratorRouteIntegrationTests
         await Assert.That(index).Contains($"href=\"{expectedPath}\"");
         await Assert.That(html).Contains($"<link rel=\"canonical\" href=\"{expectedUrl}\">");
         await Assert.That(html).Contains($"<meta property=\"og:url\" content=\"{expectedUrl}\">");
-        await Assert.That(html).Contains(
-            "content=\"https://example.test/base%20space-%7Bbrace%7D-%7Cpipe-%5Ecaret-%60tick/assets/social/posts/1d4672db027ab34666d998b285a35426f42eaf86faafbec6f9d0138b1116f825.png\"");
+        await Assert.That(html).DoesNotContain("property=\"og:image\"");
         await Assert.That(html).DoesNotContain("base space-{brace}-|pipe-^caret-`tick");
 
         await using (var stream = File.OpenRead(Path.Combine(output, "search-index.json")))
@@ -513,47 +511,6 @@ public sealed class SiteGeneratorRouteIntegrationTests
             .IsEqualTo("/base%20space-%7Bbrace%7D-%7Cpipe-%5Ecaret-%60tick/index.html");
         await Assert.That(manifest.RootElement.GetProperty("scope").GetString())
             .IsEqualTo("/base%20space-%7Bbrace%7D-%7Cpipe-%5Ecaret-%60tick/");
-    }
-
-    [Test]
-    public async Task GenerateAsync_SameFileNameInDifferentRoutesGetsDistinctSocialImages()
-    {
-        using var workspace = new TemporaryWorkspace();
-        var faviconSource = Path.Combine(workspace.Root, "favicon");
-        await WriteFaviconAssetsAsync(faviconSource);
-        var output = Path.Combine(workspace.Root, "output");
-        var posts = new[]
-        {
-            Post("same", "First") with { RelativeOutputPath = "posts/a/same.html" },
-            Post("same", "Second") with { RelativeOutputPath = "posts/b/same.html" },
-        };
-
-        var result = await new SiteGenerator().GenerateWithOptionsAsync(
-            TestSite(),
-            posts,
-            output,
-            clean: true,
-            new SiteCustomization
-            {
-                Template = new BlogSiteTemplate(),
-                FaviconSourceDirectory = faviconSource,
-            },
-            new SiteGenerationOptions { BuildTimestamp = BuildTimestamp },
-            CancellationToken.None);
-
-        var firstPath =
-            "assets/social/posts/0d64c079d0c3efefb9b961c5ca7aff497fbedcd2347d837bd296baebea30ec5a.png";
-        var secondPath =
-            "assets/social/posts/1c34211d7760e874e88598701f35c02a0d7db22d28eb82c855a644b69a95ba92.png";
-        await Assert.That(File.Exists(Path.Combine(output, firstPath.Replace('/', Path.DirectorySeparatorChar)))).IsTrue();
-        await Assert.That(File.Exists(Path.Combine(output, secondPath.Replace('/', Path.DirectorySeparatorChar)))).IsTrue();
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "a", "same.html")))
-            .Contains($"https://example.test/{firstPath}");
-        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "posts", "b", "same.html")))
-            .Contains($"https://example.test/{secondPath}");
-        await Assert.That(result.BuildPlan.Artifacts.Count(artifact =>
-            artifact.RelativeOutputPath.StartsWith("assets/social/posts/", StringComparison.Ordinal)))
-            .IsEqualTo(2);
     }
 
     private static SiteSettings TestSite() => new()

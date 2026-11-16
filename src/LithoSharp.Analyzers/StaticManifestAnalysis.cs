@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using LithoSharp.Internal;
 using LithoSharp.Routing;
+using LithoSharp.Content;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -322,10 +323,30 @@ internal sealed class StaticManifestAnalysis
             || args[5].Kind != TypedConstantKind.Array || args[5].IsNull || args[5].Values.Any(v => v.Value is not string))
             return unavailable;
         string Scope(string name) => declaration.NamedArguments.FirstOrDefault(a => a.Key == name).Value.Value as string ?? "";
-        if (site != Scope("Site") || variant != Scope("Variant"))
+        if (!ContentInputPolicy.TryIdentity(declaration.ConstructorArguments[2].Value as string ?? "", out var collectionId)
+            || !ContentInputPolicy.TryScope(Scope("Site"), out var declaredSite)
+            || !ContentInputPolicy.TryScope(Scope("Variant"), out var declaredVariant)
+            || site != declaredSite || variant != declaredVariant)
             return unavailable;
         if (state != "Closed")
             return new("Open", site, variant, expected, "", unavailable.Paths);
+        var inputRoot = Scope("InputRoot");
+        var inputProfile = declaration.NamedArguments.FirstOrDefault(a => a.Key == "InputProfile").Value.Value as int? ?? 0;
+        // An OKF discovery manifest does not yet establish metadata validation or a Closed lookup.
+        if (inputProfile != (int)ContentInputProfile.Markdown)
+            return unavailable;
+        try
+        {
+            if (inputRoot.Length != 0)
+            {
+                _ = ContentInputPolicy.NormalizePath(inputRoot);
+                inputRoot = inputRoot.Replace('\\', '/');
+            }
+        }
+        catch (ArgumentException)
+        {
+            return unavailable;
+        }
         var current = fingerprint.Value;
         if (current is null)
             return unavailable;
@@ -335,18 +356,27 @@ internal sealed class StaticManifestAnalysis
         if (paths.Count != args[5].Values.Length)
             return unavailable;
         var declaredPaths = new HashSet<string>(StringComparer.Ordinal);
+        var declaredInputs = new Dictionary<string, (string Id, string Route)>(StringComparer.Ordinal);
+        options.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var projectDirectory);
         foreach (var file in files)
         {
+            cancellation.ThrowIfCancellationRequested();
             string Get(string key) => options.GetOptions(file).TryGetValue("build_metadata.AdditionalFiles." + key, out var value) ? value : "";
-            if (Get("LithoSharpCollection") != declaration.ConstructorArguments[2].Value as string
-                || Get("LithoSharpSite") != site || Get("LithoSharpVariant") != variant)
+            if (!ContentInputPolicy.TryIdentity(Get("LithoSharpCollection"), out var inputCollectionId) || inputCollectionId != collectionId
+                || !ContentInputPolicy.TryScope(Get("LithoSharpSite"), out var inputSite) || inputSite != site
+                || !ContentInputPolicy.TryScope(Get("LithoSharpVariant"), out var inputVariant) || inputVariant != variant)
                 continue;
             var routeText = Get("LithoSharpRoute");
             try
             {
+                var physicalSourcePath = ContentInputPolicy.ProjectRelativePath(file.Path, projectDirectory ?? "");
+                if (ContentInputPolicy.Classify(ContentInputPolicy.RelativeToDeclaredRoot(physicalSourcePath, inputRoot), ContentInputProfile.Markdown) is null)
+                    continue;
+                var sourcePath = ContentInputPolicy.NormalizePath(physicalSourcePath);
                 var route = routeText.EndsWith("/", StringComparison.Ordinal) ? SiteRoute.ForDirectoryIndex(routeText) : SiteRoute.ForFile(routeText);
-                if (!declaredPaths.Add(route.PublicPath))
+                if (!declaredPaths.Add(route.PublicPath) || declaredInputs.ContainsKey(sourcePath))
                     return unavailable;
+                declaredInputs.Add(sourcePath, (Get("LithoSharpId").Normalize(System.Text.NormalizationForm.FormC), route.PublicPath));
             }
             catch (Exception e) when (e is ArgumentException or UriFormatException)
             {
@@ -370,12 +400,17 @@ internal sealed class StaticManifestAnalysis
             return unavailable;
         var catalogModel = compilation.GetSemanticModel(catalogNode.SyntaxTree);
         if (Unwrap(catalogModel.GetOperation(catalogNode.Initializer.Value, cancellation)) is not IObjectCreationOperation catalogCreate
-            || !Named(catalogCreate.Type, "LithoSharp.Content.StaticContentCatalog") || catalogCreate.Arguments.Length != 4 || catalogCreate.Initializer is not null
+            || !Named(catalogCreate.Type, "LithoSharp.Content.StaticContentCatalog") || catalogCreate.Arguments.Length is not (4 or 6) || catalogCreate.Initializer is not null
             || Unwrap(catalogCreate.Arguments[0].Value) is not IObjectCreationOperation id
             || !Named(id.Type, "LithoSharp.Content.ContentCollectionId") || id.Arguments.Length != 1
-            || !Equals(id.Arguments[0].Value.ConstantValue.Value, declaration.ConstructorArguments[2].Value)
-            || !Equals(catalogCreate.Arguments[2].Value.ConstantValue.Value, site) || !Equals(catalogCreate.Arguments[3].Value.ConstantValue.Value, variant)
+            || !Equals(id.Arguments[0].Value.ConstantValue.Value, collectionId)
+            || !Equals(catalogCreate.Arguments[catalogCreate.Arguments.Length - 2].Value.ConstantValue.Value, site)
+            || !Equals(catalogCreate.Arguments[catalogCreate.Arguments.Length - 1].Value.ConstantValue.Value, variant)
             || Unwrap(catalogCreate.Arguments[1].Value) is not IArrayCreationOperation entries || entries.Initializer is null)
+            return unavailable;
+        if (catalogCreate.Arguments.Length == 6
+            ? !Equals(catalogCreate.Arguments[2].Value.ConstantValue.Value, inputRoot) || !Equals(catalogCreate.Arguments[3].Value.ConstantValue.Value, inputProfile)
+            : inputRoot.Length != 0)
             return unavailable;
         var actualPaths = new HashSet<string>(StringComparer.Ordinal);
         var actualEntries = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -383,7 +418,7 @@ internal sealed class StaticManifestAnalysis
         {
             cancellation.ThrowIfCancellationRequested();
             if (Unwrap(value) is not IObjectCreationOperation entry || !Named(entry.Type, "LithoSharp.Content.StaticContentCatalogEntry")
-                || entry.Arguments.Length != 3 || entry.Initializer is not null || entry.Arguments[1].Value.ConstantValue.Value is not string
+                || entry.Arguments.Length is not (3 or 5) || entry.Initializer is not null || entry.Arguments[1].Value.ConstantValue.Value is not string entrySourcePath
                 || Unwrap(entry.Arguments[2].Value) is not IInvocationOperation route
                 || !Named(route.TargetMethod.ContainingType, "LithoSharp.Routing.SiteRoute")
                 || route.Arguments[0].Value.ConstantValue.Value is not string path
@@ -395,6 +430,12 @@ internal sealed class StaticManifestAnalysis
                 return unavailable;
             try
             {
+                var relativePath = ContentInputPolicy.RelativeToRoot(entrySourcePath, inputRoot);
+                if (ContentInputPolicy.Classify(relativePath, ContentInputProfile.Markdown) != ContentInputKind.Markdown
+                    || (entry.Arguments.Length == 5
+                        ? !Equals(entry.Arguments[3].Value.ConstantValue.Value, relativePath) || !Equals(entry.Arguments[4].Value.ConstantValue.Value, (int)ContentInputKind.Markdown)
+                        : inputRoot.Length != 0))
+                    return unavailable;
                 string publicPath;
                 if (route.TargetMethod.Name == "ForFile")
                     publicPath = SiteRoute.ForFile(path).PublicPath;
@@ -402,7 +443,8 @@ internal sealed class StaticManifestAnalysis
                     publicPath = SiteRoute.ForDirectoryIndex(path).PublicPath;
                 else
                     return unavailable;
-                if (!actualPaths.Add(publicPath) || actualEntries.ContainsKey(key))
+                if (!declaredInputs.TryGetValue(entrySourcePath, out var declared) || declared.Id != key || declared.Route != publicPath
+                    || !actualPaths.Add(publicPath) || actualEntries.ContainsKey(key))
                     return unavailable;
                 actualEntries.Add(key, publicPath);
             }
@@ -411,8 +453,8 @@ internal sealed class StaticManifestAnalysis
                 return unavailable;
             }
         }
-        return actualPaths.SetEquals(paths) ? new("Closed", site, variant, expected, current, paths,
-            catalog.Property, actualEntries, (string)declaration.ConstructorArguments[2].Value!) : unavailable;
+        return actualPaths.Count == declaredInputs.Count && actualPaths.SetEquals(paths) ? new("Closed", site, variant, expected, current, paths,
+            catalog.Property, actualEntries, collectionId) : unavailable;
     }
     private static IOperation? Unwrap(IOperation? operation)
     {

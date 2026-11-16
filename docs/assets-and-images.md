@@ -53,60 +53,92 @@ regenerate. A cache is never used as output ownership evidence. Cache hits skip 
 handler. Matching staged asset bytes skip the final asset write; transaction setup
 still copies existing output into isolated staging to preserve rollback.
 
-## Responsive images
+## Existing responsive images
 
-Reference `LithoSharp.Images` at the same release as Core (2.2.0), then register
-both the source and transform:
+Core can copy JPEG, WebP, AVIF, SVG and other existing image files without decoding
+them. Responsive markup uses `ImageDescriptor` and an explicit fallback selected
+from its variants. No Images package or transform is required:
 
-```sh
-dotnet add MySite package LithoSharp.Images --version 2.2.0
+```csharp
+using LithoSharp;
+
+var small = new SiteAsset("photo-small", "assets", "photo-small.jpg", "images/photo-small.jpg",
+    new ImageMetadata(320, 160, "image/jpeg", ImageMetadataProvenance.Declared));
+var large = new SiteAsset("photo-large", "assets", "photo-large.jpg", "images/photo-large.jpg",
+    new ImageMetadata(640, 320, "image/jpeg", ImageMetadataProvenance.Declared));
+var smallSource = new ImageSource(small);
+var largeSource = new ImageSource(large);
+var picture = new ImageDescriptor([smallSource, largeSource], fallback: largeSource);
+var imageOptions = new SiteGenerationOptions { Assets = [small, large] };
+// In a layout: ResponsiveImage.Render(context.Assets, picture, "Lake at dawn")
 ```
+
+`ImageSource` also accepts an external HTTP(S) URL or a registered transform output.
+Caller-supplied dimensions have `Declared` provenance. Supported decoding and
+generation establish `Decoded` and `Generated` facts respectively; copying a file
+does not establish that it can be decoded. Unknown dimensions are omitted for a
+single image. Multiple responsive variants require known dimensions and media
+types, with distinct media-type/width pairs.
+
+`ResponsiveImage.Render` escapes alt text and attributes and emits `picture`,
+format sources, `srcset`, `sizes`, known intrinsic width/height, `decoding="async"`
+and `loading="lazy"`. Set `lazy: false` for an eager image. Rendering does not open
+a codec to discover dimensions. Register the exact declaration objects used by the
+descriptor; an unregistered alias does not become valid by supplying metadata.
+
+## Optional PNG processing
+
+Use matching Core and `LithoSharp.Images` packages when PNG processing is needed.
+Declare PNG variants with a positive width and an optional BCL `CompressionLevel`,
+then select the fallback explicitly:
 
 ```csharp
 using LithoSharp.Images;
 
+var fallback = new ImageVariant("photo-png", "images/photo.png", 640);
 var image = new ImageAsset(
-    new SiteAsset("photo", "assets", "photo.jpg", "images/original.jpg"),
-    [new ImageVariant("photo-jpeg", "images/photo.jpg", 640, ImageFormat.Jpeg),
-     new ImageVariant("photo-webp", "images/photo.webp", 640, ImageFormat.WebP)]);
-var imageOptions = new SiteGenerationOptions
+    new SiteAsset("photo", "assets", "photo.png", "images/original.png"),
+    [fallback], fallback);
+var transformed = new SiteGenerationOptions
 {
     Assets = [image.Source],
     AssetTransforms = [image.Transform],
     AssetCacheDirectory = ".lithosharp/assets"
 };
-// In a layout: ResponsiveImage.Render(context.Assets, image, "Lake at dawn")
+// ResponsiveImage.Render(context.Assets, image.Descriptor, "Lake at dawn")
 ```
 
-`ResponsiveImage.Render` encodes alt text and attributes, reads fallback dimensions,
-and produces `picture`, format sources, `srcset`, `sizes`, intrinsic width/height,
-`decoding="async"`, and `loading="lazy"`. Set `lazy: false` for an eager image.
-Each variant has an exact positive width and proportional height; quality is 0–100.
-A PNG/JPEG fallback and distinct format/width pairs are required. Unsupported or
-invalid raster inputs fail the build. SkiaSharp 4.153.1 cannot decode RAW or DNG
-images; convert those sources to PNG or JPEG before using `ImageAsset` or a site
-icon. SVG pass-through uses ordinary `SiteAsset`.
-Skia encodes PNG/JPEG/WebP without an external executable. Cache fingerprints include
-variant settings, managed/native Skia versions and runtime platform.
+The limited PNG decoder accepts noninterlaced 8-bit grayscale, RGB,
+grayscale-alpha and RGBA input. Encoding produces RGBA8 PNG. Resize preserves
+aspect ratio using premultiplied-alpha bilinear interpolation; height rounds half
+up to at least one pixel. `ImageLimits` bounds input, chunks, dimensions, pixels
+and decoded allocations. Invalid input, unsupported conversion, resource limits
+and cancellation remain distinct failures.
 
-AVIF requires an explicitly configured, trusted `avifenc`:
+Palette/16-bit/Adam7 PNG, animation, EXIF orientation, non-sRGB color management,
+JPEG/WebP/AVIF conversion, SVG rasterization and text drawing are unsupported.
+Keep these as existing assets or provide pre-generated variants. The
+[Images package guide](../src/LithoSharp.Images/README.md) lists the exact PNG
+profile, pixel operations and explicit background/logo composition API.
 
-```csharp
-var encoder = new ExternalAvifEncoder("/opt/libavif/bin/avifenc",
-    dependencyFingerprint: "libavif-1.3.0+aom-3.12.1", timeout: TimeSpan.FromMinutes(2));
-var avifImage = new ImageAsset(image.Source,
-    [image.Variants[0], new ImageVariant("photo-avif", "images/photo.avif", 640, ImageFormat.Avif)], encoder);
-```
+Transform metadata is associated with output identity and byte hashes in the
+versioned cache. Missing, invalid or mismatched metadata causes regeneration;
+cache hits retain the same dimensions, media type and provenance.
 
-Use the versions actually installed in the dependency fingerprint. No PATH search,
-download or shell command is performed. The adapter hashes executable bytes and
-fixed encoder settings, checks tool replacement even on a cache hit, bounds process
-execution and accepts only an AVIF-branded output container. Recreate the encoder
-and image declarations after changing the tool or codec libraries. See the official
-[avifenc manual](https://github.com/AOMediaCodec/libavif/blob/main/doc/avifenc.1.md).
-Core generation never requires this tool. The
-[Docs sample](../samples/LithoSharp.DocsSample/README.md) provides
-`--asset-demo --check` for public files and PNG/WebP variants:
+## Social images and migration
+
+Set `SiteGenerationOptions.CommonSocialImage` for a shared existing image, or
+`SocialImages` for overrides keyed by relative page output path. Registered PNG
+composition results can use the same `ImageSource` contract. A favicon does not
+implicitly generate a social image.
+
+Migrate old format/quality overloads to PNG `CompressionLevel` settings or
+pre-generated files. `ExternalAvifEncoder` is removed. Replace
+`SiteThemeOptions.DefaultSocialSubtitle` and implicit social-generation flags
+with explicit images; title-bearing images must be prepared in advance.
+
+The [Docs sample](../samples/LithoSharp.DocsSample/README.md) provides
+`--asset-demo --check` for public files and PNG transforms:
 
 ```sh
 dotnet run --project samples/LithoSharp.DocsSample -- --asset-demo --check --output .local/assets-site

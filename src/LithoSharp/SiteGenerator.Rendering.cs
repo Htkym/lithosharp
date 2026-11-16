@@ -4,8 +4,12 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
-    internal static string BuildThemeToggle() => """
-        <button class="site-theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" data-site-theme-toggle hidden>
+    internal static RenderContext ForPageLanguage(RenderContext configuration, string? locale) =>
+        SiteText.IsJapanese(locale) && ReferenceEquals(configuration.Text, SiteText.English)
+            ? configuration with { Text = SiteText.Japanese } : configuration;
+
+    internal static string BuildThemeToggle(string? locale = null) => $"""
+        <button class="site-theme-toggle" type="button" aria-label="{SiteText.Label(locale, "Dark mode")}" aria-pressed="false" data-site-theme-toggle hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg>
         </button>
         """;
@@ -20,10 +24,18 @@ public sealed partial class SiteGenerator
         DateTimeOffset? publishedAt,
         bool docs,
         bool includeBlogNavigation,
-        Pages.PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
+        Pages.PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true, ImageMetadata? socialImageMetadata = null)
     {
+        var socialImageAlt = SiteText.IsJapanese(metadata?.Language) ? configuration.Site.Title + "のプレビュー画像"
+            : configuration.Site.Title + " social preview";
         var seo = SeoComponent.RenderCore(configuration.Site.Title, fullTitle, description,
-            canonicalUrl, openGraphType, socialImageUrl, $"{configuration.Site.Title} social preview", publishedAt);
+            canonicalUrl, openGraphType, socialImageUrl, socialImageAlt, publishedAt);
+        if (socialImageUrl is not null && socialImageMetadata is not null)
+        {
+            seo += $"  <meta property=\"og:image:type\" content=\"{Html.Encode(socialImageMetadata.MediaType)}\">\n"
+                + $"  <meta property=\"og:image:width\" content=\"{socialImageMetadata.Width.ToString(System.Globalization.CultureInfo.InvariantCulture)}\">\n"
+                + $"  <meta property=\"og:image:height\" content=\"{socialImageMetadata.Height.ToString(System.Globalization.CultureInfo.InvariantCulture)}\">\n";
+        }
         if (metadata?.NoIndex == true)
             seo += "  <meta name=\"robots\" content=\"noindex\">\n";
         if (metadata is not null)
@@ -34,7 +46,8 @@ public sealed partial class SiteGenerator
             BuildGoogleAnalyticsSnippet(configuration),
             !docs && includeBlogNavigation ? configuration.Routes.PublicPath(configuration.Routes.Feed) : null,
             includeDefaultScript && (docs || includeBlogNavigation) ? configuration.Routes.PublicPath(configuration.Routes.SiteScript) : null,
-            docs, configuration.Theme.EnableThemeSwitching);
+            docs, configuration.Theme.EnableThemeSwitching,
+            HasExternalThemeRestoration(configuration) ? configuration.Routes.PublicPath(configuration.Routes.ThemeRestorationScript) : null);
     }
     internal static string RenderTemplateTableOfContents(
         RenderContext configuration,
@@ -107,13 +120,13 @@ public sealed partial class SiteGenerator
             openGraphType, publishedAt, socialImageUrl, includeBlogNavigation, metadata);
     }
 
-    internal static string BuildSiteHeader(RenderContext configuration, bool includeNavigation = true)
+    internal static string BuildSiteHeader(RenderContext configuration, bool includeNavigation = true, string? locale = null)
     {
         var homePath = configuration.Routes.PublicPath(configuration.Routes.Home);
         if (!includeNavigation)
         {
             return BlogHeaderComponent.RenderCore(configuration.Site.Title, homePath,
-                string.Empty, string.Empty, false, configuration.Text, configuration.Theme.EnableThemeSwitching);
+                string.Empty, string.Empty, false, configuration.Text, configuration.Theme.EnableThemeSwitching, locale);
         }
         var archivesPath = configuration.Routes.PublicPath(configuration.Routes.Archives);
         var tagsPath = configuration.Routes.PublicPath(configuration.Routes.Tags);
@@ -121,9 +134,9 @@ public sealed partial class SiteGenerator
         var feedPath = configuration.Routes.PublicPath(configuration.Routes.Feed);
         var navLinks = new List<(string Label, string Url, string? CssClass, bool IsCurrent)>
         {
-            ("Home", homePath, "site-nav-home", false),
-            ("Archives", archivesPath, null, false),
-            ("Tags", tagsPath, null, false),
+            (SiteText.Label(locale, "Home"), homePath, "site-nav-home", false),
+            (SiteText.Label(locale, "Archives"), archivesPath, null, false),
+            (SiteText.Label(locale, "Tags"), tagsPath, null, false),
         };
         foreach (var extraPage in configuration.ExtraPages)
         {
@@ -143,7 +156,7 @@ public sealed partial class SiteGenerator
             navLinks.Add((page.Metadata.Title!, configuration.Routes.PublicPath(page.Route), null, false));
         }
 
-        navLinks.Add(("Search", searchPath, null, false));
+        navLinks.Add((SiteText.Label(locale, "Search"), searchPath, null, false));
         navLinks.Add(("RSS", feedPath, "rss-nav-link", false));
         var navHtml = NavigationComponent.RenderCore(navLinks);
         return BlogHeaderComponent.RenderCore(
@@ -152,7 +165,7 @@ public sealed partial class SiteGenerator
             navHtml,
             SearchFormComponent.RenderCore(configuration, searchPath),
             includeNavigation,
-            configuration.Text, configuration.Theme.EnableThemeSwitching);
+            configuration.Text, configuration.Theme.EnableThemeSwitching, locale);
     }
 
 }

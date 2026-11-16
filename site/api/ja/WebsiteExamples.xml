@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<doc>
+  <assembly><name>LithoSharp.Website</name></assembly>
+  <members>
+    <member name="T:LithoSharp.Website.Examples.WebsiteExamples">
+      <summary>公開するスニペットと、明示的に対応付けたテストで共有する関数です。</summary>
+    </member>
+    <member name="M:LithoSharp.Website.Examples.WebsiteExamples.HasPublishedVersion(System.Boolean,System.String)">
+      <summary>公開するコンテンツについて、明示的に渡した対応バージョンを確認します。</summary>
+      <param name="draft">公開を無効にするかどうかを示します。</param>
+      <param name="supportedVersion">宣言した製品のバージョンです。</param>
+      <returns>下書き、または空白ではないバージョンを持つ文書なら true を返します。</returns>
+    </member>
+  </members>
+</doc>

@@ -11,7 +11,7 @@ generated binders; this page covers runtime loading and generation.
 
 For Docs presentation with the existing sidebar, TOC and previous/next links,
 use [`RenderDocs`](docs-template.md#typed-content-and-the-docs-shell) on the loaded
-collection. The LithoSharp 2.2.0 Docs template supplies this path;
+collection. The LithoSharp 3.0.0 Docs template supplies this path;
 see [Quick Start](quickstart.md) for matching compiler/runtime inputs and Quality.
 
 ## Site generation integration
@@ -60,6 +60,69 @@ content, relevant configuration, and resolved dependency fingerprints.
 Missing declared files fail explicitly before output mutation. Social-image
 paths use SHA-256 of the normalized output route, so changing a source file
 without changing its route does not rename the asset.
+
+## Markdown profiles and static components
+
+Set `SiteGenerationOptions.Markdown` to choose body interpretation. Front matter
+continues to use native YAML and is separated before parsing the body.
+
+```csharp
+var markdown = new MarkdownOptions
+{
+    ProfileId = MarkdownOptions.DocumentationProfile,
+    Components = new MarkdownComponentRegistry([
+        MarkdownComponentRegistration.Create("version-badge",
+            new VersionBadgeComponent(), GeneratedVersionBadges.Binder,
+            "version-badge:v1")
+    ])
+};
+```
+
+The complete props model, generated binder declaration, and encoded HTML
+component are in the [Docs sample](../samples/LithoSharp.DocsSample/MarkdownComponents.cs)
+and its [models](../samples/LithoSharp.DocsSample/SampleModels.cs).
+The sample registers them in `SiteGenerationOptions.Markdown` and runs without Node.js.
+
+| Profile | Body behavior |
+|---|---|
+| `lithosharp-markdown/1` | Existing extension behavior and heading text policy; footnotes remain literal with diagnostics. This is the default. |
+| `commonmark/0.31.2` | CommonMark interpretation without documentation extensions. HTML is encoded by the site renderer. |
+| `syntamark-docs/2` | Documentation extensions, resolved footnotes with repeated-reference backlinks, and explicit static components. |
+
+```markdown
+:::component name="version-badge" version="3.0" stability="Stable"
+:::
+```
+
+Components accept literal attribute values and an empty body. The `name`
+attribute selects the registration; use a different `ContentName` for a props
+member otherwise named `name`. Braces are ordinary string data. Required,
+unknown, enum, and scalar props use the registered binder, and diagnostics retain
+attribute locations. Ordinary containers such as `:::feature` keep their existing
+behavior. Unregistered explicit components fail with `LSM020`; malformed
+invocations use `LSM021`. Generated schema providers enable static editor checks
+without executing binders or components. A custom binder without a schema is
+reported as requiring a build (`LSM022`).
+
+Declare every captured value, file, and registered asset consumed by a component.
+File dependencies require an explicit `dependencyRoot`. Change
+`configurationFingerprint` when captured configuration changes. Registrations,
+implementation identities, schemas, declared inputs, and the selected profile
+participate in generation cache keys.
+
+For a document-reference prop, pass a common rule such as
+`semanticRules: new([DocumentSemanticRule.Reference("target")])` to the registration.
+Its literal document ID is resolved in the current collection, version, and locale.
+`DocumentationSite` supplies the captured current document and reference universe;
+components can read `context.Document` and `context.DocumentSemantics` to render
+the resolved route. Missing, unpublished, and out-of-scope targets retain the
+same structured diagnostics as document metadata rules. Unavailable context
+remains deferred during editing and fails rendering with `LSM024`.
+
+Changing a profile can change interpretation and heading anchors. Keep the last
+published compatibility manifest, inspect the generated pages, and run
+[`check-output` publication comparison](site-quality.md) before publishing the new output.
+The selected profile also invalidates parser and output caches.
 
 ## Generated aggregate pages
 
@@ -204,8 +267,20 @@ Typed Markdown loading uses these deterministic rules:
   mappings bind to compatible `Dictionary<string, T>` abstractions or nested
   front-matter objects.
 - Property and field names use snake_case by default.
-  `YamlMemberAttribute.Alias` overrides the generated name, and
-  `YamlIgnoreAttribute` excludes a member.
+  `[ContentName("custom_name")]` overrides the generated name, and
+  `[ContentIgnore]` excludes a member. Both attributes are in `LithoSharp.Content`.
+
+YAML syntax comes from Syntamark's `native-yaml/1` profile. Typed runtime and
+compiler inputs use the same explicit nesting limit of 64, with the native
+defaults for other limits: 4 MiB UTF-8, 1 Mi UTF-16 code units, 131,072 nodes,
+1 Mi UTF-16 code units per scalar, and 16,777,216 scan units. Unsupported
+anchors, aliases, explicit tags, directives, complex keys and merge expansion
+produce diagnostics. A literal `<<` string key is allowed. Partial or limited
+parses are rejected before required-member or unknown-field validation.
+Native scalar classification preserves quoted strings and never infers dates.
+Typed binders explicitly convert decoded text to the declared CLR type, including
+quoted boolean and numeric text; numeric formats, overflow and nonfinite values
+follow the existing invariant .NET target conversion rules.
 
 `ReflectionContentFrontMatterBinder<TFrontMatter>` requires a public
 parameterless constructor for reference types. `LithoSharp.Generators` already
@@ -215,6 +290,30 @@ the Docs sample does. Static checks cover explicitly registered compiler
 inputs; runtime loading still checks the content it actually discovers.
 Set `rejectUnknownFields` to `false` only for an intentionally extensible
 schema.
+
+### Reader, writer and attribute migration
+
+Replace `[YamlMember(Alias = "custom_name")]` with
+`[ContentName("custom_name")]` and `[YamlIgnore]` with `[ContentIgnore]`.
+YamlDotNet attributes and its serializer configuration are no longer used.
+
+`MarkdownFrontMatterYaml.Deserialize<T>` now accepts a DTO mapping supported by
+`ReflectionContentFrontMatterBinder<T>`, with its public parameterless
+constructor, snake_case names, required/nullability checks, and unknown-field
+rejection. Replace camelCase YAML keys with snake_case or declare `ContentName`.
+Scalar, sequence, dictionary and untyped `object` roots are not generic reader
+targets; use Syntamark's `YamlParser` and native nodes for untyped documents.
+Invalid or unsupported YAML and binding failures throw `FormatException`;
+unsupported target types throw `NotSupportedException`. The dedicated
+`Deserialize(string)` post reader retains its legacy unknown-field ignoring.
+
+`Serialize(PostFrontMatter)` creates new YAML in a fixed order with LF line
+endings and quotes strings, dates and numeric-looking text. Optional null
+publication/sidebar values are omitted. This writer does not retain an existing
+document's comments, spelling or bytes. For unedited standalone YAML, use
+Syntamark `YamlParser.ParseUtf8` and `YamlDocument.GetOriginalUtf8`; keep the
+original Markdown bytes separately when preserving its header and body together.
+There is no general formatting-preserving edit API.
 
 ## Diagnostics and failure behavior
 
@@ -226,9 +325,16 @@ diagnostics. Invalid API configuration and cancellation still throw; user
 callbacks can also throw. A failed load has no usable collection, even when
 some entries were individually valid.
 
-The editor's syntax support does not execute arbitrary C# constructors,
-setters or validators. Custom schemas are checked by the compiler and runtime
-loader, not per keystroke. `NoContext` means project-bound schema/route evidence
+The editor does not execute arbitrary C# constructors, getters, setters or
+validators. After an explicit Build or Inspect acquires versioned generated
+schema metadata, supported custom field, type, required, enum and literal
+conditional checks run statically on the current native YAML snapshot.
+Initializer-dependent requirements and custom code still require a build.
+`FrontMatterSchemas.For<T>` reads metadata without constructing T or reading its
+property values; `Required` describes explicit static requirements and
+`RequiresBuildValidation` marks constraints that metadata cannot establish.
+See [editor schema snapshots](language-server.md#markdown-symbols-and-unavailable-analysis).
+`NoContext` means project-bound schema/route evidence
 is unavailable; `Partial` means analysis is incomplete. Neither state establishes
 that the content is valid. Typed-reference contradiction checks also need a
 complete, current (`Closed`) catalog; dynamic routes remain unproven.

@@ -7,6 +7,24 @@ namespace LithoSharp;
 /// </summary>
 public sealed record SiteText
 {
+    internal static bool IsJapanese(string? locale) => string.Equals(locale, "ja", StringComparison.OrdinalIgnoreCase)
+        || locale?.StartsWith("ja-", StringComparison.OrdinalIgnoreCase) == true;
+
+    internal static string Label(string? locale, string english) => !IsJapanese(locale) ? english : english switch
+    {
+        "Skip to main content" => "本文へ移動",
+        "Dark mode" => "ダークモード",
+        "Home" => "ホーム",
+        "Archives" => "アーカイブ",
+        "Tags" => "タグ",
+        "Search" => "検索",
+        "Documentation navigation" => "文書ナビゲーション",
+        "Document navigation" => "前後の文書",
+        "Previous" => "前へ",
+        "Next" => "次へ",
+        _ => english,
+    };
+
     /// <summary>Label for the menu toggle button.</summary>
     public string MenuLabel { get; init; } = "Menu";
 
@@ -33,6 +51,15 @@ public sealed record SiteText
 
     /// <summary>Message shown when there are no posts.</summary>
     public string IndexEmpty { get; init; } = "No posts yet.";
+
+    /// <summary>Heading for the generated 404 page.</summary>
+    public string NotFoundTitle { get; init; } = "Page not found";
+
+    /// <summary>Description for the generated 404 page.</summary>
+    public string NotFoundDescription { get; init; } = "The page you requested could not be found.";
+
+    /// <summary>Home link label on the generated 404 page.</summary>
+    public string NotFoundHomeLinkLabel { get; init; } = "Return to the home page";
 
     /// <summary>"Latest post" heading.</summary>
     public string LatestPostHeading { get; init; } = "Latest post";
@@ -136,6 +163,9 @@ public sealed record SiteText
         TableOfContentsEmpty = "本文の見出しはありません。",
         IndexLede = "LithoSharp で構築した静的サイトです。",
         IndexEmpty = "まだ記事はありません。",
+        NotFoundTitle = "ページが見つかりません",
+        NotFoundDescription = "お探しのページは見つかりませんでした。",
+        NotFoundHomeLinkLabel = "ホームに戻る",
         LatestPostHeading = "最新の記事",
         OlderPostsHeading = "過去記事",
         OlderPostsEmpty = "過去記事はまだありません。",

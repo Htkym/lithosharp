@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "467182a52221cc50fd93f31135002dea1a48a26e04ee5618817a3a0531f33fa3": {
+      "english": "The exact captured text, version and hash to which Location applies; this is not proof about a later buffer.",
+      "japanese": "Location が対象とする取得時点の正確なテキスト、バージョン、ハッシュです。後の時点のバッファーの内容を証明するものではありません。",
+      "contexts": [
+        "P:LithoSharp.Inspection.ApiChangeImpact.Document/summary"
+      ]
+    },
+    "6e96d380c2863a9fe90dd4f9a8fc793246c12e44368d072e56c824f2d714f2b6": {
+      "english": "Use an acquired reference/catalog snapshot in which the selected APIs resolve, captured before removal for removed APIs. This reads only captured buffers, never executes snippets and never extracts API uses from C# or prose. Results describe the captured document versions and hashes, not current files.",
+      "japanese": "選択した API を解決できる、取得済みの参照・カタログのスナップショットを使ってください。削除された API については、削除前のスナップショットが必要です。取得済みのバッファーだけを読み取ります。スニペットの実行や、C# または文章からの API 使用箇所の抽出は行いません。結果が表すのは取得した文書のバージョンとハッシュであり、現在のファイルではありません。",
+      "contexts": [
+        "M:LithoSharp.Inspection.DocumentReferenceSnapshot.FindApiImpacts(System.Collections.Generic.IReadOnlyDictionary{LithoSharp.Documentation.DocumentKey,System.Collections.Generic.IReadOnlyList{LithoSharp.Documentation.ApiChange}},System.Collections.Generic.IEnumerable{LithoSharp.Documentation.DocumentSnippet},System.Threading.CancellationToken)/remarks"
+      ]
+    },
+    "76130d17c638daef9a80e1fef944486a2b4c837154c88e035a915464fe2e09f3": {
+      "english": "A parsed guide reference or explicitly mapped snippet affected by selected API changes.",
+      "japanese": "選択した API の変更によって影響を受ける、解析済みのガイド参照または明示的に対応付けたスニペットです。",
+      "contexts": [
+        "T:LithoSharp.Inspection.ApiChangeImpact/summary"
+      ]
+    },
+    "a31020861abb845234bbe812cd96eb6467ee1cd172a8d3d85bbe6a078685c5da": {
+      "english": "Caller-declared exact API variants used by this example. No C# API usage is inferred.",
+      "japanese": "呼び出し側が宣言した、この例で使う API の正確なバリアントです。C# から API の使用を推測しません。",
+      "contexts": [
+        "P:LithoSharp.Documentation.DocumentSnippet.ApiReferences/summary"
+      ]
+    },
+    "ae9492cc2a734e093310c65b98de49d3c42f0a0f1c88ace5e2eb6fcef46b0f1e": {
+      "english": "Null for a guide link; otherwise the explicitly mapped fence ID.",
+      "japanese": "ガイドのリンクの場合は null、それ以外は明示的に対応付けたフェンスの ID です。",
+      "contexts": [
+        "P:LithoSharp.Inspection.ApiChangeImpact.SnippetId/summary"
+      ]
+    },
+    "d3745af2c1fc5d518e3af501615ac558b318dce6e2b992dab6ef6fd5a83d952d": {
+      "english": "Known impacts plus scopes requiring manual analysis; absence is not proof that an API is unused.",
+      "japanese": "検出した影響と、手作業で調査する必要がある範囲です。影響が見つからないことだけでは、その API が使われていないとは判断できません。",
+      "contexts": [
+        "T:LithoSharp.Inspection.ApiChangeImpactReport/summary"
+      ]
+    },
+    "e8fa8a0156d3030db0ff8542619a01b63e27f2594223f71fb4ff9547b5c11552": {
+      "english": "Finds native parsed links and caller-declared snippet API uses for exact API variant keys.",
+      "japanese": "完全に一致する API バリアントのキーを基に、ライブラリの構文解析で得たリンクと、呼び出し側が宣言したスニペットでの API 使用を探します。",
+      "contexts": [
+        "M:LithoSharp.Inspection.DocumentReferenceSnapshot.FindApiImpacts(System.Collections.Generic.IReadOnlyDictionary{LithoSharp.Documentation.DocumentKey,System.Collections.Generic.IReadOnlyList{LithoSharp.Documentation.ApiChange}},System.Collections.Generic.IEnumerable{LithoSharp.Documentation.DocumentSnippet},System.Threading.CancellationToken)/summary"
+      ]
+    }
+  }
+}

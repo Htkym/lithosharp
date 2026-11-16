@@ -280,7 +280,8 @@ if (installed) {
     'return new SiteDefinition(new SiteSettings { Title="Installed VSIX fixture", BaseUrl="https://example.com/", Language="en", TimeZone="UTC" }, posts) { OutputDirectory="dist" };',
     '} }',
   ].join('\n'));
-  await fs.writeFile(path.join(workspace, 'content', 'hello.md'), '---\ntitle: Installed fixture\ndate: 2024-01-01\n---\n# Installed fixture\n\ninstalled-vsix-fixture-marker\n');
+  await fs.writeFile(path.join(workspace, 'content', 'hello.md'), '---\ntitle: Installed fixture\ndate: 2024-01-01\n---\n# Installed fixture\n\ninstalled-vsix-fixture-marker\n\n[First reference](./target.md#target-heading)\n[Second reference](./target.md#target-heading)\n');
+  await fs.writeFile(path.join(workspace, 'content', 'target.md'), '---\ntitle: Reference target\ndate: 2024-01-02\n---\n# Target heading\n\nReference destination.\n');
   settings['lithosharp.cliPath'] = tool;
   await fs.writeFile(path.join(userData, 'User', 'settings.json'), JSON.stringify(settings));
   packageProvenance = { version: packageVersion, feed, packageHashes, tool, shimHash: await fileHash(tool),
@@ -314,7 +315,7 @@ if (installed) {
     { env: { ...process.env, ...isolatedEnv }, windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
 }
 const result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
-assert.ok(result.started && result.finished && result.tests === (installed ? 5 : 3), 'Test runner did not execute the complete acceptance suite.');
+assert.ok(result.started && result.finished && result.tests === (installed ? 7 : 3), 'Test runner did not execute the complete acceptance suite.');
 assert.equal(result.failures, 0);
 assert.equal(result.passes, result.tests, 'Pending/skipped cases do not satisfy installed-package validation.');
 console.log(JSON.stringify({ mode: installed ? 'installed-vsix-package-only' : 'source', platform: process.platform,

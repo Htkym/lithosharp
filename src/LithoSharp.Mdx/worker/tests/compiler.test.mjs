@@ -634,6 +634,67 @@ async function workerFixture(prefix, sources, overrides = {}) {
   }, dispose: () => rm(root, {recursive: true, force: true})};
 }
 
+test('shared component overrides preserve unrelated browser entries during local edits', async () => {
+  const fixture = await workerFixture('lithosharp-override-reuse-', {
+    'one.mdx': '# One\n\nOriginal body.', 'two.mdx': '# Two\n\nUnrelated body.'
+  }, {componentsModule: './overrides.jsx', hydration: 'selective'});
+  try {
+    await writeFile(path.join(fixture.projectRoot, 'label.js'), `export const label='override-first';`);
+    await writeFile(path.join(fixture.projectRoot, 'Local.jsx'), `export default function Local(){return <span>Local component</span>}`);
+    await writeFile(path.join(fixture.projectRoot, 'overrides.jsx'),
+      `import {useState} from 'react';import {usePageContext} from '@lithosharp/runtime';import {label} from './label.js';
+      function Paragraph({children}){const [n,set]=useState(0);const page=usePageContext();return <p data-page={page.title} data-label={label} onClick={()=>set(n+1)}>{children} {n}</p>}
+      export const named='direct-override-name';export const unusedPrivate='OVERRIDE_PRIVATE_CANARY';export default {p:Paragraph};`);
+    const initial = await fixture.run();
+    assert.deepEqual(initial.rebundledPages, ['one.mdx', 'two.mdx']);
+    assert.ok(initial.pages.every(page => page.hydration === 'page' && page.html.includes('override-first')));
+    assert.ok(initial.assets.filter(asset => asset.path.endsWith('.js'))
+      .every(asset => !Buffer.from(asset.bytes, 'base64').toString().includes('OVERRIDE_PRIVATE_CANARY')));
+    const noop = await fixture.run();
+    assert.deepEqual(noop.rebundledPages, []);
+    assert.equal(noop.workMetrics.browserBuildInvocations, 0);
+
+    fixture.request.sources['one.mdx'] += '\n\nChanged body.';
+    await writeFile(path.join(fixture.projectRoot, 'one.mdx'), fixture.request.sources['one.mdx']);
+    const body = await fixture.run();
+    assert.deepEqual(body.rebundledPages, ['one.mdx']);
+    assert.equal(body.workMetrics.browserEntryBuildAttempts, 1);
+    assert.equal(body.pages[1].entry, initial.pages[1].entry);
+    assert.equal(body.pages[1].html, initial.pages[1].html);
+    const initialAssets = new Map(initial.assets.map(asset => [asset.path, asset.hash]));
+    assert.equal(body.assets.find(asset => asset.path === body.pages[1].entry).hash, initialAssets.get(initial.pages[1].entry));
+
+    fixture.request.sources['one.mdx'] = `import Local from './Local.jsx'\n\n${fixture.request.sources['one.mdx']}\n\n<Local />`;
+    await writeFile(path.join(fixture.projectRoot, 'one.mdx'), fixture.request.sources['one.mdx']);
+    const local = await fixture.run();
+    assert.deepEqual(local.rebundledPages, ['one.mdx']);
+    assert.equal(local.pages[1].entry, body.pages[1].entry);
+    assert.ok(local.pages[0].html.includes('Local component'));
+
+    fixture.request.pages[0].props = {frontMatter: {label: 'changed-props'}};
+    const props = await fixture.run();
+    assert.deepEqual(props.rebundledPages, ['one.mdx']);
+    assert.equal(props.pages[1].entry, local.pages[1].entry);
+
+    await writeFile(path.join(fixture.projectRoot, 'label.js'), `export const label='override-second';`);
+    const shared = await fixture.run();
+    assert.deepEqual(shared.rebundledPages, ['one.mdx', 'two.mdx']);
+    assert.equal(shared.workMetrics.browserEntryBuildAttempts, 2);
+    assert.ok(shared.pages.every(page => page.html.includes('override-second')));
+    assert.equal(shared.assets.filter(asset => asset.path.endsWith('.js')
+      && Buffer.from(asset.bytes, 'base64').toString().includes('override-second')).length, 1);
+    const withoutProof = await fixture.run({resolutionFingerprint: undefined});
+    assert.deepEqual(withoutProof.rebundledPages, ['one.mdx', 'two.mdx']);
+    fixture.request.sources['one.mdx'] = `import {named} from './overrides.jsx'\n${fixture.request.sources['one.mdx']}\n\n{named}`;
+    await writeFile(path.join(fixture.projectRoot, 'one.mdx'), fixture.request.sources['one.mdx']);
+    const direct = await fixture.run();
+    assert.deepEqual(direct.rebundledPages, ['one.mdx', 'two.mdx']);
+    assert.ok(direct.pages[0].html.includes('direct-override-name'));
+    assert.ok(direct.assets.filter(asset => asset.path.endsWith('.js'))
+      .every(asset => !Buffer.from(asset.bytes, 'base64').toString().includes('OVERRIDE_PRIVATE_CANARY')));
+  } finally {await fixture.dispose();}
+});
+
 test('render cache hashes shared rewritten asset closures and reuses scratch safely', async () => {
   const fixture = await workerFixture('lithosharp-asset-base-', {'one.mdx': `import Image from './Image.jsx';\n\n<Image />`, 'two.mdx': `import Image from './Image.jsx';\n\n<Image />`});
   try {

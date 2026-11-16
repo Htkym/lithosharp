@@ -3,6 +3,7 @@
 .mdx-tabs [role=tablist]{display:flex;gap:.25rem;flex-wrap:wrap;border-bottom:1px solid currentColor}
 .mdx-tabs [role=tab]{padding:.5rem 1rem;background:transparent;color:inherit;border:1px solid transparent;cursor:pointer}
 .mdx-tabs [aria-selected=true]{border-bottom:3px solid #5272c9}.mdx-tabs [role=tabpanel]{padding:1rem}
+@media(scripting:none){.mdx-tabs [role=tabpanel][hidden]{display:block}.mdx-tabs [role=tablist]{display:none}}
 .mdx-code{position:relative;margin:1rem 0;border:1px solid #8886;border-radius:.3rem;overflow:hidden}
 .mdx-code figcaption{padding:.5rem 1rem;font-weight:600}.mdx-code pre{margin:0;padding:1rem;overflow:auto;tab-size:4}
 .mdx-copy{position:absolute;inset-block-start:.2rem;inset-inline-end:.2rem;cursor:pointer}

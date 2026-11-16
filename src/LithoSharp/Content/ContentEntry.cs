@@ -23,6 +23,8 @@ public sealed class ContentEntry<TFrontMatter, TBody>
 
     internal Compilation.DocumentSource? BodySource { get; init; }
 
+    internal LocatedYamlMapping? FrontMatterValues { get; init; }
+
     /// <summary>Additional dependencies specific to this entry.</summary>
     public IReadOnlyList<ContentDependency> DeclaredDependencies
     {
@@ -32,6 +34,14 @@ public sealed class ContentEntry<TFrontMatter, TBody>
 
     /// <summary>Discovery surfaces for this entry. Direct publication is controlled separately by metadata.</summary>
     public GeneratedPageDerivedSurfaces DerivedSurfaces { get; init; } = GeneratedPageDerivedSurfaces.All;
+
+    /// <summary>The explicitly selected input policy, independent of the Markdown body profile.</summary>
+    public ContentInputProfile InputProfile { get; init; } = ContentInputProfile.Markdown;
+
+    /// <summary>The role assigned by the selected input policy.</summary>
+    public ContentInputKind InputKind { get; init; } = ContentInputKind.Markdown;
+
+    internal IReadOnlyList<OpenKnowledge.OkfLink> InputRelations { get; init; } = [];
 
     public ContentEntry(
         ContentEntryId id,

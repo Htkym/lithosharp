@@ -30,10 +30,6 @@ public sealed class BlogSampleFactory : ISiteFactory
         var customization = new SiteCustomization
         {
             Template = new BlogSiteTemplate(),
-            Theme = new SiteThemeOptions
-            {
-                DefaultSocialSubtitle = "Built with LithoSharp"
-            },
             GenerateLlmsTxt = true
         };
 

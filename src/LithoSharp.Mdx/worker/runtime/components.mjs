@@ -77,7 +77,6 @@ export function Tabs({children, defaultValue, groupId, queryString, values, ...p
     if (groupId) document.dispatchEvent(new CustomEvent('lithosharp:tab', {detail: {group: groupId, value}}));
   }
   return h('div', {className: 'mdx-tabs'},
-    h('noscript', null, h('style', null, '.mdx-tabs [role="tabpanel"][hidden]{display:block}.mdx-tabs [role="tablist"]{display:none}')),
     h('div', {role: 'tablist', 'aria-label': props['aria-label'] ?? groupId ?? 'Content tabs'}, choices.map((choice, index) =>
       h('button', {type: 'button', role: 'tab', id: `${id}-tab-${index}`, key: choice.value,
         'aria-controls': `${id}-panel-${index}`, 'aria-selected': selected === choice.value, tabIndex: selected === choice.value ? 0 : -1,

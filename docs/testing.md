@@ -1,9 +1,13 @@
 # Testing sites
 
-This page describes LithoSharp.Testing 2.2.0. Install it alongside matching LithoSharp packages. When updating from the 1.x `Document` getter, also read the [upgrade notes](migration-2.0.md) for the source and binary breaking change.
+This page describes LithoSharp.Testing 3.0.0. Use matching LithoSharp packages and
+check the [version matrix](../eng/version-matrix.json) for publication state.
+For 3.0 changes, read [migration](migration-3.0.md). When updating from the 1.x
+`Document` getter, the [historical 2.x notes](migration-2.0.md) retain that earlier
+source and binary breaking change.
 
 ```sh
-dotnet add package LithoSharp.Testing --version 2.2.0
+dotnet add package LithoSharp.Testing --version 3.0.0
 ```
 
 `LithoSharp.Testing` provides framework-independent assertions and read-only HTML snapshots. It parses HTML without launching a browser, executing scripts, or making network requests. See [the v2 snapshot/query contract and migration examples](Testing-v2-api.md) for the declared selector grammar.

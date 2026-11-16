@@ -15,8 +15,23 @@ public static class GeneratedSiteInspector
     /// <param name="baseUrl">The published absolute HTTP or HTTPS site URL, including its base path.</param>
     /// <param name="cancellationToken">Cancels reading and inspection.</param>
     /// <returns>Fresh diagnostics for the current output. This does not establish source freshness or asset ownership.</returns>
-    public static async Task<SiteQualityReport> InspectAsync(
+    public static Task<SiteQualityReport> InspectAsync(
         string outputDirectory, string baseUrl, CancellationToken cancellationToken = default)
+        => InspectCoreAsync(outputDirectory, baseUrl, null, [], cancellationToken);
+
+    /// <summary>Inspects output and captures a candidate publication manifest without writing or promoting a baseline.</summary>
+    /// <remarks>Exclusions are exact normalized output-relative file paths. The supplied base URL is retained verbatim as comparison identity.</remarks>
+    public static Task<SiteQualityReport> InspectPublicationAsync(string outputDirectory, string baseUrl,
+        string siteId, IEnumerable<string> excludedOutputPaths, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(siteId);
+        ArgumentNullException.ThrowIfNull(excludedOutputPaths);
+        return InspectCoreAsync(outputDirectory, baseUrl, siteId,
+            SitePublicationManifest.ValidateExclusions(excludedOutputPaths), cancellationToken);
+    }
+
+    private static async Task<SiteQualityReport> InspectCoreAsync(string outputDirectory, string baseUrl,
+        string? siteId, IReadOnlyList<string> exclusions, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
@@ -54,6 +69,9 @@ public static class GeneratedSiteInspector
             routes, new HashSet<string>(StringComparer.Ordinal), redirects, new(), cancellationToken,
             sharedFacts: facts).ConfigureAwait(false);
         CheckRedirectGraph();
+        var publication = siteId is null || report.Diagnostics.Concat(redirectDiagnostics).Any(diagnostic => diagnostic.Severity >= SiteDiagnosticSeverity.Error)
+            ? null : await SitePublicationManifest.CaptureAsync(
+            root, baseUrl, siteId, exclusions, routes, report.HtmlReferences, redirects, inspected, cancellationToken).ConfigureAwait(false);
         if (!paths.SequenceEqual(EnumerateFiles(root, cancellationToken), StringComparer.Ordinal))
             throw new IOException("The output file inventory changed during inspection.");
         foreach (var artifact in inspected.Values)
@@ -65,6 +83,7 @@ public static class GeneratedSiteInspector
         return new SiteQualityReport(report.Diagnostics.Concat(redirectDiagnostics))
         {
             HtmlParseCount = facts.Counters.ParseCount,
+            PublicationManifest = publication,
         };
 
         async Task<string> Read(string path, CancellationToken token)
@@ -168,7 +187,7 @@ public static class GeneratedSiteInspector
         return files.Order(StringComparer.Ordinal).ToArray();
     }
 
-    private static void EnsureEntryType(string path, bool directory)
+    internal static void EnsureEntryType(string path, bool directory)
     {
         if (OperatingSystem.IsWindows())
             return;
@@ -232,7 +251,7 @@ public static class GeneratedSiteInspector
     [DllImport("libSystem.B.dylib", EntryPoint = "lstat", SetLastError = true)]
     private static extern int DarwinLStatArm64([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out DarwinFileType status);
 
-    private static void EnsureSafeAncestors(string path)
+    internal static void EnsureSafeAncestors(string path)
     {
         for (DirectoryInfo? current = new(path); current is not null; current = current.Parent)
             if (current.Exists)

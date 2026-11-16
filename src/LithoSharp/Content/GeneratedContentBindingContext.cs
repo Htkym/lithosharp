@@ -15,6 +15,7 @@ public sealed class GeneratedContentBindingContext
     private readonly SiteSourceLocation? location;
     private readonly string fieldPath;
     private readonly bool rejectUnknownFields;
+    private readonly HashSet<(string Field, string Condition, string Expected)> conditionalChecks = [];
 
     /// <summary>Starts a binding operation over parsed front matter.</summary>
     /// <exception cref="ArgumentNullException">The values are null.</exception>
@@ -66,6 +67,43 @@ public sealed class GeneratedContentBindingContext
             Add(ContentFrontMatterDiagnosticIds.MissingRequiredField,
                 $"Required front matter field '{yamlName}' is missing.", location);
         }
+    }
+
+    /// <summary>Checks a declarative conditional requirement against the original parsed values.</summary>
+    public void ValidateRequiredWhen(string yamlName, string conditionField, string expectedValue)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(yamlName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(conditionField);
+        ArgumentNullException.ThrowIfNull(expectedValue);
+        if (!conditionalChecks.Add((yamlName, conditionField, expectedValue))
+            || !Values.TryGetValue(conditionField, out var condition) || !ConditionalMatches(condition, expectedValue))
+            return;
+        Values.TryGetValue(yamlName, out var value);
+        if (ConditionalMissing(value))
+            Add(ContentFrontMatterDiagnosticIds.ConditionalRequiredField,
+                $"Field '{yamlName}' is required when '{conditionField}' equals '{expectedValue}'.",
+                Values.ContainsKey(yamlName) ? ValueLocation(yamlName) : location);
+    }
+
+    internal static bool ConditionalMatches(object? value, string expectedValue)
+    {
+        value = LocatedYamlValue.Unwrap(value);
+        var literal = value switch
+        {
+            string text => text,
+            bool boolean => boolean ? "true" : "false",
+            byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal => Convert.ToString(value, CultureInfo.InvariantCulture),
+            _ => null,
+        };
+        return literal is not null && string.Equals(literal, expectedValue, StringComparison.Ordinal);
+    }
+
+    internal static bool ConditionalMissing(object? value)
+    {
+        value = LocatedYamlValue.Unwrap(value);
+        return value is null || value is string text && string.IsNullOrWhiteSpace(text)
+            || value is IReadOnlyList<object?> { Count: 0 } || value is IReadOnlyDictionary<string, object?> { Count: 0 }
+            || value is ICollection { Count: 0 };
     }
 
     /// <summary>Records an expected validation exception from a generated property assignment.</summary>
@@ -130,7 +168,8 @@ public sealed class GeneratedContentBindingContext
         var success = true;
         foreach (var item in sequence)
         {
-            var child = At($"{fieldPath}[{value.Count}]", location);
+            var child = At($"{fieldPath}[{value.Count}]",
+                input is LocatedYamlSequence located ? located.GetItemLocation(value.Count) : location);
             success &= child.ConvertValue(item, elementAllowsNull, parser, out var converted);
             value.Add(converted);
         }

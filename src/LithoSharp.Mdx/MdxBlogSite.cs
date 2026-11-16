@@ -184,7 +184,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
             foreach (var (file, content) in new[] { ("atom.xml", ToLfXml(atomFeed)), ("rss.xml", ToLfXml(rss)), ("feed.json", json) })
                 assets.Add(new("blog:" + blog.Id + ":" + file, blog.RoutePrefix.Trim('/') + "/" + file, Encoding.UTF8.GetBytes(content)));
         }
-        return new() { ContentCollections = collections, Assets = assets, Diagnostics = prepared.Diagnostics };
+        return prepared with { ContentCollections = collections, Assets = assets };
     }
     private static string Profile(MdxBlogCollection blog, string id, string baseUrl)
     {

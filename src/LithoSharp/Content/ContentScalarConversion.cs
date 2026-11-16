@@ -7,6 +7,11 @@ internal static class ContentScalarConversion
 {
     internal static bool TryConvertScalar(object input, Type targetType, out object? converted)
     {
+        if (input is IEnumerable && input is not string)
+        {
+            converted = null;
+            return false;
+        }
         var text = input as string ?? Convert.ToString(input, CultureInfo.InvariantCulture);
         if (text is null)
         {

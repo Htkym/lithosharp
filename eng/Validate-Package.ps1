@@ -99,14 +99,11 @@ $requiredMetadata = if ($isMarkdownComponent) { @('README.md', 'LICENSE', 'markd
 foreach ($required in $requiredMetadata) {
     if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
 }
-# Bundled third-party assemblies retain exact upstream redistribution notices.
-if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Tool') -or
-    ($PackageId -eq 'LithoSharp.Analyzers' -and $packageEntries -contains 'analyzers/dotnet/cs/YamlDotNet.dll')) {
+# Bundled runtime and portable source retain exact upstream notices.
+if ($PackageId -in @('LithoSharp.Generators', 'LithoSharp.Analyzers', 'LithoSharp.Tool')) {
     $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $prefix = if ($PackageId -eq 'LithoSharp.Tool') { 'tools/net10.0/any/licenses/' } else { 'licenses/' }
-    $notices = if ($PackageId -eq 'LithoSharp.Tool') {
-        @('Syntamark.LICENSE.txt', 'YamlDotNet.LICENSE.txt', 'SkiaSharp.LICENSE.txt', 'SkiaSharp.THIRD-PARTY-NOTICES.txt')
-    } else { @('Syntamark.LICENSE.txt', 'YamlDotNet.LICENSE.txt') }
+    $notices = @('Syntamark.LICENSE.txt')
     $noticeArchive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
     try {
         foreach ($name in @($notices) + @('THIRD-PARTY-NOTICES.md')) {
@@ -164,11 +161,7 @@ if ($nuspecDependencies.Count -gt 0 -and $nuspecDependencies.id -contains 'Markd
 if ($isMarkdownComponent) {
     & node (Join-Path $repo 'eng/markdown/Verify-FixedPair.mjs') verify-fixed-package $package.FullName
     if ($LASTEXITCODE -ne 0) { throw 'Fixed Markdown artifact/source verification failed.' }
-    if ($PackageId -eq 'Syntamark') {
-        if ($nuspecDependencies.Count -ne 1 -or $nuspecDependencies[0].id -cne 'YamlDotNet' -or $nuspecDependencies[0].version -cne '[18.1.0]') {
-            throw 'Fixed Markdown runtime requires exactly YamlDotNet [18.1.0].'
-        }
-    } elseif ($nuspecDependencies.Count -ne 0) { throw 'Markdown source hosts must declare dependencies themselves.' }
+    if ($nuspecDependencies.Count -ne 0) { throw 'Fixed Markdown runtime and Source artifacts must have no package dependencies.' }
     Write-Host "Validated fixed Markdown component: $($package.Name)"
     return
 }
@@ -185,7 +178,7 @@ if ($PackageId -eq 'LithoSharp.Analyzers') {
     foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Analyzers.dll', 'analyzers/dotnet/cs/LithoSharp.Analyzers.xml')) {
         if ($packageEntries -notcontains $required) { throw "Analyzer package is missing required entry: $required" }
     }
-    if ($nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -match '^lib/' -or ($_ -like '*.dll' -and $_ -notin @('analyzers/dotnet/cs/LithoSharp.Analyzers.dll', 'analyzers/dotnet/cs/YamlDotNet.dll')) }).Count -ne 0) {
+    if ($nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -match '^lib/' -or ($_ -like '*.dll' -and $_ -cne 'analyzers/dotnet/cs/LithoSharp.Analyzers.dll') }).Count -ne 0) {
         throw 'Analyzer package contains a runtime dependency or unexpected assembly payload.'
     }
     Write-Host "Validated analyzer package contents: $($package.Name)"
@@ -231,10 +224,12 @@ if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing', 'LithoSharp.Mdx'
     return
 }
 if ($PackageId -eq 'LithoSharp.Generators') {
-    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/LithoSharp.Generators.xml', 'analyzers/dotnet/cs/YamlDotNet.dll', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
+    foreach ($required in @('analyzers/dotnet/cs/LithoSharp.Generators.dll', 'analyzers/dotnet/cs/LithoSharp.Generators.xml', 'buildTransitive/LithoSharp.Generators.props', 'README.md')) {
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
     }
-    if ($packageEntries | Where-Object { $_ -like 'lib/*' }) { throw 'Generator package must not add runtime library references.' }
+    if ($nuspecDependencies.Count -ne 0 -or @($packageEntries | Where-Object { $_ -like 'lib/*' -or ($_ -like '*.dll' -and $_ -cne 'analyzers/dotnet/cs/LithoSharp.Generators.dll') }).Count -ne 0) {
+        throw 'Generator package must contain only its compiler assembly and no runtime dependencies.'
+    }
     Write-Host "Validated package contents: $($package.Name)"
     return
 }
@@ -255,7 +250,7 @@ if ($symbolsEntries -notcontains 'lib/net10.0/LithoSharp.pdb') {
 }
 
 $dependencyIds = @($nuspec.package.metadata.dependencies.group.dependency.id)
-foreach ($expected in @('SkiaSharp', 'SkiaSharp.NativeAssets.Linux.NoDependencies', 'YamlDotNet', 'Syntamark')) {
+foreach ($expected in @('Syntamark')) {
     if ($dependencyIds -notcontains $expected) {
         throw "Package metadata is missing dependency: $expected"
     }

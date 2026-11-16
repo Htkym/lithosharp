@@ -29,6 +29,7 @@ export interface FakeVscode {
   shown: number;
   lines: string[];
   commands: Map<string, (...args: unknown[]) => Promise<unknown>>;
+  editorProviders: Map<string, unknown>;
   window: {
     createOutputChannel(name: string): { appendLine(line: string): void; show(preserveFocus?: boolean): void; dispose(): void };
     onDidChangeActiveTextEditor(listener: () => void): FakeDisposable;
@@ -39,6 +40,8 @@ export interface FakeVscode {
       dispose(): void;
     };
     showQuickPick<T>(items: T[]): Promise<T | undefined>;
+    showInputBox(options?: unknown): Promise<string | undefined>;
+    showWarningMessage(message: string, options?: unknown, ...items: string[]): Promise<string | undefined>;
   };
   commandsApi: {
     registerCommand(id: string, handler: (...args: unknown[]) => Promise<unknown>): FakeDisposable;
@@ -61,11 +64,19 @@ export interface FakeVscode {
   languages: {
     createDiagnosticCollection(name: string): { set(uri: unknown, diagnostics: unknown[]): void; delete(uri: unknown): void; clear(): void; dispose(): void };
     registerDocumentSymbolProvider(selector: unknown, provider: unknown): FakeDisposable;
+    registerCompletionItemProvider(selector: unknown, provider: unknown, ...triggers: string[]): FakeDisposable;
+    registerHoverProvider(selector: unknown, provider: unknown): FakeDisposable;
+    registerDefinitionProvider(selector: unknown, provider: unknown): FakeDisposable;
+    registerReferenceProvider(selector: unknown, provider: unknown): FakeDisposable;
+    registerRenameProvider(selector: unknown, provider: unknown): FakeDisposable;
   };
   Uri: { parse(value: string): { toString(): string }; file(value: string): { toString(): string } };
   Range: new (startLine: number, startChar: number, endLine: number, endChar: number) => { start: { line: number; character: number }; end: { line: number; character: number } };
+  Location: new (uri: unknown, range: unknown) => {uri: unknown; range: unknown};
+  WorkspaceEdit: new () => {changes: unknown[]; replace(uri: unknown, range: unknown, text: string, metadata?: unknown): void};
   Diagnostic: new (range: unknown, message: string, severity: number) => { range: unknown; message: string; severity: number };
   DiagnosticSeverity: { Error: number; Warning: number; Information: number; Hint: number };
+  MarkdownString: new () => { value: string; appendText(text: string): { value: string } };
   SymbolKind: { Namespace: number };
   DocumentSymbol: new (
     name: string,
@@ -91,6 +102,7 @@ export function createFakeVscode(): FakeVscode {
     shown: 0,
     lines: [],
     commands: new Map(),
+    editorProviders: new Map(),
     window: {
       createOutputChannel(_name: string) {
         const disposable = trackDisposable();
@@ -126,6 +138,8 @@ export function createFakeVscode(): FakeVscode {
         return list[Math.min(fake.pickedIndex, list.length - 1)];
       },
       onDidChangeActiveTextEditor: () => trackDisposable(),
+      showInputBox: async () => undefined,
+      showWarningMessage: async () => undefined,
     },
     commandsApi: {
       executeCommand: async (id: string) => fake.commands.get(id)?.(),
@@ -168,6 +182,11 @@ export function createFakeVscode(): FakeVscode {
         dispose: () => {},
       }),
       registerDocumentSymbolProvider: (_selector: unknown, _provider: unknown) => trackDisposable(),
+      registerCompletionItemProvider: (_selector: unknown, _provider: unknown) => trackDisposable(),
+      registerHoverProvider: (_selector: unknown, _provider: unknown) => trackDisposable(),
+      registerDefinitionProvider: (_selector, provider) => { fake.editorProviders.set('definition', provider); return trackDisposable(); },
+      registerReferenceProvider: (_selector, provider) => { fake.editorProviders.set('references', provider); return trackDisposable(); },
+      registerRenameProvider: (_selector, provider) => { fake.editorProviders.set('rename', provider); return trackDisposable(); },
     },
     Uri: {
       file: (value: string) => ({ toString: () => pathToFileURL(value).toString() }),
@@ -183,6 +202,13 @@ export function createFakeVscode(): FakeVscode {
         this.end = { line: endLine, character: endChar };
       }
     },
+    Location: class {
+      constructor(public uri: unknown, public range: unknown) {}
+    },
+    WorkspaceEdit: class {
+      changes: unknown[] = [];
+      replace(uri: unknown, range: unknown, text: string, metadata?: unknown) { this.changes.push({uri, range, text, metadata}); }
+    },
     Diagnostic: class {
       range: unknown;
       message: string;
@@ -194,6 +220,10 @@ export function createFakeVscode(): FakeVscode {
       }
     },
     DiagnosticSeverity: { Error: 1, Warning: 2, Information: 3, Hint: 4 },
+    MarkdownString: class {
+      value = '';
+      appendText(text: string) { this.value += text; return this; }
+    },
     SymbolKind: { Namespace: 3 },
     DocumentSymbol: class {
       name: string;
@@ -216,6 +246,8 @@ export function createFakeVscode(): FakeVscode {
   extended['onDidCloseTextDocument'] = (_listener: unknown) => trackDisposable();
   extended['onDidDeleteFiles'] = (_listener: unknown) => trackDisposable();
   extended['onDidRenameFiles'] = (_listener: unknown) => trackDisposable();
+  extended['onWillRenameFiles'] = (_listener: unknown) => trackDisposable();
+  extended['applyEdit'] = async () => true;
   extended['createFileSystemWatcher'] = () => ({ dispose() {}, onDidChange: () => trackDisposable(),
     onDidCreate: () => trackDisposable(), onDidDelete: () => trackDisposable() });
   return fake;
@@ -223,6 +255,8 @@ export function createFakeVscode(): FakeVscode {
 
 /** Installs the fake as the 'vscode' module for CJS requires. */
 export function installFakeVscode(fake: FakeVscode): void {
+  // Providers also bind vscode at module load, so each fake owns a fresh binding.
+  delete require.cache[require.resolve('../../src/referenceProviders.js')];
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Module = require('node:module') as {
     _load(request: string, ...args: unknown[]): unknown;
@@ -250,13 +284,18 @@ export function installFakeVscode(fake: FakeVscode): void {
       onDidCloseTextDocument: extended['onDidCloseTextDocument'],
       onDidDeleteFiles: extended['onDidDeleteFiles'],
       onDidRenameFiles: extended['onDidRenameFiles'],
+      onWillRenameFiles: extended['onWillRenameFiles'],
+      applyEdit: extended['applyEdit'],
       createFileSystemWatcher: extended['createFileSystemWatcher'],
     },
     languages: fake.languages,
     Uri: fake.Uri,
     Range: fake.Range,
+    Location: fake.Location,
+    WorkspaceEdit: fake.WorkspaceEdit,
     Diagnostic: fake.Diagnostic,
     DiagnosticSeverity: fake.DiagnosticSeverity,
+    MarkdownString: fake.MarkdownString,
     SymbolKind: fake.SymbolKind,
     DocumentSymbol: fake.DocumentSymbol,
     StatusBarAlignment: fake.StatusBarAlignment,

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "publicationState": "development-candidate-not-published",
+  "lithosharpTarget": "3.0.0",
+  "languageServerTarget": "3.0.0",
+  "vscodeExtensionTarget": "0.5.0",
+  "syntamarkTarget": "2.0.0",
+  "selectedSyntamarkCandidate": "2.0.0-preview.2026111303",
+  "selectedPairManifest": "eng/markdown/component-pair.json",
+  "coreApiCompatibilityBaseline": "2.2.0",
+  "toolingProtocol": "1.0",
+  "performanceBaselineCommit": "b6e315db13a5b07ddd77696c9c0a5eefe6e9341f"
+}

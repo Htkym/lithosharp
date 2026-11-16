@@ -7,6 +7,5 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Syntamark.Source" Version="[$(SyntamarkComponentVersion)]" PrivateAssets="all" IncludeAssets="build" />
-    <PackageReference Include="YamlDotNet" Version="[18.1.0]" PrivateAssets="all" />
   </ItemGroup>
 </Project>

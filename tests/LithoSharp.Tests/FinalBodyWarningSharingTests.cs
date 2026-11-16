@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
@@ -37,18 +39,64 @@ public sealed class FinalBodyWarningSharingTests
 
         var warm = await GenerateAsync(generator, post, output, clean: false, clean.BuildPlan);
 
-        // Diagnostic-bearing results are shared within a build, but the v2
-        // persistent parse cache deliberately cannot represent their diagnostics.
-        await Assert.That(generator.MarkdownCompiler.ParseCount).IsEqualTo(2);
+        // Verified page nodes retain diagnostics without caching diagnostic-bearing body HTML.
+        await Assert.That(generator.MarkdownCompiler.ParseCount).IsEqualTo(1);
         await Assert.That(warm.BuildReport.CacheMissCount).IsEqualTo(0);
         await Assert.That(WarningSnapshot(warm)).IsEqualTo(WarningSnapshot(clean));
 
         var freshGenerator = new SiteGenerator();
         var fresh = await GenerateAsync(freshGenerator, post, output, clean: false, warm.BuildPlan);
 
-        await Assert.That(freshGenerator.MarkdownCompiler.ParseCount).IsEqualTo(1);
+        await Assert.That(freshGenerator.MarkdownCompiler.ParseCount).IsEqualTo(0);
         await Assert.That(fresh.BuildReport.CacheMissCount).IsEqualTo(0);
         await Assert.That(WarningSnapshot(fresh)).IsEqualTo(WarningSnapshot(clean));
+        await Assert.That(await cache.ReadPostParseAsync(generator.MarkdownCompiler.Fingerprint,
+            MarkdownDocumentFingerprints.SourceHash(body), body.Length, CancellationToken.None)).IsNull();
+    }
+
+    [Test]
+    [Arguments("missing")]
+    [Arguments("wrong-snapshot")]
+    [Arguments("wrong-body-hash")]
+    public async Task LegacyPostRegeneratesWhenCachedDiagnosticEvidenceDoesNotMatchItsInput(string corruption)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        const string body = "\uFEFF\r\n\r\n## Final 😀\r\n\r\nSee [^note] and $x$.\r\n";
+        var post = Post(body);
+        var clean = await GenerateAsync(new SiteGenerator(), post, output, clean: true);
+        var articlePath = Path.Combine(output, "posts", "post.html");
+        var article = await File.ReadAllBytesAsync(articlePath);
+        await Assert.That(CompilerWarnings(clean).Length).IsEqualTo(2);
+        await RewriteCachedPostDiagnosticsAsync(output, corruption);
+
+        var generator = new SiteGenerator();
+        var repaired = await GenerateAsync(generator, post, output, clean: false, clean.BuildPlan);
+
+        await Assert.That(generator.MarkdownCompiler.ParseCount).IsEqualTo(1);
+        var pageNode = repaired.BuildReport.Nodes.Single(node => node.NodeId == "page:markdown:posts/post.html");
+        await Assert.That(pageNode.CacheHit).IsFalse();
+        await Assert.That(pageNode.CacheMissReason).IsEqualTo(corruption switch
+        {
+            "missing" => "The Markdown diagnostic outcome is unavailable.",
+            "wrong-snapshot" => "The post Markdown diagnostic snapshot does not match its input.",
+            "wrong-body-hash" => "The post Markdown body fingerprint does not match its input.",
+            _ => throw new ArgumentOutOfRangeException(nameof(corruption)),
+        });
+        await Assert.That(repaired.BuildReport.Nodes.Single(node => node.NodeId == "asset:site-css").CacheHit).IsTrue();
+        await Assert.That(WarningSnapshot(repaired)).IsEqualTo(WarningSnapshot(clean));
+        await Assert.That(await File.ReadAllBytesAsync(articlePath)).IsEquivalentTo(article);
+        var partition = SiteGenerator.MeasureCache(output).CacheDirectory;
+        var cache = new SiteBuildCache(Path.GetDirectoryName(partition)!, Path.GetFileName(partition));
+        await Assert.That(await cache.ReadPostParseAsync(generator.MarkdownCompiler.Fingerprint,
+            MarkdownDocumentFingerprints.SourceHash(body), body.Length, CancellationToken.None)).IsNull();
+
+        var freshGenerator = new SiteGenerator();
+        var reused = await GenerateAsync(freshGenerator, post, output, clean: false, repaired.BuildPlan);
+
+        await Assert.That(freshGenerator.MarkdownCompiler.ParseCount).IsEqualTo(0);
+        await Assert.That(reused.BuildReport.CacheMissCount).IsEqualTo(0);
+        await Assert.That(WarningSnapshot(reused)).IsEqualTo(WarningSnapshot(clean));
     }
 
     [Test]
@@ -146,6 +194,13 @@ public sealed class FinalBodyWarningSharingTests
         var html = await File.ReadAllTextAsync(Path.Combine(output, "posts", "post.html"));
         await Assert.That(html).Contains("A replacement without unsupported syntax.");
         await Assert.That(html).DoesNotContain("[^original]");
+
+        var freshGenerator = new SiteGenerator();
+        var fresh = await GenerateAsync(freshGenerator, replaced, output, clean: false, result.BuildPlan);
+
+        await Assert.That(freshGenerator.MarkdownCompiler.ParseCount).IsEqualTo(0);
+        await Assert.That(fresh.BuildReport.CacheMissCount).IsEqualTo(0);
+        await Assert.That(WarningSnapshot(fresh)).IsEqualTo(WarningSnapshot(result));
     }
 
     [Test]
@@ -217,6 +272,71 @@ public sealed class FinalBodyWarningSharingTests
 
     private static string WarningSnapshot(SiteGenerationResult result) =>
         JsonSerializer.Serialize(CompilerWarnings(result));
+
+    private static async Task RewriteCachedPostDiagnosticsAsync(string output, string corruption)
+    {
+        const string manifestName = ".lithosharp-output-manifest.json";
+        const string nodeId = "page:markdown:posts/post.html";
+        var outputManifestPath = Path.Combine(output, manifestName);
+        var outputManifest = JsonNode.Parse(await File.ReadAllBytesAsync(outputManifestPath))!;
+        var digest = outputManifest["buildCache"]!.GetValue<string>();
+        var partition = SiteGenerator.MeasureCache(output).CacheDirectory;
+        var cache = new SiteBuildCache(Path.GetDirectoryName(partition)!, Path.GetFileName(partition));
+        var original = await cache.LoadAsync(digest, CancellationToken.None);
+        var originalOutcome = original[nodeId].CollectionDiagnostics
+            ?? throw new InvalidOperationException("Expected a known legacy post diagnostic outcome.");
+        await Assert.That(originalOutcome.Diagnostics.Count).IsEqualTo(2);
+        var manifest = JsonNode.Parse(await File.ReadAllBytesAsync(Path.Combine(partition, "builds", digest + ".json")))!;
+        var page = manifest["Nodes"]!.AsArray().Single(node => node!["NodeId"]!.GetValue<string>() == nodeId)!;
+        var wrongIdentity = originalOutcome.Diagnostics[0].SnapshotIdentity == new string('f', 64)
+            ? new string('e', 64) : new string('f', 64);
+        switch (corruption)
+        {
+            case "missing":
+                page.AsObject().Remove("CollectionDiagnostics");
+                break;
+            case "wrong-snapshot":
+                page["CollectionDiagnostics"]!["Diagnostics"]![0]!["SnapshotIdentity"] = wrongIdentity;
+                break;
+            case "wrong-body-hash":
+                page["Inputs"]!.AsArray().Single(input => input!["Key"]!.GetValue<string>() == "page.body")!["Value"] =
+                    MarkdownDocumentFingerprints.ExactBodyCacheHash("A different valid body.");
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(corruption));
+        }
+
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
+        var changedDigest = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        await File.WriteAllBytesAsync(Path.Combine(partition, "builds", changedDigest + ".json"), bytes);
+        var changed = await cache.LoadAsync(changedDigest, CancellationToken.None);
+        await Assert.That(changed.Count).IsEqualTo(original.Count);
+        if (corruption == "missing")
+            await Assert.That(changed[nodeId].CollectionDiagnostics).IsNull();
+        else if (corruption == "wrong-snapshot")
+        {
+            await Assert.That(changed[nodeId].CollectionDiagnostics!.IsValid()).IsTrue();
+            await Assert.That(changed[nodeId].CollectionDiagnostics!.Diagnostics[0].SnapshotIdentity).IsEqualTo(wrongIdentity);
+        }
+        else
+        {
+            await Assert.That(changed[nodeId].Inputs.Single(input => input.Key == "page.body").Value)
+                .IsNotEqualTo(original[nodeId].Inputs.Single(input => input.Key == "page.body").Value);
+            await Assert.That(changed[nodeId].NodeKey).IsEqualTo(original[nodeId].NodeKey);
+        }
+
+        outputManifest["buildCache"] = changedDigest;
+        var outputBytes = JsonSerializer.SerializeToUtf8Bytes(outputManifest);
+        await File.WriteAllBytesAsync(outputManifestPath, outputBytes);
+        // Preserve ownership integrity so the test reaches diagnostic admission, not manifest rejection.
+        var ownershipPath = Directory.EnumerateFiles(Path.GetDirectoryName(output)!, ".lithosharp-ownership-*.json")
+            .Single(path => !Path.GetFileName(path).StartsWith(".lithosharp-ownership-pending-", StringComparison.Ordinal));
+        var ownership = JsonNode.Parse(await File.ReadAllBytesAsync(ownershipPath))!;
+        var ownedManifest = ownership["artifacts"]!.AsArray()
+            .Single(artifact => artifact!["path"]!.GetValue<string>() == manifestName)!;
+        ownedManifest["sha256"] = Convert.ToHexStringLower(SHA256.HashData(outputBytes));
+        await File.WriteAllBytesAsync(ownershipPath, JsonSerializer.SerializeToUtf8Bytes(ownership));
+    }
 
     private static async Task AssertWarningPositionAsync(
         SiteGenerationResult result, MarkdownPost post, string id, string marker)

@@ -2,15 +2,17 @@
 
 [日本語](golden-path.ja.md)
 
-The following workflows use LithoSharp 2.2.0 and extension 0.4.0.
+The following workflows target LithoSharp 3.0.0 and extension 0.5.0.
+Check the [version matrix](../eng/version-matrix.json) before installation;
+candidate validation does not establish formal package publication.
 Each workflow explains when dependencies are restored and project code runs.
-For existing sites, follow the [upgrade guide](migration-2.0.md).
+For existing sites, follow the [upgrade guide](migration-3.0.md).
 
 ## Markdown-only site
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -62,7 +64,7 @@ Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?item
 code --install-extension htkym.lithosharp
 ```
 
-Install the .NET 10 runtime for the bundled language server and the LithoSharp.Tool 2.2.0 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
+Install the .NET 10 runtime for the bundled language server and LithoSharp.Tool 3.0.0 with the .NET 10 SDK for builds. Run `LithoSharp: Select Project`, `LithoSharp: Build`, and `LithoSharp: Open Preview`. MDX diagnostics also require Node.js 24.13.0 and `LithoSharp: Restore MDX Worker`. Untrusted workspaces support detection only. See the [extension guide](../extensions/lithosharp-vscode/README.md) for settings and troubleshooting.
 
 ## Multi-root workspace
 

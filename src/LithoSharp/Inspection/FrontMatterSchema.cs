@@ -15,7 +15,8 @@ public sealed class FrontMatterFieldInfo
         bool deprecated,
         string? deprecationMessage,
         string? description,
-        IReadOnlyList<FrontMatterFieldInfo> fields)
+        IReadOnlyList<FrontMatterFieldInfo> fields,
+        bool requiresBuildValidation = false)
     {
         Key = key;
         Type = type;
@@ -27,6 +28,7 @@ public sealed class FrontMatterFieldInfo
         DeprecationMessage = deprecationMessage;
         Description = description;
         Fields = Array.AsReadOnly(fields.ToArray());
+        RequiresBuildValidation = requiresBuildValidation;
     }
 
     public string Key { get; }
@@ -48,6 +50,9 @@ public sealed class FrontMatterFieldInfo
     public string? Description { get; }
 
     public IReadOnlyList<FrontMatterFieldInfo> Fields { get; }
+
+    /// <summary>Whether runtime defaults or member code can add constraints unavailable to static inspection.</summary>
+    public bool RequiresBuildValidation { get; }
 }
 
 public sealed class FrontMatterSchema
@@ -75,6 +80,9 @@ public sealed class FrontMatterSchema
     public bool RejectUnknownFields { get; }
 
     public IReadOnlyList<FrontMatterFieldInfo> Fields { get; }
+
+    /// <summary>Static metadata does not execute constructors, getters, setters, or custom validation.</summary>
+    public bool RequiresBuildValidation => !IsBuiltIn || Fields.Any(member => member.RequiresBuildValidation);
 }
 
 public static class FrontMatterSchemas
@@ -85,7 +93,7 @@ public static class FrontMatterSchemas
     public static FrontMatterSchema Post { get; } =
         new ReflectionContentFrontMatterBinder<PostFrontMatter>().DescribeSchema("post", isBuiltIn: true);
 
-    /// <summary>Requires a public parameterless constructor; duplicate YAML member names or an unconstructible type fail.</summary>
+    /// <summary>Requires a public parameterless constructor but does not invoke it, getters or setters. Runtime-dependent required values remain build-required.</summary>
     public static FrontMatterSchema For<TFrontMatter>()
         where TFrontMatter : notnull =>
         new ReflectionContentFrontMatterBinder<TFrontMatter>().DescribeSchema(typeof(TFrontMatter).Name, isBuiltIn: false);

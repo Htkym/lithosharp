@@ -6,7 +6,7 @@
     <Authors>Htkym</Authors>
     <Description>Typed C# Docs with generated references and output checks, plus Blog, custom C# and optional MDX/React templates for LithoSharp.</Description>
     <RepositoryUrl>https://github.com/Htkym/lithosharp</RepositoryUrl>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <PackageType>Template</PackageType>
     <PackageTags>dotnet-new;templates;static-site;LithoSharp</PackageTags>
     <IncludeBuildOutput>false</IncludeBuildOutput>

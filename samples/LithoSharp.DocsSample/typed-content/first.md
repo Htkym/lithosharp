@@ -14,3 +14,6 @@ environments:
 ## Typed rendering
 
 This page is loaded through `MarkdownContentCollectionLoader` and rendered as a typed entry.
+
+:::component name="version-badge" version="3.0" stability="Preview"
+:::

@@ -1,5 +1,7 @@
 # ビルドグラフ
 
+[English](build-graph.md)
+
 `SiteGenerationResult.BuildPlan` は今回の生成で書き込む成果物と、その直接入力を表します。
 キャッシュと選択実行での利用方法は[差分ビルド](incremental-builds.ja.md)を参照してください。
 

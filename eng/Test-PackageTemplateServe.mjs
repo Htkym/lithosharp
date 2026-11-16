@@ -144,6 +144,7 @@ try {
   assert.equal(startup.schemaVersion, '1.0'); assert.equal(startup.generation, 1);
   assert.equal(startup.requestedPort, 0); assert.ok(startup.actualPort > 0);
   assert.equal(startup.url, `http://127.0.0.1:${startup.actualPort}`);
+  const publishedBase = new URL(startup.siteBasePath ?? '/', startup.url);
   markPhase('capture-started-processes');
   await captureDescendants();
   markPhase('read-homepage');
@@ -151,7 +152,7 @@ try {
   const main = disk.match(/<main\b[^>]*>[\s\S]*?<\/main>/i)?.[0];
   assert.ok(main, 'Generated homepage has no main content');
   markPhase('initial-http-headers');
-  const response = await fetch(new URL('/', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+  const response = await fetch(publishedBase, { redirect: 'error', signal: AbortSignal.timeout(10_000) });
   initialHttp.headersReceived = true; initialHttp.status = response.status;
   markPhase('initial-http-status');
   assert.equal(response.status, 200);
@@ -160,13 +161,28 @@ try {
   initialHttp.bodyReceived = true;
   markPhase('verify-homepage');
   assert.ok(html.includes(main), 'Served homepage differs from generated main content');
-  assert.ok(html.includes("EventSource('/_lithosharp/reload')"), 'Live reload client missing');
+  assert.ok(html.includes('src="/_lithosharp/reload.js"'), 'Live reload client missing');
+  const reload = await fetch(new URL('/_lithosharp/reload.js', startup.url), { signal: AbortSignal.timeout(10_000) });
+  assert.equal(reload.status, 200);
+  assert.match(reload.headers.get('content-type'), /javascript/);
+  assert.ok((await reload.text()).includes("EventSource('/_lithosharp/reload')"), 'Live reload endpoint missing');
   assert.ok(!disk.includes('EventSource('), 'Serve mutated the production output');
+  const missing = await fetch(new URL('no-such-page/deep/', publishedBase), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+  assert.equal(missing.status, 404);
+  const notFoundPath = path.join(project, 'dist/404.html');
+  try {
+    const notFoundMain = (await fs.readFile(notFoundPath, 'utf8')).match(/<main\b[^>]*>[\s\S]*?<\/main>/i)?.[0];
+    assert.ok(notFoundMain && (await missing.text()).includes(notFoundMain), '404 response does not use the generated error page');
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (publishedBase.pathname !== '/') {
+    const outside = await fetch(new URL('/outside-site/', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+    assert.equal(outside.status, 404);
+  }
   if (path.basename(project) === 'mdx') {
     markPhase('mdx-http');
-    const external = await fetch(new URL('/external-extension.txt', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+    const external = await fetch(new URL('external-extension.txt', publishedBase), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
     assert.equal(external.status, 200); assert.equal(await external.text(), 'external C# package');
-    const react = await fetch(new URL('/guide/index/', startup.url), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+    const react = await fetch(new URL('guide/index/', publishedBase), { redirect: 'error', signal: AbortSignal.timeout(10_000) });
     assert.equal(react.status, 200); assert.match(await react.text(), /External package (?:<!-- -->)?7/);
   }
   markPhase('edit-source');

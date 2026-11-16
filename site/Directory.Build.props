@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">$(LITHOSHARP_SITE_PACKAGE_VERSION)</LithoSharpVersion>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">3.0.0</LithoSharpVersion>
+  </PropertyGroup>
+</Project>

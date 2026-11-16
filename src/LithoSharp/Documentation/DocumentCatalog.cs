@@ -33,6 +33,12 @@ public sealed class DocumentFrontMatter
     /// <summary>The page title.</summary>
     [System.ComponentModel.Description("The page title.")]
     public string Title { get; set; } = "";
+    /// <summary>The product version supported by this document, checked only by an explicitly registered semantic rule.</summary>
+    [System.ComponentModel.Description("The product version supported by this document.")]
+    public string? SupportedVersion { get; set; }
+    /// <summary>Prerequisite document IDs in the same collection, version, and locale.</summary>
+    [System.ComponentModel.Description("Prerequisite document IDs in the same collection, version, and locale.")]
+    public List<string> Prerequisites { get; set; } = [];
     /// <summary>The page description.</summary>
     [System.ComponentModel.Description("The page description.")]
     public string? Description { get; set; }

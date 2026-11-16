@@ -309,7 +309,7 @@ public sealed class IncrementalBuildTests
     }
 
     [Test]
-    public async Task SocialImageSourceAddedThenRemoved_UpdatesOutputWithoutLeavingArtifacts()
+    public async Task FaviconSourceAddedThenRemovedDoesNotEnableSocialImageGeneration()
     {
         using var workspace = new TemporaryWorkspace();
         var output = Output(workspace);
@@ -325,7 +325,7 @@ public sealed class IncrementalBuildTests
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
         await GenerateAsync(output, workspace.Root, [], Registration(null, "renderer:1"), clean: false,
             faviconRoot: faviconRoot);
-        await Assert.That(File.Exists(socialImage)).IsTrue();
+        await Assert.That(File.Exists(socialImage)).IsFalse();
 
         File.Delete(source);
         await GenerateAsync(output, workspace.Root, [], Registration(null, "renderer:1"), clean: false,

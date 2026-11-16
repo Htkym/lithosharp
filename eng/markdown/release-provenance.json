@@ -8,7 +8,7 @@
   "producerRunUrl": "https://github.com/Htkym/syntamark/actions/runs/42319413160",
   "sealedManifestUrl": "https://github.com/Htkym/syntamark/releases/download/v1.2.0/pair-manifest.json",
   "sealedManifestSha256": "b69f12b356d28c6d4d38adfdf8b57e7334673644510c0709bb764c4e805da4f9",
-  "pairManifestPath": "eng/markdown/component-pair.json",
+  "pairManifestPath": "eng/markdown/history/1.2.0/component-pair.json",
   "pairManifestSha256": "192af565d08b758f31cb23f5138556af83db357a5d24ce11dfe0addbe0a74fdb",
   "canonicalSourceHash": "17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",
   "parserVersion": "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa",

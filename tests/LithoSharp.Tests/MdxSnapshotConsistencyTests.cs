@@ -90,10 +90,11 @@ public sealed class MdxSnapshotConsistencyTests
         using var workspace = new TemporaryWorkspace();
         var content = Path.Combine(workspace.Root, "content");
         Directory.CreateDirectory(content);
-        var rawEntry = "---\ntitle: Snapshot\n---\n# Snapshot\n\n```cs source=\"included.cs\" region=\"Example\"\n```\n";
+        const string includeFile = "include\u0301d.cs";
+        var rawEntry = "---\ntitle: Snapshot\n---\n# Snapshot\n\n```cs source=\"" + includeFile + "\" region=\"Example\"\n```\n";
         var rawInclude = "// Outside selected region\r\n#region Example\r\n// CapturedRegion\r\n#endregion\r\n";
         await File.WriteAllTextAsync(Path.Combine(content, "page.mdx"), rawEntry);
-        await File.WriteAllTextAsync(Path.Combine(content, "included.cs"), rawInclude);
+        await File.WriteAllTextAsync(Path.Combine(content, includeFile), rawInclude);
         var loader = new MdxContentCollectionLoader<MdxIntegrationTests.FrontMatter>(new("raw"), content,
             _ => SiteRoute.ForDirectoryIndex("page"), entry => new PageMetadata(entry.FrontMatter.Title));
         var loaded = await loader.LoadAsync();
@@ -106,7 +107,7 @@ public sealed class MdxSnapshotConsistencyTests
         foreach (var input in entry.CapturedInputs)
             await Assert.That(input.Hash).IsEqualTo(Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(input.File))));
         await Assert.That(entry.SourceFingerprint).IsEqualTo("sha256:" + entry.CapturedInputs.Single(input => Path.GetFileName(input.File) == "page.mdx").Hash);
-        await Assert.That(entry.CapturedInputs.Single(input => Path.GetFileName(input.File) == "included.cs").Hash)
+        await Assert.That(entry.CapturedInputs.Single(input => Path.GetFileName(input.File) == includeFile).Hash)
             .IsNotEqualTo(Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("// CapturedRegion"))));
     }
 

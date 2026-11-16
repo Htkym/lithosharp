@@ -6,6 +6,9 @@ This sample uses the repository projects. For released packages, start with the
 [MDX Quick Start](../../docs/quickstart.md). Use the .NET 10 SDK (10.0.300 or
 a later supported feature band) and Node.js 24.13.0.
 
+The repository targets LithoSharp 3.0.0. The selected Syntamark 2 component pair
+and unpublished candidate state are recorded in the [version matrix](../../eng/version-matrix.json).
+
 From the repository root:
 
 ```sh
@@ -28,8 +31,8 @@ not browser hydration, offline behavior or correspondence with current sources.
 Check those interactions in the browser. Only build trusted MDX
 and component code; they execute with the build account's permissions.
 
-Shared front-matter handling uses Syntamark 1.2.0, while MDX body parsing stays
-in the worker. Editor MDX symbols remain heading-based, separate from native
+Shared front-matter handling uses the selected Syntamark 2 runtime/Source pair,
+while MDX body parsing stays in the worker. Editor MDX symbols remain heading-based, separate from native
 Markdown's section-subtree outlines. For custom C# schemas and generated
 references, follow the [Docs sample](../LithoSharp.DocsSample/README.md).
 

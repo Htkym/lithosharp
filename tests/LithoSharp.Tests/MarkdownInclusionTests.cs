@@ -157,22 +157,36 @@ public sealed class MarkdownInclusionTests
     public async Task TypedLoader_FoldsTargetsIntoFingerprint()
     {
         using var workspace = new TemporaryWorkspace();
+        const string includePath = "snippets/de\u0301mo.cs";
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        async Task<string> BuildAsync(ContentCollection<TypedEntry, string> collection)
+        {
+            await generator.GenerateWithOptionsAsync(new LithoSharp.Configuration.SiteSettings(), [], output, false, null,
+                new SiteGenerationOptions
+                {
+                    ContentCollections = [new SiteContentCollection<TypedEntry, string>(collection, (entry, rendering) => rendering.RenderMarkdown(entry.Body))],
+                }, default);
+            return await File.ReadAllTextAsync(Path.Combine(output, "entry.html"));
+        }
         await WriteAsync(workspace.Root, "entry.md", """
             ---
             title: Entry
             ---
             ```csharp source="./snippets/demo.cs" region="main"
             ```
-            """);
-        await WriteAsync(workspace.Root, "snippets/demo.cs", DemoSource);
+            """.Replace("snippets/demo.cs", includePath, StringComparison.Ordinal));
+        await WriteAsync(workspace.Root, includePath, DemoSource);
 
         var first = await Loader<TypedEntry>(workspace.Root).LoadAsync();
         await Assert.That(first.IsSuccess).IsTrue();
         await Assert.That(first.Collection!.Entries.Single().Body).Contains("var answer = 42;");
         var before = first.Collection.Entries.Single().SourceFingerprint;
         var beforeDependencies = first.Collection.Entries.Single().DeclaredDependencies;
+        await Assert.That(first.Collection.Entries.Single().CapturedInputs.Any(input => input.File == Path.GetFullPath(Path.Combine(workspace.Root, includePath)))).IsTrue();
+        await Assert.That(await BuildAsync(first.Collection)).Contains("var answer = 42;");
 
-        await WriteAsync(workspace.Root, "snippets/demo.cs", DemoSource.Replace("42", "43"));
+        await WriteAsync(workspace.Root, includePath, DemoSource.Replace("42", "43"));
         var second = await Loader<TypedEntry>(workspace.Root).LoadAsync();
         await Assert.That(second.IsSuccess).IsTrue();
         await Assert.That(second.Collection!.Entries.Single().Body).Contains("var answer = 43;");
@@ -181,8 +195,11 @@ public sealed class MarkdownInclusionTests
         await Assert.That(second.Collection.Entries.Single().SourceFingerprint).IsEqualTo(before);
         await Assert.That(second.Collection.Entries.Single().DeclaredDependencies
             .Any(dependency => dependency.Kind == LithoSharp.Content.ContentDependencyKind.File
-                && dependency.Key == "snippets/demo.cs")).IsTrue();
+                && dependency.Key == "snippets/démo.cs")).IsTrue();
         await Assert.That(second.Collection.Entries.Single().DeclaredDependencies).IsNotEquivalentTo(beforeDependencies);
+        await Assert.That(await BuildAsync(second.Collection)).Contains("var answer = 43;");
+        await Assert.That(() => ContentDependency.Snapshot([ContentDependency.FromFile(includePath), ContentDependency.FromFile("snippets/démo.cs")]))
+            .Throws<ArgumentException>();
     }
 
     [Test]

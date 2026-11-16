@@ -7,34 +7,37 @@ Each remains under its own license.
 
 - License: MIT
 - Project: https://github.com/Htkym/syntamark
-- The fixed 1.2.0 runtime/Source pair supplies Markdown syntax and raw source facts.
+- The selected runtime/Source pair supplies Markdown, native YAML and raw source facts.
   Compiler packages embed the selected portable source; the CLI and bundled
   language server redistribute the runtime. The unchanged upstream notice is
   retained in `licenses/Syntamark.LICENSE.txt`.
 
-## YamlDotNet
+## Historical YamlDotNet notices
 
 - License: MIT
 - Project: https://github.com/aaubry/YamlDotNet
+- Current products do not depend on or redistribute YamlDotNet. The repository
+  retains the original v18.1.0 notice for historical provenance.
 
-## SkiaSharp / SkiaSharp.NativeAssets.Linux.NoDependencies
+## Historical SkiaSharp notices
 
 - License: MIT
 - Project: https://github.com/mono/SkiaSharp
 - SkiaSharp bundles native binaries built from Google's Skia
   (https://skia.org/), which is licensed under BSD-3-Clause.
+- Current products do not depend on or redistribute SkiaSharp or its native
+  assets. The repository retains the original notices for historical provenance.
 
 ## Bundled redistribution notices
 
-The generator and analyzer include YamlDotNet 18.1.0 in their analyzer payloads. The CLI and
-language server include YamlDotNet 18.1.0 and SkiaSharp 4.153.1
-managed/native assemblies. Their distributions retain the applicable upstream
-notices under `licenses/` alongside their payloads.
+The generator and analyzer embed Syntamark portable source. The CLI and language
+server redistribute its runtime. These distributions retain the upstream notice
+in `licenses/Syntamark.LICENSE.txt` alongside `THIRD-PARTY-NOTICES.md`.
 
-- `licenses/YamlDotNet.LICENSE.txt`: upstream v18.1.0 `LICENSE.txt`.
-- `licenses/SkiaSharp.LICENSE.txt`: official 4.153.1 NuGet license.
-- `licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt`: unchanged official 4.153.1 native
-  package notices; Linux, Windows, and macOS package copies are identical.
+Historical repository-only notices are `licenses/YamlDotNet.LICENSE.txt` from
+upstream v18.1.0 and `licenses/SkiaSharp.LICENSE.txt` and
+`licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt` from the official 4.153.1 packages.
+They are not included in current distributions.
 
 Original copyright and permission notices are preserved verbatim. Dependencies
 restored separately through NuGet or npm retain their own upstream notices.

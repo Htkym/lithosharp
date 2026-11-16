@@ -2,99 +2,150 @@
 
 [English](known-limitations.md)
 
-LithoSharp 2.2.0とVS Code拡張0.4.0の制約です。設定と実行規則は[MDX](mdx.ja.md)を参照してください。
+LithoSharp 3.0.0 と VS Code 拡張 0.5.0 の契約に対する制約です。
+候補と公開の状態は[バージョン一覧](../eng/version-matrix.json)で確認できます。
+設定と実行規則は [MDX](mdx.ja.md) を参照してください。
 
 ## Markdown の互換性
 
-実行時は Litho コンパイラーを使い、CommonMark 0.31.2 と GFM 0.29 の一部をテストしています。表、タスクリスト、取り消し線、自動リンク、admonition、コンテナー、コードのメタデータに対応します。数式と図の描画にはテンプレート側でブラウザー用の資材が必要で、`LIT002` で案内します。
+実行時は Litho コンパイラーを使い、CommonMark 0.31.2 と GFM 0.29 の一部をテストしています。
+表、タスクリスト、取り消し線、自動リンク、admonition、コンテナー、コードのメタデータに対応します。
+数式と図には、テンプレートが提供するブラウザー用のアセットが必要で、`LIT002` がこの要件を示します。
 
-Markdig 拡張の脚注、定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。未対応の構文は文字列として残り、脚注では `LIT001` も返します。更新前に対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。定義リスト（`LIT003`）、汎用属性（`LIT004`）、grid table（`LIT005`）の高確度な形だけは opt-in の advisory で案内します。既定出力は変わりません。
+文書用プロファイル `syntamark-docs/2` はネイティブの脚注と型付きコンポーネントのディレクティブに対応します。
+既定値は `lithosharp-markdown/1` のままです。プロファイルは明示的に選び、YAML のバインドや公開とは独立しています。
+正確な違いは [Markdown プロファイル](markdown-profiles.ja.md)を参照してください。
 
-既定のprofileは`lithosharp-markdown/1`です。Syntamark 1.2.0のruntime／SourceペアがMarkdown構文、解析情報、原文範囲、未対応構文の候補を提供します。LithoSharpはYAMLとC#スキーマの検査、HTMLやslugの表示方針、ルートと参照の解決、診断IDと重大度を担当します。Syntamarkの更新はCommonMark/GFMの完全対応や生成速度の向上を保証するものではありません。
+Markdig 拡張の定義リスト、略語、citation、figure、footer、メディア埋め込み、grid table、汎用属性、
+英字・ローマ数字のリスト記号、下付き・上付き、挿入・強調記法、絵文字、記号の自動変換には対応していません。
+未対応の構文は文字列として残り、従来のプロファイルでの脚注では `LIT001` も返します。
+更新前に、未対応の構文を対応する Markdown へ書き換えてください。CommonMark/GFM の完全な実装ではありません。
+任意で有効にする互換性の助言は、確度の高い定義リスト（`LIT003`）、汎用属性（`LIT004`）、grid table（`LIT005`）を、
+既定の出力を変えずに報告します。`DocumentInspectionOptions.EnableCompatibilityAdvisory` と
+`lithosharp markdown-compat --advisory on` は同じ走査を使います。
+エディターと共有する走査はこれらの助言を対象にします。公式仕様への完全な適合を主張するものではありません。
 
-## 解析の上限と検証できない状態
+選定した固定の Syntamark 2 の runtime と Source の組み合わせが、構文と元の UTF-16 の範囲を提供します。
+既定の製品プロファイルは `lithosharp-markdown/1` のままです。
+コンポーネントを更新しても、別の CommonMark プロファイルには切り替わりません。
+YAML と C# のバインド、見出しの表示とスラッグの方針、ルート、診断 ID は、引き続き LithoSharp が担当します。
 
-最終的なpost・collection本文の解析上限は1 Mi UTF-16コード単位、エディターの入力上限は8 Miです。加工前のreader・collection loaderでは、1 Mi以下の本文に厳しい解析上限を適用し、それより大きい本文は8 Miまで扱います。どちらも入れ子の上限は200です。入力や解析資源の上限で完了できない場合は`LSM013` Errorとなり、生成では公開前に停止します。描画だけの断片は本文解析とは別の経路です。
+| 解析経路 | 入力の上限 | 失敗の意味 |
+| --- | --- | --- |
+| 最終的に解析する投稿・コレクションの本文 | 1 Mi UTF-16 コード単位 | `LSM013` の Error で公開を停止します。利用できない情報は検証しません。 |
+| エディターのスナップショットと変換前本文の警告検査 | 最大 8 Mi UTF-16 コード単位 | 大きな上限で解析できても、変換後の最終本文がより厳しい上限を満たす証明にはなりません。 |
+| ヘッダー専用の走査 | ヘッダーの 1 Mi UTF-16 コード単位 | 閉じ区切りの後の本文は除外します。`Unknown` は Generator の `LSG002` または実行時の `LSM013` となり、ヘッダーの欠落や閉じ忘れとは断定しません。 |
 
-header専用の`frontmatter-scan/1`では1 Mi UTF-16コード単位の上限に閉じ区切り後の本文を含めません。`Closed`が示すのは区切りとheaderのUnicodeが確定したことであり、YAMLやスキーマの妥当性はLithoSharpが検査します。`Unknown`はheaderがないことや未閉鎖であることの証明ではなく、Generatorでは`LSG002`、runtimeでは`LSM013`として報告します。
+ほかのリソース上限でも解析が停止する場合があります。描画だけのスニペットには最終本文の解析経路を使いません。
+ジェネレーターが検査するのは明示したヘッダー入力であり、本文の妥当性ではありません。
+任意の C# 検証処理は入力のたびの実行ではなく、明示的なコンパイルやサイトビルドで検査します。
+エディターはDTO のコンストラクター、セッター、コールバックを実行せず、取得した静的なスキーマ記述子で検証できます。
+`NoContext` はプロジェクト・スキーマ・ルートの根拠がない状態、`Partial` は不完全な解析、`Unknown` は情報を確定できない状態です。
+いずれも、コンテンツが検証に合格したことを意味しません。
+型付き参照の矛盾を確定するにも、完全で最新の `Closed` なカタログが必要です。
+[Docs サンプル](../samples/LithoSharp.DocsSample/README.ja.md)と[解析・キャッシュの契約](migration-3.0.ja.md)を参照してください。
 
-`NoContext`ではプロジェクト、独自スキーマ、ルートを検査できません。`Partial`では取得できた情報だけを使い、情報の不足を成功や不存在と解釈しません。型付き参照の矛盾を確定できるのは、完全で最新のカタログと既知の値がそろう範囲です。動的な値や未検証の範囲に診断が出なくても、サイト全体の妥当性は証明されません。
+Markdown のアウトラインは節の部分木の範囲と、独立した見出し選択範囲を使います。
+MDX は worker の見出しに基づくアウトラインを維持し、Markdown の節範囲の保証は適用しません。
+閉じていないヘッダーは、編集時に診断を保持して本文として回復する場合がありますが、通常の読み込みやビルドでは有効なフロントマターとして受け付けません。
 
-## 生成コストと対応環境
+## ビルドの負荷と対応環境
 
-大規模なMDXでは、本文1ページの変更でも多くの対話用entryをbundleする場合があります。
-変更がない場合も入力と出力を検査します。`MdxOptions.Timeout`はworkerへの1要求あたり既定で2分です。大きな入力では明示的に延長してください。
-[差分ビルド](incremental-builds.ja.md)と[参考時間](performance.ja.md)も参照してください。
+依存関係が変わると、MDX の複数の対話用項目が無効になる場合があります。
+対応するページ固有の変更には宣言したグラフを使って処理を絞りますが、どの編集でも一つのバンドルだけが変わるという保証ではありません。
+変更のないビルドでも、入力と出力を検証します。`MdxOptions.Timeout` の既定値はworker の要求ごとに2分です。
+大きい入力には明示的に増やしてください。[差分ビルド](incremental-builds.ja.md)と[参考時間](performance.ja.md)も参照してください。
 
-CLIと拡張はWindows x64、Linux x64、macOS arm64に対応します。ブラウザー機能の確認はChromiumが対象で、FirefoxとSafariの互換性は確定していません。JavaScriptがなくても静的本文と通常のリンクを利用できますが、対話機能には対応するブラウザーAPIが必要です。動的に読み込むCLI/site経路ではtrimmingとNative AOTに対応していません。
+CLI と拡張機能はWindows x64、Linux x64、macOS arm64 に対応します。
+ブラウザー機能は Chromium で検査し、Firefox と Safari の互換性は確定していません。
+静的コンテンツと通常のリンクは JavaScript がなくても利用でき、対話機能には対応するブラウザー API が必要です。
+動的に読み込む CLI・サイトの経路では、トリミングと Native AOT に対応しません。
 
-PNG、JPEG、WebPはSkiaを使います。AVIFには明示設定した信頼できる`avifenc`が必要です。
+Core はコーデックを使わずに既存画像をコピーし、宣言した寸法を使います。
+任意の `LithoSharp.Images` は限定した非インターレースの8ビットのグレースケール、RGB、グレースケールとアルファ、RGBA の PNG デコード、
+RGBA8 のエンコード、サイズ変更、合成に対応します。
+パレット形式・16ビット・インターレースの PNG、アニメーション、EXIF の向き、sRGB 以外の色管理、
+フォント・文字描画、JPEG・WebP・AVIF のエンコードには対応しません。
+これらの形式の既存ファイルは変換せずに登録できます。
+Skia への依存や、外部 AVIF エンコーダーによるフォールバックはありません。[アセット・画像](assets-and-images.ja.md)を参照してください。
 
-## MDXとブラウザー機能の範囲
+## MDX とブラウザーの範囲
 
-標準のDocs・Blog配色には、CSSの `light-dark()` 対応が必要です。
-保存済み配色の復元にはインラインスクリプトを使うため、ホスト側のCSPで実行を許可してください。
-詳しくは[テーマの設定](layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
+標準の Docs・Blog の配色には、CSS の `light-dark()` への対応が必要です。
+保存したテーマの復元は head 内のインラインスクリプトを使うため、ホストの CSP で許可する必要があります。
+[テーマ設定](layout-css-contract.ja.md#テーマ切り替え)を参照してください。
 
-MarkdownだけならNode.jsは不要です。MDXはNode.js 24.13.0と同梱lockfileを使います。
-任意のNode版やnpm packageを保証するものではありません。browser importはブラウザーで動作し、
-server importは生成時に実行できる必要があります。workerはTypeScriptをtranspileしますが、型検査はしません。
+Markdown だけのサイトには Node.js は不要です。MDX は Node.js 24.13.0 と同梱した lockfile を使います。
+任意の Node バージョンや npm パッケージを検証済みとはしません。
+ブラウザーのインポートはブラウザーに対応し、サーバーのインポートはビルド時の実行に対応する必要があります。
+worker は TypeScript を変換しますが、型検査はしません。
 
-Selective Hydrationは明示的に有効化します。islandにはload、idle、visible、media、manualの
-起動戦略があります。未知の対話component、共有context、安全に分離できない境界はpage hydrationへ
-fallbackします。静的ページでMDX hydration entryがなくても、任意のDocs navigationやsearchのJSは
-読み込まれる場合があります。
+選択的 hydration は明示的に有効にします。明示した island には load、idle、visible、media、manual の起動戦略があります。
+未知の対話用コンポーネント、共有コンテキスト、安全に分離できない境界は、ページ単位の hydration に切り替えます。
+静的ページが MDX の hydration entry を省略しても、任意の文書ナビゲーション・検索のコードを読む場合があります。
 
-Docusaurus aliasは文書に記載した範囲のみです。任意のpluginとJavaScript設定の実行は非対応です。
-移行機能は非対応構文を報告するもので、サイト全体の自動変換を保証しません。
+Docusaurus の別名は文書に記載した範囲だけに対応します。任意の Docusaurus プラグインと JavaScript 設定の実行には対応しません。
+移行は未対応の構文を報告するもので、完全に自動化したサイト変換ではありません。
 
-DOMPurifyを3.4.16へ更新しました。DOM node入力を`IN_PLACE: true`で処理し、
-DOMPurify自身の除去規則が入力rootの除去を記録した場合、`TypeError`をスローします。hookが
-除去規則を変えてrootを禁止した実測ケースでは、3.4.15が除去済みnodeを返し、3.4.16が例外を投げました。
-hookが単にrootをdetachする場合まで、この受入差に含めるものではありません。独自呼出しでは例外を処理し、失敗した入力・結果を破棄します。除去したnodeを安全な
-コンテンツとして使い回したり、シリアライズしたりしません。この限定した互換性差を受け入れ、
-[上流のXSS対策](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持します。
-通常のFlow/Class/State tooltipは文字列を渡すため、このDOM node＋`IN_PLACE`分岐には入りません。
-DOMの完全一致を主張するものではありません。
+DOMPurify を 3.4.16 に更新しました。DOM node 入力を `IN_PLACE: true` で処理し、
+DOMPurify 自身の除去規則が入力 root の除去を記録した場合は、`TypeError` を投げます。
+規則を変えて root を禁止する hook も含みます。観測した場合では、3.4.15 は除去済み node を返し、3.4.16 は拒否しました。
+root を単に切り離すだけの hook は、この受入差の対象ではありません。
+独自の呼び出し側は例外を処理し、失敗した入力と結果を破棄する必要があります。
+除去済み node を安全な結果として再利用したり、シリアル化したりしないでください。
+この変更は[上流の XSS 修正](https://github.com/cure53/DOMPurify/security/advisories/GHSA-6688-9rhm-gjv2)を維持するためです。
+通常の Flow・Class・State の tooltip は文字列を渡し、この DOM node と `IN_PLACE` の経路には入りません。
+この限定した互換性の違いを受け入れるもので、DOM の完全な一致は主張しません。
 
 ## 信頼と公開
 
-MDX、React module、C#のsite code、compiler pluginはbuild accountの権限で実行します。
-HTML safetyはコード実行のsandboxではありません。信頼できないMDXは認証情報や非公開ファイルを
-持たない隔離環境で扱ってください。import検証とworker環境変数の制限はOSのsandboxではなく、
-信頼するコード自体はnetwork通信や外部processの起動ができます。
+MDX、React モジュール、C# のサイトコード、コンパイラープラグインは、ビルドするアカウントの権限で実行します。
+HTML の安全性はコード実行の隔離を意味しません。
+信頼できない MDX は認証情報や非公開ファイルのない、制限した別の環境でビルドしてください。
+インポート検証や worker の環境制限は OS の隔離ではなく、信頼したコード自体はネットワークやプロセスの操作を行えます。
 
-通常のMDX生成はnpm依存をrestoreしません。`restore-mdx`は
-`npm ci --ignore-scripts --no-audit --no-fund`を明示的に実行し、cacheがなければnetworkを使います。
-`dotnet restore`も設定したfeedへ接続します。Git metadata、外部リンク検査、API build、example test、
-外部AVIF encodeは明示的なoptionまたはcommandです。OpenAPIの外部参照は取得せず診断します。
+通常の MDX 生成はnpm の依存関係を復元しません。
+`restore-mdx` は `npm ci --ignore-scripts --no-audit --no-fund` を明示的に実行し、キャッシュがなければネットワーク接続が必要です。
+`dotnet restore` も、設定したフィードに接続する場合があります。
+Git メタデータ、外部リンク検査、API ビルド、スニペット・サンプルのテスト、校正は、明示的なオプションまたはコマンドです。
+隠れた自動ビルド処理ではありません。OpenAPI の外部参照は取得せずに診断します。
 
-DTOのfieldとJSON設定は公開するものだけを選んでください。`MdxPublicData`とisland propsには
-明示schemaが必要で、秘密情報を含めてはいけません。Algoliaには公開可能なsearch-only keyを使います。
-`unlisted`と`noindex`はaccess controlではなく、URLを直接開けば閲覧できます。
+公開する DTO のフィールドと JSON 設定を、意図的に選択してください。
+`MdxPublicData` と island の属性には明示的なスキーマが必要で、秘密情報を含めてはいけません。
+Algolia には公開可能な検索専用キーを使います。`unlisted` と `noindex` はアクセス制御ではなく、そのページを直接要求できます。
 
-live codeはReactとrenderを提供する限定的なsandbox iframeで動き、汎用MDX/npm実行環境ではありません。
-offline機能はopt-inで、HTTPSまたはlocalhostが必要です。revision全体を一緒に配置し、利用者が参照する
-可能性がある古いhash付きassetを保持してください。`DocumentationBrowserOptions.Analytics`は既定で
-無効で、明示的なconsent eventが必要です。この同意制御は従来のGoogle Analytics snippetには適用しません。
-`SiteSettings.GoogleAnalyticsMeasurementId`、`GA_MEASUREMENT_ID`、`GOOGLE_ANALYTICS_MEASUREMENT_ID`は
-独立してそのsnippetを有効にします。文書サイトの同意制御を使う場合は、これらを未設定にしてください。
+ライブコードは制限した React・描画用のランタイムを持つ隔離 iframe で動き、汎用的な MDX・npm の実行環境ではありません。
+オフライン対応は明示的に有効にし、HTTPS または localhost が必要です。
+リビジョン全体を一緒に配置し、クライアントが参照する可能性がある古いハッシュ付きアセットを保持してください。
+解析機能は既定で無効で、`DocumentationBrowserOptions.Analytics` を使う場合は、明示的な同意イベントが必要です。
+この同意制御は従来の Google Analytics スニペットを対象にしません。
+`SiteSettings.GoogleAnalyticsMeasurementId`、`GA_MEASUREMENT_ID`、`GOOGLE_ANALYTICS_MEASUREMENT_ID` は、それぞれ独立して有効にできます。
+文書用の解析機能の同意制御を使う場合は、これらを設定しないでください。
 
-出力のstagingとrollbackは協調する同一userのbuildを保護するもので、特権userや攻撃的なfilesystem
-writerへの防御ではありません。atomic renameが必要です。Unix ACL、拡張属性、ownershipの保持は
-portableな保証に含みません。after-build observerはcommit後に実行するため、失敗しても配置を戻せません。
+出力のステージングとロールバックは、同じユーザーによる協調したビルドを保護するもので、
+特権を持つ、または敵対的なファイルシステムの書き込みへの防御ではありません。原子的な名前変更が必要です。
+Unix の ACL、拡張属性、所有権の保持は移植可能な保証ではありません。
+ビルド後の観測処理はコミット後なので、失敗しても公開を取り消せません。
 
-## 配置と移行の範囲
+## 配信と移行の範囲
 
-公開 route は末尾 slash の directory index 形式です。`trailingSlash: false` の原本は
-flat ファイルのため、既定のroute比較はraw public pathを使い、追加のpage set
-比較だけが slash 形式を正規化します。`404.html` は出さず、
-欠落は hosting 既定の404応答になります。Docusaurus の category index、blog の
-authors と archive と pagination と tags に1:1の元文書はなく、移行 route の範囲外です。
-月別 archive と directory index は文書化した上積みとして出す場合があります。
-標準MarkdownはリンクのURL schemeを制限しません。生成物の検査は非対応URLを`LSQ001`として報告します。MDXの組み込み`Link`は先頭空白や大文字・小文字の違いを含めて`javascript:`、`vbscript:`、`data:`を検出し、ビルド時の描画で拒否します。未解決の`xref:`も描画に失敗します。通常のリンクとfragmentは使用できます。生成物の検査では存在しないローカル参照先を`LSQ001`、存在しないanchorを`LSQ002`として報告します。
+Docusaurus の移行では公開ルートに末尾スラッシュとディレクトリの index を使います。
+`trailingSlash: false` で作った元の出力は平坦なファイルなので、既定のルート比較では元の公開パスを使います。
+任意で有効にするページ集合の比較はスラッシュ形式を正規化します。
+組み込みテンプレートは `404.html` を出力しますが、未知のパスや選択したベースパスで配信するには、ホストの設定が必要です。
+ファイルを生成しても、ホストは設定されません。
+Docusaurus のカテゴリー一覧、ブログ著者、アーカイブ、ページ分割、タグの一覧は、対応するソース文書が一つずつあるわけではなく、移行ルートの対象外です。
+月別アーカイブやディレクトリの一覧は、文書に記載した追加の出力になる場合があります。
+
+標準 Markdown はリンクの URL スキームを制限しません。生成出力の検査は未対応の URL を `LSQ001` で報告します。
+組み込み MDX の `Link` は先頭の空白や大文字小文字の違いも含め、`javascript:`、`vbscript:`、`data:` をビルド時の描画で拒否します。
+未解決の `xref:` リンクも描画に失敗します。
+通常のリンクとフラグメントに対応し、ローカル参照先の欠落は `LSQ001`、アンカーの欠落は `LSQ002` で報告します。
 
 ## エディターの範囲
 
-診断はMarkdownが先で、MDXは復元済みworkerを使います。プレビューは保存済み文書だけが対象です。
-workerはTypeScriptを変換しますが、型検査は行いません。
+エディターの診断は最初に Markdown、次に復元した worker による MDX の順で実行します。
+プレビューに表示するのは保存済みの文書だけです。worker は TypeScript を変換しますが、型検査はしません。
+ネイティブの文書編集は順番に適用し、古い世代の結果は抑止します。
+参照先への移動と保護した名前変更・移動には、宣言したソースとカタログの対象範囲が必要です。
+根拠が利用できない場合や部分的な場合は、全体を書き換える権限にはなりません。

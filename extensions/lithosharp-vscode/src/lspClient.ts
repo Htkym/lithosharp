@@ -3,6 +3,9 @@ import { DiagnosticStore, type LspDiagnosticData } from './diagnostics.js';
 import { mapSymbols, type SymbolData } from './symbols.js';
 import { requireTrusted } from './trust.js';
 import type { AnalysisStatus } from './state.js';
+import { isEditorPosition, mapCompletions, mapHover, type CompletionData, type EditorPosition, type HoverData } from './editorFeatures.js';
+import {mapReferenceLocations, mapPrepareRename, mapReferenceScopes, textHash, type ReferenceDocument,
+  type ReferenceLocation, type ReferenceScope, type ReferenceScopeChoice} from './referenceFeatures.js';
 
 export interface OpenDocument {
   uri: string;
@@ -18,6 +21,8 @@ export interface LspClientOptions {
   /** Debounce for change notifications in ms (50-1000, default 150). */
   debounceMs?: number;
   initializationOptions?: Record<string, unknown>;
+  /** Only the guarded explicit command uses version-preserving workspace.applyEdit. */
+  referenceEditing?: boolean;
   isTrusted: () => boolean;
   onLog?: (line: string) => void;
   onState?: (state: string) => void;
@@ -37,6 +42,7 @@ export class LspClient {
   private requestSequence = 1;
   private openGeneration = 0;
   private contextGeneration = 0;
+  private bufferEpoch = 0;
   private readonly buffers = new Map<string, {
     version: number;
     generation: number;
@@ -96,7 +102,11 @@ export class LspClient {
     const id = this.nextId();
     const initialized = await connection.sendRequest<unknown>(id, 'initialize', {
       processId: null,
-      capabilities: { textDocument: { publishDiagnostics: { versionSupport: true } } },
+      capabilities: { textDocument: { publishDiagnostics: { versionSupport: true },
+        ...(this.options.referenceEditing ? {rename: {prepareSupport: true, honorsChangeAnnotations: true}} : {}) },
+        ...(this.options.referenceEditing ? {workspace: {workspaceEdit: {documentChanges: true,
+          failureHandling: 'textOnlyTransactional', changeAnnotationSupport: {groupsOnLabel: true}},
+          fileOperations: {willRename: false}}} : {}) },
       initializationOptions: this.options.initializationOptions ?? {},
     });
     if (this.child !== child || this.connection !== connection) {
@@ -184,6 +194,7 @@ export class LspClient {
       timer: undefined,
     };
     this.buffers.set(document.uri, buffer);
+    this.bufferEpoch++;
     if (existing) this.store.clear(document.uri);
     this.pendingStatus(document.uri);
     if (this.ready) {
@@ -201,6 +212,7 @@ export class LspClient {
     }
     buffer.version = version;
     buffer.text = text;
+    this.bufferEpoch++;
     this.store.clear(uri);
     this.pendingStatus(uri);
     if (!this.ready) {
@@ -258,6 +270,7 @@ export class LspClient {
       clearTimeout(buffer.timer);
     }
     this.buffers.delete(uri);
+    this.bufferEpoch++;
     this.store.clear(uri);
     this.analysisStatuses.delete(uri);
     this.options.onDocumentStatusChanged?.(uri);
@@ -275,31 +288,109 @@ export class LspClient {
     }
   }
 
-  async requestSymbols(uri: string, onCancel?: (cancel: () => void) => void): Promise<SymbolData[]> {
+  requestSymbols(uri: string, onCancel?: (cancel: () => void) => void): Promise<SymbolData[]> {
+    return this.requestCurrent(uri, 'textDocument/documentSymbol', {}, onCancel, mapSymbols, []);
+  }
+
+  requestCompletions(uri: string, position: EditorPosition, onCancel?: (cancel: () => void) => void): Promise<CompletionData[]> {
+    if (!isEditorPosition(position)) return Promise.resolve([]);
+    return this.requestCurrent(uri, 'textDocument/completion', { position }, onCancel, mapCompletions, []);
+  }
+
+  requestHover(uri: string, position: EditorPosition, onCancel?: (cancel: () => void) => void): Promise<HoverData | undefined> {
+    if (!isEditorPosition(position)) return Promise.resolve(undefined);
+    return this.requestCurrent(uri, 'textDocument/hover', { position }, onCancel, mapHover, undefined);
+  }
+
+  referenceDocuments(): ReadonlyMap<string, ReferenceDocument> {
+    return new Map([...this.buffers].map(([uri, value]) => [uri, {uri, version: value.version, text: value.text}]));
+  }
+
+  referenceGuard(): () => boolean {
+    const connection = this.connection, epoch = this.bufferEpoch, generation = this.contextGeneration;
+    return () => this.ready && this.options.isTrusted() && this.connection === connection &&
+      this.bufferEpoch === epoch && this.contextGeneration === generation;
+  }
+
+  requestReferenceScopes(uri: string, onCancel?: (cancel: () => void) => void): Promise<ReferenceScopeChoice[]> {
+    const version = this.buffers.get(uri)?.version;
+    return this.requestCurrent(uri, 'lithosharp/referenceScopes', {}, onCancel,
+      value => mapReferenceScopes(value, version ?? -1), [], true);
+  }
+
+  requestDefinition(uri: string, position: EditorPosition, referenceScope: ReferenceScope,
+    onCancel?: (cancel: () => void) => void): Promise<ReferenceLocation[]> {
+    return this.referenceLocations(uri, position, referenceScope, 'textDocument/definition', {}, onCancel);
+  }
+
+  requestReferences(uri: string, position: EditorPosition, referenceScope: ReferenceScope, includeDeclaration: boolean,
+    onCancel?: (cancel: () => void) => void): Promise<ReferenceLocation[]> {
+    return this.referenceLocations(uri, position, referenceScope, 'textDocument/references', {context: {includeDeclaration}}, onCancel);
+  }
+
+  private referenceLocations(uri: string, position: EditorPosition, referenceScope: ReferenceScope, method: string,
+    extra: Record<string, unknown>, onCancel?: (cancel: () => void) => void): Promise<ReferenceLocation[]> {
+    if (!isEditorPosition(position)) return Promise.resolve([]);
+    const documents = this.referenceDocuments();
+    return this.requestCurrent(uri, method, {position, referenceScope, ...extra}, onCancel,
+      value => mapReferenceLocations(value, documents), [], true);
+  }
+
+  requestPrepareRename(uri: string, position: EditorPosition, referenceScope: ReferenceScope,
+    onCancel?: (cancel: () => void) => void): Promise<ReturnType<typeof mapPrepareRename>> {
+    if (!isEditorPosition(position)) return Promise.resolve(undefined);
+    return this.requestCurrent(uri, 'textDocument/prepareRename', {position, referenceScope}, onCancel, mapPrepareRename, undefined, true);
+  }
+
+  requestRenamePreview(uri: string, parameters: Record<string, unknown>, referenceScope: ReferenceScope,
+    onCancel?: (cancel: () => void) => void): Promise<unknown> {
+    return this.requestReferenceEdit(uri, 'lithosharp/previewRename', parameters, referenceScope, onCancel);
+  }
+
+  requestRename(uri: string, parameters: Record<string, unknown>, referenceScope: ReferenceScope,
+    onCancel?: (cancel: () => void) => void): Promise<unknown> {
+    if (!this.options.referenceEditing) return Promise.reject(new Error('Guarded reference editing is not enabled.'));
+    return this.requestReferenceEdit(uri, 'textDocument/rename', parameters, referenceScope, onCancel);
+  }
+
+  private requestReferenceEdit(uri: string, method: string, parameters: Record<string, unknown>, referenceScope: ReferenceScope,
+    onCancel?: (cancel: () => void) => void): Promise<unknown> {
+    const text = this.buffers.get(uri)?.text;
+    return this.requestCurrent(uri, method, {...parameters, referenceScope,
+      expectedSourceTextHash: textHash(text ?? '')}, onCancel, value => value, undefined, true);
+  }
+
+  private async requestCurrent<T>(uri: string, method: string, parameters: Record<string, unknown>,
+    onCancel: ((cancel: () => void) => void) | undefined, project: (value: unknown, text: string) => T, unavailable: T,
+    workspaceGuard = false): Promise<T> {
     const buffer = this.buffers.get(uri);
-    if (!buffer || !this.connection || !this.ready) {
-      return [];
+    if (!buffer || !this.connection || !this.ready || !this.options.isTrusted()) {
+      return unavailable;
     }
     const connection = this.connection;
     const version = buffer.version;
     const text = buffer.text;
     const contextGeneration = this.contextGeneration;
+    const bufferEpoch = this.bufferEpoch;
+    if (workspaceGuard) for (const openedUri of this.buffers.keys()) this.flush(openedUri);
     this.flush(uri);
-    if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
-        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration) {
-      return [];
+    if (this.connection !== connection || !this.ready || !this.options.isTrusted() || this.buffers.get(uri) !== buffer ||
+        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration ||
+        workspaceGuard && this.bufferEpoch !== bufferEpoch) {
+      return unavailable;
     }
     const id = this.nextId();
-    const promise = connection.sendRequest<unknown>(id, 'textDocument/documentSymbol', {
-      textDocument: { uri },
+    const promise = connection.sendRequest<unknown>(id, method, {
+      ...parameters, textDocument: { uri, ...(workspaceGuard ? {version} : {}) },
     });
     onCancel?.(() => connection.cancelRequest(id));
     const result = await promise;
-    if (this.connection !== connection || !this.ready || this.buffers.get(uri) !== buffer ||
-        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration) {
-      return [];
+    if (this.connection !== connection || !this.ready || !this.options.isTrusted() || this.buffers.get(uri) !== buffer ||
+        buffer.version !== version || buffer.text !== text || this.contextGeneration !== contextGeneration ||
+        workspaceGuard && this.bufferEpoch !== bufferEpoch) {
+      return unavailable;
     }
-    return mapSymbols(result);
+    return project(result, text);
   }
 
   sendProjectContext(projectId: string, folders: string[], snapshot: unknown | null): void {
@@ -317,6 +408,15 @@ export class LspClient {
   }
 
   private onNotification(method: string, params: unknown): void {
+    if (method === 'lithosharp/referenceStatus' && typeof params === 'object' && params !== null) {
+      const status = params as Record<string, unknown>;
+      const buffer = typeof status['uri'] === 'string' ? this.buffers.get(status['uri']) : undefined;
+      if (buffer && status['version'] === buffer.version && status['lithosharpOpenGeneration'] === buffer.generation &&
+          status['lithosharpContextGeneration'] === this.contextGeneration && status['scope'] === 'captured-static-markdown' &&
+          Array.isArray(status['manualScopes']) && status['manualScopes'].every(item => typeof item === 'string'))
+        this.options.onLog?.(`Captured static Markdown references (${String(status['collection'])}/${String(status['selectedVersion'])}/${String(status['locale'])}): ${String(status['state'])}. Remaining manual scope: ${status['manualScopes'].join('; ') || 'none reported'}.`);
+      return;
+    }
     if (method === 'lithosharp/analysisStatus' && typeof params === 'object' && params !== null) {
       const status = params as Record<string, unknown>;
       const buffer = typeof status['uri'] === 'string' ? this.buffers.get(status['uri']) : undefined;
@@ -333,7 +433,7 @@ export class LspClient {
         if (Number.isSafeInteger(status['projectGeneration'])) metadata.projectGeneration = status['projectGeneration'] as number;
         // Scope is explicit producer evidence, never inferred from a schema name or MDX project context.
         const scope = status['schemaScope'];
-        metadata.schemaScope = language === 'markdown' && (scope === 'built-in-binding' || scope === 'build-required') ? scope : 'unknown';
+        metadata.schemaScope = language === 'markdown' && (scope === 'built-in-binding' || scope === 'build-required' || scope === 'static-schema-build-required') ? scope : 'unknown';
         this.analysisStatuses.set(uri, metadata);
         this.options.onDocumentStatusChanged?.(uri);
         this.options.onAnalysisStatus?.(status['uri'] as string, status['state'], status['message'], language);

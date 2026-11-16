@@ -6,31 +6,49 @@ Use the .NET 10 SDK (minimum 10.0.300). Markdown-only Docs need no Node.js or
 React. Optional MDX uses Node.js 24.13.0 and an explicitly restored worker.
 The SDK supplies the ASP.NET Core shared framework used by `serve`.
 
-The commands below install the published 2.2.0 Tool and Templates from NuGet.
-See [distribution](distribution.md) for package choices.
+This guide targets LithoSharp 3.0.0. It is a development target, not a claim that
+3.0.0 is published. The [version matrix](../eng/version-matrix.json) records the
+selected Syntamark 2 runtime/Source pair and the separate VS Code 0.5.0 target.
+See [distribution](distribution.md) for package choices and candidate handling.
 
 ## Create typed Markdown Docs
 
-Work in a new directory:
+Work in a new directory. Run these release-install commands only when the matching
+3.0.0 Tool and Templates are available from your selected package source. For an
+unpublished candidate, use its explicitly supplied packages and restore sources
+as described in distribution; these commands do not locate or build a candidate.
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 On Windows use `.tools/lithosharp.exe`. Template installation changes your user
 template catalog; the Tool is local to `.tools`. Generated projects already use
-LithoSharp 2.2.0. Do not mix package versions or scaffold over an existing site.
+LithoSharp 3.0.0. Do not mix package versions or scaffold over an existing site.
 
 ## Edit the C# contract and Markdown
 
 `GuideFrontMatter.cs` declares required `Title`, optional `Description` and
 `Order`, and the `Guides` generated collection. The project references matching
 Core, Generators and Analyzers packages, with the compiler packages private.
-The factory uses `Guides.Binder` to load Markdown and `Guides.Catalog.GetRoute(entry.Id)`
-to select routes. It then calls `RenderDocs` for the Docs shell and navigation.
-No date is required by this schema.
+The factory calls `MarkdownContentCollectionLoader<GuideFrontMatter>.FromCatalog`
+with `Guides.Catalog`, the project directory and `Guides.Binder`. This uses the
+catalog's declared `InputRoot` and routes:
+
+```csharp
+var loaded = await MarkdownContentCollectionLoader<GuideFrontMatter>.FromCatalog(
+    Guides.Catalog,
+    context.ProjectDirectory,
+    entry => new PageMetadata(entry.FrontMatter.Title, entry.FrontMatter.Description),
+    frontMatterBinder: Guides.Binder,
+    transformationId: new ContentTransformationId("docs-content:v1"),
+    isCacheable: true).LoadAsync(cancellationToken);
+```
+
+The factory checks `loaded.IsSuccess` before using the collection, then calls
+`RenderDocs` for the Docs shell and navigation. No date is required by this schema.
 
 Edit `MyDocs/content/getting-started.md`:
 
@@ -63,6 +81,8 @@ paths. Add, rename or exclude files in both declared input rules and runtime
 loading when changing the defaults. A runtime file missing from the generated
 catalog fails route lookup rather than receiving a guessed URL; a catalog's
 coverage comes from actual compiler inputs, not a hard-coded Closed promise.
+`FromCatalog` rejects added, missing or moved input files until the catalog is
+rebuilt. The template declares `InputRoot = "content"` explicitly.
 
 ## Use generated references
 
@@ -77,6 +97,10 @@ does. Keep generated names tied to the declared inputs; rebuilding after a
 rename updates the available symbols. Do not duplicate the catalog with a
 handwritten route dictionary. See [typed collections](typed-markdown-collections.md)
 for custom binders, references and runtime validation.
+
+The default Markdown profile remains `lithosharp-markdown/1`. Select other
+[profiles](markdown-profiles.md) explicitly; front-matter binding and the Docs
+layout are separate choices.
 
 ## Build, check and preview
 
@@ -110,14 +134,20 @@ distribution only, use your static HTTP host against `dist`.
 
 A missing required title produces `LSG006` during compilation. A statically
 proven entry/route contradiction produces `LSA1402`; final missing targets or
-anchors produce `LSQ001`/`LSQ002`. Editor syntax/section feedback does not run
-custom C# schemas per keystroke. `NoContext`, `Partial` and `Unknown` are not
-complete validation. See [diagnostics](diagnostics.md), [preflight](cli.md) and
+anchors produce `LSQ001`/`LSQ002`. Explicit trusted Build or Inspect can acquire
+generated static schema metadata. Editor field checks require the captured
+project/schema identity, hashes and a unique input-membership match. Typing does
+not execute user constructors, setters, validation delegates or components.
+Schema or input-membership changes require fresh evidence; build-required checks
+remain outside static schema validation. `NoContext`, `Partial`, `Unknown` and
+`Deferred` are not complete validation. See [diagnostics](diagnostics.md),
+[language-server evidence](language-server.md), [preflight](cli.md) and
 [output checks](generated-output-checks.md).
 
 ## CI for this Docs project
 
-Keep matching 2.2.0 versions in your site's tool and package configuration. Run one generation/check path before publishing the same output:
+After selecting matching 3.0.0 packages, keep the site's tool and package versions
+aligned. Run one generation/check path before publishing the same output:
 
 ```sh
 dotnet restore MyDocs
@@ -129,7 +159,7 @@ Configure CI to stop on a nonzero exit code. The factory's explicit Quality
 Error threshold applies to the generation step; the final command inspects the
 saved distribution. Do not publish after either fails. This Markdown CI needs
 no npm restore. For an existing project, adopt this configuration explicitly
-using the [migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content).
+using the [3.0 migration guide](migration-3.0.md).
 
 ## Add MDX and an interactive component
 
@@ -209,5 +239,6 @@ older browser sessions when updating an existing deployment.
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template
-products. See [upgrading to the 2.2.0](migration-2.0.md), [testing](testing.md),
+products. See [upgrading to 3.0](migration-3.0.md), [testing](testing.md),
 [performance](performance.md) and [Known limitations](known-limitations.md).
+The [2.x migration guide](migration-2.0.md) remains historical material for older upgrades.

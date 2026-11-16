@@ -82,6 +82,14 @@ public sealed class DocumentComponentInfo
 
 public sealed class DocumentInspectionOptions
 {
+    /// <summary>Optional Markdown override; null uses the acquired project profile or the legacy default. YAML binding remains independent.</summary>
+    public LithoSharp.Content.MarkdownOptions? Markdown { get; init; }
+
+    internal LithoSharp.Content.MarkdownOptions EffectiveMarkdown => Markdown ?? new()
+    {
+        ProfileId = Project?.MarkdownProfileId ?? LithoSharp.Content.MarkdownOptions.LegacyProfile,
+    };
+
     public string? DocumentId { get; init; }
 
     public string? Route { get; init; }
@@ -167,6 +175,22 @@ public sealed class DocumentInfo
     public IReadOnlyList<DocumentHeadingInfo> Headings { get; }
 
     internal IReadOnlyList<DocumentSectionInfo> Sections { get; init; } = [];
+
+    internal Syntamark.YamlDocument? FrontMatterSyntax { get; init; }
+
+    internal int FrontMatterStartOffset { get; init; }
+
+    internal FrontMatterSchemaSnapshot? StaticSchema { get; init; }
+
+    internal Syntamark.Compilation.MdAnalysisResult? MarkdownSyntax { get; init; }
+
+    internal DocumentIncrementalAnalysis? IncrementalAnalysis { get; init; }
+
+    internal int BodyStartOffset { get; init; }
+
+    internal IReadOnlyList<LithoSharp.Content.MarkdownComponentSchema> MarkdownComponents { get; init; } = [];
+
+    internal IReadOnlyList<LithoSharp.Documentation.DocumentSemanticAssessment> SemanticAssessments { get; init; } = [];
 
     public IReadOnlyList<DocumentLinkInfo> Links { get; }
 

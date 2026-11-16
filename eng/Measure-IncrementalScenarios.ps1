@@ -4,8 +4,9 @@ Runs the incremental performance scenarios as independent jobs and records raw e
 
 .DESCRIPTION
 Each run gets its own corpus, cache and output directory under -StateRoot, its own process,
-and its own timeout. The script never deletes a run directory: a timeout is recorded as a
-timeout, and a retry is added as a new run index. Completed runs are skipped with -Resume.
+and its own optional timeout (0 means no overall time limit). The script never deletes a
+run directory: a timeout is recorded as a timeout, and a retry is added as a new run index.
+Completed runs are skipped with -Resume.
 
 Scenario selection:
 - a single scenario runs after a successful baseline build; the harness reports that baseline
@@ -33,7 +34,7 @@ param(
     [string] $Sizes = '1000',
     [string] $Scenarios,
     [ValidateRange(1, 20)] [int] $Runs = 5,
-    [ValidateRange(30, 86400)] [int] $TimeoutSeconds = 1800,
+    [ValidateScript({ $_ -eq 0 -or ($_ -ge 30 -and $_ -le 86400) })] [int] $TimeoutSeconds = 1800,
     [string] $EvidenceRoot,
     [string] $StateRoot,
     [string] $HarnessDll,
@@ -56,7 +57,7 @@ if (!$HarnessRoot) { $HarnessRoot = $repo }
 $HarnessRoot = [IO.Path]::GetFullPath($HarnessRoot)
 
 $knownScenarios = if ($Harness -eq 'markdown') {
-    @('all', 'clean', 'no-op', 'single-page-change', 'layout-change')
+    @('all', 'clean', 'warm-cache', 'no-op', 'single-page-change', 'layout-change')
 }
 else {
     @('all', 'cold', 'warm-cache', 'no-op', 'one-page', 'shared-component', 'shared-css', 'shared-image', 'layout', 'route', 'lockfile')
@@ -169,7 +170,7 @@ function Assert-PrepareMeasurement($Prepare) {
 
 function Assert-MeasurementSet($Entries, [string] $RequestedScenario, [string] $MeasurementHarness = $Harness) {
     if ($MeasurementHarness -cnotin 'markdown', 'mdx') { throw 'Unknown measurement harness.' }
-    $scenarioNames = if ($MeasurementHarness -ceq 'markdown') { @('clean', 'no-op', 'single-page-change', 'layout-change') }
+    $scenarioNames = if ($MeasurementHarness -ceq 'markdown') { @('clean', 'warm-cache', 'no-op', 'single-page-change', 'layout-change') }
         else { @('cold', 'warm-cache', 'no-op', 'one-page', 'shared-component', 'shared-css', 'shared-image', 'layout', 'route', 'lockfile') }
     if ($RequestedScenario -cne 'all' -and $scenarioNames -cnotcontains $RequestedScenario) { throw 'Unknown requested scenario.' }
     $expected = @(if ($RequestedScenario -ceq 'all') { $scenarioNames } else { $RequestedScenario })
@@ -318,7 +319,11 @@ function Invoke-HarnessRun([string] $RunDirectory, [int] $Size, [string] $Scenar
     $status = 'completed'
     $exitCode = $null
     try {
-        if (!$process.WaitForExit($TimeoutSeconds * 1000)) {
+        if ($TimeoutSeconds -eq 0) {
+            $process.WaitForExit()
+            $exitCode = $process.ExitCode
+        }
+        elseif (!$process.WaitForExit($TimeoutSeconds * 1000)) {
             $status = 'timeout'
             $process.Kill($true)
             $process.WaitForExit()

@@ -52,16 +52,10 @@ public sealed partial class AnalyzerPackageHostTests
     private static readonly Lazy<ImmutableArray<ISourceGenerator>> ManifestGenerators = new(LoadManifestGenerators);
     private static ImmutableArray<ISourceGenerator> LoadManifestGenerators()
     {
-        _ = Packed.Value; // Extract the same YAML dependency before loading the actual generator package.
+        _ = Packed.Value;
         using var zip = ZipFile.OpenRead(Required("RA05_GENERATOR_NUPKG"));
-        using (var yaml = zip.GetEntry("analyzers/dotnet/cs/YamlDotNet.dll")!.Open())
-        using (var bytes = new MemoryStream())
-        {
-            yaml.CopyTo(bytes);
-            var dependency = Path.Combine(Required("RA01_PAYLOAD_DIR"), "YamlDotNet.dll");
-            Check(File.ReadAllBytes(dependency).SequenceEqual(bytes.ToArray()), "Same actual YAML package dependency");
-            System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(dependency);
-        }
+        Check(!zip.Entries.Any(entry => entry.FullName.Contains("YamlDotNet", StringComparison.OrdinalIgnoreCase)),
+            "Native compiler package has no YAML dependency payload");
         var dll = zip.GetEntry("analyzers/dotnet/cs/LithoSharp.Generators.dll")!;
         var path = Path.Combine(Required("RA01_PAYLOAD_DIR"), "LithoSharp.Generators.dll");
         using (var source = dll.Open())

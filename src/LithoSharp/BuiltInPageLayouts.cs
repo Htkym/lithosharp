@@ -37,23 +37,24 @@ public sealed class BlogPageLayout : IPageLayout<PageLayoutContent>
         bool includeBlogNavigation,
         PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
     {
+        configuration = SiteGenerator.ForPageLanguage(configuration, metadata?.Language);
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
         var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        if (configuration.HasSocialImage)
-            socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
-        var header = SiteGenerator.BuildSiteHeader(configuration, includeBlogNavigation);
+        var socialImage = configuration.SocialImageFor(relativePath);
+        socialImageUrl ??= socialImage?.Url;
+        var header = SiteGenerator.BuildSiteHeader(configuration, includeBlogNavigation, metadata?.Language);
         return $"""
             <!doctype html>
             <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
-            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: false, includeBlogNavigation, metadata, head, includeDefaultScript)}
+            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: false, includeBlogNavigation, metadata, head, includeDefaultScript, socialImage?.Url == socialImageUrl ? socialImage?.Metadata : null)}
             <body class="blog-body">
-              <a class="site-skip-link" href="#blog-main">Skip to main content</a>
+              <a class="site-skip-link" href="#blog-main">{SiteText.Label(metadata?.Language, "Skip to main content")}</a>
               {header}
               <main id="blog-main" tabindex="-1">
             {body}
               </main>
-              {FooterComponent.RenderCore(configuration.Site.Title, docs: false, configuration.Footer)}
+              {FooterComponent.RenderCore(configuration.Site.Title, docs: false, configuration.Footer, metadata?.Language)}
             </body>
             </html>
             """;
@@ -102,21 +103,22 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
         string? tableOfContents,
         PageMetadata? metadata = null, IHtmlContent? head = null, bool includeDefaultScript = true)
     {
+        configuration = SiteGenerator.ForPageLanguage(configuration, metadata?.Language);
         var fullTitle = title == configuration.Site.Title ? title : $"{title} - {configuration.Site.Title}";
         var pageDescription = string.IsNullOrWhiteSpace(description) ? configuration.Site.Description : description;
         var canonicalUrl = configuration.Routes.AbsoluteUrl(configuration.Routes.File(relativePath));
-        if (configuration.HasSocialImage)
-            socialImageUrl ??= configuration.Routes.AbsoluteUrl(configuration.Routes.DefaultSocialImage);
+        var socialImage = configuration.SocialImageFor(relativePath);
+        socialImageUrl ??= socialImage?.Url;
         return $"""
             <!doctype html>
             <html lang="{Html.Encode(metadata?.Language ?? configuration.Site.Language)}"{(metadata?.RightToLeft == true ? " dir=\"rtl\"" : string.Empty)}>
-            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true, metadata, head, includeDefaultScript)}
+            {SiteGenerator.RenderHead(configuration, fullTitle, pageDescription, canonicalUrl, openGraphType, socialImageUrl, publishedAt, docs: true, includeBlogNavigation: true, metadata, head, includeDefaultScript, socialImage?.Url == socialImageUrl ? socialImage?.Metadata : null)}
             <body class="docs-body">
-              <a class="docs-skip-link" href="#docs-main">Skip to main content</a>
-              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching, configuration.DocsTemplate?.EnableHeaderSearch == true ? configuration.Text : null,
+              <a class="docs-skip-link" href="#docs-main">{SiteText.Label(metadata?.Language, "Skip to main content")}</a>
+              {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching, configuration.Text,
                   configuration.DocsTemplate?.EnableHeaderSearch == true && relativePath != configuration.Routes.SearchPage.RelativeOutputPath
                     ? SearchFormComponent.RenderCore(configuration, configuration.Routes.PublicPath(configuration.Routes.SearchPage), includeInputId: false)
-                    : string.Empty)}
+                    : string.Empty, metadata?.Language)}
               <div class="docs-shell">
                 {sidebar ?? string.Empty}
                 <main id="docs-main" class="docs-main" tabindex="-1">
@@ -126,7 +128,7 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
                 </main>
                 {tableOfContents ?? string.Empty}
               </div>
-              {FooterComponent.RenderCore(configuration.Site.Title, docs: true, configuration.Footer)}
+              {FooterComponent.RenderCore(configuration.Site.Title, docs: true, configuration.Footer, metadata?.Language)}
             </body>
             </html>
             """;

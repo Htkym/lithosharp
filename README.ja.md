@@ -3,7 +3,7 @@
 [![build](https://github.com/Htkym/lithosharp/actions/workflows/build.yml/badge.svg)](https://github.com/Htkym/lithosharp/actions/workflows/build.yml)
 [![NuGet](https://img.shields.io/nuget/v/LithoSharp.svg)](https://www.nuget.org/packages/LithoSharp)
 
-[English](README.md) | [日本語](README.ja.md)
+[English](https://github.com/Htkym/lithosharp/blob/main/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/README.ja.md)
 
 C#の型とビルドで、ドキュメントの整合性を管理します。LithoSharpは.NETチームの
 コンテンツ型、生成した参照、コンパイル診断、生成物の検査をつなぐ静的サイト生成器です。
@@ -20,8 +20,9 @@ C#の型とビルドで、ドキュメントの整合性を管理します。Lit
 正しい型付き参照だけで最終HTMLの正しさが確定するわけでもありません。
 適合条件、依存関係、評価例は[導入選択ガイド](docs/adoption-guide.ja.md)を参照してください。
 
-この文書は公開済みのLithoSharp 2.2.0とVS Code拡張0.4.0を対象にしています。
-既存サイトを更新する場合は[更新手順](docs/migration-2.0.ja.md)を参照してください。
+この文書はLithoSharp 3.0.0とVS Code拡張0.5.0を対象にしています。
+既存サイトを更新する場合は[3.0への更新手順](docs/migration-3.0.ja.md)を参照してください。
+インストールの前に、リンク先の配布ページで公開済みのバージョンを確認してください。
 
 ## サンプルサイト
 
@@ -43,6 +44,9 @@ C#の型とビルドで、ドキュメントの整合性を管理します。Lit
 - routeとownershipを検証したうえでのstaging、output transaction、公開前のrollback。
 - link、anchor、canonical、redirect、SEOに対する構造化診断。
 - XML形式の.NET API文書、OpenAPI 3 JSON、正確なxref、検証済みexampleの取り込み。
+- スキーマに基づく編集時の補完、文書と見出しの参照、適用条件付きの名前変更プレビュー、条件付き必須項目、公開互換性の検査。
+- 明示的なMarkdownプロファイル、型付きC#部品、原文位置へ戻れる診断、コード例の実行記録、翻訳レビューの記録。
+- 自作のYAML解析と型バインド、原文を保持するOpen Knowledge Format、既成画像のvariant、任意パッケージによる限定PNG処理。
 - site、route、artifact、DOM、component、layoutを検証する.NET向けTesting API。
 - fingerprint付きasset、responsive image、C# renderingと信頼するMDX pluginの拡張点。
 
@@ -50,12 +54,12 @@ C#の型とビルドで、ドキュメントの整合性を管理します。Lit
 
 .NET 10 SDKを用意して実行します。
 
-利用するパッケージを2.2.0にそろえてください。生成プロジェクトの`LithoSharpVersion`の
-既定値も2.2.0です。
+3.0.0の公開後は、利用するパッケージを3.0.0にそろえてください。
+生成プロジェクトの`LithoSharpVersion`の既定値も3.0.0です。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -67,7 +71,7 @@ factoryはQualityのError閾値と外部HTTP検査の無効を明示していま
 `DocsSiteFactory.cs`を設定し、ビルドと検査の後に`MyDocs/dist`を静的HTTP hostへ配置してください。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 2.2.0`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version 3.0.0`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例
@@ -89,7 +93,7 @@ factoryはQualityのError閾値と外部HTTP検査の無効を明示していま
 | MDX、React island、offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.ja.md) |
 | versioning、i18n、Blog/Pages、API docs | [MDXガイド](docs/mdx.ja.md)と[使用例の案内](docs/quickstart.ja.md#使用例と次の手順) |
 
-Markdownの既定profileは`lithosharp-markdown/1`です。Syntamark 1.2.0が構文と原文範囲を扱い、LithoSharpがC#スキーマ、ルート、表示方針、製品の診断を担当します。解析上限や検証できない状態は[既知の制約](docs/known-limitations.ja.md)を参照してください。
+Markdownの既定プロファイルは`lithosharp-markdown/1`です。`commonmark/0.31.2`と`syntamark-docs/2`は明示的に選択できます。Syntamark 2がMarkdownとYAMLの構文、原文範囲を扱い、LithoSharpがC#スキーマ、ルート、表示方針、製品の診断を担当します。[Markdownプロファイル](docs/markdown-profiles.ja.md)と[更新手順](docs/migration-3.0.ja.md)を参照してください。
 
 ## 必要な環境
 
@@ -114,12 +118,13 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 - [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
 - [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
 
-## 2.2.0への更新
+## 3.0.0への更新
 
 利用するパッケージ、CLI、テンプレートは同じバージョンにそろえてください。
-2.2.0では新規Docsの構成が変わります。既存サイトは型付きloader、Docs adapter、Quality設定を
-明示的に選んで変更します。Catalogのルート宣言で既存URLを維持し、テンプレートを既存ファイルへ
-上書きしないでください。[更新手順](docs/migration-2.0.ja.md)を参照してください。
+YamlDotNetの属性を`ContentName`と`ContentIgnore`へ変更します。画像変換は対応範囲のPNGに限定します。
+JPEG、WebP、AVIF、SVGは既成ファイルをそのまま使うか、事前生成したvariantを用意してください。
+PNGのOGP画像は任意のImagesパッケージで明示的に登録します。Catalogのルート宣言で既存URLを維持し、
+配置前に公開manifestを比較してください。[更新手順](docs/migration-3.0.ja.md)を参照してください。
 1.xからの更新ではTesting APIの`Document`から`Snapshot`への移行も必要です。
 再生成して、コンテンツ診断、最終出力のリンク、独自CSSを確認してください。MDXは任意です。
 

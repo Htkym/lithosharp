@@ -9,13 +9,15 @@ namespace LithoSharp.Content.Compilation;
 internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
 {
     private int _parseCount;
+    private readonly MdOptions bodyOptions;
+    private readonly MdAnalysisParts bodyParts;
 
     /// <summary>
     /// Compiler implementation version, pinned in <see cref="Fingerprint"/>.
     /// Bump on any output or semantics behavior change so persistent parse
     /// records from older implementations miss instead of rendering stale HTML.
     /// </summary>
-    internal const string ImplementationVersion = "3";
+    internal const string ImplementationVersion = "5";
 
     /// <summary>Pinned CommonMark/GFM specification versions (C04).</summary>
     internal const string SpecVersion = "commonmark-0.31.2+gfm-0.29";
@@ -28,9 +30,13 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         {
             Options = Options with { Frontend = "lithosharp" };
         }
+        ArgumentNullException.ThrowIfNull(Options.Markdown);
+        Options.Markdown.Validate();
+        bodyOptions = MarkdownAnalysisAdapter.BodyOptionsFor(Options.Markdown);
+        bodyParts = MarkdownAnalysisAdapter.BodyPartsFor(Options.Markdown);
 
         // The stamp is a const; the loaded module also distinguishes runtime-only upgrades.
-        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile=lithosharp-markdown/1/options={MarkdownAnalysisAdapter.BodyOptionsHash}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}";
+        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile={Options.Markdown.ProfileId}/options={bodyOptions.Hash}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}/components={Options.Markdown.Components?.Fingerprint ?? "none"}";
     }
 
     /// <inheritdoc />
@@ -48,8 +54,24 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// <inheritdoc />
     public MarkdownCompilationResult Compile(string markdown)
     {
-        var prepared = PrepareTree(Parse(markdown), default);
+        if (Options.Markdown.ProfileId == MarkdownOptions.DocumentationProfile)
+            return CompileComponents(markdown, null);
+        var prepared = PrepareTree(Parse(markdown), default, Options.Markdown.ProfileId);
         return new MarkdownCompilationResult(RenderHtml(prepared));
+    }
+
+    public MarkdownCompilationResult Compile(string markdown, ComponentRenderingContext context) =>
+        Options.Markdown.ProfileId != MarkdownOptions.DocumentationProfile ? Compile(markdown)
+            : CompileComponents(markdown, context, context.Configuration.Cancellation);
+
+    private MarkdownCompilationResult CompileComponents(string markdown, ComponentRenderingContext? context,
+        CancellationToken cancellationToken = default)
+    {
+        var result = AnalyzeCore(markdown, null, cancellationToken, renderHtml: true, context: context);
+        var errors = result.Semantics!.Diagnostics.Where(static item => item.Severity == Diagnostics.SiteDiagnosticSeverity.Error).ToArray();
+        if (errors.Length != 0)
+            throw new Quality.SiteQualityValidationException(new Quality.SiteQualityReport(errors));
+        return new MarkdownCompilationResult(result.Html);
     }
 
     /// <inheritdoc />
@@ -65,43 +87,66 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         MarkdownBodyAnalysisSnapshot? retainedAnalysis) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: true, retainedAnalysis);
 
+    public MarkdownCompilationResult Analyze(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        MarkdownBodyAnalysisSnapshot? retainedAnalysis, ComponentRenderingContext? context) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: true, retainedAnalysis, context);
+
+    internal MarkdownCompilationResult AnalyzeProjected(string markdown, DocumentSource? source, CancellationToken cancellationToken,
+        Func<string, bool, MarkdownLinkProjection?> resolveLink) =>
+        AnalyzeCore(markdown, source, cancellationToken, renderHtml: true, resolveLink: resolveLink);
+
     /// <summary>Analyzes editor information without materializing discarded body HTML.</summary>
     internal MarkdownCompilationResult AnalyzeForInspection(string markdown, DocumentSource? source, CancellationToken cancellationToken = default) =>
         AnalyzeCore(markdown, source, cancellationToken, renderHtml: false);
 
     private MarkdownCompilationResult AnalyzeCore(string markdown, DocumentSource? source, CancellationToken cancellationToken,
-        bool renderHtml, MarkdownBodyAnalysisSnapshot? retainedAnalysis = null)
+        bool renderHtml, MarkdownBodyAnalysisSnapshot? retainedAnalysis = null, ComponentRenderingContext? context = null,
+        Func<string, bool, MarkdownLinkProjection?>? resolveLink = null)
     {
         ArgumentNullException.ThrowIfNull(markdown);
         cancellationToken.ThrowIfCancellationRequested();
         var resolved = source ?? new DocumentSource(null, 0);
         var analysis = retainedAnalysis is not null
-            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath)?.Analysis
+            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath, bodyOptions, bodyParts)?.Analysis
             : null;
         if (analysis is null)
         {
             Interlocked.Increment(ref _parseCount);
-            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, cancellationToken);
+            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, bodyOptions, bodyParts, cancellationToken);
         }
-        var prepared = PrepareTree(analysis.Blocks ?? [], cancellationToken);
+        var prepared = PrepareTree(analysis.Blocks ?? [], cancellationToken, Options.Markdown.ProfileId);
         var (syntax, semantics) = Map(prepared, analysis, resolved, cancellationToken);
-        return new MarkdownCompilationResult(renderHtml ? RenderHtml(prepared) : string.Empty, syntax, semantics);
+        var componentPlan = Options.Markdown.ProfileId == MarkdownOptions.DocumentationProfile
+            ? MarkdownComponentRendering.Prepare(analysis, resolved, Options.Markdown.Components ?? MarkdownComponentRegistry.Empty,
+                context, renderHtml, cancellationToken) : null;
+        if (componentPlan is not null)
+            semantics = semantics with { Components = componentPlan.Components, Diagnostics = semantics.Diagnostics.Concat(componentPlan.Diagnostics).ToArray() };
+        var origins = renderHtml ? new List<MarkdownRenderOrigin>() : null;
+        return new MarkdownCompilationResult(renderHtml
+            ? LithoHtmlRenderer.RenderHtml(prepared.Blocks, prepared.HeadingIds, resolveLink,
+                componentPlan?.HtmlByDirectiveStart, prepared.Footnotes, origins) : string.Empty, syntax, semantics)
+        {
+            RenderOrigins = origins is null ? [] : Array.AsReadOnly(origins.ToArray()),
+        };
     }
 
     private readonly record struct PreparedTree(
         IReadOnlyList<LithoBlock> Blocks,
         List<string> HeadingTexts,
-        IReadOnlyList<string> HeadingIds);
+        IReadOnlyList<string> HeadingIds,
+        MarkdownFootnoteRenderPlan Footnotes);
 
-    private static PreparedTree PrepareTree(IReadOnlyList<LithoBlock> blocks, CancellationToken cancellationToken)
+    private static PreparedTree PrepareTree(IReadOnlyList<LithoBlock> blocks, CancellationToken cancellationToken,
+        string profileId)
     {
         var texts = new List<string>();
-        CollectHeadingTexts(blocks, texts, cancellationToken);
-        return new PreparedTree(blocks, texts, AssignIds(texts));
+        CollectHeadingTexts(blocks, texts, cancellationToken, profileId);
+        var ids = AssignIds(texts);
+        return new PreparedTree(blocks, texts, ids, MarkdownFootnoteRenderPlan.Create(blocks, ids, cancellationToken));
     }
 
     private static string RenderHtml(PreparedTree prepared) =>
-        LithoHtmlRenderer.RenderHtml(prepared.Blocks, prepared.HeadingIds);
+        LithoHtmlRenderer.RenderHtml(prepared.Blocks, prepared.HeadingIds, footnotes: prepared.Footnotes);
 
     /// <inheritdoc />
     public string RenderPlainText(string markdown) =>
@@ -112,7 +157,14 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     {
         ArgumentNullException.ThrowIfNull(markdown);
         Interlocked.Increment(ref _parseCount);
-        return LithoBlockParser.ParseBlocks(markdown, cancellationToken).Blocks;
+        if (Options.Markdown.ProfileId == MarkdownOptions.LegacyProfile)
+            return LithoBlockParser.ParseBlocks(markdown, cancellationToken).Blocks;
+        var options = new MdOptions(MdInputKind.Body, maxInputUtf16: 8 * 1024 * 1024,
+            maxOutputItems: 1024 * 1024, maxScanUnits: 512 * 1024 * 1024, profileId: Options.Markdown.ProfileId);
+        var analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, null, options, MdAnalysisParts.None, cancellationToken);
+        if (MarkdownAnalysisAdapter.IncompleteDiagnostic(analysis, null) is { } incomplete)
+            throw new Quality.SiteQualityValidationException(new Quality.SiteQualityReport([incomplete]));
+        return analysis.Blocks ?? [];
     }
 
     /// <summary>Pre-parses a tree with heading ids for render-only measurement (no parse inside).</summary>
@@ -121,7 +173,7 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         ArgumentNullException.ThrowIfNull(markdown);
         var tree = Parse(markdown);
         var texts = new List<string>();
-        CollectHeadingTexts(tree, texts, CancellationToken.None);
+        CollectHeadingTexts(tree, texts, CancellationToken.None, Options.Markdown.ProfileId);
         return (tree, AssignIds(texts));
     }
 
@@ -136,12 +188,13 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
     /// <summary>Assigns ids from entity-decoded heading text, matching the reference slugs.</summary>
     private static IReadOnlyList<string> AssignIds(List<string> texts) => LithoSlug.Assign(texts);
 
-    private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts, CancellationToken cancellationToken)
+    private static void CollectHeadingTexts(IReadOnlyList<LithoBlock> blocks, List<string> texts, CancellationToken cancellationToken,
+        string profileId)
     {
         foreach (var heading in WalkHeadings(blocks))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            texts.Add(LithoLegacyTextPolicy.Heading(heading.Inlines, cancellationToken));
+            texts.Add(MarkdownAnalysisAdapter.HeadingText(heading, profileId, cancellationToken));
         }
     }
 
@@ -160,6 +213,10 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                         yield return nested;
                     }
 
+                    break;
+                case LithoFootnoteDefinition { IsDuplicate: false, Number: not null } footnote:
+                    foreach (var nested in WalkHeadings(footnote.Children))
+                        yield return nested;
                     break;
                 case LithoAdmonition admonition:
                     foreach (var nested in WalkHeadings(admonition.Children))
@@ -210,6 +267,10 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         var headingIndex = new Counter();
         MapInto(document, analysis.RawText, source.BodyStartOffset, blocks, headings, links, assets, prepared, headingIndex,
             cancellationToken);
+        foreach (var reference in prepared.Footnotes.References)
+            links.Add(new DocumentLink(Slice(analysis.RawText, reference.Span),
+                "#" + prepared.Footnotes.DefinitionId(reference.Number!.Value), null, false, reference.Span.Shift(source.BodyStartOffset)));
+        links.Sort(static (left, right) => left.Span.Start.CompareTo(right.Span.Start));
         return (
             new DocumentSyntax(blocks),
             new DocumentSemantics(
@@ -336,6 +397,10 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                     CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                 }
 
+                break;
+            case LithoFootnoteDefinition { IsDuplicate: false, Number: not null } footnote:
+                foreach (var child in footnote.Children)
+                    CollectSemantics(child, body, shift, headings, links, assets, prepared, headingIndex, cancellationToken);
                 break;
             case LithoList list:
                 foreach (var item in list.Items)

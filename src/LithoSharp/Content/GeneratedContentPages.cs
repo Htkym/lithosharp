@@ -38,6 +38,8 @@ public enum GeneratedPageDerivedSurfaces
 
     Sitemap = 1 << 3,
 
+    /// <summary>Legacy flag for removed implicit generation. Explicit image settings now control social metadata.</summary>
+    [Obsolete("Implicit social image generation is no longer supported. Use SiteGenerationOptions.CommonSocialImage or SocialImages.", true)]
     SocialImage = 1 << 4,
 
     LlmsTxt = 1 << 5,
@@ -303,6 +305,8 @@ internal sealed class GeneratedSiteContentCollection<TFrontMatter, TBody, TPageC
                     : this.RendererFingerprint + "|" + rendererImplementationIdentity,
                 IsThreadSafe = this.IsThreadSafe,
                 FrontMatterSchema = SiteContentCollection.FrontMatterSchemaName(typeof(TFrontMatter)),
+                StaticSchemaJson = source.StaticSchemaJson,
+                StaticSchemaInputs = source.Entries.Select(item => item.SourcePath).Distinct(StringComparer.Ordinal).ToArray(),
             });
             routeTable.Register(
                 route,

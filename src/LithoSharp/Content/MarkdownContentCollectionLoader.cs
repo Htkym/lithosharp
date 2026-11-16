@@ -1,8 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using LithoSharp.Diagnostics;
-using YamlDotNet.Core;
-using YamlDotNet.Core.Events;
+using Syntamark;
 
 namespace LithoSharp.Content;
 
@@ -27,6 +26,10 @@ public static class MarkdownContentDiagnosticIds
     public const string InvalidUtf8 = "LSM009";
 
     public const string DuplicateEntryId = "LSM010";
+
+    public const string UnsupportedYaml = "LSM014";
+
+    public const string YamlResourceLimit = "LSM015";
 }
 
 /// <summary>Reads files in NFC-normalized ordinal relative-path order. Rejects links/reparse points, normalized path collisions, YAML anchors, aliases and duplicate keys.</summary>
@@ -35,6 +38,8 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     : IContentCollectionLoader<TFrontMatter, string>
     where TFrontMatter : notnull
 {
+    internal static readonly YamlParseOptions TypedYamlOptions = new(maxNestingDepth: 64);
+
     private static readonly UTF8Encoding StrictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
@@ -49,6 +54,48 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
     private readonly IReadOnlyList<ContentDependency> _declaredDependencies;
     private readonly ContentTransformationId? _transformationId;
     private readonly bool _isCacheable;
+    private readonly StaticContentCatalog? _inputCatalog;
+
+    /// <summary>Loads and checks the same input set and routes declared in a generated Markdown catalog.</summary>
+    public static MarkdownContentCollectionLoader<TFrontMatter> FromCatalog(
+        StaticContentCatalog catalog,
+        string projectDirectory,
+        ContentPublicationMapper<TFrontMatter, string> publicationMapper,
+        IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null,
+        ContentLayoutId? layoutId = null,
+        IComparer<ContentEntry<TFrontMatter, string>>? orderingComparer = null,
+        IEnumerable<ContentDependency>? declaredDependencies = null,
+        ContentTransformationId? transformationId = null,
+        bool isCacheable = false)
+        => new(catalog, projectDirectory, publicationMapper, frontMatterBinder, layoutId,
+            orderingComparer, declaredDependencies, transformationId, isCacheable);
+
+    private MarkdownContentCollectionLoader(
+        StaticContentCatalog catalog,
+        string projectDirectory,
+        ContentPublicationMapper<TFrontMatter, string> publicationMapper,
+        IContentFrontMatterBinder<TFrontMatter>? frontMatterBinder = null,
+        ContentLayoutId? layoutId = null,
+        IComparer<ContentEntry<TFrontMatter, string>>? orderingComparer = null,
+        IEnumerable<ContentDependency>? declaredDependencies = null,
+        ContentTransformationId? transformationId = null,
+        bool isCacheable = false)
+        : this((catalog ?? throw new ArgumentNullException(nameof(catalog))).CollectionId,
+            CatalogRoot(catalog, projectDirectory), entry => catalog.GetRoute(entry.Id), publicationMapper,
+            frontMatterBinder, layoutId, orderingComparer, declaredDependencies, transformationId, isCacheable)
+    {
+        _inputCatalog = catalog;
+    }
+
+    private static string CatalogRoot(StaticContentCatalog catalog, string projectDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectDirectory);
+        if (catalog.InputRoot.Length == 0)
+            throw new ArgumentException("Checked discovery requires a catalog with an explicit InputRoot.", nameof(catalog));
+        if (catalog.InputProfile != ContentInputProfile.Markdown)
+            throw new ArgumentException("The typed Markdown loader requires the Markdown input profile. OKF reserved and auxiliary inputs require an OKF consumer.", nameof(catalog));
+        return Path.GetFullPath(catalog.InputRoot, Path.GetFullPath(projectDirectory));
+    }
 
     public MarkdownContentCollectionLoader(
         ContentCollectionId id,
@@ -90,13 +137,16 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var discovery = ContentPath.Discover(_inputRoot, [".md"], cancellationToken);
-        // Underscore-prefixed partials never publish (MDX parity): the Markdown renderer
-        // has no partial imports, so they are skipped before front matter parsing instead
-        // of failing the whole load on their missing front matter.
-        var paths = discovery.Files.Where(static path => !IsPartial(path.RelativePath)).ToArray();
-        var entries = new List<ContentEntry<TFrontMatter, string>>(paths.Length);
+        var discovery = ContentPath.Discover(_inputRoot, ContentInputProfile.Markdown, cancellationToken);
+        var paths = discovery.Files;
+        var entries = new List<ContentEntry<TFrontMatter, string>>(paths.Count);
         var diagnostics = new List<SiteDiagnostic>(discovery.Diagnostics);
+        if (_inputCatalog is not null)
+        {
+            diagnostics.AddRange(_inputCatalog.ValidateInputs(paths, cancellationToken));
+            if (diagnostics.Any(static diagnostic => diagnostic.Severity == SiteDiagnosticSeverity.Error))
+                return ContentLoadResult<TFrontMatter, string>.Failure(diagnostics);
+        }
         foreach (var path in paths)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -246,7 +296,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
 
         cancellationToken.ThrowIfCancellationRequested();
         var bindResult = _frontMatterBinder.Bind(
-            yamlResult.Value!,
+            ContentValues.FromYaml(yamlResult.Value!),
             new SiteSourceLocation(relativePath, document.YamlStartLine, 1));
         if (!bindResult.IsSuccess)
         {
@@ -271,8 +321,8 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
 
         var retainedAnalysis = Compilation.MarkdownAnalysisAdapter.RetainForBody(
             originalAnalysis, inclusion.Body, relativePath);
-        var bodySource = retainedAnalysis is null ? null
-            : new Compilation.DocumentSource(relativePath, bodyStartOffset) { BodyStartLine = bodyStartLine };
+        var bodySource = Compilation.MarkdownSourceMapping.CreateSource(inclusion, relativePath,
+            inclusion.Body, bodyStartOffset, bodyStartLine);
         var fingerprint = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
 
         // Preserve each original read, including repeated targets; conflicting
@@ -301,7 +351,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 .Append(ContentDependency.FromValue("markdown.inclusion", resolvedHash))
                 .ToArray();
             entry = new ContentEntry<TFrontMatter, string>(
-                new ContentEntryId(relativePath),
+                EntryId(relativePath),
                 relativePath,
                 fingerprint,
                 bindResult.Value!,
@@ -309,6 +359,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 new SiteSourceLocation(relativePath, 1, 1))
             {
                 DeclaredDependencies = ContentDependency.Snapshot(dependencies),
+                FrontMatterValues = yamlResult.Value,
                 CapturedInputs = capturedInputs,
                 BodyAnalysis = retainedAnalysis,
                 BodySource = bodySource,
@@ -317,7 +368,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
         else
         {
             entry = new ContentEntry<TFrontMatter, string>(
-                new ContentEntryId(relativePath),
+                EntryId(relativePath),
                 relativePath,
                 fingerprint,
                 bindResult.Value!,
@@ -325,6 +376,7 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 new SiteSourceLocation(relativePath, 1, 1))
             {
                 CapturedInputs = capturedInputs,
+                FrontMatterValues = yamlResult.Value,
                 BodyAnalysis = retainedAnalysis,
                 BodySource = bodySource,
             };
@@ -347,326 +399,157 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
             _orderingComparer,
             _declaredDependencies,
             _transformationId,
-            _isCacheable);
+            _isCacheable)
+        {
+            StaticSchemaJson = _inputCatalog?.InputProfile == ContentInputProfile.OpenKnowledgeFormat
+                ? null : (_frontMatterBinder as IContentFrontMatterSchemaProvider)?.SchemaJson,
+        };
 
     internal static ContentParseResult<LocatedYamlMapping> ParseYaml(
         string yaml,
         string relativePath,
         int yamlStartLine,
+        CancellationToken cancellationToken) =>
+        ParseYaml(YamlParser.Parse(yaml, TypedYamlOptions, cancellationToken), relativePath, yamlStartLine, cancellationToken);
+
+    internal static ContentParseResult<LocatedYamlMapping> ParseYaml(
+        YamlDocument yaml,
+        string relativePath,
+        int yamlStartLine,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        try
-        {
-            var parser = new Parser(new StringReader(yaml));
-            if (!parser.MoveNext() || parser.Current is not StreamStart)
-            {
-                return YamlFailure(
-                    MarkdownContentDiagnosticIds.InvalidYaml,
-                    "YAML stream could not be read.",
-                    relativePath,
-                    yamlStartLine,
-                    1);
-            }
-
-            parser.MoveNext();
-            if (parser.Current is not DocumentStart)
-            {
-                return YamlFailure(
-                    MarkdownContentDiagnosticIds.InvalidYaml,
-                    "YAML document could not be read.",
-                    relativePath,
-                    yamlStartLine,
-                    1);
-            }
-
-            parser.MoveNext();
-            var node = ParseYamlNode(
-                parser,
-                relativePath,
-                yamlStartLine,
-                cancellationToken);
-            if (!node.IsSuccess)
-            {
-                return ContentParseResult<LocatedYamlMapping>.Failure(node.Diagnostics);
-            }
-
-            if (parser.Current is not DocumentEnd)
-            {
-                return YamlFailure(
-                    MarkdownContentDiagnosticIds.InvalidYaml,
-                    "YAML document has unexpected trailing content.",
-                    relativePath,
-                    yamlStartLine,
-                    1);
-            }
-
-            parser.MoveNext();
-            if (parser.Current is not StreamEnd)
-            {
-                var location = Location(relativePath, parser.Current?.Start ?? Mark.Empty, yamlStartLine);
-                return ContentParseResult<LocatedYamlMapping>.Failure(
-                    [new SiteDiagnostic(
-                        MarkdownContentDiagnosticIds.InvalidYaml,
-                        SiteDiagnosticSeverity.Error,
-                        "YAML front matter must contain exactly one document.",
-                        location)]);
-            }
-
-            if (node.Value is not LocatedYamlMapping mapping)
-            {
-                return YamlFailure(
-                    MarkdownContentDiagnosticIds.InvalidFrontMatterRoot,
-                    "YAML front matter root must be a mapping.",
-                    relativePath,
-                    yamlStartLine,
-                    1);
-            }
-
-            return ContentParseResult<LocatedYamlMapping>.Success(mapping);
-        }
-        catch (YamlException exception)
-        {
-            var location = Location(relativePath, exception.Start, yamlStartLine);
-            return ContentParseResult<LocatedYamlMapping>.Failure(
-                [new SiteDiagnostic(
-                    MarkdownContentDiagnosticIds.InvalidYaml,
-                    SiteDiagnosticSeverity.Error,
-                    exception.Message,
-                    location)]);
-        }
+        var parsed = ProjectYamlDocument(yaml, relativePath, yamlStartLine, MarkdownContentDiagnosticIds.InvalidUtf8, cancellationToken);
+        if (!parsed.IsSuccess)
+            return ContentParseResult<LocatedYamlMapping>.Failure(parsed.Diagnostics);
+        if (parsed.Value is not LocatedYamlMapping mapping)
+            return ContentParseResult<LocatedYamlMapping>.Failure([
+                new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidFrontMatterRoot,
+                    SiteDiagnosticSeverity.Error, "YAML front matter root must be a mapping.",
+                    LocatedYamlValue.GetLocation(parsed.Value) ?? new SiteSourceLocation(relativePath, yamlStartLine, 1))]);
+        return ContentParseResult<LocatedYamlMapping>.Success(mapping);
     }
 
     internal static ContentParseResult<object> ParseYamlDocument(
         string yaml,
         string relativePath,
         int yamlStartLine,
+        CancellationToken cancellationToken) =>
+        ProjectYamlDocument(YamlParser.Parse(yaml, TypedYamlOptions, cancellationToken),
+            relativePath, yamlStartLine, MarkdownContentDiagnosticIds.InvalidUtf8, cancellationToken);
+
+    internal static ContentParseResult<object> ParseYamlDocument(
+        byte[] yaml,
+        string relativePath,
+        int yamlStartLine,
+        CancellationToken cancellationToken) =>
+        ProjectYamlDocument(YamlParser.ParseUtf8(yaml, TypedYamlOptions, cancellationToken),
+            relativePath, yamlStartLine, YamlContentDiagnosticIds.InvalidUtf8, cancellationToken);
+
+    private static ContentParseResult<object> ProjectYamlDocument(
+        YamlDocument document,
+        string relativePath,
+        int yamlStartLine,
+        string invalidEncodingId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        try
+        var source = new Syntamark.Compilation.SourceText(document.RawText);
+        var diagnostics = document.Diagnostics.Select(diagnostic => new SiteDiagnostic(
+            diagnostic.Reason switch
+            {
+                "duplicateKey" => MarkdownContentDiagnosticIds.DuplicateKey,
+                "alias" => MarkdownContentDiagnosticIds.AliasNotAllowed,
+                "invalidKey" or "complexKey" => MarkdownContentDiagnosticIds.InvalidMappingKey,
+                _ => diagnostic.Kind switch
+                {
+                    YamlDiagnosticKind.Unsupported => MarkdownContentDiagnosticIds.UnsupportedYaml,
+                    YamlDiagnosticKind.ResourceLimit or YamlDiagnosticKind.Canceled => MarkdownContentDiagnosticIds.YamlResourceLimit,
+                    YamlDiagnosticKind.InvalidEncoding => invalidEncodingId,
+                    _ => MarkdownContentDiagnosticIds.InvalidYaml,
+                },
+            },
+            SiteDiagnosticSeverity.Error, diagnostic.Message,
+            YamlLocation(relativePath, source, diagnostic.RawSpan.Start, diagnostic.RawSpan.Length, yamlStartLine))).ToList();
+        if (document.Status != MarkdownParseStatus.Complete || diagnostics.Count != 0)
         {
-            var parser = new Parser(new StringReader(yaml));
-            if (!parser.MoveNext() || parser.Current is not StreamStart)
-            {
-                return ContentParseResult<object>.Failure([
-                    new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
-                        "YAML stream could not be read.", new SiteSourceLocation(relativePath, yamlStartLine, 1))]);
-            }
-
-            parser.MoveNext();
-            if (parser.Current is not DocumentStart)
-            {
-                return ContentParseResult<object>.Failure([
-                    new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
-                        "YAML document could not be read.", new SiteSourceLocation(relativePath, yamlStartLine, 1))]);
-            }
-
-            parser.MoveNext();
-            var node = ParseYamlNode(parser, relativePath, yamlStartLine, cancellationToken);
-            if (!node.IsSuccess)
-            {
-                return node;
-            }
-
-            if (parser.Current is not DocumentEnd)
-            {
-                return ContentParseResult<object>.Failure([
-                    new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
-                        "YAML document has unexpected trailing content.",
-                        Location(relativePath, parser.Current?.Start ?? Mark.Empty, yamlStartLine))]);
-            }
-
-            parser.MoveNext();
-            if (parser.Current is not StreamEnd)
-            {
-                return ContentParseResult<object>.Failure([
-                    new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
-                        "YAML must contain exactly one document.",
-                        Location(relativePath, parser.Current?.Start ?? Mark.Empty, yamlStartLine))]);
-            }
-
-            return node;
+            if (diagnostics.Count == 0)
+                diagnostics.Add(new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml,
+                    SiteDiagnosticSeverity.Error, "YAML analysis is incomplete; unavailable values were not bound.",
+                    new SiteSourceLocation(relativePath, yamlStartLine, 1)));
+            return ContentParseResult<object>.Failure(diagnostics);
         }
-        catch (YamlException exception)
-        {
-            return ContentParseResult<object>.Failure([
-                new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidYaml, SiteDiagnosticSeverity.Error,
-                    exception.Message, Location(relativePath, exception.Start, yamlStartLine))]);
-        }
+        return document.Root is { } root
+            ? ProjectYamlNode(root, relativePath, source, yamlStartLine, cancellationToken)
+            : ContentParseResult<object>.Success(new LocatedYamlScalar(null,
+                new SiteSourceLocation(relativePath, yamlStartLine, 1)));
     }
 
-    internal static ContentParseResult<object> ParseYamlNode(
-        IParser parser,
+    private static ContentParseResult<object> ProjectYamlNode(
+        YamlNode node,
         string relativePath,
+        Syntamark.Compilation.SourceText source,
         int yamlStartLine,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (parser.Current is AnchorAlias alias)
+        var location = YamlLocation(relativePath, source, node.RawSpan.Start, node.RawSpan.Length, yamlStartLine);
+        if (node.Kind == MarkdownYamlKind.Scalar)
         {
-            return NodeFailure(
-                MarkdownContentDiagnosticIds.AliasNotAllowed,
-                $"YAML alias '*{alias.Value}' is not allowed.",
-                relativePath,
-                alias.Start,
-                yamlStartLine);
+            // Typed content explicitly converts decoded text to its declared CLR type.
+            return ContentParseResult<object>.Success(new LocatedYamlScalar(
+                node.ScalarKind == YamlScalarKind.Null ? null : node.Value, location));
         }
-
-        if (parser.Current is NodeEvent nodeEvent && !nodeEvent.Anchor.IsEmpty)
+        if (node.Kind == MarkdownYamlKind.Sequence)
         {
-            return NodeFailure(
-                MarkdownContentDiagnosticIds.AliasNotAllowed,
-                $"YAML anchor '&{nodeEvent.Anchor}' is not allowed.",
-                relativePath,
-                nodeEvent.Start,
-                yamlStartLine);
+            var values = new List<object?>();
+            foreach (var child in node.Children)
+            {
+                var item = ProjectYamlNode(child, relativePath, source, yamlStartLine, cancellationToken);
+                if (!item.IsSuccess)
+                    return item;
+                values.Add(item.Value);
+            }
+            return ContentParseResult<object>.Success(new LocatedYamlSequence(values.AsReadOnly(), location));
         }
-
-        switch (parser.Current)
+        var mapping = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var keyLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+        var valueLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
+        foreach (var entry in node.Entries)
         {
-            case Scalar scalar:
-                {
-                    var value = IsNullScalar(scalar) ? null : scalar.Value;
-                    var result = new LocatedYamlScalar(
-                        value,
-                        Location(relativePath, scalar.Start, yamlStartLine));
-                    parser.MoveNext();
-                    return ContentParseResult<object>.Success(result);
-                }
-
-            case SequenceStart sequenceStart:
-                {
-                    var values = new List<object?>();
-                    var location = Location(relativePath, sequenceStart.Start, yamlStartLine);
-                    parser.MoveNext();
-                    while (parser.Current is not SequenceEnd)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var item = ParseYamlNode(
-                            parser,
-                            relativePath,
-                            yamlStartLine,
-                            cancellationToken);
-                        if (!item.IsSuccess)
-                        {
-                            return item;
-                        }
-
-                        values.Add(item.Value);
-                    }
-
-                    parser.MoveNext();
-                    return ContentParseResult<object>.Success(
-                        new LocatedYamlSequence(values.AsReadOnly(), location));
-                }
-
-            case MappingStart mappingStart:
-                {
-                    var values = new Dictionary<string, object?>(StringComparer.Ordinal);
-                    var keyLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
-                    var valueLocations = new Dictionary<string, SiteSourceLocation>(StringComparer.Ordinal);
-                    var location = Location(relativePath, mappingStart.Start, yamlStartLine);
-                    parser.MoveNext();
-                    while (parser.Current is not MappingEnd)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (parser.Current is not Scalar keyScalar || IsNullScalar(keyScalar))
-                        {
-                            return NodeFailure(
-                                MarkdownContentDiagnosticIds.InvalidMappingKey,
-                                "YAML mapping keys must be non-null strings.",
-                                relativePath,
-                                parser.Current?.Start ?? mappingStart.Start,
-                                yamlStartLine);
-                        }
-
-                        if (!keyScalar.Anchor.IsEmpty)
-                        {
-                            return NodeFailure(
-                                MarkdownContentDiagnosticIds.AliasNotAllowed,
-                                $"YAML anchor '&{keyScalar.Anchor}' is not allowed.",
-                                relativePath,
-                                keyScalar.Start,
-                                yamlStartLine);
-                        }
-
-                        var key = keyScalar.Value.Normalize(NormalizationForm.FormC);
-                        var keyLocation = Location(relativePath, keyScalar.Start, yamlStartLine);
-                        parser.MoveNext();
-                        if (values.ContainsKey(key))
-                        {
-                            return ContentParseResult<object>.Failure(
-                                [new SiteDiagnostic(
-                                MarkdownContentDiagnosticIds.DuplicateKey,
-                                SiteDiagnosticSeverity.Error,
-                                $"YAML mapping key '{key}' is duplicated.",
-                                keyLocation)]);
-                        }
-
-                        var value = ParseYamlNode(
-                            parser,
-                            relativePath,
-                            yamlStartLine,
-                            cancellationToken);
-                        if (!value.IsSuccess)
-                        {
-                            return value;
-                        }
-
-                        values.Add(key, value.Value);
-                        keyLocations.Add(key, keyLocation);
-                        valueLocations.Add(
-                            key,
-                            LocatedYamlValue.GetLocation(value.Value) ?? keyLocation);
-                    }
-
-                    parser.MoveNext();
-                    return ContentParseResult<object>.Success(
-                        new LocatedYamlMapping(values, keyLocations, valueLocations, location));
-                }
-
-            default:
-                return NodeFailure(
-                    MarkdownContentDiagnosticIds.InvalidYaml,
-                    "YAML contains an unsupported node.",
-                    relativePath,
-                    parser.Current?.Start ?? Mark.Empty,
-                    yamlStartLine);
+            cancellationToken.ThrowIfCancellationRequested();
+            var keyLocation = YamlLocation(relativePath, source, entry.Key.RawSpan.Start, entry.Key.RawSpan.Length, yamlStartLine);
+            if (entry.Key.Kind != MarkdownYamlKind.Scalar || entry.Key.ScalarKind == YamlScalarKind.Null
+                || entry.Key.Value is null)
+                return ContentParseResult<object>.Failure([
+                    new SiteDiagnostic(MarkdownContentDiagnosticIds.InvalidMappingKey,
+                        SiteDiagnosticSeverity.Error, "YAML mapping keys must be non-null strings.", keyLocation)]);
+            var key = entry.Key.Value.Normalize(NormalizationForm.FormC);
+            if (mapping.ContainsKey(key))
+                return ContentParseResult<object>.Failure([
+                    new SiteDiagnostic(MarkdownContentDiagnosticIds.DuplicateKey, SiteDiagnosticSeverity.Error,
+                        $"YAML mapping key '{key}' is duplicated.", keyLocation)]);
+            var value = ProjectYamlNode(entry.Value, relativePath, source, yamlStartLine, cancellationToken);
+            if (!value.IsSuccess)
+                return value;
+            mapping.Add(key, value.Value);
+            keyLocations.Add(key, keyLocation);
+            valueLocations.Add(key, LocatedYamlValue.GetLocation(value.Value) ?? keyLocation);
         }
+        return ContentParseResult<object>.Success(new LocatedYamlMapping(mapping, keyLocations, valueLocations, location));
     }
 
-    private static bool IsNullScalar(Scalar scalar) =>
-        scalar.Style is ScalarStyle.Any or ScalarStyle.Plain
-        && (scalar.Value.Length == 0
-            || scalar.Value == "~"
-            || string.Equals(scalar.Value, "null", StringComparison.OrdinalIgnoreCase));
-
-    private static ContentParseResult<object> NodeFailure(
-        string id,
-        string message,
+    private static SiteSourceLocation YamlLocation(
         string relativePath,
-        Mark mark,
-        int yamlStartLine) =>
-        ContentParseResult<object>.Failure(
-            [new SiteDiagnostic(
-                id,
-                SiteDiagnosticSeverity.Error,
-                message,
-                Location(relativePath, mark, yamlStartLine))]);
-
-    private static ContentParseResult<LocatedYamlMapping> YamlFailure(
-        string id,
-        string message,
-        string relativePath,
-        int line,
-        int column) =>
-        ContentParseResult<LocatedYamlMapping>.Failure(
-            [new SiteDiagnostic(
-                id,
-                SiteDiagnosticSeverity.Error,
-                message,
-                new SiteSourceLocation(relativePath, line, column))]);
+        Syntamark.Compilation.SourceText source,
+        int offset,
+        int length,
+        int yamlStartLine)
+    {
+        var position = source.GetLineAndColumn(offset);
+        var end = source.GetLineAndColumn(checked(offset + length));
+        return new SiteSourceLocation(relativePath, position.Line + yamlStartLine - 1, position.Column,
+            end.Line + yamlStartLine - 1, end.Column);
+    }
 
     private static ContentParseResult<ContentEntry<TFrontMatter, string>> Failure(
         string id,
@@ -681,25 +564,16 @@ public sealed class MarkdownContentCollectionLoader<TFrontMatter>
                 message,
                 new SiteSourceLocation(relativePath, line, column))]);
 
-    internal static SiteSourceLocation Location(
-        string relativePath,
-        Mark mark,
-        int yamlStartLine) =>
-        new(
-            relativePath,
-            mark.Line > 0
-                ? checked((int)mark.Line + yamlStartLine - 1)
-                : yamlStartLine,
-            mark.Column > 0 ? checked((int)mark.Column) : 1);
-
     private static string NormalizeRelativePath(string root, string path) =>
         Path.GetRelativePath(root, path)
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Normalize(NormalizationForm.FormC);
 
-    internal static bool IsPartial(string relativePath) =>
-        relativePath.Split('/').Any(static segment => segment.StartsWith('_'));
+    private ContentEntryId EntryId(string relativePath) =>
+        _inputCatalog?.GetInput(relativePath).Id ?? new ContentEntryId(relativePath);
+
+    internal static bool IsPartial(string relativePath) => ContentInputPolicy.IsPartial(relativePath);
 
     internal sealed record MarkdownSourceDocument(string Yaml, string Body, int YamlStartLine)
     {

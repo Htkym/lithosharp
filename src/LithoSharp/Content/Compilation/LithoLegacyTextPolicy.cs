@@ -83,6 +83,14 @@ internal static class LithoLegacyTextPolicy
                 }
 
                 break;
+            case LithoFootnoteDefinition { IsDuplicate: false, Number: not null } footnote:
+                foreach (var child in footnote.Children)
+                    BlockInto(child, writer);
+                break;
+            case LithoHtmlBlock html:
+                writer.Append(html.Text);
+                writer.Append('\n');
+                break;
             case LithoMath math:
                 writer.Append(math.Content);
                 writer.Append('\n');

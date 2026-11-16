@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Rejects AngleSharp identities in explicitly selected shipping inputs.
+Rejects removed HTML, YAML and image dependencies in explicitly selected shipping inputs.
 .EXAMPLE
 ./eng/Test-DependencyZero.ps1 -RepositoryGraph -Paths artifacts/packages, extensions/lithosharp-vscode/resources/language-server -Output .tmp/dependency-zero.json
 #>
@@ -21,13 +21,20 @@ $files = [Collections.Generic.List[object]]::new()
 $inspections = [Collections.Generic.List[object]]::new()
 $findings = [Collections.Generic.List[object]]::new()
 
-function Forbidden([string] $Name) { return $Name -match '^AngleSharp(?:\..+)?$' }
+function Forbidden([string] $Name) { return $Name -match '^(AngleSharp|YamlDotNet|SkiaSharp)(?:\..+)?$' }
+function ForbiddenFile([string] $Path) {
+    return [IO.Path]::GetFileName($Path) -match '^(?:(?:AngleSharp|YamlDotNet)(?:\..+)?\.(?:dll|LICENSE\.txt)|(?:lib)?SkiaSharp(?:\..+)?\.(?:dll|so(?:\.[0-9]+)*|dylib|txt))$'
+}
+function FileFinding([string] $Path, [string] $Name) {
+    $reason = if ($Name -match '^AngleSharp(?:\.|$)') { 'bundled-angle-sharp-file' } else { 'bundled-removed-dependency' }
+    Finding $Path $reason $Name
+}
 function Finding([string] $Path, [string] $Reason, [string] $Identity) {
     $findings.Add([ordered]@{ path = $Path; reason = $Reason; identity = $Identity })
 }
 function Supported([string] $Path) {
-    return $Path -match '\.(csproj|props|dll|nupkg|snupkg|vsix)$' -or
-        [IO.Path]::GetFileName($Path) -match '^AngleSharp(?:\..+)?\.LICENSE\.txt$' -or
+    return $Path -match '\.(csproj|props|targets|dll|nupkg|snupkg|vsix)$' -or
+        (ForbiddenFile $Path) -or
         [IO.Path]::GetFileName($Path) -in @('packages.lock.json', 'project.assets.json') -or $Path.EndsWith('.deps.json', [StringComparison]::OrdinalIgnoreCase)
 }
 function Select-Tree([string] $Root, [bool] $GraphOnly) {
@@ -41,7 +48,7 @@ function Select-Tree([string] $Root, [bool] $GraphOnly) {
                 if ($GraphOnly -and $item.Name -in @('bin', 'obj', 'node_modules', '.git')) { continue }
                 $pending.Push($item.FullName)
             } elseif ($GraphOnly) {
-                if ($item.Extension -in @('.csproj', '.props') -or $item.Name -eq 'packages.lock.json') {
+                if ($item.Extension -in @('.csproj', '.props', '.targets') -or $item.Name -eq 'packages.lock.json') {
                     $null = $selected.Add($item.FullName)
                     if ($item.Extension -eq '.csproj') {
                         $assets = Join-Path $directory 'obj/project.assets.json'
@@ -107,10 +114,10 @@ function Inspect-Archive([string] $Path) {
         foreach ($entry in $archive.Entries) {
             $name = $entry.FullName
             $entryPath = "$Path!$name"
-            if ([IO.Path]::GetFileName($name) -match '^AngleSharp(?:\..+)?\.(dll|LICENSE\.txt)$') {
-                Finding $entryPath 'bundled-angle-sharp-file' ([IO.Path]::GetFileName($name))
+            if (ForbiddenFile $name) {
+                FileFinding $entryPath ([IO.Path]::GetFileName($name))
             }
-            $projectXml = $name -match '\.(csproj|props)$'
+            $projectXml = $name -match '\.(csproj|props|targets)$'
             $graphJson = [IO.Path]::GetFileName($name) -in @('packages.lock.json', 'project.assets.json') -or $name.EndsWith('.deps.json', [StringComparison]::OrdinalIgnoreCase)
             if ($name -notmatch '\.(dll|nuspec)$' -and !$projectXml -and !$graphJson) { continue }
             $source = $entry.Open()
@@ -146,7 +153,10 @@ try {
         else { throw "Unsupported shipping input: $inputPath" }
     }
     if ($RepositoryGraph) {
-        Select-Tree (Join-Path $repo 'src') $true
+        foreach ($root in @('src', 'samples', 'templates', 'tests', 'benchmarks')) {
+            $directory = Join-Path $repo $root
+            if (Test-Path -LiteralPath $directory -PathType Container) { Select-Tree $directory $true }
+        }
         foreach ($name in @('Directory.Build.props', 'Directory.Packages.props')) {
             $path = Join-Path $repo $name
             if (Test-Path -LiteralPath $path -PathType Leaf) { $null = $selected.Add($path) }
@@ -157,15 +167,18 @@ try {
         $item = Get-Item -LiteralPath $path
         $files.Add([ordered]@{ path = $path; bytes = $item.Length; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() })
         try {
-            if ([IO.Path]::GetFileName($path) -match '^AngleSharp(?:\..+)?\.LICENSE\.txt$') {
-                Finding $path 'bundled-angle-sharp-file' ([IO.Path]::GetFileName($path))
+            if (ForbiddenFile $path) {
+                FileFinding $path ([IO.Path]::GetFileName($path))
+            }
+            if ($path -match '\.txt$' -or $path -match '\.(so(?:\.[0-9]+)*|dylib)$') {
+                continue
             } elseif ($path -match '\.(nupkg|snupkg|vsix)$') { Inspect-Archive $path }
             elseif ($path -match '\.dll$') {
-                if (Forbidden ([IO.Path]::GetFileNameWithoutExtension($path))) { Finding $path 'bundled-angle-sharp-file' ([IO.Path]::GetFileName($path)) }
+                if (Forbidden ([IO.Path]::GetFileNameWithoutExtension($path))) { FileFinding $path ([IO.Path]::GetFileName($path)) }
                 $stream = [IO.File]::OpenRead($path)
                 try { $assembly = Inspect-Assembly $stream $path } finally { $stream.Dispose() }
                 $inspections.Add([ordered]@{ path = $path; kind = $assembly.kind; assemblyDefinition = $assembly.assemblyDefinition; assemblyReferences = $assembly.assemblyReferences })
-            } elseif ($path -match '\.(csproj|props)$') { Inspect-Xml (Get-Content -LiteralPath $path -Raw) $path $false }
+            } elseif ($path -match '\.(csproj|props|targets)$') { Inspect-Xml (Get-Content -LiteralPath $path -Raw) $path $false }
             else { Inspect-JsonNode (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable) $path }
         } catch { Finding $path 'unreadable-shipping-input' $_.Exception.Message }
     }
@@ -173,7 +186,7 @@ try {
 
 $report = [ordered]@{ schemaVersion = '1.0'; passed = $findings.Count -eq 0; fileCount = $files.Count;
     inspectedPayloadCount = $inspections.Count; files = @($files); inspections = @($inspections); findings = @($findings);
-    scope = 'Explicit shipping inputs and optional src project graph; historical oracle/docs are not selected.' }
+    scope = 'Explicit shipping inputs and optional active project graph; historical oracle/docs are not selected.' }
 if ($Output) {
     $outputPath = [IO.Path]::GetFullPath($Output)
     $null = New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($outputPath))

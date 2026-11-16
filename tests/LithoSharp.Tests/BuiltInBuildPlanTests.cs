@@ -48,6 +48,7 @@ public sealed class BuiltInBuildPlanTests
             "navigation:docs",
             "page:extra:about.html",
             "page:index",
+            "page:not-found",
             "page:markdown:posts/alpha.html",
             "page:markdown:posts/beta.html",
             "text:llms",
@@ -64,6 +65,7 @@ public sealed class BuiltInBuildPlanTests
             "page:archives",
             "page:extra:about.html",
             "page:index",
+            "page:not-found",
             "page:markdown:posts/alpha.html",
             "page:markdown:posts/beta.html",
             "page:search",
@@ -123,6 +125,7 @@ public sealed class BuiltInBuildPlanTests
             "navigation:blog",
             "page:archives",
             "page:index",
+            "page:not-found",
             "page:markdown:posts/alpha.html",
             "page:search",
             "page:tags",
@@ -140,6 +143,7 @@ public sealed class BuiltInBuildPlanTests
             "asset:site-script",
             "navigation:docs",
             "page:index",
+            "page:not-found",
             "page:markdown:posts/alpha.html",
         ]);
         await Assert.That(invalidations.Single(item => item.NodeId.Value == "asset:site-css").Reasons)
@@ -340,6 +344,7 @@ public sealed class BuiltInBuildPlanTests
             [
                 "navigation:docs",
                 "page:index",
+                "page:not-found",
                 "page:markdown:posts/alpha.html",
                 "page:markdown:posts/beta.html",
                 "text:llms",
@@ -369,6 +374,7 @@ public sealed class BuiltInBuildPlanTests
             [
                 "navigation:docs",
                 "page:index",
+                "page:not-found",
                 "page:markdown:posts/alpha.html",
                 "page:markdown:posts/beta.html",
             ]);
@@ -403,6 +409,7 @@ public sealed class BuiltInBuildPlanTests
                 "asset:web-manifest",
                 "page:archives",
                 "page:index",
+                "page:not-found",
                 "page:markdown:posts/alpha.html",
                 "page:search",
                 "page:tags",
@@ -414,7 +421,7 @@ public sealed class BuiltInBuildPlanTests
         };
         var changedTitle = await GenerateAsync(
             workspace,
-            "title-with-social",
+            "changed-title-output",
             new BlogSiteTemplate(),
             [changedTitlePost],
             theme: new SiteThemeOptions { ThemeColor = "#111111" },
@@ -429,7 +436,6 @@ public sealed class BuiltInBuildPlanTests
                 "page:index",
                 "page:markdown:posts/alpha.html",
                 "page:search",
-                "social:post:posts/alpha.html",
             ]);
 
         await File.WriteAllBytesAsync(
@@ -447,8 +453,6 @@ public sealed class BuiltInBuildPlanTests
         await Assert.That(InvalidatedNodeIds(invalidations)).IsEquivalentTo(
         [
             "asset:favicon:android-chrome-192x192.png",
-            "social:default",
-            "social:post:posts/alpha.html",
         ]);
         await Assert.That(invalidations.All(item => item.Reasons.SequenceEqual(
             ["入力 'File:favicon/android-chrome-192x192.png' が変更されました。"]))).IsTrue();

@@ -9,6 +9,11 @@ namespace LithoSharp.Content.Compilation;
 internal sealed record DocumentSource(string? FilePath, int BodyStartOffset)
 {
     internal int BodyStartLine { get; init; } = 1;
+    internal MdSourceMap? SourceMap { get; init; }
+    internal string? ExactBody { get; init; }
+    internal int BodyFirstColumnOffset { get; init; }
+    internal string? OriginalSourceId { get; init; }
+    internal IReadOnlyList<Content.MarkdownInclusionOrigin> InclusionOrigins { get; init; } = [];
 }
 
 /// <summary>A resolved heading: raw level is as written, output level is as rendered.</summary>
@@ -45,7 +50,7 @@ internal readonly record struct DocumentLink(
 /// <param name="Span">Span in original-file coordinates.</param>
 internal readonly record struct DocumentAsset(string Url, SourceSpan Span);
 
-/// <summary>A component reference. Markdown declares none; reserved for MDX (C08).</summary>
+/// <summary>An explicitly selected static Markdown or MDX component reference.</summary>
 /// <param name="Name">Component name.</param>
 /// <param name="Span">Span in original-file coordinates.</param>
 internal readonly record struct DocumentComponent(string Name, SourceSpan Span);
@@ -57,8 +62,8 @@ internal readonly record struct DocumentComponent(string Name, SourceSpan Span);
 /// <param name="Headings">Headings in document order.</param>
 /// <param name="Links">Links and images in document order.</param>
 /// <param name="Assets">Asset references in document order.</param>
-/// <param name="Components">Component references (empty for Markdown).</param>
-/// <param name="Diagnostics">Parse diagnostics (footnote LIT001 warnings; Markdown reports none).</param>
+/// <param name="Components">Explicit component references.</param>
+/// <param name="Diagnostics">Parser and component binding diagnostics from this snapshot.</param>
 internal sealed record DocumentSemantics(
     DocumentSource Source,
     string? Title,

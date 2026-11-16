@@ -148,8 +148,7 @@ public sealed class GeneratedContentPageTests
             .Contains(publicPath);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "llms.txt")))
             .Contains(publicPath);
-        await Assert.That(Directory.EnumerateFiles(
-            Path.Combine(output, "assets", "social", "content"), "*.png").Count()).IsEqualTo(1);
+        await Assert.That(Directory.Exists(Path.Combine(output, "assets", "social"))).IsFalse();
     }
 
     [Test]
@@ -185,8 +184,7 @@ public sealed class GeneratedContentPageTests
             .Contains(publicPath);
         await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "llms.txt")))
             .Contains(publicPath);
-        await Assert.That(Directory.EnumerateFiles(
-            Path.Combine(output, "assets", "social", "content"), "*.png").Count()).IsEqualTo(1);
+        await Assert.That(Directory.Exists(Path.Combine(output, "assets", "social"))).IsFalse();
     }
 
     [Test]
@@ -284,8 +282,6 @@ public sealed class GeneratedContentPageTests
             [GroupPages(published, "owned-groups", "owned", static entry => entry.FrontMatter.Tags)],
             faviconRoot);
         var pagePath = Path.Combine(output, "owned", "dotnet.html");
-        var socialPath = Directory.EnumerateFiles(
-            Path.Combine(output, "assets", "social", "content"), "*.png").Single();
         var userPath = Path.Combine(output, "user.txt");
         await File.WriteAllTextAsync(userPath, "keep");
 
@@ -299,7 +295,6 @@ public sealed class GeneratedContentPageTests
             clean: false);
 
         await Assert.That(File.Exists(pagePath)).IsFalse();
-        await Assert.That(File.Exists(socialPath)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(userPath)).IsEqualTo("keep");
     }
 

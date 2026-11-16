@@ -500,17 +500,21 @@ export async function compileSite(request, workMetrics = {}) {
     };
   }
 
-  function plugin(platform, browserExports = new Map(), browserDefaults = new Set(), runtimeInputs = new Map()) {
+  function plugin(platform, browserExports = new Map(), browserDefaults = new Set(), runtimeInputs = new Map(), defaultOnlyModules = new Set()) {
     const resolvedBrowser = file => browserExports.has(file) ? {path: browserExports.get(file), external: true} : {path: file};
     return {name: 'lithosharp-mdx', setup(builder) {
       if (browserExports.size) builder.onResolve({filter: /.*/}, args => [...browserExports.values()].includes(args.path) ? {path: args.path, external: true} : undefined);
       if (browserExports.size) builder.onResolve({filter: /^(?:\.|\/|[A-Za-z]:[\\/])/}, args => {
         const file = path.resolve(args.resolveDir, args.path);
+        if (defaultOnlyModules.has(file) && args.namespace !== 'virtual')
+          throw Object.assign(new Error('User code imports the component override interface directly.'), {unifiedBrowserGraph: true});
         return browserExports.has(file) ? resolvedBrowser(file) : undefined;
       });
       if (browserExports.size) builder.onLoad({filter: /.*/, namespace: 'file'}, async args => {
         const file = await realpath(args.path);
         if (browserExports.has(file)) {
+          if (defaultOnlyModules.has(file))
+            throw Object.assign(new Error('The component override import needs complete export resolution.'), {unifiedBrowserGraph: true});
           await readInput(args.path);
           const url = JSON.stringify(browserExports.get(file));
           return {contents: `export * from ${url};${browserDefaults.has(file) ? `export {default} from ${url};` : ''}`, loader: 'js'};
@@ -797,7 +801,7 @@ export async function compileSite(request, workMetrics = {}) {
 
   // Give every page graph the same React, MDX provider, PageContext and cleanup modules.
   // Infer no exports from generated chunks: these facades export source-module APIs.
-  const sharedSources = new Map(), sharedFiles = new Map(), sharedDefaults = new Set(), sharedEntries = {};
+  const sharedSources = new Map(), sharedFiles = new Map(), sharedDefaults = new Set(), sharedDefaultOnly = new Set(), sharedEntries = {};
   for (const [name, specifier] of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react/compiler-runtime'].entries()) {
     const file = await realpath(specifier === 'react' ? reactFile : resolvePackage(specifier));
     const keys = Object.keys(projectRequire(file)).filter(key => /^[A-Za-z_$][\w$]*$/.test(key) && key !== 'default' && key !== '__esModule');
@@ -813,9 +817,16 @@ export async function compileSite(request, workMetrics = {}) {
     sharedFiles.set(file, entry); if (hasDefault) sharedDefaults.add(file); sharedEntries[name] = entry;
     sharedSources.set(entry, `export * from ${JSON.stringify(file)};${hasDefault ? `export {default} from ${JSON.stringify(file)};` : ''}`);
   }
+  if (request.componentsModule) {
+    // Only the default override contract is public; direct source imports use the unified graph.
+    const file = await realpath(path.resolve(projectRoot, request.componentsModule));
+    const entry = 'virtual:shared:overrides';
+    sharedFiles.set(file, entry); sharedDefaults.add(file); sharedDefaultOnly.add(file); sharedEntries.overrides = entry;
+    sharedSources.set(entry, `export {default} from ${JSON.stringify(file)};`);
+  }
   sharedSources.set('virtual:site-links', virtualBrowser.get('virtual:site-links'));
   sharedEntries.links = 'virtual:site-links';
-  const runtimeKey = hash(JSON.stringify([2, projectRoot, common, request.resolutionFingerprint, [...sharedSources]]));
+  const runtimeKey = hash(JSON.stringify([3, projectRoot, common, request.resolutionFingerprint, [...sharedSources]]));
   let runtime, runtimeDependencies, runtimeHit = false;
   const hasBrowserPages = Object.values(browserEntries).some(entry => entry.startsWith('virtual:'));
   if (hasBrowserPages && previousBrowser?.runtime.key === runtimeKey && previousBrowser.runtime.browser.outputFiles.some(file => file.path.endsWith('.js'))) {
@@ -838,7 +849,7 @@ export async function compileSite(request, workMetrics = {}) {
     .filter(([file]) => file.endsWith('.js'))
     .map(([file, info]) => [info.entryPoint.replace(/^virtual:virtual:/, 'virtual:'), publicPath + '/' + relative(browserDir, path.resolve(projectRoot, file))]));
   const browserExports = new Map([...sharedFiles].map(([file, entry]) => [file, sharedUrls.get(entry)]).filter(([, url]) => url));
-  const pageConfigKey = hash(JSON.stringify([2, projectRoot, common, request.resolutionFingerprint, request.plugins,
+  const pageConfigKey = hash(JSON.stringify([3, projectRoot, common, request.resolutionFingerprint, request.plugins,
     request.staticComponents, styleHashes, [...sharedUrls]]));
   const records = new Map();
   const changed = new Set();
@@ -915,7 +926,7 @@ export async function compileSite(request, workMetrics = {}) {
     try { built = await measureBrowser({...common, entryPoints: Object.fromEntries(Object.entries(browserEntries).filter(([name]) => changed.has(name))),
       outdir: browserDir, platform: 'browser', splitting: true, sourcemap: false,
       plugins: [...(unifiedBrowser ? [] : [{name: 'shared-links', setup(builder) { builder.onResolve({filter: /^virtual:site-links$/}, () => ({path: sharedUrls.get('virtual:site-links'), external: true})); }}]),
-        virtualPlugin(virtualBrowser), plugin('browser', unifiedBrowser ? new Map() : browserExports, sharedDefaults, runtimeDependencies)]});
+        virtualPlugin(virtualBrowser), plugin('browser', unifiedBrowser ? new Map() : browserExports, sharedDefaults, runtimeDependencies, sharedDefaultOnly)]});
     } catch (error) {
       if (unifiedBrowser || !error.errors?.some(item => item.detail?.unifiedBrowserGraph)) throw error;
       // Preserve supported modules shared with runtime internals in one esbuild scope.

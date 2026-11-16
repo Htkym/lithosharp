@@ -16,7 +16,7 @@ if (args.Length != 6)
 var packagePath = Path.GetFullPath(args[0]);
 var output = Path.GetFullPath(args[5]);
 Directory.CreateDirectory(output);
-bool Forbidden(string name) => name is "LithoSharp" or "Syntamark" or "AngleSharp" or "SkiaSharp" or "Node"
+bool Forbidden(string name) => name is "LithoSharp" or "Syntamark" or "AngleSharp" or "SkiaSharp" or "YamlDotNet" or "Node"
     || name.StartsWith("Microsoft.Build", StringComparison.Ordinal) || name.Contains("Workspaces", StringComparison.Ordinal);
 string Sha(byte[] b) => Convert.ToHexString(SHA256.HashData(b)).ToLowerInvariant();
 void Check(bool condition, string message)
@@ -27,17 +27,17 @@ void Check(bool condition, string message)
 using (var zip = ZipFile.OpenRead(packagePath))
 {
     Check(zip.Entries.Where(e => e.FullName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-        .All(e => e.FullName is "analyzers/dotnet/cs/LithoSharp.Analyzers.dll" or "analyzers/dotnet/cs/YamlDotNet.dll"), "Unexpected package DLL dependency");
+        .All(e => e.FullName is "analyzers/dotnet/cs/LithoSharp.Analyzers.dll"), "Unexpected package DLL dependency");
     using var nuspec = zip.Entries.Single(e => e.FullName.EndsWith(".nuspec", StringComparison.Ordinal)).Open();
     var metadata = XDocument.Load(nuspec);
     Check(metadata.Descendants().Single(e => e.Name.LocalName == "version").Value == args[1], "Candidate version mismatch");
     Check(!metadata.Descendants().Any(e => e.Name.LocalName == "dependency"), "Unexpected runtime package dependencies");
-    foreach (var name in new[] { "LithoSharp.Analyzers.dll", "YamlDotNet.dll" })
+    foreach (var name in new[] { "LithoSharp.Analyzers.dll" })
         if (zip.GetEntry("analyzers/dotnet/cs/" + name) is { } entry)
             entry.ExtractToFile(Path.Combine(output, name), overwrite: false);
 }
 var dll = Path.Combine(output, "LithoSharp.Analyzers.dll");
-var loader = new PackedLoader(output);
+var loader = new PackedLoader();
 var reference = new AnalyzerFileReference(dll, loader);
 var loadFailed = false;
 reference.AnalyzerLoadFailed += (_, _) => loadFailed = true;
@@ -99,13 +99,11 @@ File.WriteAllText(Path.Combine(output, "host-proof.json"), JsonSerializer.Serial
 }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"Packed HTML bridge PASS: {observations.Length} runtime/host cases; Roslyn 4.14 canary; forbidden runtime loads 0.");
 
-sealed class PackedLoader(string directory) : IAnalyzerAssemblyLoader
+sealed class PackedLoader : IAnalyzerAssemblyLoader
 {
     public void AddDependencyLocation(string fullPath) { }
     public Assembly LoadFromPath(string fullPath)
     {
-        AssemblyLoadContext.Default.Resolving += (_, name) => name.Name == "YamlDotNet"
-            ? AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(directory, "YamlDotNet.dll")) : null;
         return AssemblyLoadContext.Default.LoadFromAssemblyPath(fullPath);
     }
 }

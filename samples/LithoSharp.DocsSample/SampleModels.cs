@@ -19,3 +19,16 @@ public sealed class ArticleFrontMatter
 public sealed record TopicIndex(
     string Topic,
     IReadOnlyList<ContentEntry<ArticleFrontMatter, string>> Entries);
+
+[StaticContentCollection(typeof(VersionBadgeProps), typeof(string), "version-badges")]
+public static partial class GeneratedVersionBadges
+{
+}
+
+public enum ReleaseStability { Preview, Stable }
+
+public sealed class VersionBadgeProps
+{
+    public required string Version { get; init; }
+    public ReleaseStability Stability { get; init; }
+}

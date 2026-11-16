@@ -131,7 +131,7 @@ internal static class Md04CacheChecks
         var require = identity.GetMethod("Require", All)!;
         try
         {
-            require.Invoke(null, new object[] { "18.1.0", "YamlDotNet, Version=99.0.0.0", "18.1.0" });
+            require.Invoke(null, new object[] { "native-yaml/0" });
             throw new InvalidOperationException("Mismatched YAML identity was accepted");
         }
         catch (TargetInvocationException error) when (error.InnerException is InvalidOperationException) { }
@@ -139,15 +139,18 @@ internal static class Md04CacheChecks
         var hostAdapter = host.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter", true)!;
         var verify = hostAdapter.GetMethod("Verify", All)!;
         var parserVersion = (string)Get(first, "ParserVersion");
-        const string yamlIdentity = "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e";
-        verify.Invoke(null, new[] { parserVersion, "1.0", "lithosharp-markdown/1", "18.1.0", yamlIdentity, "18.1.0" });
+        Check((string)Get(first, "ContractVersion") == "2.0" && (string)Get(first, "YamlProfileId") == "native-yaml/1",
+            "Cached facts retain the native YAML contract and profile");
+        verify.Invoke(null, new[] { parserVersion, "2.0", "lithosharp-markdown/1", "native-yaml/1" });
         Check(!host.GetReferencedAssemblies().Any(a => a.Name == "LithoSharp" || a.Name == "Syntamark"),
             "Prepared netstandard host contract does not reference the net10 facade");
+        Check(new[] { product, runtime, host }.All(assembly => !assembly.GetReferencedAssemblies().Any(a => a.Name == "YamlDotNet")),
+            "Product, runtime and Source host have no YamlDotNet assembly reference");
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             task = "MD-04",
             status = "PASS",
-            checks = "identity/raw positions/LRU-entry-byte limits/Partial-Failed-cancel exclusion/generation reservation/Remove-Clear-Dispose/legacy separation/loaded YAML metadata",
+            checks = "identity/raw positions/LRU-entry-byte limits/Partial-Failed-cancel exclusion/generation reservation/Remove-Clear-Dispose/legacy separation/native YAML profile/no YamlDotNet references",
             parserVersion,
             preparedHostContract = "netstandard2.0 metadata only",
             actualSourceArtifactRoslynHost = "NOT_RUN; MD-05/IN-01"

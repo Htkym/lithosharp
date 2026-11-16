@@ -1,6 +1,5 @@
 using LithoSharp.Content;
 using LithoSharp.Pages;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace LithoSharp.Routing;
@@ -45,6 +44,8 @@ internal sealed class SiteRouteCatalog
 
     public SiteRoute Home => File("index.html");
 
+    public SiteRoute NotFound => File("404.html");
+
     public SiteRoute Archives => File("archives.html");
 
     public SiteRoute Tags => File("tags.html");
@@ -61,13 +62,13 @@ internal sealed class SiteRouteCatalog
 
     public SiteRoute SiteScript => File("assets/site.js");
 
+    public SiteRoute ThemeRestorationScript => File("assets/theme.js");
+
     public SiteRoute SearchScript => File("assets/search.js");
 
     public SiteRoute WebManifest => File("site.webmanifest");
 
     public SiteRoute Llms => File("llms.txt");
-
-    public SiteRoute DefaultSocialImage => File("assets/social/og-default.png");
 
     public SiteRoute File(string relativePath)
     {
@@ -90,15 +91,6 @@ internal sealed class SiteRouteCatalog
 
     public SiteRoute Favicon(string fileName) => File($"assets/favicon/{fileName}");
 
-    public SiteRoute PostSocialImage(MarkdownPost post) =>
-        File($"assets/social/posts/{RouteHash(Post(post))}.png");
-
-    public SiteRoute ContentSocialImage(SiteRoute route)
-    {
-        ArgumentNullException.ThrowIfNull(route);
-        return File($"assets/social/content/{RouteHash(route)}.png");
-    }
-
     public string PublicPath(SiteRoute route)
     {
         ArgumentNullException.ThrowIfNull(route);
@@ -114,10 +106,6 @@ internal sealed class SiteRouteCatalog
     public string AbsoluteRootUrl => $"{_origin}{PublicPath(Root)}";
 
     internal SiteRoute Add(SiteRoute route) => _files.GetOrAdd(route.RelativeOutputPath, route);
-
-    private static string RouteHash(SiteRoute route) =>
-        Convert.ToHexStringLower(
-            SHA256.HashData(Encoding.UTF8.GetBytes(route.RelativeOutputPath)));
 
     private static string DecodeNonAsciiUtf8(string path)
     {

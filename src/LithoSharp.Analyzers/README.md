@@ -1,13 +1,15 @@
 # LithoSharp.Analyzers
 
-Compiler diagnostics help .NET documentation teams keep C# content schemas and generated references consistent. Use version 2.2.0 alongside matching LithoSharp packages. The analyzer targets netstandard2.0 and Roslyn 4.14.0; it does not execute site factories, user getters or Core runtime code in the compiler host.
+[English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.ja.md)
+
+Compiler diagnostics help .NET documentation teams keep C# content schemas and generated references consistent. Use version 3.0.0 alongside matching LithoSharp packages. The analyzer targets netstandard2.0 and Roslyn 4.14.0; it does not execute site factories, user getters or Core runtime code in the compiler host.
 
 ## Install and use
 
 Add this reference to the consuming project's `ItemGroup`:
 
 ```xml
-<PackageReference Include="LithoSharp.Analyzers" Version="2.2.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Analyzers" Version="3.0.0" PrivateAssets="all" />
 ```
 
 Use [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) for rules requiring generated catalogs. IDE fixes are an optional, separate [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.md) package. The [typed-content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) connects schemas, references and output checks.

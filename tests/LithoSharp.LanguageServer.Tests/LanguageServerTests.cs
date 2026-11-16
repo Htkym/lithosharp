@@ -59,10 +59,13 @@ public sealed class LanguageServerTests
         await Assert.That(result.GetProperty("capabilities").GetProperty("textDocumentSync").GetProperty("change").GetInt32()).IsEqualTo(2);
         await Assert.That(result.GetProperty("capabilities").GetProperty("documentSymbolProvider").GetBoolean()).IsTrue();
         await Assert.That(result.GetProperty("serverInfo").GetProperty("name").GetString()).IsEqualTo("lithosharp");
-        // No unimplemented capabilities are advertised.
-        await Assert.That(result.GetProperty("capabilities").TryGetProperty("hoverProvider", out _)).IsFalse();
-        await Assert.That(result.GetProperty("capabilities").TryGetProperty("definitionProvider", out _)).IsFalse();
-        await Assert.That(result.GetProperty("capabilities").TryGetProperty("referencesProvider", out _)).IsFalse();
+        await Assert.That(result.GetProperty("capabilities").GetProperty("hoverProvider").GetBoolean()).IsTrue();
+        await Assert.That(result.GetProperty("capabilities").TryGetProperty("completionProvider", out _)).IsTrue();
+        await Assert.That(result.GetProperty("capabilities").GetProperty("definitionProvider").GetBoolean()).IsTrue();
+        await Assert.That(result.GetProperty("capabilities").GetProperty("referencesProvider").GetBoolean()).IsTrue();
+        // This client has not negotiated versioned, confirmed workspace edits.
+        await Assert.That(result.GetProperty("capabilities").GetProperty("renameProvider").GetBoolean()).IsFalse();
+        await Assert.That(result.GetProperty("capabilities").TryGetProperty("workspace", out _)).IsFalse();
     }
 
     [Test]
@@ -106,20 +109,37 @@ public sealed class LanguageServerTests
     }
 
     [Test]
-    public async Task MarkdownInputLimitPublishesUnavailableStatusWithoutInventingARangeAndRecovers()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task MarkdownInputLimitPublishesUnavailableStatusWithoutInventingARangeAndRecovers(bool hasFrontMatter)
     {
         await using var client = LspTestClient.Start();
         await InitializeAsync(client);
         const string uri = "file:///proj/limited.md";
         // This exceeds the editor parser's UTF-16 input limit but fits LSP framing.
         // The input-level failure has no source range and must stay out of Problems.
+        // A separately established missing header still has a reliable source position.
+        var text = (hasFrontMatter ? "---\ntitle: Limited\n---\n" : string.Empty)
+            + new string('x', 8 * 1024 * 1024 + 1);
         client.SendNotification("textDocument/didOpen", new
         {
-            textDocument = new { uri, languageId = "markdown", version = 1, text = new string('x', 8 * 1024 * 1024 + 1) },
+            textDocument = new { uri, languageId = "markdown", version = 1, text },
             lithosharpOpenGeneration = 17,
         });
         var first = await WaitDiagnosticsAsync(client, uri, 1);
-        await Assert.That(first.GetProperty("params").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(0);
+        var diagnostics = first.GetProperty("params").GetProperty("diagnostics");
+        await Assert.That(diagnostics.GetArrayLength()).IsEqualTo(hasFrontMatter ? 0 : 1);
+        if (!hasFrontMatter)
+        {
+            var missingHeader = diagnostics[0];
+            await Assert.That(missingHeader.GetProperty("code").GetString()).IsEqualTo("LSM001");
+            await Assert.That(missingHeader.GetProperty("severity").GetInt32()).IsEqualTo(1);
+            var range = missingHeader.GetProperty("range");
+            await Assert.That(range.GetProperty("start").GetProperty("line").GetInt32()).IsEqualTo(0);
+            await Assert.That(range.GetProperty("start").GetProperty("character").GetInt32()).IsEqualTo(0);
+            await Assert.That(range.GetProperty("end").GetProperty("line").GetInt32()).IsEqualTo(0);
+            await Assert.That(range.GetProperty("end").GetProperty("character").GetInt32()).IsEqualTo(0);
+        }
         var unavailable = (await WaitStatusAsync(1)).GetProperty("params");
         await Assert.That(unavailable.GetProperty("language").GetString()).IsEqualTo("markdown");
         await Assert.That(unavailable.GetProperty("state").GetString()).IsEqualTo("unavailable");
@@ -788,7 +808,7 @@ public sealed class LanguageServerTests
             contentChanges = new[] { new { range = new { start = new { line = 99, character = 0 }, end = new { line = 99, character = 5 } }, text = "x" } },
         });
         // Unknown method and garbage are safe.
-        client.SendRequest(client.NextId(), "textDocument/hover", new { textDocument = new { uri } });
+        client.SendRequest(client.NextId(), "textDocument/notImplemented", new { textDocument = new { uri } });
         client.SendRaw("this is not a header\n\n");
 
         client.SendNotification("textDocument/didChange", new

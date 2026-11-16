@@ -6,30 +6,45 @@
 Node.jsとReactは不要です。任意のMDXにはNode.js 24.13.0と明示的に復元したworkerを使います。
 `serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
 
-以下のコマンドはNuGetで公開済みのToolとTemplates 2.2.0を導入します。
-パッケージの選択は[配布とインストール](distribution.ja.md)を参照してください。
+このガイドの対象はLithoSharp 3.0.0です。開発上の対象バージョンであり、3.0.0の公開を示すものではありません。
+[バージョン一覧](../eng/version-matrix.json)には選定したSyntamark 2のruntime/Sourceの組み合わせと、別バージョンのVS Code拡張0.5.0を記録しています。
+パッケージの選択と候補版の扱いは[配布とインストール](distribution.ja.md)を参照してください。
 
 ## 型付きMarkdown Docsを作る
 
-新しいディレクトリで実行してください。
+新しいディレクトリで実行してください。以下の正式版の導入コマンドは対応するToolとTemplates 3.0.0を選択したパッケージソースから取得できる場合にだけ実行します。
+未公開の候補版には配布ガイドに従って明示的に提供されたパッケージと復元ソースを使ってください。以下のコマンドは候補版を検索したりビルドしたりしません。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::2.2.0
-dotnet tool install LithoSharp.Tool --version 2.2.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 Windowsでは`.tools/lithosharp.exe`を使います。テンプレートは利用者のtemplate catalogへ
-インストールされ、Toolは`.tools`内に入ります。生成プロジェクトは既定で2.2.0を使います。異なるバージョンを混ぜたり、
+インストールされ、Toolは`.tools`内に入ります。生成プロジェクトは既定で3.0.0を使います。異なるバージョンを混ぜたり、
 既存サイトへテンプレートを上書きしたりしないでください。
 
 ## C#の型とMarkdownを編集する
 
 `GuideFrontMatter.cs`には必須の`Title`、任意の`Description`と`Order`、生成collectionの
 `Guides`を定義しています。プロジェクトは同じバージョンのCore、Generators、Analyzersを
-参照し、コンパイル用パッケージは非公開の依存にしています。factoryは`Guides.Binder`で
-Markdownを読み、`Guides.Catalog.GetRoute(entry.Id)`でルートを取得します。その後に
-`RenderDocs`でDocsの枠とナビゲーションを構成します。このスキーマに日付の必須項目はありません。
+参照し、コンパイル用パッケージは非公開の依存にしています。factoryは
+`MarkdownContentCollectionLoader<GuideFrontMatter>.FromCatalog`に`Guides.Catalog`、プロジェクトのディレクトリ、`Guides.Binder`を渡します。
+これによりカタログで宣言した`InputRoot`とルートを使います。
+
+```csharp
+var loaded = await MarkdownContentCollectionLoader<GuideFrontMatter>.FromCatalog(
+    Guides.Catalog,
+    context.ProjectDirectory,
+    entry => new PageMetadata(entry.FrontMatter.Title, entry.FrontMatter.Description),
+    frontMatterBinder: Guides.Binder,
+    transformationId: new ContentTransformationId("docs-content:v1"),
+    isCacheable: true).LoadAsync(cancellationToken);
+```
+
+factoryは`loaded.IsSuccess`を確認してからcollectionを使い、`RenderDocs`でDocsの枠とナビゲーションを構成します。
+このスキーマに日付の必須項目はありません。
 
 `MyDocs/content/getting-started.md`を編集します。
 
@@ -60,6 +75,8 @@ IDは相対pathと拡張子を含み、`getting-started.md`と`reference/getting
 追加、改名、除外の後もコンパイルと実行時の対象がそろうようにしてください。
 実行時のファイルが生成Catalogにない場合は、推測のURLへ変更せず、ルート取得に失敗します。
 coverageは実際のコンパイル入力から決まり、固定値でClosedを保証しません。
+`FromCatalog`では、入力ファイルの追加、欠落、移動があった場合はカタログを再ビルドするまで拒否します。
+テンプレートは`InputRoot = "content"`を明示しています。
 
 ## 生成した参照を使う
 
@@ -72,7 +89,10 @@ Guides.Entries.Content_Getting_Started.GetUrl(rendering.Site.BaseUrl)
 付属factoryと同じように、HTML属性には`ToAttributeValue()`の結果を使ってください。
 生成名は宣言した入力に対応します。改名後に再ビルドすると、利用できる名前も更新されます。
 Catalogと重複する手書きのルート辞書は作りません。独自binder、参照、実行時検証の詳細は
-[型付きcollection](typed-markdown-collections.md)の英語リファレンスを参照してください。
+[型付きcollection](typed-markdown-collections.ja.md)を参照してください。
+
+既定のMarkdownプロファイルは引き続き`lithosharp-markdown/1`です。
+ほかの[プロファイル](markdown-profiles.ja.md)は明示的に選択します。front matterのバインドとDocsレイアウトは別の選択です。
 
 ## ビルド、検査、プレビュー
 
@@ -106,13 +126,16 @@ CLIと`dotnet run`は同じfactoryを使います。生成したProgramは品質
 
 必須タイトルの欠落はコンパイル時に`LSG006`、静的に確定したentryとルートの矛盾は
 `LSA1402`、最終出力のリンク先・anchorの欠落は`LSQ001`・`LSQ002`になります。
-エディターの構文・見出しの検査は入力のたびに独自C#スキーマを実行するものではありません。
-`NoContext`、`Partial`、`Unknown`を完全な検証と扱わないでください。
-[診断](diagnostics.ja.md)、[preflight](cli.ja.md)、[出力検査](generated-output-checks.ja.md)も参照してください。
+明示的な信頼済みのBuildまたはInspectで、生成された静的スキーマのメタデータを取得できます。
+エディターのフィールド検査には取得したプロジェクトとスキーマの識別情報、ハッシュ、一意に一致する入力集合が必要です。
+入力中に利用者のコンストラクター、setter、検証デリゲート、コンポーネントを実行しません。
+スキーマや入力集合が変わった場合は根拠を再取得します。ビルドが必要な検査は静的スキーマ検証の範囲外です。
+`NoContext`、`Partial`、`Unknown`、`Deferred`を完全な検証と扱わないでください。
+[診断](diagnostics.ja.md)、[言語サーバーの根拠](language-server.ja.md)、[preflight](cli.ja.md)、[出力検査](generated-output-checks.ja.md)も参照してください。
 
 ## このDocsプロジェクトのCI
 
-サイトのツール・パッケージ設定ではバージョンを2.2.0にそろえてください。
+対応する3.0.0のパッケージを選択した後、サイトのツールとパッケージのバージョンをそろえてください。
 配布する出力を生成し、同じ出力を検査します。
 
 ```sh
@@ -124,7 +147,7 @@ dotnet restore MyDocs
 CIは非ゼロの終了コードで停止するようにしてください。生成時にはfactoryの明示的なQualityと
 Error閾値が適用され、最後のコマンドは保存済み成果物を検査します。どちらかが失敗した場合は
 公開しないでください。このMarkdownのCIにnpmの復元は不要です。既存プロジェクトは
-[移行手順](migration-2.0.ja.md#既存docsを型付きコンテンツへ移す)に従い、明示的に設定を変更してください。
+[3.0への移行手順](migration-3.0.ja.md)に従い、明示的に設定を変更してください。
 
 ## MDXと対話componentの追加
 
@@ -168,7 +191,7 @@ The heading and button are rendered at build time.
   strategy="load" />
 ```
 
-templateは`Hydration = "selective"`を選びます。このislandはload時に起動します。
+templateは`Hydration = "selective"`を選びます。明示的に指定したこのislandはload時に起動し、
 通常の`<Counter initial={3} />`はpage hydrationへfallbackします。TypeScriptはtranspileのみなので、
 型検査が必要なら別途type checkerを実行してください。
 
@@ -200,4 +223,5 @@ cache directoryは公開出力の外に置きます。開発用reload scriptは�
 | 独自C# layout | `lithosharp new empty MySite -o MySite` |
 
 testは高度な設定を実行できる例であり、追加のtemplate製品ではありません。
-[2.2.0への更新](migration-2.0.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。
+[3.0への更新](migration-3.0.ja.md)、[Testing](testing.ja.md)、[性能](performance.ja.md)、[既知の制約](known-limitations.ja.md)も参照してください。
+[2.xへの移行手順](migration-2.0.ja.md)は以前の更新についての履歴資料として残しています。

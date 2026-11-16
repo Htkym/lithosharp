@@ -10,8 +10,8 @@ using LithoSharp.Routing;
 
 namespace LithoSharp.Performance;
 
-// Candidate-only: the adapter does not exist in 2.1.3. Keep its baseline
-// standalone rather than comparing it to a different legacy/Blog pipeline.
+// Common typed Docs contract, also available in the released 2.2.0 baseline.
+// Candidate-only schema/component workloads live in AcceptanceWorkload.
 internal static class TypedDocsWorkload
 {
     internal static async Task RunAsync(BenchmarkArguments arguments, string[] rawArguments)
@@ -74,16 +74,17 @@ internal static class TypedDocsWorkload
                 ArtifactCount = result.GeneratedFiles.Count, Timings = result.Timings });
         }
         await Measure("clean", true);
-        foreach (var name in new[] { "no-op", "single-page-change", "layout-change" })
+        foreach (var name in new[] { "warm-cache", "no-op", "single-page-change", "layout-change" })
         {
             if (arguments.Scenario != "all" && arguments.Scenario != name) continue;
             if (name == "single-page-change") await File.AppendAllTextAsync(Path.Combine(corpus, "section-000/page-00001.md"), "\nChanged benchmark body.\n");
             if (name == "layout-change") customization = customization with { Theme = new SiteThemeOptions { ThemeColor = "#7c3aed" } };
+            if (name == "warm-cache") previous = null;
             await Measure(name);
         }
         if (arguments.Scenario != "all") workloads = workloads.Where(work => (string)work.GetType().GetProperty("Name")!.GetValue(work)! == arguments.Scenario).ToList();
         await File.WriteAllTextAsync(output, JsonSerializer.Serialize(new { SchemaVersion = 4, Benchmark = "typed-docs-quality",
-            Comparison = "standalone-new-feature-baseline", Status = "completed", Profile = new { Template = "Docs", Quality = "Error threshold, orphan checks enabled, external HTTP disabled", Binder = "built-in reflection binder; compiler/Generator measured separately" },
+            Comparison = "cross-version-feature-scope-difference", Status = "completed", Profile = new { Template = "Docs", Quality = "Error threshold, orphan checks enabled, external HTTP disabled; source-enabled raw origins vary by product version", Binder = "built-in reflection binder; compiler/Generator measured separately" },
             Corpus = new { PageCount = size, BuildTimestamp = CorpusGenerator.BuildTimestamp },
             Identity = BenchmarkIdentity.Capture("typed-docs-quality"), Provenance = ProvenanceMetadata.Create(rawArguments, 0, 1, corpus),
             Scope = "Generation elapsed excludes input load; ReadAndGenerate includes both. Allocation and working set cover both. Verification overlaps execution.", Workloads = workloads }, new JsonSerializerOptions { WriteIndented = true }) + "\n");

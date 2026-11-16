@@ -1,11 +1,13 @@
 # LithoSharp.Mdx
 
+[English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Mdx/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Mdx/README.ja.md)
+
 Add optional MDX and React to documentation managed with LithoSharp's C# types and builds. Markdown-only Docs do not need this package or Node.js; use MDX when interactive components or its documentation features fit the site.
 
-Use LithoSharp 2.2.0 for this package and the other LithoSharp packages in your project.
+Use LithoSharp 3.0.0 for this package and the other LithoSharp packages in your project.
 
 ```sh
-dotnet add package LithoSharp.Mdx --version 2.2.0
+dotnet add package LithoSharp.Mdx --version 3.0.0
 ```
 
 Use matching LithoSharp Core and Tool versions.
@@ -16,8 +18,8 @@ not a sandbox. Restore its locked dependencies explicitly with
 Markdown builds do not require Node or this package. Use .NET 10 and Node.js
 24.13.0; the lockfile pins MDX 3.1.1, React 19.2.4 and esbuild 0.28.2.
 
-The Syntamark 1.2.0 update supplies shared front matter handling, not a replacement
-MDX body parser. Editor inspection uses an analysis-only worker and does not run
+Syntamark 2 supplies shared Markdown and native YAML front matter analysis.
+MDX bodies retain their MDX parser. Editor inspection uses an analysis-only worker and does not run
 imported modules, plugins or server-side rendering. Its heading-based outline is
 separate from Markdown's section hierarchy. A missing worker means unavailable
 MDX analysis, not successful Markdown fallback. Build-time MDX execution remains

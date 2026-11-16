@@ -25,7 +25,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
         DateTimeOffset buildTimestamp,
         string faviconSourceDirectory,
         bool hasFaviconAssets,
-        bool hasSocialImage,
         bool generateLlmsTxt)
     {
         var isDocs = template is DocsSiteTemplate;
@@ -66,6 +65,16 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             routes.SiteScript,
             [Configuration("template.builtIn", templateIdentity),
                 Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching))]);
+
+        if (theme.EnableThemeSwitching && theme.UseExternalThemeRestoration)
+            AddTextArtifactNode(nodes, filesByPath, ThemeRestorationScriptNodeId, routes.ThemeRestorationScript, []);
+
+        AddTextArtifactNode(nodes, filesByPath, NotFoundNodeId, routes.NotFound,
+            [
+                .. HtmlLayoutInputs(site, theme, hasFaviconAssets),
+                Configuration("template.builtIn", templateIdentity),
+                Configuration("text.notFound", Json(new { text.NotFoundTitle, text.NotFoundDescription, text.NotFoundHomeLinkLabel })),
+            ], [navigationNodeId]);
 
         if (isDocs)
         {
@@ -124,7 +133,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             routes,
             faviconSourceDirectory,
             hasFaviconAssets,
-            hasSocialImage,
             generateLlmsTxt);
         return SiteBuildPlan.Create(nodes);
     }
@@ -139,7 +147,9 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
         {
             [routes.SiteCss.RelativeOutputPath] = SiteCssNodeId,
             [routes.SiteScript.RelativeOutputPath] = SiteScriptNodeId,
+            [routes.ThemeRestorationScript.RelativeOutputPath] = ThemeRestorationScriptNodeId,
             [routes.Home.RelativeOutputPath] = HomeNodeId,
+            [routes.NotFound.RelativeOutputPath] = NotFoundNodeId,
         };
 
         if (template is BlogSiteTemplate)
@@ -179,14 +189,11 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
         return owners;
     }
 
-    internal static IReadOnlyDictionary<string, BuildNodeId> CreateCommonOwnerMap(
-        IReadOnlyList<MarkdownPost> posts,
-        SiteRouteCatalog routes)
+    internal static IReadOnlyDictionary<string, BuildNodeId> CreateCommonOwnerMap(SiteRouteCatalog routes)
     {
         var owners = new Dictionary<string, BuildNodeId>(StringComparer.Ordinal)
         {
             [routes.WebManifest.RelativeOutputPath] = WebManifestNodeId,
-            [routes.DefaultSocialImage.RelativeOutputPath] = DefaultSocialImageNodeId,
             [routes.Llms.RelativeOutputPath] = LlmsNodeId,
         };
 
@@ -195,27 +202,22 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             owners[routes.Favicon(fileName).RelativeOutputPath] = FaviconNodeId(fileName);
         }
 
-        foreach (var post in posts)
-        {
-            owners[routes.PostSocialImage(post).RelativeOutputPath] =
-                PostSocialImageNodeId(routes.Post(post));
-        }
-
         return owners;
     }
 
     private static BuildNodeId SiteCssNodeId { get; } = new("asset:site-css");
     private static BuildNodeId SiteScriptNodeId { get; } = new("asset:site-script");
+    private static BuildNodeId ThemeRestorationScriptNodeId { get; } = new("asset:theme-restoration-script");
     private static BuildNodeId SearchScriptNodeId { get; } = new("asset:search-script");
     private static BuildNodeId SearchIndexNodeId { get; } = new("index:search");
     private static BuildNodeId HomeNodeId { get; } = new("page:index");
+    private static BuildNodeId NotFoundNodeId { get; } = new("page:not-found");
     private static BuildNodeId ArchivesNodeId { get; } = new("page:archives");
     private static BuildNodeId TagsNodeId { get; } = new("page:tags");
     private static BuildNodeId SearchPageNodeId { get; } = new("page:search");
     private static BuildNodeId FeedNodeId { get; } = new("feed:rss");
     private static BuildNodeId SitemapNodeId { get; } = new("index:sitemap");
     private static BuildNodeId WebManifestNodeId { get; } = new("asset:web-manifest");
-    private static BuildNodeId DefaultSocialImageNodeId { get; } = new("social:default");
     private static BuildNodeId LlmsNodeId { get; } = new("text:llms");
 
     private static void AddDocsNodes(
@@ -548,7 +550,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
         SiteRouteCatalog routes,
         string faviconSourceDirectory,
         bool hasFaviconAssets,
-        bool hasSocialImage,
         bool generateLlmsTxt)
     {
         if (hasFaviconAssets)
@@ -577,37 +578,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
                         })),
                 ],
                 artifacts: [Artifact(WebManifestNodeId, routes.WebManifest)]));
-        }
-
-        if (hasSocialImage)
-        {
-            var socialSourcePath = Path.Combine(
-                faviconSourceDirectory,
-                SiteGenerator.SocialImageSourceFileName);
-            var socialSource = BuildInput.FromFile(
-                $"favicon/{SiteGenerator.SocialImageSourceFileName}",
-                BuildInputFingerprint.FromFile(socialSourcePath));
-            nodes.Add(new BuildNode(
-                DefaultSocialImageNodeId,
-                [
-                    socialSource,
-                    Configuration("site.title", site.Title),
-                    Configuration("theme.defaultSocialSubtitle", theme.DefaultSocialSubtitle),
-                ],
-                artifacts: [Artifact(DefaultSocialImageNodeId, routes.DefaultSocialImage)]));
-            foreach (var post in posts)
-            {
-                var nodeId = PostSocialImageNodeId(routes.Post(post));
-                nodes.Add(new BuildNode(
-                    nodeId,
-                    [
-                        socialSource,
-                        Configuration("site.title", site.Title),
-                        Value("page.title", post.FrontMatter.Title),
-                        Value("page.route", routes.Post(post).RelativeOutputPath),
-                    ],
-                    artifacts: [Artifact(nodeId, routes.PostSocialImage(post))]));
-            }
         }
 
         if (generateLlmsTxt)
@@ -659,6 +629,7 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             }));
         yield return Configuration("theme.themeColor", theme.ThemeColor);
         yield return Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching));
+        yield return Configuration("theme.useExternalThemeRestoration", Json(theme.UseExternalThemeRestoration));
         yield return Configuration(
             "assets.hasFaviconSet",
             hasFaviconAssets.ToString(CultureInfo.InvariantCulture));
@@ -805,9 +776,6 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
 
     private static BuildNodeId ExtraPageNodeId(SiteRoute route) =>
         new($"page:extra:{route.RelativeOutputPath}");
-
-    private static BuildNodeId PostSocialImageNodeId(SiteRoute route) =>
-        new($"social:post:{route.RelativeOutputPath}");
 
     private static BuildNodeId FaviconNodeId(string fileName) =>
         new($"asset:favicon:{fileName}");

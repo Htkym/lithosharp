@@ -44,14 +44,20 @@ Language Server に同梱された Core は別の identity として記録し、
 | `serve-shutdown` | （なし） | stdin 経由の構造化 serve 停止。重複・実行中・起動途中の停止要求は冪等 | 停止は Ctrl+C のみとし、UI にその制約を表示する |
 | `source-route-lookup` | `project-resolution` | project / collection / variant の識別を保った source→route 取得。複数候補は複数返す | 拡張子推測を行わず、route 未取得として表示する |
 
-Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します。Tool 2.2.0の`capabilities`コマンドはさらに次のPreview機能を加えます。Coreの一覧とCLIが返す一覧を混同しないでください。
+Core API の `ToolingCapabilities.CreateReport` は上記の 4 機能を返します。Tool 3.0.0 の `capabilities` コマンドはさらに次の Preview 機能を加えます。Core の一覧と CLI が返す一覧を混同しないでください。
 
-| name | maturity | scope | 動作 |
-| --- | --- | --- | --- |
-| `preflight-static-inputs` | `Preview` | `markdown`, `mdx` | 明示した入力だけを、プロジェクトを評価せずに検査します。MDXには復元済みの解析用workerが必要です。 |
-| `preflight-trusted-catalog` | `Preview` | `trusted-catalog` | 明示的にコンパイルし、信頼するfactoryとcatalogを検査します。描画しません。 |
+| name | maturity | schemaVersion | scope | 動作 |
+| --- | --- | --- | --- | --- |
+| `csharp-reference-rename` | `Preview` | `1.0` | `preview-csharp-rename` | 明示した呼び出し側ソースとメタデータに対するRoslynのプレビューです。不完全な範囲は手作業として残し、ファイルには書き込みません。 |
+| `proofreading` | `Preview` | `1.0` | `proofread` | 任意のYomiyasuを明示的に実行し、ソースに対応付けた指摘と保護付き編集プレビューを返します。プロジェクトを評価せず、文書に書き込みません。 |
+| `open-knowledge-format` | `Preview` | `0.2` | `okf inspect`, `okf validate`, `okf export` | バンドルを明示的に単独で検査・検証・エクスポートします。プロジェクト評価や計算の実行はしません。 |
+| `publication-compatibility` | `Preview` | `1.0` | `check-output` | 検証済みマニフェストに対して公開URLとアンカーを明示的に比較します。プロジェクト評価や基準の自動昇格はしません。 |
+| `preflight-static-inputs` | `Preview` | `1.0` | `markdown`, `mdx` | 明示した入力だけを、プロジェクトを評価せずに検査します。MDXには復元済みの解析用workerが必要です。 |
+| `preflight-trusted-catalog` | `Preview` | `1.0` | `trusted-catalog` | 明示的にコンパイルし、信頼するfactoryとcatalogを検査します。描画しません。 |
 
-どちらもschemaは`1.0`です。このreportだけでは選択したプロジェクトの対応機能は確定しません。trusted preflightはfactory assemblyが参照するCoreを`projectCoreVersion`として別途報告しますが、そのCoreの全機能や将来の描画結果を保証するものではありません。機能の有無は実際のreportから判定し、バージョンだけで推測しないでください。[実行範囲と報告形式](../src/LithoSharp.Tool/README.md#preflight)を参照してください。
+すべてのmaturityは`Preview`で、二つのpreflight機能のschemaは`1.0`です。このreportだけでは選択したプロジェクトの対応機能は確定しません。trusted preflightはfactory assemblyが参照するCoreを`projectCoreVersion`として別途報告しますが、そのCoreの全機能や将来の描画結果を保証するものではありません。機能の有無は実際のreportから判定し、バージョンだけで推測しないでください。[実行範囲と報告形式](../src/LithoSharp.Tool/README.md#preflight)を参照してください。
+
+preflight reportの検査範囲は常に`Partial`です。成功は報告した工程に`Error`がなかったことを示し、最終HTMLや将来の描画を検査したという意味ではありません。
 
 `scope` の値は前方互換です。未知の scope 値は無視し、既知の scope だけで判定します。
 
@@ -72,11 +78,16 @@ Core APIの`ToolingCapabilities.CreateReport`は上記の4機能を返します�
 
 - `DocumentWorkspace.Id`はworkspaceを識別します。`InspectVersionedAsync`は文書のバージョンとprojectの世代を受け取り、古くなった処理を拒否します。返す`DocumentInfo`はコンテンツの情報と`ProjectStatus`を持ちますが、要求時の識別情報をすべて複製するわけではありません。呼び出し側でも要求の識別情報を保持してください。
 - `ProjectInspectionSnapshot.ToJson()`は`schemaVersion`、`projectId`、`projectGeneration`、`coreVersion`、`collection`、`language`、`schema`、`version`、`locale`、`acquiredAt`、`routes`を含みます。明示的に取得したデータであり、project assemblyの読み込みを指示するものではありません。
-- LSPの診断は`uri`、`version`、`diagnostics`、`lithosharpOpenGeneration`、`lithosharpContextGeneration`を持ちます。close時には文書のバージョンを付けずに診断を消去します。別通知の`lithosharp/analysisStatus`は`uri`、`version`、`language`、`state`（`ready`または`unavailable`）、`message`と、同じ2つの世代項目を持ちます。[言語サーバーのプロトコル](language-server.md)を参照してください。
+- LSPの診断は`uri`、`version`、`diagnostics`、`lithosharpOpenGeneration`、`lithosharpContextGeneration`を持ちます。close時には文書のバージョンを付けずに診断を消去します。別通知の`lithosharp/analysisStatus`は`uri`、`version`、`language`、`state`（`ready`または`unavailable`）、`message`と、同じ2つの世代項目を持ちます。[言語サーバーのプロトコル](language-server.ja.md)を参照してください。
 
 任意項目の`projectStatus`、`schemaName`、`schemaScope`、`projectId`、`projectGeneration`、`contextAcquiredAt`は、適用したcontextと検査可能な範囲を示します。範囲の通知がない場合は不明として扱ってください。MDXではスキーマ名からMarkdownのバインド対応を推定しません。取得日時だけでは、すべての入力が最新と一致することは保証できません。
 
-`NoContext`では構文を検査できますが、プロジェクトに結び付くスキーマやルートは確定できません。`Resolved`、`Ambiguous`、`Unresolved`、`Draft`は明示した文脈でのルート解決状態であり、サイト全体の妥当性ではありません。snapshotで結び付けるのは組み込みスキーマだけです。独自C#スキーマはコンパイラーとサイトビルドで検証します。
+`NoContext`では構文を検査できますが、プロジェクトに結び付くスキーマやルートは確定できません。`Resolved`、`Ambiguous`、`Unresolved`、`Draft`は明示した文脈でのルート解決状態であり、サイト全体の妥当性ではありません。
+snapshotでは組み込みスキーマと、明示的に取得した生成済みの静的スキーマを結び付けます。
+生成フィールドの検査には、取得したプロジェクト・スキーマの識別情報とハッシュが一致し、入力が属する集合を一意に特定できる必要があります。
+入力中に利用者のDTOコンストラクター、setter、検証コールバックを実行しません。
+独自の実行可能な検証と、ビルドが必要な判断は、引き続きコンパイラーとサイトビルドで検査します。
+スキーマの根拠がない場合や古い場合は、これらの検査を確認済みとは扱いません。
 
 `Partial`や取得不能の解析情報、カタログの`Unknown`を「検査済み、エラーなし」と表示しないでください。`LSM013`は解析を完了できなかったことを示します。LSPの`ready`は構文解析が利用できるという意味であり、ビルドや生成物検査を実行したことや、エラーがないことを意味しません。
 

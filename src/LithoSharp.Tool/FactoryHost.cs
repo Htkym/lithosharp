@@ -300,7 +300,8 @@ internal static class FactoryHost
             diagnostic.Location?.EndColumn,
             diagnostic.Category,
             diagnostic.RelatedLocations.Select(location => new HostSourceLocation(
-                location.FilePath, location.Line, location.Column, location.EndLine, location.EndColumn)).ToArray())).ToArray();
+                location.FilePath, location.Line, location.Column, location.EndLine, location.EndColumn)).ToArray(),
+            diagnostic.MappingPrecision)).ToArray();
 
     private static string Describe(Exception exception) => exception is ReflectionTypeLoadException types
         ? string.Join(Environment.NewLine, types.LoaderExceptions.Where(item => item is not null).Select(item => item!.Message))
@@ -401,7 +402,8 @@ internal sealed record HostDiagnostic(
     int? EndLine = null,
     int? EndColumn = null,
     string? Category = null,
-    HostSourceLocation[]? RelatedLocations = null);
+    HostSourceLocation[]? RelatedLocations = null,
+    string? MappingPrecision = null);
 
 internal sealed record HostSourceLocation(string File, int? Line, int? Column, int? EndLine, int? EndColumn);
 

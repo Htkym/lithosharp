@@ -22,6 +22,9 @@ function Test-StableComponentPair([string] $Version) {
     if ($Tag -and $Version -notmatch '-') {
         $component = Get-Content -LiteralPath (Join-Path $repo 'eng/markdown/component-pair.json') -Raw | ConvertFrom-Json
         if ($component.componentVersion -match '-') { Fail 'Stable publication requires an approved stable Syntamark pair; the fixed preview pair must not be repacked or relabeled.' }
+        & (Join-Path $repo 'eng/Test-VersionMatrix.ps1')
+        & node (Join-Path $repo 'eng/markdown/Verify-FixedPair.mjs') verify-published-stable (Join-Path $repo 'eng/markdown/feed')
+        if ($LASTEXITCODE -ne 0) { Fail 'Stable Syntamark publication, source provenance or exact official archive verification failed.' }
     }
 }
 

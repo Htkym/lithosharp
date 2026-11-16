@@ -248,8 +248,29 @@ internal sealed class SiteBuildCache
             cancellationToken.ThrowIfCancellationRequested();
             EnsureSafePath(temporary);
             EnsureSafePath(path);
-            // Repair corrupted bytes at the same content address; valid records retain identical bytes.
-            File.Move(temporary, path, overwrite: true);
+            // Content addresses are immutable once another writer has published the same bytes.
+            try
+            {
+                File.Move(temporary, path, overwrite: false);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                if (!await HasMatchingStoredBytesAsync(folder, digest, extension, bytes, cancellationToken).ConfigureAwait(false))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    EnsureSafePath(temporary);
+                    EnsureSafePath(path);
+                    try
+                    {
+                        File.Move(temporary, path, overwrite: true);
+                    }
+                    catch (Exception repairException) when (repairException is IOException or UnauthorizedAccessException)
+                    {
+                        if (!await HasMatchingStoredBytesAsync(folder, digest, extension, bytes, cancellationToken).ConfigureAwait(false))
+                            throw;
+                    }
+                }
+            }
             return digest;
         }
         finally
@@ -260,6 +281,23 @@ internal sealed class SiteBuildCache
                 File.Delete(temporary);
             }
             catch (Exception exception) when (IsCacheReadFailure(exception)) { }
+        }
+    }
+
+    private async Task<bool> HasMatchingStoredBytesAsync(
+        string folder, string digest, string extension, byte[] bytes, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var stored = await ReadVerifiedAsync(folder, digest, extension, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return stored is { } persisted && persisted.AsSpan().SequenceEqual(bytes);
+        }
+        catch (Exception exception) when (IsCacheReadFailure(exception))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
         }
     }
 
@@ -280,7 +318,11 @@ internal sealed class SiteBuildCache
         && node.Inputs is not null && node.Inputs.All(input => input is not null
             && Enum.IsDefined(input.Kind) && !string.IsNullOrWhiteSpace(input.Key))
         && node.Dependencies is not null && node.Dependencies.All(dependency => !string.IsNullOrWhiteSpace(dependency))
-        && (node.CollectionDiagnostics is null || node.CollectionDiagnostics.IsValid());
+        && (node.CollectionDiagnostics is null || node.CollectionDiagnostics.IsValid())
+        && node.HtmlOrigins is not null && node.HtmlOrigins.All(origin => origin is not null && origin.Origins is not null
+            && origin.Origins.IsValid() && node.Artifacts.Any(artifact => artifact.RelativePath == origin.OutputPath
+                && artifact.Sha256 == origin.Origins.HtmlHash))
+        && node.HtmlOrigins.Select(static origin => origin.OutputPath).Distinct(StringComparer.Ordinal).Count() == node.HtmlOrigins.Count;
 
     private static bool IsCacheReadFailure(Exception exception) => exception is IOException
         or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException
@@ -298,7 +340,10 @@ internal sealed record CachedBuildNode(
     public IReadOnlyList<CachedBuildInput> Inputs { get; init; } = [];
     public IReadOnlyList<string> Dependencies { get; init; } = [];
     public CachedCollectionDiagnostics? CollectionDiagnostics { get; init; }
+    public IReadOnlyList<CachedRenderedHtmlOrigins> HtmlOrigins { get; init; } = [];
 }
+
+internal sealed record CachedRenderedHtmlOrigins(string OutputPath, Content.Compilation.RenderedHtmlOrigins Origins);
 
 internal sealed record CachedBuildArtifact(string ArtifactId, string RelativePath, long Length, string Sha256);
 
@@ -321,15 +366,19 @@ internal sealed record CachedPostParse(
     IReadOnlyList<CachedPostLink> Links,
     IReadOnlyList<CachedPostAsset> Assets)
 {
-    internal const int CurrentVersion = 2;
+    internal const int CurrentVersion = 3;
 
     public string? Integrity { get; init; }
+    public IReadOnlyList<Content.Compilation.MarkdownRenderOrigin> RenderOrigins { get; init; } = [];
 
     internal string ComputeIntegrity() => Convert.ToHexStringLower(SHA256.HashData(
         JsonSerializer.SerializeToUtf8Bytes(this with { Integrity = null })));
 
     internal bool HasValidContent() => SourceLength >= 0 && RawHtml is not null && PlainText is not null
-        && Headings is not null && Links is not null && Assets is not null
+        && Headings is not null && Links is not null && Assets is not null && RenderOrigins is not null
+        && RenderOrigins.All(origin => origin is not null && ValidSpan(origin.BodyStart, origin.BodyLength)
+            && origin.HtmlStart >= 0 && origin.HtmlLength > 0 && origin.HtmlStart <= RawHtml.Length
+            && origin.HtmlLength <= RawHtml.Length - origin.HtmlStart)
         && Headings.All(heading => heading is not null && heading.Text is not null
             && heading.RawLevel is >= 1 and <= 6 && heading.OutputLevel is >= 1 and <= 6
             && ValidSpan(heading.SpanStart, heading.SpanLength))

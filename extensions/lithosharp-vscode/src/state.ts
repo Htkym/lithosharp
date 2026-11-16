@@ -9,7 +9,7 @@ export interface AnalysisStatus {
   message: string;
   projectStatus?: string;
   schemaName?: string;
-  schemaScope?: 'built-in-binding' | 'build-required' | 'unknown';
+  schemaScope?: 'built-in-binding' | 'build-required' | 'static-schema-build-required' | 'unknown';
   projectId?: string;
   projectGeneration?: number;
   contextAcquiredAt?: string;
@@ -52,6 +52,7 @@ export function editorPresentation(project: ProjectState, analysis: AnalysisStat
     : analysis?.state === 'pending' ? 'analysis pending' : 'not analysed';
   const language = analysis?.language === 'mdx' ? 'MDX' : analysis ? 'Markdown' : 'Document';
   const schema = analysis?.schemaScope === 'built-in-binding' ? 'Built-in binding supported; binding success is not implied.'
+    : analysis?.schemaScope === 'static-schema-build-required' ? 'Static schema available; constructors and custom validation require Build.'
     : analysis?.schemaScope === 'build-required' ? 'Custom schema: check with Build.' : 'Inspection scope unknown.';
   const operationText = operation ? `${operation.command} ${operation.result?.outcome ?? 'running'}` : 'no explicit operation';
   return {
@@ -59,7 +60,7 @@ export function editorPresentation(project: ProjectState, analysis: AnalysisStat
     detail: [
       `${language} analysis: ${parsed}${analysis ? ` (version ${analysis.version})` : ''}. ${analysis?.message ?? ''}`,
       `Project information: ${context}; document resolution: ${analysis?.projectStatus ?? 'unknown'}.`,
-      analysis?.projectId ? `Applied context: ${analysis.projectId}; generation ${analysis.projectGeneration ?? 'unknown'}; acquired ${analysis.contextAcquiredAt ?? 'unknown'}.`
+      analysis?.projectId ? `Applied context: ${analysis.projectId.replaceAll('\0', ' | ')}; generation ${analysis.projectGeneration ?? 'unknown'}; acquired ${analysis.contextAcquiredAt ?? 'unknown'}.`
         : 'Applied context: unreported for this document.',
       'Only detected changes invalidate the context; unmonitored inputs are not guaranteed current.',
       `Schema: ${analysis?.schemaName ?? 'unknown'}. ${schema}`,

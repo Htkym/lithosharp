@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using LithoSharp.Pages;
 using LithoSharp.Publishing;
 using LithoSharp.Routing;
+using LithoSharp.Search;
 
 namespace LithoSharp.Mdx;
 
@@ -38,6 +39,12 @@ public sealed record DocumentationCollection(string Id, IReadOnlyList<DocumentVa
     public string? SourceLocale { get; init; }
     /// <summary>The explicit behavior when translated document IDs are missing.</summary>
     public MissingDocumentPolicy MissingDocuments { get; init; } = MissingDocumentPolicy.Exclude;
+    /// <summary>Reports page revisions that have not received an explicit translation review.</summary>
+    public bool TrackTranslationReviews { get; init; }
+    /// <summary>Explicitly reviewed source and translation revisions; builds never update these records.</summary>
+    public IReadOnlyList<DocumentTranslationReview> TranslationReviews { get; init; } = [];
+    /// <summary>Explicit ordinary-document constraints. OKF bundles use their own conformance policy.</summary>
+    public DocumentSemanticRuleSet? SemanticRules { get; init; }
 }
 
 /// <summary>Builds Markdown or MDX documentation through the existing typed collections and asset registry.</summary>
@@ -50,16 +57,6 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     private readonly SemaphoreSlim inspectionGate = new(1, 1);
     private readonly ConditionalWeakTable<DocumentFrontMatter, DocumentRenderState> renderStates = new();
     private readonly List<DocumentKey> missingTranslations = [];
-    private readonly SiteGenerator markdownRenderer = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> markdownHtmlCache = new(StringComparer.Ordinal);
-
-    /// <summary>
-    /// Renders Markdown without Node through one shared compiler with a
-    /// per-site cache, so search preparation and page rendering share a
-    /// single parse per distinct body instead of parsing twice.
-    /// </summary>
-    private string RenderMarkdownCached(string markdown) =>
-        markdownHtmlCache.GetOrAdd(markdown, static (body, renderer) => renderer.RenderMarkdown(body), markdownRenderer);
     /// <summary>Optional progressive navigation and theme controls.</summary>
     public DocumentationBrowserOptions? Browser { get; init; }
     /// <summary>The public C# layout contract, including sidebar, body, table of contents and head regions.</summary>
@@ -87,7 +84,13 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         mdx = mdx.GetInspection(),
         variants = registrations.Select(value => new { collection = value.Options.Id, value.Variant.Version, value.Variant.Locale, value.Variant.RoutePrefix }),
         pages = catalog.Pages.Select(page => new { page.Key, page.Route.PublicPath, page.FrontMatter.Unlisted }),
-        missingTranslations
+        missingTranslations,
+        translationReviews = TranslationReviewResults,
+        semanticResults = SemanticResults,
+        semanticSnapshot = SemanticSnapshot is { } snapshot ? (JsonElement?)JsonSerializer.Deserialize<JsonElement>(snapshot.ToJson()) : null,
+        semanticRules = registrations.Where(registration => registration.Options.SemanticRules is not null)
+            .GroupBy(registration => registration.Options.Id).ToDictionary(group => group.Key,
+                group => JsonSerializer.Deserialize<JsonElement>(group.First().Options.SemanticRules!.ToJson()), StringComparer.Ordinal)
     });
     /// <summary>Optional shared UI messages for C# and React.</summary>
     public TranslationCatalog? Translations { get; init; }
@@ -95,6 +98,12 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     public MissingTranslationPolicy TranslationPolicy { get; init; } = MissingTranslationPolicy.Source;
     /// <summary>Additional message keys used by site components, including dynamically selected keys.</summary>
     public IReadOnlyList<string> MessageKeys { get; init; } = [];
+    /// <summary>The translation review assessments from the most recently prepared snapshot.</summary>
+    public IReadOnlyList<DocumentTranslationReviewResult> TranslationReviewResults { get; private set; } = [];
+    /// <summary>Assessments from the latest metadata capture; deferred constraints are not validated.</summary>
+    public IReadOnlyList<DocumentSemanticAssessment> SemanticResults { get; private set; } = [];
+    /// <summary>The latest captured catalog and metadata, or null while capture is unavailable.</summary>
+    public DocumentSemanticSnapshot? SemanticSnapshot { get; private set; }
 
     /// <summary>Registers a collection and all its explicit version/language inputs.</summary>
     public void AddCollection(DocumentationCollection collection)
@@ -133,6 +142,13 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         await inspectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            SemanticSnapshot = null;
+            SemanticResults = Array.AsReadOnly(SemanticResults.Select(result => new DocumentSemanticAssessment(
+                result.Document, result.Rule, DocumentSemanticState.Deferred,
+                [new LithoSharp.Diagnostics.SiteDiagnostic("LSDOC214", LithoSharp.Diagnostics.SiteDiagnosticSeverity.Info,
+                    "The current document capture is unavailable; this semantic constraint was not validated.")])).ToArray());
+            TranslationReviewResults = DocumentTranslationReviewResult.Inspect([],
+                TranslationReviewResults.ToDictionary(result => result.Translation, result => result.Source), [], isComplete: false);
             return await InspectDocumentationAsync(context, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -146,6 +162,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var registrations = this.registrations.Select(registration => new Registration(registration.Options with
         {
             Variants = registration.Options.Variants.ToArray(),
+            TranslationReviews = registration.Options.TranslationReviews.ToArray(),
             Sidebars = registration.Options.Sidebars.ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<SidebarItem>)pair.Value.ToArray())
         }, registration.Variant)).ToArray();
@@ -161,8 +178,21 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var blogConfiguration = blogs.CaptureConfiguration();
         var contributeBlogs = blogs.CaptureContribution();
         var documents = new List<DocumentPage>();
+        var revisions = new List<DocumentRevision>();
+        var semanticDocuments = new List<DocumentSemanticDocument>();
         var browserAssets = new List<SiteGeneratedAsset>();
         var loadDiagnostics = new List<LithoSharp.Diagnostics.SiteDiagnostic>();
+        var componentInputs = new List<BuildInput>();
+        if (browserOptions is { Offline: true } && context.Options.Markdown.Components is { } componentRegistry)
+            foreach (var registration in componentRegistry.Registrations)
+                foreach (var dependency in registration.Dependencies.Where(dependency => dependency.Kind == ContentDependencyKind.File))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var root = registration.DependencyRoot!;
+                    var hash = BuildInputFingerprint.FromContainedFile(root, dependency.PhysicalFilePath);
+                    CaptureInput(inputs, root, Path.GetFullPath(dependency.PhysicalFilePath, root), hash);
+                    componentInputs.Add(BuildInput.FromFile("markdown-components/" + registration.Name + "/" + dependency.Key, hash));
+                }
 
         if (browserOptions is { } browser)
         {
@@ -196,7 +226,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 algolia = browser.Algolia is { } search ? new { applicationId = search.ApplicationId, searchOnlyApiKey = search.SearchOnlyApiKey, indexName = search.IndexName } : null,
                 analytics = browser.Analytics is { } provider ? new { endpoint = provider.Endpoint.Value, domain = provider.Domain, provider = provider.Provider } : null
             });
-            var script = Asset("client", ".js", Resource("client.mjs") + "\nstart(" + config + ");\n");
+            var script = Asset("client", ".js", Resource("client.mjs").Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal)
+                + "\nstart(" + config + ");\n");
             var css = Asset("theme", ".css", Resource("theme.css"));
             browserHead = "<link rel=\"stylesheet\" href=\"" + css + "\"><script type=\"module\" src=\"" + script + "\"></script>";
         }
@@ -236,22 +267,57 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 loadDiagnostics.AddRange(result.Diagnostics);
                 raw = new(collectionId, variant.InputDirectory, result.Collection!.Entries.Select(entry => new ContentEntry<DocumentFrontMatter, MdxDocument>(
                     entry.Id, entry.SourcePath, entry.SourceFingerprint, entry.FrontMatter, new(entry.Body) { CapturedInputs = entry.CapturedInputs }, entry.SourceLocation)
-                { DeclaredDependencies = entry.DeclaredDependencies, CapturedInputs = entry.CapturedInputs, DerivedSurfaces = entry.DerivedSurfaces }), Route, Metadata);
+                {
+                    DeclaredDependencies = entry.DeclaredDependencies,
+                    CapturedInputs = entry.CapturedInputs,
+                    FrontMatterValues = entry.FrontMatterValues,
+                    BodyAnalysis = entry.BodyAnalysis,
+                    BodySource = entry.BodySource,
+                    DerivedSurfaces = entry.DerivedSurfaces
+                }), Route, Metadata);
             }
             var entries = raw.Entries.Where(entry => !MdxContentCollectionLoader<DocumentFrontMatter>.IsPartial(entry.SourcePath)).Select(entry => new ContentEntry<DocumentFrontMatter, MdxDocument>(
                 new(entry.FrontMatter.Id ?? DocumentCatalog.DefaultId(entry.SourcePath)), entry.SourcePath, entry.SourceFingerprint,
                 entry.FrontMatter, entry.Body, entry.SourceLocation)
-            { DeclaredDependencies = entry.DeclaredDependencies, CapturedInputs = entry.CapturedInputs, DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : (GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation) & (entry.FrontMatter.SearchExclude ? ~GeneratedPageDerivedSurfaces.Search : GeneratedPageDerivedSurfaces.All) }).ToArray();
+            {
+                DeclaredDependencies = entry.DeclaredDependencies,
+                CapturedInputs = entry.CapturedInputs,
+                FrontMatterValues = entry.FrontMatterValues,
+                BodyAnalysis = entry.BodyAnalysis,
+                BodySource = entry.BodySource,
+                DerivedSurfaces = entry.FrontMatter.Unlisted ? GeneratedPageDerivedSurfaces.None : (GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation) & (entry.FrontMatter.SearchExclude ? ~GeneratedPageDerivedSurfaces.Search : GeneratedPageDerivedSurfaces.All)
+            }).ToArray();
             foreach (var input in entries.SelectMany(entry => entry.CapturedInputs))
                 CaptureInput(inputs, variant.InputDirectory, input.File, input.Hash);
+            if (options.TrackTranslationReviews || options.TranslationReviews.Count > 0)
+            {
+                foreach (var entry in entries)
+                {
+                    var sourceIdentity = Path.GetFullPath(entry.SourcePath, variant.InputDirectory).Normalize(System.Text.NormalizationForm.FormC);
+                    var captured = entry.CapturedInputs.FirstOrDefault(input =>
+                        InputPathComparer.Equals(input.File.Normalize(System.Text.NormalizationForm.FormC), sourceIdentity))
+                        ?? throw MdxWorker.Failure("LSMDX005", "A document revision requires the captured raw source bytes; retry the build.");
+                    revisions.Add(new(new(options.Id, variant.Version, variant.Locale, entry.Id.Value), captured.File, captured.Hash));
+                }
+            }
             registration.Collection = new(collectionId, variant.InputDirectory, entries, Route, Metadata,
                 transformationId: new("docs-v1"), isCacheable: true);
             if (options.GitMetadata)
                 foreach (var entry in entries)
                     entry.FrontMatter.LastUpdate ??= await ReadGitUpdateAsync(variant.InputDirectory, entry.SourcePath, cancellationToken).ConfigureAwait(false);
             foreach (var entry in entries)
-                if (PagePublicationPolicy.ShouldPublish(Metadata(entry), context.BuildTimestamp, context.Options.EnvironmentName))
+            {
+                var published = PagePublicationPolicy.ShouldPublish(Metadata(entry), context.BuildTimestamp, context.Options.EnvironmentName);
+                var sourceIdentity = Path.GetFullPath(entry.SourcePath, variant.InputDirectory).Normalize(System.Text.NormalizationForm.FormC);
+                var capturedSource = entry.CapturedInputs.FirstOrDefault(input =>
+                    InputPathComparer.Equals(input.File.Normalize(System.Text.NormalizationForm.FormC), sourceIdentity));
+                semanticDocuments.Add(DocumentSemanticDocument.FromLocated(
+                    new(options.Id, variant.Version, variant.Locale, entry.Id.Value),
+                    capturedSource?.File ?? Path.GetFullPath(entry.SourcePath, variant.InputDirectory), entry.FrontMatterValues,
+                    published ? DocumentSemanticPublication.Published : DocumentSemanticPublication.Unpublished, isComplete: capturedSource is not null));
+                if (published)
                     documents.Add(new(new(options.Id, variant.Version, variant.Locale, entry.Id.Value), entry.SourcePath, entry.FrontMatter, Route(entry)));
+            }
             registration.Categories = await ReadCategoriesAsync(variant.InputDirectory, inputs, cancellationToken).ConfigureAwait(false);
             foreach (var (directory, category) in registration.Categories.Where(pair => pair.Value.Link?.Type == "generated-index"))
             {
@@ -279,6 +345,37 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 throw new SiteBuildExtensionException(missing.Select(key => new LithoSharp.Diagnostics.SiteDiagnostic("LSDOC001", LithoSharp.Diagnostics.SiteDiagnosticSeverity.Error, "Missing translated document: " + key)));
         }
         catalog = new(documents);
+        var semanticSnapshot = new DocumentSemanticSnapshot(catalog, semanticDocuments, isComplete: true,
+            registrations.Select(registration => new DocumentSemanticScope(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale)));
+        var rules = registrations.GroupBy(registration => registration.Options.Id)
+            .ToDictionary(group => group.Key, group => group.First().Options.SemanticRules, StringComparer.Ordinal);
+        var results = Array.AsReadOnly(semanticDocuments.SelectMany(document => rules[document.Key.Collection]?.Evaluate(document, semanticSnapshot) ?? []).ToArray());
+        SemanticSnapshot = semanticSnapshot;
+        SemanticResults = results;
+        var diagnostics = results.SelectMany(result => result.Diagnostics).ToArray();
+        loadDiagnostics.AddRange(diagnostics);
+        if (diagnostics.Any(diagnostic => diagnostic.Severity == LithoSharp.Diagnostics.SiteDiagnosticSeverity.Error))
+            throw new SiteBuildExtensionException(diagnostics);
+        var reviewResults = new List<DocumentTranslationReviewResult>();
+        foreach (var registration in registrations.Where(value => value.Options.TrackTranslationReviews || value.Options.TranslationReviews.Count > 0))
+        {
+            var options = registration.Options;
+            var variant = registration.Variant;
+            var sourceLocale = options.SourceLocale ?? options.Variants.First(value => value.Version == variant.Version).Locale;
+            if (variant.Locale == sourceLocale)
+            {
+                continue;
+            }
+            var ids = revisions.Where(revision => revision.Key.Collection == options.Id && revision.Key.Version == variant.Version
+                && (revision.Key.Locale == sourceLocale || revision.Key.Locale == variant.Locale)).Select(revision => revision.Key.Id)
+                .Concat(options.TranslationReviews.Where(review => review.Translation.Key.Collection == options.Id
+                    && review.Translation.Key.Version == variant.Version && review.Translation.Key.Locale == variant.Locale)
+                    .Select(review => review.Translation.Key.Id)).Distinct(StringComparer.Ordinal);
+            var sources = ids.ToDictionary(id => new DocumentKey(options.Id, variant.Version, variant.Locale, id),
+                id => new DocumentKey(options.Id, variant.Version, sourceLocale, id));
+            reviewResults.AddRange(DocumentTranslationReviewResult.Inspect(revisions, sources, options.TranslationReviews, isComplete: true));
+        }
+        loadDiagnostics.AddRange(reviewResults.Select(result => result.Diagnostic).OfType<LithoSharp.Diagnostics.SiteDiagnostic>());
         foreach (var registration in registrations)
         {
             var sidebars = registration.Options.Sidebars;
@@ -286,14 +383,16 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             registration.Navigation = sidebars.Count == 0
                 ? new Dictionary<string, IReadOnlyList<DocumentNavigationItem>> { ["default"] = catalog.Sidebar(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, categories: registration.Categories) }
                 : sidebars.ToDictionary(pair => pair.Key, pair => catalog.Sidebar(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, pair.Value, registration.Categories));
+            if (browserOptions is { Search: true, Algolia: null })
+                registration.SearchUrl = SiteUrl.ForFile(registration.Variant.RoutePrefix.Trim('/') + "/_search.json", context.Site.BaseUrl).Value;
             var collection = registration.Collection!;
             registration.Collection = new(collection.Id, collection.InputRoot, collection.Entries, collection.RouteConvention, collection.PublicationMapper,
                 declaredDependencies: [ContentDependency.FromValue("docs.navigation", Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { registration.Navigation, registration.Options.Variants,
                     Switches = catalog.Pages.Select(page => new { page.Key, page.Route.PublicPath, page.FrontMatter }), browserHead, Messages = registration.Messages, Layout = layout.GetType().FullName })))),
-                    .. browserAssets.Select(asset => ContentDependency.FromAsset(asset.Id)),
-                    .. browserOptions is { Search: true, Algolia: null } ? new[] { ContentDependency.FromAsset("docs:search:" + collection.Id.Value) } : []], transformationId: collection.TransformationId, isCacheable: collection.IsCacheable);
+                    .. browserAssets.Select(asset => ContentDependency.FromAsset(asset.Id))], transformationId: collection.TransformationId, isCacheable: collection.IsCacheable);
         }
-        var state = new DocumentationPreparation(registrations, catalog, browserHead, browserOptions, layout, missingTranslations.ToArray());
+        var state = new DocumentationPreparation(registrations, catalog, browserHead, browserOptions, layout,
+            missingTranslations.ToArray(), reviewResults.AsReadOnly(), semanticSnapshot, componentInputs);
         for (var index = 0; index < registrations.Length; index++)
         {
             this.registrations[index].Collection = registrations[index].Collection;
@@ -310,10 +409,6 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var mdxSnapshot = await mdx.InspectForGenerationAsync(context, cancellationToken).ConfigureAwait(false);
         var prepared = contributeBlogs(new() { ContentCollections = mdxSnapshot.ContentCollections, Diagnostics = mdxSnapshot.Contribution.Diagnostics }, context);
         var catalogAssets = new List<SiteGeneratedAsset>(browserAssets);
-        if (browserOptions is { Search: true, Algolia: null })
-            foreach (var registration in registrations)
-                catalogAssets.Add(new("docs:search:" + registration.Collection!.Id.Value,
-                    registration.Variant.RoutePrefix.Trim('/') + "/_search.json", ReadOnlyMemory<byte>.Empty));
         if (browserOptions is not null)
         {
             catalogAssets.Add(new("docs:service-worker", "lithosharp-sw.js", ReadOnlyMemory<byte>.Empty));
@@ -322,6 +417,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         }
         var inspected = new SiteBuildContribution
         {
+            DocumentSemantics = [.. prepared.DocumentSemantics, .. state.DocumentSemantics],
+            ScopedSearch = [.. prepared.ScopedSearch, .. state.ScopedSearch],
             ContentCollections = AddDocumentationCollections(prepared, state, context),
             Assets = [.. prepared.Assets, .. catalogAssets],
             Diagnostics = [.. loadDiagnostics, .. prepared.Diagnostics]
@@ -348,41 +445,19 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         var browserHead = state.BrowserHead;
         var browserOptions = state.Browser;
         var prepared = contributeBlogs(await mdxSnapshot.PrepareAsync(context, cancellationToken).ConfigureAwait(false), context);
-        if (browserOptions is { Search: true, Algolia: null })
-        {
-            foreach (var registration in registrations)
-            {
-                var collection = registration.Options.UseMdx ? prepared.ContentCollections.OfType<SiteContentCollection<DocumentFrontMatter, MdxDocument>>().FirstOrDefault(value => value.Collection.Id == registration.Collection!.Id)?.Collection : registration.Collection;
-                var documentsForSearch = (collection?.Entries ?? []).Where(entry => !entry.FrontMatter.Unlisted && !entry.FrontMatter.SearchExclude
-                    && PagePublicationPolicy.ShouldPublish(collection!.PublicationMapper(entry), context.BuildTimestamp, context.Options.EnvironmentName)).Select(entry =>
-                {
-                    // Static text comes from the common semantic model (worker-extracted
-                    // for MDX, compiler analysis otherwise). Section anchors still come
-                    // from rendered HTML: React-generated content cannot be inferred.
-                    var semantics = registration.Options.UseMdx ? entry.Body.Semantics : null;
-                    var html = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
-                    var facts = context.HtmlFacts?.Get(html, cancellationToken) ?? HtmlConsumerFacts.Parse(html, cancellationToken);
-                    var text = semantics?.PlainText ?? facts.BodyText;
-
-                    return new LithoSharp.Search.SearchDocument(entry.FrontMatter.Title, entry.FrontMatter.Description ?? "", entry.FrontMatter.Tags,
-                        collection!.RouteConvention(entry).PublicPath, "", SiteGenerator.NormalizeForIndex(text))
-                    { Collection = registration.Options.Id, Version = registration.Variant.Version, Locale = registration.Variant.Locale, Sections = facts.SearchSections() };
-                }).ToArray();
-                var path = registration.Variant.RoutePrefix.Trim('/') + "/_search.json";
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(documentsForSearch, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-                browserAssets.Add(new("docs:search:" + registration.Collection!.Id.Value, path, bytes));
-                registration.SearchUrl = SiteUrl.ForFile(path, context.Site.BaseUrl).Value + "?v=" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes))[..16];
-            }
-        }
         if (browserOptions is { Offline: true })
         {
             var urls = catalog.Pages.Where(page => !page.FrontMatter.Unlisted).Select(page => page.Route.PublicPath)
                 .Concat(prepared.Assets.Concat(browserAssets).Select(asset => SiteUrl.ForFile(asset.RelativeOutputPath, context.Site.BaseUrl).Value))
+                .Concat(state.ScopedSearch.Select(projection => SiteUrl.ForFile(projection.RelativeOutputPath, context.Site.BaseUrl).Value))
                 .Concat(new[] { "assets/site.css" }.Select(path => SiteUrl.ForFile(path, context.Site.BaseUrl).Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
             var revision = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
             {
                 urls,
                 context.Site,
+                markdown = context.Options.Markdown.Fingerprint,
+                runtime = MdxSite.CompiledRuntimeFingerprint,
+                componentFiles = state.ComponentInputs,
                 sources = registrations.SelectMany(registration => registration.Collection!.Entries).Select(entry => entry.SourceFingerprint),
                 assembly = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(typeof(DocumentationSite).Assembly.Location))
             })))[..24];
@@ -414,19 +489,38 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         {
             var client = browserAssets[clientIndex];
             browserAssets[clientIndex] = new(client.Id, client.RelativeOutputPath, client.Bytes, client.Inputs,
-                browserAssets.Where(asset => asset.Id == "docs:service-worker" || asset.Id.StartsWith("docs:search:", StringComparison.Ordinal)).Select(asset => asset.Id));
+                browserAssets.Where(asset => asset.Id == "docs:service-worker").Select(asset => asset.Id));
         }
         var collections = AddDocumentationCollections(prepared, state, context);
         state.BrowserHead = browserHead;
         this.catalog = catalog;
         this.missingTranslations.Clear();
         this.missingTranslations.AddRange(state.MissingTranslations);
+        TranslationReviewResults = state.TranslationReviews;
         return new()
         {
+            DocumentSemantics = [.. prepared.DocumentSemantics, .. state.DocumentSemantics],
+            ScopedSearch = [.. prepared.ScopedSearch, .. SearchProjections(state, prepared)],
             ContentCollections = collections,
             Assets = [.. prepared.Assets, .. browserAssets],
             Diagnostics = [.. loadDiagnostics, .. prepared.Diagnostics]
         };
+    }
+
+    private static IEnumerable<ScopedSearchProjection> SearchProjections(DocumentationPreparation state, SiteBuildContribution prepared)
+    {
+        foreach (var projection in state.ScopedSearch)
+        {
+            var registration = state.Registrations.Single(item => item.Options.Id == projection.Collection
+                && item.Variant.Version == projection.Version && item.Variant.Locale == projection.Locale);
+            IReadOnlyList<ContentEntry<DocumentFrontMatter, MdxDocument>> entries = registration.Options.UseMdx
+                ? prepared.ContentCollections.OfType<SiteContentCollection<DocumentFrontMatter, MdxDocument>>()
+                    .Single(item => item.Collection.Id == registration.Collection!.Id).Collection.Entries
+                : [];
+            yield return new(projection.Id, projection.RelativeOutputPath, projection.Collection, projection.Version, projection.Locale,
+                entries.Where(static entry => entry.Body.PlainText is not null)
+                    .Select(static entry => new KeyValuePair<string, string>(entry.Id.Value, entry.Body.PlainText!)));
+        }
     }
 
     private IReadOnlyList<SiteContentCollection> AddDocumentationCollections(
@@ -483,7 +577,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             throw new ArgumentException($"Unknown sidebar '{selected}'.");
         var breadcrumbs = DocumentCatalog.Breadcrumbs(key, navigation);
         var adjacent = catalog.Adjacent(key, navigation);
-        var article = registration.Options.UseMdx ? entry.Body.ToHtmlString() : RenderMarkdownCached(entry.Body.Body);
+        var article = registration.Options.UseMdx ? entry.Body.ToHtmlString() : context.RenderMarkdown(entry.Body.Body);
         context.SetDerivedContent(article);
         // Table-of-contents headings come from the common semantic model for MDX
         // (worker-extracted, line-mapped); Markdown posts keep the shared post
@@ -508,7 +602,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
             body += "<p class=\"docs-last-update\">" + Html.Encode(T("lastUpdated", "Last updated")) + " "
                 + (update.Date is { } date ? "<time datetime=\"" + date.ToString("O") + "\">" + Html.Encode(date.ToString("d", System.Globalization.CultureInfo.GetCultureInfo(registration.Variant.Locale))) + "</time> " : "")
                 + Html.Encode(update.Author ?? "") + "</p>";
-        body += "<nav aria-label=\"" + Html.Encode(T("variants", "Version and language")) + "\">" + string.Concat(registration.Options.Variants.Select(variant =>
+        body += "<nav data-ls-variants aria-label=\"" + Html.Encode(T("variants", "Version and language")) + "\">" + string.Concat(registration.Options.Variants.Select(variant =>
         {
             try
             {
@@ -550,7 +644,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         string List(IReadOnlyList<DocumentNavigationItem> nodes) => "<ul>" + string.Concat(nodes.Select(node => "<li>" +
             (node.Children.Count > 0 ? "<details" + (!node.Collapsed || DocumentCatalog.Breadcrumbs(current, [node]).Count > 0 ? " open" : "") + "><summary>" + Link(node.Label, node.Url) + "</summary>" + List(node.Children) + "</details>"
                 : node.Document == current ? "<a aria-current=\"page\" href=\"" + node.Url!.ToAttributeValue() + "\">" + Html.Encode(node.Label) + "</a>" : Link(node.Label, node.Url)) + "</li>")) + "</ul>";
-        return "<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar><nav aria-label=\"Documentation navigation\">" + List(items) + "</nav></aside>";
+        return "<aside id=\"docs-sidebar\" class=\"docs-sidebar\" data-docs-sidebar><nav aria-label=\"" + SiteText.Label(current.Locale, "Documentation navigation") + "\">" + List(items) + "</nav></aside>";
     }
     private static MdxPublicData PublicData(DocumentRenderState state, ContentEntry<DocumentFrontMatter, MdxDocument> entry)
     {
@@ -687,7 +781,9 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     private sealed record DocumentRenderState(Registration Registration, DocumentationPreparation Preparation, IReadOnlyDictionary<string, string> Messages);
     private sealed class DocumentationPreparation(
         Registration[] registrations, DocumentCatalog catalog, string browserHead, DocumentationBrowserOptions? browser,
-        IPageLayout<PageLayoutContent> layout, IReadOnlyList<DocumentKey> missingTranslations)
+        IPageLayout<PageLayoutContent> layout, IReadOnlyList<DocumentKey> missingTranslations,
+        IReadOnlyList<DocumentTranslationReviewResult> translationReviews, DocumentSemanticSnapshot? semantics,
+        IReadOnlyList<BuildInput> componentInputs)
     {
         internal Registration[] Registrations { get; } = registrations;
         internal DocumentCatalog Catalog { get; } = catalog;
@@ -695,6 +791,13 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         internal DocumentationBrowserOptions? Browser { get; } = browser;
         internal IPageLayout<PageLayoutContent> Layout { get; } = layout;
         internal IReadOnlyList<DocumentKey> MissingTranslations { get; } = missingTranslations;
+        internal IReadOnlyList<DocumentTranslationReviewResult> TranslationReviews { get; } = translationReviews;
+        internal IReadOnlyList<DocumentSemanticSnapshot> DocumentSemantics { get; } = semantics is null ? [] : [semantics];
+        internal IReadOnlyList<BuildInput> ComponentInputs { get; } = BuildInput.Snapshot(componentInputs);
+        internal IReadOnlyList<ScopedSearchProjection> ScopedSearch { get; } = browser is { Search: true, Algolia: null }
+            ? Array.AsReadOnly(registrations.Select(registration => new ScopedSearchProjection(
+                "docs:search:" + registration.Collection!.Id.Value, registration.Variant.RoutePrefix.Trim('/') + "/_search.json",
+                registration.Options.Id, registration.Variant.Version, registration.Variant.Locale)).ToArray()) : [];
     }
     private DocumentRenderState RenderState(DocumentFrontMatter frontMatter) =>
         renderStates.TryGetValue(frontMatter, out var state) ? state

@@ -19,7 +19,9 @@ namespace LithoSharp.Tool;
 internal static class DevServer
 {
     private const string ReloadScript =
-        "<script>(()=>{const e=new EventSource('/_lithosharp/reload');e.onmessage=x=>{if(x.data==='reload')location.reload();if(x.data==='error')fetch('/_lithosharp/diagnostics').then(r=>r.json()).then(d=>{let p=document.getElementById('__lithosharp_error');if(!p){p=document.body.appendChild(document.createElement('pre'));p.id='__lithosharp_error';Object.assign(p.style,{position:'fixed',inset:'0',margin:'0',padding:'1rem',overflow:'auto',zIndex:2147483647,color:'#fff',background:'#400'});}p.textContent=d.error||d.diagnosticsText||'Build failed';});};})();</script>";
+        "(()=>{const e=new EventSource('/_lithosharp/reload');e.onmessage=x=>{if(x.data==='reload')location.reload();if(x.data==='error')fetch('/_lithosharp/diagnostics').then(r=>r.json()).then(d=>{let p=document.getElementById('__lithosharp_error');if(!p){p=document.body.appendChild(document.createElement('pre'));p.id='__lithosharp_error';Object.assign(p.style,{position:'fixed',inset:'0',margin:'0',padding:'1rem',overflow:'auto',zIndex:2147483647,color:'#fff',background:'#400'});}p.textContent=d.error||d.diagnosticsText||'Build failed';});};})();";
+
+    private const string ReloadScriptTag = "<script src=\"/_lithosharp/reload.js\" defer></script>";
 
     internal static async Task<int> RunAsync(
         string project, string configuration, CommandOptions options, CancellationToken cancellationToken)
@@ -128,7 +130,7 @@ internal static class DevServer
             var hub = new ReloadHub();
             const long initialGeneration = 1;
             state.Latest = latest with { Generation = initialGeneration };
-            state.OutputRoot = outputRoot;
+            state.PublishOutput(latest with { OutputDirectory = outputRoot });
             state.IgnoredPaths = latest.IgnoredPaths;
             controller.Generation = initialGeneration;
             var initialWatch = progress.Witness(new(0, 0), session.HostId, null);
@@ -140,6 +142,11 @@ internal static class DevServer
             builder.WebHost.UseUrls(url);
             await using var app = builder.Build();
             app.MapGet("/_lithosharp/reload", context => hub.ConnectAsync(context, stopping.Token));
+            app.MapGet("/_lithosharp/reload.js", context =>
+            {
+                context.Response.ContentType = "text/javascript; charset=utf-8";
+                return context.Response.WriteAsync(ReloadScript, context.RequestAborted);
+            });
             app.MapGet("/_lithosharp/diagnostics", async context =>
             {
                 context.Response.ContentType = "application/json; charset=utf-8";
@@ -156,7 +163,11 @@ internal static class DevServer
                 context.Response.ContentType = "application/json; charset=utf-8";
                 await JsonSerializer.SerializeAsync(context.Response.Body, barrier, MachineOptions, deadline.Token);
             });
-            app.MapFallback("/{**path}", context => ServeFileAsync(context, state.OutputRoot));
+            app.MapFallback("/{**path}", context =>
+            {
+                var published = state.PublishedOutput;
+                return ServeFileAsync(context, published.OutputDirectory!, published.SiteBasePath);
+            });
 
             // Stop order is watch, then worker, then HTTP server, then host: the
             // rebuild loop (worker) runs on the stopping token so a control shutdown
@@ -219,7 +230,7 @@ internal static class DevServer
                     ActualPort = actualPort,
                     Url = actualUrl,
                     OutputDirectory = outputRoot,
-                    BasePath = "/",
+                    BasePath = state.Latest.SiteBasePath ?? "/",
                     SiteBasePath = state.Latest.SiteBasePath,
                     Generation = initialGeneration,
                     Watch = initialWatch,
@@ -235,7 +246,7 @@ internal static class DevServer
             }
             rebuild = RebuildLoopAsync(changes.Reader, project, configuration, options, state, hub, session, assembly, machine, controller, lifecycle, progress, stopping.Token);
             if (options.Has("open"))
-                OpenBrowser(actualUrl);
+                OpenBrowser(actualUrl + (state.Latest.SiteBasePath ?? "/"));
             try
             {
                 await app.WaitForShutdownAsync(stopping.Token);
@@ -312,7 +323,7 @@ internal static class DevServer
                 var watch = progress.Witness(batch, session.HostId, previousHost);
                 if (response.Success && response.OutputDirectory is not null)
                 {
-                    state.OutputRoot = Path.GetFullPath(response.OutputDirectory);
+                    state.PublishOutput(response);
                     state.IgnoredPaths = response.IgnoredPaths;
                 }
                 if (!response.Success && !string.IsNullOrWhiteSpace(response.Error))
@@ -653,12 +664,19 @@ internal static class DevServer
             || segment.StartsWith(".lithosharp-", StringComparison.Ordinal));
     }
 
-    private static async Task ServeFileAsync(HttpContext context, string root)
+    private static async Task ServeFileAsync(HttpContext context, string root, string? siteBasePath)
     {
         string relative;
         try
         {
-            relative = Uri.UnescapeDataString(context.Request.Path.Value ?? "/").TrimStart('/');
+            var requestPath = Uri.UnescapeDataString(context.Request.Path.Value ?? "/");
+            var basePath = Uri.UnescapeDataString(siteBasePath ?? "/").TrimEnd('/');
+            if (basePath.Length != 0 && requestPath != basePath && !requestPath.StartsWith(basePath + "/", StringComparison.Ordinal))
+            {
+                await ServeNotFoundAsync(context, root);
+                return;
+            }
+            relative = requestPath[basePath.Length..].TrimStart('/');
         }
         catch (UriFormatException)
         {
@@ -683,7 +701,7 @@ internal static class DevServer
                 using var reader = new StreamReader(stream);
                 var html = await reader.ReadToEndAsync(context.RequestAborted);
                 var index = html.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
-                await context.Response.WriteAsync(index < 0 ? html + ReloadScript : html.Insert(index, ReloadScript), context.RequestAborted);
+                await context.Response.WriteAsync(index < 0 ? html + ReloadScriptTag : html.Insert(index, ReloadScriptTag), context.RequestAborted);
                 return;
             }
             context.Response.ContentType = ContentType(path);
@@ -695,7 +713,27 @@ internal static class DevServer
             if (context.Response.HasStarted)
                 context.Abort();
             else
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                await ServeNotFoundAsync(context, root);
+        }
+    }
+
+    private static async Task ServeNotFoundAsync(HttpContext context, string root)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        try
+        {
+            await using var stream = BuildInputFingerprint.OpenVerifiedContainedRead(root, Path.Combine(root, "404.html"), asynchronous: true);
+            using var reader = new StreamReader(stream);
+            var html = await reader.ReadToEndAsync(context.RequestAborted);
+            context.Response.ContentType = "text/html; charset=utf-8";
+            var index = html.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
+            await context.Response.WriteAsync(index < 0 ? html + ReloadScriptTag : html.Insert(index, ReloadScriptTag), context.RequestAborted);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                             or InvalidOperationException or ArgumentException)
+        {
+            if (context.Response.HasStarted)
+                context.Abort();
         }
     }
 
@@ -739,8 +777,12 @@ internal static class DevServer
     private sealed class ServerState(HostResponse latest)
     {
         private IReadOnlyList<string> ignoredPaths = latest.IgnoredPaths;
+        private HostResponse publishedOutput = latest with { OutputDirectory = Path.GetFullPath(latest.OutputDirectory!) };
         public HostResponse Latest { get; set; } = latest;
-        public string OutputRoot { get; set; } = Path.GetFullPath(latest.OutputDirectory!);
+        public HostResponse PublishedOutput => Volatile.Read(ref publishedOutput);
+        public string OutputRoot => PublishedOutput.OutputDirectory!;
+        public void PublishOutput(HostResponse response) => Volatile.Write(ref publishedOutput,
+            response with { OutputDirectory = Path.GetFullPath(response.OutputDirectory!) });
         public IReadOnlyList<string> IgnoredPaths
         {
             get => Volatile.Read(ref ignoredPaths);

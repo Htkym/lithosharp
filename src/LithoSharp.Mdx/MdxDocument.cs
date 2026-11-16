@@ -105,6 +105,7 @@ public sealed class MdxContentCollectionLoader<TFrontMatter> : IContentCollectio
                 mdxBody, entry.SourceLocation)
             {
                 DeclaredDependencies = entry.DeclaredDependencies,
+                FrontMatterValues = entry.FrontMatterValues,
                 CapturedInputs = entry.CapturedInputs,
                 DerivedSurfaces = entry.DerivedSurfaces,
             };

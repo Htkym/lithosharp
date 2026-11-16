@@ -20,7 +20,7 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
     private readonly CancellationTokenSource lifetime;
     private readonly CancellationToken lifetimeToken;
     private readonly bool qualityRequired;
-    private readonly HtmlRawFactsDemand rawDemand;
+    private HtmlRawFactsDemand rawDemand;
     private long retainedBytes;
     private int parseCount;
     private int reuseCount;
@@ -54,6 +54,20 @@ internal sealed class BuildHtmlFacts : IAsyncDisposable
         GetAsync(source, consumerCancellation).GetAwaiter().GetResult().Facts;
 
     internal bool RequiresQualityRaw => (rawDemand & HtmlRawFactsDemand.Quality) != 0;
+
+    // Extensions can contribute source-backed pages during preparation. Freeze their demand before any shared flight.
+    internal void RequireQualityOrigins()
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (RequiresQualityRaw)
+                return;
+            if (!qualityRequired || closed || qualityPhase || entries.Count != 0 || parseCount != 0)
+                throw new InvalidOperationException("Source origin demand must be declared before the first shared HTML parse.");
+            rawDemand |= HtmlRawFactsDemand.Quality;
+        }
+    }
 
     internal async Task<HtmlRawAttributeFacts> GetRawAsync(string source, CancellationToken consumerCancellation,
         HtmlTreeOptions? options = null)

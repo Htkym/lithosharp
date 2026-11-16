@@ -33,7 +33,7 @@ public sealed class FrontMatterSchemaTests
     {
         public required string Title { get; init; }
 
-        [YamlDotNet.Serialization.YamlMember(Alias = "custom_name")]
+        [ContentName("custom_name")]
         public string? Renamed { get; set; }
 
         public FixturePriority Priority { get; set; } = FixturePriority.Low;
@@ -46,9 +46,32 @@ public sealed class FrontMatterSchemaTests
 
         public FixtureChild Nested { get; set; } = new();
 
+        public Dictionary<string, FixtureChild> Children { get; set; } = [];
+
         public List<string> Tags { get; set; } = [];
 
         public int Count { get; set; }
+    }
+
+    [Test]
+    public async Task SchemaDescriptionNeverInvokesUserConstructorsOrGetters()
+    {
+        var schema = FrontMatterSchemas.For<ThrowingFrontMatter>();
+        var field = schema.Fields.Single();
+
+        await Assert.That(field.Required).IsFalse();
+        await Assert.That(field.RequiresBuildValidation).IsTrue();
+        await Assert.That(schema.RequiresBuildValidation).IsTrue();
+    }
+
+    private sealed class ThrowingFrontMatter
+    {
+        public ThrowingFrontMatter() => throw new InvalidOperationException("Constructor must not execute during schema description.");
+        public string Title
+        {
+            get => throw new InvalidOperationException("Getter must not execute during schema description.");
+            set => throw new InvalidOperationException("Setter must not execute during schema description.");
+        }
     }
 
     [Test]
@@ -152,6 +175,9 @@ public sealed class FrontMatterSchemaTests
         await Assert.That(nested.Type).IsEqualTo("object");
         await Assert.That(nested.Fields.Count).IsEqualTo(1);
         await Assert.That(nested.Fields[0].Key).IsEqualTo("name");
+        await Assert.That(byKey["children"].Type).IsEqualTo("dictionary");
+        await Assert.That(byKey["children"].ItemType).IsEqualTo("object");
+        await Assert.That(byKey["children"].Fields.Single().Key).IsEqualTo("name");
 
         await Assert.That(byKey["tags"].Type).IsEqualTo("array");
         await Assert.That(byKey["tags"].ItemType).IsEqualTo("string");
@@ -201,7 +227,13 @@ public sealed class FrontMatterSchemaTests
 
         var empty = binder.Bind(new Dictionary<string, object?>(StringComparer.Ordinal));
         var expectedMissing = schema.Fields.Where(field => field.Required).Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
-        if (expectedMissing.Count == 0)
+        if (schema.Fields.Any(field => field.RequiresBuildValidation))
+        {
+            foreach (var missing in empty.Diagnostics.Where(diagnostic => diagnostic.Id == ContentFrontMatterDiagnosticIds.MissingRequiredField))
+                await Assert.That(schema.Fields.Any(field => (field.Required || field.RequiresBuildValidation)
+                    && missing.Message.Contains("'" + field.Key + "'", StringComparison.Ordinal))).IsTrue();
+        }
+        else if (expectedMissing.Count == 0)
         {
             await Assert.That(empty.IsSuccess).IsTrue();
         }

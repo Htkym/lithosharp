@@ -1,6 +1,4 @@
 using System.Collections.Immutable;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using LithoSharp.Internal;
 using LithoSharp.Testing;
@@ -46,29 +44,9 @@ internal static class TestingMigrationCommand
         if (files.Any(file => !Path.GetExtension(file).Equals(".cs", StringComparison.OrdinalIgnoreCase)))
             throw new CliUsageException("Testing migration accepts explicit .cs sources, not projects or scripts.");
 
-        var inputs = new List<Input>();
-        foreach (var file in files.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
-        {
-            var bytes = await File.ReadAllBytesAsync(file, token);
-            var text = new UTF8Encoding(false, true).GetString(bytes);
-            var offset = text.StartsWith('\uFEFF') ? 1 : 0;
-            inputs.Add(new(file, Hash(bytes), SourceText.From(text, Encoding.UTF8), offset,
-                CSharpSyntaxTree.ParseText(text[offset..], path: file, encoding: Encoding.UTF8, cancellationToken: token)));
-        }
-        var metadata = new List<MetadataReference>();
-        var metadataInputs = new List<HostTestingMigrationInput>();
-        // Only the trusted runtime framework, not ambient application/Testing assemblies.
-        var platform = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?.Split(Path.PathSeparator)
-            ?? throw new InvalidOperationException("Runtime framework metadata is unavailable.");
-        metadata.AddRange(platform.Where(file => Path.GetFileName(file).StartsWith("System.", StringComparison.Ordinal)
-            || Path.GetFileName(file) is "netstandard.dll" or "Microsoft.CSharp.dll").Select(file => MetadataReference.CreateFromFile(file)));
-        foreach (var file in references.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
-        {
-            var bytes = await File.ReadAllBytesAsync(file, token);
-            metadata.Add(MetadataReference.CreateFromImage(bytes, filePath: file));
-            metadataInputs.Add(new(file, Hash(bytes)));
-        }
-        var compilation = CSharpCompilation.Create("TestingMigrationInput", inputs.Select(input => input.Tree), metadata,
+        var snapshot = await ExplicitCSharpSnapshot.LoadAsync(files, references, null, token);
+        var inputs = snapshot.Sources;
+        var compilation = CSharpCompilation.Create("TestingMigrationInput", inputs.Select(input => input.Tree), snapshot.Metadata,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
         var compilerDiagnostics = compilation.GetDiagnostics(token).Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
         var warnings = await compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MigrationAnalyzer()))
@@ -122,7 +100,8 @@ internal static class TestingMigrationCommand
             ExitCode = succeeded ? 0 : 1,
             Diagnostics = diagnostics,
             Migration = new(inputs.Select(input => new HostTestingMigrationInput(input.File, input.Hash)).ToArray(),
-                metadataInputs.ToArray(), findings.OrderBy(finding => finding.File, StringComparer.Ordinal).ThenBy(finding => finding.Start).ToArray(),
+                snapshot.References.Select(input => new HostTestingMigrationInput(input.File, input.Hash)).ToArray(),
+                findings.OrderBy(finding => finding.File, StringComparer.Ordinal).ThenBy(finding => finding.Start).ToArray(),
                 succeeded && findings.All(finding => finding.Classification != "Unknown") ? "Complete" : "Partial")
         };
         token.ThrowIfCancellationRequested();
@@ -244,7 +223,7 @@ internal static class TestingMigrationCommand
         return ("ReadCandidate", "supported_read_requires_review", preview, expression);
     }
 
-    private static HostTestingMigrationFinding Finding(Input input, TextSpan access, TextSpan expression,
+    private static HostTestingMigrationFinding Finding(ExplicitCSharpSource input, TextSpan access, TextSpan expression,
         string classification, string reason, string? preview, string? diagnosticId)
     {
         var span = Shift(access, input.Offset);
@@ -255,8 +234,6 @@ internal static class TestingMigrationCommand
             whole.Start, whole.Length, input.Text.ToString(whole), preview);
     }
     private static TextSpan Shift(TextSpan span, int offset) => new(span.Start + offset, span.Length);
-    private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
-    private sealed record Input(string File, string Hash, SourceText Text, int Offset, SyntaxTree Tree);
     private sealed class MigrationAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(LegacyTestingDomContract.Rule);

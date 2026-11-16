@@ -1,4 +1,5 @@
 const installed = Symbol.for('lithosharp.client');
+/*__LITHOSHARP_LOCAL_SEARCH__*/
 export function start(config) {
   if (globalThis[installed]) { globalThis[installed].page(); return; }
   const namespace = `lithosharp:${config.basePath}:`;
@@ -50,7 +51,6 @@ export function start(config) {
       searchWidgets.add(scope);
       const input = scope.querySelector('input'), results = scope.querySelector('[data-results]'), status = scope.querySelector('[role=status]');
       let pending = 0, timer;
-      const normalize = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
       async function query() {
         const request = ++pending;
         const value = input.value.trim(); results.replaceChildren();
@@ -72,12 +72,7 @@ export function start(config) {
               searchCache.set(url, fetch(url).then(response => { if (!response.ok) throw new Error('Search data unavailable'); return response.json(); }).catch(error => { searchCache.delete(url); throw error; }));
             }
             const documents = await searchCache.get(url);
-            const tokens = normalize(value).split(' ');
-            hits = documents.filter(doc => tokens.every(token => normalize(doc.title + ' ' + doc.summary + ' ' + doc.body).includes(token))).map(doc => {
-              const section = doc.sections?.find(section => tokens.every(token => normalize(section.title + ' ' + section.body).includes(token)));
-              return {title: doc.title + (section ? ' · ' + section.title : ''), url: doc.url + (section ? '#' + encodeURIComponent(section.anchor) : ''), body: section?.body || doc.summary || doc.body,
-                score: tokens.reduce((score, token) => score + (normalize(doc.title).includes(token) ? 3 : 1), 0)};
-            }).sort((left, right) => right.score - left.score).slice(0, 30);
+            hits = queryDocuments(documents, value, {collection: scope.dataset.collection ?? null, version: scope.dataset.version ?? null, locale: scope.dataset.locale ?? null});
           }
           if (request !== pending || !scope.isConnected) return;
           const highlight = (element, text) => {
@@ -108,13 +103,44 @@ export function start(config) {
     document.dispatchEvent(new CustomEvent('lithosharp:theme', {detail: {theme: document.documentElement.dataset.theme}}));
     document.querySelectorAll('[data-ls-theme]').forEach(button => { button.textContent = `${t('theme', 'Theme')}: ${t(theme, theme)}`; button.setAttribute('aria-label', button.textContent); });
   }
+  let docsBody = null, docsHeader = null, docsHeaderObserver = null;
+  function clearDocsPage() {
+    docsHeaderObserver?.disconnect();
+    docsBody = docsHeader = docsHeaderObserver = null;
+  }
+  function updateDocsHeaderHeight() {
+    if (docsBody === document.body && docsHeader?.isConnected)
+      docsBody.style.setProperty('--docs-header-height', `${docsHeader.getBoundingClientRect().height}px`);
+  }
+  function setDocsOpen(open) {
+    const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
+    if (!menu || !sidebar) return;
+    menu.setAttribute('aria-expanded', String(open));
+    sidebar.classList.toggle('docs-sidebar-open', open);
+  }
+  function startDocs() {
+    const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
+    document.body.classList.toggle('docs-enhanced', !!(menu && sidebar));
+    if (!menu || !sidebar) { clearDocsPage(); return; }
+    const header = document.querySelector('.docs-header');
+    if (docsBody !== document.body || docsHeader !== header) {
+      clearDocsPage(); docsBody = document.body; docsHeader = header;
+      setDocsOpen(false);
+      if (header && typeof ResizeObserver === 'function') {
+        docsHeaderObserver = new ResizeObserver(updateDocsHeaderHeight);
+        docsHeaderObserver.observe(header);
+      }
+    }
+    updateDocsHeaderHeight();
+  }
   function page() {
     try { messages = JSON.parse(document.querySelector('[data-ls-messages]')?.textContent || '{}'); } catch { messages = {}; }
     startSearch();
     if (config.theme) {
       if (!document.querySelector('[data-ls-theme]')) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.lsTheme = '';
-        document.querySelector('header')?.append(button);
+        const header = document.querySelector('header');
+        (header?.querySelector('.docs-header-actions') ?? header)?.append(button);
       }
       applyTheme();
     }
@@ -128,6 +154,7 @@ export function start(config) {
       for (const item of links) { const link = document.createElement('a'); link.href = item.url; link.textContent = item.label; nav.append(link); }
       parent.append(nav);
     }
+    startDocs();
     document.dispatchEvent(new CustomEvent('lithosharp:page', {detail: {url: location.href, title: document.title}}));
     track();
   }
@@ -137,9 +164,15 @@ export function start(config) {
     if (event.target.closest('[data-ls-theme]')) { theme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'; save('theme', theme); applyTheme(); }
     if (event.target.closest('[data-ls-dismiss]')) { save('announcement:' + config.announcement, 'dismissed'); document.querySelector('[data-ls-announcement]')?.remove(); }
     const menu = event.target.closest('[data-docs-menu-toggle]');
-    if (menu) { const sidebar = document.querySelector('[data-docs-sidebar]'); const expanded = menu.getAttribute('aria-expanded') !== 'true'; menu.setAttribute('aria-expanded', String(expanded)); sidebar?.classList.toggle('is-open', expanded); }
+    if (menu) setDocsOpen(menu.getAttribute('aria-expanded') !== 'true');
+    if (event.target.closest('[data-docs-sidebar] a')) setDocsOpen(false);
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') { document.querySelector('[data-docs-sidebar]')?.classList.remove('is-open'); document.querySelector('[data-docs-menu-toggle]')?.setAttribute('aria-expanded', 'false'); } });
+  document.addEventListener('keydown', event => {
+    const menu = document.querySelector('[data-docs-menu-toggle]');
+    if (event.key === 'Escape' && menu?.getAttribute('aria-expanded') === 'true') { setDocsOpen(false); menu.focus(); }
+  });
+  window.addEventListener('resize', () => { setDocsOpen(false); updateDocsHeaderHeight(); });
+  document.addEventListener('lithosharp:before-navigate', clearDocsPage);
   if (config.navigation) {
     let pending;
     const prefetched = new Map();

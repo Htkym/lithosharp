@@ -124,8 +124,8 @@ public sealed class MarkdownPostReader
         {
             CompilerDiagnostics = compilerDiagnostics,
             BodyAnalysis = retainedAnalysis,
-            BodySource = retainedAnalysis is null ? null
-                : new Compilation.DocumentSource(path, bodyStartOffset) { BodyStartLine = bodyStartLine },
+            BodySource = Compilation.MarkdownSourceMapping.CreateSource(inclusion, path,
+                body, bodyStartOffset, bodyStartLine),
         };
     }
 

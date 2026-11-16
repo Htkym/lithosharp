@@ -1,6 +1,4 @@
 using System.Collections;
-using System.Collections.Immutable;
-using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.Loader;
 using Microsoft.CodeAnalysis;
@@ -16,7 +14,6 @@ public sealed partial class AnalyzerPackageHostTests
     {
         var source = ManifestModel + "\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }";
         var evidence = new List<object>();
-        using var baseline = new PreviousMarkdownGenerator();
         foreach (var (name, content, invalid) in new[]
         {
             ("lf", "---\ntitle: Hello\ncount: 3\n---\n# Heading\n", false),
@@ -28,14 +25,15 @@ public sealed partial class AnalyzerPackageHostTests
         {
             ManifestInput[] inputs = [new(Content: content)];
             var current = ManifestGenerate(source, inputs);
-            var previous = baseline.Generate(source, inputs);
-            Check(GeneratedMarkdownSource(current.Compilation) == GeneratedMarkdownSource(previous.Compilation), "Generated output and embedded fingerprint unchanged: " + name);
-            Check(current.Diagnostics.Select(MarkdownDiagnosticSignature).Order().SequenceEqual(previous.Diagnostics.Select(MarkdownDiagnosticSignature).Order()), "Existing YAML IDs/severity/spans/messages unchanged: " + name);
+            Check(GeneratedMarkdownSource(current.Compilation).Contains("StaticSiteManifest.Create", StringComparison.Ordinal) != invalid, "Only valid YAML/schema certifies the generated manifest: " + name);
             var diagnostics = await ManifestAnalyze(current.Compilation, inputs);
             if (invalid)
             {
                 var unknown = current.Diagnostics.Single(d => d.Id == "LSG005");
                 var conversion = current.Diagnostics.Single(d => d.Id == "LSG006");
+                Check(current.Diagnostics.Length == 2 && current.Diagnostics.All(d => d.Severity == DiagnosticSeverity.Error), "Schema errors retain their IDs and severity: " + name);
+                Check(unknown.GetMessage() == "Unknown YAML field 'unknown'.", "Unknown field message: " + name);
+                Check(conversion.GetMessage() == "count: Value cannot be converted to the declared type.", "Conversion message: " + name);
                 Check(unknown.Location.SourceSpan == new TextSpan(content.IndexOf("unknown", StringComparison.Ordinal), 7), "Unknown key full original UTF16 span: " + name);
                 Check(conversion.Location.SourceSpan == new TextSpan(content.IndexOf("wrong", StringComparison.Ordinal), 5), "Conversion full original UTF16 span: " + name);
                 Check(!diagnostics.Any(d => d.Id == "LSA1201"), "Schema error keeps lookup Open");
@@ -53,7 +51,7 @@ public sealed partial class AnalyzerPackageHostTests
             Check(content.Substring(start, length).StartsWith("title:", StringComparison.Ordinal) && !content.Substring(start, length).Contains("---", StringComparison.Ordinal), "YAML span excludes delimiter lines");
             Check((string)MarkdownProperty(scan, "ContractVersion")! == "frontmatter-scan/1", "Header-only scan contract");
             Check(MarkdownProperty(scan, "State")!.ToString() == "Closed" && MarkdownProperty(scan, "Status")!.ToString() == "Complete", "Known delimiters do not certify YAML/schema: " + name);
-            Check((string)MarkdownProperty(scan, "ParserVersion")! == "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa", "Pinned parser identity");
+            Check((string)MarkdownProperty(scan, "ParserVersion")! == "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "Pinned parser identity");
             var options = CompilerMarkdownOptions();
             Check((string)MarkdownProperty(scan, "OptionsHash")! == (string)MarkdownProperty(options, "Hash")! && (string)MarkdownProperty(scan, "ProfileId")! == "lithosharp-markdown/1", "Actual default MdOptions/profile hash");
             foreach (var property in new[] { "RawText", "FrontMatter", "RequestedParts", "Coverage", "Headings", "Sections", "Links", "Fences", "TextRegions", "Root", "UnsupportedSyntax", "SourceId", "ScopeId", "SourceVersion" })
@@ -63,6 +61,8 @@ public sealed partial class AnalyzerPackageHostTests
             evidence.Add(new { name, content, yamlStart = start, yamlLength = length, generatedSha = Sha(System.Text.Encoding.UTF8.GetBytes(GeneratedMarkdownSource(current.Compilation))), generator = current.Diagnostics.Select(ManifestDiagnostic).ToArray(), analyzer = diagnostics.Select(ManifestDiagnostic).ToArray() });
         }
         Check(!AppDomain.CurrentDomain.GetAssemblies().Any(a => Forbidden(a.GetName().Name!)), "Compiler host never loads Core or runtime Markdown facade");
+        Check(!CompilerMarkdownAssembly().GetReferencedAssemblies().Any(a => a.Name == "YamlDotNet")
+            && !AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "YamlDotNet"), "Native compiler host has no YAML dependency");
         ManifestEvidence("adapter-frontmatter-output", evidence);
     }
 
@@ -71,21 +71,26 @@ public sealed partial class AnalyzerPackageHostTests
     {
         var source = ManifestModel + "\nclass Calls { void M() { Guides.Manifest.GetUrl(\"/missing/\"); } }";
         var evidence = new List<object>();
-        using var baseline = new PreviousMarkdownGenerator();
-        foreach (var (name, content, id, compare) in new[]
+        foreach (var (name, content, id, expectedStart, expectedLength, expectedMessage) in new[]
         {
-            ("missing","# No frontmatter","LSG005",true),
-            ("unterminated-bom-crlf","\uFEFF---\r\ntitle: 😀\r\n","LSG005",true),
-            ("header-only","---","LSG005",true),
-            ("empty","---\n---\nBody","LSG005",true),
-            ("invalid-yaml","---\ntitle: [\n---\nBody","LSG005",true),
-            ("header-input-budget","---\ntitle: "+new string('a',1048576)+"\n---\nBody","LSG002",false),
-            ("header-invalid-unicode","---\ntitle: \uD800\n---\nBody","LSG002",false),
+            ("missing","# No frontmatter","LSG005",0,3,"Markdown front matter is required."),
+            ("unterminated-bom-crlf","\uFEFF---\r\ntitle: 😀\r\n","LSG005",6,3,"Front matter is not closed."),
+            ("header-only","---","LSG005",0,3,"Front matter is not closed."),
+            ("empty","---\n---\nBody","LSG005",4,0,"Front matter must contain one YAML mapping."),
+            ("invalid-yaml","---\ntitle: [\n---\nBody","LSG005",11,2,"Unterminated YAML flow collection."),
+            ("header-input-budget","---\ntitle: "+new string('a',1048576)+"\n---\nBody","LSG002",-1,0,""),
+            ("header-invalid-unicode","---\ntitle: \uD800\n---\nBody","LSG002",-1,0,""),
         })
         {
             ManifestInput[] inputs = [new(Content: content)];
             var current = ManifestGenerate(source, inputs);
-            Check(current.Diagnostics.Length > 0 && current.Diagnostics.Any(d => d.Id == id), "Unavailable/invalid frontmatter reports its owner: " + name + " " + string.Join(";", current.Diagnostics));
+            var diagnostic = current.Diagnostics.Single();
+            Check(diagnostic.Id == id && diagnostic.Severity == DiagnosticSeverity.Error, "Unavailable/invalid frontmatter reports its owner: " + name + " " + diagnostic);
+            if (expectedStart >= 0)
+            {
+                Check(diagnostic.Location.SourceSpan == new TextSpan(expectedStart, expectedLength), "Frontmatter diagnostic keeps its original UTF16 span: " + name);
+                Check(diagnostic.GetMessage() == expectedMessage, "Frontmatter diagnostic message: " + name);
+            }
             Check(!GeneratedMarkdownSource(current.Compilation).Contains("StaticSiteManifest.Create", StringComparison.Ordinal), "No silent Closed after unavailable frontmatter: " + name);
             var diagnostics = await ManifestAnalyze(current.Compilation, inputs);
             Check(!diagnostics.Any(d => d.Id == "LSA1201"), "Unavailable source cannot prove missing route: " + name);
@@ -100,14 +105,6 @@ public sealed partial class AnalyzerPackageHostTests
             }
             else if (name is "empty" or "invalid-yaml")
                 Check(MarkdownProperty(scan, "State")!.ToString() == "Closed" && MarkdownProperty(scan, "Status")!.ToString() == "Complete" && CompilerScanDiagnosticIds(scan) == string.Empty, "Closed delimiters still require strict YAML validation: " + name);
-            if (name == "invalid-yaml")
-                Check(current.Diagnostics.Single(d => d.Id == "LSG005").Location.SourceSpan == new TextSpan(content.IndexOf("title", StringComparison.Ordinal), 1), "Malformed YAML reports original YAML range");
-            if (compare)
-            {
-                var previous = baseline.Generate(source, inputs);
-                Check(current.Diagnostics.Select(MarkdownDiagnosticSignature).Order().SequenceEqual(previous.Diagnostics.Select(MarkdownDiagnosticSignature).Order()), "Known frontmatter errors retain diagnostics: " + name);
-                Check(GeneratedMarkdownSource(current.Compilation) == GeneratedMarkdownSource(previous.Compilation), "Known frontmatter error generated output unchanged: " + name);
-            }
             evidence.Add(new { name, utf16Length = content.Length, generator = current.Diagnostics.Select(ManifestDiagnostic).ToArray(), analyzer = diagnostics.Select(ManifestDiagnostic).ToArray() });
         }
         // Exhaust work while reading frontmatter, rather than treating a published prefix as Complete.
@@ -119,12 +116,12 @@ public sealed partial class AnalyzerPackageHostTests
         var known = (bool)validator.GetMethod("Validate", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { "input.md", limitedRaw, limited, Compile(ManifestModel, true).GetTypeByMetadataName("Front")!, new Action<Diagnostic>(collected.Add), CancellationToken.None })!;
         Check(!known && collected.Count == 0, "Unavailable state returns to caller without schema success");
         var adapter = validator.Assembly.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
-        foreach (var (name, parser, yaml) in new[] { ("parser", "1/" + new string('0', 64), "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e"), ("yaml", "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa", "YamlDotNet, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null") })
+        foreach (var (name, parser, yaml) in new[] { ("parser", "1/" + new string('0', 64), "native-yaml/1"), ("yaml", "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "native-yaml/0") })
         {
             var rejected = false;
             try
             {
-                adapter.GetMethod("Verify", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { parser, "1.0", "lithosharp-markdown/1", "18.1.0", yaml, "18.1.0" });
+                adapter.GetMethod("Verify", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { parser, "2.0", "lithosharp-markdown/1", yaml });
             }
             catch (TargetInvocationException failure) when (failure.InnerException is InvalidOperationException)
             {
@@ -193,32 +190,7 @@ public sealed partial class AnalyzerPackageHostTests
         var adapter = CompilerMarkdownAssembly().GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
         return options is null
             ? adapter.GetMethod("ParseForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object[] { raw, token })!
-            : adapter.GetMethod("AnalyzeForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object?[] { raw, options, "1/17494090defc826957640640ddcdbca4268a9a1011cfe24a0e534247910a7faa", "1.0", "lithosharp-markdown/1", "18.1.0", "YamlDotNet, Version=18.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e", "18.1.0", token })!;
+            : adapter.GetMethod("AnalyzeForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object?[] { raw, options, "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "2.0", "lithosharp-markdown/1", "native-yaml/1", token })!;
     }
     private static string GeneratedMarkdownSource(CSharpCompilation compilation) => string.Join("\n", compilation.SyntaxTrees.Where(t => t.FilePath != "canary.cs").OrderBy(t => t.FilePath, StringComparer.Ordinal).Select(t => t.ToString()));
-    private static string MarkdownDiagnosticSignature(Diagnostic diagnostic) => diagnostic.Id + "|" + diagnostic.Severity + "|" + diagnostic.GetMessage() + "|" + diagnostic.Location.GetLineSpan() + "|" + diagnostic.Location.SourceSpan;
-    private sealed class PreviousMarkdownGenerator : AssemblyLoadContext, IDisposable
-    {
-        private readonly ISourceGenerator generator;
-        internal PreviousMarkdownGenerator() : base(isCollectible: true)
-        {
-            _ = ManifestGenerators.Value;
-            using var zip = ZipFile.OpenRead(Required("MD04_BASELINE_GENERATOR_NUPKG"));
-            using var stream = zip.GetEntry("analyzers/dotnet/cs/LithoSharp.Generators.dll")!.Open();
-            using var bytes = new MemoryStream();
-            stream.CopyTo(bytes);
-            bytes.Position = 0;
-            generator = ((IIncrementalGenerator)Activator.CreateInstance(LoadFromStream(bytes).GetType("LithoSharp.Generators.StaticContentGenerator")!)!).AsSourceGenerator();
-        }
-        protected override Assembly? Load(AssemblyName name) => Default.Assemblies.FirstOrDefault(a => AssemblyName.ReferenceMatchesDefinition(a.GetName(), name));
-        internal (CSharpCompilation Compilation, ImmutableArray<Diagnostic> Diagnostics) Generate(string source, ManifestInput[] inputs)
-        {
-            var compilation = Compile(source, true).AddReferences(((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Where(p => Path.GetFileName(p) == "System.Collections.dll").Select(p => MetadataReference.CreateFromFile(p)));
-            GeneratorDriver driver = CSharpGeneratorDriver.Create([generator], inputs.Select(i => new ManifestText(i)), (CSharpParseOptions)compilation.SyntaxTrees.First().Options, new ManifestProvider());
-            driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
-            Check(!diagnostics.Any(d => d.Id == "CS8785"), "Frozen previous Generator baseline cannot crash");
-            return ((CSharpCompilation)output, diagnostics);
-        }
-        public void Dispose() => Unload();
-    }
 }
