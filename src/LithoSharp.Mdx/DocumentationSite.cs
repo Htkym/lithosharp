@@ -196,7 +196,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
 
         if (browserOptions is { } browser)
         {
-            if (!Enum.IsDefined(browser.SearchScope)) throw new ArgumentOutOfRangeException(nameof(browser.SearchScope));
+            if (!Enum.IsDefined(browser.SearchScope))
+                throw new ArgumentOutOfRangeException(nameof(browser.SearchScope));
             if (browser.Analytics is { } analytics && (analytics.Provider is not ("plausible" or "json") || !Uri.TryCreate(analytics.Endpoint.Value, UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https")))
                 throw new ArgumentException("Analytics requires an explicit HTTP(S) endpoint and a supported provider.");
             if (browser.Algolia is { } algolia && (!System.Text.RegularExpressions.Regex.IsMatch(algolia.ApplicationId, "^[A-Za-z0-9]+$") || string.IsNullOrWhiteSpace(algolia.SearchOnlyApiKey) || string.IsNullOrWhiteSpace(algolia.IndexName)))
