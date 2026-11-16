@@ -3,10 +3,10 @@
 [English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.ja.md)
 
 C# のビルド時に、.NET のドキュメント用スキーマからバインダー、カタログ、型付き参照を生成します。Roslyn の増分ジェネレーターが、明示的に宣言された静的な Markdown コレクションを検査します。必須フィールドの不足は後のレイアウト処理で失敗するのではなく、コンパイラー診断として報告されます。
-同じバージョンの LithoSharp 3.0.0 パッケージを使用してください。`LithoSharp` は通常の参照として追加し、このパッケージは利用するプロジェクトだけの Analyzer として追加します。
+同じバージョンの LithoSharp パッケージを使用してください。`LithoSharp` は通常の参照として追加し、このパッケージは利用するプロジェクトだけの Analyzer として追加します。
 
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
 ```
 
 ジェネリックでないトップレベルの `static partial` クラスに `StaticContentCollectionAttribute` を指定します。Markdown を `AdditionalFiles` に含め、次の3つのメタデータをすべて指定してください。

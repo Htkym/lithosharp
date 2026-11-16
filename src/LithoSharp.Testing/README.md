@@ -4,10 +4,8 @@
 
 Check the documentation site your .NET build actually produces. Generate sites inside ordinary .NET tests, without starting a development server. Combine content/schema compilation with output, route and DOM assertions; use any test framework. Assertion failures throw `SiteTestException`.
 
-Use LithoSharp 3.0.0 for this package and the other LithoSharp packages in your project.
-
 ```sh
-dotnet add package LithoSharp.Testing --version 3.0.0
+dotnet add package LithoSharp.Testing --version 3.1.0
 ```
 
 Keep the selected LithoSharp packages at matching versions. HTML parsing itself

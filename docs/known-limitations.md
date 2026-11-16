@@ -2,8 +2,6 @@
 
 [日本語](known-limitations.ja.md)
 
-These limitations apply to the LithoSharp 3.0.0 and VS Code extension 0.5.0 contract.
-The [version matrix](../eng/version-matrix.json) records candidate/publication state.
 See [MDX](mdx.md) for configuration and execution rules.
 
 ## Markdown compatibility

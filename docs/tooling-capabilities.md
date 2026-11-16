@@ -50,7 +50,7 @@ they are not inferred capabilities of a selected project or the language server.
 
 ### Tool-only Preview capabilities
 
-Tool 3.0.0 advertises these commands as Preview capabilities.
+The Tool advertises these commands as Preview capabilities.
 
 | name | schemaVersion | scope | Meaning |
 | --- | --- | --- | --- |

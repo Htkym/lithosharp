@@ -2,8 +2,7 @@
 
 [日本語](syntamark-contracts.ja.md)
 
-LithoSharp consumes a fixed Syntamark runtime/Source pair. The selected version
-and publication state are recorded in [the version matrix](../eng/version-matrix.json).
+LithoSharp consumes a fixed Syntamark runtime/Source pair.
 The runtime provides public analysis APIs; Source embeds the portable parser in
 compiler hosts. Source is not a second copy of the runtime's public facade.
 Do not mix versions or substitute a Source package merely because its name matches.

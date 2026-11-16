@@ -22,13 +22,20 @@ public sealed class WebsiteFactory : ISiteFactory
     {
         var root = context.ProjectDirectory;
         var generatedInputs = GeneratedInputDirectory ?? Path.Combine(Path.GetTempPath(), "ls-api", Guid.NewGuid().ToString("N"));
-        var site = new SiteSettings { Title = "LithoSharp", Description = "Typed static sites with C# and Markdown.",
-            BaseUrl = BaseUrl, Language = "en", Author = "LithoSharp", TimeZone = "UTC" };
+        var site = new SiteSettings
+        {
+            Title = "LithoSharp",
+            Description = "Typed static sites with C# and Markdown.",
+            BaseUrl = BaseUrl,
+            Language = "en",
+            Author = "LithoSharp",
+            TimeZone = "UTC"
+        };
         var social = new SiteAssetOutput("website-social", "images/social.png", "image/png");
         var docs = new DocumentationSite(new MdxOptions(root) { Cacheable = true })
         {
-            Layout = new WebsiteDocumentationLayout(),
-            Browser = new() { Search = true, Navigation = true, Theme = true },
+            Layout = new WebsiteDocumentationLayout(new(social)),
+            Browser = new() { Search = true, SearchScope = DocumentationSearchScope.Site, Navigation = true, Theme = true },
             Translations = new TranslationCatalog("en", JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(
                 File.ReadAllBytes(Path.Combine(root, "ui-messages.json")))!
                 .ToDictionary(pair => pair.Key, pair => (IReadOnlyDictionary<string, string>)pair.Value, StringComparer.Ordinal)),
@@ -36,17 +43,21 @@ public sealed class WebsiteFactory : ISiteFactory
         };
         var referenceAssets = PublicDocumentation.Register(docs, root, Path.Combine(generatedInputs, "reference"), BaseUrl);
         docs.AddCollection(new DocumentationCollection("handbook", [
-            new("3.0", "en", Path.Combine(root, "content", "en"), "en"),
-            new("3.0", "ja", Path.Combine(root, "content", "ja"), "ja")])
+            new(WebsiteVersion.Document, "en", Path.Combine(root, "content", "en"), "en"),
+            new(WebsiteVersion.Document, "ja", Path.Combine(root, "content", "ja"), "ja")])
         {
-            SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error,
+            Sidebars = WebsiteNavigation.Sidebars,
+            DefaultSidebar = "handbook",
+            SourceLocale = "en",
+            MissingDocuments = MissingDocumentPolicy.Error,
             SemanticRules = DocumentSemanticRuleSet.Documentation,
-            TrackTranslationReviews = true, TranslationReviews = ReadReviews(root)
+            TrackTranslationReviews = true,
+            TranslationReviews = ReadReviews(root)
         });
         var loaded = await MarkdownContentCollectionLoader<ExampleFrontMatter>.FromCatalog(
             GeneratedExamples.Catalog, root,
             entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Status == ExampleStatus.Draft)
-                { Language = entry.FrontMatter.Locale },
+            { Language = entry.FrontMatter.Locale },
             GeneratedExamples.Binder, transformationId: new("website-examples/1"), isCacheable: true)
             .LoadAsync(cancellationToken);
         if (!loaded.IsSuccess)
@@ -63,7 +74,7 @@ public sealed class WebsiteFactory : ISiteFactory
             { Parameters = [new("draft", "bool"), new("supportedVersion", "string?")], ReturnType = "bool" }
         ], new Dictionary<string, DocumentKey>());
         foreach (var locale in new[] { "en", "ja" })
-            api.AddXml(new("examples", new("3.0", locale, root, $"api/{locale}"),
+            api.AddXml(new("examples", new(WebsiteVersion.Document, locale, root, $"api/{locale}"),
                 locale == "ja" ? Path.Combine(root, "api", "ja", "WebsiteExamples.xml")
                     : Path.Combine(AppContext.BaseDirectory, "LithoSharp.Website.xml")), symbols);
         var socialTransform = new SiteAssetTransform("website-social", "website-pixels/1;" + RgbaImage.ProcessingProfile,
@@ -79,19 +90,26 @@ public sealed class WebsiteFactory : ISiteFactory
             OutputDirectory = Path.GetFullPath(OutputDirectory, root),
             Customization = new()
             {
-                Template = new WebsiteTemplate(), GenerateLlmsTxt = true,
+                Template = new WebsiteTemplate(),
+                GenerateLlmsTxt = true,
                 Theme = new() { UseExternalThemeRestoration = true },
             },
             Options = new()
             {
-                Markdown = new() { ProfileId = MarkdownOptions.DocumentationProfile,
+                Markdown = new()
+                {
+                    ProfileId = MarkdownOptions.DocumentationProfile,
                     Components = new([MarkdownComponentRegistration.Create("version-badge", new VersionBadge(),
-                        GeneratedBadges.Binder, "website-version-badge/1")]) },
-                Extensions = [docs, api], BuildTimestamp = DateTimeOffset.Parse("2026-11-13T00:00:00Z"),
-                Quality = new SiteQualityOptions(), CommonSocialImage = new ImageSource(social),
-                AssetTransforms = [socialTransform], GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, WebsiteApiLayout.Stylesheet],
+                        GeneratedBadges.Binder, "website-version-badge/1")])
+                },
+                Extensions = [docs, api],
+                BuildTimestamp = DateTimeOffset.Parse("2026-11-13T00:00:00Z"),
+                Quality = new SiteQualityOptions(),
+                CommonSocialImage = new ImageSource(social),
+                AssetTransforms = [socialTransform],
+                GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
-                    { Title = entry.FrontMatter.Title, Version = "3.0", Locale = entry.FrontMatter.Locale },
+                    { Title = entry.FrontMatter.Title, Version = WebsiteVersion.Document, Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>
                     {
                         var reference = entry.FrontMatter.Locale == "ja"
@@ -116,8 +134,8 @@ public sealed class WebsiteFactory : ISiteFactory
         {
             var id = review.GetProperty("id").GetString()!;
             return new DocumentTranslationReview(
-                new(new("handbook", "3.0", "en", id), $"content/en/{id}.md", review.GetProperty("sourceSha256").GetString()!),
-                new(new("handbook", "3.0", "ja", id), $"content/ja/{id}.md", review.GetProperty("translationSha256").GetString()!));
+                new(new("handbook", WebsiteVersion.Document, "en", id), $"content/en/{id}.md", review.GetProperty("sourceSha256").GetString()!),
+                new(new("handbook", WebsiteVersion.Document, "ja", id), $"content/ja/{id}.md", review.GetProperty("translationSha256").GetString()!));
         }).ToArray();
     }
 }

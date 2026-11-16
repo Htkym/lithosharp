@@ -9,7 +9,7 @@ C# スキーマ、生成参照、Markdown、エディター、サイト、出力
 
 既存のサイドバー、目次、前後のリンクを使って Docs として表示するには、読み込んだコレクションの
 [`RenderDocs`](docs-template.ja.md) を使います。
-LithoSharp 3.0.0 の Docs テンプレートは、この経路を用意しています。
+LithoSharp の Docs テンプレートはこの経路を用意しています。
 コンパイル時と実行時の入力の一致、Quality との接続は、[クイックスタート](quickstart.ja.md)を参照してください。
 
 ## サイト生成との接続

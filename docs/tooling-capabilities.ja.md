@@ -48,7 +48,7 @@ Core API の `ToolingCapabilities.CreateReport` は上記の 4 機能を返し�
 
 ## Tool 専用の Preview capability
 
-Tool 3.0.0 の `capabilities` コマンドはさらに次の Preview 機能を加えます。Core の一覧と CLI が返す一覧を混同しないでください。
+Tool の `capabilities` コマンドはさらに次の Preview 機能を加えます。Core の一覧と CLI が返す一覧を混同しないでください。
 
 | name | maturity | schemaVersion | scope | 動作 |
 | --- | --- | --- | --- | --- |

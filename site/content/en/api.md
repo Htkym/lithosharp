@@ -1,6 +1,6 @@
 ---
 title: API documentation
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [quickstart]
 ---
 
@@ -20,8 +20,7 @@ excluded; public and protected members of exported types are included.
 
 Both locales keep the same exact API IDs and parameter names. Japanese translates
 every selected XML explanation, including summaries, remarks, parameter and return
-descriptions. Inline references and code keep their identity. An untranslated new
-description fails the build instead of copying English into the Japanese view.
+descriptions. Inline references and code keep their identity.
 When the package has no declaration-specific XML comment, both views explicitly
 say so and display the available structure. Such a card does not invent behavior
 or replace the relevant feature guide.
@@ -30,10 +29,6 @@ or replace the relevant feature guide.
 `WebsiteExamples.HasPublishedVersion`, the method included in the typed example.
 The site passes compiler XML and its explicit Japanese view to
 `ApiReferenceSite.AddXml`, together with `ApiAssemblySource` and `ApiSymbol`.
-The same method is compiled by the mapped tests described in [verification](../operations/).
-The [implementation](https://github.com/Htkym/lithosharp/blob/main/site/PublicApiDocumentation.cs)
-and [localization validator](https://github.com/Htkym/lithosharp/blob/main/site/validate-api-localization.mjs)
-show the reproducible metadata and translation checks.
 
 XML IDs retain overload and generic identity. Explicit reference maps connect
 cross-assembly targets. Referenced external declarations have separate reference
@@ -46,8 +41,7 @@ being mistaken for these four runtime assembly APIs.
 
 `ApiReferenceSite.Compare` separates documentation, signature, visibility,
 deprecation and addition/removal changes. A category alone does not prove a
-breaking change. Choose snapshots explicitly and retain their inputs. See
-[operations](../operations/) for evidence and publication boundaries.
+breaking change. Choose snapshots explicitly and retain their inputs.
 
 Use `DocumentReferenceSnapshot.FindApiImpacts` to list captured guide links and
 mapped snippets for explicitly selected API changes and exact variant keys.

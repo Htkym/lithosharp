@@ -6,10 +6,10 @@ C# スキーマと生成された参照を使って .NET のドキュメント�
 
 Roslyn 4.14 の IDE ホストで、対応する LithoSharp.Analyzers と Generators パッケージと一緒にインストールしてください。Workspaces への依存はこの IDE 用アセンブリが持ちます。コンパイラーアナライザーは Workspaces に依存せず、Core ランタイムを読み込みません。
 
-3 パッケージともバージョン 3.0.0 を指定し、利用するプロジェクトだけで使う private な依存関係にしてください。CodeFixes の導入は任意です。インストールしても、エディターの Markdown 解析で C# スキーマを検査できるようになるわけではなく、すべての Analyzer 診断に修正が用意されるわけでもありません。
+3 つのパッケージは同じバージョンにそろえ、利用するプロジェクトだけで使う private な依存関係にしてください。CodeFixes の導入は任意です。インストールしても、エディターの Markdown 解析で C# スキーマを検査できるようになるわけではなく、すべての Analyzer 診断に修正が用意されるわけでもありません。
 
 ```xml
-<PackageReference Include="LithoSharp.CodeFixes" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.CodeFixes" Version="3.1.0" PrivateAssets="all" />
 ```
 
 LSA1401 は検証済みで最新の入力に一致する Closed マニフェストを使う呼び出しで、直接記述されたリテラル引数だけを、一意の生成 PageRef の `Route.PublicPath` に置き換えます。元の `Manifest.GetUrl` のレシーバー、オーバーロード、実行時のガードは維持します。生成された Pages の初期化子はすべて検証済みの不変カタログへの正規形で副作用のない参照でなければなりません。Open、古い、曖昧、手書き、副作用のある参照や、証明できない参照には修正を提示しません。

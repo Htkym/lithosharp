@@ -2,14 +2,14 @@
 
 [English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Analyzers/README.ja.md)
 
-.NET でドキュメントを開発するチーム向けのコンパイラー診断です。C# のコンテンツスキーマと生成された参照の整合性を確認します。バージョン 3.0.0 を、同じバージョンの LithoSharp パッケージと組み合わせてください。Analyzer は netstandard2.0 と Roslyn 4.14.0 を対象とし、コンパイラーホストでサイトファクトリー、ユーザー定義の getter、Core のランタイムコードを実行しません。
+.NET でドキュメントを開発するチーム向けのコンパイラー診断です。C# のコンテンツスキーマと生成された参照の整合性を確認します。同じバージョンの LithoSharp パッケージと組み合わせてください。Analyzer は netstandard2.0 と Roslyn 4.14.0 を対象とし、コンパイラーホストでサイトファクトリー、ユーザー定義の getter、Core のランタイムコードを実行しません。
 
 ## インストールと使用
 
 利用するプロジェクトの `ItemGroup` に次の参照を追加します。
 
 ```xml
-<PackageReference Include="LithoSharp.Analyzers" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Analyzers" Version="3.1.0" PrivateAssets="all" />
 ```
 
 生成されたカタログを必要とする規則には [LithoSharp.Generators](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.ja.md) を使用します。IDE の修正機能は、任意で追加する別パッケージの [LithoSharp.CodeFixes](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.ja.md) が提供します。[型付きコンテンツの手順](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output)では、スキーマ、参照、出力検査を組み合わせて説明しています。

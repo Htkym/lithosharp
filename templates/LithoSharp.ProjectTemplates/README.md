@@ -2,17 +2,16 @@
 
 [English](https://github.com/Htkym/lithosharp/blob/main/templates/LithoSharp.ProjectTemplates/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/templates/LithoSharp.ProjectTemplates/README.ja.md)
 
-Start documentation managed with C# types and builds. The 3.0.0
-`docs` template connects a custom schema, generated binder/catalog and typed
+Start documentation managed with C# types and builds. The `docs` template connects a custom schema, generated binder/catalog and typed
 references to Docs navigation and explicit output quality checks.
 
-Install the matching template package with `dotnet new install LithoSharp.ProjectTemplates::3.0.0`
+Install the matching template package with `dotnet new install LithoSharp.ProjectTemplates::3.1.0`
 and create a site with `dotnet new lithosharp-docs`, `dotnet new lithosharp-blog`,
 `dotnet new lithosharp-empty`, or `dotnet new lithosharp-mdx`.
 
 ```sh
 dotnet new lithosharp-docs -n MyDocs -o MyDocs
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```
@@ -22,7 +21,7 @@ site, `blog` uses the Blog template, `empty` demonstrates a custom C# layout, an
 `mdx` adds the optional MDX worker setup. Generated projects export an
 `ISiteFactory` that the CLI compiles and runs as trusted site code.
 
-Templates target .NET 10 and use LithoSharp 3.0.0 by default. MDX additionally requires
+Templates target .NET 10. MDX additionally requires
 Node.js 24.13.0 and explicit worker restore. See the
 [Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md)
 for build, serve and interactive component examples.

@@ -7,8 +7,6 @@ URL remains canonical. Discovery links and the existing llms.txt use the same
 publication plan as the generated files. The feature is opt-in and does not
 guarantee external-agent use, search visibility, or scanner scores.
 
-The [version matrix](../eng/version-matrix.json) distinguishes development candidates from published releases.
-
 ## Enable the feature
 
 Enable Agent Ready in the site's existing customization. Select the Docs or Blog

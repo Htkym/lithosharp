@@ -1,5 +1,14 @@
 namespace LithoSharp.Mdx;
 
+/// <summary>The document set searched by the documentation browser.</summary>
+public enum DocumentationSearchScope
+{
+    /// <summary>Searches the current collection, version and language.</summary>
+    Collection,
+    /// <summary>Searches the site's shared index in the current language, including language-neutral pages.</summary>
+    Site
+}
+
 /// <summary>Progressive browser enhancements for documentation; no external service is enabled implicitly.</summary>
 public sealed record DocumentationBrowserOptions
 {
@@ -15,9 +24,11 @@ public sealed record DocumentationBrowserOptions
     public IReadOnlyList<NavigationLink> Footer { get; init; } = [];
     /// <summary>Prepares an offline cache for the explicitly published documentation and its chunks.</summary>
     public bool Offline { get; init; }
-    /// <summary>Adds lazy local search scoped to the current collection, version and language.</summary>
+    /// <summary>Adds lazy search using the configured document scope.</summary>
     public bool Search { get; init; } = true;
-    /// <summary>An optional external search provider. Null uses local variant partitions without network services.</summary>
+    /// <summary>The search scope. Site requires the site's shared search index, for example DocsSiteTemplate.EnableSearch.</summary>
+    public DocumentationSearchScope SearchScope { get; init; } = DocumentationSearchScope.Collection;
+    /// <summary>An optional external search provider. Null uses the local index selected by SearchScope without external network services.</summary>
     public DocumentationAlgolia? Algolia { get; init; }
     /// <summary>Optional explicitly connected analytics. No request is sent until consent is granted.</summary>
     public DocumentationAnalytics? Analytics { get; init; }

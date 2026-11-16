@@ -1886,7 +1886,7 @@ public sealed partial class SiteGenerator
         DocsLayout(configuration, root, page.Title, page.BodyHtml, page.RelativePath, page.RelativePath, null);
 
     private static string RenderDocsTableOfContents(RenderContext configuration, IReadOnlyList<SiteTemplateHeading> headings) =>
-        RenderTemplateTableOfContents(configuration, headings)
+        headings.Count == 0 ? string.Empty : RenderTemplateTableOfContents(configuration, headings)
             .Replace("class=\"post-toc\"", "class=\"post-toc docs-toc\"", StringComparison.Ordinal);
 
     private static string RenderDocsSidebar(
@@ -2297,7 +2297,7 @@ public sealed partial class SiteGenerator
             {
                 Collection = page.Metadata.Document?.Collection,
                 Version = page.Metadata.Document?.Version,
-                Locale = page.Metadata.Document?.Locale,
+                Locale = page.Metadata.Document?.Locale ?? page.Metadata.Language,
                 Sections = page.Metadata.Document is null ? null : facts.SearchSections()
             });
         }
@@ -5428,10 +5428,11 @@ public sealed partial class SiteGenerator
           }
           .docs-content h1 {
             margin-block: 0 1rem;
-            font-family: Georgia, "Yu Mincho", serif;
-            font-weight: 500;
-            font-size: clamp(2.5rem, 5vw, 4rem);
-            letter-spacing: -0.035em;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            line-height: 1.3;
+            letter-spacing: -0.02em;
           }
           .docs-content h1::before {
             content: "";
@@ -5553,9 +5554,33 @@ public sealed partial class SiteGenerator
           }
         }
 
+        @layer layout {
+          .docs-shell { grid-template-areas: "sidebar main toc"; }
+          .docs-shell > .docs-sidebar { grid-area: sidebar; }
+          .docs-shell > .docs-main { grid-area: main; }
+          .docs-shell > .post-toc { grid-area: toc; }
+          .docs-shell-no-toc { grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr); grid-template-areas: "sidebar main"; }
+          .docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
+          .docs-shell-no-toc.docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+        }
+        .docs-enhanced .docs-menu-toggle { display: inline-flex; min-block-size: 2.75rem; }
+        @media (min-width: 52.01rem) {
+          .docs-enhanced.docs-sidebar-collapsed .docs-sidebar { display: none; }
+          .docs-enhanced.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
+          .docs-enhanced.docs-sidebar-collapsed .docs-shell-no-toc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+        }
         @media (max-width: 70rem) and (min-width: 52.01rem) {
-          .docs-shell { grid-template-columns: 14rem minmax(0, 1fr); }
+          .docs-enhanced.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "toc" "main"; }
+          .docs-enhanced.docs-sidebar-collapsed .docs-toc.post-toc { grid-column: 1; }
+          .docs-enhanced.docs-sidebar-collapsed .docs-shell.docs-shell-no-toc { grid-template-areas: "main"; }
+        }
+        @media (max-width: 70rem) and (min-width: 52.01rem) {
+          .docs-shell { grid-template-columns: 14rem minmax(0, 1fr); grid-template-areas: "sidebar toc" "sidebar main"; }
+          .docs-shell-no-toc { grid-template-areas: "sidebar main"; }
+          .docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "toc" "main"; }
           .docs-toc.post-toc { grid-column: 2; position: static; }
+          .docs-shell-no-sidebar > .post-toc { grid-column: 1; }
+          .docs-shell-no-sidebar.docs-shell-no-toc { grid-template-areas: "main"; }
         }
 
         @media (max-width: 52rem) {
@@ -5590,6 +5615,7 @@ public sealed partial class SiteGenerator
         @media (max-width: 52rem) {
           .docs-shell {
             grid-template-columns: 1fr;
+            grid-template-areas: "sidebar" "toc" "main";
             padding-block-start: 1.25rem;
           }
           .docs-toc.post-toc {
@@ -5600,6 +5626,11 @@ public sealed partial class SiteGenerator
             padding-block-start: 1.25rem;
             border-block-start: 1px solid var(--border);
           }
+          .docs-shell-no-toc { grid-template-areas: "sidebar" "main"; }
+          .docs-shell-no-sidebar { grid-template-areas: "toc" "main"; }
+          .docs-shell-no-toc.docs-shell-no-sidebar { grid-template-areas: "main"; }
+          .docs-enhanced .docs-shell { grid-template-areas: "toc" "main"; }
+          .docs-enhanced .docs-shell-no-toc { grid-template-areas: "main"; }
           .docs-sidebar { position: static; max-block-size: none; }
         }
         """ + "\n" + configuration.Theme.AdditionalCss;
@@ -5630,9 +5661,15 @@ public sealed partial class SiteGenerator
             new ResizeObserver(updateHeaderHeight).observe(header);
           }
 
+          const compact = matchMedia('(max-width: 52rem)');
+          let desktopOpen = true;
           const setOpen = (isOpen) => {
+            if (!isOpen && sidebar.contains(document.activeElement)) toggle.focus();
             toggle.setAttribute("aria-expanded", String(isOpen));
             sidebar.classList.toggle("docs-sidebar-open", isOpen);
+            document.body.classList.toggle("docs-sidebar-collapsed", !isOpen);
+            sidebar.inert = !isOpen;
+            if (!compact.matches) desktopOpen = isOpen;
           };
 
           toggle.addEventListener("click", () => {
@@ -5640,7 +5677,7 @@ public sealed partial class SiteGenerator
           });
 
           for (const link of sidebar.querySelectorAll("a")) {
-            link.addEventListener("click", () => setOpen(false));
+            link.addEventListener("click", () => { if (compact.matches) setOpen(false); });
           }
 
           document.addEventListener("keydown", (event) => {
@@ -5650,13 +5687,18 @@ public sealed partial class SiteGenerator
             }
           });
 
-          window.addEventListener("resize", () => setOpen(false));
-          setOpen(false);
+          compact.addEventListener("change", () => setOpen(!compact.matches && desktopOpen));
+          setOpen(!compact.matches);
         })();
         """;
 
     private static string BuildBaseCss(bool enableThemeSwitching) => """
         @layer reset, base, layout, components, utilities;
+        @layer components {
+          .ls-code-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-block-start: 1rem; }
+          .ls-code-copy { min-block-size: 2.5rem; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer; }
+          .ls-code-status { font-size: 0.875rem; }
+        }
 
         @view-transition { navigation: auto; }
 
@@ -6658,7 +6700,7 @@ public sealed partial class SiteGenerator
         })();
         """;
 
-    private static string BuildSiteScript(RenderContext configuration) => (configuration.Theme.EnableThemeSwitching ? """
+    private static string BuildSiteScript(RenderContext configuration) => CodeCopyScript.BrowserScript + "\n" + (configuration.Theme.EnableThemeSwitching ? """
         (() => {
           "use strict";
 

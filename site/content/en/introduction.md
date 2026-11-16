@@ -1,24 +1,37 @@
 ---
-title: LithoSharp documentation
-supported_version: "3.0"
+title: Introduction
+supported_version: "3.1"
 sidebar_position: 1
 ---
 
-LithoSharp combines C# site configuration, typed content and Markdown. This handbook
-targets the 3.0 development line. The repository version matrix identifies the
-selected candidate; a successful local build does not establish a published release.
+LithoSharp is a static-site generator for .NET teams. Write documentation in Markdown,
+define content requirements and site configuration in C#, and publish static files.
 
-Start with [building this site](../quickstart/), then use the
-[feature inventory](../features/) to choose a guide. The English and Japanese
-handbooks share document IDs and the same `3.0` variant. The language control
-switches to the corresponding document; this site does not fabricate an older
-version from current content.
+## Start here
 
-This site uses the public package APIs in
-[WebsiteFactory.cs](https://github.com/Htkym/lithosharp/blob/main/site/WebsiteFactory.cs).
-Its handbook uses the documentation Markdown profile, scoped search and typed
-component attributes. Separate example pages use a generated C# schema and input
-catalog. The knowledge section uses an OKF reader with its own policy.
+New to LithoSharp? [Create your first documentation site](../quickstart/) with the
+Docs template. You need the .NET 10 SDK; Markdown-only sites do not require Node.js
+or React.
 
-For existing 2.x sites, read [migration to 3.0](../migration/) before replacing
-dependencies. Keep the existing output and publication baseline during migration.
+Already using LithoSharp 2.x? Read [migration to 3.0](../migration/) before updating
+your packages.
+
+## What you can build
+
+- Documentation sites with navigation, a table of contents, local search and multiple languages.
+- Typed content collections with C# schemas, generated references and build diagnostics.
+- API reference pages from .NET XML documentation and OpenAPI definitions.
+- Blogs and standalone pages, with optional MDX and React for interactive content.
+
+Use the [feature guide](../features/) to find the configuration, examples and limits
+for each capability.
+
+## From content to published pages
+
+C# schemas check content requirements, while output quality checks inspect generated
+HTML and links. These checks have different scopes: a valid content model does not
+by itself guarantee that every published link works. Build and inspect your site
+before deploying its output.
+
+For the next step, explore [typed content](../typed-content/),
+[documentation and languages](../documentation/) or [API documentation](../api/).

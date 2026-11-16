@@ -3,21 +3,21 @@ using LithoSharp.Documentation;
 using LithoSharp.Pages;
 using LithoSharp.Testing;
 
-internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent>
+internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPageLayout<PageLayoutContent>
 {
     private sealed record Binding(DocumentKey Document, string NativeId, string Heading, string Alias, string? MarkerSource = null);
 
     private static readonly Binding[] Bindings =
     [
-        new(new("samples", "3.0", "ja", "samples-lithosharp-docssample"), "c", "C#の型定義から生成物の検査まで", "cの型定義から生成物の検査まで"),
-        new(new("reference", "3.0", "ja", "Testing-v2-api"), "section-2", "移行", "移行"),
+        new(new("samples", WebsiteVersion.Document, "ja", "samples-lithosharp-docssample"), "c", "C#の型定義から生成物の検査まで", "cの型定義から生成物の検査まで"),
+        new(new("reference", WebsiteVersion.Document, "ja", "Testing-v2-api"), "section-2", "移行", "移行"),
         new(new("history", "2.2", "ja", "migration-2.0"), "docs", "既存Docsを型付きコンテンツへ移す", "既存docsを型付きコンテンツへ移す"),
-        new(new("reference", "3.0", "ja", "typed-markdown-collections"), "section-4", "コードの取り込みと本文解析", "コードの取り込みと本文解析"),
-        new(new("reference", "3.0", "en", "layout-css-contract"), "theme-switching", "Theme switching", "theme-switching--テーマ切り替え", "docs/layout-css-contract.md"),
-        new(new("reference", "3.0", "ja", "layout-css-contract"), "section", "テーマの切り替え", "テーマ切り替え", "docs/layout-css-contract.ja.md"),
-        new(new("reference", "3.0", "ja", "quickstart"), "docsci", "このDocsプロジェクトのCI", "このdocsプロジェクトのci"),
-        new(new("reference", "3.0", "ja", "quickstart"), "section-3", "使用例と次の手順", "使用例と次の手順"),
-        new(new("reference", "3.0", "ja", "known-limitations"), "markdown", "Markdown の互換性", "markdown-の互換性"),
+        new(new("reference", WebsiteVersion.Document, "ja", "typed-markdown-collections"), "section-4", "コードの取り込みと本文解析", "コードの取り込みと本文解析"),
+        new(new("reference", WebsiteVersion.Document, "en", "layout-css-contract"), "theme-switching", "Theme switching", "theme-switching--テーマ切り替え", "docs/layout-css-contract.md"),
+        new(new("reference", WebsiteVersion.Document, "ja", "layout-css-contract"), "section", "テーマの切り替え", "テーマ切り替え", "docs/layout-css-contract.ja.md"),
+        new(new("reference", WebsiteVersion.Document, "ja", "quickstart"), "docsci", "このDocsプロジェクトのCI", "このdocsプロジェクトのci"),
+        new(new("reference", WebsiteVersion.Document, "ja", "quickstart"), "section-3", "使用例と次の手順", "使用例と次の手順"),
+        new(new("reference", WebsiteVersion.Document, "ja", "known-limitations"), "markdown", "Markdown の互換性", "markdown-の互換性"),
     ];
 
     static WebsiteDocumentationLayout()
@@ -47,8 +47,8 @@ internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent
     {
         var bindings = Bindings.Where(binding => binding.Document == page.Metadata.Document).ToArray();
         if (bindings.Length == 0)
-            return new DocsPageLayout().Render(page, context);
-        var body = page.Content.Body.ToHtmlString();
+            return WebsiteChrome.Render(page, context, socialImage);
+        var body = (page.Content.DocumentationChrome?.Article ?? page.Content.Body).ToHtmlString();
         using var document = SiteTestDocument.Parse(body);
         var ids = document.Snapshot.QueryAll("[id]");
         var existing = new HashSet<string>(StringComparer.Ordinal);
@@ -75,7 +75,15 @@ internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent
         }
         foreach (var insertion in insertions.OrderByDescending(insertion => insertion.Start))
             body = body.Insert(insertion.Start, insertion.Html);
-        return new DocsPageLayout().Render(new(page.Id, page.Route,
-            page.Content with { Body = Html.UnsafeRaw(body) }, page.Metadata), context);
+        return WebsiteChrome.Render(new(page.Id, page.Route,
+            page.Content with { Body = Html.UnsafeRaw(body), DocumentationChrome = UpdateArticle(page.Content.DocumentationChrome, body) }, page.Metadata), context, socialImage);
     }
+    private static DocumentationPageChrome? UpdateArticle(DocumentationPageChrome? chrome, string article) => chrome is null ? null : new(Html.UnsafeRaw(article))
+    {
+        Breadcrumbs = chrome.Breadcrumbs,
+        Search = chrome.Search,
+        Variants = chrome.Variants,
+        Adjacent = chrome.Adjacent,
+        Headings = chrome.Headings
+    };
 }

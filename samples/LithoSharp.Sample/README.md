@@ -11,10 +11,6 @@ A minimal console app that builds a blog with [LithoSharp](../../src/LithoSharp)
 It depends only on the LithoSharp library, so it doubles as a check that the generator
 works without any daily-update code.
 
-This repository sample targets LithoSharp 3.0.0. The selected Syntamark 2
-runtime/Source pair and unpublished candidate state are recorded in the
-[version matrix](../../eng/version-matrix.json).
-
 ## Run it
 
 Run from the repository root with the .NET 10 SDK (10.0.300 or a later supported

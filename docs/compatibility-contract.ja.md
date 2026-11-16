@@ -4,7 +4,7 @@
 
 [English](compatibility-contract.md)
 
-この文書は LithoSharp 3.0.0 の生成サイトの互換性契約を説明します。
+この文書は LithoSharp の生成サイトの互換性契約を説明します。
 1.0.0 で定めた基準をもとにしており、実装の詳細は互換性の保証に含みません。
 [3.0 の移行ガイド](migration-3.0.ja.md)はネイティブ YAML と画像処理の変更を説明します。
 以前の Testing API の破壊的変更は、生成サイトの互換性とは分け、[2.x の履歴資料](migration-2.0.ja.md)に残しています。

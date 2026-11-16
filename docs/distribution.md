@@ -2,21 +2,15 @@
 
 [日本語](distribution.ja.md)
 
-This guide targets LithoSharp 3.0.0, Language Server 3.0.0, VS Code extension
-0.5.0. These are development targets, not a publication
-announcement. The extension uses the identity `htkym.lithosharp` and has a
+The extension uses the identity `htkym.lithosharp` and has a
 separate version.
-
-The selected dependency is the published [Syntamark 2.0.0 release](https://github.com/Htkym/syntamark/releases/tag/v2.0.0).
-Use matching runtime and Source versions. This dependency release does not
-establish LithoSharp 3.0.0 package availability.
 
 ## NuGet packages
 
-Use matching 3.0.0 versions of the packages your project needs: `LithoSharp`,
+Use matching versions of the packages your project needs: `LithoSharp`,
 `LithoSharp.Generators`, `LithoSharp.Images`, `LithoSharp.Tool`,
 `LithoSharp.Testing`, `LithoSharp.Mdx`, and `LithoSharp.ProjectTemplates`.
-Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` also target 3.0.0.
+Optional `LithoSharp.Analyzers` and `LithoSharp.CodeFixes` use the same version.
 The tool and templates are separate packages.
 
 Install only what the site uses. Core is the runtime; Generators add typed static
@@ -26,8 +20,7 @@ and are not a runtime dependency.
 
 Core references the Syntamark runtime paired with its package set; Generators and
 Analyzers embed the corresponding Source artifact. Consumers do not add a direct
-`Syntamark.Source` reference. For candidate use, keep the runtime and Source
-versions and canonical source identity matched to the selected pair. The default profile remains
+`Syntamark.Source` reference. The default profile remains
 `lithosharp-markdown/1`; see [Markdown profiles](markdown-profiles.md) to opt into
 CommonMark or the documentation profile.
 
@@ -36,15 +29,9 @@ copies existing image files without decoding them. `LithoSharp.Images` provides
 optional, bounded PNG processing. Register existing JPEG, WebP and AVIF files or
 prepare those formats separately; see [assets and images](assets-and-images.md).
 
-Run the following commands only when your configured NuGet sources provide a
-matching 3.0.0 package set: published release packages, or candidate packages
-from a source you explicitly supplied. Candidate use also requires the selected
-matching Syntamark runtime/Source pair. The version numbers in this guide do not
-establish package availability.
-
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 ```
 
 See the [Quick Start](quickstart.md) to create and serve a site, and the
@@ -54,14 +41,9 @@ The recorded Core API compatibility baseline is 2.2.0; the
 
 ## VS Code extension
 
-Use this Marketplace command only after extension 0.5.0 is available there:
-
 ```sh
 code --install-extension htkym.lithosharp@0.5.0
 ```
-
-For a candidate, install an explicitly supplied matching VSIX with
-`code --install-extension <path-to-vsix>`.
 
 The portable extension supports Windows x64, Linux x64 and macOS arm64. It
 includes the compiled extension, the framework-dependent language server and

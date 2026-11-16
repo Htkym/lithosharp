@@ -196,6 +196,19 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
             if (group.Any(item => (item.Input.Variant with { InputDirectory = variant.InputDirectory }) != variant))
                 throw new ArgumentException("API inputs for one collection/version/language must use the same variant settings.");
             DocumentKey Key(string id) => new(input.Collection, variant.Version, variant.Locale, id);
+            IEnumerable<(string Locale, SiteRoute Route)> SymbolVariants(string id) => allRoutes
+                .Where(pair => pair.Key.Collection == input.Collection && pair.Key.Version == variant.Version && pair.Key.Id == id)
+                .Select(static pair => (pair.Key.Locale, pair.Value));
+            var indexVariants = loaded.Where(item => item.Input.Collection == input.Collection && item.Input.Variant.Version == variant.Version
+                    && allMembers.Keys.Any(key => key.Collection == input.Collection && key.Version == variant.Version && key.Locale == item.Input.Variant.Locale))
+                .GroupBy(static item => item.Input.Variant.Locale, StringComparer.Ordinal)
+                .Select(group => (Locale: group.Key, Route: SiteRoute.ForDirectoryIndex(group.First().Input.Variant.RoutePrefix, context.Site.BaseUrl))).ToArray();
+            static IReadOnlyDictionary<string, SiteUrl> Alternates(IEnumerable<(string Locale, SiteRoute Route)> variants)
+            {
+                var links = variants.ToArray();
+                return links.Length < 2 ? new Dictionary<string, SiteUrl>()
+                    : links.ToDictionary(static item => item.Locale, static item => SiteUrl.FromRoute(item.Route), StringComparer.Ordinal);
+            }
             var parsed = allMembers.Where(pair => pair.Key.Collection == input.Collection && pair.Key.Version == variant.Version && pair.Key.Locale == variant.Locale)
                 .Select(pair => pair.Value).OrderBy(member => member.Id, StringComparer.Ordinal).ToArray();
             // This dependency is repeated per page; retain the complete input identity without copying its symbol map.
@@ -209,21 +222,17 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
                 parsed.Select(member => new ContentEntry<ApiMember, ApiMember>(new(member.Id), Path.GetFileName(input.FilePath),
                     Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(member))), member, member)),
                 entry => allRoutes[Key(entry.Id.Value)], entry => new(entry.FrontMatter.Title, entry.FrontMatter.Summary)
-                { Document = Key(entry.Id.Value), Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex },
+                { Document = Key(entry.Id.Value), Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex, Alternates = Alternates(SymbolVariants(entry.Id.Value)) },
                 declaredDependencies: [ContentDependency.FromValue("api.input", hash), ContentDependency.FromValue("api.variant", JsonSerializer.Serialize(variant)),
                     ContentDependency.FromValue("api.navigation", navigationHash), ContentDependency.FromValue("api.layout", layoutIdentity)], transformationId: new("api-v3"), isCacheable: true);
             collections.Add(new SiteContentCollection<ApiMember, ApiMember>(collection, (entry, rendering) => Render(rendering,
-                LanguageNavigation(allRoutes.Where(pair => pair.Key.Collection == input.Collection && pair.Key.Version == variant.Version && pair.Key.Id == entry.Id.Value)
-                    .Select(static pair => (pair.Key.Locale, pair.Value)), variant.Locale)
+                LanguageNavigation(SymbolVariants(entry.Id.Value), variant.Locale)
                 + "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" + (entry.FrontMatter.Deprecated ? "<aside role=\"note\">" + ApiXmlReferenceReader.Label(variant.Locale, "Deprecated") + "</aside>" : "") + entry.Body.BodyHtml, entry.Id.Value))
             { RendererFingerprint = "api-v3|" + layoutIdentity, IsThreadSafe = layout is null });
             collections.Add(collection.GeneratePages(new(collection.Id.Value + ":index"), _ => ["index"],
                 entries => new SitePage<IReadOnlyList<ContentEntry<ApiMember, ApiMember>>>(new("index"), SiteRoute.ForDirectoryIndex(variant.RoutePrefix, context.Site.BaseUrl), entries.Entries,
-                    new(input.Collection) { Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex }),
-                (page, rendering) => Render(rendering, LanguageNavigation(loaded.Where(item => item.Input.Collection == input.Collection && item.Input.Variant.Version == variant.Version
-                        && allMembers.Keys.Any(key => key.Collection == input.Collection && key.Version == variant.Version && key.Locale == item.Input.Variant.Locale))
-                    .GroupBy(static item => item.Input.Variant.Locale, StringComparer.Ordinal)
-                    .Select(group => (group.Key, SiteRoute.ForDirectoryIndex(group.First().Input.Variant.RoutePrefix, context.Site.BaseUrl))), variant.Locale)
+                    new(input.Collection) { Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex, Alternates = Alternates(indexVariants) }),
+                (page, rendering) => Render(rendering, LanguageNavigation(indexVariants, variant.Locale)
                     + "<h1>" + Html.Encode(input.Collection) + "</h1><ul>" + string.Concat(page.Content.Select(entry =>
                     "<li><a href=\"" + SiteUrl.FromRoute(allRoutes[Key(entry.Id.Value)]).ToAttributeValue() + "\">" + Html.Encode(entry.FrontMatter.Title) + "</a></li>")) + "</ul>", page.Id.Value),
                 transformationId: new("api-index-v3"), isCacheable: true));

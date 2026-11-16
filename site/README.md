@@ -2,26 +2,26 @@
 
 [日本語](README.ja.md)
 
-This package consumer builds the English/Japanese 3.0 handbook, canonical public
-guides, package/sample documentation and runtime-library API reference.
-`LithoSharpVersion` defaults to the intended `3.0.0` package contract. It does not
-assert formal package or site publication. The manual GitHub Pages workflow targets
-https://htkym.github.io/lithosharp/; configuring the workflow does not establish
-successful publication. Check that URL and the
-[publication prerequisites](../eng/github-pages.md).
+This package consumer builds the English/Japanese handbook, public guides,
+package/sample documentation and runtime-library API reference.
 
-Use the SDK in `global.json`, Node for the lightweight declaration check, and
-PowerShell 7. From the repository root:
+## Build the website
+
+This is the workflow for contributors to the official website. To create your own
+site with the published packages, follow the [Quick Start](../docs/quickstart.md).
+
+Use the SDK in `site/global.json`, Node for declaration checks and PowerShell 7.
+From the repository root:
 
 ```powershell
 node site/validate-coverage.mjs
-./site/Build.ps1 -LithoSharpVersion <available-version> -PackageFeed <candidate-feed> -Output <new-directory>
+./site/Build.ps1 -Output <new-directory>
 ```
 
 `PackageFeed` accepts an array when the selected Syntamark dependency pair is in a
-separate feed. After formal package publication, omit it to use NuGet.org. The
+separate feed. The
 script builds against NuGet artifacts and their imported generator metadata; it
-does not reference implementation projects. Keep candidate feeds and package
+does not reference implementation projects. Keep package feeds and
 caches outside the site source. Use a short `-WorkDirectory` on Windows. The
 script checks planned path lengths before starting restore.
 
@@ -60,7 +60,3 @@ unchanged. `reference-translation-reviews.json` does the same for the canonical
 repository sources; staging does not advance those records. After an explicit
 source-pair review, `node site/update-documentation-inventory.mjs --write` captures
 the current inventory. Japanese proofreading evidence belongs outside public input roots.
-The source project is intentionally separate from the solution until matching
-candidate packages are available. CI should call `Build.ps1` after all referenced
-packages have been packed, preserve its diagnostics/output, and never deploy from
-this validation step.

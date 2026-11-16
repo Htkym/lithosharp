@@ -9,13 +9,9 @@ need Node.js or React. MDX sites compile with MDX 3.1.1, React 19.2.4 and esbuil
 
 ## Start a site
 
-The commands target the 3.0.0 package contract. The
-[version matrix](../eng/version-matrix.json) distinguishes the selected development
-candidate from formal release availability.
-
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker

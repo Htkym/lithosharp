@@ -1,21 +1,20 @@
 # 静的コンテンツのソースジェネレーター
 
-型付きの構成を始める標準の方法は、LithoSharp 3.0.0 の Docs テンプレートです。
+型付きの構成を始めるときは、標準の LithoSharp の Docs テンプレートを使います。
 [クイックスタート](quickstart.ja.md)で、生成する `Guides.Binder` と参照、拡張子を含む入力ルート相対 ID、
 一致するアンダースコアの除外規則、実行時のカタログルートを確認してください。
 以下のコードは個々のジェネレーターの契約を示します。例の ID 規則はテンプレートの再帰的な入力規則に代わるものではありません。
 
 ## パッケージの設定
 
-Core と Generators は同じバージョンを使います。例の対象は 3.0.0 です。
-[バージョン一覧](../eng/version-matrix.json)は、選定した開発候補と、正式リリースの提供状況を区別します。
+Core と Generators は同じバージョンを使います。
 
 ランタイムパッケージを通常どおり参照し、`LithoSharp.Generators` を private analyzer として追加します。
 NuGet パッケージは `AdditionalFiles` のメタデータの契約を自動的に読み込みます。
 
 ```xml
-<PackageReference Include="LithoSharp" Version="3.0.0" />
-<PackageReference Include="LithoSharp.Generators" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="3.1.0" />
+<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
 ```
 
 ## 宣言と入力

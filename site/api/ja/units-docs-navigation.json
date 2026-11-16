@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "02adac736ec3be00fdd12463f94b3e906ae0dfd6da464ab6b5fbf1b5974defe8": {
+      "japanese": "前後の文書へのナビゲーションです。省略可能で、ナビゲーション要素を含みます。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Adjacent/summary"
+      ],
+      "english": "Optional previous and next document navigation, including its navigation element."
+    },
+    "02f1c32e6e8bce2a2f3d0e8c4b0a71c096578a65858253578ea29b2c38fa6d8d": {
+      "japanese": "検索範囲です。Site を使うには、DocsSiteTemplate.EnableSearch などで生成するサイト共通の検索インデックスが必要です。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationBrowserOptions.SearchScope/summary"
+      ],
+      "english": "The search scope. Site requires the site's shared search index, for example DocsSiteTemplate.EnableSearch."
+    },
+    "06c7ce81c532cb227d403723f7c78721fc2489863a728ea7af922f6091fc70c9": {
+      "japanese": "描画済みの記事とページのメタデータを持つドキュメント領域を作成します。",
+      "contexts": [
+        "M:LithoSharp.DocumentationPageChrome.#ctor(LithoSharp.IHtmlContent)/summary"
+      ],
+      "english": "Creates documentation regions with the rendered article and its page metadata."
+    },
+    "27e856daa72502e0dc3422a4cec8d9d163d111a936043cd60beb777781a029c7": {
+      "japanese": "省略可能な外部検索プロバイダーです。null の場合は外部ネットワークサービスを使わず、SearchScope で選択したローカルインデックスを使います。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationBrowserOptions.Algolia/summary"
+      ],
+      "english": "An optional external search provider. Null uses the local index selected by SearchScope without external network services."
+    },
+    "4e74b9bd524fc7c99e7997440b0a2d8341aec4a8ed680c23d3b6b9e8a7c626f9": {
+      "japanese": "サイト共通のインデックスを現在の言語で検索します。言語に依存しないページも含めます。",
+      "contexts": [
+        "F:LithoSharp.Mdx.DocumentationSearchScope.Site/summary"
+      ],
+      "english": "Searches the site's shared index in the current language, including language-neutral pages."
+    },
+    "5758022fb7c121e270422119222190c69a3cdcc77976cdcf4c21bf2bb6e6c3d8": {
+      "japanese": "ドキュメント検索です。省略可能で、section 要素を含みます。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Search/summary"
+      ],
+      "english": "Optional documentation search, including its section element."
+    },
+    "6c5eaf4dae89ebac3db71685931864c398bdfff9a25d9c21332b5e93bd33f260": {
+      "japanese": "パンくず、検索、バリアントへのリンク、前後の文書へのナビゲーションを含まない記事本文です。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Article/summary"
+      ],
+      "english": "Article content without breadcrumbs, search, variant links or adjacent-document navigation."
+    },
+    "7dac7fb6b3268a5b816e207b6b13d3550284f190aa5452471d20722e0c12f880": {
+      "japanese": "ナビゲーションを記事の外に配置するレイアウト向けに、描画済みのドキュメントを分割した領域です。",
+      "contexts": [
+        "T:LithoSharp.DocumentationPageChrome/summary"
+      ],
+      "english": "Separate rendered documentation regions for layouts that place navigation outside the article."
+    },
+    "8c5167d1a31adcc3ad120e6287ac7142fbe91ad53cdb1090ed60b96e3c6ea977": {
+      "japanese": "バージョンと言語を切り替えるナビゲーションです。省略可能で、ナビゲーション要素を含みます。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Variants/summary"
+      ],
+      "english": "Optional version and language navigation, including its navigation element."
+    },
+    "9a6051563aec3ca8b275e0d12ec526f4e8646f710aa1bd04feb2ecea7882eee1": {
+      "japanese": "設定した文書範囲を対象に、遅延読み込みの検索を追加します。",
+      "contexts": [
+        "P:LithoSharp.Mdx.DocumentationBrowserOptions.Search/summary"
+      ],
+      "english": "Adds lazy search using the configured document scope."
+    },
+    "a795e39c03906fb5aa0044e340470448504e91cec0c76df8df9be6d26ce49d81": {
+      "japanese": "パンくずナビゲーションです。省略可能で、ナビゲーション要素を含みます。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Breadcrumbs/summary"
+      ],
+      "english": "Optional breadcrumb navigation, including its navigation element."
+    },
+    "b0b90dddf042e5aa3f48acfa872110e9f7a1e87b565ca22d22c3301ebe4ecb7d": {
+      "japanese": "現在のコレクション、バージョン、言語の範囲を検索します。",
+      "contexts": [
+        "F:LithoSharp.Mdx.DocumentationSearchScope.Collection/summary"
+      ],
+      "english": "Searches the current collection, version and language."
+    },
+    "cf331115c471f79bf8e65dc567948f03cb72aef71c934c07ca6b5c0835245bbe": {
+      "japanese": "省略可能な、分割されたドキュメント領域です。既存のレイアウト向けに、Body は従来のコンテンツ全体を保持します。",
+      "contexts": [
+        "P:LithoSharp.PageLayoutContent.DocumentationChrome/summary"
+      ],
+      "english": "Optional separate documentation regions. Body retains the complete legacy content for existing layouts."
+    },
+    "e1ec8b885d61b0701c8f50ee28028f91e53863f8f7037be89cf05729b57302ab": {
+      "japanese": "ドキュメントブラウザーで検索する文書の範囲です。",
+      "contexts": [
+        "T:LithoSharp.Mdx.DocumentationSearchScope/summary"
+      ],
+      "english": "The document set searched by the documentation browser."
+    },
+    "e67b4ed58c20f80737d4e0fd0b728442c0894b78ca94f3cfcf77f3247fb9725e": {
+      "japanese": "目次に表示する見出しです。文書で目次を非表示にしている場合は空です。",
+      "contexts": [
+        "P:LithoSharp.DocumentationPageChrome.Headings/summary"
+      ],
+      "english": "Visible table-of-contents headings; empty when the document hides its table of contents."
+    },
+    "e76daf31ab977b58b380010914943e1a656687e7d95c57d62cdf4a4490b00ba6": {
+      "japanese": "タイトル、通知、メッセージ、編集リンク、最終更新情報を含む記事本文です。",
+      "contexts": [
+        "M:LithoSharp.DocumentationPageChrome.#ctor(LithoSharp.IHtmlContent)/param"
+      ],
+      "english": "Article content, including the title, notices, messages, edit link and last-update information."
+    }
+  }
+}

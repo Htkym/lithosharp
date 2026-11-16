@@ -61,9 +61,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # Retain the historical fixture and test upgrades from the previous stable release.
-      LITHOSHARP_CANDIDATE_VERSION: ${{ format('3.0.0-ci.{0}', github.run_id) }}
+      LITHOSHARP_CANDIDATE_VERSION: ${{ format('3.1.0-ci.{0}', github.run_id) }}
       LITHOSHARP_BASELINE_VERSION: '1.1.0'
       LITHOSHARP_PREVIOUS_STABLE_VERSION: '2.2.0'
+      LITHOSHARP_CURRENT_STABLE_VERSION: '3.0.0'
 
     steps:
       - name: Checkout
@@ -83,6 +84,9 @@ jobs:
         run: |
           node --test eng/markdown/Verify-FixedPair.test.mjs
           node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
+
+      - name: Verify search excerpts
+        run: node --test eng/Test-SearchExcerpt.mjs
 
       - name: Verify development version matrix
         shell: pwsh
@@ -398,7 +402,7 @@ jobs:
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
           $null = New-Item -ItemType Directory -Force -Path $baseline
-          foreach ($version in @('${{ env.LITHOSHARP_BASELINE_VERSION }}', '${{ env.LITHOSHARP_PREVIOUS_STABLE_VERSION }}') | Select-Object -Unique) {
+          foreach ($version in @('${{ env.LITHOSHARP_BASELINE_VERSION }}', '${{ env.LITHOSHARP_PREVIOUS_STABLE_VERSION }}', '${{ env.LITHOSHARP_CURRENT_STABLE_VERSION }}') | Select-Object -Unique) {
             Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/lithosharp/$version/lithosharp.$version.nupkg" -OutFile (Join-Path $baseline "LithoSharp.$version.nupkg")
             ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion $version -CandidateVersion ${{ env.LITHOSHARP_CANDIDATE_VERSION }}
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -428,6 +432,16 @@ jobs:
           node --test serve.test.mjs
           npx playwright install --with-deps chromium firefox
 
+      - name: Check shared documentation browser contracts
+        shell: pwsh
+        run: |
+          foreach ($browser in @('chromium', 'firefox')) {
+            $env:LS_BROWSER = $browser
+            foreach ($check in @('menu.mjs', 'docs-layout.mjs', 'search-scope.mjs', 'code-copy.mjs')) {
+              node "tests/fixtures/mdx-browser/$check"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
       - name: Check production MDX browser behavior
         shell: pwsh
         run: |

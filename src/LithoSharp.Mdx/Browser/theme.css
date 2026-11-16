@@ -6,3 +6,8 @@
 .docs-sidebar details>summary{cursor:pointer}.docs-sidebar [aria-current=page]{font-weight:700;text-decoration:underline}.docs-content [data-ls-variants]{display:flex;flex-wrap:wrap;gap:1rem}
 @media(max-width:800px){.docs-content{overflow-wrap:anywhere}}
 @media(max-width:52rem){.docs-enhanced .docs-header{flex-wrap:wrap}.docs-enhanced .docs-brand{flex-shrink:0;max-inline-size:100%}}
+.docs-enhanced .docs-menu-toggle{display:inline-flex;min-block-size:2.75rem}
+@media(min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-sidebar{display:none}.docs-enhanced.docs-sidebar-collapsed .docs-shell{grid-template-columns:minmax(0,1fr) minmax(12rem,15rem)}}
+@media(max-width:70rem) and (min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-shell{grid-template-columns:minmax(0,1fr)}.docs-enhanced.docs-sidebar-collapsed .docs-toc.post-toc{grid-column:1}}
+@media(min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-shell.docs-shell-no-toc{grid-template-columns:minmax(0,1fr);grid-template-areas:"main"}}
+.ls-code-tools{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;margin-block-start:1rem}.ls-code-copy{min-block-size:2.5rem;padding:.35rem .75rem;font:inherit;cursor:pointer}.ls-code-status{font-size:.875rem}

@@ -10,10 +10,33 @@ const queryDocuments = (() => {
   const score = (field, exact, normalized, tokens) =>
     (field.exact === exact ? 120 : field.exact.includes(exact) ? 60 : field.words === normalized ? 30 : field.words.includes(normalized) ? 15 : 0)
     + tokens.filter(token => contains(field, token)).length;
+  const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity: 'grapheme'}) : null;
   const excerpt = (body, tokens) => {
-    const lower = body.toLowerCase(), positions = tokens.map(token => lower.indexOf(token)).filter(index => index >= 0);
-    const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 40);
-    return body.slice(start, start + 180);
+    if (body.length <= 180) return body;
+    // Match in the original string: lowercasing can change UTF-16 offsets (for example, capital dotted I).
+    const positions = tokens.map(token => body.search(new RegExp(token, 'iu'))).filter(index => index >= 0);
+    const first = positions.length ? Math.min(...positions) : 0;
+    let start = Math.max(0, first - 40);
+    // Move forward to a word boundary, but never past the match. CJK punctuation is also a boundary.
+    const before = body.slice(start, first), boundary = before.search(/[\s。！？]/u);
+    if (start && !/[\s。！？.!?]/u.test(body[start - 1]) && boundary >= 0) start += boundary + 1;
+    const segments = segmenter?.segment(body);
+    const floor = index => segments ? segments.containing(index)?.index ?? body.length
+      : index > 0 && /[\uDC00-\uDFFF]/u.test(body[index] ?? '') ? index - 1 : index;
+    start = floor(start);
+    // Ellipses count toward the existing 180 UTF-16-unit payload budget.
+    let end = Math.min(body.length, start + 180 - (start ? 1 : 0));
+    if (end < body.length) {
+      end = floor(end - 1);
+      const tail = body.slice(Math.max(first + 1, end - 40), end);
+      const breaks = [...tail.matchAll(/[\s。！？.!?]/gu)];
+      if (breaks.length) {
+        const last = breaks[breaks.length - 1];
+        end = Math.max(first + 1, end - 40) + last.index + (/\s/u.test(last[0]) ? 0 : 1);
+      }
+      end = floor(end);
+    }
+    return (start ? '…' : '') + body.slice(start, end).trim() + (end < body.length ? '…' : '');
   };
   // Keep the built-in search's subsequence fallback below every direct token match.
   const fuzzyScore = (needle, hay) => {

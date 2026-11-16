@@ -111,7 +111,7 @@ const sourceSurfaces = {
 };
 const historicalSources = files.filter(file => file.startsWith('docs/history/')).sort().map(file => ({ ...receipt(file),
     disposition: 'Preserved historical source; linked to its repository archive without inventing a current-version variant.' }));
-const inventory = { schemaVersion: 1, sourceVersion: '3.0', locales: ['en', 'ja'], implementationHashEncoding: 'utf8-with-lf',
+const inventory = { schemaVersion: 1, sourceVersion: JSON.parse(readFileSync(path.join(repository, 'eng/version-matrix.json'), 'utf8')).lithosharpTarget.split('.').slice(0, 2).join('.'), locales: ['en', 'ja'], implementationHashEncoding: 'utf8-with-lf',
     entries, historicalSources, apiContracts, sourceSurfaces };
 const output = path.join(site, 'documentation-inventory.json');
 const serialized = JSON.stringify(inventory, null, 2) + '\n';

@@ -2,16 +2,14 @@
 
 [English](golden-path.md)
 
-次の手順はLithoSharp 3.0.0と拡張0.5.0を対象にしています。
-インストール前に[バージョン一覧](../eng/version-matrix.json)を確認してください。候補の検証はパッケージの正式公開を証明しません。
 各手順で、依存関係を復元する時点とプロジェクトのコードを実行する時点を説明します。
 既存サイトでは[移行案内](migration-3.0.ja.md)に従ってください。
 
 ## Markdownだけのサイト
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317
@@ -63,7 +61,7 @@ dotnet restore MySite
 code --install-extension htkym.lithosharp
 ```
 
-同梱の言語サーバーには.NET 10ランタイムを、ビルドには.NET 10 SDKとLithoSharp.Tool 3.0.0をインストールしてください。
+同梱の言語サーバーには.NET 10ランタイムを、ビルドには.NET 10 SDKとLithoSharp.Toolをインストールしてください。
 `LithoSharp: Select Project`、`LithoSharp: Build`、`LithoSharp: Open Preview`を実行します。
 MDXの診断にはNode.js 24.13.0と`LithoSharp: Restore MDX Worker`も必要です。
 未信頼のワークスペースで利用できるのは検出だけです。

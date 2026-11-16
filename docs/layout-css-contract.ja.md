@@ -1,6 +1,6 @@
 # レイアウトとコンポーネント CSS の契約
 
-この契約は LithoSharp 3.0.0 の組み込みレイアウトに適用します。
+この契約は LithoSharp の組み込みレイアウトに適用します。
 意味を持つクラスと操作用のフックを対象とし、バイト単位で同じ HTML や、任意の独自テンプレートは対象にしません。
 組み込みの外枠を置き換える場合は、[生成サイトの互換性の契約](compatibility-contract.ja.md)と
 [empty テンプレートの独自レイアウト](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)を参照してください。

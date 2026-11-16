@@ -1,0 +1,165 @@
+/* Official handbook chrome; shared library styles remain available to consumers. */
+.website-body {
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  font-size: 1rem; line-height: 1.75; background: var(--surface); color: var(--text);
+}
+.website-body *, .website-body *::before, .website-body *::after { box-sizing: border-box; }
+.website-body a { text-underline-offset: .2em; }
+.website-body ::selection { background: var(--accent); color: var(--surface); }
+.website-body .docs-header { border-block-start: 0; padding: .7rem 1.5rem; min-block-size: 4.25rem; gap: 1.5rem; }
+.website-body .docs-brand { font-size: 1.2rem; }
+.website-top-nav { display: flex; gap: 1.5rem; align-items: center; margin-inline-end: auto; font-size: .9rem; }
+.website-top-nav a { color: var(--muted); text-decoration: none; font-weight: 600; }
+.website-top-nav a:hover { color: var(--accent); }
+.website-body .docs-header-actions { align-items: center; gap: .75rem; flex-wrap: wrap; }
+.website-body .docs-shell { max-inline-size: 96rem; margin-inline: auto; grid-template-columns: 16rem minmax(0,1fr) 13rem; grid-template-areas: "sidebar main toc"; gap: 0 3rem; align-items: stretch; padding: 0 2rem 0 0; min-block-size: calc(100svh - 8rem); }
+.website-no-toc .docs-shell { grid-template-columns: 16rem minmax(0,1fr); grid-template-areas: "sidebar main"; padding-inline-end: 3rem; }
+.website-body .docs-sidebar { grid-area: sidebar; position: static; max-block-size: none; padding: 0; overflow: visible; border-inline-end: 1px solid var(--border); }
+.website-body .docs-sidebar > nav { position: sticky; inset-block-start: var(--docs-header-height,4.25rem); max-block-size: calc(100svh - var(--docs-header-height,4.25rem)); overflow-y: auto; padding: 1.5rem 1rem 2rem; }
+.website-body .docs-sidebar ul { list-style: none; margin: 0; padding: 0; }
+.website-body .docs-sidebar li { margin: .2rem 0; }
+.website-body .docs-sidebar li a { display: block; padding: .5rem .75rem; color: var(--muted); text-decoration: none; font-size: .9rem; border-radius: .4rem; line-height: 1.55; overflow-wrap: break-word; }
+.website-body .docs-sidebar li a:hover { background: var(--panel); color: var(--text); }
+.website-body .docs-sidebar [aria-current=page] { background: var(--panel); color: var(--accent); font-weight: 650; text-decoration: none; }
+.website-body .docs-sidebar details > summary { padding: .5rem; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.website-body .docs-sidebar details ul { margin-inline-start: .65rem; padding-inline-start: .5rem; border-inline-start: 1px solid var(--border); }
+.website-body .docs-main { grid-area: main; padding-block: 2rem 4rem; min-inline-size: 0; }
+.website-body .docs-content { inline-size: 100%; max-inline-size: 48rem; margin-inline: auto; overflow-wrap: break-word; }
+.website-body .docs-content h1 { font-family: inherit; font-size: clamp(1.8rem,1.3rem + 1.5vw,2.5rem); font-weight: 750; letter-spacing: -.025em; line-height: 1.35; max-inline-size: none; margin-block: .8rem 1.5rem; word-break: normal; overflow-wrap: normal; line-break: strict; }
+.website-body .docs-content h1::before { content: none; }
+.website-body .docs-content h2 { margin-block-start: 2.5rem; border: 0; padding: 0; font-size: 1.5rem; line-height: 1.45; }
+.website-body .docs-content h3 { font-size: 1.2rem; line-height: 1.5; }
+.website-body .docs-content :where(p,li) { line-break: strict; }
+.website-body .docs-content > nav:has(>ol) { font-size: .8rem; color: var(--muted); }
+.website-body .docs-content > nav > ol { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; padding: 0; margin: 0 0 1rem; }
+.website-body .docs-content > nav > ol li { margin: 0; }
+.website-body .docs-content > nav > ol li+li::before { content: "/"; padding-inline-end: .5rem; color: var(--muted); }
+.website-body .docs-content > nav > ol a { color: var(--muted); text-decoration: none; }
+.website-body .docs-content > nav:has(>a[rel]) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin-block: 3rem 0; border-block-start: 1px solid var(--border); padding-block-start: 1.5rem; }
+.website-body .docs-content a[rel=prev], .website-body .docs-content a[rel=next] { display: flex; flex-direction: column; gap: .35rem; padding: 1rem; border: 1px solid var(--border); border-radius: .5rem; text-decoration: none; line-height: 1.55; }
+.website-body .docs-content a[rel=next] { grid-column: 2; text-align: end; }
+.website-body .docs-content a[rel=prev]::before { content: "Previous page"; }
+.website-body .docs-content a[rel=next]::before { content: "Next page"; }
+:lang(ja) .docs-content a[rel=prev]::before { content: "前のページ"; }
+:lang(ja) .docs-content a[rel=next]::before { content: "次のページ"; }
+.website-body .docs-content a[rel]::before { font-size: .8rem; color: var(--muted); }
+.website-body .docs-content a[rel]:hover { background: var(--panel); border-color: var(--accent); }
+.website-body .docs-content pre { max-inline-size: 100%; overflow-x: auto; font-size: .875rem; }
+.website-body .docs-content table { inline-size: 100%; max-inline-size: 100%; font-size: .9rem; }
+.website-toc { grid-area: toc; align-self: start; position: sticky; inset-block-start: calc(var(--docs-header-height,4.25rem) + 2rem); margin-block: 2rem; font-size: .8rem; max-block-size: calc(100svh - var(--docs-header-height,4.25rem) - 4rem); overflow-y: auto; }
+.website-toc > summary { font-weight: 650; cursor: pointer; padding-block: .4rem; }
+.website-toc .toc-track, .website-toc .toc-indicator, .website-toc li::before { display: none; }
+.website-toc .toc-list { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: .6rem; }
+.website-toc .toc-list a { color: var(--muted); padding: 0; transform: none; text-decoration: none; overflow-wrap: break-word; }
+.website-toc .toc-list a:hover { color: var(--accent); }
+.website-language, .website-search { position: relative; font-size: .875rem; }
+.website-language > summary, .website-search > summary { cursor: pointer; border: 1px solid var(--border); border-radius: .4rem; padding: .45rem .8rem; min-block-size: 2.5rem; }
+.website-language nav { position: absolute; inset-inline-end: 0; top: calc(100% + .5rem); min-inline-size: 10rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; padding: .4rem; }
+.website-language a { display: block; padding: .5rem .75rem; color: var(--text); text-decoration: none; }
+.website-language a:hover, .website-language a[aria-current] { background: var(--panel); color: var(--accent); }
+.website-search-panel { position: absolute; inset-inline-end: 0; top: calc(100% + .5rem); inline-size: min(38rem,calc(100vw - 2rem)); padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: .5rem; }
+.website-search label { display: grid; gap: .5rem; font-weight: 600; }
+.website-search input { inline-size: 100%; padding: .7rem; font: inherit; color: var(--text); caret-color: var(--accent); background: var(--panel); border: 1px solid var(--border); border-radius: .4rem; }
+.website-search [role=status] { margin-block: .75rem; color: var(--muted); }
+.website-search [role=status]:empty { margin: 0; }
+.website-search [data-results] { max-block-size: min(55svh,30rem); overflow-y: auto; overscroll-behavior: contain; }
+.website-search [data-results] article { padding: .8rem .2rem; border-block-start: 1px solid var(--border); }
+.website-search [data-results] article a { font-weight: 650; }
+.website-search [data-results] p { margin: .35rem 0 0; font-size: .85rem; color: var(--muted); line-height: 1.6; overflow-wrap: anywhere; }
+.website-search button { margin-block-start: .75rem; padding: .45rem .8rem; font: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: .4rem; cursor: pointer; }
+.website-body .docs-footer { padding: 1.5rem 2rem; font-size: .85rem; }
+
+@media(max-width:79.99rem) {
+  .website-body .docs-shell { grid-template-columns: 15rem minmax(0,1fr); grid-template-areas: "sidebar toc" "sidebar main"; gap: 0 2rem; padding-inline-end: 2rem; }
+  .website-no-toc .docs-shell { grid-template-areas: "sidebar main"; }
+  .website-toc { position: static; margin: 1.5rem 0 0; max-block-size: none; border-block-end: 1px solid var(--border); padding-block-end: .75rem; }
+  .website-body .docs-main { padding-block-start: 1.5rem; }
+}
+@media(max-width:52rem) {
+  .website-body .docs-header { padding: .65rem 1rem; gap: .5rem 1rem; flex-wrap: wrap; }
+  .website-top-nav { order: 2; flex-basis: 100%; font-size: .8rem; gap: 1.5rem; }
+  .website-body .docs-header-actions { margin-inline-start: auto; gap: .4rem; }
+  .website-body .docs-header-actions [data-ls-theme] { font-size: .75rem; padding: .5rem; }
+  .website-body .docs-shell, .website-no-toc .docs-shell { display: flex; flex-direction: column; gap: 0; padding-inline: 1rem; }
+  .website-body .docs-sidebar > nav { position: static; max-block-size: none; padding: .5rem 0; }
+  .website-body.docs-enhanced .docs-sidebar { overflow-y: auto; padding: 1rem; }
+  .website-body .docs-main { padding-block: 1.5rem 3rem; }
+  .website-toc { margin-block-start: 1rem; }
+  .website-search, .website-language { position: static; }
+  .website-search-panel { inset-inline: 1rem; top: 100%; inline-size: auto; }
+  .website-language nav { inset-inline-end: 1rem; top: 100%; }
+  .website-body .docs-content h1 { font-size: 1.9rem; }
+  .website-body .docs-content > nav:has(>a[rel]) { gap: .75rem; }
+  .website-body .docs-content a[rel] { padding: .75rem; }
+}
+@media(prefers-reduced-motion:reduce) { .website-body *, .website-body *::before, .website-body *::after { scroll-behavior: auto; transition: none; } }
+
+.website-body .docs-sidebar > nav > ul > li { border-block-end: 1px solid var(--border); padding-block: .5rem; }
+.website-body .docs-sidebar details > summary { border-radius: .4rem; padding: .65rem .5rem; }
+.website-body .docs-sidebar details[open] > summary { color: var(--accent); background: var(--panel); }
+.website-body .docs-sidebar details > summary:hover { background: var(--panel); }
+.website-body .docs-header svg { inline-size: 1.1rem; block-size: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.website-body .docs-header summary { display: flex; align-items: center; gap: .5rem; list-style: none; }
+.website-body .docs-header summary::-webkit-details-marker { display: none; }
+.website-body .docs-menu-toggle { align-items: center; justify-content: center; min-inline-size: 2.75rem; min-block-size: 2.75rem; padding: .5rem; }
+.website-body.docs-enhanced .docs-menu-toggle { display: inline-flex; }
+.website-body .toc-level-3 { padding-inline-start: .75rem; }
+@media(min-width:52.01rem) {
+  .website-body.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0,1fr) 13rem; grid-template-areas: "main toc"; padding-inline-start: 2rem; }
+  .website-body.website-no-toc.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0,1fr); grid-template-areas: "main"; }
+  .website-body.docs-sidebar-collapsed .docs-sidebar { display: none; }
+}
+@media(min-width:52.01rem) and (max-width:79.99rem) {
+  .website-body.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0,1fr); grid-template-areas: "toc" "main"; }
+}
+.website-utility .site-header { padding: 1rem 2rem; border-block-end: 1px solid var(--border); }
+.website-utility .site-header .brand { font: 700 1.2rem system-ui,sans-serif; color: var(--text); text-decoration: none; }
+.website-utility #blog-main { max-inline-size: 56rem; min-block-size: 70svh; padding: 3rem 1.5rem; margin-inline: auto; }
+.website-utility h1 { font-family: inherit; font-size: clamp(2rem,1.5rem + 2vw,3rem); font-weight: 750; line-height: 1.25; letter-spacing: -.025em; }
+.website-utility h2 { font-family: inherit; font-size: 1.5rem; }
+.website-utility .site-footer { padding: 1.5rem 2rem; border-block-start: 1px solid var(--border); font-size: .85rem; }
+.website-introduction { padding-block: 2rem; }
+.website-introduction > p { color: var(--muted); font-size: 1.15rem; }
+.website-language-choice { display: flex; flex-wrap: wrap; gap: 1rem; margin-block: 2rem; }
+.website-language-choice a { padding: .7rem 1.1rem; background: var(--accent); color: var(--accent-contrast); text-decoration: none; border-radius: .4rem; font-weight: 600; }
+.website-utility pre { max-inline-size: 100%; overflow-x: auto; padding: 1rem; margin-block: 2rem; background: var(--panel); }
+.website-utility #search-input { inline-size: 100%; padding: .75rem; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: .4rem; }
+.website-api { max-inline-size: none; margin: 0; padding: 0; }
+.website-api main { max-inline-size: 72rem; margin-inline: auto; padding: 2rem 1.5rem 4rem; }
+.website-api h1 { font-family: inherit; font-size: clamp(1.6rem,1.2rem + 1vw,2.2rem); line-height: 1.4; overflow-wrap: anywhere; }
+.website-api .docs-header nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+.website-api .docs-header { position: static; }
+.website-api .site-search-link { margin-inline-start: auto; }
+.website-api footer { padding: 1.5rem; border-block-start: 1px solid var(--border); }
+.website-search-actions { display: flex; justify-content: space-between; gap: 1rem; }
+.website-api main > nav:first-child { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: 1.5rem; }
+.website-api main > nav:first-child a { padding: .35rem .75rem; text-decoration: none; border: 1px solid var(--border); border-radius: .4rem; }
+.website-api main > nav:first-child a[aria-current] { background: var(--panel); font-weight: 650; }
+.website-utility #search-results article { padding-block: 1.25rem; border-block-end: 1px solid var(--border); }
+.website-utility #search-results h2 { margin-block: 0 .5rem; }
+.website-utility #search-results p { color: var(--muted); line-height: 1.7; }
+.website-body .docs-header { display:flex; flex-wrap:wrap; align-items:center; background:var(--surface); border-block-end:1px solid var(--border); }
+.website-body .docs-header-actions { display:flex; }
+.website-body .website-search-link { display:inline-flex; align-items:center; gap:.5rem; padding:.45rem .75rem; border:1px solid var(--border); border-radius:.4rem; color:var(--text); text-decoration:none; }
+.website-body .docs-brand { color:var(--text); text-decoration:none; font-weight:700; }
+.website-api pre { overflow:auto; padding:1rem; background:var(--panel); }
+.website-api code { font-size:.95em; }
+.website-api dt { font-weight:700; }
+.website-api dd { margin-block-end:1rem; }
+.website-api .skip-link { position:absolute; inset-inline-start:-10000px; }
+.website-api .skip-link:focus { position:static; }
+.website-api .docs-header, .website-utility .docs-header { position:relative; z-index:20; }
+.website-search-panel { max-block-size:calc(100svh - var(--docs-header-height,4.25rem) - 1rem); overflow-y:auto; overscroll-behavior:contain; }
+.website-api main { min-inline-size:0; overflow-wrap:anywhere; } .website-api table { display:block; max-inline-size:100%; overflow-x:auto; border-collapse:collapse; }
+.website-body .ls-code-tools { justify-content:flex-end; }
+.website-body .ls-code-copy { color:var(--text); background:var(--panel); border:1px solid var(--border); border-radius:.4rem; }
+.website-body .ls-code-status { color:var(--muted); }
+/* Keep the official handbook, API and utility pages on one palette. */
+.website-body { --surface:#fff; --panel:#f5f7fa; --panel-strong:#e8edf3; --text:#1f2937; --muted:#4b5563; --accent:#1758b0; --accent-contrast:#fff; --border:#cbd5e1; }
+@media(prefers-color-scheme:dark) {
+  :root:not([data-theme=light]):not([data-site-theme=light]) .website-body { --surface:#111827; --panel:#1f2937; --panel-strong:#293548; --text:#e5e7eb; --muted:#b6c0cf; --accent:#8bbcff; --accent-contrast:#111827; --border:#455167; }
+}
+:root[data-theme=dark] .website-body, :root[data-site-theme=dark]:not([data-theme=light]) .website-body { --surface:#111827; --panel:#1f2937; --panel-strong:#293548; --text:#e5e7eb; --muted:#b6c0cf; --accent:#8bbcff; --accent-contrast:#111827; --border:#455167; }
+.website-api:has(.docs-header .website-language) main > nav:is([aria-label="API language"],[aria-label="APIの言語"]) { display:none; }
+
+.website-version { color: var(--muted); font-size: .75rem; font-weight: 600; white-space: nowrap; }

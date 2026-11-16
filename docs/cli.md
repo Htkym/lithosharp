@@ -2,13 +2,11 @@
 
 `LithoSharp.Tool` is a .NET 10 tool. Building sites requires the .NET 10 SDK
 (10.0.300 or later);
-serving also uses the ASP.NET Core shared framework. The following commands target
-the 3.0.0 package contract and apply when that release is available from NuGet.
-The [version matrix](../eng/version-matrix.json) records publication state.
+serving also uses the ASP.NET Core shared framework.
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -20,7 +18,7 @@ with `dotnet new`. The empty template demonstrates a custom C# layout.
 
 ## Inspection and migration
 
-Keep the Tool and selected Core/MDX packages at matching 3.0.0 versions.
+Keep the Tool and selected Core/MDX packages at matching versions.
 `preflight` and `migrate testing --dry-run` require a Tool that advertises those
 capabilities. The [3.0 upgrade notes](migration-3.0.md) explain native YAML,
 optional image processing, acquired schemas and verification boundaries. The

@@ -1,32 +1,81 @@
 ---
-title: このサイトをビルドする
-supported_version: "3.0"
+title: クイックスタート
+supported_version: "3.1"
 prerequisites: [introduction]
 sidebar_position: 2
 ---
 
-`site/global.json` が指定する SDK と PowerShell 7 をインストールしてください。
-このサイトは独立した NuGet 利用プロジェクトであり、実装へのプロジェクト参照を持ちません。
-`LithoSharpVersion` の既定値は `3.0.0` です。これは予定するバージョンを示し、
-パッケージが公開済みであることを意味しません。
+ドキュメントサイトを作成し、ページを編集してローカルでプレビューします。
 
-リポジトリのルートから、承認されたフィードで利用できるパッケージのバージョンと、
-新しい出力先を指定します。
+## 準備するもの
 
-```powershell
-./site/Build.ps1 -LithoSharpVersion <available-version> -PackageFeed <feed> -Output <new-directory>
+.NET 10 SDK の 10.0.300 以降をインストールしてください。
+この例では Markdown のみを使うため、Node.js や React は不要です。
+
+以下のコマンドは新しい作業ディレクトリで実行してください。
+既存のサイトに重ねてプロジェクトを作成しないでください。
+
+## インストールしてサイトを作成する
+
+```sh
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+.tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
-スクリプトは短い作業パスに専用の NuGet 設定とパッケージキャッシュを作ります。
-サイトと明示的に対応付けたテストの依存関係を復元し、Release ビルド、サイト生成、スニペット検証を行います。
-出力はローカルでのプレビュー用です。既定のベース URL は `https://example.invalid/` です。
-ホスティング先の URL やサブパスを確認する場合は、明示的に選んだ値を `-BaseUrl` で渡してください。
-デプロイや公開時点の比較基準の更新は行いません。
+Windows では `.tools/lithosharp` を `.tools/lithosharp.exe` に置き換えてください。
+テンプレートはユーザーのテンプレート一覧に、CLI は作業ディレクトリ内の `.tools` にインストールされます。
+LithoSharp のパッケージ、テンプレート、CLI は同じバージョンにそろえてください。
 
-パッケージの正式公開後は、`-PackageFeed` を省略すると NuGet.org を使います。
-LithoSharp の各パッケージは、同じバージョンにそろえてください。
-ソース、ルート宣言、テスト、ジェネレーター用メタデータは `site/` にあります。
-サンプルの入力集合が変わった場合は、生成カタログの再ビルドが必要です。
+## 最初のページを編集する
 
-失敗の見方は[運用と検証](../operations/)を参照してください。
-復元できない状態、テストのスキップ、実行記録の欠落は、サイト検証の成功ではありません。
+`MyDocs/content/getting-started.md` を開き、内容を次のように置き換えます。
+
+```markdown
+---
+title: はじめに
+description: 最初のドキュメントページです。
+order: 1
+---
+
+# はじめに
+
+ドキュメントサイトへようこそ。
+
+## 最初の作業
+
+このページを編集して、プレビューで確認します。
+```
+
+生成されたプロジェクトでは、次のファイルで主な設定を管理します。
+
+- `GuideFrontMatter.cs`: 必須のタイトルなどを定義する C# のコンテンツスキーマ
+- `content/`: Markdown のページ
+- `DocsSiteFactory.cs`: サイト名、ベース URL、コンテンツの読み込み、レイアウト
+
+## ビルドしてプレビューする
+
+```sh
+.tools/lithosharp build MyDocs -c Release
+.tools/lithosharp serve MyDocs -c Release --port 4317
+```
+
+ホームページは `http://localhost:4317/`、編集したページは
+`http://localhost:4317/guide/getting-started/` で確認できます。
+開発サーバーはサイトをビルドし、ファイルの変更を監視します。終了するには Ctrl+C を押してください。
+
+## 公開の準備をする
+
+`DocsSiteFactory.cs` でサイト名と公開先のベース URL を設定し、再度ビルドします。
+Docs テンプレートは出力の品質チェックが有効になっており、エラーがあればビルドに失敗します。
+外部サイトへの HTTP チェックは無効です。
+
+生成された `MyDocs/dist` ディレクトリを静的 HTTP ホストに配置してください。
+上記のコマンドだけでは、サイトは公開されません。
+
+## 次のステップ
+
+- [型付きコンテンツ](../typed-content/): スキーマの定義と生成された参照の使い方
+- [ドキュメントと多言語対応](../documentation/): ナビゲーションと翻訳ページの整理
+- [ツール](../tooling/): CLI とエディター連携
+- [運用と検証](../operations/): 検証と公開の手順

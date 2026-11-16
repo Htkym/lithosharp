@@ -7,6 +7,10 @@ if ($matrix.schemaVersion -ne 1) { throw 'Unsupported version matrix schema.' }
 if ([string]::IsNullOrWhiteSpace($matrix.coreApiCompatibilityBaseline)) { throw 'Core API compatibility baseline is required.' }
 foreach ($workflow in @('build.yml', 'publish-nuget.yml')) {
     $text = Get-Content -LiteralPath (Join-Path $repo ".github/workflows/$workflow") -Raw
+    $currentBaseline = [regex]::Matches($text, '(?m)^\s*LITHOSHARP_CURRENT_STABLE_VERSION:\s*''([^''\r\n]+)''\s*$')
+    if ($currentBaseline.Count -ne 1 -or $currentBaseline[0].Groups[1].Value -cne $matrix.currentStableConsumerBaseline) {
+        throw "Current-stable consumer baseline differs from the matrix: $workflow"
+    }
     $declarations = [regex]::Matches($text, '(?m)^\s*[''"]?LITHOSHARP_PREVIOUS_STABLE_VERSION[''"]?\s*:')
     $baseline = [regex]::Matches($text, '(?m)^\s*LITHOSHARP_PREVIOUS_STABLE_VERSION:\s*''([^''\r\n]+)''\s*$')
     if ($declarations.Count -ne 1 -or $baseline.Count -ne 1 -or $baseline[0].Groups[1].Value -cne $matrix.coreApiCompatibilityBaseline) {

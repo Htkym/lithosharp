@@ -4,10 +4,8 @@
 
 .NET ビルドで実際に生成するドキュメントサイトを検査できます。開発サーバーを起動せず、通常の .NET テスト内でサイトを生成します。任意のテストフレームワークで、コンテンツとスキーマのコンパイルに、出力、ルート、DOM のアサーションを組み合わせてください。アサーションが失敗すると `SiteTestException` をスローします。
 
-このパッケージと、プロジェクト内のほかの LithoSharp パッケージには、LithoSharp 3.0.0 を指定してください。
-
 ```sh
-dotnet add package LithoSharp.Testing --version 3.0.0
+dotnet add package LithoSharp.Testing --version 3.1.0
 ```
 
 選択した LithoSharp パッケージのバージョンをそろえてください。HTML 解析自体は外部プロセスを起動しません。任意で MDX を生成する場合は、Node ワーカーを起動することがあります。

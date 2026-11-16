@@ -1,10 +1,5 @@
 # Upgrade to LithoSharp 3
 
-LithoSharp 3 is being developed against the fixed Syntamark 2 runtime and Source
-pair. The [version matrix](../eng/version-matrix.json) distinguishes the selected
-candidate from the intended release versions. Candidate consumption and local
-validation do not establish formal publication.
-
 Keep the existing site and published output while testing the upgrade in a new
 output directory. Compare public URLs and anchors against a baseline captured
 from a successful publication. A build never promotes that baseline.

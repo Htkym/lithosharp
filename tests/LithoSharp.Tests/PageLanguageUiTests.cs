@@ -45,8 +45,9 @@ public sealed class PageLanguageUiTests
             await Assert.That(headed).Contains($"<h2 id=\"post-toc-title\">{variant.Text.TableOfContentsHeading}</h2>");
             await Assert.That(headed).Contains($"<nav class=\"toc-nav\" aria-label=\"{variant.Text.TableOfContentsHeading}\">");
             await Assert.That(headed).Contains("<a data-toc-link href=\"#section\">Section</a>");
-            await Assert.That(empty).Contains($"<h2 id=\"post-toc-title\">{variant.Text.TableOfContentsHeading}</h2>");
-            await Assert.That(empty).Contains($"<p>{variant.Text.TableOfContentsEmpty}</p>");
+            await Assert.That(empty).DoesNotContain("id=\"post-toc-title\"");
+            await Assert.That(empty).DoesNotContain("class=\"toc-nav\"");
+            await Assert.That(empty).Contains("docs-shell-no-toc");
         }
     }
 

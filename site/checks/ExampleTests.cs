@@ -11,7 +11,7 @@ public sealed class ExampleTests
     {
         await Assert.That(WebsiteExamples.HasPublishedVersion(false, null)).IsFalse();
         await Assert.That(WebsiteExamples.HasPublishedVersion(false, " ")).IsFalse();
-        await Assert.That(WebsiteExamples.HasPublishedVersion(false, "3.0")).IsTrue();
+        await Assert.That(WebsiteExamples.HasPublishedVersion(false, "3.1")).IsTrue();
         await Assert.That(WebsiteExamples.HasPublishedVersion(true, null)).IsTrue();
     }
 
@@ -26,11 +26,11 @@ public sealed class ExampleTests
         foreach (var locale in new[] { "en", "ja" })
         {
             var path = $"examples/{locale}/typed-content.md";
-            var key = new DocumentKey("examples", "3.0", locale, id);
+            var key = new DocumentKey("examples", "3.1", locale, id);
             var page = new DocumentPage(key, "examples/source/WebsiteExamples.cs", new() { Title = "HasPublishedVersion" },
                 ApiReferenceSite.RouteFor("api/" + locale, id));
-            var project = ProjectInspectionSnapshot.Create("website", 1, "website-examples", "markdown", "document", "3.0", locale,
-                [new(path, $"/examples/{locale}/typed-content/", "website", "website-examples", "3.0", locale, DocumentPublicationState.Published)])
+            var project = ProjectInspectionSnapshot.Create("website", 1, "website-examples", "markdown", "document", "3.1", locale,
+                [new(path, $"/examples/{locale}/typed-content/", "website", "website-examples", "3.1", locale, DocumentPublicationState.Published)])
                 .WithMarkdownProfile(MarkdownOptions.DocumentationProfile)
                 .WithSemantics("sha256:" + new string('a', 64), new(new([page]), [], true), new Dictionary<string, DocumentSemanticRuleSet>());
             var document = new DocumentReferenceDocument(Path.Combine(root, path), await File.ReadAllTextAsync(Path.Combine(root, path)), 1, path);

@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -11,6 +11,28 @@ function argument(name) {
 }
 const inputs = argument('--inputs');
 const output = argument('--output');
+const versionMatrix = JSON.parse(readFileSync(path.join(site, '../eng/version-matrix.json'), 'utf8'));
+function verifyVersionBadges(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) verifyVersionBadges(file);
+        else if (entry.name.endsWith('.html')) {
+            const html = readFileSync(file, 'utf8');
+            const header = html.match(/<header[\s\S]*?<\/header>/)?.[0];
+            assert(header, `Missing site header: ${file}`);
+            const relative = path.relative(output, file).replaceAll('\\', '/');
+            // RenderDocs examples intentionally demonstrate the unmodified shared template.
+            if (relative.startsWith('examples/') || relative.startsWith('knowledge/')) {
+                assert(header.includes('class="docs-header"'), `Missing standard example header: ${file}`);
+                continue;
+            }
+            const badges = [...header.matchAll(/<span class="website-version">([^<]+)<\/span>/g)];
+            assert.equal(badges.length, 1, `Expected one version badge: ${file}`);
+            assert.equal(badges[0][1], versionMatrix.lithosharpTarget, `Version badge mismatch: ${file}`);
+        }
+    }
+}
+verifyVersionBadges(output);
 const metadata = JSON.parse(readFileSync(path.join(inputs, 'api/public-symbols.json'), 'utf8'));
 const coverage = JSON.parse(readFileSync(path.join(inputs, 'api/api-coverage.json'), 'utf8'));
 assert.equal(coverage.source, 'selected-package-assembly-metadata-and-compiler-xml');
@@ -33,6 +55,10 @@ for (const variant of coverage.variants) {
         assert(html.includes('id="main"'), `Missing API main landmark: ${page.output}`);
         assert(html.includes(variant.locale === 'ja' ? '本文へ移動' : 'Skip to main content'), `API skip link: ${page.output}`);
         if (variant.locale === 'ja') assert(!html.includes('>Skip to main content</a>'), `English API shell: ${page.output}`);
+        assert(html.includes('website-search-link'), `API site search: ${page.output}`);
+        assert(html.includes('class="website-language"'), `API language control: ${page.output}`);
+        const header = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? '';
+        for (const language of ['en', 'ja']) assert(header.includes(`/api/${language}/`), `API counterpart header: ${page.output}/${language}`);
         apiPages++;
     }
 }
@@ -70,3 +96,25 @@ assert(notFound.includes('Page not found') && notFound.includes('ページが見
 assert(notFound.includes('<section lang="ja">'));
 assert(notFound.includes('name="robots" content="noindex,follow"'));
 console.log(`Generated site coverage passed: ${apiPages} API pages, ${inventory.entries.length * 2} canonical guide pages and ${fragmentBindings.length} preserved fragment aliases. Browser/host checks are separate.`);
+
+// Official shell contracts. Interactive keyboard/responsive checks run separately.
+for (const locale of ['en', 'ja']) {
+    const intro = readFileSync(path.join(output, locale, 'introduction/index.html'), 'utf8');
+    assert(intro.includes('data-search-scope="site"'), `Site-wide search: ${locale}`);
+    assert(intro.includes(`data-locale="${locale}"`), `Search locale: ${locale}`);
+    assert(intro.includes('data-docs-menu-toggle'), `Sidebar toggle: ${locale}`);
+    assert.equal((intro.match(/<summary>/g) ?? []).length >= 4, true, `Grouped navigation: ${locale}`);
+    assert(intro.includes('website-language'), `Language control: ${locale}`);
+    assert(intro.includes('data-website-search-clear'), `Clear search: ${locale}`);
+    const tooling = readFileSync(path.join(output, locale, 'tooling/index.html'), 'utf8');
+    assert(!tooling.includes('class="website-toc"'), `Empty TOC omitted: ${locale}`);
+    assert(tooling.includes('rel="prev"') && tooling.includes('rel="next"'), `Adjacent page links: ${locale}`);
+}
+for (const file of ['index.html', '404.html', 'search.html']) {
+    const html = readFileSync(path.join(output, file), 'utf8');
+    assert(html.includes('class="docs-header"'), `Common utility header: ${file}`);
+    assert(html.includes('website-search-link'), `Site search entry: ${file}`);
+    assert(html.includes('website-language'), `Language entry: ${file}`);
+    assert(!html.includes('id="docs-sidebar"'), `No unrelated sidebar: ${file}`);
+}
+console.log('Official navigation, search and empty-TOC contracts passed.');

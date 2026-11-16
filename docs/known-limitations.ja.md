@@ -2,8 +2,6 @@
 
 [English](known-limitations.md)
 
-LithoSharp 3.0.0 と VS Code 拡張 0.5.0 の契約に対する制約です。
-候補と公開の状態は[バージョン一覧](../eng/version-matrix.json)で確認できます。
 設定と実行規則は [MDX](mdx.ja.md) を参照してください。
 
 ## Markdown の互換性

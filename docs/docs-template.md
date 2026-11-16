@@ -4,7 +4,7 @@
 
 ## Typed content and the Docs shell
 
-The LithoSharp 3.0.0 `docs` project template uses `GuideFrontMatter`,
+The LithoSharp `docs` project template uses `GuideFrontMatter`,
 `Guides.Binder`, generated catalog routes and `RenderDocs`; it no longer needs
 Blog-style dates. See [Quick Start](quickstart.md) for the exact generated files,
 input rules, Quality setting and commands. Existing sites keep their reader and
@@ -102,15 +102,6 @@ hydration assets use same-origin scripts; custom MDX components must also
 respect the policy. The development reload script is external, and its
 EventSource uses `connect-src 'self'`. See the [CSP specification](https://www.w3.org/TR/CSP3/)
 for script and style source rules.
-
-The existing browser checks accept `LS_BROWSER=chromium`, `firefox` or `webkit`.
-For a CSP fixture, use `LS_CSP` with `tests/fixtures/mdx-browser/serve.mjs`, set
-`LS_BASE_PATH=/product` for a prefixed site, and run
-`node tests/fixtures/mdx-browser/delivery.mjs http://127.0.0.1:4317/product/`.
-The other Docs, Blog, MDX and sub-path checks retain their navigation, search,
-keyboard and hydration assertions. A WebKit result identifies that engine;
-actual Safari acceptance requires a separate run on Safari. Generating these
-files or passing unit tests does not establish browser or staging acceptance.
 
 ## Standard presentation settings
 

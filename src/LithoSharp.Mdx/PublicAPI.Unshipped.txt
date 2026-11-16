@@ -10,3 +10,8 @@ LithoSharp.Mdx.DocumentationCollection.TranslationReviews.init -> void
 LithoSharp.Mdx.DocumentationSite.TranslationReviewResults.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.Documentation.DocumentTranslationReviewResult!>!
 LithoSharp.Mdx.MdxBlogSite.AddCollectionWithMarkdown(LithoSharp.Mdx.MdxBlogCollection! blog, LithoSharp.Content.ContentPageMarkdownProvider<LithoSharp.Mdx.MdxBlogFrontMatter!, LithoSharp.Mdx.MdxDocument!>! markdownProvider, string? rendererFingerprint = null) -> void
 LithoSharp.Mdx.MdxSite.AddCollectionWithMarkdown<TFrontMatter>(LithoSharp.Content.IContentCollectionLoader<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! loader, LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, LithoSharp.Mdx.MdxDocument!>! markdownProvider, string? rendererFingerprint = null, System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, LithoSharp.Mdx.MdxDocument!>!, LithoSharp.Mdx.MdxPublicData!>? publicData = null, LithoSharp.Content.ContentPageRenderer<TFrontMatter, LithoSharp.Mdx.MdxDocument!>? renderer = null) -> void
+LithoSharp.Mdx.DocumentationSearchScope
+LithoSharp.Mdx.DocumentationSearchScope.Collection = 0 -> LithoSharp.Mdx.DocumentationSearchScope
+LithoSharp.Mdx.DocumentationSearchScope.Site = 1 -> LithoSharp.Mdx.DocumentationSearchScope
+LithoSharp.Mdx.DocumentationBrowserOptions.SearchScope.get -> LithoSharp.Mdx.DocumentationSearchScope
+LithoSharp.Mdx.DocumentationBrowserOptions.SearchScope.init -> void

@@ -1,6 +1,6 @@
 # Testing v2 のスナップショットとクエリの契約
 
-LithoSharp.Testing 3.0.0 は、v2 の読み取り専用スナップショット API を使います。
+LithoSharp.Testing は v2 の読み取り専用スナップショット API を使います。
 1.x の変更可能な第三者製 DOM のゲッターを、LithoSharp が所有するツリーに置き換えます。
 既存の Parse、RenderComponent、RenderLayout、AssertElement/Text/Attribute/Meta/Link/Image と、
 破棄できる SiteTestDocument による所有の方法は維持します。

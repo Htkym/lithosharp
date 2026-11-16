@@ -13,7 +13,7 @@ public static class WebsiteExamples
     public static bool HasPublishedVersion(bool draft, string? supportedVersion)
     {
         var rules = new DocumentSemanticRuleSet([DocumentSemanticRule.RequiredWhenPublished("supported_version")]);
-        var document = new DocumentSemanticDocument(new("examples", "3.0", "en", "sample"), "sample.md",
+        var document = new DocumentSemanticDocument(new("examples", "3.1", "en", "sample"), "sample.md",
             new Dictionary<string, object?> { ["supported_version"] = supportedVersion },
             draft ? DocumentSemanticPublication.Unpublished : DocumentSemanticPublication.Published, isComplete: true);
         return rules.Evaluate(document).Single().State is DocumentSemanticState.Passed or DocumentSemanticState.NotApplicable;

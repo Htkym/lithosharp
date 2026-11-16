@@ -1,6 +1,6 @@
 ---
 title: 型付きコンテンツと参照
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [quickstart]
 ---
 

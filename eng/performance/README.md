@@ -16,7 +16,7 @@ Typed Docs also exists in 2.2.0. Build that profile with `EnableTypedDocsBenchma
 
 ## Candidate-only acceptance costs
 
-Build a separate harness output with `EnableMajorAcceptanceBenchmark=true`. This adds only the first-party Images project and uses `packages.acceptance.lock.json`, leaving the common harness lock graph separate. Generate and review that lock during the reserved restore phase. No candidate acceptance build or measurement has been executed merely by adding these sources.
+Build a separate harness output with `EnableMajorAcceptanceBenchmark=true`. This adds only the first-party Images project and uses `packages.acceptance.lock.json`, leaving the common harness lock graph separate. Generate and review that lock during the reserved restore phase.
 
 Run `Measure-AcceptanceWorkloads.ps1` against that prebuilt DLL, with the exact selected SDK and a fresh evidence root. Select families and repetition counts before measuring:
 

@@ -4,7 +4,7 @@
 
 ## 型付きコンテンツとDocsの表示
 
-LithoSharp 3.0.0 の `docs` テンプレートは、`GuideFrontMatter`、
+LithoSharp の `docs` テンプレートは `GuideFrontMatter`、
 `Guides.Binder`、生成Catalogのルート、`RenderDocs`を使います。Blog向けの日付は不要です。
 生成するファイル、入力規則、Qualityの設定、コマンドは[Quick Start](quickstart.ja.md)を
 参照してください。既存サイトのreaderと表示は、明示的に変更するまで維持されます。
@@ -87,13 +87,6 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 MDXモジュールとハイドレーション用のアセットは同一オリジンのスクリプトを使います。独自のMDXコンポーネントもポリシーに従う必要があります。
 開発時のリロードスクリプトは外部ファイルで、そのEventSourceは`connect-src 'self'`を使います。
 スクリプトとスタイルのソース規則は[CSP仕様](https://www.w3.org/TR/CSP3/)を参照してください。
-
-既存のブラウザー検査には`LS_BROWSER=chromium`、`firefox`、`webkit`を指定できます。
-CSPのfixtureでは`tests/fixtures/mdx-browser/serve.mjs`で`LS_CSP`を使い、プレフィックス付きサイトには`LS_BASE_PATH=/product`を設定して、
-`node tests/fixtures/mdx-browser/delivery.mjs http://127.0.0.1:4317/product/`を実行します。
-ほかのDocs、Blog、MDX、サブパスの検査でも、ナビゲーション、検索、キーボード操作、ハイドレーションのアサーションは維持します。
-WebKitの結果は、そのエンジンで検証したことを示します。実際のSafariでの受け入れには、Safariでの別の実行が必要です。
-これらのファイルを生成したことや単体テストの成功だけでは、ブラウザーやステージング環境での受け入れを証明できません。
 
 ## 標準の表示設定
 

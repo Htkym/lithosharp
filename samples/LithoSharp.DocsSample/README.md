@@ -10,9 +10,6 @@ to disable it; see the [configuration and fixed dark example](../../docs/layout-
 A console app that builds documentation with
 [LithoSharp](../../src/LithoSharp), a typed article collection, generated
 references and topic indexes. It uses the default `DocsSiteTemplate`.
-This checkout targets LithoSharp 3.0.0; the [version matrix](../../eng/version-matrix.json)
-records the selected Syntamark pair and publication state. Candidate validation
-does not establish formal package publication.
 
 ## Run it
 

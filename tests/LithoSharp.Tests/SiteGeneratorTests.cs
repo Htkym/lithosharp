@@ -1,6 +1,7 @@
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Testing;
 using LithoSharp.Validation;
 
 namespace LithoSharp.Tests;
@@ -58,7 +59,8 @@ public sealed class SiteGeneratorTests
         await Assert.That(File.Exists(Path.Combine(output, "sitemap.xml"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, posts[0].RelativeOutputPath))).IsTrue();
         var post = await File.ReadAllTextAsync(Path.Combine(output, posts[0].RelativeOutputPath));
-        await Assert.That(post).Contains("class=\"docs-shell\"");
+        using (var document = SiteTestDocument.Parse(post))
+            await Assert.That(document.Snapshot.QueryAll(".docs-shell").Count).IsEqualTo(1);
         // No favicon source directory exists, so binary assets degrade gracefully.
         await Assert.That(File.Exists(Path.Combine(output, "site.webmanifest"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(output, "assets", "social", "og-default.png"))).IsFalse();
@@ -111,7 +113,8 @@ public sealed class SiteGeneratorTests
 
         var about = await File.ReadAllTextAsync(Path.Combine(output, "about.html"));
         await Assert.That(about).Contains("<section><h1>About</h1></section>");
-        await Assert.That(about).Contains("class=\"docs-shell\"");
+        using (var document = SiteTestDocument.Parse(about))
+            await Assert.That(document.Snapshot.QueryAll(".docs-shell").Count).IsEqualTo(1);
     }
 
     [Test]

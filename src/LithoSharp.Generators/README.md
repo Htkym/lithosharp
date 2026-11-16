@@ -3,10 +3,10 @@
 [English](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.Generators/README.ja.md)
 
 Connect your .NET documentation schema to generated binders, catalogs and typed references during C# builds. These Roslyn incremental generators inspect explicitly declared static Markdown collections; missing required fields are compiler diagnostics rather than a late layout failure.
-Use matching LithoSharp 3.0.0 packages. Reference `LithoSharp` normally, then add this package as a private analyzer:
+Use matching LithoSharp packages. Reference `LithoSharp` normally, then add this package as a private analyzer:
 
 ```xml
-<PackageReference Include="LithoSharp.Generators" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
 ```
 
 Declare a top-level, nongeneric `static partial` class with

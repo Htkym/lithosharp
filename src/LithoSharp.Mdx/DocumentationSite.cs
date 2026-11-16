@@ -196,6 +196,8 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
 
         if (browserOptions is { } browser)
         {
+            if (!Enum.IsDefined(browser.SearchScope))
+                throw new ArgumentOutOfRangeException(nameof(browser.SearchScope));
             if (browser.Analytics is { } analytics && (analytics.Provider is not ("plausible" or "json") || !Uri.TryCreate(analytics.Endpoint.Value, UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https")))
                 throw new ArgumentException("Analytics requires an explicit HTTP(S) endpoint and a supported provider.");
             if (browser.Algolia is { } algolia && (!System.Text.RegularExpressions.Regex.IsMatch(algolia.ApplicationId, "^[A-Za-z0-9]+$") || string.IsNullOrWhiteSpace(algolia.SearchOnlyApiKey) || string.IsNullOrWhiteSpace(algolia.IndexName)))
@@ -223,10 +225,11 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 footer = browser.Footer.Select(link => new { label = link.Label, url = link.Url.Value }),
                 offline = browser.Offline,
                 search = browser.Search,
+                searchScope = browser.SearchScope.ToString(),
                 algolia = browser.Algolia is { } search ? new { applicationId = search.ApplicationId, searchOnlyApiKey = search.SearchOnlyApiKey, indexName = search.IndexName } : null,
                 analytics = browser.Analytics is { } provider ? new { endpoint = provider.Endpoint.Value, domain = provider.Domain, provider = provider.Provider } : null
             });
-            var script = Asset("client", ".js", Resource("client.mjs").Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal)
+            var script = Asset("client", ".js", CodeCopyScript.BrowserScript + "\n" + Resource("client.mjs").Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal)
                 + "\nstart(" + config + ");\n");
             var css = Asset("theme", ".css", Resource("theme.css"));
             browserHead = "<link rel=\"stylesheet\" href=\"" + css + "\"><script type=\"module\" src=\"" + script + "\"></script>";
@@ -384,7 +387,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 ? new Dictionary<string, IReadOnlyList<DocumentNavigationItem>> { ["default"] = catalog.Sidebar(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, categories: registration.Categories) }
                 : sidebars.ToDictionary(pair => pair.Key, pair => catalog.Sidebar(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, pair.Value, registration.Categories));
             if (browserOptions is { Search: true, Algolia: null })
-                registration.SearchUrl = SiteUrl.ForFile(registration.Variant.RoutePrefix.Trim('/') + "/_search.json", context.Site.BaseUrl).Value;
+                registration.SearchUrl = SiteUrl.ForFile(browserOptions.SearchScope == DocumentationSearchScope.Site ? "search-index.json" : registration.Variant.RoutePrefix.Trim('/') + "/_search.json", context.Site.BaseUrl).Value;
             var collection = registration.Collection!;
             registration.Collection = new(collection.Id, collection.InputRoot, collection.Entries, collection.RouteConvention, collection.PublicationMapper,
                 declaredDependencies: [ContentDependency.FromValue("docs.navigation", Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { registration.Navigation, registration.Options.Variants,
@@ -590,19 +593,19 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 .Select(heading => new SiteTemplateHeading(heading.OutputLevel, heading.Id!, heading.Text))
                 .ToArray()
             : SiteGenerator.ExtractTemplateHeadings(article);
-        var body = (registration.Variant.Banner is { } banner ? "<aside role=\"note\">" + Html.Encode(banner) + "</aside>" : "")
-            + "<nav aria-label=\"" + Html.Encode(T("breadcrumb", "Breadcrumb")) + "\"><ol>" + string.Concat(breadcrumbs.Select(item => "<li>" + Link(item.Label, item.Url) + "</li>")) + "</ol></nav>"
-            + (!entry.FrontMatter.HideTitle && !HasLevelOneHeading(registration, entry, article) ? "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" : "")
-            + article
-            + "<nav aria-label=\"" + Html.Encode(T("adjacent", "Previous and next documents")) + "\">" + PageLink(adjacent.Previous, "prev") + PageLink(adjacent.Next, "next") + "</nav>";
+        var bannerHtml = registration.Variant.Banner is { } banner ? "<aside role=\"note\">" + Html.Encode(banner) + "</aside>" : "";
+        var breadcrumbHtml = "<nav aria-label=\"" + Html.Encode(T("breadcrumb", "Breadcrumb")) + "\"><ol>" + string.Concat(breadcrumbs.Select(item => "<li>" + Link(item.Label, item.Url, item.Document == key) + "</li>")) + "</ol></nav>";
+        var articleHtml = (!entry.FrontMatter.HideTitle && !HasLevelOneHeading(registration, entry, article) ? "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" : "") + article;
+        var adjacentHtml = "<nav aria-label=\"" + Html.Encode(T("adjacent", "Previous and next documents")) + "\">" + PageLink(adjacent.Previous, "prev") + PageLink(adjacent.Next, "next") + "</nav>";
+        var metadataHtml = "";
         var edit = entry.FrontMatter.CustomEditUrl ?? (registration.Options.EditUrl is { } prefix ? prefix.TrimEnd('/') + "/" + string.Join('/', entry.SourcePath.Split('/').Select(Uri.EscapeDataString)) : null);
         if (edit is not null)
-            body += "<p>" + Link(T("edit", "Edit this page"), SiteUrl.FromAbsolute(edit)) + "</p>";
+            metadataHtml += "<p>" + Link(T("edit", "Edit this page"), SiteUrl.FromAbsolute(edit)) + "</p>";
         if (entry.FrontMatter.LastUpdate is { } update)
-            body += "<p class=\"docs-last-update\">" + Html.Encode(T("lastUpdated", "Last updated")) + " "
+            metadataHtml += "<p class=\"docs-last-update\">" + Html.Encode(T("lastUpdated", "Last updated")) + " "
                 + (update.Date is { } date ? "<time datetime=\"" + date.ToString("O") + "\">" + Html.Encode(date.ToString("d", System.Globalization.CultureInfo.GetCultureInfo(registration.Variant.Locale))) + "</time> " : "")
                 + Html.Encode(update.Author ?? "") + "</p>";
-        body += "<nav data-ls-variants aria-label=\"" + Html.Encode(T("variants", "Version and language")) + "\">" + string.Concat(registration.Options.Variants.Select(variant =>
+        var variantsHtml = "<nav data-ls-variants aria-label=\"" + Html.Encode(T("variants", "Version and language")) + "\">" + string.Concat(registration.Options.Variants.Select(variant =>
         {
             try
             {
@@ -613,19 +616,33 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 return "<span aria-disabled=\"true\">" + Html.Encode((variant.Label ?? variant.Version) + " · " + variant.Locale) + "</span>";
             }
         })) + "</nav>";
-        body = "<script type=\"application/json\" data-ls-messages>" + JsonSerializer.Serialize(registration.Messages) + "</script>" + body;
-        if (browserOptions is { Search: true })
-            body = "<section data-ls-search data-index=\"" + Html.Encode(registration.SearchUrl ?? "") + "\" data-collection=\"" + Html.Encode(key.Collection)
-            + "\" data-version=\"" + Html.Encode(key.Version) + "\" data-locale=\"" + Html.Encode(key.Locale) + "\"><label>" + Html.Encode(T("search", "Search this documentation"))
-            + "<input type=\"search\" aria-label=\"" + Html.Encode(T("search", "Search this documentation")) + "\"></label><p role=\"status\" aria-live=\"polite\"></p><div data-results></div></section>" + body;
+        var messagesHtml = "<script type=\"application/json\" data-ls-messages>" + JsonSerializer.Serialize(registration.Messages) + "</script>";
+        var siteSearch = browserOptions?.SearchScope == DocumentationSearchScope.Site;
+        var searchLabel = siteSearch ? T("searchSite", "Search this site") : T("search", "Search this documentation");
+        var searchScopeAttributes = siteSearch ? " data-search-scope=\"site\"" : " data-collection=\"" + Html.Encode(key.Collection) + "\" data-version=\"" + Html.Encode(key.Version) + "\"";
+        var searchHtml = browserOptions is { Search: true }
+            ? "<section data-ls-search data-index=\"" + Html.Encode(registration.SearchUrl ?? "") + "\"" + searchScopeAttributes
+            + " data-locale=\"" + Html.Encode(key.Locale) + "\"><label>" + Html.Encode(searchLabel)
+            + "<input type=\"search\" aria-label=\"" + Html.Encode(searchLabel) + "\"></label><p role=\"status\" aria-live=\"polite\"></p><div data-results></div></section>"
+            : "";
+        // Preserve the original composite body and its ordering for existing custom layouts.
+        var body = searchHtml + messagesHtml + bannerHtml + breadcrumbHtml + articleHtml + adjacentHtml + metadataHtml + variantsHtml;
         var layoutContext = context.CreateLayoutContext();
         return layout.Render(new SitePage<PageLayoutContent>(new("docs:" + key), context.Route,
             new(Html.UnsafeRaw(body))
             {
+                DocumentationChrome = new(Html.UnsafeRaw(messagesHtml + bannerHtml + articleHtml + metadataHtml))
+                {
+                    Breadcrumbs = Html.UnsafeRaw(breadcrumbHtml),
+                    Search = searchHtml.Length == 0 ? null : Html.UnsafeRaw(searchHtml),
+                    Variants = Html.UnsafeRaw(variantsHtml),
+                    Adjacent = Html.UnsafeRaw(adjacentHtml),
+                    Headings = entry.FrontMatter.HideTableOfContents ? [] : articleHeadings
+                },
                 Sidebar = Html.UnsafeRaw(RenderNavigation(navigation, key)),
                 Head = Html.UnsafeRaw(browserHead),
                 IncludeDefaultScript = browserOptions is null,
-                TableOfContents = entry.FrontMatter.HideTableOfContents ? null : new TableOfContentsComponent().Render(articleHeadings, layoutContext)
+                TableOfContents = entry.FrontMatter.HideTableOfContents || articleHeadings.Count == 0 ? null : new TableOfContentsComponent().Render(articleHeadings, layoutContext)
             }, context.Metadata), layoutContext).ToHtmlString();
     }
 
@@ -637,7 +654,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
     private static string Cards(DocumentationPreparation state, Registration registration, IReadOnlyList<ContentEntry<DocumentFrontMatter, MdxDocument>> entries) =>
         "<ul>" + string.Concat(entries.Select(entry => "<li>" + Link(entry.FrontMatter.Title, SiteUrl.FromRoute(state.Catalog.Resolve(
             new(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, entry.Id.Value)).Route)) + "</li>")) + "</ul>";
-    private static string Link(string label, SiteUrl? url) => url is null ? Html.Encode(label) : "<a href=\"" + url.ToAttributeValue() + "\">" + Html.Encode(label) + "</a>";
+    private static string Link(string label, SiteUrl? url, bool current = false) => url is null ? Html.Encode(label) : "<a href=\"" + url.ToAttributeValue() + "\"" + (current ? " aria-current=\"page\"" : "") + ">" + Html.Encode(label) + "</a>";
     private static string PageLink(DocumentPage? page, string relation) => page is null ? "" : "<a rel=\"" + relation + "\" href=\"" + SiteUrl.FromRoute(page.Route).ToAttributeValue() + "\">" + Html.Encode(page.FrontMatter.Title) + "</a>";
     private static string RenderNavigation(IReadOnlyList<DocumentNavigationItem> items, DocumentKey current)
     {
@@ -694,6 +711,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         ["adjacent"] = "Previous and next documents",
         ["variants"] = "Version and language",
         ["edit"] = "Edit this page",
+        ["searchSite"] = "Search this site",
         ["search"] = "Search this documentation"
     }.ToDictionary(pair => pair.Key, pair => Message(registration, pair.Key, pair.Value), StringComparer.Ordinal);
     private static async Task<IReadOnlyDictionary<string, DocumentCategory>> ReadCategoriesAsync(string root, Dictionary<string, DocumentationInput> inputs, CancellationToken cancellationToken)

@@ -2,26 +2,22 @@
 
 [English](README.md)
 
-このパッケージ利用プロジェクトは3.0 向けの英日ハンドブック、正式な詳細ガイド、
-パッケージとサンプルの文書、実行時ライブラリの API リファレンスを生成します。
-`LithoSharpVersion` の既定値は対象とするパッケージの契約 `3.0.0` です。
-パッケージやサイトの正式公開を示すものではありません。手動の GitHub Pages ワークフローは
-https://htkym.github.io/lithosharp/ を公開先としています。ワークフローを用意しただけでは
-公開の成功を確認したことにはなりません。公開先の URL と
-[公開の前提条件](../eng/github-pages.md)を確認してください。
+このパッケージ利用プロジェクトは、英日ハンドブック、詳細ガイド、パッケージとサンプルの文書、実行時ライブラリの API リファレンスを生成します。
 
-`global.json` の SDK、軽量な宣言検査に使う Node、PowerShell 7 を用意し、
-リポジトリのルートから実行してください。
+## サイトをビルドする
+
+この手順は公式サイトを開発する方向けです。
+公開済みパッケージで自分のサイトを作る場合は、[クイックスタート](../docs/quickstart.ja.md)を参照してください。
+
+`site/global.json` の SDK、宣言検査に使う Node、PowerShell 7 を用意します。
 
 ```powershell
 node site/validate-coverage.mjs
-./site/Build.ps1 -LithoSharpVersion <available-version> -PackageFeed <candidate-feed> -Output <new-directory>
+./site/Build.ps1 -Output <new-directory>
 ```
 
 選択した Syntamark の組が別のフィードにある場合、`PackageFeed` には配列を渡せます。
-正式なパッケージの公開後は、省略して NuGet.org を使います。
 スクリプトは NuGet の配布物と、その Generator のメタデータを使い、実装プロジェクトは参照しません。
-候補のフィードとパッケージのキャッシュは、サイトのソースの外へ置いてください。
 Windows では短い `-WorkDirectory` を使います。復元の前に、展開後のパスの長さを検査します。
 
 スクリプトは利用プロジェクトと対応付けたテストをビルドし、生成出力の品質を検査します。
@@ -59,7 +55,3 @@ XML ID とインライン要素は維持します。
 ステージングでも、この記録を更新しません。
 原稿のペアを明示的にレビューした後、`node site/update-documentation-inventory.mjs --write` で現在の一覧を記録します。
 日本語の校正記録は公開入力ルートの外へ置きます。
-
-対応する候補パッケージが利用できるまで、このプロジェクトはソリューションから分けています。
-CI では、参照するすべてのパッケージを pack した後に `Build.ps1` を呼び、診断と出力を保持してください。
-この検証工程からデプロイは行いません。

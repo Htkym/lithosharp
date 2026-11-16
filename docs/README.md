@@ -2,11 +2,6 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-These guides target LithoSharp 3.0.0, Syntamark 2 and VS Code extension 0.5.0.
-They describe development targets; they do not establish that those releases are
-published. The [version matrix](../eng/version-matrix.json) records the selected
-runtime/Source pair and separate package/extension versions. Keep the LithoSharp
-packages aligned at 3.0.0 when adopting that version.
 Start with the Quick Start for requirements and installation, or the
 [adoption guide](adoption-guide.md) to decide whether LithoSharp fits your site.
 
