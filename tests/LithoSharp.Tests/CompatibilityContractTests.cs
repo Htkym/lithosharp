@@ -109,11 +109,11 @@ public sealed class CompatibilityContractTests
             "<header class=\"docs-header\">",
             "<div class=\"docs-shell\">",
             "<aside id=\"docs-sidebar\" class=\"docs-sidebar\"",
+            "<aside class=\"post-toc docs-toc\"",
             "<main id=\"docs-main\" class=\"docs-main\" tabindex=\"-1\">",
             "<article class=\"docs-content\">",
             "<h1>Install</h1>",
             "<nav class=\"docs-pagination\"",
-            "<aside class=\"post-toc docs-toc\"",
             "<footer class=\"docs-footer\">");
         await Assert.That(post).Contains("class=\"docs-nav-link is-current\"");
         await Assert.That(post).Contains("aria-current=\"page\"");

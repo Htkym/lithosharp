@@ -1,6 +1,7 @@
 using LithoSharp;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
+using LithoSharp.Testing;
 
 namespace LithoSharp.Tests;
 
@@ -43,7 +44,8 @@ public sealed class SiteTemplateTests
         await new SiteGenerator().GenerateAsync(TestSite(), posts, output, clean: true);
 
         var install = await File.ReadAllTextAsync(Path.Combine(output, "posts", "guides", "install.html"));
-        await Assert.That(install).Contains("class=\"docs-shell\"");
+        using (var document = SiteTestDocument.Parse(install))
+            await Assert.That(document.Snapshot.QueryAll(".docs-shell").Count).IsEqualTo(1);
         await Assert.That(install).Contains("<span>guides</span>");
         await Assert.That(install).Contains("class=\"docs-nav-folder is-ancestor\"");
         await Assert.That(install).Contains("class=\"docs-nav-link is-current\"");
@@ -90,7 +92,8 @@ public sealed class SiteTemplateTests
         foreach (var path in Directory.EnumerateFiles(output, "*.html", SearchOption.AllDirectories))
         {
             var html = await File.ReadAllTextAsync(path);
-            await Assert.That(html).Contains("class=\"docs-shell\"");
+            using (var document = SiteTestDocument.Parse(html))
+                await Assert.That(document.Snapshot.QueryAll(".docs-shell").Count).IsEqualTo(1);
         }
 
         await Assert.That(File.Exists(Path.Combine(output, "archives.html"))).IsFalse();
