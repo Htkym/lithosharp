@@ -1224,7 +1224,7 @@
         },
         {
           "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
-          "sha256": "48dfa01442668dfb4c3fe02888d895b11d942d4d881988e89fbd904a70b19406"
+          "sha256": "4a360bdc823d87ba088c4cb75a08eba6e8617be96bd3f476d4e55a057fab11c8"
         },
         {
           "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
