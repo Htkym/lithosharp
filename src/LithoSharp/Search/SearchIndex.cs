@@ -130,8 +130,40 @@ public static class LocalSearch
 
     private static string Excerpt(string body, string[] tokens)
     {
+        if (body.Length <= 180) return body;
         var first = tokens.Select(token => body.IndexOf(token, StringComparison.OrdinalIgnoreCase)).Where(index => index >= 0).DefaultIfEmpty(0).Min();
-        var position = Math.Max(0, first - 40);
-        return body.Substring(position, Math.Min(180, body.Length - position));
+        var start = Math.Max(0, first - 40);
+        static bool Boundary(char value) => char.IsWhiteSpace(value) || "。！？.!?".Contains(value);
+        if (start > 0 && !Boundary(body[start - 1]))
+        {
+            for (var index = start; index < first; index++)
+                if (char.IsWhiteSpace(body[index]) || "。！？".Contains(body[index]))
+                {
+                    start = index + 1;
+                    break;
+                }
+        }
+        var boundaries = System.Globalization.StringInfo.ParseCombiningCharacters(body);
+        int Floor(int index)
+        {
+            if (index >= body.Length) return body.Length;
+            var at = Array.BinarySearch(boundaries, index);
+            return at >= 0 ? boundaries[at] : boundaries[Math.Max(0, ~at - 1)];
+        }
+        start = Floor(start);
+        // Match the browser's 180 UTF-16-unit budget, including truncation markers.
+        var end = Math.Min(body.Length, start + 180 - (start > 0 ? 1 : 0));
+        if (end < body.Length)
+        {
+            end = Floor(end - 1);
+            for (var index = end - 1; index >= Math.Max(first + 1, end - 40); index--)
+                if (Boundary(body[index]))
+                {
+                    end = index + (char.IsWhiteSpace(body[index]) ? 0 : 1);
+                    break;
+                }
+            end = Floor(end);
+        }
+        return (start > 0 ? "…" : "") + body[start..end].Trim() + (end < body.Length ? "…" : "");
     }
 }

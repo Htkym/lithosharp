@@ -119,14 +119,14 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
                   configuration.DocsTemplate?.EnableHeaderSearch == true && relativePath != configuration.Routes.SearchPage.RelativeOutputPath
                     ? SearchFormComponent.RenderCore(configuration, configuration.Routes.PublicPath(configuration.Routes.SearchPage), includeInputId: false)
                     : string.Empty, metadata?.Language)}
-              <div class="docs-shell">
+              <div class="docs-shell{(string.IsNullOrWhiteSpace(tableOfContents) ? " docs-shell-no-toc" : "")}{(string.IsNullOrWhiteSpace(sidebar) ? " docs-shell-no-sidebar" : "")}">
                 {sidebar ?? string.Empty}
+                {tableOfContents ?? string.Empty}
                 <main id="docs-main" class="docs-main" tabindex="-1">
                   <article class="docs-content">
             {body}
                   </article>
                 </main>
-                {tableOfContents ?? string.Empty}
               </div>
               {FooterComponent.RenderCore(configuration.Site.Title, docs: true, configuration.Footer, metadata?.Language)}
             </body>

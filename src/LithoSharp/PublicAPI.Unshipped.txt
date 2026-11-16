@@ -879,3 +879,18 @@ LithoSharp.SiteGenerationResult.AgentReadyPages.init -> void
 virtual LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string?
 LithoSharp.AgentReady.PublicMarkdownStatus
 LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>
+LithoSharp.DocumentationPageChrome
+LithoSharp.DocumentationPageChrome.DocumentationPageChrome(LithoSharp.IHtmlContent! article) -> void
+LithoSharp.DocumentationPageChrome.Article.get -> LithoSharp.IHtmlContent!
+LithoSharp.DocumentationPageChrome.Breadcrumbs.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocumentationPageChrome.Breadcrumbs.init -> void
+LithoSharp.DocumentationPageChrome.Search.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocumentationPageChrome.Search.init -> void
+LithoSharp.DocumentationPageChrome.Variants.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocumentationPageChrome.Variants.init -> void
+LithoSharp.DocumentationPageChrome.Adjacent.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocumentationPageChrome.Adjacent.init -> void
+LithoSharp.DocumentationPageChrome.Headings.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.SiteTemplateHeading!>!
+LithoSharp.DocumentationPageChrome.Headings.init -> void
+LithoSharp.PageLayoutContent.DocumentationChrome.get -> LithoSharp.DocumentationPageChrome?
+LithoSharp.PageLayoutContent.DocumentationChrome.init -> void

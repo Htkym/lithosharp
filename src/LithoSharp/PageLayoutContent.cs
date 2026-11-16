@@ -4,6 +4,9 @@ namespace LithoSharp;
 /// <param name="Body">The content inside the main article.</param>
 public sealed record PageLayoutContent(IHtmlContent Body)
 {
+    /// <summary>Optional separate documentation regions. Body retains the complete legacy content for existing layouts.</summary>
+    public DocumentationPageChrome? DocumentationChrome { get; init; }
+
     /// <summary>Explicitly trusted additions to the document head.</summary>
     public IHtmlContent? Head { get; init; }
     /// <summary>Whether the built-in script is included. A custom client can own menu and navigation behavior instead.</summary>

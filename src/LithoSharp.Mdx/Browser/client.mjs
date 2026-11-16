@@ -61,7 +61,7 @@ export function start(config) {
           if (config.algolia) {
             const response = await fetch(`https://${config.algolia.applicationId}-dsn.algolia.net/1/indexes/${encodeURIComponent(config.algolia.indexName)}/query`, {
               method: 'POST', credentials: 'omit', headers: {'Content-Type': 'application/json', 'X-Algolia-Application-Id': config.algolia.applicationId, 'X-Algolia-API-Key': config.algolia.searchOnlyApiKey},
-              body: JSON.stringify({query: value, hitsPerPage: 30, facetFilters: ['collection','version','locale'].map(key => key + ':' + scope.dataset[key])})
+              body: JSON.stringify({query: value, hitsPerPage: 30, facetFilters: ['collection','version','locale'].filter(key => scope.dataset[key] != null).map(key => key + ':' + scope.dataset[key])})
             });
             if (!response.ok) throw new Error('Search service unavailable');
             hits = (await response.json()).hits.map(hit => ({title: hit.title || Object.values(hit.hierarchy ?? {}).filter(Boolean).join(' · '), url: hit.url, body: hit.content || ''}));
@@ -71,8 +71,11 @@ export function start(config) {
               if (searchCache.size >= 4) searchCache.delete(searchCache.keys().next().value);
               searchCache.set(url, fetch(url).then(response => { if (!response.ok) throw new Error('Search data unavailable'); return response.json(); }).catch(error => { searchCache.delete(url); throw error; }));
             }
-            const documents = await searchCache.get(url);
-            hits = queryDocuments(documents, value, {collection: scope.dataset.collection ?? null, version: scope.dataset.version ?? null, locale: scope.dataset.locale ?? null});
+            const payload = await searchCache.get(url);
+            let documents = Array.isArray(payload) ? payload : payload.documents;
+            const siteScope = scope.dataset.searchScope === 'site';
+            if (siteScope && scope.dataset.locale) documents = documents.filter(document => document.locale == null || document.locale === scope.dataset.locale);
+            hits = queryDocuments(documents, value, {collection: scope.dataset.collection ?? null, version: scope.dataset.version ?? null, locale: siteScope ? null : scope.dataset.locale ?? null});
           }
           if (request !== pending || !scope.isConnected) return;
           const highlight = (element, text) => {
@@ -103,6 +106,8 @@ export function start(config) {
     document.dispatchEvent(new CustomEvent('lithosharp:theme', {detail: {theme: document.documentElement.dataset.theme}}));
     document.querySelectorAll('[data-ls-theme]').forEach(button => { button.textContent = `${t('theme', 'Theme')}: ${t(theme, theme)}`; button.setAttribute('aria-label', button.textContent); });
   }
+  const docsCompact = matchMedia('(max-width: 52rem)');
+  let docsDesktopOpen = true;
   let docsBody = null, docsHeader = null, docsHeaderObserver = null;
   function clearDocsPage() {
     docsHeaderObserver?.disconnect();
@@ -115,8 +120,12 @@ export function start(config) {
   function setDocsOpen(open) {
     const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
     if (!menu || !sidebar) return;
+    if (!open && sidebar.contains(document.activeElement)) menu.focus();
     menu.setAttribute('aria-expanded', String(open));
     sidebar.classList.toggle('docs-sidebar-open', open);
+    document.body.classList.toggle('docs-sidebar-collapsed', !open);
+    sidebar.inert = !open;
+    if (!docsCompact.matches) docsDesktopOpen = open;
   }
   function startDocs() {
     const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
@@ -125,7 +134,7 @@ export function start(config) {
     const header = document.querySelector('.docs-header');
     if (docsBody !== document.body || docsHeader !== header) {
       clearDocsPage(); docsBody = document.body; docsHeader = header;
-      setDocsOpen(false);
+      setDocsOpen(!docsCompact.matches && docsDesktopOpen);
       if (header && typeof ResizeObserver === 'function') {
         docsHeaderObserver = new ResizeObserver(updateDocsHeaderHeight);
         docsHeaderObserver.observe(header);
@@ -165,13 +174,14 @@ export function start(config) {
     if (event.target.closest('[data-ls-dismiss]')) { save('announcement:' + config.announcement, 'dismissed'); document.querySelector('[data-ls-announcement]')?.remove(); }
     const menu = event.target.closest('[data-docs-menu-toggle]');
     if (menu) setDocsOpen(menu.getAttribute('aria-expanded') !== 'true');
-    if (event.target.closest('[data-docs-sidebar] a')) setDocsOpen(false);
+    if (docsCompact.matches && event.target.closest('[data-docs-sidebar] a')) setDocsOpen(false);
   });
   document.addEventListener('keydown', event => {
     const menu = document.querySelector('[data-docs-menu-toggle]');
     if (event.key === 'Escape' && menu?.getAttribute('aria-expanded') === 'true') { setDocsOpen(false); menu.focus(); }
   });
-  window.addEventListener('resize', () => { setDocsOpen(false); updateDocsHeaderHeight(); });
+  window.addEventListener('resize', updateDocsHeaderHeight);
+  docsCompact.addEventListener('change', () => setDocsOpen(!docsCompact.matches && docsDesktopOpen));
   document.addEventListener('lithosharp:before-navigate', clearDocsPage);
   if (config.navigation) {
     let pending;

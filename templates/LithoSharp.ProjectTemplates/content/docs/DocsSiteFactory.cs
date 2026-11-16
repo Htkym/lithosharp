@@ -44,7 +44,7 @@ public sealed class DocsSiteFactory : ISiteFactory
             OutputDirectory = "dist",
             Customization = new SiteCustomization
             {
-                Template = new DocsSiteTemplate(),
+                Template = new DocsSiteTemplate { EnableHeaderSearch = true, CollapseTopics = true },
                 Theme = new SiteThemeOptions { UseExternalThemeRestoration = true }
             },
             Options = new SiteGenerationOptions
