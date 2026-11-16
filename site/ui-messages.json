@@ -17,6 +17,7 @@
     "adjacent": "Previous and next documents",
     "variants": "Version and language",
     "edit": "Edit this page",
+    "searchSite": "Search this site",
     "search": "Search this documentation"
   },
   "ja": {
@@ -37,6 +38,7 @@
     "adjacent": "前後の文書",
     "variants": "バージョンと言語",
     "edit": "このページを編集",
-    "search": "この文書を検索"
+    "searchSite": "このサイトを検索",
+    "search": "このガイドを検索"
   }
 }

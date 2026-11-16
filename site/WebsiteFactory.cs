@@ -27,8 +27,8 @@ public sealed class WebsiteFactory : ISiteFactory
         var social = new SiteAssetOutput("website-social", "images/social.png", "image/png");
         var docs = new DocumentationSite(new MdxOptions(root) { Cacheable = true })
         {
-            Layout = new WebsiteDocumentationLayout(),
-            Browser = new() { Search = true, Navigation = true, Theme = true },
+            Layout = new WebsiteDocumentationLayout(new(social)),
+            Browser = new() { Search = true, SearchScope = DocumentationSearchScope.Site, Navigation = true, Theme = true },
             Translations = new TranslationCatalog("en", JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(
                 File.ReadAllBytes(Path.Combine(root, "ui-messages.json")))!
                 .ToDictionary(pair => pair.Key, pair => (IReadOnlyDictionary<string, string>)pair.Value, StringComparer.Ordinal)),
@@ -39,7 +39,7 @@ public sealed class WebsiteFactory : ISiteFactory
             new("3.0", "en", Path.Combine(root, "content", "en"), "en"),
             new("3.0", "ja", Path.Combine(root, "content", "ja"), "ja")])
         {
-            SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error,
+            Sidebars = WebsiteNavigation.Sidebars, DefaultSidebar = "handbook", SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error,
             SemanticRules = DocumentSemanticRuleSet.Documentation,
             TrackTranslationReviews = true, TranslationReviews = ReadReviews(root)
         });
@@ -89,7 +89,7 @@ public sealed class WebsiteFactory : ISiteFactory
                         GeneratedBadges.Binder, "website-version-badge/1")]) },
                 Extensions = [docs, api], BuildTimestamp = DateTimeOffset.Parse("2026-11-13T00:00:00Z"),
                 Quality = new SiteQualityOptions(), CommonSocialImage = new ImageSource(social),
-                AssetTransforms = [socialTransform], GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, WebsiteApiLayout.Stylesheet],
+                AssetTransforms = [socialTransform], GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
                     { Title = entry.FrontMatter.Title, Version = "3.0", Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>

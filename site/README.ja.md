@@ -2,20 +2,25 @@
 
 [English](README.md)
 
-このパッケージ利用プロジェクトは3.0 向けの英日ハンドブック、正式な詳細ガイド、
-パッケージとサンプルの文書、実行時ライブラリの API リファレンスを生成します。
-`LithoSharpVersion` の既定値は対象とするパッケージの契約 `3.0.0` です。
-パッケージやサイトの正式公開を示すものではありません。手動の GitHub Pages ワークフローは
-https://htkym.github.io/lithosharp/ を公開先としています。ワークフローを用意しただけでは
-公開の成功を確認したことにはなりません。公開先の URL と
-[公開の前提条件](../eng/github-pages.md)を確認してください。
+このパッケージ利用プロジェクトは、英日ハンドブック、詳細ガイド、パッケージとサンプルの文書、実行時ライブラリの API リファレンスを生成します。
 
-`global.json` の SDK、軽量な宣言検査に使う Node、PowerShell 7 を用意し、
-リポジトリのルートから実行してください。
+## このブランチをビルドする
+
+このブランチは 3.1.0 向けに開発しているドキュメントレイアウトと検索の新 API を使います。
+サイトをビルドする前に、同じチェックアウトから対応する候補パッケージを作成してください。
+`LithoSharpVersion` の既定値は `3.0.0` ですが、このブランチを公開済みの 3.0.0 パッケージでビルドできるという意味ではありません。
+候補のバージョンを明示的に指定してください。
+
+この手順は公式サイトを開発する方向けです。
+公開済みパッケージで自分のサイトを作る場合は、[クイックスタート](../docs/quickstart.ja.md)を参照してください。
+
+`site/global.json` の SDK、宣言検査に使う Node、PowerShell 7 を用意します。
+既存の [build ワークフロー](../.github/workflows/build.yml) は、`eng/release-packages.json` にある9パッケージを pack してから `site/Build.ps1` を呼び出します。
+ローカルでも同じパッケージ一式と固定した Syntamark のフィードを使い、リポジトリのルートから実行してください。
 
 ```powershell
 node site/validate-coverage.mjs
-./site/Build.ps1 -LithoSharpVersion <available-version> -PackageFeed <candidate-feed> -Output <new-directory>
+./site/Build.ps1 -LithoSharpVersion <candidate-version> -PackageFeed @('<candidate-feed>', './eng/markdown/feed') -Output <new-directory>
 ```
 
 選択した Syntamark の組が別のフィードにある場合、`PackageFeed` には配列を渡せます。
@@ -60,6 +65,12 @@ XML ID とインライン要素は維持します。
 原稿のペアを明示的にレビューした後、`node site/update-documentation-inventory.mjs --write` で現在の一覧を記録します。
 日本語の校正記録は公開入力ルートの外へ置きます。
 
-対応する候補パッケージが利用できるまで、このプロジェクトはソリューションから分けています。
-CI では、参照するすべてのパッケージを pack した後に `Build.ps1` を呼び、診断と出力を保持してください。
-この検証工程からデプロイは行いません。
+## 別の工程で公開する
+
+候補のビルドではデプロイしません。この変更の公開は、対応する安定版パッケージが NuGet.org で利用可能になってから行います。現在のリリース目標は 3.1.0 です。
+既存の手動 [publish-pages ワークフロー](../.github/workflows/publish-pages.yml) に、現在の main にある安定版リリースのタグを指定します。
+既定では検証だけを行い、公開には publish オプションの明示と、Pages 環境に設定されている承認が必要です。
+公開先は https://htkym.github.io/lithosharp/ です。[公開の前提条件](../eng/github-pages.md)も確認してください。
+
+サイトはライブラリのソリューションから分離しています。
+通常のライブラリビルドでは、サイトのビルドや公開は行いません。

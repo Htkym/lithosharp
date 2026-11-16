@@ -20,8 +20,8 @@
     },
     {
       "id": "features",
-      "sourceSha256": "844a5a1906f4a92417332fb43434606ccf83e7432c18e6902a74637f9a0d31c3",
-      "translationSha256": "c0c0e352fdca43544560bca7fdc7cfee3e830e1b2b0f0ca0c578d0a0c3b20460"
+      "sourceSha256": "3d52bd3c82608a1263af1ce9cdd20dc1a21391e8cb331863a9059d4fe9565446",
+      "translationSha256": "1394a31d9969f77e9262aa91a8c7f557852c0c31bc8b714a2cfb9e1e1a83486b"
     },
     {
       "id": "images",
@@ -30,8 +30,8 @@
     },
     {
       "id": "introduction",
-      "sourceSha256": "800d7c5b5b1aaa10384adb6c21d4abe3c32d4a0d94094f9f16c4ac051740266d",
-      "translationSha256": "0515efba3bbec9f99f27593055950f4536726a9b46a0ab4c280cda3eb50d7f23"
+      "sourceSha256": "31bb0afe71efab3571bc9d9971eedfebd8fbf105250d69c9d9c0497394f39edc",
+      "translationSha256": "1d10c5958f5048815e0a0c2ffac9ea5db8bc2305f65525f4286e14d3684c6b06"
     },
     {
       "id": "knowledge",
@@ -55,8 +55,8 @@
     },
     {
       "id": "quickstart",
-      "sourceSha256": "f2aa94a1ba72b73826f7213be7a92110d5bf3d28badbc49f44ca81643f1828ae",
-      "translationSha256": "21903b3b1c448b88b8e90d48ab29f5ad509c9d0293acb61422d237357f5ea728"
+      "sourceSha256": "594f7171b4dafb230971520db22a6c65a0aa965e035db37c50d420dd79fe13c8",
+      "translationSha256": "fc611de6933eb02d84b3d2b7d88b777d0e0e6370ce2e0b178f49f6effef07f75"
     },
     {
       "id": "tooling",

@@ -33,6 +33,10 @@
     {
       "path": "ja/units-agent-ready.json",
       "sha256": "483206e8bd9976e7ad1eebe8d4e5dc0e71ff34aa48710476b5d0b47de3d0a56a"
+    },
+    {
+      "path": "ja/units-docs-navigation.json",
+      "sha256": "ac7132a66b1dd75949e6983117bdad5107e08bdeca59e7d3afbf547023405f1f"
     }
   ],
   "example": {

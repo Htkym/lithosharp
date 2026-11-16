@@ -910,8 +910,8 @@
     },
     {
       "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
-      "sha256": "1b39e407fdfaa141f3ca6731b06355001edbc21e444e3516579ace5db400f6f6",
-      "entries": 879
+      "sha256": "f8dcd24e0c694f9932952faa1c17b85e8773c8eec1cc4a05f8740e7eed52c2ea",
+      "entries": 894
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
@@ -920,8 +920,8 @@
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Unshipped.txt",
-      "sha256": "ab18de57e7c5ae5aac31ba24fdc10dadeda0bc5a87b1835e58cc4ec764e730a1",
-      "entries": 11
+      "sha256": "9271b9eb21b76dd007d33acc02e969b8eafbcb4010de6a74fb302c043a81c85b",
+      "entries": 16
     },
     {
       "path": "src/LithoSharp.Testing/PublicAPI.Shipped.txt",
@@ -1224,7 +1224,7 @@
         },
         {
           "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
-          "sha256": "6f3fba3809510c99599c0f59d7af62bc1a26bc4ade0063b437992cf9f2994914"
+          "sha256": "48dfa01442668dfb4c3fe02888d895b11d942d4d881988e89fbd904a70b19406"
         },
         {
           "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
@@ -1380,7 +1380,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.cs",
-          "sha256": "68875d206ee53047c5648e415265ea91127a7f242d86082aeb83b90c15326754"
+          "sha256": "7bd5b5e11d8ccbad5d76be55897231fd2720cefd5c01199138de2e8299ea1bc2"
         }
       ],
       "guides": {

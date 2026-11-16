@@ -3,7 +3,7 @@ using LithoSharp.Documentation;
 using LithoSharp.Pages;
 using LithoSharp.Testing;
 
-internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent>
+internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPageLayout<PageLayoutContent>
 {
     private sealed record Binding(DocumentKey Document, string NativeId, string Heading, string Alias, string? MarkerSource = null);
 
@@ -47,8 +47,8 @@ internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent
     {
         var bindings = Bindings.Where(binding => binding.Document == page.Metadata.Document).ToArray();
         if (bindings.Length == 0)
-            return new DocsPageLayout().Render(page, context);
-        var body = page.Content.Body.ToHtmlString();
+            return WebsiteChrome.Render(page, context, socialImage);
+        var body = (page.Content.DocumentationChrome?.Article ?? page.Content.Body).ToHtmlString();
         using var document = SiteTestDocument.Parse(body);
         var ids = document.Snapshot.QueryAll("[id]");
         var existing = new HashSet<string>(StringComparer.Ordinal);
@@ -75,7 +75,12 @@ internal sealed class WebsiteDocumentationLayout : IPageLayout<PageLayoutContent
         }
         foreach (var insertion in insertions.OrderByDescending(insertion => insertion.Start))
             body = body.Insert(insertion.Start, insertion.Html);
-        return new DocsPageLayout().Render(new(page.Id, page.Route,
-            page.Content with { Body = Html.UnsafeRaw(body) }, page.Metadata), context);
+        return WebsiteChrome.Render(new(page.Id, page.Route,
+            page.Content with { Body = Html.UnsafeRaw(body), DocumentationChrome = UpdateArticle(page.Content.DocumentationChrome, body) }, page.Metadata), context, socialImage);
     }
+    private static DocumentationPageChrome? UpdateArticle(DocumentationPageChrome? chrome, string article) => chrome is null ? null : new(Html.UnsafeRaw(article))
+    {
+        Breadcrumbs = chrome.Breadcrumbs, Search = chrome.Search, Variants = chrome.Variants,
+        Adjacent = chrome.Adjacent, Headings = chrome.Headings
+    };
 }
