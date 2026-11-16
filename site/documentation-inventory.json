@@ -1284,7 +1284,7 @@
         },
         {
           "path": "src/LithoSharp/Content/ReflectionContentFrontMatterBinder.cs",
-          "sha256": "13d24ca432596175e44fc1004206d6ac4d87b6c2d66c8d23996df08f17a28399"
+          "sha256": "80a8d9329042b286cfcefd7ea192ebf126857030efcfe70c672f9024bad1e6f5"
         },
         {
           "path": "src/LithoSharp/Content/StructuredContentLoaders.cs",
