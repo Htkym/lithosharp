@@ -1,21 +1,40 @@
 {
-  "scope": "SEALED_LOCAL_CANDIDATE_NOT_FORMAL_ADOPTION",
-  "published": false,
-  "componentVersion": "2.0.0-preview.2026111303",
+  "scope": "PUBLISHED_PAIR_DOWNSTREAM_RECEIPTS_VERIFIED",
+  "published": true,
+  "componentVersion": "2.0.0",
   "sourceRepository": "https://github.com/Htkym/syntamark",
-  "sourceCommit": "60f9b39c0195149f8e6d6a9bf48d947d9ac4dcd8",
+  "sourceCommit": "47c997fb91315e8f73849f47610d2f2b21f811ba",
+  "producerWorkflowRun": "https://github.com/Htkym/syntamark/actions/runs/43725418400",
+  "releaseUrl": "https://github.com/Htkym/syntamark/releases/tag/v2.0.0",
   "pairManifestPath": "eng/markdown/component-pair.json",
-  "pairManifestSha256": "84c83ff5b8cce544ddba08f18abdf354315fb0bf045c0fefec305813122a23d5",
-  "canonicalSourceHash": "1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0",
-  "parserVersion": "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0",
-  "yamlProfileId": "native-yaml/1",
-  "dependencies": [],
-  "formalAdoptionRequires": "Reviewed and merged Syntamark runtime/Source pair published through the formal release workflow.",
-  "producerManifestSha256": "84c83ff5b8cce544ddba08f18abdf354315fb0bf045c0fefec305813122a23d5",
-  "producerRestoredVerification": {
-    "scope": "Fixed local pair + actual Generator Parse body on net10 CLR; both-repo and real Roslyn-host matrix remains IN-01",
+  "pairManifestSha256": "a2a65137b99221c31d74589d57c6a3103728173b8299054b4033453ebf11d4d7",
+  "canonicalSourceHash": "42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "parserVersion": "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "publicationProvenancePath": "eng/markdown/release-provenance.json",
+  "previousCandidateProvenancePath": "eng/markdown/history/2.0.0-preview.89831114732901/candidate-provenance.json",
+  "consumerVerification": {
     "state": "PASS",
-    "consumerAcceptance": "pending",
-    "evidenceSha256": "7e76c301fc6fd5572d8a3ff026e622aa27271ec4a4b69bab2f91ceb86a14b56d"
+    "scope": "Published runtime/Source pair checked by fresh three-OS consumers and installed-extension receipts. This is not final LithoSharp publication, performance, or production-host acceptance.",
+    "lithoSharpCommit": "95e61006631919b3278f8ccfae37a13f1a10ba51",
+    "workflowRun": "https://github.com/Htkym/lithosharp/actions/runs/43730458161",
+    "workflowAttempt": 1,
+    "platforms": [
+      "ubuntu-24.04",
+      "windows-2025",
+      "macos-15"
+    ],
+    "consumerFixtureCountPerPlatform": 7,
+    "sourceParseCompiled": true,
+    "runtimeAssemblySha256": "b7b69d4879d8bede4a12a94557deacc6a64300077580abdf44bd91f1502f2264",
+    "actualRoslynHost": "Not run by these consumer receipts; separate real-compiler-host acceptance must not be inferred.",
+    "installedExtension": {
+      "version": "3.0.0-rc.43730458161",
+      "vsixSha256": "8ecc8e9197fa80af4c91d1e489a805c5a03d4ac23b0fec0452810cd16cee261f",
+      "checksPerPlatform": 7,
+      "nodeVersion": "24.13.0",
+      "runtimePackageSha256": "527d0a1c601fcd694525af2a41961a0122275fed0010b62403a5adaca350e804",
+      "unchangedMdxDocumentRestore": true,
+      "mdxWorkerRestart": true
+    }
   }
 }

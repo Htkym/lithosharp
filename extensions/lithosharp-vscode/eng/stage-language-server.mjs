@@ -23,7 +23,7 @@ try {
   for (const required of [
     'LithoSharp.LanguageServer.dll', 'LithoSharp.LanguageServer.deps.json',
     'LithoSharp.LanguageServer.runtimeconfig.json', 'LithoSharp.dll', 'LithoSharp.Mdx.dll',
-    'worker/worker.mjs', 'worker/compiler.mjs', 'worker/package.json', 'worker/package-lock.json',
+    'worker/worker.mjs', 'worker/compiler.mjs', 'worker/public-markdown.mjs', 'worker/package.json', 'worker/package-lock.json',
     'worker/runtime/components.mjs',
   ]) {
     if (!fs.statSync(path.join(staging, required)).isFile()) throw new Error(`Published server is missing ${required}`);

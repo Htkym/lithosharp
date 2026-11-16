@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fixturePath } from './helpers.js';
 import { resolveWorker, restoreWorker, workerLockHash, workerSourceHash, type WorkerDeps, type WorkerFileSystem } from '../../src/worker.js';
 import { UntrustedWorkspaceError } from '../../src/trust.js';
 
@@ -144,10 +149,11 @@ test('restore skips install when already ready', async () => {
   assert.equal(fs.copied.length, 0);
 });
 
-test('same-lock worker upgrades restore changed compiler and runtime source into fresh storage', async () => {
+test('same-lock worker upgrades restore changed compiler, helper and runtime source into fresh storage', async () => {
   const files: Record<string, string> = {
     '/bundled/package.json': '{}', '/bundled/package-lock.json': lockfile,
     '/bundled/worker.mjs': 'worker-v1', '/bundled/compiler.mjs': 'compiler-v1',
+    '/bundled/public-markdown.mjs': 'helper-v1',
     '/bundled/runtime/components.mjs': 'runtime-v1',
   };
   const fs = fakeFs(files);
@@ -161,11 +167,16 @@ test('same-lock worker upgrades restore changed compiler and runtime source into
   const second = await restoreWorker(deps({ fs }), () => {});
   assert.equal((await fs.readFile(second.directory + '/compiler.mjs'))?.toString(), 'compiler-v2');
   assert.equal((await fs.readFile(first.directory + '/compiler.mjs'))?.toString(), 'compiler-v1');
-  files['/bundled/runtime/components.mjs'] = 'runtime-v2';
+  files['/bundled/public-markdown.mjs'] = 'helper-v2';
   const third = await restoreWorker(deps({ fs }), () => {});
   assert.notEqual(third.directory, second.directory);
-  assert.equal((await fs.readFile(third.directory + '/runtime/components.mjs'))?.toString(), 'runtime-v2');
-  assert.equal(fs.installs.length, 3);
+  assert.equal((await fs.readFile(third.directory + '/public-markdown.mjs'))?.toString(), 'helper-v2');
+  assert.equal((await fs.readFile(second.directory + '/public-markdown.mjs'))?.toString(), 'helper-v1');
+  files['/bundled/runtime/components.mjs'] = 'runtime-v2';
+  const fourth = await restoreWorker(deps({ fs }), () => {});
+  assert.notEqual(fourth.directory, third.directory);
+  assert.equal((await fs.readFile(fourth.directory + '/runtime/components.mjs'))?.toString(), 'runtime-v2');
+  assert.equal(fs.installs.length, 4);
 });
 
 test('restored source tampering invalidates readiness while dependencies stay present', async () => {
@@ -265,5 +276,43 @@ test('a blocked worker restore does not block a different directory or bypass tr
     restoring.isDirectory = async (dir) => dir.endsWith('node_modules');
     release();
     await Promise.all([first, second]);
+  }
+});
+
+test('worker staging retains every production module and rejects a missing imported helper', () => {
+  const extension = path.resolve(fixturePath(), '..', '..');
+  const worker = path.resolve(extension, '..', '..', 'src', 'LithoSharp.Mdx', 'worker');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'lithosharp-worker-staging-'));
+  try {
+    const fixtureWorker = path.join(temporary, 'src', 'LithoSharp.Mdx', 'worker');
+    const fixtureExtension = path.join(temporary, 'extensions', 'lithosharp-vscode');
+    const script = path.join(fixtureExtension, 'eng', 'stage-worker.mjs');
+    fs.mkdirSync(fixtureWorker, { recursive: true });
+    fs.mkdirSync(path.dirname(script), { recursive: true });
+    fs.copyFileSync(path.join(extension, 'eng', 'stage-worker.mjs'), script);
+    // Derive expected modules from production source, not the staging allowlist.
+    const modules = fs.readdirSync(worker).filter(file => file.endsWith('.mjs'));
+    for (const file of [...modules, 'package.json', 'package-lock.json']) {
+      fs.copyFileSync(path.join(worker, file), path.join(fixtureWorker, file));
+    }
+    fs.cpSync(path.join(worker, 'runtime'), path.join(fixtureWorker, 'runtime'), { recursive: true });
+    const staged = spawnSync(process.execPath, [script], { encoding: 'utf8', windowsHide: true });
+    assert.equal(staged.status, 0, staged.stderr || staged.error?.message);
+    const target = path.join(fixtureExtension, 'resources', 'worker');
+    const manifest = JSON.parse(fs.readFileSync(path.join(target, 'worker.json'), 'utf8')) as {
+      files: { path: string; sha256: string }[];
+    };
+    for (const file of modules) {
+      const expected = fs.readFileSync(path.join(worker, file));
+      assert.deepEqual(fs.readFileSync(path.join(target, file)), expected, file);
+      assert.equal(manifest.files.find(entry => entry.path === file)?.sha256,
+        createHash('sha256').update(expected).digest('hex'), file);
+    }
+    fs.rmSync(path.join(fixtureWorker, 'public-markdown.mjs'));
+    const missing = spawnSync(process.execPath, [script], { encoding: 'utf8', windowsHide: true });
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /Worker source is missing: .*public-markdown\.mjs/);
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
   }
 });

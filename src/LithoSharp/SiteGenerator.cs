@@ -119,6 +119,7 @@ public sealed partial class SiteGenerator
         public CancellationToken Cancellation { get; init; }
         internal string EnvironmentName { get; init; } = "Production";
         internal AssetRegistry Assets { get; init; } = AssetRegistry.Empty;
+        internal AgentReadyBuildState? AgentReady { get; init; }
         internal IReadOnlyList<LithoSharp.Documentation.DocumentSemanticSnapshot> DocumentSemantics { get; init; } = [];
         internal IReadOnlyList<ScopedSearchProjection> ScopedSearch { get; init; } = [];
         internal System.Collections.Concurrent.ConcurrentDictionary<string, RenderedHtmlOrigins> HtmlOrigins { get; } = new(StringComparer.Ordinal);
@@ -184,9 +185,10 @@ public sealed partial class SiteGenerator
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.Markdown);
         options.Markdown.Validate();
-        if (_markdownCompiler.Options.Markdown != options.Markdown)
+        var agentReadyEnabled = customization?.AgentReady.Enabled == true;
+        if (_markdownCompiler.Options.Markdown != options.Markdown || _markdownCompiler.Options.RetainAgentReadyFacts != agentReadyEnabled)
         {
-            var configured = new SiteGenerator(new LithoMarkdownCompiler(_markdownCompiler.Options with { Markdown = options.Markdown }));
+            var configured = new SiteGenerator(new LithoMarkdownCompiler(_markdownCompiler.Options with { Markdown = options.Markdown, RetainAgentReadyFacts = agentReadyEnabled }));
             return await configured.GenerateWithOptionsAsync(site, posts, outputDirectory, clean,
                 customization, options, cancellationToken).ConfigureAwait(false);
         }
@@ -308,7 +310,7 @@ public sealed partial class SiteGenerator
                 || contentPages.Any(static page => page.BodySource is not null));
         await using var sharedHtmlFacts = new BuildHtmlFacts(cancellationToken, qualityRequired: options.Quality is not null,
             rawDemand: options.RawHtmlFactsDemand | (SourceOriginsRequired() ? HtmlRawFactsDemand.Quality : HtmlRawFactsDemand.None));
-        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+        var catalogContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts) { AgentReadyEnabled = customization.AgentReady.Enabled };
         var (catalogs, preflight) = await InspectGenerationCatalogsAsync(
             catalogContext, pageRouteTable, cancellationToken).ConfigureAwait(false);
         var extensionDiagnostics = preflight.Diagnostics.ToList();
@@ -321,7 +323,7 @@ public sealed partial class SiteGenerator
             cancellationToken.ThrowIfCancellationRequested();
             var extension = options.Extensions[extensionIndex];
             ArgumentNullException.ThrowIfNull(extension);
-            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts);
+            var prepareContext = new SiteBuildContext(site, options, outputRoot, buildCacheRoot, buildTimestamp, sharedHtmlFacts) { AgentReadyEnabled = customization.AgentReady.Enabled };
             var contribution = await (catalogs[extensionIndex] is { } catalog
                 ? catalog.PrepareAsync(prepareContext, cancellationToken)
                 : extension.PrepareAsync(prepareContext, cancellationToken)).ConfigureAwait(false)
@@ -387,6 +389,7 @@ public sealed partial class SiteGenerator
             Cancellation = cancellationToken,
             EnvironmentName = options.EnvironmentName,
             Assets = assetRegistry,
+            AgentReady = customization.AgentReady.Enabled ? new(customization.AgentReady, customization.GenerateLlmsTxt) : null,
             DocumentSemantics = Array.AsReadOnly(documentSemantics.ToArray()),
             ScopedSearch = Array.AsReadOnly(scopedSearch.ToArray()),
             HtmlFacts = sharedHtmlFacts,
@@ -395,6 +398,27 @@ public sealed partial class SiteGenerator
             CommonSocialImage = commonSocialImageSource is null ? null : ResolveSocialImage(commonSocialImageSource),
             SocialImages = socialImageSources.ToDictionary(pair => pair.Key, pair => ResolveSocialImage(pair.Value), StringComparer.Ordinal),
         };
+        var collectionNodes = ContentCollectionBuildPlanAdapter.Create(
+            contentPages,
+            publishedExtraPages,
+            site,
+            customization.Text,
+            customization.Theme,
+            buildTimestamp,
+            options.EnvironmentName,
+            hasFaviconAssets,
+            routes);
+        var assetNodes = assetRegistry.CreateBuildNodes();
+        var componentInputs = CaptureMarkdownComponentInputs(outputRoot, configuration.DocumentSemantics);
+        var prospectiveIdentity = OutputTransaction.CreateOutputIdentity(OutputTransaction.CreateProspectiveOwnershipScope(
+            Path.GetDirectoryName(outputRoot)!, Path.GetFileName(outputRoot)));
+        var agentReadyCache = new SiteBuildCache(buildCacheRoot, prospectiveIdentity);
+        if (configuration.AgentReady is not null)
+        {
+            configuration.CompiledBodies.AttachPersistentCache(agentReadyCache, _markdownCompiler.Fingerprint);
+            await PrepareAgentReadyAsync(configuration, publishedPosts, contentPages, options, agentReadyCache,
+                collectionNodes, assetNodes, componentInputs.Inputs, template, cancellationToken).ConfigureAwait(false);
+        }
         var renderedContentPages = builtInTemplate ? [] : contentPages
             .Select(page => page.Render(
                 this,
@@ -435,6 +459,17 @@ public sealed partial class SiteGenerator
         if (plannedText is not null)
             foreach (var projection in configuration.ScopedSearch)
                 plannedText.Add(projection.RelativeOutputPath, _ => BuildScopedSearchIndex(configuration, projection));
+        if (configuration.AgentReady is { } agentState)
+        {
+            var hasSitemap = templateResult.Files.Any(file => file.RelativePath == routes.Sitemap.RelativeOutputPath);
+            var robots = AgentReady.AgentReadyRobots.Build(site.BaseUrl, hasSitemap ? routes.AbsoluteUrl(routes.Sitemap) : null, agentState.Options.Robots);
+            if (robots is not null)
+                agentState.TextArtifacts = agentState.TextArtifacts.Concat([new KeyValuePair<string, string>("robots.txt", robots)])
+                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            if (plannedText is not null)
+                foreach (var pair in agentState.TextArtifacts)
+                    plannedText.Add(pair.Key, _ => pair.Value);
+        }
         var artifactRouteTable = new SiteRouteTable();
         artifactRouteTable.ReserveOutputPath(
             OutputManifestRelativePath,
@@ -477,6 +512,9 @@ public sealed partial class SiteGenerator
             artifactRouteTable,
             collectionFiles,
             contentPages);
+        if (configuration.AgentReady is { } agentRoutes)
+            foreach (var path in agentRoutes.TextArtifacts.Keys)
+                artifactRouteTable.Register(SiteRoute.ForFile(EscapeOutputPath(path), site.BaseUrl), "agent-ready:" + path);
         var redirectOutputs = PrepareRedirects(redirectDeclarations, site.BaseUrl, artifactRouteTable,
             templateFiles.Select(file => file.RelativePath).Concat(normalizedCollectionFiles.Select(file => file.RelativePath))
                 .Concat(commonArtifacts.Select(route => route.RelativeOutputPath)).Concat(assetRegistry.Files.Select(file => file.RelativePath))
@@ -512,17 +550,6 @@ public sealed partial class SiteGenerator
                 faviconSource,
                 hasFaviconAssets,
                 customization.GenerateLlmsTxt);
-        var collectionNodes = ContentCollectionBuildPlanAdapter.Create(
-            contentPages,
-            publishedExtraPages,
-            site,
-            customization.Text,
-            customization.Theme,
-            buildTimestamp,
-            options.EnvironmentName,
-            hasFaviconAssets,
-            routes);
-        var assetNodes = assetRegistry.CreateBuildNodes();
         var contentOwnersWithAssetDependencies = new HashSet<string>(StringComparer.Ordinal);
         if (assetNodes.Count != 0)
         {
@@ -543,6 +570,8 @@ public sealed partial class SiteGenerator
                     : node))
                 .Concat(assetNodes);
         allNodes = allNodes.Concat(CreateScopedSearchNodes(configuration));
+        if (configuration.AgentReady is { } agentNodes)
+            allNodes = allNodes.Concat(CreateAgentReadyNodes(agentNodes));
         if (redirectOutputs.Count != 0)
         {
             var redirectPlan = SiteBuildPlan.Create(allNodes);
@@ -551,13 +580,21 @@ public sealed partial class SiteGenerator
         // Aggregate search reads rendered collection bodies, so execution must finish those pages first.
         string? docsTemplateJson = null;
         string? docsHeaderTextJson = null;
-        var componentInputs = CaptureMarkdownComponentInputs(outputRoot, configuration.DocumentSemantics);
         var postOrigins = publishedPosts.ToDictionary(post => routes.Post(post).RelativeOutputPath,
             post => MarkdownOriginIdentity(post.BodySource), StringComparer.Ordinal);
         var assetNodeIds = assetNodes.Select(static node => node.Id).ToHashSet();
         var buildPlan = SiteBuildPlan.Create(allNodes.Select(node =>
         {
             IEnumerable<BuildInput> inputs = node.Inputs;
+            if (configuration.AgentReady is { } agentInputs)
+            {
+                inputs = inputs.Append(BuildInput.FromConfiguration("agent-ready.site", agentInputs.GlobalIdentity));
+                foreach (var artifact in node.Artifacts)
+                    if (agentInputs.ByPath.TryGetValue(artifact.RelativeOutputPath, out var page))
+                        inputs = inputs.Append(BuildInput.FromConfiguration("agent-ready.head:" + artifact.RelativeOutputPath, page.OutputIdentity));
+                if (node.Artifacts.Any(artifact => artifact.RelativeOutputPath == routes.Llms.RelativeOutputPath))
+                    inputs = inputs.Append(BuildInput.FromConfiguration("agent-ready.llms", ComputeTextContentSha256(AgentReadyLlms(configuration))));
+            }
             IEnumerable<BuildNodeId> dependencies = node.Id.Value == "index:search" ? node.Dependencies.Concat(contentPages
                 .Where(page => page.IsIncludedIn(GeneratedPageDerivedSurfaces.Search)).Select(page => new BuildNodeId(page.OwnerId))) : node.Dependencies;
             if (!assetNodeIds.Contains(node.Id))
@@ -619,17 +656,19 @@ public sealed partial class SiteGenerator
                 outputRoot,
                 preserveExisting: !clean,
                 cancellationToken,
-                deferExistingCopy: builtInTemplate && !clean && outputScope.Length == 0,
+                deferExistingCopy: builtInTemplate && !clean,
                 cacheOptions: options)
             .ConfigureAwait(false);
         timing.MarkTransaction();
-        using var htmlFactsCache = options.Quality is not null && options.HtmlFactsCacheEnabled
-            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity), sharedHtmlFacts) : null;
+        using var htmlFactsCache = (options.Quality is not null || configuration.AgentReady is not null) && options.HtmlFactsCacheEnabled
+            ? new SiteHtmlFactsCache(Path.Combine(buildCacheRoot, outputTransaction.OutputIdentity),
+                options.Quality is not null ? sharedHtmlFacts : null) : null;
         var generatedInStaging = new List<string>();
         var modifiedInStaging = new List<string>();
         BuildExecutionResult? execution = null;
         IReadOnlyList<string> staleRemovedArtifacts = [];
         var qualityReport = new SiteQualityReport();
+        (int DirectParseCount, int CacheParseCount, int CacheHitCount) agentReadyValidationFacts = default;
         IReadOnlyList<SiteDiagnostic> compilerWarnings = [];
         var committed = false;
         var inspectedQualityOutput = new Dictionary<string, CachedBuildArtifact>(StringComparer.Ordinal);
@@ -640,6 +679,9 @@ public sealed partial class SiteGenerator
         }
         try
         {
+            if (outputScope.Length > 0)
+                await ValidateAgentReadyScopeAsync(qualityPlan, configuration.AgentReady, InScope, agentReadyCache,
+                    outputTransaction, cancellationToken).ConfigureAwait(false);
             if (builtInTemplate)
             {
                 execution = await ExecuteBuildAsync(buildPlan, configuration, templateContext, plannedText!, contentPages,
@@ -724,6 +766,9 @@ public sealed partial class SiteGenerator
                         .ConfigureAwait(false);
                 }
 
+                if (configuration.AgentReady is { } agentFiles)
+                    foreach (var pair in agentFiles.TextArtifacts)
+                        await WriteTextAsync(outputTransaction.StagingRoot, pair.Key, pair.Value, generatedInStaging, cancellationToken).ConfigureAwait(false);
                 modifiedInStaging.AddRange(generatedInStaging);
             }
 
@@ -771,11 +816,54 @@ public sealed partial class SiteGenerator
                     referenceIdentities).ConfigureAwait(false);
                 qualityReport = MapQualityOrigins(qualityReport, configuration, publishedPosts, contentPages,
                     templateFiles, inspectedQualityOutput);
-                if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= qualityOptions.FailureThreshold))
+            }
+
+            if (configuration.AgentReady is { } agentValidation)
+            {
+                var validationRoot = execution?.PublishedOutputRetained == true ? outputRoot : outputTransaction.StagingRoot;
+                var existingArtifacts = artifactRoutes.Where(pair => File.Exists(SafeCombine(validationRoot, pair.Key)))
+                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+                foreach (var pair in agentValidation.TextArtifacts.Where(pair => outputScope.Length == 0 || InScope(pair.Key)))
+                {
+                    var actual = await ReadQualityTextAsync(validationRoot, pair.Key, inspectedQualityOutput, cancellationToken, strictUtf8: true).ConfigureAwait(false);
+                    if (!string.Equals(actual, pair.Value, StringComparison.Ordinal) || inspectedQualityOutput[pair.Key].Sha256 != ComputeTextContentSha256(pair.Value))
+                        throw new SiteQualityValidationException(new SiteQualityReport([new SiteDiagnostic("LSQ014",
+                            SiteDiagnosticSeverity.Error, "The public artifact bytes do not match the complete Agent Ready plan.", new(pair.Key), "AgentReady", null)]));
+                }
+                if (agentValidation.GenerateLlms)
+                {
+                    var actual = await ReadQualityTextAsync(validationRoot, routes.Llms.RelativeOutputPath, inspectedQualityOutput, cancellationToken, strictUtf8: true).ConfigureAwait(false);
+                    if (!string.Equals(actual, AgentReadyLlms(configuration), StringComparison.Ordinal) || inspectedQualityOutput[routes.Llms.RelativeOutputPath].Sha256 != ComputeTextContentSha256(AgentReadyLlms(configuration)))
+                        throw new SiteQualityValidationException(new SiteQualityReport([new SiteDiagnostic("LSQ014",
+                            SiteDiagnosticSeverity.Error, "The emitted llms.txt does not match the complete Agent Ready index.", new(routes.Llms.RelativeOutputPath), "AgentReady", null)]));
+                }
+                var expected = agentValidation.Pages.Where(page => outputScope.Length == 0 || InScope(page.Html.RelativeOutputPath))
+                    .Select(page => new AgentReadyArtifactExpectation(page.Html, page.Head, agentValidation.Options.StructuredData,
+                        page.Markdown, page.Head.LlmsUrl is null ? null : routes.Llms)).ToArray();
+                var validationCacheParses = htmlFactsCache?.ParseCount ?? 0;
+                var validationCacheHits = htmlFactsCache?.HitCount ?? 0;
+                var integrity = await AgentReadyArtifactValidator.ValidateAsync(expected, existingArtifacts,
+                    (path, token) => ReadQualityTextAsync(validationRoot, path, inspectedQualityOutput, token), cancellationToken,
+                    getFacts: options.Quality is null && htmlFactsCache is not null ? htmlFactsCache.GetAsync : null,
+                    validateJson: options.Quality is not null,
+                    onDirectParse: () => agentReadyValidationFacts.DirectParseCount++).ConfigureAwait(false);
+                agentReadyValidationFacts.CacheParseCount = (htmlFactsCache?.ParseCount ?? 0) - validationCacheParses;
+                agentReadyValidationFacts.CacheHitCount = (htmlFactsCache?.HitCount ?? 0) - validationCacheHits;
+                if (agentValidation.TextArtifacts.TryGetValue("robots.txt", out var robots))
+                    integrity = integrity.Concat(AgentReadyArtifactValidator.ValidateRobots(site.BaseUrl, robots, existingArtifacts)).ToArray();
+                // Artifact/discovery/robots integrity is mandatory. JSON-LD quality follows the existing opt-in threshold.
+                var mandatory = integrity.Where(item => item.Id != "LSQ013").ToArray();
+                if (mandatory.Any(item => item.Severity == SiteDiagnosticSeverity.Error))
+                    throw new SiteQualityValidationException(new SiteQualityReport(mandatory));
+                var reported = agentValidation.Diagnostics.Concat(options.Quality is null ? [] : integrity);
+                qualityReport = AppendAgentReadyDiagnostics(qualityReport, reported);
+            }
+            if (options.Quality is { } finalQualityOptions)
+            {
+                if (qualityReport.Diagnostics.Any(diagnostic => diagnostic.Severity >= finalQualityOptions.FailureThreshold))
                     throw new SiteQualityValidationException(qualityReport);
                 buildPlan = QualityAnchorBuildPlan.Attach(buildPlan, qualityReport, cancellationToken);
             }
-
             await sharedHtmlFacts.ReleaseAsync().ConfigureAwait(false);
             timing.MarkQuality();
             cancellationToken.ThrowIfCancellationRequested();
@@ -839,7 +927,10 @@ public sealed partial class SiteGenerator
             BuildPlan = buildPlan,
             Routes = Array.AsReadOnly(artifactRoutes.Values.OrderBy(route => route.RelativeOutputPath, StringComparer.Ordinal).ToArray()),
             QualityReport = qualityReport,
+            AgentReadyPages = configuration.AgentReady is { } outcomes ? Array.AsReadOnly(outcomes.Pages.Select(page =>
+                new AgentReady.PublicMarkdownPageResult(page.Html.RelativeOutputPath, page.Markdown?.RelativeOutputPath, page.Outcome.Status, page.Outcome.Reason)).ToArray()) : [],
             HtmlFactsSharing = sharedHtmlFacts.Counters,
+            AgentReadyValidationFacts = agentReadyValidationFacts,
             Timings = timing.ToTimings(),
             BuildReport = CreateBuildReport(
                 buildPlan,
@@ -1157,12 +1248,15 @@ public sealed partial class SiteGenerator
         cancellation.ThrowIfCancellationRequested();
         var sourceHash = MarkdownDocumentFingerprints.ExactBodyCacheHash(post.MarkdownBody);
         var retained = post.BodyAnalysis is null ? null
-            : MarkdownAnalysisAdapter.RetainForBody(post.BodyAnalysis, post.MarkdownBody, post.FilePath);
+            : MarkdownAnalysisAdapter.RetainForBody(post.BodyAnalysis, post.MarkdownBody, post.FilePath,
+                MarkdownAnalysisAdapter.BodyOptionsFor(_markdownCompiler.Options.Markdown),
+                MarkdownAnalysisAdapter.BodyPartsFor(_markdownCompiler.Options.Markdown, _markdownCompiler.Options.RetainAgentReadyFacts),
+                _markdownCompiler.Options.RetainAgentReadyFacts ? MarkdownAnalysisAdapter.AgentReadySourceVersion(post.MarkdownBody) : null);
         var originalSource = post.BodySource.CanMapBody(post.MarkdownBody, post.FilePath) || retained is not null
             ? post.BodySource : null;
         var sourceOffset = originalSource?.BodyStartOffset ?? 0;
         var persistent = configuration.CompiledBodies.PersistentParseCache;
-        if (persistent is not null)
+        if (persistent is not null && configuration.AgentReady?.Preparing != true)
         {
             // The render path is synchronous, so local-disk cache IO blocks here
             // (precedent: SetBodyProvider). Cache reads degrade to a miss and the
@@ -1264,6 +1358,7 @@ public sealed partial class SiteGenerator
         return BuildCompiledBody(configuration, analyzed.Html, analyzed.Semantics, post.MarkdownBody, analyzed.RenderOrigins) with
         {
             Diagnostics = Array.AsReadOnly(finalDiagnostics.ToArray()),
+            SourceCompilation = analyzed,
         };
     }
 
@@ -1814,6 +1909,8 @@ public sealed partial class SiteGenerator
         IReadOnlyList<MarkdownPost> posts,
         IReadOnlyList<IntegratedContentPage> contentPages)
     {
+        if (configuration.AgentReady is not null)
+            return AgentReadyLlms(configuration);
         var site = configuration.Site;
         var builder = new StringBuilder();
         builder.Append("# ").Append(site.Title).Append('\n');

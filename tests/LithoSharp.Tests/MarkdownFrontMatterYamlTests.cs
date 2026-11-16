@@ -110,6 +110,61 @@ public sealed class MarkdownFrontMatterYamlTests
             .Throws<NotSupportedException>();
     }
 
+    [Test]
+    public async Task Deserialize_RepeatedNestedDtosKeepInstancesAndDiagnosticsIndependent()
+    {
+        const string yaml = "title: Root\nchild:\n  title: Nested";
+        var first = MarkdownFrontMatterYaml.Deserialize<CachedFrontMatter>(yaml)!;
+        first.Child!.Title = "Changed";
+        await Assert.That(() => MarkdownFrontMatterYaml.Deserialize<CachedFrontMatter>("title: Root\nchild:\n  title: null"))
+            .Throws<FormatException>().WithMessageContaining(ContentFrontMatterDiagnosticIds.NullNotAllowed);
+        var second = MarkdownFrontMatterYaml.Deserialize<CachedFrontMatter>(yaml)!;
+        await Assert.That(ReferenceEquals(first, second)).IsFalse();
+        await Assert.That(ReferenceEquals(first.Child, second.Child)).IsFalse();
+        await Assert.That(second.Child!.Title).IsEqualTo("Nested");
+    }
+
+    [Test]
+    public async Task ReflectionBinder_SharedPlansDoNotShareUnknownFieldPolicy()
+    {
+        var values = new Dictionary<string, object?> { ["title"] = "Root", ["extra"] = "value" };
+        var permissive = new ReflectionContentFrontMatterBinder<CachedFrontMatter>(false);
+        var strict = new ReflectionContentFrontMatterBinder<CachedFrontMatter>();
+        await Assert.That(permissive.Bind(values).IsSuccess).IsTrue();
+        var rejected = strict.Bind(values);
+        await Assert.That(rejected.IsSuccess).IsFalse();
+        await Assert.That(rejected.Diagnostics.Single().Id).IsEqualTo(ContentFrontMatterDiagnosticIds.UnknownField);
+        await Assert.That(permissive.Bind(values).IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task Deserialize_ConcurrentPlanInitializationKeepsResultsIndependent()
+    {
+        var tasks = Enumerable.Range(0, 16).Select(index => Task.Run(() =>
+            MarkdownFrontMatterYaml.Deserialize<ConcurrentFrontMatter>(
+                $"title: Root{index}\nchild:\n  title: Nested{index}")!)).ToArray();
+        var results = await Task.WhenAll(tasks);
+        for (var index = 0; index < results.Length; index++)
+        {
+            await Assert.That(results[index].Title).IsEqualTo($"Root{index}");
+            await Assert.That(results[index].Child!.Title).IsEqualTo($"Nested{index}");
+        }
+    }
+
+    private sealed class CachedFrontMatter
+    {
+        public required string Title { get; set; }
+
+        public CachedFrontMatter? Child { get; set; }
+    }
+
+    private sealed class ConcurrentFrontMatter
+    {
+        public required string Title { get; set; }
+
+        public ConcurrentFrontMatter? Child { get; set; }
+    }
+
     private sealed class NamedFrontMatter
     {
         [ContentName("custom_name")]

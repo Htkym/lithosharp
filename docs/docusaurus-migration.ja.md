@@ -9,7 +9,7 @@
 リンクを経由せず、互いに重ならない実ディレクトリのパスを指定する。
 
 移行対象は MDX、Markdown、静的資産、front matter、category、sidebar、バージョン、
-言語である。部品の判定は [MDX 互換表](mdx.md#docusaurus-compatibility) にある。
+言語だけである。部品の判定は [MDX 互換表](mdx.md#docusaurus-compatibility) にある。
 
 ## コマンド
 
@@ -43,7 +43,7 @@ lithosharp migrate docusaurus ./website --output ./converted \
 treeのhash、oracle hash、宣言または`package.json`から検出したDocusaurus versionも出す。
 
 raw public pathのexact比較は既定のまま維持する。`--compare-normalized-pages`を
-明示すると、文書page setを追加比較する。適用規則はreportに列挙する。sourceと
+明示すると、正規化した文書page setを追加比較する。適用規則はreportに列挙する。sourceと
 targetのbase pathはsegment境界でのみ除去し、末尾slashを正規化する。path segmentは
 strict UTF-8で一度だけdecodeし、Unicode NFCを適用して再encodeする。比較はordinalで
 大文字小文字を区別し、case-foldや再帰decodeはしない。この比較はexit codeを変更しない。
@@ -52,14 +52,14 @@ strict UTF-8で一度だけdecodeし、Unicode NFCを適用して再encodeする
 `--source-version`と`--source-base-path`でoracle情報を指定または上書きできる。
 
 終了コードは解析・変換完了が`0`、処理失敗が`1`、使い方の誤りが`2`、変換不能が`3`である。
-JSON reportは既存fieldを維持したまま、route比較の範囲とcomponent機能差を追加する。
-route一致は宣言されたpage setだけを対象とし、原本サイト全体の互換性を意味しない。
+JSON reportは既存fieldを維持したまま、route比較の範囲とcomponent変更の分類を追加する。
+route一致は宣言されたpage setだけを対象とし、原本サイト全体の同等性を意味しない。
 
 ## 変換後の生成と検査
 
 変換で書き出すのはコンテンツと資産であり、コンパイル・検査済みの配布物ではない。[MDXガイド](mdx.ja.md)に従って信頼するLithoSharp projectと`DocumentationSite` collectionを設定し、変換されたvariantのディレクトリをルートへ割り当てる。reportの手動対応と未対応の項目を確認し、MDX workerを明示的にrestoreしてからbuildする。移行処理がDocusaurus pluginやC# site factoryを推測して実行することはない。
 
-build後は実際の出力先と公開base URLを指定して[check-output](generated-output-checks.ja.md)を実行する。ローカルHTML/CSS、リンク、anchorを検査できるが、元サイトとのルートの同等性や、失われた対話機能は確認できない。route oracleとの比較、生成物検査、部品のブラウザーテストを別々の証拠として残す。
+build後は実際の出力先と公開base URLを指定して[`check-output`](generated-output-checks.ja.md)を実行する。ローカルHTML/CSS、リンク、anchorを検査できるが、元サイトとのルートの同等性は証明できず、失われた対話機能の再現や部品のブラウザーテストの代替にもならない。route oracleとの比較、生成物検査、部品のブラウザーテストを別々の証拠として残す。
 
 ## 判定
 
@@ -73,7 +73,7 @@ build後は実際の出力先と公開base URLを指定して[check-output](gene
 ## 実行される fence
 
 最上位の ` ```mdx-code-block ` fence は表示用ではなく実行される MDX である。
-中の import は巻き上げ、JSX は描画され、後段の本文が利用できる。外側 fence
+中の import は巻き上げられ、JSX は描画される。後段の本文では、ここで定義された内容を利用できる。外側 fence
 内の sample は表示のままである。移行は実行 fence を最上位 code として扱い、
 import を判定する。
 
@@ -89,19 +89,19 @@ directory 経路になる。
 比較だけが明示したslash形式とbase pathを正規化する。比較対象のpage集合は原本build
 から取得する。生成category index、blog index/author/archive/pagination/tagなどの派生route
 に1:1の元文書はない。oracleで別分類し、除外数と理由をreportに出す。文書page setの
-一致をサイト全体の互換性とは扱わない。
+一致をサイト全体の同等性とは扱わない。
 
 ## 移行済みサイトの手動手順
 
 - バージョン依存の `UpgradeGuide` デモは静的注記にする。
-- `react-medium-image-zoom` の import は除き、素の `<Zoom>` で描画する。
+- `react-medium-image-zoom` の import は除き、素の `<Zoom>` は子要素を描画する。
 - `LiteYouTubeEmbed` デモは YouTube link にする。
 - `ColorModeToggle` デモは静的注記にする。
 - `raw-loader` の表示デモは静的注記にする。
 - Themed image と inline SVG の live デモは静的注記や画像にする。
 - 外部 bare import は移行先に入れるか書き換える。`@docusaurus/useBaseUrl` は静的 path にする。
 
-手動component変更は外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
+reportは手動component変更を外観変更、操作変更、静的化、削除、未検証に分類する。YouTube
 埋め込みをlinkへ変える場合など、機能を失う置換は非同等と記録する。未検証componentは
 未検証のまま報告し、自動適用候補にはしない。
 

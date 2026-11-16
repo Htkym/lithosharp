@@ -1,0 +1,70 @@
+{
+  "task": "MD-05",
+  "status": "PASS",
+  "componentVersion": "2.0.0-preview.89831114732901",
+  "parserVersion": "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "canonicalSourceHash": "42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f",
+  "runtimeAssemblySha256": "6e1ec01d1b14a27832b0896279889367aab64181daeffdce0b59afe7a97a3629",
+  "actualGenerator": "D:\\a\\lithosharp\\lithosharp\\src\\LithoSharp.Generators\\bin\\Release\\netstandard2.0\\LithoSharp.Generators.dll",
+  "generatorSha256": "2508657022e259e2bb189206be5e41a4fda973b79306e1eefcfc3b805c19da04",
+  "sourceParseCompiled": true,
+  "noSourceFacade": true,
+  "noSourceFriendMetadata": true,
+  "expectedStampRejected": true,
+  "expectedYamlProfileRejected": true,
+  "yamlProfileId": "native-yaml/1",
+  "noYamlDotNetReferences": true,
+  "fixtures": [
+    {
+      "name": "body",
+      "utf16Length": 35,
+      "yamlStatus": null,
+      "yamlDiagnosticCount": null,
+      "sha256": "516e1e79ffe0edb98cbec7bddb0ee4f28849fff2eea0190f4ecedd60ad5db9d9"
+    },
+    {
+      "name": "frontmatter",
+      "utf16Length": 48,
+      "yamlStatus": "Complete",
+      "yamlDiagnosticCount": 0,
+      "sha256": "7246e2c02f880d3204c8021535732139d3c6a5b73f7fd3e74406cb573e631f98"
+    },
+    {
+      "name": "unresolved-reference",
+      "utf16Length": 31,
+      "yamlStatus": null,
+      "yamlDiagnosticCount": null,
+      "sha256": "e3d6d316cb4baa9bf2fe439c20de1a7a50cf1afd213e5634a7149b564cef4c3f"
+    },
+    {
+      "name": "native-yaml",
+      "utf16Length": 215,
+      "yamlStatus": "Complete",
+      "yamlDiagnosticCount": 0,
+      "sha256": "2b501a66cf005bddd8e1bdedd5910b1f19c2f2c45f95a84afbe343d4d5641c3e"
+    },
+    {
+      "name": "native-yaml-duplicate",
+      "utf16Length": 39,
+      "yamlStatus": "Partial",
+      "yamlDiagnosticCount": 1,
+      "sha256": "56b7cd718ef3f70890d42be8bc8ffbdea751d51fce1184af98f7c4a57513feb5"
+    },
+    {
+      "name": "native-yaml-unsupported",
+      "utf16Length": 29,
+      "yamlStatus": "Partial",
+      "yamlDiagnosticCount": 1,
+      "sha256": "b0a0c751d2fce5ae36dcebdce6c59e8164169a5606c84238b7b8105da3abb5bc"
+    },
+    {
+      "name": "native-yaml-incomplete",
+      "utf16Length": 21,
+      "yamlStatus": "Partial",
+      "yamlDiagnosticCount": 1,
+      "sha256": "e959e935655fc1352ad3900e6f95274c8e9890089693ec11b3493387bc46ffec"
+    }
+  ],
+  "actualRoslynHost": "NOT_RUN; IN-01",
+  "bothRepoMatrix": "NOT_RUN; IN-01"
+}

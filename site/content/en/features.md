@@ -20,15 +20,9 @@ sidebar_position: 3
 | Build graph, diagnostics and publication | [Operations](../operations/) | Validation success and publication success are separate evidence |
 | Templates, MDX, migration and testing | [Extended workflows](../extended/) | Additional packages, trusted Node setup or explicit fixtures as documented |
 
-The repository's
-[machine-readable coverage map](https://github.com/Htkym/lithosharp/blob/main/site/feature-coverage.json)
-links stable feature IDs to public entry points, both language pages, source
-examples and limitations. It distinguishes examples executed by this site from
-workflows demonstrated by the existing samples. Listing a feature does not assert
-that every possible configuration was tested.
+The guides link public entry points, English/Japanese pages, source examples and
+limitations. Some examples use this site; others use the existing samples.
+Listing a feature does not assert that every possible configuration was tested.
 
-The [detailed guide index](../../reference/en/README/) reuses the repository's
-canonical guides and package documentation. Each paired source has an explicit
-reviewed revision. The API inventory is generated from the selected packages;
-CLI commands, editor settings, templates, diagnostics and public API contract files
-are captured by the source inventory so changes require an explicit review.
+The [detailed guide index](../../reference/en/README/) covers the canonical guides
+and package documentation. The API reference is generated from the selected packages.

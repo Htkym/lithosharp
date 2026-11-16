@@ -235,7 +235,7 @@ older browser sessions when updating an existing deployment.
 | Legacy Blog, feed and search | [Blog sample](../samples/LithoSharp.Sample/README.md) |
 | React islands, progressive navigation, live code and PWA | [MDX sample](../samples/LithoSharp.MdxSample/README.md) |
 | Multiple versions/locales, Blog/Pages and API reference | [MDX guide](mdx.md); [integration tests](../tests/LithoSharp.Tests/DocumentationTests.cs) provide executable fixtures |
-| XML API builds and tested code examples | [documentation verification](../eng/Test-DocumentationVerification.ps1) |
+| XML API builds and tested code examples | [code-example verification](code-example-verification.md) |
 | Custom C# layout | `lithosharp new empty MySite -o MySite` |
 
 Tests are executable examples of advanced configurations, not additional template

@@ -4,13 +4,13 @@
 
 VS CodeからLithoSharpサイトをビルド・プレビューできます。Markdown/MDXの診断、Markdownのスキーマ補完、見出しによる移動、プロジェクト内の参照プレビューにも対応しています。
 
-このガイドは拡張機能0.5.0とCore/Tool 3.0.0を対象にしています。Toolはサイトと同じバージョンを使います。CoreとMarketplaceの拡張機能は別々に公開されます。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
+このガイドは拡張機能0.5.0とCore/Tool 3.0.0を対象にしています。Toolはサイトと同じバージョンを使います。拡張機能とNuGetパッケージはバージョンが別々です。利用できる機能はバージョン名から推測せず、選択したToolのcapabilityで確認してください。
 
 ## preflightとcapability
 
-`LithoSharp: Preflight` はtrusted workspaceで明示実行するコマンドです。選択中のCLIから互換capability reportを取得し、実際に通知された **Static inputs**（保存済みのactive Markdown/MDXファイルだけ）または **Trusted project catalog**（コンパイルと信頼したfactory/catalogの実行）を選びます。公開済みCore/Tool 1.1を含め、対応capabilityがない場合は理由を表示して実行しません。既存のBuild、Inspect、live診断は維持します。versionだけから新機能を推定せず、未保存の編集はlive診断で検査します。preflightでは描画・公開を行わず、成功したsnapshotを将来の描画許可には使いません。
+`LithoSharp: Preflight` はtrusted workspaceで明示実行するコマンドです。選択中のCLIから互換capability reportを取得し、実際に通知された **Static inputs**（保存済みのactive Markdown/MDXファイルだけ）または **Trusted project catalog**（コンパイルと信頼したfactory/catalogの実行）を選びます。公開済みCore/Tool 1.1を含め、対応capabilityがない場合は理由を表示して実行しません。既存のBuild、Inspect、live診断は維持します。バージョンだけでpreflightが有効になることはなく、この明示的なファイル操作の前に未保存の編集を保存する必要があります。preflightでは描画・公開を行わず、成功したsnapshotを将来の描画許可には使いません。
 
-OutputではLanguage Server同梱CoreとprojectのCore参照を区別します。initializeだけではproject capabilityを取得しません。MDX workerの利用可否は実際の解析後に通知し、利用不能時もMarkdown診断を維持してRestore MDX Workerを案内します。Restore・Restart後には開いているbufferを再送します。C#診断とCodeFixは既存のRoslyn hostが担当し、LSA1402/1403やFixAllに拡張機能側で対応しているとは表示しません。
+OutputではLanguage Server同梱CoreとprojectのCore参照を区別します。initializeだけではproject capabilityを取得しません。MDX workerの利用可否は実際の解析後に通知し、利用不能時もMarkdown診断を維持して `LithoSharp: Restore MDX Worker` を案内します。Restore・Restart後には開いているbufferを再送します。C#診断とCodeFixは既存のRoslyn hostが担当し、この拡張機能は第2のC#サーバーや `LSA1402`/`LSA1403`、FixAllを実装しません。
 
 ## インストールと使い方
 

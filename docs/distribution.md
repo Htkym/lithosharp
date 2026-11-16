@@ -3,16 +3,13 @@
 [日本語](distribution.ja.md)
 
 This guide targets LithoSharp 3.0.0, Language Server 3.0.0, VS Code extension
-0.5.0 and Syntamark 2.0.0. These are development targets, not a publication
+0.5.0. These are development targets, not a publication
 announcement. The extension uses the identity `htkym.lithosharp` and has a
 separate version.
 
-The [version matrix](../eng/version-matrix.json) currently selects Syntamark
-`2.0.0-preview.2026111303`. The [candidate provenance](../eng/markdown/candidate-provenance.json)
-and [runtime/Source pair manifest](../eng/markdown/component-pair.json) identify
-the selected artifacts. This candidate is not formally published. Formal
-adoption requires a reviewed and merged runtime/Source pair published through
-the formal release workflow.
+The selected dependency is the published [Syntamark 2.0.0 release](https://github.com/Htkym/syntamark/releases/tag/v2.0.0).
+Use matching runtime and Source versions. This dependency release does not
+establish LithoSharp 3.0.0 package availability.
 
 ## NuGet packages
 

@@ -587,7 +587,13 @@ public sealed class ReflectionContentFrontMatterBinder<TFrontMatter>
 
         public IReadOnlyDictionary<string, ReflectionBindingMember> Members { get; }
 
-        public static ReflectionBindingPlan Create(Type type)
+        // Plans contain only immutable type metadata, never input values or per-bind policy.
+        // Weak keys avoid keeping collectible nested DTO types alive through this cache.
+        private static readonly ConditionalWeakTable<Type, ReflectionBindingPlan> Plans = new();
+
+        public static ReflectionBindingPlan Create(Type type) => Plans.GetValue(type, Build);
+
+        private static ReflectionBindingPlan Build(Type type)
         {
             var constructor = type.IsValueType
                 ? null

@@ -125,8 +125,8 @@ public abstract class MarkdownComponentRegistration
     }
     private static string Identity(Type type) => $"{type.AssemblyQualifiedName}/{type.Module.ModuleVersionId:N}";
 
-    internal abstract ContentParseResult<string> Render(IReadOnlyDictionary<string, object?> values,
-        SiteSourceLocation? location, ComponentRenderingContext context);
+    internal abstract ContentParseResult<MarkdownComponentOutput> Render(IReadOnlyDictionary<string, object?> values,
+        SiteSourceLocation? location, ComponentRenderingContext context, bool publicMarkdown);
 
     private sealed class TypedRegistration<TProps>(string name, ISiteComponent<TProps> component,
         IContentFrontMatterBinder<TProps> binder, string? schema, string fingerprint,
@@ -135,17 +135,33 @@ public abstract class MarkdownComponentRegistration
     {
         private readonly object gate = new();
 
-        internal override ContentParseResult<string> Render(IReadOnlyDictionary<string, object?> values,
-            SiteSourceLocation? location, ComponentRenderingContext context)
+        internal override ContentParseResult<MarkdownComponentOutput> Render(IReadOnlyDictionary<string, object?> values,
+            SiteSourceLocation? location, ComponentRenderingContext context, bool publicMarkdown)
         {
             lock (gate)
             {
                 var bound = binder.Bind(values, location);
                 if (!bound.IsSuccess)
-                    return ContentParseResult<string>.Failure(bound.Diagnostics);
+                    return ContentParseResult<MarkdownComponentOutput>.Failure(bound.Diagnostics);
                 if (bound.Value is null)
                     throw new InvalidOperationException($"Component binder '{Name}' returned no props.");
-                return ContentParseResult<string>.Success(context.Render(component, bound.Value).ToHtmlString(), bound.Diagnostics);
+                var html = context.Render(component, bound.Value).ToHtmlString();
+                string? markdown = null;
+                var markdownFailed = false;
+                if (publicMarkdown && component is AgentReady.IPublicMarkdownComponent<TProps> provider)
+                {
+                    try
+                    {
+                        markdown = provider.RenderPublicMarkdown(bound.Value, context);
+                    }
+                    catch (Exception failure) when (failure is not OperationCanceledException and not OutOfMemoryException)
+                    {
+                        // Auto provision can fail closed without discarding successful HTML.
+                        // Do not publish arbitrary exception text containing private inputs.
+                        markdownFailed = true;
+                    }
+                }
+                return ContentParseResult<MarkdownComponentOutput>.Success(new(html, markdown, markdownFailed), bound.Diagnostics);
             }
         }
     }

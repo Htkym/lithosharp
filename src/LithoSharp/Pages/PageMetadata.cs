@@ -4,6 +4,8 @@ namespace LithoSharp.Pages;
 
 public sealed class PageMetadata
 {
+    /// <summary>Markdown provision and index listing, independent from this page's HTML publication policy.</summary>
+    public AgentReady.AgentReadyPageOptions AgentReady { get; init; } = new();
     /// <summary>The stable document variant used by contextual search and navigation.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Documentation.DocumentKey? Document { get; init; }

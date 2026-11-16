@@ -12,6 +12,15 @@ using LithoSharp.Performance;
 
 const int defaultPageCount = 100;
 var arguments = BenchmarkArguments.Parse(args);
+if (arguments.Mode == "agent-ready")
+{
+#if MAJOR_ACCEPTANCE_BENCHMARK
+    await AgentReadyWorkload.RunAsync(arguments, args);
+    return;
+#else
+    throw new NotSupportedException("Agent Ready acceptance requires -p:EnableMajorAcceptanceBenchmark=true.");
+#endif
+}
 if (arguments.Mode == "acceptance")
 {
 #if MAJOR_ACCEPTANCE_BENCHMARK
@@ -425,8 +434,8 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--mode" when index + 1 < args.Length:
                     mode = args[++index].ToLowerInvariant();
-                    if (mode is not ("site" or "engine" or "all" or "generator" or "acceptance"))
-                        throw new ArgumentException("The mode must be site, engine, all, generator, or acceptance.", nameof(args));
+                    if (mode is not ("site" or "engine" or "all" or "generator" or "acceptance" or "agent-ready"))
+                        throw new ArgumentException("The mode must be site, engine, all, generator, acceptance, or agent-ready.", nameof(args));
                     break;
                 case "--warmup" when index + 1 < args.Length:
                     warmup = int.Parse(args[++index], CultureInfo.InvariantCulture);
@@ -439,7 +448,7 @@ internal sealed class BenchmarkArguments
                     break;
                 case "--help":
                 case "-h":
-                    Console.WriteLine("Usage: LithoSharp.Performance [--size 100|1000|10000] [--output path] [--smoke] [--profile blog|typed-docs-quality] [--mode site|engine|all|generator|acceptance] [--generator-assembly path] [--scenario all|clean|warm-cache|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path] [--acceptance-family editor|yaml|images|site|factory] [--cancel-after-ms N] [--factory-assembly path --factory-directory path]");
+                    Console.WriteLine("Usage: LithoSharp.Performance [--size 100|1000|10000] [--output path] [--smoke] [--profile blog|typed-docs-quality] [--mode site|engine|all|generator|acceptance|agent-ready] [--generator-assembly path] [--scenario all|clean|warm-cache|no-op|single-page-change|layout-change] [--warmup N] [--iterations N] [--engine-output path] [--acceptance-family editor|yaml|images|site|factory] [--cancel-after-ms N] [--factory-assembly path --factory-directory path]");
                     Environment.Exit(0);
                     break;
                 default:

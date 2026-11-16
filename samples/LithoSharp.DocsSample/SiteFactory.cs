@@ -1,4 +1,5 @@
 using LithoSharp;
+using LithoSharp.AgentReady;
 using LithoSharp.Build;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
@@ -45,6 +46,7 @@ public sealed class DocsSampleFactory : ISiteFactory
             {
                 BrandPrefix = "lithosharp / ",
             },
+            AgentReady = new() { Enabled = true, StructuredData = new() { Mode = AgentReadyStructuredDataMode.Automatic } },
             GenerateLlmsTxt = true
         };
 
@@ -69,7 +71,7 @@ public sealed class DocsSampleFactory : ISiteFactory
             throw new SiteBuildExtensionException(articleResult.Diagnostics);
         }
         var articles = articleResult.Collection!;
-        var topicPages = articles.GeneratePages(
+        var topicPages = articles.GeneratePagesWithMarkdown(
             new ContentCollectionId("article-topics"),
             entry => entry.FrontMatter.Tags,
             group => new SitePage<TopicIndex>(
@@ -86,6 +88,9 @@ public sealed class DocsSampleFactory : ISiteFactory
                 return context.RenderDocument(
                     $"<h1>{System.Net.WebUtility.HtmlEncode(page.Content.Topic)}</h1><ul>{items}</ul>");
             },
+            (page, rendering) => "# " + MarkdownText(page.Content.Topic) + "\n\n" + string.Concat(page.Content.Entries.Select(entry =>
+                "- " + MarkdownLink(entry.FrontMatter.Title, new ContentRef<ContentEntry<ArticleFrontMatter, string>>(GeneratedArticles.Catalog.CollectionId, entry.Id, GeneratedArticles.Catalog.GetRoute(entry.Id)).GetUrl(rendering.Site.BaseUrl).Value) + "\n")),
+            rendererFingerprint: "docs-sample-topics-public:v1",
             transformationId: new ContentTransformationId("docs-sample-topics:v1"),
             isCacheable: true,
             derivedSurfaces: GeneratedPageDerivedSurfaces.Default | GeneratedPageDerivedSurfaces.Navigation);
@@ -108,7 +113,7 @@ public sealed class DocsSampleFactory : ISiteFactory
             Redirects = redirectDemo
                 ? [new SiteRedirect(SiteRoute.ForFile("old-home.html"), SiteRoute.ForDirectoryIndex(""))]
                 : [],
-            ContentCollections = [articles.RenderDocs(
+            ContentCollections = [articles.RenderDocsWithMarkdown(
                 entry => new DocsPagePresentation
                 {
                     Title = entry.FrontMatter.Title,
@@ -120,7 +125,12 @@ public sealed class DocsSampleFactory : ISiteFactory
                     $"<p><a href=\"{rendering.Assets.GetUrl(articleSource).ToAttributeValue()}\">{new HtmlText("Download sample source")}</a></p>" +
                     (image is null ? string.Empty : ResponsiveImage.Render(rendering.Assets, image.Descriptor, "LithoSharp sample icon").ToHtmlString() +
                         $"<p><a href=\"{rendering.Assets.GetUrl(image.Source).ToAttributeValue()}\">Original image</a> · <a href=\"/asset-demo.txt\">Public file</a></p>"),
-                rendererFingerprint: "article-docs-layout:v1",
+                (entry, rendering) => entry.Body + "\n\n"
+                    + MarkdownLink("Read the related typed article", GeneratedArticles.Entries.Typed_Content_Second.GetUrl(rendering.Site.BaseUrl).ToString()) + "\n\n"
+                    + MarkdownLink("Download sample source", rendering.Assets.GetUrl(articleSource).ToString())
+                    + (image is null ? string.Empty : "\n\n!" + MarkdownLink("LithoSharp sample icon", image.Descriptor.Fallback.GetUrl(rendering.Assets))
+                        + "\n\n" + MarkdownLink("Original image", rendering.Assets.GetUrl(image.Source).ToString()) + " · " + MarkdownLink("Public file", "/asset-demo.txt")),
+                rendererFingerprint: "article-docs-layout-public:v1",
                 isThreadSafe: true), topicPages]
         };
         return new SiteDefinition(site, posts)
@@ -130,4 +140,12 @@ public sealed class DocsSampleFactory : ISiteFactory
             Options = options
         };
     }
+
+    // These helpers format newly authored sample content, not source-span edits.
+    private static string MarkdownLink(string text, string url) => "[" + MarkdownText(text) + "](<"
+        + url.Replace("&", "&#38;", StringComparison.Ordinal).Replace("<", "%3C", StringComparison.Ordinal)
+            .Replace(">", "%3E", StringComparison.Ordinal).Replace(" ", "%20", StringComparison.Ordinal) + ">)";
+
+    internal static string MarkdownText(string text) => string.Concat(text.Select(character =>
+        char.IsControl(character) ? " " : "\\`*_{}[]()#+-.!|<>&".Contains(character) ? "\\" + character : character.ToString()));
 }

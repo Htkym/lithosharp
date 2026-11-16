@@ -1,4 +1,5 @@
 using LithoSharp;
+using LithoSharp.AgentReady;
 using LithoSharp.Configuration;
 using LithoSharp.Content;
 using LithoSharp.Diagnostics;
@@ -30,6 +31,7 @@ public sealed class BlogSampleFactory : ISiteFactory
         var customization = new SiteCustomization
         {
             Template = new BlogSiteTemplate(),
+            AgentReady = new() { Enabled = true, StructuredData = new() { Mode = AgentReadyStructuredDataMode.Automatic } },
             GenerateLlmsTxt = true
         };
 

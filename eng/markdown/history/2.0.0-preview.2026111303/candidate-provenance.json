@@ -1,0 +1,21 @@
+{
+  "scope": "SEALED_LOCAL_CANDIDATE_NOT_FORMAL_ADOPTION",
+  "published": false,
+  "componentVersion": "2.0.0-preview.2026111303",
+  "sourceRepository": "https://github.com/Htkym/syntamark",
+  "sourceCommit": "60f9b39c0195149f8e6d6a9bf48d947d9ac4dcd8",
+  "pairManifestPath": "eng/markdown/component-pair.json",
+  "pairManifestSha256": "84c83ff5b8cce544ddba08f18abdf354315fb0bf045c0fefec305813122a23d5",
+  "canonicalSourceHash": "1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0",
+  "parserVersion": "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0",
+  "yamlProfileId": "native-yaml/1",
+  "dependencies": [],
+  "formalAdoptionRequires": "Reviewed and merged Syntamark runtime/Source pair published through the formal release workflow.",
+  "producerManifestSha256": "84c83ff5b8cce544ddba08f18abdf354315fb0bf045c0fefec305813122a23d5",
+  "producerRestoredVerification": {
+    "scope": "Fixed local pair + actual Generator Parse body on net10 CLR; both-repo and real Roslyn-host matrix remains IN-01",
+    "state": "PASS",
+    "consumerAcceptance": "pending",
+    "evidenceSha256": "7e76c301fc6fd5572d8a3ff026e622aa27271ec4a4b69bab2f91ceb86a14b56d"
+  }
+}

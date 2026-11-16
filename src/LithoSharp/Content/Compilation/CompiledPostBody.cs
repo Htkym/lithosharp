@@ -20,6 +20,7 @@ internal sealed record CompiledPostBody(
     /// <summary>Diagnostics from the same final-body snapshot as the rendered content.</summary>
     internal IReadOnlyList<SiteDiagnostic> Diagnostics { get; init; } = [];
     internal RenderedHtmlOrigins? RenderedOrigins { get; init; }
+    internal MarkdownCompilationResult? SourceCompilation { get; init; }
 }
 
 /// <summary>Per-build cache so post HTML, TOC, search text, and links share one parse.</summary>

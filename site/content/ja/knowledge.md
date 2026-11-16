@@ -4,8 +4,7 @@ supported_version: "3.0"
 prerequisites: [quickstart]
 ---
 
-サイトファクトリは `OkfBundle.ReadAsync` で `site/knowledge/` を読みます。
-`AsOf` の日時を固定し、サイトに明示したベース URL を渡します。
+サイトファクトリは固定した `AsOf` の日時とサイトの明示的なベース URL を使い、`OkfBundle.ReadAsync` で `site/knowledge/` を読みます。
 `RenderDocs` と取得済みの補助アセットを通常の出力トランザクションに登録します。
 [英語の概念](../../knowledge/en/typed-sites.html)と[対応する日本語](../../knowledge/ja/typed-sites.html)を確認できます。
 

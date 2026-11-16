@@ -404,6 +404,76 @@ public sealed class HtmlFactsCacheTests
         await Assert.That(large.PendingBytes).IsEqualTo(0);
     }
 
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    public async Task RawRequiredUsesSharedOriginsWithoutAdmittingDecodedRecords(bool seedDecodedCache, bool alreadyParsed)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var partition = Path.Combine(workspace.Root, "cache");
+        var html = Page("", "Home", "😀<a href='target.html?q=a&amp;b'>Link</a>");
+        if (seedDecodedCache)
+        {
+            using var seed = new SiteHtmlFactsCache(partition);
+            await seed.GetAsync(html, default);
+            await seed.PublishAsync();
+        }
+        var before = CacheSnapshot(workspace.Root);
+        await using var owner = new BuildHtmlFacts(default, rawDemand: HtmlRawFactsDemand.Quality);
+        if (alreadyParsed)
+            await owner.GetAsync(html, default);
+        await owner.BeginQualityAsync();
+        using var cache = new SiteHtmlFactsCache(partition, owner);
+        var facts = await cache.GetAsync(html, default);
+        await Assert.That(facts.Title).IsEqualTo("Home");
+        await Assert.That(QualityHtmlFacts.Attribute(facts.Elements.Single(element => element.Name == "a"), "href"))
+            .IsEqualTo("target.html?q=a&b");
+        await cache.GetAsync(html, default);
+        var raw = await owner.GetQualityRawAsync(html, default);
+        var href = raw.Elements.Single(element => element.Name == "a").Attributes.Single(attribute => attribute.Name == "href").Value;
+        await Assert.That(href.Decoded).IsEqualTo("target.html?q=a&b");
+        await Assert.That(href.Raw).IsEqualTo("target.html?q=a&amp;b");
+        await Assert.That(html.Substring(href.Source.Start, href.Source.Length)).IsEqualTo(href.Raw);
+        await Assert.That(owner.Counters.ParseCount).IsEqualTo(1);
+        await Assert.That(cache.ParseCount).IsEqualTo(alreadyParsed ? 0 : 1);
+        await Assert.That(cache.HitCount).IsEqualTo(0);
+        await Assert.That(cache.PendingBytes).IsEqualTo(0);
+        await cache.PublishAsync();
+        await Assert.That(CacheSnapshot(workspace.Root)).IsEquivalentTo(before);
+        // A decoded-only consumer can still reuse an existing record after the raw build.
+        if (seedDecodedCache)
+        {
+            using var decoded = new SiteHtmlFactsCache(partition);
+            await Assert.That((await decoded.GetAsync(html, default)).Title).IsEqualTo("Home");
+            await Assert.That(decoded.HitCount).IsEqualTo(1);
+            await Assert.That(decoded.ParseCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task RawRequiredCancellationDoesNotAdmitRecordsOrStartCanceledParse()
+    {
+        using var workspace = new TemporaryWorkspace();
+        using var buildCancellation = new CancellationTokenSource();
+        using var consumerCancellation = new CancellationTokenSource();
+        await using var owner = new BuildHtmlFacts(buildCancellation.Token, rawDemand: HtmlRawFactsDemand.Quality);
+        using var cache = new SiteHtmlFactsCache(Path.Combine(workspace.Root, "cache"), owner);
+        consumerCancellation.Cancel();
+        await Assert.That(async () => await cache.GetAsync("<title>Home</title>", consumerCancellation.Token))
+            .Throws<OperationCanceledException>();
+        await Assert.That(owner.Counters.ParseCount).IsEqualTo(0);
+        await cache.GetAsync("<title>Home</title>", default);
+        buildCancellation.Cancel();
+        await Assert.That(async () => await cache.GetAsync("<title>Home</title>", default))
+            .Throws<OperationCanceledException>();
+        await Assert.That(cache.ParseCount).IsEqualTo(1);
+        await Assert.That(cache.PendingBytes).IsEqualTo(0);
+        await cache.PublishAsync();
+        await Assert.That(CacheSnapshot(workspace.Root)).IsEmpty();
+    }
+
     private static string Page(string path, string title, string body) =>
         $"<!doctype html><html><head><title>{title}</title><link rel='canonical' href='{BaseUrl}{path}'><meta name='description' content='Description'><meta property='og:title' content='{title}'><meta property='og:description' content='Description'><meta property='og:url' content='{BaseUrl}{path}'></head><body>{body}</body></html>";
     private static string[] Snapshot(string output) => Directory.GetFiles(output, "*", SearchOption.AllDirectories)

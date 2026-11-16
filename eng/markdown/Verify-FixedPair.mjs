@@ -137,8 +137,11 @@ export function verifyPublicationReceipt(m,feed,directory=path.join(root,'eng/ma
   assert(sha(fs.readFileSync(path.join(directory,'component-pair.json')))===p.pairManifestSha256&&p.parserVersion===m.parserVersion&&p.canonicalSourceHash===m.canonicalSourceHash,'Publication manifest/parser binding differs');
   return p;
 }
+export function publicationAccept(url,archive=false){
+  return url.startsWith(api+'/')||!archive?'application/vnd.github+json':'application/octet-stream';
+}
 async function download(url,archive=false){
-  const headers={'User-Agent':'LithoSharp-published-pair-verifier',Accept:archive?'application/octet-stream':'application/vnd.github+json'};
+  const headers={'User-Agent':'LithoSharp-published-pair-verifier',Accept:publicationAccept(url,archive)};
   if(url.startsWith(api+'/')&&(process.env.GH_TOKEN||process.env.GITHUB_TOKEN))headers.Authorization='Bearer '+(process.env.GH_TOKEN||process.env.GITHUB_TOKEN);
   const response=await fetch(url,{headers});
   assert(response.ok,'Official publication unavailable: '+url+' HTTP '+response.status);

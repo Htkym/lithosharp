@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "scope": "Bounded incremental correctness, allocation and elapsed observation; not a statistical performance comparison or formal release acceptance.",
+  "inputs": "100 deterministic pages, 12 links each, fixed timestamp, direct MarkdownPost construction, one process per receipt, off before on, no warmup, one pass.",
+  "codeIdentity": "Receipts were built with worktree changes on the recorded base commits. Exact product/harness assembly hashes identify measured binaries; do not label these as builds of the final integration commit.",
+  "counters": "MarkdownParseCount counts LithoMarkdownCompiler only, not direct post-edit Syntamark analysis. Before receipt HtmlParseCount counts BuildHtmlFacts sharing only and does not include 100 mandatory direct HTML parses per on-stage. After receipt separates AgentValidationDirectParseCount, AgentValidationCacheParseCount, and AgentValidationCacheHitCount.",
+  "observations": [
+    "All eight stages passed output-byte/cache/parse-bound checks in both receipts. All 1200 public cross-links were checked.",
+    "After reuse: on warm/no-op has 0 compiler parses, 0 validation parses, 100 facts cache hits, 0 regenerated nodes, and unchanged output hashes. Single edit reparses/regenerates one HTML/Markdown page.",
+    "On warm allocated bytes decreased from 103735872 to 46119376. Elapsed time was 584.08 ms before and 710.9202 ms after; no speedup or regression-free claim is supported by these single observations.",
+    "Actual artifact reads and current plan/graph checks remain mandatory. Fact deserialization/cache I/O and feature planning remain additional costs. Quality-enabled JSON-LD still uses full current-output validation and was not optimized or measured by this Quality-disabled scenario."
+  ],
+  "receipts": [
+    {
+      "file": "before-facts-reuse.json",
+      "workingTreeChangesPresent": true,
+      "productAssemblySha256": "69a1d2ea8584dbde2e1a8e3013c4c0ebbac512d9d990e4f727d795f16617ff99",
+      "harnessAssemblySha256": "d0ea6440a13f2d6fc3345ede471cf45e1b1158744df260cef7df6abd1eac38dc",
+      "sha256": "1619d1ddd6f960f64a13b908ae1390b99c69deea64947c3feff93662f290d7ec",
+      "scope": "Eight stages in one process, off before on; no statistical speed claim. Time/allocation cover generation only, excluding corpus preparation and verification. Direct MarkdownPost construction excludes reader parsing. RenderedNodeCount means build-cache misses, including aggregate nodes. Fresh compiler each stage; fixed timestamp; Quality disabled to isolate Agent Ready.",
+      "baseCommit": "ee975e17be01ab976c10e06b2099d943f0b9a1f5",
+      "originalReceiptSha256": "ce9d24493d3785ceefb8de124c8e20db13694d4cc5a775bb38f576dcb8ac3502"
+    },
+    {
+      "file": "after-facts-reuse.json",
+      "workingTreeChangesPresent": true,
+      "productAssemblySha256": "6902c3cc9b3262b90f429da0a6d60d0fa10d9ca29071c4c9824876b9dfa0ce52",
+      "harnessAssemblySha256": "af6cc4fa009306e58208e6f36f2025cb213e2a70f4afb47e78f75ef0f4504927",
+      "sha256": "e6409c1896894e98740b12f92b70c7efd03a478dd77b88d1b3487112dce7b0c4",
+      "scope": "Eight stages in one process, off before on; no statistical speed claim. Time/allocation cover generation only, excluding corpus preparation and verification. Direct MarkdownPost construction excludes reader parsing. RenderedNodeCount means build-cache misses, including aggregate nodes. Fresh compiler each stage; fixed timestamp; Quality disabled to isolate Agent Ready.",
+      "baseCommit": "dca534aa0b315da6355f135be34b9617cdcbed86",
+      "originalReceiptSha256": "aedc6c5f86778fe116c704b7b22917b1c23bca0721eec47d5a72cab29b4b2cc2"
+    }
+  ],
+  "receiptEncoding": "Repository JSON is normalized to UTF-8 without BOM and LF. sha256 identifies these bytes; originalReceiptSha256 identifies the preserved original measurement file."
+}

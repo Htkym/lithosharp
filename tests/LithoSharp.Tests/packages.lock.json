@@ -110,8 +110,8 @@
       },
       "Syntamark": {
         "type": "Transitive",
-        "resolved": "2.0.0-preview.2026111303",
-        "contentHash": "VP8SuaTSd3U/z2sdU0EVABDkGAhO1V1hadejfDD4flBFZcJlxnz6lml/JA4/c7U8NaS3t9IQAVaZmCLeYBBG6g=="
+        "resolved": "2.0.0",
+        "contentHash": "qy/DeAgT+mCYSA8UmhLaFOnGDuKSl/itADg2FsyYU4+glslN965MVGxdfLjCPwudsjQGx62Vlfb9LZqnQQRekg=="
       },
       "TUnit.Assertions": {
         "type": "Transitive",
@@ -137,7 +137,7 @@
       "lithosharp": {
         "type": "Project",
         "dependencies": {
-          "Syntamark": "[2.0.0-preview.2026111303, 2.0.0-preview.2026111303]"
+          "Syntamark": "[2.0.0, 2.0.0]"
         }
       },
       "lithosharp.analyzers": {

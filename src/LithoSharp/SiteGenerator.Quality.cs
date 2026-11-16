@@ -16,8 +16,15 @@ public sealed partial class SiteGenerator
             root, SafeCombine(root, path), asynchronous: true);
         using var buffer = new MemoryStream();
         await source.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-        inspected.Add(path, new(path, path, buffer.Length, Convert.ToHexStringLower(
-            System.Security.Cryptography.SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)))));
+        var observed = new CachedBuildArtifact(path, path, buffer.Length, Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length))));
+        if (inspected.TryGetValue(path, out var previous))
+        {
+            if (previous.Length != observed.Length || previous.Sha256 != observed.Sha256)
+                throw new IOException($"Quality-inspected output changed between validation stages: '{path}'.");
+        }
+        else
+            inspected.Add(path, observed);
         if (strictUtf8)
         {
             cancellationToken.ThrowIfCancellationRequested();

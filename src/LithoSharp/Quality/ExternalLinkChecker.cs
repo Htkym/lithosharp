@@ -90,7 +90,7 @@ internal static class ExternalLinkChecker
             && !(bytes[0] == 0x3f && bytes[1] == 0xff && (bytes[2] & 0xf0) == 0);
     }
 
-    private static SocketsHttpHandler CreateClient()
+    internal static SocketsHttpHandler CreateClient()
     {
         return new SocketsHttpHandler
         {
@@ -155,7 +155,7 @@ internal static class ExternalLinkChecker
         throw new HttpRequestException("The redirect limit was exceeded.");
     }
 
-    private static async Task<HttpResponseMessage> SendRateLimitedAsync(HttpClient client, HttpRequestMessage request, TimeSpan interval, CancellationToken token)
+    internal static async Task<HttpResponseMessage> SendRateLimitedAsync(HttpClient client, HttpRequestMessage request, TimeSpan interval, CancellationToken token)
     {
         await RateGate.WaitAsync(token).ConfigureAwait(false);
         try
@@ -179,7 +179,7 @@ internal static class ExternalLinkChecker
         }
     }
 
-    private static void ValidateUri(Uri uri)
+    internal static void ValidateUri(Uri uri)
     {
         if ((uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Fragment) || (IPAddress.TryParse(uri.Host, out var address) && !IsPublicAddress(address)))
             throw new HttpRequestException("The external link URL is invalid or resolves to a non-public address.");

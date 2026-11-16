@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import test from 'node:test';
-import {checkPublishedPayload,verifyFixedPackage,verifyPublicationReceipt} from './Verify-FixedPair.mjs';
+import {checkPublishedPayload,publicationAccept,verifyFixedPackage,verifyPublicationReceipt} from './Verify-FixedPair.mjs';
 
 const directory=path.dirname(fileURLToPath(import.meta.url));
 const pair=JSON.parse(fs.readFileSync(path.join(directory,'component-pair.json')));
@@ -49,4 +49,10 @@ test('stable staging refuses preview input before any download or write',()=>{
   const result=spawnSync(process.execPath,[path.join(directory,'Verify-FixedPair.mjs'),'stage-published-stable','2.0.0-preview.1','1','0'.repeat(64),output],{encoding:'utf8',windowsHide:true});
   assert.notEqual(result.status,0);assert.match(result.stderr,/Require the exact stable Syntamark target/);
   assert.equal(fs.existsSync(output),false);
+});
+
+test('GitHub artifact downloads use the API media type before the ZIP redirect',()=>{
+  assert.equal(publicationAccept('https://api.github.com/repos/Htkym/syntamark/actions/artifacts/123/zip',true),'application/vnd.github+json');
+  assert.equal(publicationAccept('https://api.github.com/repos/Htkym/syntamark/actions/runs/123'),'application/vnd.github+json');
+  assert.equal(publicationAccept('https://api.nuget.org/v3-flatcontainer/syntamark/2.0.0/syntamark.2.0.0.nupkg',true),'application/octet-stream');
 });

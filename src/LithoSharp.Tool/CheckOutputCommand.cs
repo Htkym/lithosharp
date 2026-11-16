@@ -8,15 +8,23 @@ namespace LithoSharp.Tool;
 
 internal static class CheckOutputCommand
 {
-    private const string Usage = "Usage: lithosharp check-output --output <existing-directory> --base-url <published-url> [--format text|json|sarif] [--site-id <identity> [--baseline <published-manifest> | --initialize-baseline <new-manifest>] [--require-publication-compatibility] [--exclude-output <exact-file-path>] [--allow-removals <url-to-reason.json>]]";
+    private const string Usage = "Usage: lithosharp check-output --output <existing-directory> --base-url <published-url> [--format text|json|sarif] [--http] [--site-id <identity> [--baseline <published-manifest> | --initialize-baseline <new-manifest>] [--require-publication-compatibility] [--exclude-output <exact-file-path>] [--allow-removals <url-to-reason.json>]]";
 
     internal static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var exclusions = new List<string>();
         var required = false;
+        var http = false;
         for (var index = 0; index < args.Length; index++)
         {
+            if (args[index] == "--http")
+            {
+                if (http)
+                    throw new CliUsageException(Usage);
+                http = true;
+                continue;
+            }
             if (args[index] == "--require-publication-compatibility")
             {
                 if (required)
@@ -49,8 +57,9 @@ internal static class CheckOutputCommand
             throw new CliUsageException(Usage);
         var initialize = values.ContainsKey("initialize-baseline");
         var compare = required || values.ContainsKey("baseline");
-        if (initialize && compare || (initialize || compare) != values.ContainsKey("site-id")
-            || values.ContainsKey("allow-removals") && !compare || exclusions.Count != 0 && !initialize && !compare)
+        if (initialize && compare || (initialize || compare) && !values.ContainsKey("site-id")
+            || values.ContainsKey("site-id") && !initialize && !compare && !http
+            || values.ContainsKey("allow-removals") && !compare || exclusions.Count != 0 && !initialize && !compare && !http)
             throw new CliUsageException(Usage);
         required = compare;
         var format = values.GetValueOrDefault("format", "text") switch
@@ -84,8 +93,8 @@ internal static class CheckOutputCommand
         SiteQualityReport report;
         try
         {
-            report = initialize || compare
-                ? await GeneratedSiteInspector.InspectPublicationAsync(output, baseUrl, values["site-id"], exclusions, cancellationToken).ConfigureAwait(false)
+            report = initialize || compare || http
+                ? await GeneratedSiteInspector.InspectPublicationAsync(output, baseUrl, values.GetValueOrDefault("site-id", "explicit-http-inspection"), exclusions, cancellationToken).ConfigureAwait(false)
                 : await GeneratedSiteInspector.InspectAsync(output, baseUrl, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (compare && exception is IOException or UnauthorizedAccessException
@@ -93,6 +102,7 @@ internal static class CheckOutputCommand
         {
             report = SitePublicationCompatibility.NotCompared($"Current output could not be inspected; no publication comparison was performed: {exception.Message}", required);
         }
+        var httpManifest = report.PublicationManifest;
         if (compare && report.PublicationCompatibility is null)
         {
             IReadOnlyDictionary<string, string> allowances = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -122,7 +132,27 @@ internal static class CheckOutputCommand
                 PublicationCompatibilityRequired = required,
             };
         }
-        if (initialize && report.PublicationManifest is { } candidate)
+        if (http)
+        {
+            SiteQualityReport httpReport;
+            if (httpManifest is null)
+                httpReport = new([new SiteDiagnostic("LSPHTTP001", SiteDiagnosticSeverity.Error,
+                    "Public HTTP inspection was not performed because current output could not produce a verified artifact inventory.")]);
+            else
+            {
+                Console.Error.WriteLine("Explicit public HTTP inspection: current artifact URLs, MIME, Markdown bytes, redirects, unknown-URL 404 and origin-root robots.txt. No baseline is promoted.");
+                httpReport = await SitePublicationHttpInspector.InspectAsync(httpManifest, cancellationToken).ConfigureAwait(false);
+            }
+            report = new SiteQualityReport(report.Diagnostics.Concat(httpReport.Diagnostics))
+            {
+                HtmlParseCount = report.HtmlParseCount,
+                PublicationManifest = report.PublicationManifest,
+                PublicationCompatibility = report.PublicationCompatibility,
+                PublicationCompatibilityRequired = report.PublicationCompatibilityRequired,
+            };
+        }
+        if (initialize && report.PublicationManifest is { } candidate
+            && !report.Diagnostics.Any(diagnostic => diagnostic.Severity >= SiteDiagnosticSeverity.Error))
         {
             var target = Path.GetFullPath(values["initialize-baseline"]);
             GeneratedSiteInspector.EnsureSafeAncestors(Path.GetDirectoryName(target)!);
@@ -136,6 +166,7 @@ internal static class CheckOutputCommand
             { PublicationCompatibility = SitePublicationCompatibilityState.NotCompared };
         }
         var banner = initialize ? $"Output inspection with explicit baseline initialization (no generation): {output}"
+            : http ? $"Read-only output inspection with explicit public HTTP checks (no generation): {output}"
             : $"Read-only output inspection (no generation): {output}";
         (format == SiteDiagnosticFormat.Text ? Console.Out : Console.Error).WriteLine(banner);
         Console.WriteLine(report.Format(format));

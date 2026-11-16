@@ -8,18 +8,18 @@
       "version": "3.0",
       "id": "introduction",
       "sourcePath": "README.md",
-      "sourceSha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b",
+      "sourceSha256": "7469d40efb99af5523efca66743fc56c2749060b795f08e2dc9d11ffe0fbaffc",
       "translationPath": "README.ja.md",
-      "translationSha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6"
+      "translationSha256": "87d07dbd3ea35343cb091120f6e45288ad1a893161ae6f28fa8063621ff620ed"
     },
     {
       "collection": "reference",
       "version": "3.0",
       "id": "README",
       "sourcePath": "docs/README.md",
-      "sourceSha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074",
+      "sourceSha256": "b91286ba72df10d2186cd5bcd8c980e6d2bbde37b14907d54e4267dfd20304b3",
       "translationPath": "docs/README.ja.md",
-      "translationSha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d"
+      "translationSha256": "f83bdbf7c6a7138bd301f9ed796ca0a524f455d266833f77137f63f309e97153"
     },
     {
       "collection": "reference",
@@ -28,7 +28,7 @@
       "sourcePath": "docs/Testing-v2-api.md",
       "sourceSha256": "053623a532067b95623fd582f0e94b7bebbbe6255ae27f1a63a1572d89846be6",
       "translationPath": "docs/Testing-v2-api.ja.md",
-      "translationSha256": "592b121f96eb14814860f963ee79947d2b662eb085651f13d6712fdfa612307b"
+      "translationSha256": "65e970796de604e09e29caa026de9642d6c8680cf379e06782969045143adc0f"
     },
     {
       "collection": "reference",
@@ -37,7 +37,25 @@
       "sourcePath": "docs/adoption-guide.md",
       "sourceSha256": "e066062ee0cf390003907f1a2caee100c6ba1ba544379331292ae2c18ce3eed8",
       "translationPath": "docs/adoption-guide.ja.md",
-      "translationSha256": "f0c0345bd32d6b00a858b01b730121075ffe4eea816adf8b120a0d7ac0263f48"
+      "translationSha256": "1204cf95311a876cecf556e946dd342de8975fbd0cb7c3bfde276a28da896907"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready",
+      "sourcePath": "docs/agent-ready.md",
+      "sourceSha256": "dbfe0f20e2d76e62cbb1795fd9b08f89de02848d8562b3c75097ee9923722d07",
+      "translationPath": "docs/agent-ready.ja.md",
+      "translationSha256": "ddbd56daf29ac12de157ff582bd659ea47baf4d7ec15893022ec1bd4373f2a79"
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "sourcePath": "docs/agent-ready-metadata.md",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "translationPath": "docs/agent-ready-metadata.ja.md",
+      "translationSha256": "eb1fd15423c1bd24d533b0bcc719b3084a4584fdd4d59cb455ce2404e6f2221f"
     },
     {
       "collection": "reference",
@@ -55,7 +73,7 @@
       "sourcePath": "docs/build-graph.md",
       "sourceSha256": "a8960766533dbd0712c7258900046e1ac0f4cfb1022bbf99a45c1f0811333176",
       "translationPath": "docs/build-graph.ja.md",
-      "translationSha256": "904fb737dda474e21bf18e5fc59e549f2751b49bd1c05a5ed0b8274ac58108ca"
+      "translationSha256": "a07274192b3a98895f7ebf440023be398bf375b593fd0df6cdfd680b1316baeb"
     },
     {
       "collection": "reference",
@@ -64,7 +82,7 @@
       "sourcePath": "docs/cli.md",
       "sourceSha256": "695d3f4fb0ca48223c325b12dfe46011b24869430a5accab9f62baea521cf5e7",
       "translationPath": "docs/cli.ja.md",
-      "translationSha256": "8a2cc7a8db61f1ef566daa9f4861df9fa2bf566579f84342d08379e73f592cd5"
+      "translationSha256": "daa539f268dcc47a8dc8412c4fb87ee213d4226100ae8ac92f142bf0f508d5d7"
     },
     {
       "collection": "reference",
@@ -80,9 +98,9 @@
       "version": "3.0",
       "id": "compatibility-contract",
       "sourcePath": "docs/compatibility-contract.md",
-      "sourceSha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7",
+      "sourceSha256": "d03fc78ab35e07ac1003b800b643792ef822fbb4b84b0fc489763e346f027e65",
       "translationPath": "docs/compatibility-contract.ja.md",
-      "translationSha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d"
+      "translationSha256": "3f0e33653c92cc05a26da0b01b9d6a82f0672d820fc9e3401ee1ea89c3836445"
     },
     {
       "collection": "reference",
@@ -100,16 +118,16 @@
       "sourcePath": "docs/diagnostics.md",
       "sourceSha256": "24a7491e0dddc9e1a85cea8b694642a55f689ed7d4f5a7b6ae83778c9d4dd19d",
       "translationPath": "docs/diagnostics.ja.md",
-      "translationSha256": "539b7848169fe8e547c260f43f3039df04be68ec9cb40592aef4042c5e238b3b"
+      "translationSha256": "be83de7ebd7a1d1d7b66d056b26f18090f7d07a38f87f6493e3c4264f4b0117b"
     },
     {
       "collection": "reference",
       "version": "3.0",
       "id": "distribution",
       "sourcePath": "docs/distribution.md",
-      "sourceSha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58",
+      "sourceSha256": "ea648074ec90afff8d7d01db095d34f1c3e1617004fb6abfebea2246f1c44b7c",
       "translationPath": "docs/distribution.ja.md",
-      "translationSha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538"
+      "translationSha256": "c294856c155ee9075b768d8e085c60701ad06c2ab87868d211d0d81a37fc5246"
     },
     {
       "collection": "reference",
@@ -118,7 +136,7 @@
       "sourcePath": "docs/docs-template.md",
       "sourceSha256": "624038b7513d8fb3f74e62c1d501e6e26bce72b4763ce50b36a21c671bef6fad",
       "translationPath": "docs/docs-template.ja.md",
-      "translationSha256": "b126f042a0fccef655a7580855bd8294143971c80bca2d82013b1468ea5d70a5"
+      "translationSha256": "0f317ffb1638655bc5bf8d493eacebb85579e38ec0db21205658878a85d3e1be"
     },
     {
       "collection": "reference",
@@ -127,16 +145,16 @@
       "sourcePath": "docs/docusaurus-migration.md",
       "sourceSha256": "aa43b31b0b59b3fef159595668cf6f7700a9314fac2c5d27c2173869f98f0efe",
       "translationPath": "docs/docusaurus-migration.ja.md",
-      "translationSha256": "aa5da5e4231c6f8820d11b1e0d126e90a5e84cc504c871963bd121138306c551"
+      "translationSha256": "ef7cd707f28b127a86208501316a886b5b841e955dddc347d9a5058b90238563"
     },
     {
       "collection": "reference",
       "version": "3.0",
       "id": "generated-output-checks",
       "sourcePath": "docs/generated-output-checks.md",
-      "sourceSha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147",
+      "sourceSha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc",
       "translationPath": "docs/generated-output-checks.ja.md",
-      "translationSha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f"
+      "translationSha256": "15ce57be2121c4f1257796cd8f90394f35398670d0a7a51c7e5d45bf4341ad21"
     },
     {
       "collection": "reference",
@@ -154,7 +172,7 @@
       "sourcePath": "docs/incremental-builds.md",
       "sourceSha256": "b6cd7a70862f4432f8a3a86ccc72b90d26d1423ef3911b2d24ceacd1fd2d9406",
       "translationPath": "docs/incremental-builds.ja.md",
-      "translationSha256": "81eb7a5879d18f76bd36da3a724647a2c230c24a8eb2c4e8995490d16d455129"
+      "translationSha256": "9b1dad9d9a9178674d6a7b7a7ca2b6770a0a2a47b8b326cf808902e85d607210"
     },
     {
       "collection": "reference",
@@ -163,7 +181,7 @@
       "sourcePath": "docs/known-limitations.md",
       "sourceSha256": "b03f3bbf320a44d0872bb5c8dddf8438c5c1f716a5538a772653f1386d974605",
       "translationPath": "docs/known-limitations.ja.md",
-      "translationSha256": "6638cc51608bd48c28b2ad41ab55bcba7dc8b663cba3f779f622436019aa8805"
+      "translationSha256": "904271b0563a1e6e49fbfa13cecf4b3c9b3610789ee8f6386c201784f28fbe80"
     },
     {
       "collection": "reference",
@@ -172,7 +190,7 @@
       "sourcePath": "docs/language-server.md",
       "sourceSha256": "45f4e903bbce11c2257ab3e958830c58a81795a5157112382a20a374fa44ea28",
       "translationPath": "docs/language-server.ja.md",
-      "translationSha256": "d4c4fe1f25f3ba3cb8e5fe950a941731ec1cd07798da42ddc29a13f1b55bef7c"
+      "translationSha256": "798a59ae47550aed9851abece465468c267bb3491c296a49cfc9714aeb61d265"
     },
     {
       "collection": "reference",
@@ -190,7 +208,7 @@
       "sourcePath": "docs/markdown-profiles.md",
       "sourceSha256": "0a5957ffbf2fa24fe4e95cef3e093665b98a57be19794a5043a33a292d6589d9",
       "translationPath": "docs/markdown-profiles.ja.md",
-      "translationSha256": "3db9e4b89023f9b8d4dfd43bb2ab0363dad5b18752992d98ab4cc635dff18ee1"
+      "translationSha256": "221976e74d71cf62aaae4fffa20f3abc818d7893983bb9b49f380d92690bb134"
     },
     {
       "collection": "reference",
@@ -199,7 +217,7 @@
       "sourcePath": "docs/mdx.md",
       "sourceSha256": "d6743f9808e1710219ff94ed4fb1bbc7f6b257ec345e1b9f94bfc7c9e19d3fd8",
       "translationPath": "docs/mdx.ja.md",
-      "translationSha256": "8150a0e6cc06e6cec26cfec913e33b7e8147cbef51cd4e525389a7b54eb2c2ff"
+      "translationSha256": "fdd2c729684752082f7c15dc3fc64f754453595dcf2d0dccc51e05bcc1450160"
     },
     {
       "collection": "history",
@@ -208,7 +226,7 @@
       "sourcePath": "docs/migration-2.0.md",
       "sourceSha256": "4eb6b81d2ae6b008132c970ab1ff9e4a136e4b366f3260dc65d8b5c83706daf2",
       "translationPath": "docs/migration-2.0.ja.md",
-      "translationSha256": "290f5f311d5ac9689bc08ba34415d02d935ccc81b6877c3c1b43d10d2f7dc477"
+      "translationSha256": "940b7fc95ee8ca543d8afdd90b905d90c781edf286a46f91d518a33d58bf0572"
     },
     {
       "collection": "reference",
@@ -217,7 +235,7 @@
       "sourcePath": "docs/migration-3.0.md",
       "sourceSha256": "114c18c4d9ed948fbf250995333a7025c2adcd8771c467a19dfade86ea514870",
       "translationPath": "docs/migration-3.0.ja.md",
-      "translationSha256": "ec9d29eef5d4c879ebdec03c04f64d49c7b6063fb2a12ec9925afe7a2d6a6bd0"
+      "translationSha256": "6994273f46d60bef718c518d5a7025878f18f82d8c94015a62f09b01989e70fe"
     },
     {
       "collection": "reference",
@@ -251,9 +269,9 @@
       "version": "3.0",
       "id": "quickstart",
       "sourcePath": "docs/quickstart.md",
-      "sourceSha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be",
+      "sourceSha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573",
       "translationPath": "docs/quickstart.ja.md",
-      "translationSha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0"
+      "translationSha256": "a26033ce8ac788e6b1463225ed775347cf94ed6bf464cb189c575ff404b2cded"
     },
     {
       "collection": "reference",
@@ -289,7 +307,7 @@
       "sourcePath": "docs/source-generators.md",
       "sourceSha256": "cc51bf552385dab6d7ff466569fe076c5a961c1be031b3c913674efd4c9cc5b3",
       "translationPath": "docs/source-generators.ja.md",
-      "translationSha256": "04a4a80852072f082544db244f44fe3e31043d978905b2eb9d7f2ee5682e819c"
+      "translationSha256": "3022473f1afcb2ecbfc177f43b561435b3b28fb640987f1f3b342524b3a2149c"
     },
     {
       "collection": "reference",
@@ -298,7 +316,7 @@
       "sourcePath": "docs/syntamark-contracts.md",
       "sourceSha256": "bebcab3d80df609ff511c3c8689696e3de7acd7ee9be7374611548061aebc5e2",
       "translationPath": "docs/syntamark-contracts.ja.md",
-      "translationSha256": "5dfbf4c90ff3adbbaeb420f4a723ab860ce5832fc4c073911784f48bed131aa6"
+      "translationSha256": "533eee61b9879e6312411d39121a97e88157d457af32de2f667ebed466ee7e87"
     },
     {
       "collection": "reference",
@@ -307,7 +325,7 @@
       "sourcePath": "docs/testing.md",
       "sourceSha256": "7e0ed0a4263d2a01935e6be438bf0a75ba8b6d248ecbf7198cafe972fd8d27e9",
       "translationPath": "docs/testing.ja.md",
-      "translationSha256": "6ccee122c8139fce4e7f9c6879ed64614b4069a7df75b17a4c33f6e3d8fbfdaf"
+      "translationSha256": "3c88767c5b36776a5de67a16ea9e795db19c2d0b0c44a6adeaa7d47af7878d02"
     },
     {
       "collection": "reference",
@@ -316,7 +334,7 @@
       "sourcePath": "docs/tooling-capabilities.md",
       "sourceSha256": "4bec71602ddf18872a19347157e8be8105d83341b424b6461e1ba9bdf33600b9",
       "translationPath": "docs/tooling-capabilities.ja.md",
-      "translationSha256": "6914dbfa2802c66ba5b843c5fc1c819cb6b8890ca0689f8780d55d191a87d21d"
+      "translationSha256": "6ea40f3b1e2c835475dad025b05b4bb306bc635e01d3f410cc1d0ee9b71141f9"
     },
     {
       "collection": "reference",
@@ -325,7 +343,7 @@
       "sourcePath": "docs/typed-markdown-collections.md",
       "sourceSha256": "1b69495d2b3ce86a7ed972a90d6dae80150c7d64970c7b7998a3aab34e48cf31",
       "translationPath": "docs/typed-markdown-collections.ja.md",
-      "translationSha256": "54d416ab39bbd429f59d931da7b918f10b73c5aa2c59d3792f61cdc105e06edb"
+      "translationSha256": "82e6f0a8db665607bdb5e5498aa4d2f040416f89fbc1283b4727a93d095d27ff"
     },
     {
       "collection": "reference",
@@ -343,7 +361,7 @@
       "sourcePath": "extensions/lithosharp-vscode/README.md",
       "sourceSha256": "16bfce29b78b86b7692b283e0279b8fad985cd5c0b02b1702f37a792a052d124",
       "translationPath": "extensions/lithosharp-vscode/README.ja.md",
-      "translationSha256": "c87740dfffde8e9bf0ddd2b14878dc84efe9213d76c570ec7f374d4a36135531"
+      "translationSha256": "ace3077c1eecd84c35da714eabbb6fecdbbf396ea34ff9091ab51308e20acb5d"
     },
     {
       "collection": "samples",
@@ -379,7 +397,7 @@
       "sourcePath": "src/LithoSharp.Analyzers/README.md",
       "sourceSha256": "520bc45fca391552e4bdecdf2e71eb172cd8837c16634397206a90f92a7c5858",
       "translationPath": "src/LithoSharp.Analyzers/README.ja.md",
-      "translationSha256": "aead25c46ad852f7395740c1aa3856d0e406bb2f38dfb99ee0f005d4ba8fb5e9"
+      "translationSha256": "3fc1b055accf82216bfc7e6bd04ae49192ee4fe88487e41ee2c50e6c4ba5fdc0"
     },
     {
       "collection": "packages",
@@ -433,7 +451,7 @@
       "sourcePath": "src/LithoSharp.Tool/README.md",
       "sourceSha256": "74ed4a9f390b4d96d5a1775a2d954dba0cc024b95afd408c7688feab902e45fb",
       "translationPath": "src/LithoSharp.Tool/README.ja.md",
-      "translationSha256": "fd72c1b43c1dbab99317b425a374cdf9d0025c69dbc0a42f82493a690c7a2f0c"
+      "translationSha256": "a3593d6f672c583a7247dbec18640016cec03083980f7bac559b96154e24859e"
     },
     {
       "collection": "packages",
@@ -443,6 +461,127 @@
       "sourceSha256": "7ba6439db2be8c53dc0f85e03a72f749d6bca01f594954f1b3665cd8ed56723c",
       "translationPath": "templates/LithoSharp.ProjectTemplates/README.ja.md",
       "translationSha256": "6201867156204d22a8130ff5a0a45c9e1cd3943dca37228ffd6e2cf4e164a95c"
+    }
+  ],
+  "reviewUpdates": [
+    {
+      "collection": "overview",
+      "version": "3.0",
+      "id": "introduction",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "8ad6368d560ec5c688f4b6d3c0ca1690c40da80f06943a37f447796279986c7b",
+      "previousTranslationSha256": "f49224a50036fdc5a2d5ae1aec83ae0dc6df57be37653b77520ddfac07f178d6",
+      "sourceSha256": "7469d40efb99af5523efca66743fc56c2749060b795f08e2dc9d11ffe0fbaffc",
+      "translationSha256": "5374f6ac5c3f2b285b858cce946763d5a85b7e507e90a07c5693f519eb605ae3",
+      "scope": "Agent Ready guide link only. The prior whole-document translation review is retained; unchanged text was not re-reviewed."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "README",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "fa5cf7e1dddd28a6e2633a6b6dce6f8558b925b6bbf459c17070b3363b121074",
+      "previousTranslationSha256": "3d5c15110a4f9e1f9276d8b3be752919f3c34187187d4f69738be74dd235b39d",
+      "sourceSha256": "b91286ba72df10d2186cd5bcd8c980e6d2bbde37b14907d54e4267dfd20304b3",
+      "translationSha256": "f83bdbf7c6a7138bd301f9ed796ca0a524f455d266833f77137f63f309e97153",
+      "scope": "Agent Ready guide link only. The prior whole-document translation review is retained; unchanged text was not re-reviewed."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "generated-output-checks",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "dc1f30c35b60fbd17abde75bb288dfd85dbf3478e25c425f945563bb2118d147",
+      "previousTranslationSha256": "ae9f91e807fca213818aa4e3abbba4c99bce0e971f5947acd91c7040b05a717f",
+      "sourceSha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc",
+      "translationSha256": "58e2090622a4b9d65e2f0e9f64df02ab6c0c82822a6c02e7fbfaec69cd064d67",
+      "scope": "Explicit HTTP inspection section from commits 6a6d028 and 6174e13 was paired-reviewed. Existing prose outside that section retains its previous review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "0f0369833009f6e3e8ae5b66ed97ba87979229f07ccd5ec2ca2f0e53bbee2c58",
+      "previousTranslationSha256": "691d1d7a5ce765a5effaf5ff52b8d59bd210adc325bb156891a3baaa6ae83538",
+      "sourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
+      "translationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c",
+      "scope": "Only the selected Syntamark preview version token changed from 2026111303 to 89831114732901 in both languages. The integration owner checked the token against the selected runtime/Source manifest; prior whole-document translation review is retained."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "dbfe0f20e2d76e62cbb1795fd9b08f89de02848d8562b3c75097ee9923722d07",
+      "translationSha256": "4c5434a3a3aec190985ef321b14240a275367cfde9e88928d946fb4c8ce657f7",
+      "scope": "The full guide pair was reviewed at f156a9e. This update checks only the limited static MDX section and unchanged example parity, against the confirmed worker/bridge contracts; local Yomiyasu lint/diff/materials and final-file verification completed.",
+      "previousSourceSha256": "749c3f5cca3de386e472878c25b5e2c338814d088163ac3054d37de581d4668e",
+      "previousTranslationSha256": "6e0b102b09d3b644981cafd81f2f9ec3ab50760f2dfdcdd6c9c5392a04e77532",
+      "basis": "Prior full EN/JP guide review at f156a9e; current delta independently read against the fixed static MDX implementation."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "translationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
+      "scope": "Metadata guide pair was reviewed in c2551e9 and 6174e13. The current pair and reciprocal language link were checked; the unchanged Japanese file still matches its recorded local Yomiyasu verification."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "agent-ready-metadata",
+      "reviewedAt": "2026-11-15",
+      "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
+      "previousTranslationSha256": "50c73ebe2faccccb4a26cacf2344254495207db3fa8c955f34f184cda90ac306",
+      "translationSha256": "eb1fd15423c1bd24d533b0bcc719b3084a4584fdd4d59cb455ce2404e6f2221f",
+      "scope": "Only the Japanese HTTP-inspection link fragment changed from the untranslated Japanese heading to http, matching the compiled ASCII heading-ID contract. No prose or English link changed. Earlier whole-document review remains intact; local Yomiyasu diff/lint/material comparison and final-file verification cover this correction."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "compatibility-contract",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "0b40852a632fd7d99fcdd679f1cde7952f04a3c9c3cff4138243c04a5cfd69a7",
+      "previousTranslationSha256": "a37a4d9343e40ab86e479c869065a8e5ddb7fc14354be1a83dd271bd2bbd902d",
+      "sourceSha256": "d03fc78ab35e07ac1003b800b643792ef822fbb4b84b0fc489763e346f027e65",
+      "translationSha256": "a7bca3657e5a8b1b26e0fbe1a39fdf58da9b365400bea5bb35ff4109b3290573",
+      "scope": "Removed internal API-baseline and CI maintenance instructions only; supported compatibility and migration contracts are unchanged. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "65bc4f9d410108fbe372717cca7e0bf55b2b433465778ef881acd6b55638c398",
+      "previousTranslationSha256": "c0cbcb2039fe158a0f8d0b9da316b74801e8091b06074f340c802dfd907d648c",
+      "sourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
+      "translationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070",
+      "scope": "Removed internal candidate-evidence and merge/release procedure links; retained the exact preview version, matching runtime/Source requirement and unpublished caveat. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "quickstart",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "6cf119cf196df2f2e536db3b75ff48746746c120ac2f51d6e6f31342e120b5be",
+      "previousTranslationSha256": "f7b5da95363228257aac6ca376ddeb76c26e1a2a144a8b57eb5c9926a3c804a0",
+      "sourceSha256": "aede843c050578707edfacf7ead818ab819d086aba3f8de0c1a87ae543fb4573",
+      "translationSha256": "a6a64bd6bfef08e714856a9a8555a1420025346028b08c9175655ccb032cc26f",
+      "scope": "Replaced the internal verification-script link with the public code-example verification guide only. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. Prior unchanged-document reviews are retained. AGY proofreading remains a separate pending publication gate."
+    },
+    {
+      "collection": "reference",
+      "version": "3.0",
+      "id": "distribution",
+      "reviewedAt": "2026-11-15",
+      "previousSourceSha256": "2fde175bce765745420883e730ff45c281a6d56c96e54fefea1a0bfa4caf76a0",
+      "previousTranslationSha256": "2b74159aca1ca5b2b60a4055fe645eb73242589f48da8845b50f16a90ba6f070",
+      "sourceSha256": "ea648074ec90afff8d7d01db095d34f1c3e1617004fb6abfebea2246f1c44b7c",
+      "translationSha256": "c294856c155ee9075b768d8e085c60701ad06c2ab87868d211d0d81a37fc5246",
+      "scope": "Updated only the dependency paragraph and opening target list for the now-published Syntamark 2.0.0 release. Matching runtime/Source versions and still-unpublished LithoSharp targets remain explicit. The changed EN/JP text was independently compared; local Yomiyasu source/material checks and final-byte verification completed. AGY proofreading remains a separate pending publication gate."
     }
   ]
 }

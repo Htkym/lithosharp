@@ -19,7 +19,10 @@ public sealed partial class SiteGenerator
         var cancellation = configuration.Cancellation;
         cancellation.ThrowIfCancellationRequested();
         var retained = bodyAnalysis is null ? null
-            : MarkdownAnalysisAdapter.RetainForBody(bodyAnalysis, markdown, sourcePath);
+            : MarkdownAnalysisAdapter.RetainForBody(bodyAnalysis, markdown, sourcePath,
+                MarkdownAnalysisAdapter.BodyOptionsFor(_markdownCompiler.Options.Markdown),
+                MarkdownAnalysisAdapter.BodyPartsFor(_markdownCompiler.Options.Markdown, _markdownCompiler.Options.RetainAgentReadyFacts),
+                _markdownCompiler.Options.RetainAgentReadyFacts ? MarkdownAnalysisAdapter.AgentReadySourceVersion(markdown) : null);
         var originalSource = bodySource.CanMapBody(markdown, sourcePath) || retained is not null ? bodySource : null;
         var analyzed = _markdownCompiler.Analyze(markdown,
             originalSource ?? new DocumentSource(sourcePath, 0), cancellation, retained, CreateMarkdownComponentContext(configuration, document));

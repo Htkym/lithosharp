@@ -1,6 +1,8 @@
 <Project>
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Keep compiler XML for API localization; suppress only missing public XML comments. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">$(LITHOSHARP_SITE_PACKAGE_VERSION)</LithoSharpVersion>
     <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">3.0.0</LithoSharpVersion>
   </PropertyGroup>

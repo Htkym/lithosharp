@@ -44,7 +44,11 @@ Language Server に同梱された Core は別の identity として記録し、
 | `serve-shutdown` | （なし） | stdin 経由の構造化 serve 停止。重複・実行中・起動途中の停止要求は冪等 | 停止は Ctrl+C のみとし、UI にその制約を表示する |
 | `source-route-lookup` | `project-resolution` | project / collection / variant の識別を保った source→route 取得。複数候補は複数返す | 拡張子推測を行わず、route 未取得として表示する |
 
-Core API の `ToolingCapabilities.CreateReport` は上記の 4 機能を返します。Tool 3.0.0 の `capabilities` コマンドはさらに次の Preview 機能を加えます。Core の一覧と CLI が返す一覧を混同しないでください。
+Core API の `ToolingCapabilities.CreateReport` は上記の 4 機能を返します。
+
+## Tool 専用の Preview capability
+
+Tool 3.0.0 の `capabilities` コマンドはさらに次の Preview 機能を加えます。Core の一覧と CLI が返す一覧を混同しないでください。
 
 | name | maturity | schemaVersion | scope | 動作 |
 | --- | --- | --- | --- | --- |
@@ -68,7 +72,7 @@ preflight reportの検査範囲は常に`Partial`です。成功は報告した�
 - 未知のフィールドと未知の capability 名は無視します（加算的な追加のみ行います）。
 - 必須 capability の欠落は `ToolingCapabilities.Require` で説明付きで失敗させ、機能を無効化します。
   空配列や推測で代替しません。
-- schema version は major 一致で互換です（`ToolingCompatibility.IsCompatible`）。相手が先行 minor
+- schema version は major 一致で互換です（`ToolingCompatibility.IsCompatible`）。相手がより新しい minor
   （例 `1.1`）でも互換とし、未知フィールドを無視します。major 不一致（例 `2.0`）は拒否します。
 - 既存 enum へ値を追加しても、古い利用側が数値に依存しないよう、レポートでは maturity を文字列で出力します。
 
@@ -83,7 +87,7 @@ preflight reportの検査範囲は常に`Partial`です。成功は報告した�
 任意項目の`projectStatus`、`schemaName`、`schemaScope`、`projectId`、`projectGeneration`、`contextAcquiredAt`は、適用したcontextと検査可能な範囲を示します。範囲の通知がない場合は不明として扱ってください。MDXではスキーマ名からMarkdownのバインド対応を推定しません。取得日時だけでは、すべての入力が最新と一致することは保証できません。
 
 `NoContext`では構文を検査できますが、プロジェクトに結び付くスキーマやルートは確定できません。`Resolved`、`Ambiguous`、`Unresolved`、`Draft`は明示した文脈でのルート解決状態であり、サイト全体の妥当性ではありません。
-snapshotでは組み込みスキーマと、明示的に取得した生成済みの静的スキーマを結び付けます。
+snapshotのバインドは、組み込みスキーマと、明示的に取得した生成済みの静的スキーマに対応します。
 生成フィールドの検査には、取得したプロジェクト・スキーマの識別情報とハッシュが一致し、入力が属する集合を一意に特定できる必要があります。
 入力中に利用者のDTOコンストラクター、setter、検証コールバックを実行しません。
 独自の実行可能な検証と、ビルドが必要な判断は、引き続きコンパイラーとサイトビルドで検査します。

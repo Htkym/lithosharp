@@ -112,7 +112,7 @@ Info：生成済みマニフェストのフィンガープリントが、現在�
 
 ### LSA1401
 
-Info：検証済みで最新の Closed なマニフェスト内の直接の文字列リテラルに、同等な生成済み `PageRef` が1つあります。任意で導入する CodeFix はその引数だけを完全修飾された `Route.PublicPath` に置き換えます。レシーバー、オーバーロード、実行時のガードを維持し、現在の入力を再検証します。曖昧な参照、古い参照、手書きの参照、副作用のある参照、未証明の参照には修正を提示しません。FixAll の制限は [CodeFix ガイド](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.ja.md)を参照してください。
+Info：検証済みで最新の Closed なマニフェストに対する `StaticSiteManifest.GetUrl(string)` の直接の文字列リテラル引数には、同等な生成済み `PageRef` が1つあります。任意で導入する CodeFix はその引数だけを完全修飾された `Route.PublicPath` に置き換えます。レシーバー、オーバーロード、実行時のガードを維持し、現在の入力を再検証します。曖昧な参照、古い参照、手書きの参照、副作用のある参照、未証明の参照には修正を提示しません。FixAll の制限は [CodeFix ガイド](https://github.com/Htkym/lithosharp/blob/main/src/LithoSharp.CodeFixes/README.ja.md)を参照してください。
 
 ### LSA1402
 

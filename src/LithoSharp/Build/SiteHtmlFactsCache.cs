@@ -34,13 +34,19 @@ internal sealed class SiteHtmlFactsCache : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
+        // Decoded-only durable records cannot supply raw/span. Use the one-parse owner
+        // directly, without hashing or serializing records this consumer cannot reuse.
+        if (sharedFacts?.RequiresQualityRaw == true)
+        {
+            var shared = await sharedFacts.GetQualityAsync(content, cancellationToken).ConfigureAwait(false);
+            if (shared.NewParse)
+                ParseCount++;
+            return shared.Facts;
+        }
         // Preserve lone surrogate identity; Encoding.UTF8 replacement is not injective.
         var contentHash = Convert.ToHexStringLower(SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(content.AsSpan())));
         var key = Hash(Encoding.UTF8.GetBytes(Schema + "\n" + contentHash));
         var path = Path.Combine(directory, key + ".json");
-        // Decoded-only durable records cannot supply raw/span; required raw uses the one-parse owner.
-        if (sharedFacts?.RequiresQualityRaw == true)
-            return await GetParsedAsync().ConfigureAwait(false);
         try
         {
             EnsureSafe(path);

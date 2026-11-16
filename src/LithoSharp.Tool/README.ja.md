@@ -62,6 +62,6 @@ lithosharp migrate testing --dry-run --source Tests.cs --reference /isolated/1.1
 
 `proofread` は、呼び出し元が選択した Python 実行ファイルと Yomiyasu lint スクリプトを明示的に起動します。指摘はソース座標の精度を維持し、ガード付きのプレビューが文書を書き換えることはありません。[校正](https://github.com/Htkym/lithosharp/blob/main/docs/proofreading.ja.md)を参照してください。他のコマンドに Python は不要です。
 
-`check-output --baseline ... --require-publication-compatibility` は、明示的に選択した公開済みマニフェストと URL およびアンカーを比較します。必須のベースラインがないか互換性がなければ、未検査のままとして処理は失敗します。ベースラインの初期化は明示的に行い、新規作成だけを許可します。通常のビルドがベースラインを昇格させることはありません。[出力検査](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.ja.md)を参照してください。
+`check-output --baseline ... --require-publication-compatibility` は、明示的に選択した公開済みマニフェストと URL およびアンカーを比較します。必須のベースラインがないか互換性がなければ、未検査のままとし、処理は失敗します。ベースラインの初期化は明示的に行い、新規作成だけを許可します。通常のビルドがベースラインを昇格させることはありません。[出力検査](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.ja.md)を参照してください。
 
 ファクトリーの例、出力の動作、開発サーバーの制限、デプロイの対応範囲は [CLI ガイド](https://github.com/Htkym/lithosharp/blob/main/docs/cli.ja.md)を参照してください。

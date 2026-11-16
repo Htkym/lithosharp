@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 (not yet released)
+
+- Target the bundled 3.0.0 language server and matching site Tool, using Syntamark 2.0.0. This entry describes unreleased changes; check the Marketplace for availability.
+- Add acquired-schema Markdown completion and static validation, scoped definition/reference navigation, and guarded Markdown rename previews and application. Typing does not run constructors, validators or site factories; incomplete evidence remains unverified.
+- Provide explicit rename and move previews. Use `LithoSharp: Rename Markdown References` for guarded text edits; ordinary F2 cannot retain the server's version guard, and Explorer moves do not automatically rewrite references. C#, generated C# and dynamic MDX remain separate review scopes.
+- Withdraw stale project evidence on detected input changes and keep unsaved project inputs from acquiring disk-based context. Save inputs and rerun Inspect or Build to refresh; unmonitored inputs are not guaranteed current.
+- Pass the configured Node executable to MDX preflight and cancel superseded capability probes with their owned processes. Markdown-only diagnostics do not require Node.js; MDX analysis requires an explicit worker restore. Preview remains limited to saved, built output.
+
 ## 0.4.0
 
 - Show separate document-analysis, project-context, schema-scope and explicit-operation states. Unavailable or custom build-only checks stay unverified.

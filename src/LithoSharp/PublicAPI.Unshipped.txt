@@ -672,3 +672,210 @@ LithoSharp.Content.ContentIgnoreAttribute.ContentIgnoreAttribute() -> void
 const LithoSharp.Content.MarkdownContentDiagnosticIds.UnsupportedYaml = "LSM014" -> string!
 const LithoSharp.Content.MarkdownContentDiagnosticIds.YamlResourceLimit = "LSM015" -> string!
 LithoSharp.Diagnostics.SiteDiagnostic.MappingPrecision.get -> string?
+
+LithoSharp.AgentReady.AgentReadyOptions
+LithoSharp.AgentReady.AgentReadyOptions.AgentReadyOptions() -> void
+LithoSharp.AgentReady.AgentReadyOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyOptions!
+LithoSharp.AgentReady.AgentReadyOptions.Equals(LithoSharp.AgentReady.AgentReadyOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyOptions.Enabled.get -> bool
+LithoSharp.AgentReady.AgentReadyOptions.Enabled.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions
+LithoSharp.AgentReady.AgentReadyPageOptions.AgentReadyPageOptions() -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.AgentReady.AgentReadyPageOptions.Equals(LithoSharp.AgentReady.AgentReadyPageOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownMode.get -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownMode.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.Indexing.get -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentReadyPageOptions.Indexing.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownReplacement.get -> string?
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownReplacement.init -> void
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownRoute.get -> LithoSharp.Routing.SiteRoute?
+LithoSharp.AgentReady.AgentReadyPageOptions.MarkdownRoute.init -> void
+LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Auto = 0 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Required = 1 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.PublicMarkdownMode.Disabled = 2 -> LithoSharp.AgentReady.PublicMarkdownMode
+LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Auto = 0 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Include = 1 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.AgentReady.AgentIndexMode.Exclude = 2 -> LithoSharp.AgentReady.AgentIndexMode
+LithoSharp.SiteCustomization.AgentReady.get -> LithoSharp.AgentReady.AgentReadyOptions!
+LithoSharp.SiteCustomization.AgentReady.init -> void
+LithoSharp.Pages.PageMetadata.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.Pages.PageMetadata.AgentReady.init -> void
+override LithoSharp.AgentReady.AgentReadyOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyOptions.Equals(object? obj) -> bool
+static LithoSharp.AgentReady.AgentReadyOptions.operator ==(LithoSharp.AgentReady.AgentReadyOptions? left, LithoSharp.AgentReady.AgentReadyOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyOptions.operator !=(LithoSharp.AgentReady.AgentReadyOptions? left, LithoSharp.AgentReady.AgentReadyOptions? right) -> bool
+override LithoSharp.AgentReady.AgentReadyPageOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyPageOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyPageOptions.Equals(object? obj) -> bool
+static LithoSharp.AgentReady.AgentReadyPageOptions.operator ==(LithoSharp.AgentReady.AgentReadyPageOptions? left, LithoSharp.AgentReady.AgentReadyPageOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyPageOptions.operator !=(LithoSharp.AgentReady.AgentReadyPageOptions? left, LithoSharp.AgentReady.AgentReadyPageOptions? right) -> bool
+LithoSharp.AgentReady.AgentReadyHeadData
+LithoSharp.AgentReady.AgentReadyHeadData.<Clone>$() -> LithoSharp.AgentReady.AgentReadyHeadData!
+LithoSharp.AgentReady.AgentReadyHeadData.AgentReadyHeadData() -> void
+LithoSharp.AgentReady.AgentReadyHeadData.CanonicalUrl.get -> string!
+LithoSharp.AgentReady.AgentReadyHeadData.CanonicalUrl.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.Description.get -> string?
+LithoSharp.AgentReady.AgentReadyHeadData.Description.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.Equals(LithoSharp.AgentReady.AgentReadyHeadData? other) -> bool
+LithoSharp.AgentReady.AgentReadyHeadData.ExistingHead.get -> LithoSharp.IHtmlContent?
+LithoSharp.AgentReady.AgentReadyHeadData.ExistingHead.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.Language.get -> string?
+LithoSharp.AgentReady.AgentReadyHeadData.Language.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.LlmsUrl.get -> string?
+LithoSharp.AgentReady.AgentReadyHeadData.LlmsUrl.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.MarkdownUrl.get -> string?
+LithoSharp.AgentReady.AgentReadyHeadData.MarkdownUrl.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.Page.get -> LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions!
+LithoSharp.AgentReady.AgentReadyHeadData.Page.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.SiteLanguage.get -> string?
+LithoSharp.AgentReady.AgentReadyHeadData.SiteLanguage.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.SiteTitle.get -> string!
+LithoSharp.AgentReady.AgentReadyHeadData.SiteTitle.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.SiteUrl.get -> string!
+LithoSharp.AgentReady.AgentReadyHeadData.SiteUrl.init -> void
+LithoSharp.AgentReady.AgentReadyHeadData.Title.get -> string!
+LithoSharp.AgentReady.AgentReadyHeadData.Title.init -> void
+LithoSharp.AgentReady.AgentReadyIdentity
+LithoSharp.AgentReady.AgentReadyIdentity.<Clone>$() -> LithoSharp.AgentReady.AgentReadyIdentity!
+LithoSharp.AgentReady.AgentReadyIdentity.AgentReadyIdentity() -> void
+LithoSharp.AgentReady.AgentReadyIdentity.Equals(LithoSharp.AgentReady.AgentReadyIdentity? other) -> bool
+LithoSharp.AgentReady.AgentReadyIdentity.Kind.get -> LithoSharp.AgentReady.AgentReadyIdentityKind
+LithoSharp.AgentReady.AgentReadyIdentity.Kind.init -> void
+LithoSharp.AgentReady.AgentReadyIdentity.Name.get -> string!
+LithoSharp.AgentReady.AgentReadyIdentity.Name.init -> void
+LithoSharp.AgentReady.AgentReadyIdentity.SameAs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.AgentReady.AgentReadyIdentity.SameAs.init -> void
+LithoSharp.AgentReady.AgentReadyIdentity.Url.get -> string?
+LithoSharp.AgentReady.AgentReadyIdentity.Url.init -> void
+LithoSharp.AgentReady.AgentReadyIdentityKind
+LithoSharp.AgentReady.AgentReadyIdentityKind.Organization = 1 -> LithoSharp.AgentReady.AgentReadyIdentityKind
+LithoSharp.AgentReady.AgentReadyIdentityKind.Person = 0 -> LithoSharp.AgentReady.AgentReadyIdentityKind
+LithoSharp.AgentReady.AgentReadyMetadata
+LithoSharp.AgentReady.AgentReadyOptions.Robots.get -> LithoSharp.AgentReady.AgentReadyRobotsOptions!
+LithoSharp.AgentReady.AgentReadyOptions.Robots.init -> void
+LithoSharp.AgentReady.AgentReadyOptions.StructuredData.get -> LithoSharp.AgentReady.AgentReadyStructuredDataOptions!
+LithoSharp.AgentReady.AgentReadyOptions.StructuredData.init -> void
+LithoSharp.AgentReady.AgentReadyPageKind
+LithoSharp.AgentReady.AgentReadyPageKind.BlogPosting = 2 -> LithoSharp.AgentReady.AgentReadyPageKind
+LithoSharp.AgentReady.AgentReadyPageKind.TechArticle = 1 -> LithoSharp.AgentReady.AgentReadyPageKind
+LithoSharp.AgentReady.AgentReadyPageKind.WebPage = 0 -> LithoSharp.AgentReady.AgentReadyPageKind
+LithoSharp.AgentReady.AgentReadyPageOptions.StructuredData.get -> LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions!
+LithoSharp.AgentReady.AgentReadyPageOptions.StructuredData.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions!
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.AgentReadyPageStructuredDataOptions() -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Author.get -> LithoSharp.AgentReady.AgentReadyIdentity?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Author.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Equals(LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.ImageUrl.get -> string?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.ImageUrl.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Kind.get -> LithoSharp.AgentReady.AgentReadyPageKind
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Kind.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Mode.get -> LithoSharp.AgentReady.AgentReadyStructuredDataMode?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Mode.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Modified.get -> System.DateTimeOffset?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Modified.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Published.get -> System.DateTimeOffset?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Published.init -> void
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Publisher.get -> LithoSharp.AgentReady.AgentReadyIdentity?
+LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Publisher.init -> void
+LithoSharp.AgentReady.AgentReadyRobotsGroup
+LithoSharp.AgentReady.AgentReadyRobotsGroup.<Clone>$() -> LithoSharp.AgentReady.AgentReadyRobotsGroup!
+LithoSharp.AgentReady.AgentReadyRobotsGroup.AgentReadyRobotsGroup() -> void
+LithoSharp.AgentReady.AgentReadyRobotsGroup.Allow.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.AgentReady.AgentReadyRobotsGroup.Allow.init -> void
+LithoSharp.AgentReady.AgentReadyRobotsGroup.Disallow.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.AgentReady.AgentReadyRobotsGroup.Disallow.init -> void
+LithoSharp.AgentReady.AgentReadyRobotsGroup.Equals(LithoSharp.AgentReady.AgentReadyRobotsGroup? other) -> bool
+LithoSharp.AgentReady.AgentReadyRobotsGroup.UserAgents.get -> System.Collections.Generic.IReadOnlyList<string!>!
+LithoSharp.AgentReady.AgentReadyRobotsGroup.UserAgents.init -> void
+LithoSharp.AgentReady.AgentReadyRobotsMode
+LithoSharp.AgentReady.AgentReadyRobotsMode.Disabled = 0 -> LithoSharp.AgentReady.AgentReadyRobotsMode
+LithoSharp.AgentReady.AgentReadyRobotsMode.External = 2 -> LithoSharp.AgentReady.AgentReadyRobotsMode
+LithoSharp.AgentReady.AgentReadyRobotsMode.Generated = 1 -> LithoSharp.AgentReady.AgentReadyRobotsMode
+LithoSharp.AgentReady.AgentReadyRobotsOptions
+LithoSharp.AgentReady.AgentReadyRobotsOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyRobotsOptions!
+LithoSharp.AgentReady.AgentReadyRobotsOptions.AgentReadyRobotsOptions() -> void
+LithoSharp.AgentReady.AgentReadyRobotsOptions.Equals(LithoSharp.AgentReady.AgentReadyRobotsOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyRobotsOptions.Groups.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.AgentReady.AgentReadyRobotsGroup!>!
+LithoSharp.AgentReady.AgentReadyRobotsOptions.Groups.init -> void
+LithoSharp.AgentReady.AgentReadyRobotsOptions.Mode.get -> LithoSharp.AgentReady.AgentReadyRobotsMode
+LithoSharp.AgentReady.AgentReadyRobotsOptions.Mode.init -> void
+LithoSharp.AgentReady.AgentReadyStructuredDataMode
+LithoSharp.AgentReady.AgentReadyStructuredDataMode.Automatic = 1 -> LithoSharp.AgentReady.AgentReadyStructuredDataMode
+LithoSharp.AgentReady.AgentReadyStructuredDataMode.Disabled = 0 -> LithoSharp.AgentReady.AgentReadyStructuredDataMode
+LithoSharp.AgentReady.AgentReadyStructuredDataMode.UserManaged = 2 -> LithoSharp.AgentReady.AgentReadyStructuredDataMode
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.<Clone>$() -> LithoSharp.AgentReady.AgentReadyStructuredDataOptions!
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.AgentReadyStructuredDataOptions() -> void
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Author.get -> LithoSharp.AgentReady.AgentReadyIdentity?
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Author.init -> void
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Equals(LithoSharp.AgentReady.AgentReadyStructuredDataOptions? other) -> bool
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Mode.get -> LithoSharp.AgentReady.AgentReadyStructuredDataMode
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Mode.init -> void
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Publisher.get -> LithoSharp.AgentReady.AgentReadyIdentity?
+LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Publisher.init -> void
+LithoSharp.AgentReady.IPublicMarkdownComponent<TProps>
+LithoSharp.AgentReady.IPublicMarkdownComponent<TProps>.RenderPublicMarkdown(TProps props, LithoSharp.ComponentRenderingContext! context) -> string?
+override LithoSharp.AgentReady.AgentReadyHeadData.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyHeadData.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyHeadData.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyIdentity.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyIdentity.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyIdentity.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyRobotsGroup.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyRobotsGroup.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyRobotsGroup.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyRobotsOptions.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyRobotsOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyRobotsOptions.ToString() -> string!
+override LithoSharp.AgentReady.AgentReadyStructuredDataOptions.Equals(object? obj) -> bool
+override LithoSharp.AgentReady.AgentReadyStructuredDataOptions.GetHashCode() -> int
+override LithoSharp.AgentReady.AgentReadyStructuredDataOptions.ToString() -> string!
+static LithoSharp.AgentReady.AgentReadyHeadData.operator !=(LithoSharp.AgentReady.AgentReadyHeadData? left, LithoSharp.AgentReady.AgentReadyHeadData? right) -> bool
+static LithoSharp.AgentReady.AgentReadyHeadData.operator ==(LithoSharp.AgentReady.AgentReadyHeadData? left, LithoSharp.AgentReady.AgentReadyHeadData? right) -> bool
+static LithoSharp.AgentReady.AgentReadyIdentity.operator !=(LithoSharp.AgentReady.AgentReadyIdentity? left, LithoSharp.AgentReady.AgentReadyIdentity? right) -> bool
+static LithoSharp.AgentReady.AgentReadyIdentity.operator ==(LithoSharp.AgentReady.AgentReadyIdentity? left, LithoSharp.AgentReady.AgentReadyIdentity? right) -> bool
+static LithoSharp.AgentReady.AgentReadyMetadata.RenderHead(LithoSharp.AgentReady.AgentReadyHeadData! data, LithoSharp.AgentReady.AgentReadyStructuredDataOptions! options) -> LithoSharp.IHtmlContent!
+static LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.operator !=(LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions.operator ==(LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyPageStructuredDataOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyRobotsGroup.operator !=(LithoSharp.AgentReady.AgentReadyRobotsGroup? left, LithoSharp.AgentReady.AgentReadyRobotsGroup? right) -> bool
+static LithoSharp.AgentReady.AgentReadyRobotsGroup.operator ==(LithoSharp.AgentReady.AgentReadyRobotsGroup? left, LithoSharp.AgentReady.AgentReadyRobotsGroup? right) -> bool
+static LithoSharp.AgentReady.AgentReadyRobotsOptions.operator !=(LithoSharp.AgentReady.AgentReadyRobotsOptions? left, LithoSharp.AgentReady.AgentReadyRobotsOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyRobotsOptions.operator ==(LithoSharp.AgentReady.AgentReadyRobotsOptions? left, LithoSharp.AgentReady.AgentReadyRobotsOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyStructuredDataOptions.operator !=(LithoSharp.AgentReady.AgentReadyStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyStructuredDataOptions? right) -> bool
+static LithoSharp.AgentReady.AgentReadyStructuredDataOptions.operator ==(LithoSharp.AgentReady.AgentReadyStructuredDataOptions? left, LithoSharp.AgentReady.AgentReadyStructuredDataOptions? right) -> bool
+LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>
+LithoSharp.Content.MarkdownPost.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.Content.MarkdownPost.AgentReady.init -> void
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.MarkdownProvider.get -> LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>?
+LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>.MarkdownProvider.init -> void
+LithoSharp.SiteExtraPage.AgentReady.get -> LithoSharp.AgentReady.AgentReadyPageOptions!
+LithoSharp.SiteExtraPage.AgentReady.init -> void
+virtual LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>.Invoke(LithoSharp.Content.ContentEntry<TFrontMatter, TBody>! entry, LithoSharp.Content.ContentPageRenderingContext! context) -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult
+LithoSharp.AgentReady.PublicMarkdownPageResult.HtmlPath.get -> string!
+LithoSharp.AgentReady.PublicMarkdownPageResult.MarkdownPath.get -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult.Reason.get -> string?
+LithoSharp.AgentReady.PublicMarkdownPageResult.Status.get -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Automatic = 1 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.ExplicitReplacement = 2 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Failed = 6 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.IntentionallyExcluded = 3 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.NotRequested = 0 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Unavailable = 5 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.AgentReady.PublicMarkdownStatus.Unsupported = 4 -> LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.GeneratePagesWithMarkdown<TPageContent>(LithoSharp.Content.ContentCollectionId! generatedCollectionId, LithoSharp.Content.ContentPageGroupSelector<TFrontMatter, TBody>! groupSelector, LithoSharp.Content.GeneratedPageFactory<TFrontMatter, TBody, TPageContent>! pageFactory, LithoSharp.Content.GeneratedPageRenderer<TPageContent>! renderer, LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>! markdownProvider, string? rendererFingerprint = null, System.Collections.Generic.IEnumerable<string!>? groupKeys = null, LithoSharp.Content.ContentLayoutId? layoutId = null, System.Collections.Generic.IComparer<string!>? groupOrderingComparer = null, System.Collections.Generic.IEnumerable<LithoSharp.Content.ContentDependency!>? declaredDependencies = null, LithoSharp.Content.ContentTransformationId? transformationId = null, bool isCacheable = false, LithoSharp.Content.GeneratedPageDerivedSurfaces derivedSurfaces = LithoSharp.Content.GeneratedPageDerivedSurfaces.Default) -> LithoSharp.Content.SiteContentCollection!
+LithoSharp.Content.ContentCollection<TFrontMatter, TBody>.RenderDocsWithMarkdown(System.Func<LithoSharp.Content.ContentEntry<TFrontMatter, TBody>!, LithoSharp.Content.DocsPagePresentation!>! presentation, LithoSharp.Content.ContentPageRenderer<TFrontMatter, TBody>! bodyRenderer, LithoSharp.Content.ContentPageMarkdownProvider<TFrontMatter, TBody>! markdownProvider, string? rendererFingerprint = null, bool isThreadSafe = false) -> LithoSharp.Content.SiteContentCollection<TFrontMatter, TBody>!
+LithoSharp.SiteGenerationResult.AgentReadyPages.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.AgentReady.PublicMarkdownPageResult!>!
+LithoSharp.SiteGenerationResult.AgentReadyPages.init -> void
+virtual LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>.Invoke(LithoSharp.Pages.SitePage<TPageContent>! page, LithoSharp.Content.ContentPageRenderingContext! context) -> string?
+LithoSharp.AgentReady.PublicMarkdownStatus
+LithoSharp.Content.GeneratedPageMarkdownProvider<TPageContent>

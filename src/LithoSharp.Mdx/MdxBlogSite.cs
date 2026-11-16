@@ -63,7 +63,26 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
     public MdxBlogSite(MdxOptions options) => mdx = new(options);
     internal MdxBlogSite(MdxSite shared) => mdx = shared;
     /// <summary>Registers a blog with strict publication and author validation.</summary>
-    public void AddCollection(MdxBlogCollection blog)
+    public void AddCollection(MdxBlogCollection blog) => AddCollectionCore(blog, null, null);
+
+    /// <summary>Registers a blog with a complete public Markdown provider, including any essential article or author information.</summary>
+    /// <remarks>Summary and feed text are not complete Markdown alternatives. Declare all provider inputs
+    /// and a configuration fingerprint to enable rendering reuse.</remarks>
+    public void AddCollectionWithMarkdown(MdxBlogCollection blog,
+        ContentPageMarkdownProvider<MdxBlogFrontMatter, MdxDocument> markdownProvider,
+        string? rendererFingerprint = null)
+    {
+        ArgumentNullException.ThrowIfNull(markdownProvider);
+        if (rendererFingerprint is not null && string.IsNullOrWhiteSpace(rendererFingerprint))
+        {
+            throw new ArgumentException("A renderer fingerprint must not be empty.", nameof(rendererFingerprint));
+        }
+        AddCollectionCore(blog, markdownProvider, rendererFingerprint);
+    }
+
+    private void AddCollectionCore(MdxBlogCollection blog,
+        ContentPageMarkdownProvider<MdxBlogFrontMatter, MdxDocument>? markdownProvider,
+        string? rendererFingerprint)
     {
         ArgumentNullException.ThrowIfNull(blog);
         ArgumentOutOfRangeException.ThrowIfLessThan(blog.PageSize, 1);
@@ -71,7 +90,7 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
             throw new ArgumentException("Duplicate blog ID.");
         _ = SiteRoute.ForDirectoryIndex(blog.RoutePrefix);
         blogs.Add(blog);
-        mdx.AddCollection(new BlogLoader(blog, entryBlogs), renderer: (entry, context) =>
+        ContentPageRenderer<MdxBlogFrontMatter, MdxDocument> renderer = (entry, context) =>
         {
             var preparedBlog = entryBlogs.TryGetValue(entry.FrontMatter, out var captured)
                 ? captured : throw new InvalidOperationException("The blog entry has no captured catalog.");
@@ -82,7 +101,16 @@ public sealed class MdxBlogSite : ISiteBuildExtension, ISiteCatalogPreparationEx
                 + Math.Max(1, (int)Math.Ceiling(units / 250d)) + " min read</p>"
                 + string.Concat(metadata.Authors.Select(id => Profile(preparedBlog, id, context.Site.BaseUrl))) + entry.Body.ToHtmlString();
             return context.RenderDocument(body);
-        });
+        };
+        if (markdownProvider is null)
+        {
+            mdx.AddCollection(new BlogLoader(blog, entryBlogs), renderer: renderer);
+        }
+        else
+        {
+            mdx.AddCollectionWithMarkdown(new BlogLoader(blog, entryBlogs), markdownProvider,
+                rendererFingerprint, renderer: renderer);
+        }
     }
     /// <inheritdoc />
     public async Task<SiteBuildContribution> PrepareAsync(SiteBuildContext context, CancellationToken cancellationToken = default) =>

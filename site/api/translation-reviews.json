@@ -4,19 +4,19 @@
   "files": [
     {
       "path": "ja/units-0-7.json",
-      "sha256": "82d7e8e47cc3f13260d4aa79a7303596271c5b96f79cbfef3f304a4865d4c4d3"
+      "sha256": "8fe7392c2ece18f49d32c69144ce0e6eb9dd36513a0a7ccfe2949848064baf76"
     },
     {
       "path": "ja/units-8-b.json",
-      "sha256": "0968d8aaae7c4e820d450eaecb0424408afeeadefc08b9573b99db0c1a0de59b"
+      "sha256": "73ea0b03ecb646ec2efb1d784fb0395678e0a8676dc17bea3079b1f43a826ef7"
     },
     {
       "path": "ja/units-c-f.json",
-      "sha256": "7a7b6f1df0dcb5871ccc0e5a3a05cb69e1792704a4a8d61288549c47b5d0e79c"
+      "sha256": "124a0fb8eebaf2f5e01d6844dbdd428eba205c7977b01234357adb6536b3e77b"
     },
     {
       "path": "ja/units-source-additions-0-7.json",
-      "sha256": "5961155b920446765ee0b96948dfcfe96928099d1c299646e9032823f15c59e8"
+      "sha256": "c5baf3c240e6e4686a9fb615cc3b92c1de047d5a0cecd44fee7ed44bfcda677c"
     },
     {
       "path": "ja/units-source-additions-8-f.json",
@@ -29,6 +29,10 @@
     {
       "path": "ja/units-api-impacts.json",
       "sha256": "7efd5afda98bdea6fb5411bbed772f162b4f609a68164a0ce227d9fa7e22946e"
+    },
+    {
+      "path": "ja/units-agent-ready.json",
+      "sha256": "483206e8bd9976e7ad1eebe8d4e5dc0e71ff34aa48710476b5d0b47de3d0a56a"
     }
   ],
   "example": {

@@ -5,8 +5,6 @@ LithoSharp の各パッケージを同じバージョンで使い、公開状態
 3.0 の変更は[移行](migration-3.0.ja.md)を参照してください。
 1.x の `Document` getter から更新する場合は、以前のソースとバイナリの破壊的変更を残した [2.x の履歴資料](migration-2.0.ja.md)も確認してください。
 
-利用するLithoSharpパッケージと同じバージョンを参照してください。
-
 ```sh
 dotnet add package LithoSharp.Testing --version 3.0.0
 ```
@@ -79,7 +77,7 @@ using var page = await host.OpenPageAsync("/index.html");
 page.AssertElement("main");
 ```
 
-ディレクトリ形式のルートには末尾の `/` を含めます。ファイル形式のルートにはファイル名を指定します。組み込みサンプルのホームは `/index.html` として登録されています。`AssertLink` はデコード後の `href` をそのまま比較し、参照先やアンカーの解決はサイト全体の品質検証が担当します。
+ディレクトリ形式のルートには末尾の `/` を含めます。ファイル形式のルートにはファイルパスを指定します。組み込みサンプルのホームは `/index.html` として登録されています。`AssertLink` はデコード後の `href` をそのまま比較し、参照先やアンカーの解決はサイト全体の品質検証が担当します。
 
 ルート、ビルド計画、品質の検証で失敗した場合、`Succeeded` はfalse、`Result` はnullになり、診断を保持します。壊れた内部リンクを意図的に検証するテストでは、`AssertSucceeded` の代わりに `host.AssertDiagnostic("LSQ001", LithoSharp.Diagnostics.SiteDiagnosticSeverity.Error)` を使います。診断の検証だけでは生成成功を確認したことにはなりません。それ以外のファクトリ、描画、I/Oの例外とキャンセルは、後片付けの後に呼び出し元へ伝播します。
 

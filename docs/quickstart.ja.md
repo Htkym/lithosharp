@@ -22,7 +22,7 @@ dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
 ```
 
 Windowsでは`.tools/lithosharp.exe`を使います。テンプレートは利用者のtemplate catalogへ
-インストールされ、Toolは`.tools`内に入ります。生成プロジェクトは既定で3.0.0を使います。異なるバージョンを混ぜたり、
+インストールされ、Toolは`.tools`内に入ります。生成されたプロジェクトはLithoSharp 3.0.0を参照します。異なるバージョンを混ぜたり、
 既存サイトへテンプレートを上書きしたりしないでください。
 
 ## C#の型とMarkdownを編集する
@@ -109,7 +109,7 @@ CLIと`dotnet run`は同じfactoryを使います。生成したProgramは品質
 .tools/lithosharp serve MyDocs -c Release --port 4317
 ```
 
-`check-output`には実際のbase URLを指定してください。`http://localhost:4317/`と
+`check-output`には設定したbase URLを指定してください。`http://localhost:4317/`と
 `http://localhost:4317/guide/getting-started/`を開きます。ホームは`dist/index.html`です。
 コンテンツのページには`dist/guide/index/index.html`と
 `dist/guide/getting-started/index.html`があります。ホームの生成はDocsテンプレートだけが
@@ -136,7 +136,7 @@ CLIと`dotnet run`は同じfactoryを使います。生成したProgramは品質
 ## このDocsプロジェクトのCI
 
 対応する3.0.0のパッケージを選択した後、サイトのツールとパッケージのバージョンをそろえてください。
-配布する出力を生成し、同じ出力を検査します。
+一つの手順で出力を生成し、公開前にその同じ出力を検査します。
 
 ```sh
 dotnet restore MyDocs
@@ -219,7 +219,7 @@ cache directoryは公開出力の外に置きます。開発用reload scriptは�
 | 従来のBlog、feed、search | [Blog sample](../samples/LithoSharp.Sample/README.ja.md) |
 | React island、progressive navigation、live code、PWA | [MDX sample](../samples/LithoSharp.MdxSample/README.ja.md) |
 | 複数version/locale、Blog/Pages、API reference | [MDXガイド](mdx.ja.md)と[実行可能な統合fixture](../tests/LithoSharp.Tests/DocumentationTests.cs) |
-| XML API buildと検証済みコード例 | [documentation verification](../eng/Test-DocumentationVerification.ps1) |
+| XML API buildと検証済みコード例 | [コード例の検証](code-example-verification.ja.md) |
 | 独自C# layout | `lithosharp new empty MySite -o MySite` |
 
 testは高度な設定を実行できる例であり、追加のtemplate製品ではありません。

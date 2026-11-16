@@ -10,7 +10,7 @@ const extensionDir = path.resolve(import.meta.dirname, '..');
 const workerDir = path.resolve(extensionDir, '..', '..', 'src', 'LithoSharp.Mdx', 'worker');
 const targetDir = path.join(extensionDir, 'resources', 'worker');
 
-const topFiles = ['worker.mjs', 'compiler.mjs', 'package.json', 'package-lock.json'];
+const topFiles = ['worker.mjs', 'compiler.mjs', 'public-markdown.mjs', 'package.json', 'package-lock.json'];
 
 function copyTree(from, to) {
   let copied = 0;

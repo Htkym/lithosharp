@@ -14,6 +14,7 @@ import rehypeSlug from 'rehype-slug';
 import {visit} from 'unist-util-visit';
 import Prism from 'prismjs';
 import loadLanguages from 'prismjs/components/index.js';
+import {publicMarkdownFromTree, publicMarkdownImplementationId} from './public-markdown.mjs';
 
 // Prism re-evaluates language files (re-registering their global hooks) when a
 // later load modifies an already-loaded grammar. Page compilation runs
@@ -411,9 +412,11 @@ export async function compileSite(request, workMetrics = {}) {
   for (const file of capturedInputs.keys()) await readInput(file);
   let liveRuntime;
 
-  function authoring(file, info) {
+  function authoring(file, info, source, preprocessedSource) {
     return function () {
       return async tree => {
+        if (request.publicMarkdown === true)
+          info.publicMarkdown = publicMarkdownFromTree(tree, source, {plugins: request.plugins, componentsModule: request.componentsModule, preprocessedSource});
         const jobs = [];
         const imported = new Map();
         visit(tree, 'mdxjsEsm', node => {
@@ -603,7 +606,7 @@ export async function compileSite(request, workMetrics = {}) {
         const source = request.sources[relative(projectRoot, file)];
         if (source === undefined) throw Object.assign(new Error(`MDX import needs C# validation: ${relative(projectRoot, file)}`), {requiredSource: file});
         if (!compiled.has(file)) {
-          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents, cardKeys.get(path.dirname(file))]));
+          const key = hash(JSON.stringify([file, source, entry?.props.frontMatter, entry?.title, request.plugins, extensionFingerprint, request.staticComponents, request.componentsModule, request.publicMarkdown === true, publicMarkdownImplementationId, cardKeys.get(path.dirname(file))]));
           const cached = request.cacheable && moduleCache.get(key);
           if (cached && (await Promise.all(cached.dependencies.map(async ([file, fingerprint]) => hash(await readInput(file)) === fingerprint))).every(Boolean)) {
             compiled.set(file, cached.code); metadata.set(file, cached.info);
@@ -614,9 +617,10 @@ export async function compileSite(request, workMetrics = {}) {
           let result;
           try {
             workMetrics.mdxCompileInvocations++;
-            result = await compile({value: unwrapMdxCodeBlocks(source), path: file}, {
+            const preprocessedSource = unwrapMdxCodeBlocks(source);
+            result = await compile({value: preprocessedSource, path: file}, {
               providerImportSource: '@mdx-js/react',
-              remarkPlugins: [remarkGfm, remarkDirective, remarkMath, ...extensions.remark, authoring(file, info)],
+              remarkPlugins: [remarkGfm, remarkDirective, remarkMath, ...extensions.remark, authoring(file, info, source, preprocessedSource)],
               rehypePlugins: [rehypeSlug, rehypeKatex, ...extensions.rehype, codeBlocks(info)],
               development: false
             });
@@ -748,7 +752,7 @@ export async function compileSite(request, workMetrics = {}) {
       }).join('\n') + '}mount();');
     }
     results.push({id: page.id, ...renderedPage, entry: null, css: [], hydration: selective ? renderedPage.islands.length ? 'selective' : 'static' : 'page', fallback: request.hydration === 'selective' ? fallback : null,
-      headings: info.headings, links: info.links, text: info.text.join('\n')});
+      headings: info.headings, links: info.links, text: info.text.join('\n'), ...(request.publicMarkdown === true ? {publicMarkdown: info.publicMarkdown} : {})});
   }
   } finally { workMetrics.renderMilliseconds += performance.now() - renderStarted; }
   const renderMilliseconds = performance.now() - renderStarted;

@@ -33,10 +33,11 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         ArgumentNullException.ThrowIfNull(Options.Markdown);
         Options.Markdown.Validate();
         bodyOptions = MarkdownAnalysisAdapter.BodyOptionsFor(Options.Markdown);
-        bodyParts = MarkdownAnalysisAdapter.BodyPartsFor(Options.Markdown);
+        bodyParts = MarkdownAnalysisAdapter.BodyPartsFor(Options.Markdown, Options.RetainAgentReadyFacts);
 
         // The stamp is a const; the loaded module also distinguishes runtime-only upgrades.
-        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile={Options.Markdown.ProfileId}/options={bodyOptions.Hash}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}/components={Options.Markdown.Components?.Fingerprint ?? "none"}";
+        Fingerprint = $"lithosharp/{ImplementationVersion}/spec={SpecVersion}/parser={MdParserVersion.Value}/runtime={typeof(LithoBlockParser).Module.ModuleVersionId:N}/profile={Options.Markdown.ProfileId}/options={bodyOptions.Hash}/syntax={Options.SyntaxProfile}/output={Options.OutputProfile}/components={Options.Markdown.Components?.Fingerprint ?? "none"}"
+            + (Options.RetainAgentReadyFacts ? $"/agent-ready=1/parts={(int)bodyParts}" : string.Empty);
     }
 
     /// <inheritdoc />
@@ -106,19 +107,20 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
         ArgumentNullException.ThrowIfNull(markdown);
         cancellationToken.ThrowIfCancellationRequested();
         var resolved = source ?? new DocumentSource(null, 0);
+        var sourceVersion = Options.RetainAgentReadyFacts ? MarkdownAnalysisAdapter.AgentReadySourceVersion(markdown) : null;
         var analysis = retainedAnalysis is not null
-            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath, bodyOptions, bodyParts)?.Analysis
+            ? MarkdownAnalysisAdapter.RetainForBody(retainedAnalysis, markdown, resolved.FilePath, bodyOptions, bodyParts, sourceVersion)?.Analysis
             : null;
         if (analysis is null)
         {
             Interlocked.Increment(ref _parseCount);
-            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, bodyOptions, bodyParts, cancellationToken);
+            analysis = MarkdownAnalysisAdapter.AnalyzeBody(markdown, resolved.FilePath, bodyOptions, bodyParts, sourceVersion, cancellationToken);
         }
         var prepared = PrepareTree(analysis.Blocks ?? [], cancellationToken, Options.Markdown.ProfileId);
         var (syntax, semantics) = Map(prepared, analysis, resolved, cancellationToken);
         var componentPlan = Options.Markdown.ProfileId == MarkdownOptions.DocumentationProfile
             ? MarkdownComponentRendering.Prepare(analysis, resolved, Options.Markdown.Components ?? MarkdownComponentRegistry.Empty,
-                context, renderHtml, cancellationToken) : null;
+                context, renderHtml, cancellationToken, Options.RetainAgentReadyFacts && context?.SuppressPublicMarkdown != true) : null;
         if (componentPlan is not null)
             semantics = semantics with { Components = componentPlan.Components, Diagnostics = semantics.Diagnostics.Concat(componentPlan.Diagnostics).ToArray() };
         var origins = renderHtml ? new List<MarkdownRenderOrigin>() : null;
@@ -127,6 +129,9 @@ internal sealed class LithoMarkdownCompiler : IMarkdownCompiler
                 componentPlan?.HtmlByDirectiveStart, prepared.Footnotes, origins) : string.Empty, syntax, semantics)
         {
             RenderOrigins = origins is null ? [] : Array.AsReadOnly(origins.ToArray()),
+            BodyAnalysis = Options.RetainAgentReadyFacts ? new MarkdownBodyAnalysisSnapshot(analysis) : null,
+            PublicMarkdownFailures = componentPlan?.PublicMarkdownFailures ?? new HashSet<int>(),
+            PublicMarkdownComponents = componentPlan?.PublicMarkdownByDirectiveStart ?? new Dictionary<int, string?>(),
         };
     }
 

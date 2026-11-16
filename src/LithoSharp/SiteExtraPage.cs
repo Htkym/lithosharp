@@ -6,6 +6,8 @@ namespace LithoSharp;
 /// </summary>
 public sealed record SiteExtraPage
 {
+    public AgentReady.AgentReadyPageOptions AgentReady { get; init; } = new();
+
     /// <summary>Relative output path (for example <c>releases.html</c>).</summary>
     public required string RelativePath { get; init; }
 

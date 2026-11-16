@@ -83,7 +83,7 @@ factoryはQualityのError閾値と外部HTTP検査の無効を明示していま
 | 必須項目の不足や型の不一致 | Generator/compiler | 明示したコンテンツ入力と、静的に分かるスキーマの条件。 |
 | エントリーとルートの矛盾 | Analyzer | 完全で最新のカタログと既知の値。実行時の値は未検証です。 |
 | 見出しと原文位置の診断 | Editor/LSP | `NoContext`ではプロジェクトに結び付かず、`Partial`では取得できた情報だけを扱います。 |
-| headerや本文の情報を取得できない | Generator・runtime・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
+| headerや本文の情報を取得できない | Generator・build・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
 | 内部URL、anchor、HTML | 生成物検査 | 現在の出力ファイル。原稿との一致や外部HTTP応答は別途確認が必要です。 |
 
 | 目的 | 入口 |
@@ -110,6 +110,7 @@ esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP h
 
 [目的別のドキュメント案内](docs/README.ja.md)から、導入、型付きコンテンツ、編集支援、検査、運用のガイドを選べます。英語・日英併記の技術リファレンスも区別しています。
 
+- [Agent Readyの公開Markdown](docs/agent-ready.ja.md)で、有効化、発見用リンク、検証範囲を確認できます。
 - [Docsの標準設定](docs/docs-template.ja.md)、[生成済み成果物の検査](docs/generated-output-checks.ja.md)
 - [CLIとsite factory](docs/cli.ja.md)、[MDXと文書サイト](docs/mdx.ja.md)
 - [型付きMarkdown collection](docs/typed-markdown-collections.md)、

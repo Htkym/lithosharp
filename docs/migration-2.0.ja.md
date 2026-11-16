@@ -15,9 +15,17 @@ Markdownのruntimeは[Syntamark](https://github.com/Htkym/syntamark) 1.2.0を使
 
 Generatorとsplitterのheader走査には、本文解析とは別の`frontmatter-scan/1`を使います。`ScanFrontMatter`は閉じ区切りの後の本文を解析せず、1 Mi UTF-16コード単位のheader上限にも本文を含めません。`Closed`が確定するのは区切りとheaderのUnicodeであり、YAMLとスキーマの検査は引き続きLithoSharpが行います。入力や解析資源の問題による`Unknown`は、Generatorで`LSG002`、runtimeで`LSM013`となり、headerの不存在や確定した未閉鎖として扱いません。headerの結果には本文の解析情報や文書ハッシュは含まれません。manifestのfingerprintは別途元の入力全体を対象とし、本文のUnicodeが不正な場合は取得できません。
 
-postとcollectionのMarkdown本文は、最終解析時に1 Mi UTF-16コード単位まで扱えます。エディターでの検査は8 Miまでです。readerとcollection loaderが加工前の本文を調べる上限も8 Miです。1 Miを超える元の本文でも、includeや前後の空白除去によって最終解析の前に短くなる場合があります。
+readerとcollection loaderの先行警告は、includeや前後の空白除去を行う前の本文を対象とし、元の位置を保持します。1 Mi UTF-16コード単位までの本文には厳密な解析上限を適用し、それを超える元の本文は最大8 Miまで扱えます。どちらもネストの上限は200です。1 Miを超える元の本文でも、includeや前後の空白除去によって最終解析の前に短くなる場合があります。
 
-入力や解析資源の上限により解析を完了できない場合は、LSM013 Errorとなり、出力を公開する前に生成を停止します。加工前の警告は元の本文の位置を示します。加工後のcollection本文の警告は、元の本文との一致を確認できる場合だけ元の位置を示し、それ以外はファイル名までです。collectionの無変更ビルドでも、検証済みキャッシュから警告を復元します。
+postとcollectionの最終Markdown解析は明示的な本文入力を使い、厳密な1 Mi UTF-16コード単位の上限を適用します。エディターでの検査は8 Miまでです。後段の投影処理が解析資源の上限で停止しても、解析済みのblockは残ります。ただし、取得できなかった解析情報は取得できないままです。
+
+入力や解析資源の上限により解析を完了できない場合は、`LSM013` Errorとなります。readerはその先行エラーを保持し、collection loaderは失敗し、生成は出力を公開する前に停止します。
+
+再利用には、本文テキスト、ソース識別情報、parser、profile、厳密な解析オプションの一致が必要です。変更されたsnapshotや、より大きな上限で解析した元の本文の結果には、別途最終本文の解析が必要です。加工前と加工後の警告snapshotは別々に保持し、構文IDによる統合や重複排除は行いません。加工後のcollection診断は、元の本文との完全一致による再利用で位置対応を確認できる場合だけ元の位置を示し、それ以外はファイル名までです。
+
+生成処理では、postにreader由来の診断が渡されていない場合、無変更ビルドを含めて最終本文のコンパイル診断を再利用します。post parse cache v2が永続化するのは診断のない結果だけです。警告を含むpostには、現在の解析結果か、完全一致する保持済みsnapshotを使います。
+
+collectionの描画では、page contextを通じて描画する異なるMarkdown文字列ごとに診断を取得します。検証済みのcollection成果物キャッシュは、警告を含む診断結果と、空であることが確定した診断結果の両方を永続化し、無変更ビルドで再生します。結果の欠落は不明な状態として扱い、再描画が必要になります。
 
 ## 既存Docsを型付きコンテンツへ移す
 
@@ -66,7 +74,7 @@ Docsの追加設定は必要な項目だけを有効にします。標準テン�
 
 配布する成果物を再生成せずに調べるには、`check-output`を使います。毎回現在のファイルを
 読みますが、現在の原稿との一致は保証しません。原稿や設定を変更した場合は再生成が必要です。
-`check`との違い、出力形式、検査範囲は[生成済み成果物の検査](generated-output-checks.ja.md)を参照してください。
+`check`との違い、対応形式、検査範囲は[生成済み成果物の検査](generated-output-checks.ja.md)を参照してください。
 
 ## Testingの非互換変更
 
@@ -80,7 +88,7 @@ var heading = document.Snapshot.Query("h1")?.TextContent;
 document.AssertText("h1", "Home");
 ```
 
-`QuerySelector`は`Snapshot.Query`、`QuerySelectorAll`は`Snapshot.QueryAll`へ移します。DOMの変更、第三者型へのcast、独自の拡張メソッドは単純な置換では移行できません。元のHTMLや描画処理を変更し、必要に応じて解析し直します。対応selector、例外、所有期間は[Testing v2の仕様と移行表](Testing-v2-api.md#migration)を確認してください。ブラウザーの完全なDOM／CSS互換は保証しません。
+`QuerySelector`は`Snapshot.Query`、`QuerySelectorAll`は`Snapshot.QueryAll`へ移します。DOMの変更、第三者型へのcast、独自の拡張メソッドは単純な置換では移行できません。元のHTMLや描画処理を変更し、必要に応じて解析し直します。対応selector、例外、所有権は[Testing v2の仕様と移行表](Testing-v2-api.md#migration)を確認してください。ブラウザーの完全なDOM／CSS互換は保証しません。
 
 Toolの`migrate testing --dry-run`は明示したC# sourceと旧1.1.0 DLLのmetadata参照から利用箇所を報告します。旧DLLを実行せず、projectやsourceを変更せず、利用者の依存packageも削除しません。`ReadCandidate`のpreviewも確認が必要であり、`Manual`と`Unknown`は自動変換しません。[実行例と報告形式](Testing-v2-api.md#migration)を参照してください。
 
@@ -116,4 +124,4 @@ static modeはMSBuild、site factory、plugin、bundle、SSRを実行しませ�
 .tools/lithosharp preflight site.csproj --mode trusted --input page.md --format json
 ```
 
-trusted modeはprojectとfactory/catalogのコードを実行しますが、描画や出力公開は行いません。coverageはPartialであり、最終HTML、動的な処理、site全体の存在証明を保証しません。成功は報告した段階にErrorがないという意味で、後のbuildを許可する証明ではありません。通常buildのruntime検証と最終品質検査は引き続き必要です。詳細な報告形式は[Toolの案内](../src/LithoSharp.Tool/README.md#preflight)を参照してください。
+trusted modeはprojectとfactory/catalogのコードを実行しますが、描画や出力公開は行いません。coverageはPartialにとどまり、最終HTML、動的な処理、site全体への帰属判定はこの証明の対象外です。成功は報告した段階にErrorがないという意味で、後のbuildを許可する証明ではありません。通常buildのruntime検証と最終品質検査は引き続き必要です。詳細な報告形式は[Toolの案内](../src/LithoSharp.Tool/README.md#preflight)を参照してください。

@@ -107,6 +107,27 @@ public sealed class ContentCollection<TFrontMatter, TBody>
         };
     }
 
+    /// <summary>Connects typed Docs rendering to an explicit complete public Markdown provider.</summary>
+    /// <remarks>The provider must include essential additions made by the body renderer. Both delegates share
+    /// the prepared entry and context. A configuration fingerprint and declared dependencies enable cache reuse.</remarks>
+    public SiteContentCollection<TFrontMatter, TBody> RenderDocsWithMarkdown(
+        Func<ContentEntry<TFrontMatter, TBody>, DocsPagePresentation> presentation,
+        ContentPageRenderer<TFrontMatter, TBody> bodyRenderer,
+        ContentPageMarkdownProvider<TFrontMatter, TBody> markdownProvider,
+        string? rendererFingerprint = null,
+        bool isThreadSafe = false)
+    {
+        ArgumentNullException.ThrowIfNull(presentation);
+        ArgumentNullException.ThrowIfNull(markdownProvider);
+        return new SiteContentCollection<TFrontMatter, TBody>(this, bodyRenderer)
+        {
+            DocsPresentationSelector = presentation,
+            MarkdownProvider = markdownProvider,
+            RendererFingerprint = rendererFingerprint,
+            IsThreadSafe = isThreadSafe,
+        };
+    }
+
     /// <summary>Groups published entries by NFC-normalized, case-sensitive keys, deduplicating each entry within a key. Generated pages cannot be aggregated recursively.</summary>
     /// <remarks>Caching requires a cacheable source, complete external dependencies and a versioned transformationId. Default derived surfaces include search, sitemap and llms.txt, excluding RSS and site navigation. Social images require explicit generation options.</remarks>
     public SiteContentCollection GeneratePages<TPageContent>(
@@ -135,6 +156,36 @@ public sealed class ContentCollection<TFrontMatter, TBody>
             transformationId,
             isCacheable,
             derivedSurfaces);
+
+    /// <summary>Groups entries into pages with an explicit complete public Markdown provider.</summary>
+    /// <remarks>The provider receives the same factory result and context as the HTML renderer.
+    /// Use public absolute or root-relative URLs when the generated page combines multiple source files.
+    /// Caching requires a configuration fingerprint and complete declared dependencies for both renderers.</remarks>
+    public SiteContentCollection GeneratePagesWithMarkdown<TPageContent>(
+        ContentCollectionId generatedCollectionId,
+        ContentPageGroupSelector<TFrontMatter, TBody> groupSelector,
+        GeneratedPageFactory<TFrontMatter, TBody, TPageContent> pageFactory,
+        GeneratedPageRenderer<TPageContent> renderer,
+        GeneratedPageMarkdownProvider<TPageContent> markdownProvider,
+        string? rendererFingerprint = null,
+        IEnumerable<string>? groupKeys = null,
+        ContentLayoutId? layoutId = null,
+        IComparer<string>? groupOrderingComparer = null,
+        IEnumerable<ContentDependency>? declaredDependencies = null,
+        ContentTransformationId? transformationId = null,
+        bool isCacheable = false,
+        GeneratedPageDerivedSurfaces derivedSurfaces = GeneratedPageDerivedSurfaces.Default)
+        where TPageContent : notnull
+    {
+        ArgumentNullException.ThrowIfNull(markdownProvider);
+        return new GeneratedSiteContentCollection<TFrontMatter, TBody, TPageContent>(
+            this, generatedCollectionId, groupSelector, pageFactory, renderer, groupKeys,
+            layoutId, groupOrderingComparer, declaredDependencies, transformationId, isCacheable,
+            derivedSurfaces, markdownProvider)
+        {
+            RendererFingerprint = rendererFingerprint,
+        };
+    }
 
     private static ReadOnlyCollection<ContentEntry<TFrontMatter, TBody>> SnapshotEntries(
         IEnumerable<ContentEntry<TFrontMatter, TBody>> entries,

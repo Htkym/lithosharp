@@ -51,7 +51,7 @@ public sealed partial class AnalyzerPackageHostTests
             Check(content.Substring(start, length).StartsWith("title:", StringComparison.Ordinal) && !content.Substring(start, length).Contains("---", StringComparison.Ordinal), "YAML span excludes delimiter lines");
             Check((string)MarkdownProperty(scan, "ContractVersion")! == "frontmatter-scan/1", "Header-only scan contract");
             Check(MarkdownProperty(scan, "State")!.ToString() == "Closed" && MarkdownProperty(scan, "Status")!.ToString() == "Complete", "Known delimiters do not certify YAML/schema: " + name);
-            Check((string)MarkdownProperty(scan, "ParserVersion")! == "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "Pinned parser identity");
+            Check((string)MarkdownProperty(scan, "ParserVersion")! == "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f", "Pinned parser identity");
             var options = CompilerMarkdownOptions();
             Check((string)MarkdownProperty(scan, "OptionsHash")! == (string)MarkdownProperty(options, "Hash")! && (string)MarkdownProperty(scan, "ProfileId")! == "lithosharp-markdown/1", "Actual default MdOptions/profile hash");
             foreach (var property in new[] { "RawText", "FrontMatter", "RequestedParts", "Coverage", "Headings", "Sections", "Links", "Fences", "TextRegions", "Root", "UnsupportedSyntax", "SourceId", "ScopeId", "SourceVersion" })
@@ -116,7 +116,7 @@ public sealed partial class AnalyzerPackageHostTests
         var known = (bool)validator.GetMethod("Validate", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { "input.md", limitedRaw, limited, Compile(ManifestModel, true).GetTypeByMetadataName("Front")!, new Action<Diagnostic>(collected.Add), CancellationToken.None })!;
         Check(!known && collected.Count == 0, "Unavailable state returns to caller without schema success");
         var adapter = validator.Assembly.GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
-        foreach (var (name, parser, yaml) in new[] { ("parser", "1/" + new string('0', 64), "native-yaml/1"), ("yaml", "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "native-yaml/0") })
+        foreach (var (name, parser, yaml) in new[] { ("parser", "1/" + new string('0', 64), "native-yaml/1"), ("yaml", "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f", "native-yaml/0") })
         {
             var rejected = false;
             try
@@ -190,7 +190,7 @@ public sealed partial class AnalyzerPackageHostTests
         var adapter = CompilerMarkdownAssembly().GetType("LithoSharp.Generators.MarkdownSourceHostAdapter")!;
         return options is null
             ? adapter.GetMethod("ParseForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object[] { raw, token })!
-            : adapter.GetMethod("AnalyzeForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object?[] { raw, options, "1/1fc1f7dfbbac0b3e12cc085e91210903fbf0e4d75865b7f8feeb82d76073e3e0", "2.0", "lithosharp-markdown/1", "native-yaml/1", token })!;
+            : adapter.GetMethod("AnalyzeForCompiler", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, new object?[] { raw, options, "1/42136e5e42d027dc15b4487b4fe381b21bcaf47ab1d30fb954ec21fbff25560f", "2.0", "lithosharp-markdown/1", "native-yaml/1", token })!;
     }
     private static string GeneratedMarkdownSource(CSharpCompilation compilation) => string.Join("\n", compilation.SyntaxTrees.Where(t => t.FilePath != "canary.cs").OrderBy(t => t.FilePath, StringComparer.Ordinal).Select(t => t.ToString()));
 }

@@ -215,7 +215,7 @@ if ($PackageId -in @('LithoSharp.Images', 'LithoSharp.Testing', 'LithoSharp.Mdx'
         if ($packageEntries -notcontains $required) { throw "Package is missing required entry: $required" }
     }
     if ($PackageId -eq 'LithoSharp.Mdx') {
-        foreach ($file in @('worker.mjs', 'compiler.mjs', 'package.json', 'package-lock.json', 'runtime/components.mjs', 'runtime/islands.mjs', 'runtime/live-code.mjs')) {
+        foreach ($file in @('worker.mjs', 'compiler.mjs', 'public-markdown.mjs', 'package.json', 'package-lock.json', 'runtime/components.mjs', 'runtime/islands.mjs', 'runtime/live-code.mjs')) {
             if ($packageEntries -notcontains "contentFiles/any/any/worker/$file") { throw "MDX package is missing worker/$file" }
         }
         if ($packageEntries | Where-Object { $_ -match '/(node_modules|\.cache|tests)/' }) { throw 'MDX package contains restored dependencies or private test/cache data.' }

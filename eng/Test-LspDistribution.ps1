@@ -41,6 +41,7 @@ foreach ($required in @(
     'LithoSharp.Mdx.dll',
     'worker/worker.mjs',
     'worker/compiler.mjs',
+    'worker/public-markdown.mjs',
     'worker/package.json',
     'worker/package-lock.json',
     'worker/runtime/components.mjs'
