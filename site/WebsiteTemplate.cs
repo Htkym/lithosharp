@@ -10,7 +10,8 @@ internal sealed class WebsiteTemplate : ISiteTemplate
             RelativePath = "index.html",
             Content = Decorate(context.RenderDocument(new()
             {
-                RelativePath = "index.html", Title = "LithoSharp",
+                RelativePath = "index.html",
+                Title = "LithoSharp",
                 BodyHtml = "<section class=\"website-introduction\"><h1>LithoSharp</h1>"
                     + "<p>Build static sites with C# types and Markdown.</p><p lang=\"ja\">C# の型と Markdown で静的サイトを構築します。</p>"
                     + "<nav class=\"website-language-choice\" aria-label=\"Documentation language\">"
@@ -24,7 +25,8 @@ internal sealed class WebsiteTemplate : ISiteTemplate
             RelativePath = "404.html",
             Content = Decorate(context.RenderDocument(new()
             {
-                RelativePath = "404.html", Title = "Page not found / ページが見つかりません",
+                RelativePath = "404.html",
+                Title = "Page not found / ページが見つかりません",
                 BodyHtml = "<h1>Page not found</h1><p>The requested page is unavailable. Check the address or return to the guide.</p><p>"
                     + Link("English guide", "en/introduction/", "en") + "</p><section lang=\"ja\"><h2>ページが見つかりません</h2>"
                     + "<p>指定したページを利用できません。アドレスを確認するか、ガイドへ戻ってください。</p><p>"
@@ -36,7 +38,8 @@ internal sealed class WebsiteTemplate : ISiteTemplate
             RelativePath = "search.html",
             Content = Decorate(context.RenderDocument(new()
             {
-                RelativePath = "search.html", Title = "Search this site",
+                RelativePath = "search.html",
+                Title = "Search this site",
                 BodyHtml = "<h1>Search this site <span lang=\"ja\">サイト内検索</span></h1>"
                     + "<form role=\"search\" action=\"" + SiteUrl.ForFile("search.html", context.Site.BaseUrl).ToAttributeValue() + "\" method=\"get\">"
                     + "<input id=\"search-input\" name=\"q\" type=\"search\" aria-label=\"Search this site / このサイトを検索\" placeholder=\"Search / 検索\" autofocus></form>"

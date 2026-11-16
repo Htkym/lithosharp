@@ -80,7 +80,10 @@ internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPag
     }
     private static DocumentationPageChrome? UpdateArticle(DocumentationPageChrome? chrome, string article) => chrome is null ? null : new(Html.UnsafeRaw(article))
     {
-        Breadcrumbs = chrome.Breadcrumbs, Search = chrome.Search, Variants = chrome.Variants,
-        Adjacent = chrome.Adjacent, Headings = chrome.Headings
+        Breadcrumbs = chrome.Breadcrumbs,
+        Search = chrome.Search,
+        Variants = chrome.Variants,
+        Adjacent = chrome.Adjacent,
+        Headings = chrome.Headings
     };
 }

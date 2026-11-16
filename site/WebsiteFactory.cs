@@ -22,8 +22,15 @@ public sealed class WebsiteFactory : ISiteFactory
     {
         var root = context.ProjectDirectory;
         var generatedInputs = GeneratedInputDirectory ?? Path.Combine(Path.GetTempPath(), "ls-api", Guid.NewGuid().ToString("N"));
-        var site = new SiteSettings { Title = "LithoSharp", Description = "Typed static sites with C# and Markdown.",
-            BaseUrl = BaseUrl, Language = "en", Author = "LithoSharp", TimeZone = "UTC" };
+        var site = new SiteSettings
+        {
+            Title = "LithoSharp",
+            Description = "Typed static sites with C# and Markdown.",
+            BaseUrl = BaseUrl,
+            Language = "en",
+            Author = "LithoSharp",
+            TimeZone = "UTC"
+        };
         var social = new SiteAssetOutput("website-social", "images/social.png", "image/png");
         var docs = new DocumentationSite(new MdxOptions(root) { Cacheable = true })
         {
@@ -39,14 +46,18 @@ public sealed class WebsiteFactory : ISiteFactory
             new("3.0", "en", Path.Combine(root, "content", "en"), "en"),
             new("3.0", "ja", Path.Combine(root, "content", "ja"), "ja")])
         {
-            Sidebars = WebsiteNavigation.Sidebars, DefaultSidebar = "handbook", SourceLocale = "en", MissingDocuments = MissingDocumentPolicy.Error,
+            Sidebars = WebsiteNavigation.Sidebars,
+            DefaultSidebar = "handbook",
+            SourceLocale = "en",
+            MissingDocuments = MissingDocumentPolicy.Error,
             SemanticRules = DocumentSemanticRuleSet.Documentation,
-            TrackTranslationReviews = true, TranslationReviews = ReadReviews(root)
+            TrackTranslationReviews = true,
+            TranslationReviews = ReadReviews(root)
         });
         var loaded = await MarkdownContentCollectionLoader<ExampleFrontMatter>.FromCatalog(
             GeneratedExamples.Catalog, root,
             entry => new PageMetadata(entry.FrontMatter.Title, draft: entry.FrontMatter.Status == ExampleStatus.Draft)
-                { Language = entry.FrontMatter.Locale },
+            { Language = entry.FrontMatter.Locale },
             GeneratedExamples.Binder, transformationId: new("website-examples/1"), isCacheable: true)
             .LoadAsync(cancellationToken);
         if (!loaded.IsSuccess)
@@ -79,17 +90,24 @@ public sealed class WebsiteFactory : ISiteFactory
             OutputDirectory = Path.GetFullPath(OutputDirectory, root),
             Customization = new()
             {
-                Template = new WebsiteTemplate(), GenerateLlmsTxt = true,
+                Template = new WebsiteTemplate(),
+                GenerateLlmsTxt = true,
                 Theme = new() { UseExternalThemeRestoration = true },
             },
             Options = new()
             {
-                Markdown = new() { ProfileId = MarkdownOptions.DocumentationProfile,
+                Markdown = new()
+                {
+                    ProfileId = MarkdownOptions.DocumentationProfile,
                     Components = new([MarkdownComponentRegistration.Create("version-badge", new VersionBadge(),
-                        GeneratedBadges.Binder, "website-version-badge/1")]) },
-                Extensions = [docs, api], BuildTimestamp = DateTimeOffset.Parse("2026-11-13T00:00:00Z"),
-                Quality = new SiteQualityOptions(), CommonSocialImage = new ImageSource(social),
-                AssetTransforms = [socialTransform], GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
+                        GeneratedBadges.Binder, "website-version-badge/1")])
+                },
+                Extensions = [docs, api],
+                BuildTimestamp = DateTimeOffset.Parse("2026-11-13T00:00:00Z"),
+                Quality = new SiteQualityOptions(),
+                CommonSocialImage = new ImageSource(social),
+                AssetTransforms = [socialTransform],
+                GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
                     { Title = entry.FrontMatter.Title, Version = "3.0", Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>

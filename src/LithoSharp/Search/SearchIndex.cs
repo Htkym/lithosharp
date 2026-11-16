@@ -130,7 +130,8 @@ public static class LocalSearch
 
     private static string Excerpt(string body, string[] tokens)
     {
-        if (body.Length <= 180) return body;
+        if (body.Length <= 180)
+            return body;
         var first = tokens.Select(token => body.IndexOf(token, StringComparison.OrdinalIgnoreCase)).Where(index => index >= 0).DefaultIfEmpty(0).Min();
         var start = Math.Max(0, first - 40);
         static bool Boundary(char value) => char.IsWhiteSpace(value) || "。！？.!?".Contains(value);
@@ -146,7 +147,8 @@ public static class LocalSearch
         var boundaries = System.Globalization.StringInfo.ParseCombiningCharacters(body);
         int Floor(int index)
         {
-            if (index >= body.Length) return body.Length;
+            if (index >= body.Length)
+                return body.Length;
             var at = Array.BinarySearch(boundaries, index);
             return at >= 0 ? boundaries[at] : boundaries[Math.Max(0, ~at - 1)];
         }

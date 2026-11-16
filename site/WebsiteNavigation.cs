@@ -22,7 +22,8 @@ internal static class WebsiteNavigation
 
     internal static string Localize(string html, bool japanese)
     {
-        if (!japanese) return html;
+        if (!japanese)
+            return html;
         foreach (var group in Groups)
         {
             html = html.Replace(">" + group.English + "</summary>", ">" + group.Japanese + "</summary>", StringComparison.Ordinal)
