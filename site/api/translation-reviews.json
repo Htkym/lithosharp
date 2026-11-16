@@ -41,7 +41,7 @@
   ],
   "example": {
     "sourcePath": "examples/source/WebsiteExamples.cs",
-    "sourceSha256": "faa14d1de2cd676a854505f53f72d5af2e3ebeaf92309bc182e2b02c8f0e49d6",
+    "sourceSha256": "4aebc6aa3a2d243d14f5e3234e5d469b431020513e65020111035c01b0f6ad3f",
     "translationPath": "api/ja/WebsiteExamples.xml",
     "translationSha256": "f8d41316f727b29f93f3b0edd83cac1446bbafeeb8c0f98bd6d7a93fb17b014c"
   }

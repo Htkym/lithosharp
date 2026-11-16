@@ -64,13 +64,13 @@ internal static class PublicApiDocumentation
         {
             foreach (var group in entries.Values.GroupBy(entry => (entry.Collection, Assembly: entry.Symbol.ContainingAssembly.Name)))
             {
-                var references = entries.ToDictionary(pair => pair.Key, pair => new DocumentKey(pair.Value.Collection, "3.0", locale, pair.Key), StringComparer.Ordinal);
+                var references = entries.ToDictionary(pair => pair.Key, pair => new DocumentKey(pair.Value.Collection, WebsiteVersion.Document, locale, pair.Key), StringComparer.Ordinal);
                 var projected = group.Select(entry => ApiMetadata.Project(entry.Symbol, included)).ToArray();
                 var members = group.Select(entry => Prepare(entry, locale, localization, entries, projected.First(symbol => symbol.Id == entry.Symbol.GetDocumentationCommentId()))).ToArray();
                 var xml = new XDocument(new XElement("doc", new XElement("assembly", new XElement("name", group.Key.Assembly)), new XElement("members", members)));
                 var file = Path.Combine(inputDirectory, group.Key.Collection + "." + group.Key.Assembly + "." + locale + ".xml");
                 xml.Save(file);
-                extension.AddXml(new(group.Key.Collection, new("3.0", locale, inputDirectory, "api/" + locale + "/" + group.Key.Collection.ToLowerInvariant()), file),
+                extension.AddXml(new(group.Key.Collection, new(WebsiteVersion.Document, locale, inputDirectory, "api/" + locale + "/" + group.Key.Collection.ToLowerInvariant()), file),
                     new ApiAssemblySource(group.Key.Assembly, projected, references));
                 coverage.Add(new { collection = group.Key.Collection, assembly = group.Key.Assembly, locale,
                     ids = projected.Select(symbol => symbol.Id).Order(StringComparer.Ordinal).ToArray(),

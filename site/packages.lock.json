@@ -4,50 +4,50 @@
     "net10.0": {
       "LithoSharp": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "GlExUiVpXMjjHYOoXvH1eUPhjG0bZ/tNN9hWIj59jfL5SL7nIhXgJ9apNK2tSuRBWrYlSfqJOOGRm12osL4CXw==",
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "BwlKU2uUlxz/vd+H3v/ITIyqPksKsjrCU3sgP0J75cU+iQ1ygnO14OVSpxV8Yz4u47f44qfAWX4xSwKMZ2CSug==",
         "dependencies": {
-          "Syntamark": "[2.0.0-preview.2026111303]"
+          "Syntamark": "[2.0.0]"
         }
       },
       "LithoSharp.Analyzers": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "MdCH6zXZT3NxUDN7GOLeiNH9xfdzkePy6aDV/dAXsRkyDvOfwZeOPQ2Q5RWyXoGejNeflwx5JKRXrq4PEXHzuA=="
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "wT4qxLao0tuBthBFJj7g/oNkwkqq1rQcBWuBmGjlGXXkjjejqBHAdvxRdZMzAFb1zhIILQPATi8SxVVpvhFiMg=="
       },
       "LithoSharp.Generators": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "Zpzj1gXdQMXwhqSrligMGRCkqi1R+w67nQtbyvSPUAwEAHdW4V/g5IjjGVp2iA/QVZB+aFlzSQBxeuFXDfnMjA=="
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "rrrVyTIYT7L1KXZ3AKJ1Ggm3BgStau6HP2ouE+rYSSAN+JfzdrMOzQ5NWB4+MXX3AFJSoFaOatUDraLDGfY/6w=="
       },
       "LithoSharp.Images": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "S0XVQ1ZEWFelDSJOnJWEiFDNztbiZ+4/TXpNBnwH6GjurYB96lPHIXqxn3kq304eLBRgQCibzz4UoJTnAsGIxg==",
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "xT5d8grYVrvImcROHUr6E1UCXXOwIGPTfJvTcftzYE77fOyFk3pm4rcT9r7egTPJNKy7taYP2BQQ/bWk6MybAg==",
         "dependencies": {
-          "LithoSharp": "3.0.0"
+          "LithoSharp": "3.1.0"
         }
       },
       "LithoSharp.Mdx": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "OLfCXnDCA1PXKe6p0dWqeRRLohXm9xln6uAT1xM5sagFk5Ctrr9C3IFmodJhYMoMbdGXqXRqWLqMyYUNw7r7DQ==",
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "Q6g45rzNSvSMlUTOS3tUDseEQl+OJMUFLuoY62DiYwSlBPE905xMMYdRYjjIDdBdPXA1m3rJz+5rNSy1bHZDtw==",
         "dependencies": {
-          "LithoSharp": "3.0.0"
+          "LithoSharp": "3.1.0"
         }
       },
       "LithoSharp.Testing": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "4QeRKyCPPmKeghkQDfzpZwH51/2TotUnl2t4i50DcIy3RQOr3eMnGbz6w6knuRvQoyv8LCoPWTFJHGRGyyfN/Q==",
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "c6kE1zR2wSAtALnyX4a67DrUt1EVHdw6FAOizBe328InzyFq3MjgUaFjwEa53MR6FLYLKmD5/PiSTRNQjuOJ1g==",
         "dependencies": {
-          "LithoSharp": "3.0.0"
+          "LithoSharp": "3.1.0"
         }
       },
       "Microsoft.CodeAnalysis.CSharp": {
@@ -75,8 +75,8 @@
       },
       "Syntamark": {
         "type": "Transitive",
-        "resolved": "2.0.0-preview.2026111303",
-        "contentHash": "VP8SuaTSd3U/z2sdU0EVABDkGAhO1V1hadejfDD4flBFZcJlxnz6lml/JA4/c7U8NaS3t9IQAVaZmCLeYBBG6g=="
+        "resolved": "2.0.0",
+        "contentHash": "qy/DeAgT+mCYSA8UmhLaFOnGDuKSl/itADg2FsyYU4+glslN965MVGxdfLjCPwudsjQGx62Vlfb9LZqnQQRekg=="
       }
     }
   }

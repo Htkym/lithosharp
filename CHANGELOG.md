@@ -2,7 +2,15 @@
 
 [日本語](CHANGELOG.ja.md)
 
-## 3.0.0 (not yet released)
+## 3.1.0
+
+- Add `PageLayoutContent.DocumentationChrome` and `DocumentationPageChrome` so custom layouts can arrange the article, breadcrumbs, search, language/version links, headings and adjacent-page navigation separately. Existing `Body` content remains available.
+- Add `DocumentationSearchScope.Site` for searching the shared site index in the current language, including language-neutral pages. The default collection scope remains unchanged. Improve search-result snippets and language filtering.
+- Improve responsive Docs navigation and typography, place the table of contents before the article on narrower screens, and omit empty tables of contents. API language links use existing translated counterparts.
+- Add code-block copying to the shared Core and MDX browser support, with a manual-copy fallback when clipboard access is unavailable.
+- Update the Docs and MDX project templates and refresh the bilingual documentation site with site-wide search, collapsible categories, language navigation and practical getting-started examples.
+
+## 3.0.0
 
 - Adopt the fixed Syntamark 2.0.0 runtime/Source pair. Keep `lithosharp-markdown/1` as the default; explicitly select `syntamark-docs/2` for native footnotes and registered typed components. Full CommonMark/GFM conformance is not claimed.
 - Remove YamlDotNet and SkiaSharp dependencies. Replace YAML attributes with `ContentName` and `ContentIgnore`, and use the strict native YAML subset. Core uses existing images and declared dimensions; optional `LithoSharp.Images` provides limited PNG processing, without font/text drawing or JPEG/WebP/AVIF encoding. See the [breaking changes and migration steps](docs/migration-3.0.md).
@@ -11,7 +19,7 @@
 - Add local [OKF v0.2 bundle inspection, validation, Docs rendering and preserved export](docs/open-knowledge-format.md). Unknown metadata and original bytes are retained; unsupported syntax is not validated conformance, and declared verification records do not prove content truth.
 - Add opt-in [Agent Ready Markdown](docs/agent-ready.md), discovery links, JSON-LD and robots policies. HTML remains canonical. Unsupported automatic conversion is omitted with a diagnostic; Required Markdown stops publication when a complete counterpart is unavailable. These features do not guarantee external-agent use or search visibility.
 - Narrow supported MDX rebuild work and reuse verified Markdown/cache data while retaining validation. Performance depends on content and cache state. Browser delivery checks cover selected fixtures; production-host behavior and broader compatibility require separate verification. See [known limitations](docs/known-limitations.md).
-- Target NuGet components and the language server at 3.0.0, with the independently versioned VS Code extension at 0.5.0. These entries describe unreleased changes; check each distribution channel for availability.
+- Target NuGet components and the language server at 3.0.0, with the independently versioned VS Code extension at 0.5.0.
 
 ## 2.2.0
 

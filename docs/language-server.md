@@ -2,10 +2,7 @@
 
 The bundled language server uses LSP 3.17 over stdio with Content-Length framing. Positions use UTF-16.
 
-The 0.5.0 VS Code extension carries this server with Core 3.0.0. These are the
-target versions; the [version matrix](../eng/version-matrix.json) identifies the
-selected development candidate separately from formal publication. The server is
-not a separately installed NuGet tool. Keep its DLL, runtime configuration and
+The server is not a separately installed NuGet tool. Keep its DLL, runtime configuration and
 dependencies together; see [distribution](distribution.md). Markdown inspection
 uses the pinned Syntamark runtime/Source pair and the explicitly acquired Markdown profile. MDX body
 inspection remains a separate, explicitly restored Node worker path.

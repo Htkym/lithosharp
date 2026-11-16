@@ -2,7 +2,7 @@
 
 <a id="static-content-source-generators--静的コンテンツのsource-generator"></a>
 
-The LithoSharp 3.0.0 Docs template is the standard typed starting point: see
+The LithoSharp Docs template is the standard typed starting point: see
 [Quick Start](quickstart.md) for generated `Guides.Binder`/references, content-root-relative
 IDs with extensions, matching underscore exclusions and runtime catalog routes.
 The snippets below describe individual generator contracts; their illustrative
@@ -10,17 +10,15 @@ ID conventions are not a replacement for that template's recursive input rules.
 
 ## Package setup
 
-Use matching Core and Generators versions. The examples target 3.0.0; the
-[version matrix](../eng/version-matrix.json) distinguishes the selected development
-candidate from formal release availability.
+Use matching Core and Generators versions.
 
 Reference the runtime package normally and add `LithoSharp.Generators` as a private
 analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="3.0.0" />
-<PackageReference Include="LithoSharp.Generators" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="3.1.0" />
+<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
 ```
 
 <a id="declaration-and-inputs--宣言と入力"></a>

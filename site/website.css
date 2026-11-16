@@ -161,3 +161,5 @@
 }
 :root[data-theme=dark] .website-body, :root[data-site-theme=dark]:not([data-theme=light]) .website-body { --surface:#111827; --panel:#1f2937; --panel-strong:#293548; --text:#e5e7eb; --muted:#b6c0cf; --accent:#8bbcff; --accent-contrast:#111827; --border:#455167; }
 .website-api:has(.docs-header .website-language) main > nav:is([aria-label="API language"],[aria-label="APIの言語"]) { display:none; }
+
+.website-version { color: var(--muted); font-size: .75rem; font-weight: 600; white-space: nowrap; }

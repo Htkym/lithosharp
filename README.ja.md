@@ -20,9 +20,7 @@ C#の型とビルドで、ドキュメントの整合性を管理します。Lit
 正しい型付き参照だけで最終HTMLの正しさが確定するわけでもありません。
 適合条件、依存関係、評価例は[導入選択ガイド](docs/adoption-guide.ja.md)を参照してください。
 
-この文書はLithoSharp 3.0.0とVS Code拡張0.5.0を対象にしています。
 既存サイトを更新する場合は[3.0への更新手順](docs/migration-3.0.ja.md)を参照してください。
-インストールの前に、リンク先の配布ページで公開済みのバージョンを確認してください。
 
 ## サンプルサイト
 
@@ -54,12 +52,10 @@ C#の型とビルドで、ドキュメントの整合性を管理します。Lit
 
 .NET 10 SDKを用意して実行します。
 
-3.0.0の公開後は、利用するパッケージを3.0.0にそろえてください。
-生成プロジェクトの`LithoSharpVersion`の既定値も3.0.0です。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
@@ -71,7 +67,7 @@ factoryはQualityのError閾値と外部HTTP検査の無効を明示していま
 `DocsSiteFactory.cs`を設定し、ビルドと検査の後に`MyDocs/dist`を静的HTTP hostへ配置してください。
 独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 3.0.0`でライブラリを追加し、
+既存アプリケーションでは`dotnet add package LithoSharp --version 3.1.0`でライブラリを追加し、
 直接呼び出せます。CLI hostは必須ではありません。
 
 ## 使用例

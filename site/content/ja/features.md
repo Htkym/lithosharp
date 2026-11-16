@@ -1,6 +1,6 @@
 ---
 title: 機能ガイド
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [introduction]
 sidebar_position: 3
 ---
@@ -56,7 +56,7 @@ order: 1
 このサイトのバージョンバッジもその一例です。
 
 ```markdown
-:::component name="version-badge" version="3.0"
+:::component name="version-badge" version="3.1"
 :::
 ```
 

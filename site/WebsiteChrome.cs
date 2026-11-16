@@ -46,7 +46,7 @@ internal static class WebsiteChrome
             + "<body class=\"docs-body website-body" + (toc.Length == 0 ? " website-no-toc" : "") + "\">"
             + "<a class=\"docs-skip-link\" href=\"#docs-main\">" + (ja ? "本文へ移動" : "Skip to main content") + "</a>"
             + "<header class=\"docs-header\"><button class=\"docs-menu-toggle\" type=\"button\" aria-expanded=\"true\" aria-controls=\"docs-sidebar\" data-docs-menu-toggle aria-label=\"" + (ja ? "メニュー" : "Menu") + "\">" + MenuIcon + "</button>"
-            + "<a class=\"docs-brand\" href=\"" + Directory(locale + "/introduction") + "\">LithoSharp</a>" + links
+            + "<a class=\"docs-brand\" href=\"" + Directory(locale + "/introduction") + "\">LithoSharp</a>" + WebsiteHeader.VersionBadge + links
             + "<div class=\"docs-header-actions\">" + searchControl + languageControl + "<button type=\"button\" data-ls-theme>" + (ja ? "テーマ" : "Theme") + "</button></div></header>"
             + "<div class=\"docs-shell\">" + WebsiteNavigation.Localize(page.Content.Sidebar?.ToHtmlString() ?? "", ja) + toc
             + "<main id=\"docs-main\" class=\"docs-main\" tabindex=\"-1\"><article class=\"docs-content\">"

@@ -21,9 +21,7 @@ custom schema on every keystroke, and a valid typed reference does not certify
 the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
 for fit, dependencies and evaluation examples.
 
-This documentation describes LithoSharp 3.0.0 and VS Code extension 0.5.0.
 For an existing site, follow the [3.0 migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
-Check the linked package registries for published versions before installation.
 
 ## Features
 
@@ -51,25 +49,24 @@ Check the linked package registries for published versions before installation.
 
 ## Quick Start
 
-With the .NET 10 SDK installed, use matching 3.0.0 packages when available:
+With the .NET 10 SDK installed, install matching Tool and template packages:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-On Windows the executable is `.tools/lithosharp.exe`. The template defaults to
-LithoSharp 3.0.0. Edit `GuideFrontMatter.cs`
+On Windows the executable is `.tools/lithosharp.exe`. Edit `GuideFrontMatter.cs`
 and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
 to the Docs shell. The factory enables Quality at Error without external HTTP.
 Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
 For isolated installation, Markdown authoring, MDX and an interactive component,
 follow the [complete Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md).
 
-Existing applications can use `dotnet add package LithoSharp --version 3.0.0`
+Existing applications can use `dotnet add package LithoSharp --version 3.1.0`
 and call the library directly; a CLI host is not required.
 
 ## Sample sites

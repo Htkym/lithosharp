@@ -8,9 +8,7 @@
 [固定ダーク配色を含む設定例](../../docs/layout-css-contract.ja.md#テーマ切り替え)を参照してください。
 
 [LithoSharp](../../src/LithoSharp)、型付きの記事コレクション、生成された参照、トピックインデックスで文書をビルドするコンソールアプリです。
-既定の`DocsSiteTemplate`を使います。このチェックアウトはLithoSharp 3.0.0を対象にしています。
-選定したSyntamarkの組み合わせと公開状態は[バージョン一覧](../../eng/version-matrix.json)に記録しています。
-候補の検証は、パッケージの正式公開を証明するものではありません。
+既定の`DocsSiteTemplate`を使います。
 
 ## 実行方法
 

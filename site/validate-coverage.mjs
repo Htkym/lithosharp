@@ -8,7 +8,13 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const repository = path.dirname(root);
 const coverage = JSON.parse(readFileSync(path.join(root, 'feature-coverage.json'), 'utf8'));
 assert.equal(coverage.schemaVersion, 1);
-assert.equal(coverage.version, '3.0');
+const matrix = JSON.parse(readFileSync(path.join(repository, 'eng/version-matrix.json'), 'utf8'));
+const versionSource = readFileSync(path.join(root, 'WebsiteVersion.cs'), 'utf8');
+const displayVersion = versionSource.match(/Display = "([^"]+)"/)?.[1];
+const documentVersion = versionSource.match(/Document = "([^"]+)"/)?.[1];
+assert.equal(displayVersion, matrix.lithosharpTarget);
+assert.equal(documentVersion, displayVersion.split('.').slice(0, 2).join('.'));
+assert.equal(coverage.version, documentVersion);
 assert.deepEqual(coverage.locales, ['en', 'ja']);
 assert.deepEqual(coverage.publicApiPackages, ['LithoSharp', 'LithoSharp.Mdx', 'LithoSharp.Images', 'LithoSharp.Testing']);
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -20,7 +26,7 @@ for (const locale of coverage.locales) {
     for (const name of names) {
         const text = readFileSync(path.join(root, 'content', locale, name), 'utf8');
         assert(!text.includes('\r\n'), `Handbook review sources must use LF: ${locale}/${name}`);
-        assert.match(text, /^---\r?\n[\s\S]*?supported_version: "3\.0"[\s\S]*?\r?\n---\r?\n/);
+        assert.equal(text.match(/^---\r?\n[\s\S]*?supported_version: "([^"]+)"[\s\S]*?\r?\n---\r?\n/)?.[1], documentVersion);
         assert(!/\b(?:T\d{2}|C0\d)\b/.test(text), `Internal plan ID in ${locale}/${name}`);
         for (const [, target] of text.matchAll(/\]\(([^:)#]+\.md)(?:#[^)]*)?\)/g))
             assert(existsSync(path.resolve(root, 'content', locale, target)), `Missing link: ${locale}/${name} -> ${target}`);
@@ -78,6 +84,6 @@ for (const [pathKey, hashKey] of [['sourcePath', 'sourceSha256'], ['translationP
     assert.equal(apiReviews.example[hashKey], sha256(readFileSync(path.join(root, apiReviews.example[pathKey]))), 'Example API translation review is stale.');
 const project = readFileSync(path.join(root, 'LithoSharp.Website.csproj'), 'utf8');
 assert(!project.includes('ProjectReference'));
-assert.match(project, /<LithoSharpVersion Condition="[^"\n]+">3\.0\.0<\/LithoSharpVersion>/);
+assert.equal(project.match(/<LithoSharpVersion Condition="[^"\n]+">([^<]+)<\/LithoSharpVersion>/)?.[1], displayVersion);
 assert(!/(?:[A-Za-z]:\\|\/tmp\/)/.test(project), 'Absolute local feed in project');
 console.log(`Coverage declarations valid: ${coverage.features.length} features; ${pages.get('en').length} paired handbook pages. Runtime verification is separate.`);

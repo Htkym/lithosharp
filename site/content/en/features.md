@@ -1,6 +1,6 @@
 ---
 title: Features
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [introduction]
 sidebar_position: 3
 ---
@@ -56,7 +56,7 @@ A registered C# component can expose typed literal attributes. This site's
 version badge is one example:
 
 ```markdown
-:::component name="version-badge" version="3.0"
+:::component name="version-badge" version="3.1"
 :::
 ```
 

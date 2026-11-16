@@ -6,9 +6,6 @@
 [MDX Quick Start](../../docs/quickstart.ja.md)から始めてください。
 .NET 10 SDK（10.0.300 以降の対応する feature band）と Node.js 24.13.0 を使います。
 
-このリポジトリは LithoSharp 3.0.0 を対象にしています。選定した Syntamark 2 の組み合わせと、
-候補が未公開であることは[バージョン一覧](../../eng/version-matrix.json)に記録しています。
-
 リポジトリのルートで実行します。
 
 ```sh

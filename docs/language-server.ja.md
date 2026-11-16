@@ -3,8 +3,6 @@
 同梱の言語サーバーは Content-Length フレーミングを使い、stdio 上で LSP 3.17 を扱います。
 位置の文字エンコーディングは UTF-16 です。
 
-0.5.0 の VS Code 拡張は、Core 3.0.0 とともに、このサーバーを同梱します。
-これは対象バージョンです。[バージョン一覧](../eng/version-matrix.json)では選定した開発候補と正式公開を区別します。
 サーバーは別途インストールする NuGet ツールではありません。
 DLL、ランタイム設定、依存関係をまとめて保持してください。[配布](distribution.ja.md)を参照してください。
 Markdown の検査には、固定した Syntamark の runtime と Source の組み合わせ、および明示的に取得した Markdown プロファイルを使います。

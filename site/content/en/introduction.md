@@ -1,12 +1,11 @@
 ---
 title: Introduction
-supported_version: "3.0"
+supported_version: "3.1"
 sidebar_position: 1
 ---
 
 LithoSharp is a static-site generator for .NET teams. Write documentation in Markdown,
 define content requirements and site configuration in C#, and publish static files.
-This guide covers LithoSharp 3.0.
 
 ## Start here
 

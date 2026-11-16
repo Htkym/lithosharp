@@ -1,12 +1,10 @@
 # サイトのテスト
 
-このガイドは LithoSharp.Testing 3.0.0 を説明します。
-LithoSharp の各パッケージを同じバージョンで使い、公開状態は[バージョン一覧](../eng/version-matrix.json)で確認してください。
 3.0 の変更は[移行](migration-3.0.ja.md)を参照してください。
 1.x の `Document` getter から更新する場合は、以前のソースとバイナリの破壊的変更を残した [2.x の履歴資料](migration-2.0.ja.md)も確認してください。
 
 ```sh
-dotnet add package LithoSharp.Testing --version 3.0.0
+dotnet add package LithoSharp.Testing --version 3.1.0
 ```
 
 `LithoSharp.Testing` はテストフレームワークに依存しない検証 API と、読み取り専用の HTML スナップショットを提供します。ブラウザーを起動せず、スクリプトの実行やネットワークへの接続も行わずに HTML を解析します。対応するセレクターと移行例は [スナップショット API の仕様](Testing-v2-api.ja.md)を参照してください。

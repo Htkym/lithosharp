@@ -4,10 +4,8 @@
 
 Add optional MDX and React to documentation managed with LithoSharp's C# types and builds. Markdown-only Docs do not need this package or Node.js; use MDX when interactive components or its documentation features fit the site.
 
-Use LithoSharp 3.0.0 for this package and the other LithoSharp packages in your project.
-
 ```sh
-dotnet add package LithoSharp.Mdx --version 3.0.0
+dotnet add package LithoSharp.Mdx --version 3.1.0
 ```
 
 Use matching LithoSharp Core and Tool versions.

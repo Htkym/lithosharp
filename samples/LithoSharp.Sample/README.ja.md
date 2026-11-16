@@ -10,9 +10,6 @@
 [LithoSharp](../../src/LithoSharp) でブログを生成する最小限のコンソールアプリです。
 依存するのは LithoSharp ライブラリだけなので、日次更新のコードなしでジェネレーターが動作することの確認にも使えます。
 
-このリポジトリのサンプルは LithoSharp 3.0.0 を対象にしています。選定した Syntamark 2 の
-runtime と Source の組み合わせと、候補が未公開であることは[バージョン一覧](../../eng/version-matrix.json)に記録しています。
-
 ## 実行
 
 .NET 10 SDK（10.0.300 以降の対応する feature band）を使い、リポジトリのルートで実行します。

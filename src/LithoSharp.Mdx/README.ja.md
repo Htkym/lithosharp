@@ -4,10 +4,8 @@
 
 LithoSharp の C# の型とビルドで管理するドキュメントに、任意で MDX と React を追加できます。Markdown だけの Docs には、このパッケージも Node.js も不要です。対話型コンポーネントや MDX のドキュメント機能がサイトに適している場合に利用してください。
 
-このパッケージと、プロジェクト内のほかの LithoSharp パッケージには、LithoSharp 3.0.0 を指定してください。
-
 ```sh
-dotnet add package LithoSharp.Mdx --version 3.0.0
+dotnet add package LithoSharp.Mdx --version 3.1.0
 ```
 
 LithoSharp Core と Tool のバージョンもそろえてください。

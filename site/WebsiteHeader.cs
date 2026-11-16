@@ -2,6 +2,8 @@ using LithoSharp;
 
 internal static class WebsiteHeader
 {
+    internal static string VersionBadge => "<span class=\"website-version\">" + Html.Encode(WebsiteVersion.Display) + "</span>";
+
     public static string Render(string baseUrl, string? locale = null, string? languageLinks = null)
     {
         var ja = locale == "ja";
@@ -11,6 +13,7 @@ internal static class WebsiteHeader
         if (languageLinks is null)
             languageLinks = "<a lang=\"en\" href=\"" + Directory("en/introduction") + "\">English</a><a lang=\"ja\" href=\"" + Directory("ja/introduction") + "\">日本語</a>";
         return "<header class=\"docs-header\"><a class=\"docs-brand\" href=\"" + Directory("") + "\">LithoSharp</a>"
+            + VersionBadge
             + "<nav class=\"website-top-nav\" aria-label=\"" + (ja ? "サイト内の案内" : "Site navigation") + "\">"
             + "<a href=\"" + Directory(current + "/introduction") + "\">" + (ja ? "ガイド" : "Guide") + "</a>"
             + "<a href=\"" + Directory("api/" + current + "/lithosharp") + "\">API</a><a href=\"https://github.com/Htkym/lithosharp\">GitHub</a></nav>"

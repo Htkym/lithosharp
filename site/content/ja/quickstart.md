@@ -1,12 +1,11 @@
 ---
 title: クイックスタート
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [introduction]
 sidebar_position: 2
 ---
 
 ドキュメントサイトを作成し、ページを編集してローカルでプレビューします。
-この手順では Docs テンプレートと LithoSharp 3.0.0 を使います。
 
 ## 準備するもの
 
@@ -16,11 +15,11 @@ sidebar_position: 2
 以下のコマンドは新しい作業ディレクトリで実行してください。
 既存のサイトに重ねてプロジェクトを作成しないでください。
 
-## 1. インストールしてサイトを作成する
+## インストールしてサイトを作成する
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
@@ -28,7 +27,7 @@ Windows では `.tools/lithosharp` を `.tools/lithosharp.exe` に置き換え�
 テンプレートはユーザーのテンプレート一覧に、CLI は作業ディレクトリ内の `.tools` にインストールされます。
 LithoSharp のパッケージ、テンプレート、CLI は同じバージョンにそろえてください。
 
-## 2. 最初のページを編集する
+## 最初のページを編集する
 
 `MyDocs/content/getting-started.md` を開き、内容を次のように置き換えます。
 
@@ -54,7 +53,7 @@ order: 1
 - `content/`: Markdown のページ
 - `DocsSiteFactory.cs`: サイト名、ベース URL、コンテンツの読み込み、レイアウト
 
-## 3. ビルドしてプレビューする
+## ビルドしてプレビューする
 
 ```sh
 .tools/lithosharp build MyDocs -c Release
@@ -65,7 +64,7 @@ order: 1
 `http://localhost:4317/guide/getting-started/` で確認できます。
 開発サーバーはサイトをビルドし、ファイルの変更を監視します。終了するには Ctrl+C を押してください。
 
-## 4. 公開の準備をする
+## 公開の準備をする
 
 `DocsSiteFactory.cs` でサイト名と公開先のベース URL を設定し、再度ビルドします。
 Docs テンプレートは出力の品質チェックが有効になっており、エラーがあればビルドに失敗します。

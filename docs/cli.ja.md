@@ -2,12 +2,10 @@
 
 `LithoSharp.Tool`は.NET 10のツールです。サイトのビルドには10.0.300以降の.NET 10 SDKが必要で、
 配信時にはASP.NET Coreの共有フレームワークも使います。
-次のコマンドは3.0.0のパッケージ契約を対象にし、そのリリースがNuGetで入手可能になった後に適用します。
-公開状態は[バージョン一覧](../eng/version-matrix.json)で確認してください。
 
 ```powershell
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
@@ -19,7 +17,7 @@ dotnet new install LithoSharp.ProjectTemplates::3.0.0
 
 ## 検査と移行
 
-Toolと、選択したCore・MDXのパッケージは3.0.0にそろえてください。
+Toolと利用するCore・MDXのパッケージは同じバージョンにそろえてください。
 `preflight`と`migrate testing --dry-run`には、その機能を通知するToolが必要です。
 [3.0への移行案内](migration-3.0.ja.md)はネイティブYAML、任意の画像処理、取得したスキーマ、検証の範囲を説明します。
 以前のTestingの移行は[2.xの履歴資料](migration-2.0.ja.md)に残しています。

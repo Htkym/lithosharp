@@ -4,8 +4,6 @@
 
 C# の型とビルドで管理するドキュメント向けの .NET 10 CLI です。サイトのコンパイルと生成、一時出力や保存済み出力の検査、静的ファイルのプレビューに使用します。各コマンドが検査する段階は異なるため、ソース検査の成功は最終 HTML の妥当性を証明しません。サイトのビルドには SDK 10.0.300 以降が必要で、配信には ASP.NET Core 共有フレームワークも使用します。サイトファクトリーは現在のユーザーの権限で実行されます。`capabilities` や `check-output` などの読み取り専用コマンドは、ファクトリーを実行しません。
 
-このパッケージと、同じプロジェクトで使用する他の LithoSharp パッケージには、LithoSharp 3.0.0 を使用してください。
-
 ## 既存出力の検査
 
 ```sh
@@ -16,7 +14,7 @@ lithosharp check-output --output dist --base-url https://example.com/guide/ --fo
 
 ## Preflight
 
-信頼するプロジェクトの検証には Tool 3.0.0 と、同じバージョンの Core／MDX パッケージを使用します。
+信頼するプロジェクトの検証には Tool と同じバージョンの Core／MDX パッケージを使用します。
 
 `capabilities --format json` は、この Tool の `preflight-static-inputs` と `preflight-trusted-catalog` コマンドを、スキーマ1.0の Preview 機能として公開します。このレポートはプロジェクトを評価しません。同梱された Core の識別情報を、選択したプロジェクトの Core の代わりに使用してはいけません。trusted preflight の応答は、ファクトリーアセンブリが参照する Core を `projectCoreVersion` として別に報告します。その Core のすべての機能や、後のレンダリングを保証するものではありません。
 
@@ -37,8 +35,8 @@ JSON の `preflight` と SARIF の `runs[0].properties` は、同じ段階のメ
 同じバージョンの Tool とテンプレートパッケージをインストールして、サイトを作成します。
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

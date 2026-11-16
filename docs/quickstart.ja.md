@@ -6,23 +6,18 @@
 Node.jsとReactは不要です。任意のMDXにはNode.js 24.13.0と明示的に復元したworkerを使います。
 `serve`が使うASP.NET Core shared frameworkはSDKに含まれます。
 
-このガイドの対象はLithoSharp 3.0.0です。開発上の対象バージョンであり、3.0.0の公開を示すものではありません。
-[バージョン一覧](../eng/version-matrix.json)には選定したSyntamark 2のruntime/Sourceの組み合わせと、別バージョンのVS Code拡張0.5.0を記録しています。
-パッケージの選択と候補版の扱いは[配布とインストール](distribution.ja.md)を参照してください。
-
 ## 型付きMarkdown Docsを作る
 
-新しいディレクトリで実行してください。以下の正式版の導入コマンドは対応するToolとTemplates 3.0.0を選択したパッケージソースから取得できる場合にだけ実行します。
-未公開の候補版には配布ガイドに従って明示的に提供されたパッケージと復元ソースを使ってください。以下のコマンドは候補版を検索したりビルドしたりしません。
+新しいディレクトリで次のコマンドを実行してください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 Windowsでは`.tools/lithosharp.exe`を使います。テンプレートは利用者のtemplate catalogへ
-インストールされ、Toolは`.tools`内に入ります。生成されたプロジェクトはLithoSharp 3.0.0を参照します。異なるバージョンを混ぜたり、
+インストールされ、Toolは`.tools`内に入ります。異なるバージョンを混ぜたり、
 既存サイトへテンプレートを上書きしたりしないでください。
 
 ## C#の型とMarkdownを編集する
@@ -135,7 +130,7 @@ CLIと`dotnet run`は同じfactoryを使います。生成したProgramは品質
 
 ## このDocsプロジェクトのCI
 
-対応する3.0.0のパッケージを選択した後、サイトのツールとパッケージのバージョンをそろえてください。
+サイトで使うパッケージと Tool のバージョンをそろえてください。
 一つの手順で出力を生成し、公開前にその同じ出力を検査します。
 
 ```sh

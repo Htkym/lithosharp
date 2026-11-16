@@ -6,9 +6,6 @@ This sample uses the repository projects. For released packages, start with the
 [MDX Quick Start](../../docs/quickstart.md). Use the .NET 10 SDK (10.0.300 or
 a later supported feature band) and Node.js 24.13.0.
 
-The repository targets LithoSharp 3.0.0. The selected Syntamark 2 component pair
-and unpublished candidate state are recorded in the [version matrix](../../eng/version-matrix.json).
-
 From the repository root:
 
 ```sh

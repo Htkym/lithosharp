@@ -1,12 +1,11 @@
 ---
 title: はじめに
-supported_version: "3.0"
+supported_version: "3.1"
 sidebar_position: 1
 ---
 
 LithoSharp は .NET チーム向けの静的サイトジェネレーターです。
 Markdown で文書を書き、C# でコンテンツの要件とサイトの設定を定義して、静的ファイルとして公開できます。
-このガイドでは LithoSharp 3.0 を説明します。
 
 ## まずはここから
 

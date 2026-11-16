@@ -9,15 +9,15 @@ internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPag
 
     private static readonly Binding[] Bindings =
     [
-        new(new("samples", "3.0", "ja", "samples-lithosharp-docssample"), "c", "C#の型定義から生成物の検査まで", "cの型定義から生成物の検査まで"),
-        new(new("reference", "3.0", "ja", "Testing-v2-api"), "section-2", "移行", "移行"),
+        new(new("samples", WebsiteVersion.Document, "ja", "samples-lithosharp-docssample"), "c", "C#の型定義から生成物の検査まで", "cの型定義から生成物の検査まで"),
+        new(new("reference", WebsiteVersion.Document, "ja", "Testing-v2-api"), "section-2", "移行", "移行"),
         new(new("history", "2.2", "ja", "migration-2.0"), "docs", "既存Docsを型付きコンテンツへ移す", "既存docsを型付きコンテンツへ移す"),
-        new(new("reference", "3.0", "ja", "typed-markdown-collections"), "section-4", "コードの取り込みと本文解析", "コードの取り込みと本文解析"),
-        new(new("reference", "3.0", "en", "layout-css-contract"), "theme-switching", "Theme switching", "theme-switching--テーマ切り替え", "docs/layout-css-contract.md"),
-        new(new("reference", "3.0", "ja", "layout-css-contract"), "section", "テーマの切り替え", "テーマ切り替え", "docs/layout-css-contract.ja.md"),
-        new(new("reference", "3.0", "ja", "quickstart"), "docsci", "このDocsプロジェクトのCI", "このdocsプロジェクトのci"),
-        new(new("reference", "3.0", "ja", "quickstart"), "section-3", "使用例と次の手順", "使用例と次の手順"),
-        new(new("reference", "3.0", "ja", "known-limitations"), "markdown", "Markdown の互換性", "markdown-の互換性"),
+        new(new("reference", WebsiteVersion.Document, "ja", "typed-markdown-collections"), "section-4", "コードの取り込みと本文解析", "コードの取り込みと本文解析"),
+        new(new("reference", WebsiteVersion.Document, "en", "layout-css-contract"), "theme-switching", "Theme switching", "theme-switching--テーマ切り替え", "docs/layout-css-contract.md"),
+        new(new("reference", WebsiteVersion.Document, "ja", "layout-css-contract"), "section", "テーマの切り替え", "テーマ切り替え", "docs/layout-css-contract.ja.md"),
+        new(new("reference", WebsiteVersion.Document, "ja", "quickstart"), "docsci", "このDocsプロジェクトのCI", "このdocsプロジェクトのci"),
+        new(new("reference", WebsiteVersion.Document, "ja", "quickstart"), "section-3", "使用例と次の手順", "使用例と次の手順"),
+        new(new("reference", WebsiteVersion.Document, "ja", "known-limitations"), "markdown", "Markdown の互換性", "markdown-の互換性"),
     ];
 
     static WebsiteDocumentationLayout()

@@ -7,12 +7,9 @@ MDX 3.1.1、React 19.2.4、esbuild 0.28.2 を使います。依存関係は work
 
 ## サイトを作る
 
-以下は 3.0.0 を対象にした手順です。利用する LithoSharp のパッケージと Tool を 3.0.0 にそろえてください。
-[バージョン一覧](../eng/version-matrix.json)は選定した開発候補と正式リリースの提供状況を区別します。
-
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new mdx MyDocs -o MyDocs
 dotnet build MyDocs -c Release
 .tools/lithosharp restore-mdx MyDocs/bin/Release/net10.0/worker

@@ -43,8 +43,8 @@ public sealed class WebsiteFactory : ISiteFactory
         };
         var referenceAssets = PublicDocumentation.Register(docs, root, Path.Combine(generatedInputs, "reference"), BaseUrl);
         docs.AddCollection(new DocumentationCollection("handbook", [
-            new("3.0", "en", Path.Combine(root, "content", "en"), "en"),
-            new("3.0", "ja", Path.Combine(root, "content", "ja"), "ja")])
+            new(WebsiteVersion.Document, "en", Path.Combine(root, "content", "en"), "en"),
+            new(WebsiteVersion.Document, "ja", Path.Combine(root, "content", "ja"), "ja")])
         {
             Sidebars = WebsiteNavigation.Sidebars,
             DefaultSidebar = "handbook",
@@ -74,7 +74,7 @@ public sealed class WebsiteFactory : ISiteFactory
             { Parameters = [new("draft", "bool"), new("supportedVersion", "string?")], ReturnType = "bool" }
         ], new Dictionary<string, DocumentKey>());
         foreach (var locale in new[] { "en", "ja" })
-            api.AddXml(new("examples", new("3.0", locale, root, $"api/{locale}"),
+            api.AddXml(new("examples", new(WebsiteVersion.Document, locale, root, $"api/{locale}"),
                 locale == "ja" ? Path.Combine(root, "api", "ja", "WebsiteExamples.xml")
                     : Path.Combine(AppContext.BaseDirectory, "LithoSharp.Website.xml")), symbols);
         var socialTransform = new SiteAssetTransform("website-social", "website-pixels/1;" + RgbaImage.ProcessingProfile,
@@ -109,7 +109,7 @@ public sealed class WebsiteFactory : ISiteFactory
                 AssetTransforms = [socialTransform],
                 GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
-                    { Title = entry.FrontMatter.Title, Version = "3.0", Locale = entry.FrontMatter.Locale },
+                    { Title = entry.FrontMatter.Title, Version = WebsiteVersion.Document, Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>
                     {
                         var reference = entry.FrontMatter.Locale == "ja"
@@ -134,8 +134,8 @@ public sealed class WebsiteFactory : ISiteFactory
         {
             var id = review.GetProperty("id").GetString()!;
             return new DocumentTranslationReview(
-                new(new("handbook", "3.0", "en", id), $"content/en/{id}.md", review.GetProperty("sourceSha256").GetString()!),
-                new(new("handbook", "3.0", "ja", id), $"content/ja/{id}.md", review.GetProperty("translationSha256").GetString()!));
+                new(new("handbook", WebsiteVersion.Document, "en", id), $"content/en/{id}.md", review.GetProperty("sourceSha256").GetString()!),
+                new(new("handbook", WebsiteVersion.Document, "ja", id), $"content/ja/{id}.md", review.GetProperty("translationSha256").GetString()!));
         }).ToArray();
     }
 }

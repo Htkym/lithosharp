@@ -1,6 +1,6 @@
 ---
 title: Markdown プロファイルとコンポーネント
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [typed-content]
 ---
 
@@ -14,7 +14,7 @@ UTF-16 の位置、選択項目の取得状態、増分セッション、ネイ�
 
 このページは登録した C# コンポーネントに、型付きのリテラル属性を渡して描画します。
 
-:::component name="version-badge" version="3.0"
+:::component name="version-badge" version="3.1"
 :::
 
 `WebsiteFactory` は文書用プロファイルを選び、`VersionBadge` を `GeneratedBadges.Binder` と設定の識別情報で登録します。

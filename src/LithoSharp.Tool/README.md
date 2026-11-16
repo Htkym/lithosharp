@@ -7,8 +7,6 @@ serving also uses the ASP.NET Core shared framework. Site factories execute with
 the current user's permissions. Read-only commands such as `capabilities` and
 `check-output` do not run a factory.
 
-Use LithoSharp 3.0.0 for this package and the other LithoSharp packages in your project.
-
 ## Inspect existing output
 
 ```sh
@@ -23,7 +21,7 @@ for encoding, file-type and platform limits.
 
 ## Preflight
 
-Use Tool 3.0.0 and matching Core/MDX packages for trusted project validation.
+Use the Tool and matching Core/MDX packages for trusted project validation.
 
 `capabilities --format json` advertises this Tool's `preflight-static-inputs` and `preflight-trusted-catalog` commands as Preview capabilities in schema 1.0. The report does not evaluate a project: its bundled Core identity must not be substituted for the selected project's Core. A trusted preflight response reports the factory assembly's Core reference separately as `projectCoreVersion`; it does not certify every feature of that referenced Core or a future render.
 
@@ -44,8 +42,8 @@ Normal generation validates the captured Core catalog and all available extensio
 Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

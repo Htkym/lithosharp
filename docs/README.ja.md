@@ -2,10 +2,6 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-このガイドの対象はLithoSharp 3.0.0、Syntamark 2、VS Code拡張0.5.0です。
-開発上の対象を説明しており、これらのリリースが公開済みであることを示すものではありません。
-[バージョン一覧](../eng/version-matrix.json)には選定したruntime/Sourceの組み合わせと、パッケージ・拡張機能の別々のバージョンを記録しています。
-3.0.0を採用する場合は、LithoSharpのパッケージを同じバージョンにそろえてください。
 必要な環境と導入手順はQuick Start、用途に合うかの判断は[導入選択ガイド](adoption-guide.ja.md)を参照してください。
 
 ## 最初のサイトを作る

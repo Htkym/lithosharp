@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -11,6 +11,28 @@ function argument(name) {
 }
 const inputs = argument('--inputs');
 const output = argument('--output');
+const versionMatrix = JSON.parse(readFileSync(path.join(site, '../eng/version-matrix.json'), 'utf8'));
+function verifyVersionBadges(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) verifyVersionBadges(file);
+        else if (entry.name.endsWith('.html')) {
+            const html = readFileSync(file, 'utf8');
+            const header = html.match(/<header[\s\S]*?<\/header>/)?.[0];
+            assert(header, `Missing site header: ${file}`);
+            const relative = path.relative(output, file).replaceAll('\\', '/');
+            // RenderDocs examples intentionally demonstrate the unmodified shared template.
+            if (relative.startsWith('examples/') || relative.startsWith('knowledge/')) {
+                assert(header.includes('class="docs-header"'), `Missing standard example header: ${file}`);
+                continue;
+            }
+            const badges = [...header.matchAll(/<span class="website-version">([^<]+)<\/span>/g)];
+            assert.equal(badges.length, 1, `Expected one version badge: ${file}`);
+            assert.equal(badges[0][1], versionMatrix.lithosharpTarget, `Version badge mismatch: ${file}`);
+        }
+    }
+}
+verifyVersionBadges(output);
 const metadata = JSON.parse(readFileSync(path.join(inputs, 'api/public-symbols.json'), 'utf8'));
 const coverage = JSON.parse(readFileSync(path.join(inputs, 'api/api-coverage.json'), 'utf8'));
 assert.equal(coverage.source, 'selected-package-assembly-metadata-and-compiler-xml');

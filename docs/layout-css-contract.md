@@ -2,7 +2,7 @@
 
 <a id="layout-and-component-css-contract--レイアウトとcssの契約"></a>
 
-This contract applies to the built-in layouts in LithoSharp 3.0.0. It covers
+This contract applies to the built-in layouts in LithoSharp. It covers
 semantic classes and interaction hooks, not byte-identical HTML or arbitrary
 custom templates. See the [generated-site compatibility contract](compatibility-contract.md)
 and the [empty template's custom layout](../templates/LithoSharp.ProjectTemplates/content/empty/EmptyLayout.cs)

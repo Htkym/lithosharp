@@ -12,7 +12,7 @@ internal static class PublicDocumentation
 {
     private sealed record Source(string Locale, string Path, string Title, string Hash, string Collection, string Id, bool Historical)
     {
-        internal string Version => Historical ? "2.2" : "3.0";
+        internal string Version => Historical ? "2.2" : WebsiteVersion.Document;
     }
 
     internal static IReadOnlyList<SiteGeneratedAsset> Register(DocumentationSite docs, string siteRoot, string inputDirectory, string baseUrl)

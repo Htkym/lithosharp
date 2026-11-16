@@ -1,6 +1,6 @@
 ---
 title: CLI, editor and language server
-supported_version: "3.0"
+supported_version: "3.1"
 prerequisites: [quickstart]
 ---
 
@@ -22,7 +22,6 @@ facts and the known catalog; unresolved context is not proof that no target
 exists. Dynamic resolution and unsupported syntax can limit the available actions.
 Review rename edits before applying them across documents.
 
-Install the extension from its documented distribution path and match the
-repository version matrix when testing candidates. Core/CLI versions and extension
+Install the extension from its documented distribution path. Core/CLI versions and extension
 versions have separate numbers. See [migration](../migration/) for 3.0 changes and
 [operations](../operations/) for the difference between inspection and executed checks.

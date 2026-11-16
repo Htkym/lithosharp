@@ -2,7 +2,7 @@
 title: 型付きコンテンツの例
 locale: ja
 status: Published
-supported_version: "3.0"
+supported_version: "3.1"
 ---
 # 型付きコンテンツの例
 
@@ -12,9 +12,5 @@ supported_version: "3.0"
 ```csharp snippet="published-version" source="../source/WebsiteExamples.cs" region="PublishedVersion"
 ```
 
-テストでは、公開文書のバージョンが欠落、空白、指定済みの各場合と、下書きを確認します。
-対応付けたテストを実行するには、`Build.ps1` を使います。
-スニペットの表示は現在の入力をテストしたことを証明しません。
-
-:::component name="version-badge" version="3.0"
+:::component name="version-badge" version="3.1"
 :::

@@ -2,8 +2,7 @@
 
 [日本語](compatibility-contract.ja.md)
 
-This document describes the generated-site compatibility contract in LithoSharp
-3.0.0. It originated with 1.0.0; implementation details are not compatibility
+This document describes the generated-site compatibility contract in LithoSharp. It originated with 1.0.0; implementation details are not compatibility
 guarantees. The [3.0 upgrade guide](migration-3.0.md) documents the native YAML and
 image-processing changes. The [historical 2.x guide](migration-2.0.md) retains the
 earlier Testing API break separately from generated-site compatibility.

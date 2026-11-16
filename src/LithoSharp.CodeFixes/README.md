@@ -6,12 +6,12 @@ Optional IDE fixes complement LithoSharp's compiler diagnostics for .NET documen
 
 Install alongside the matching LithoSharp.Analyzers and Generators packages in a Roslyn 4.14 IDE host. Workspaces dependencies belong to this IDE assembly; the compiler analyzer remains independent of Workspaces and Core runtime loading.
 
-Use version 3.0.0 for all three packages and keep them private to the consuming
+Use the same version for all three packages and keep them private to the consuming
 project. CodeFixes is optional; installing it does not turn editor Markdown
 inspection into C# schema checking or enable a fix for every Analyzer diagnostic.
 
 ```xml
-<PackageReference Include="LithoSharp.CodeFixes" Version="3.0.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp.CodeFixes" Version="3.1.0" PrivateAssets="all" />
 ```
 
 LSA1401 replaces only a direct literal of a verified fresh Closed manifest with the unique generated PageRef's `Route.PublicPath`. The original `Manifest.GetUrl` receiver, overload and runtime guard remain. Generated Pages initializers must all be canonical pure references to the verified immutable catalog. Open, stale, ambiguous, handwritten, side-effecting and unproved references receive no fix.

@@ -6,27 +6,18 @@ Use the .NET 10 SDK (minimum 10.0.300). Markdown-only Docs need no Node.js or
 React. Optional MDX uses Node.js 24.13.0 and an explicitly restored worker.
 The SDK supplies the ASP.NET Core shared framework used by `serve`.
 
-This guide targets LithoSharp 3.0.0. It is a development target, not a claim that
-3.0.0 is published. The [version matrix](../eng/version-matrix.json) records the
-selected Syntamark 2 runtime/Source pair and the separate VS Code 0.5.0 target.
-See [distribution](distribution.md) for package choices and candidate handling.
-
 ## Create typed Markdown Docs
 
-Work in a new directory. Run these release-install commands only when the matching
-3.0.0 Tool and Templates are available from your selected package source. For an
-unpublished candidate, use its explicitly supplied packages and restore sources
-as described in distribution; these commands do not locate or build a candidate.
+Work in a new directory.
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.0.0
-dotnet tool install LithoSharp.Tool --version 3.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 
 On Windows use `.tools/lithosharp.exe`. Template installation changes your user
-template catalog; the Tool is local to `.tools`. Generated projects already use
-LithoSharp 3.0.0. Do not mix package versions or scaffold over an existing site.
+template catalog; the Tool is local to `.tools`. Do not mix package versions or scaffold over an existing site.
 
 ## Edit the C# contract and Markdown
 
@@ -146,7 +137,7 @@ remain outside static schema validation. `NoContext`, `Partial`, `Unknown` and
 
 ## CI for this Docs project
 
-After selecting matching 3.0.0 packages, keep the site's tool and package versions
+After selecting matching packages, keep the site's tool and package versions
 aligned. Run one generation/check path before publishing the same output:
 
 ```sh
