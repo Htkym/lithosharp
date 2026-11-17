@@ -15,7 +15,9 @@ public sealed class DocsHeaderContentTests
         var site = new SiteSettings { Title = "Guide", BaseUrl = "https://example.test/sub/", Language = "ja", TimeZone = "UTC" };
         var post = new MarkdownPost("guide.md", "guide", new PostFrontMatter
         {
-            Title = "Guide", Summary = "Summary", Date = timestamp.AddDays(-1)
+            Title = "Guide",
+            Summary = "Summary",
+            Date = timestamp.AddDays(-1)
         }, "## Guide\n\nBody", "posts/guide.html");
         var version = "v1";
         var observed = new HashSet<(string?, string?)>();
