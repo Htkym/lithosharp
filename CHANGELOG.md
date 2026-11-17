@@ -4,6 +4,8 @@
 
 ## 3.1.0
 
+- Highlight the current heading in Docs and MDX tables of contents while retaining ordinary anchor links without JavaScript.
+
 - Add `DocsSiteTemplate.NavigationRenderer` for a shared sidebar across collections and utility pages. Header search shows matching titles and excerpts below the input.
 - Group API reference navigation by namespace and type, with member pages and breadcrumbs for moving back through the hierarchy.
 - Restore the saved MDX theme before the first render and retain shared stylesheets during enhanced navigation to reduce visual flashes.

@@ -249,3 +249,6 @@
 @media(min-width:52.01rem) and (max-width:79.99rem) {
   .website-body.website-no-toc.docs-sidebar-collapsed .docs-shell { grid-template-columns:minmax(0,1fr); grid-template-areas:"main"; }
 }
+
+.website-toc .toc-list a { display:block; border-inline-start:2px solid transparent; padding-inline-start:.65rem; }
+.website-toc .toc-list a.docs-toc-current { color:var(--accent); border-inline-start-color:var(--accent); background:var(--panel); font-weight:650; }

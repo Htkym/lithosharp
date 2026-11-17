@@ -5575,6 +5575,8 @@ public sealed partial class SiteGenerator
           .docs-toc .toc-track, .docs-toc .toc-indicator, .docs-toc .toc-list li::before { display: none; }
           .docs-toc .toc-list { padding: 0; gap: 0.75rem; }
           .docs-toc .toc-list a { padding: 0; color: var(--muted); font-weight: 400; }
+          .docs-toc .toc-list a { border-inline-start:2px solid transparent; padding-inline-start:.65rem; }
+          .docs-toc .toc-list a.docs-toc-current { color:var(--accent); border-inline-start-color:var(--accent); background:var(--panel); font-weight:650; }
           .docs-toc .toc-list .toc-link-active { color: var(--accent) !important; }
           .docs-toc.post-toc h2 { color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
           .docs-pagination {
@@ -5696,7 +5698,7 @@ public sealed partial class SiteGenerator
     }
 
     private static string BuildDocsScript(RenderContext configuration) =>
-        BuildSiteScript(configuration) + DocsSidebarScript.BrowserScript + """
+        BuildSiteScript(configuration) + DocsSidebarScript.BrowserScript + DocsTocScript.BrowserScript + """
 
         (() => {
           "use strict";
@@ -6832,6 +6834,7 @@ public sealed partial class SiteGenerator
             closeMenu();
           }
 
+          if (document.body.classList.contains("docs-body")) return;
           const toc = document.querySelector(".post-toc");
           if (!toc) {
             return;

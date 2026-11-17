@@ -175,6 +175,8 @@ the header input. Select a result to open its page. Search requires JavaScript. 
 native topic disclosures remain usable. A search header scrolls with the page
 without JavaScript; with JavaScript it stays sticky and measures its wrapped height.
 
+With JavaScript enabled, the table of contents highlights the current heading as you scroll or follow a heading link. The active link also uses `aria-current="location"`. Without JavaScript, the table of contents remains a list of ordinary heading links.
+
 Topic overview links are separate from disclosure summaries. Closing a topic
 hides its links until the reader opens it; it does not change routes, navigation
 order, the current-page marker, table of contents, or previous/next links.

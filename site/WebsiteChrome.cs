@@ -39,7 +39,7 @@ internal static class WebsiteChrome
             + "<a href=\"" + Directory(locale + "/introduction") + "\">" + (ja ? "ガイド" : "Guide") + "</a>"
             + "<a href=\"" + Directory("api/" + locale + "/lithosharp") + "\">API</a><a href=\"https://github.com/Htkym/lithosharp\">GitHub</a></nav>";
         return Html.UnsafeRaw("<!doctype html><html lang=\"" + Html.Encode(language) + "\"" + (page.Metadata.RightToLeft ? " dir=\"rtl\"" : "") + ">"
-            + head.Replace("</head>", "<script type=\"module\" src=\"" + Url("website-sidebar.js") + "\"></script>" + "<script src=\"" + Url("website-theme.js") + "\" data-base-path=\"" + Directory("") + "\"></script>" + extra + "</head>", StringComparison.Ordinal)
+            + head.Replace("</head>", "<script type=\"module\" src=\"" + Url("website-toc.js") + "\"></script>" + "<script type=\"module\" src=\"" + Url("website-sidebar.js") + "\"></script>" + "<script src=\"" + Url("website-theme.js") + "\" data-base-path=\"" + Directory("") + "\"></script>" + extra + "</head>", StringComparison.Ordinal)
             + "<body class=\"docs-body website-body" + (toc.Length == 0 ? " website-no-toc" : "") + "\">"
             + "<a class=\"docs-skip-link\" href=\"#docs-main\">" + (ja ? "本文へ移動" : "Skip to main content") + "</a>"
             + "<header class=\"docs-header\"><button class=\"docs-menu-toggle\" type=\"button\" aria-expanded=\"true\" aria-controls=\"docs-sidebar\" data-docs-menu-toggle aria-label=\"" + (ja ? "メニュー" : "Menu") + "\">" + MenuIcon + "</button>"

@@ -6,7 +6,7 @@
         "type": "Direct",
         "requested": "[3.1.0, )",
         "resolved": "3.1.0",
-        "contentHash": "O8ypkujdZne6TH6in5X8R1FtnDxGEuZJrJQ1sel1bVAhgjjAwDjS1AUXU2yXn6RL4mQW4YBZxTHfvcpvRpfIiw==",
+        "contentHash": "qyemRKr3Xeav0HpzcXyAO2icmCL5yJ7dEn1ftCKGo2JEWhsde+YKBQ51YpkQfkWT1Vj+LAvoIsREjiQECtB0kA==",
         "dependencies": {
           "Syntamark": "[2.0.0]"
         }

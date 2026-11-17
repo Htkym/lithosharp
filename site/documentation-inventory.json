@@ -253,12 +253,12 @@
         "en": {
           "path": "docs/docs-template.md",
           "title": "Configure the Docs template",
-          "sha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3"
+          "sha256": "5452763eb33f83444bc5a5474421f106eafc9f4755b13a6b91c40475a40795b1"
         },
         "ja": {
           "path": "docs/docs-template.ja.md",
           "title": "Docsテンプレートの設定",
-          "sha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372"
+          "sha256": "a36392e4f088271f18e48cccd5a6abdcfcfe9170c7ae66751e140dbd9d2b75e1"
         }
       }
     },
@@ -1224,7 +1224,7 @@
         },
         {
           "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
-          "sha256": "85d7da4b818d7e953ec2c67d2e48c9508334ce0c0b118e7fbf2fb645dcb1351f"
+          "sha256": "8c6a2f2e24b4b18747aec96ac047d668a9972a1e450a750ded2731b9f1818386"
         },
         {
           "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
@@ -1380,7 +1380,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.cs",
-          "sha256": "fb409343a258d517a040b0bae9edff49c4cba04af7ffff348e667b5d9a876c64"
+          "sha256": "6f7a600e9355c96ba9afc755bb7ef9f58c2906d8409a3e8cfea7c9d89b3cef81"
         }
       ],
       "guides": {

@@ -229,7 +229,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
                 algolia = browser.Algolia is { } search ? new { applicationId = search.ApplicationId, searchOnlyApiKey = search.SearchOnlyApiKey, indexName = search.IndexName } : null,
                 analytics = browser.Analytics is { } provider ? new { endpoint = provider.Endpoint.Value, domain = provider.Domain, provider = provider.Provider } : null
             });
-            var script = Asset("client", ".js", CodeCopyScript.BrowserScript + "\n" + DocsSidebarScript.BrowserScript + "\n" + Resource("client.mjs").Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal)
+            var script = Asset("client", ".js", CodeCopyScript.BrowserScript + "\n" + DocsSidebarScript.BrowserScript + "\n" + DocsTocScript.BrowserScript + "\n" + Resource("client.mjs").Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal)
                 + "\nstart(" + config + ");\n");
             var css = Asset("theme", ".css", Resource("theme.css"));
             var themeScript = browser.Theme ? Asset("theme-restoration", ".js", Resource("theme.js").Replace("/*__BASE_PATH__*/", JsonSerializer.Serialize(SiteUrl.ForDirectory("", context.Site.BaseUrl).Value), StringComparison.Ordinal)) : null;

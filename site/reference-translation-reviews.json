@@ -134,9 +134,9 @@
       "version": "3.1",
       "id": "docs-template",
       "sourcePath": "docs/docs-template.md",
-      "sourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
+      "sourceSha256": "5452763eb33f83444bc5a5474421f106eafc9f4755b13a6b91c40475a40795b1",
       "translationPath": "docs/docs-template.ja.md",
-      "translationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372"
+      "translationSha256": "a36392e4f088271f18e48cccd5a6abdcfcfe9170c7ae66751e140dbd9d2b75e1"
     },
     {
       "collection": "reference",
@@ -934,6 +934,17 @@
       "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
       "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0",
       "scope": "Reviewed the changed English/Japanese usage paragraphs for shared navigation, header search, sidebar sizing, theme restoration and stylesheet continuity. Changed Japanese prose with surrounding search context received AGY/Gemini and Yomiyasu proofreading; unchanged text retained its existing review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "docs-template",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
+      "previousTranslationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372",
+      "sourceSha256": "5452763eb33f83444bc5a5474421f106eafc9f4755b13a6b91c40475a40795b1",
+      "translationSha256": "a36392e4f088271f18e48cccd5a6abdcfcfe9170c7ae66751e140dbd9d2b75e1",
+      "scope": "Reviewed the added TOC current-heading paragraph in English and Japanese, including aria-current and no-JavaScript fallback. Added Japanese prose received AGY/Gemini and Yomiyasu proofreading; unchanged text retains prior review."
     }
   ]
 }
