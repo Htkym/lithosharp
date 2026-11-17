@@ -52,10 +52,10 @@ for (const variant of coverage.variants) {
         assert(file.startsWith(output + path.sep), `API output leaves its root: ${page.output}`);
         const html = readFileSync(file, 'utf8');
         assert(html.includes(`<html lang="${variant.locale}"`), `API language: ${page.output}`);
-        assert(html.includes('id="main"'), `Missing API main landmark: ${page.output}`);
+        assert(/<main\b[^>]*id="docs-main"/.test(html) && html.includes('href="#docs-main"'), `Missing API main landmark or skip target: ${page.output}`);
         assert(html.includes(variant.locale === 'ja' ? '本文へ移動' : 'Skip to main content'), `API skip link: ${page.output}`);
         if (variant.locale === 'ja') assert(!html.includes('>Skip to main content</a>'), `English API shell: ${page.output}`);
-        assert(html.includes('website-search-link'), `API site search: ${page.output}`);
+        assert(html.includes('website-search-form') && html.includes('type="search"'), `API site search: ${page.output}`);
         assert(html.includes('class="website-language"'), `API language control: ${page.output}`);
         const header = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? '';
         for (const language of ['en', 'ja']) assert(header.includes(`/api/${language}/`), `API counterpart header: ${page.output}/${language}`);
@@ -113,7 +113,7 @@ for (const locale of ['en', 'ja']) {
 for (const file of ['index.html', '404.html', 'search.html']) {
     const html = readFileSync(path.join(output, file), 'utf8');
     assert(html.includes('class="docs-header"'), `Common utility header: ${file}`);
-    assert(html.includes('website-search-link'), `Site search entry: ${file}`);
+    assert(html.includes('website-search-form') && html.includes('type="search"'), `Site search entry: ${file}`);
     assert(html.includes('website-language'), `Language entry: ${file}`);
     assert(!html.includes('id="docs-sidebar"'), `No unrelated sidebar: ${file}`);
 }

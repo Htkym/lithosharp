@@ -102,7 +102,7 @@ public sealed partial class SiteGenerator
         var markdown = AdaptPublishedMarkdownPages(definition.Posts, definition.Site.BaseUrl, timestamp, options.EnvironmentName, routes, unpublished);
         var extra = FilterPublished(AdaptExtraPages(customization.ExtraPages, definition.Site.BaseUrl, routes), timestamp, options.EnvironmentName);
         _ = AdaptContentCollections(options.ContentCollections, definition.Site.BaseUrl, timestamp, options.EnvironmentName, routes, unpublished, cancellationToken);
-        var builtIn = customization.Template is DocsSiteTemplate or BlogSiteTemplate;
+        var builtIn = customization.Template?.GetType() == typeof(DocsSiteTemplate) || customization.Template is BlogSiteTemplate;
         RegisterPageRoutes(routes, markdown, builtIn);
         RegisterPageRoutes(routes, extra, builtIn);
         // Errors already known from the actual core catalog stop before extension analysis.

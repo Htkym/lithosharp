@@ -102,6 +102,12 @@ public sealed class DocsChromeEnhancementTests
             {
                 document.AssertAttribute("header form", "action", "/sub/search.html");
                 document.AssertAttribute("header form", "method", "get");
+                document.AssertAttribute("header form", "data-index", "/sub/search-index.json");
+                document.AssertAttribute("header form", "data-locale", "ja");
+                await Assert.That(document.Snapshot.QueryAll("header [data-site-autocomplete]").Count).IsEqualTo(1);
+                await Assert.That(document.Snapshot.QueryAll("header [data-autocomplete-panel][hidden]").Count).IsEqualTo(1);
+                await Assert.That(document.Snapshot.QueryAll("header [data-results]").Count).IsEqualTo(1);
+                document.AssertAttribute("header script", "src", "/sub/assets/search.js");
                 document.AssertAttribute("header input", "aria-label", SiteText.Japanese.SearchInputLabel);
                 await Assert.That(document.Snapshot.Query("header input")?.GetAttribute("id")).IsNull();
             }

@@ -2,7 +2,7 @@ using LithoSharp.Documentation;
 
 internal static class WebsiteNavigation
 {
-    private static readonly (string English, string Japanese, string[] Documents)[] Groups =
+    internal static readonly (string English, string Japanese, string[] Documents)[] Groups =
     [
         ("Start here", "まずはここから", ["introduction", "quickstart", "features"]),
         ("Write content", "コンテンツ作成", ["typed-content", "profiles", "documentation"]),

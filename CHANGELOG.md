@@ -4,6 +4,10 @@
 
 ## 3.1.0
 
+- Add `DocsSiteTemplate.NavigationRenderer` for a shared sidebar across collections and utility pages. Header search shows matching titles and excerpts below the input.
+- Group API reference navigation by namespace and type, with member pages and breadcrumbs for moving back through the hierarchy.
+- Restore the saved MDX theme before the first render and retain shared stylesheets during enhanced navigation to reduce visual flashes.
+
 - Add `PageLayoutContent.DocumentationChrome` and `DocumentationPageChrome` so custom layouts can arrange the article, breadcrumbs, search, language/version links, headings and adjacent-page navigation separately. Existing `Body` content remains available.
 - Add `DocumentationSearchScope.Site` for searching the shared site index in the current language, including language-neutral pages. The default collection scope remains unchanged. Improve search-result snippets and language filtering.
 - Improve responsive Docs navigation and typography, place the table of contents before the article on narrower screens, and omit empty tables of contents. API language links use existing translated counterparts.

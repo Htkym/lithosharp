@@ -12,6 +12,56 @@ public sealed class TypedDocsPresentationTests
 {
     private static readonly DateTimeOffset Timestamp = new(2026, 11, 7, 0, 0, 0, TimeSpan.Zero);
 
+    private sealed class SharedTemplate : DocsSiteTemplate
+    {
+        public override async Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default)
+        {
+            var result = await base.RenderAsync(context, cancellationToken);
+            return new(result.Files.Select(file => file.RelativePath.EndsWith(".html", StringComparison.Ordinal)
+                ? file with { Content = file.Content.Replace("</body>", "<p>Derived template marker</p></body>", StringComparison.Ordinal) } : file).ToArray());
+        }
+    }
+
+    [Test]
+    public async Task BuiltInNotFoundNavigationUsesNullForRenderingAndIncrementalFingerprint()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "not-found");
+        SiteCustomization Settings(string label) => new()
+        {
+            Template = new DocsSiteTemplate
+            {
+                NavigationRenderer = (url, locale) => Html.UnsafeRaw("<aside id=\"docs-sidebar\"><nav aria-label=\"Shared\"><a href=\"/base/index.html\">"
+                    + (url is null ? label : "Unchanged") + "</a></nav></aside>")
+            }
+        };
+        await Generate(new SiteGenerator(), output, [], customization: Settings("First missing-page navigation"));
+        var file = Path.Combine(output, "404.html");
+        await Assert.That(await File.ReadAllTextAsync(file)).Contains("First missing-page navigation");
+        var result = await Generate(new SiteGenerator(), output, [], clean: false, customization: Settings("Changed missing-page navigation"));
+        await Assert.That(await File.ReadAllTextAsync(file)).Contains("Changed missing-page navigation");
+        await Assert.That(result.BuildReport.Nodes.Single(node => node.OwnedArtifacts.Contains("404.html")).CacheHit).IsFalse();
+        var warm = await Generate(new SiteGenerator(), output, [], clean: false, customization: Settings("Changed missing-page navigation"));
+        await Assert.That(warm.BuildReport.Nodes.Single(node => node.OwnedArtifacts.Contains("404.html")).CacheHit).IsTrue();
+    }
+    [Test]
+    public async Task SharedNavigationCoversTypedPagesAndInvalidatesWhenItsContentChanges()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "shared");
+        var collection = Collection(workspace.Root, "guides", [Entry("one.md", "One", "one/", 1)])
+            .RenderDocs(Presentation, static (entry, context) => context.RenderMarkdown(entry.Body), "shared:v1");
+        SiteCustomization Settings(string label) => new()
+        {
+            Template = new SharedTemplate { NavigationRenderer = (url, locale) => Html.UnsafeRaw("<aside id=\"docs-sidebar\"><nav aria-label=\"Shared\"><a href=\"/base/one/\">" + label + "</a></nav></aside>") }
+        };
+        await Generate(new SiteGenerator(), output, [collection], customization: Settings("First"));
+        foreach (var path in new[] { "index.html", "one/index.html" })
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, path))).Contains(">First</a>");
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "index.html"))).Contains("Derived template marker");
+        await Generate(new SiteGenerator(), output, [collection], clean: false, customization: Settings("Changed"));
+        await Assert.That(await File.ReadAllTextAsync(Path.Combine(output, "one/index.html"))).Contains(">Changed</a>");
+    }
     [Test]
     public async Task CanonicalRoutesAndPublicationDriveHomeSidebarPaginationAndSameParseToc()
     {

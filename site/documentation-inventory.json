@@ -253,12 +253,12 @@
         "en": {
           "path": "docs/docs-template.md",
           "title": "Configure the Docs template",
-          "sha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946"
+          "sha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3"
         },
         "ja": {
           "path": "docs/docs-template.ja.md",
           "title": "Docsテンプレートの設定",
-          "sha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b"
+          "sha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372"
         }
       }
     },
@@ -406,12 +406,12 @@
         "en": {
           "path": "docs/mdx.md",
           "title": "MDX and documentation sites",
-          "sha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4"
+          "sha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0"
         },
         "ja": {
           "path": "docs/mdx.ja.md",
           "title": "MDX とドキュメントサイト",
-          "sha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89"
+          "sha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0"
         }
       }
     },
@@ -910,8 +910,8 @@
     },
     {
       "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
-      "sha256": "f8dcd24e0c694f9932952faa1c17b85e8773c8eec1cc4a05f8740e7eed52c2ea",
-      "entries": 894
+      "sha256": "ac4c67c7123f8226846a2752042adb5a21989a006ca5bbea53433244c817945b",
+      "entries": 898
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
@@ -1224,7 +1224,7 @@
         },
         {
           "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
-          "sha256": "4a360bdc823d87ba088c4cb75a08eba6e8617be96bd3f476d4e55a057fab11c8"
+          "sha256": "179587c235dd513bb2fc7ef48215f9128ea7454d0b39c755336fb868b31ef94c"
         },
         {
           "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
@@ -1372,7 +1372,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.AgentReady.cs",
-          "sha256": "604c9b333f672d0b646b063e8f2d34f4f2e15564bd907b445df24ef08ea3c38d"
+          "sha256": "acc4988886ab99bb61258d050a0ae272f880131a953d7c326c7467a9f8ef18f1"
         },
         {
           "path": "src/LithoSharp/SiteGenerator.Quality.cs",
@@ -1380,7 +1380,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.cs",
-          "sha256": "7bd5b5e11d8ccbad5d76be55897231fd2720cefd5c01199138de2e8299ea1bc2"
+          "sha256": "fb409343a258d517a040b0bae9edff49c4cba04af7ffff348e667b5d9a876c64"
         }
       ],
       "guides": {

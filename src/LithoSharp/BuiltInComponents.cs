@@ -51,24 +51,34 @@ public sealed class SearchFormComponent : ISiteComponent<SiteUrl>
     {
         ArgumentNullException.ThrowIfNull(props);
         ArgumentNullException.ThrowIfNull(context);
-        return Html.UnsafeRaw(RenderCore(context.Configuration, props.Value));
+        return Html.UnsafeRaw(RenderCore(context.Configuration, props.Value, locale: context.Document?.Key.Locale));
     }
 
-    internal static string RenderCore(SiteGenerator.RenderContext configuration, string actionUrl, bool includeInputId = true)
+    internal static string RenderCore(SiteGenerator.RenderContext configuration, string actionUrl, bool includeInputId = true, string? locale = null)
     {
         var searchPath = Html.Encode(actionUrl);
         var inputLabel = Html.Encode(configuration.Text.SearchInputLabel);
         var placeholder = Html.Encode(configuration.Text.HeaderSearchPlaceholder);
         var buttonLabel = Html.Encode(configuration.Text.SearchButtonLabel);
+        var autocomplete = configuration.DocsTemplate?.EnableHeaderSearch == true;
+        var autocompleteAttributes = autocomplete
+            ? " data-site-autocomplete data-index=\"" + Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchIndex)) + "\" data-locale=\"" + Html.Encode(locale ?? configuration.Site.Language) + "\""
+            : string.Empty;
+        var autocompletePanel = autocomplete
+            ? "<div class=\"site-autocomplete-panel\" data-autocomplete-panel hidden><p role=\"status\" aria-live=\"polite\"></p><div data-results></div></div>"
+            : string.Empty;
+        var autocompleteScript = autocomplete ? "<script defer src=\"" + Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchScript)) + "\"></script>" : string.Empty;
         return $"""
-                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get">
+                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get"{autocompleteAttributes}>
                     {(includeInputId ? $"<label class=\"visually-hidden\" for=\"header-search-input\">{inputLabel}</label>" : string.Empty)}
                     <input{(includeInputId ? " id=\"header-search-input\"" : string.Empty)} name="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="{placeholder}" aria-label="{inputLabel}">
                     <button type="submit" aria-label="{buttonLabel}">
                       {BuildSearchIconSvg()}
                       <span class="visually-hidden">{buttonLabel}</span>
                     </button>
+                    {autocompletePanel}
                   </form>
+                  {autocompleteScript}
                 """;
     }
 

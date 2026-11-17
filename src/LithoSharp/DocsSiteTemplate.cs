@@ -3,7 +3,7 @@ namespace LithoSharp;
 /// <summary>
 /// Built-in template for documentation with directory navigation.
 /// </summary>
-public sealed class DocsSiteTemplate : ISiteTemplate
+public class DocsSiteTemplate : ISiteTemplate
 {
     /// <summary>Emits the shared local search and sitemap. False preserves the original Docs outputs.</summary>
     public bool EnableSearch { get; init; }
@@ -22,10 +22,14 @@ public sealed class DocsSiteTemplate : ISiteTemplate
     /// <summary>Uses a compact introduction on the home page.</summary>
     public bool CompactHome { get; init; }
 
+    /// <summary>Optionally renders a shared sidebar for all template pages from the current URL and locale. Null preserves generated navigation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<string?, string?, IHtmlContent>? NavigationRenderer { get; init; }
+
     internal bool SearchEnabled => EnableSearch || EnableHeaderSearch;
 
     /// <inheritdoc />
-    public Task<SiteTemplateResult> RenderAsync(
+    public virtual Task<SiteTemplateResult> RenderAsync(
         SiteTemplateContext context,
         CancellationToken cancellationToken = default)
     {

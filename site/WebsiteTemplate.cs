@@ -1,10 +1,17 @@
 using LithoSharp;
 
-internal sealed class WebsiteTemplate : ISiteTemplate
+internal sealed class WebsiteTemplate : DocsSiteTemplate
 {
-    public async Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default)
+    internal WebsiteTemplate(WebsiteMenu menu, string baseUrl)
     {
-        var standard = await new DocsSiteTemplate { EnableSearch = true }.RenderAsync(context, cancellationToken);
+        EnableSearch = true;
+        CollapseTopics = true;
+        NavigationRenderer = (url, locale) => menu.Render(baseUrl, url, locale);
+    }
+
+    public override async Task<SiteTemplateResult> RenderAsync(SiteTemplateContext context, CancellationToken cancellationToken = default)
+    {
+        var standard = await base.RenderAsync(context, cancellationToken);
         var home = new SiteTemplateFile
         {
             RelativePath = "index.html",
@@ -46,13 +53,22 @@ internal sealed class WebsiteTemplate : ISiteTemplate
                     + "<p id=\"search-status\" role=\"status\" aria-live=\"polite\"></p>"
                     + "<section id=\"search-app\" data-index=\"" + SiteUrl.ForFile("search-index.json", context.Site.BaseUrl).ToAttributeValue() + "\"><div id=\"search-results\"></div></section>"
                     + "<noscript><p>JavaScript is required for search.</p></noscript>"
-                    + "<script src=\"" + SiteUrl.ForFile("assets/search.js", context.Site.BaseUrl).ToAttributeValue() + "\" defer></script>"
             }))
         };
         return new([.. standard.Files.Where(file => file.RelativePath != home.RelativePath && file.RelativePath != notFound.RelativePath && file.RelativePath != search.RelativePath), home, notFound, search]);
 
-        string Decorate(string html) => html.Replace("<header class=\"site-header\"><a class=\"brand\" href=\"" + SiteUrl.ForFile("index.html", context.Site.BaseUrl).ToAttributeValue() + "\">" + Html.Encode(context.Site.Title) + "</a></header>", WebsiteHeader.Render(context.Site.BaseUrl), StringComparison.Ordinal).Replace("</head>", "<link rel=\"stylesheet\" href=\"" + SiteUrl.ForFile("website.css", context.Site.BaseUrl).ToAttributeValue()
-            + "\"><script defer src=\"" + SiteUrl.ForFile("assets/site.js", context.Site.BaseUrl).ToAttributeValue() + "\"></script><script type=\"module\" src=\"" + SiteUrl.ForFile("website.mjs", context.Site.BaseUrl).ToAttributeValue() + "\"></script></head>", StringComparison.Ordinal).Replace("class=\"blog-body\"", "class=\"blog-body website-body website-utility\"", StringComparison.Ordinal);
+        string Decorate(string html)
+        {
+            var header = System.Text.RegularExpressions.Regex.Match(html, "<header\\b[^>]*>[\\s\\S]*?</header>");
+            if (!header.Success) throw new InvalidDataException("The utility document requires a site header.");
+            var controls = string.Concat(System.Text.RegularExpressions.Regex.Matches(header.Value, "<button\\b[^>]*>[\\s\\S]*?</button>").Where(match => !match.Value.Contains("data-site-theme-toggle", StringComparison.Ordinal)).Select(match => match.Value));
+            var replacement = WebsiteHeader.Render(context.Site.BaseUrl).Replace("</div></header>", controls + "</div></header>", StringComparison.Ordinal);
+            html = html.Remove(header.Index, header.Length).Insert(header.Index, replacement);
+            return html.Replace("</head>", "<script src=\"" + SiteUrl.ForFile("website-theme.js", context.Site.BaseUrl).ToAttributeValue() + "\" data-base-path=\"" + SiteUrl.ForDirectory("", context.Site.BaseUrl).ToAttributeValue() + "\"></script><link rel=\"stylesheet\" href=\"" + SiteUrl.ForFile("website.css", context.Site.BaseUrl).ToAttributeValue()
+                + "\"><script defer src=\"" + SiteUrl.ForFile("assets/site.js", context.Site.BaseUrl).ToAttributeValue() + "\"></script><script type=\"module\" src=\"" + SiteUrl.ForFile("website.mjs", context.Site.BaseUrl).ToAttributeValue() + "\"></script></head>", StringComparison.Ordinal)
+                .Replace("class=\"blog-body\"", "class=\"blog-body website-body website-utility\"", StringComparison.Ordinal)
+                .Replace("class=\"docs-body\"", "class=\"docs-body website-body website-utility\"", StringComparison.Ordinal);
+        }
         string Link(string label, string path, string language) => "<a href=\"" + SiteUrl.ForDirectory(path, context.Site.BaseUrl).ToAttributeValue()
             + "\" lang=\"" + language + "\">" + Html.Encode(label) + "</a>";
     }

@@ -37,6 +37,10 @@
     {
       "path": "ja/units-docs-navigation.json",
       "sha256": "ac7132a66b1dd75949e6983117bdad5107e08bdeca59e7d3afbf547023405f1f"
+    },
+    {
+      "path": "ja/units-shared-navigation.json",
+      "sha256": "309e14df755592f9da30f43fce8eb10e023e0b889590f516c40f4993bd276f4a"
     }
   ],
   "example": {

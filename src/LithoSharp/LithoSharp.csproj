@@ -38,7 +38,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Search/query.mjs" />
+        <EmbeddedResource Include="Search/autocomplete.mjs" />
     <EmbeddedResource Include="Browser/code-copy.mjs" />
+    <EmbeddedResource Include="Browser/sidebar.mjs" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="icon.png" Pack="true" PackagePath="\" />
     <None Include="..\..\licenses\WHATWG.HTML.LICENSE.txt" Pack="true" PackagePath="licenses/WHATWG.HTML.LICENSE.txt" />

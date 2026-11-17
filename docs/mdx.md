@@ -266,6 +266,11 @@ static text remain usable without JavaScript. The runtime disposes roots on
 navigation, updates head/history/focus and falls back to ordinary navigation
 when required resources cannot load.
 
+Theme switching restores the saved light, dark or system preference before the
+first render. If browser storage is unavailable, it follows the system preference.
+During enhanced navigation, shared stylesheets remain loaded; new styles are
+loaded before the page content changes to reduce visual flashes.
+
 `Offline = true` registers an opt-in service worker and webmanifest. The worker
 installs a complete revision before activation and caches matching HTML and
 assets. Deploy the entire output together. Retain old hashed assets while users

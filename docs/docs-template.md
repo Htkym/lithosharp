@@ -56,6 +56,19 @@ collection cache/build-graph rules apply. Use the
 [migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content)
 when retaining an existing site's URLs or schema.
 
+On wider screens, the sidebar fits its content within the available screen width.
+Drag its boundary, or focus the separator and use the arrow keys, Home or End,
+to adjust and save its width. Double-click the boundary to restore automatic sizing.
+Narrow screens keep the compact menu; without JavaScript, the standard width remains.
+
+## Shared site navigation
+
+Set `DocsSiteTemplate.NavigationRenderer` to render the same sidebar across
+collections and utility pages. The callback receives the current URL and locale
+and returns `IHtmlContent`. Leave it unset to keep the generated navigation.
+Reuse `DocsNavigationComponent` for nested categories and active-page ancestors;
+include only published routes that readers should be able to discover.
+
 ## Error pages and Content Security Policy
 
 Both built-in templates generate `404.html` with the regular navigation, theme
@@ -157,8 +170,8 @@ pass the same data through `FooterComponentProps.AdditionalContent`.
 
 Header search uses `SiteText` labels and the site's base path. The search page
 keeps its own input and omits the header form. The header form uses `aria-label`
-and no fixed input ID so that content headings can keep their IDs. Search still
-requires JavaScript on the results page. With JavaScript disabled, navigation and
+and no fixed input ID so that content headings can keep their IDs. With JavaScript enabled, typing shows matching titles and excerpts directly beneath
+the header input. Select a result to open its page. Search requires JavaScript. With JavaScript disabled, navigation and
 native topic disclosures remain usable. A search header scrolls with the page
 without JavaScript; with JavaScript it stays sticky and measures its wrapped height.
 

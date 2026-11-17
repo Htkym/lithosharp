@@ -134,9 +134,9 @@
       "version": "3.1",
       "id": "docs-template",
       "sourcePath": "docs/docs-template.md",
-      "sourceSha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946",
+      "sourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
       "translationPath": "docs/docs-template.ja.md",
-      "translationSha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b"
+      "translationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372"
     },
     {
       "collection": "reference",
@@ -215,9 +215,9 @@
       "version": "3.1",
       "id": "mdx",
       "sourcePath": "docs/mdx.md",
-      "sourceSha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4",
+      "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
       "translationPath": "docs/mdx.ja.md",
-      "translationSha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89"
+      "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0"
     },
     {
       "collection": "history",
@@ -912,6 +912,28 @@
       "sourceSha256": "173fa2faf76132491c1b0ced9da613e1c16250d6395fe9735a0ae017c36261c5",
       "translationSha256": "cebb5018a960fff8ecece741f060e51e926a33656b0ad6eb075cb7ec6e02daa2",
       "scope": "Aligned installation examples with the 3.1 package set and removed internal development/publication-status prose. Public usage, migration requirements and limitations were preserved. Changed pairs were reviewed; added Japanese prose received AGY/Yomiyasu proofreading."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "docs-template",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946",
+      "previousTranslationSha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b",
+      "sourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
+      "translationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372",
+      "scope": "Reviewed the changed English/Japanese usage paragraphs for shared navigation, header search, sidebar sizing, theme restoration and stylesheet continuity. Changed Japanese prose with surrounding search context received AGY/Gemini and Yomiyasu proofreading; unchanged text retained its existing review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "mdx",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4",
+      "previousTranslationSha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89",
+      "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
+      "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0",
+      "scope": "Reviewed the changed English/Japanese usage paragraphs for shared navigation, header search, sidebar sizing, theme restoration and stylesheet continuity. Changed Japanese prose with surrounding search context received AGY/Gemini and Yomiyasu proofreading; unchanged text retained its existing review."
     }
   ]
 }

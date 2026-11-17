@@ -31,10 +31,13 @@ public sealed class WebsiteFactory : ISiteFactory
             Author = "LithoSharp",
             TimeZone = "UTC"
         };
+        var menu = new WebsiteMenu(root);
+        using var sidebarReader = new StreamReader(typeof(DocsSiteTemplate).Assembly.GetManifestResourceStream("LithoSharp.Browser.sidebar.mjs")!);
+        var sidebarScript = System.Text.Encoding.UTF8.GetBytes(sidebarReader.ReadToEnd());
         var social = new SiteAssetOutput("website-social", "images/social.png", "image/png");
         var docs = new DocumentationSite(new MdxOptions(root) { Cacheable = true })
         {
-            Layout = new WebsiteDocumentationLayout(new(social)),
+            Layout = new WebsiteDocumentationLayout(new(social), menu),
             Browser = new() { Search = true, SearchScope = DocumentationSearchScope.Site, Navigation = true, Theme = true },
             Translations = new TranslationCatalog("en", JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(
                 File.ReadAllBytes(Path.Combine(root, "ui-messages.json")))!
@@ -66,7 +69,8 @@ public sealed class WebsiteFactory : ISiteFactory
             new OkfReadOptions { AsOf = DateTimeOffset.Parse("2026-11-13T00:00:00Z"), BaseUrl = BaseUrl }, cancellationToken);
         if (!knowledge.IsSuccess)
             throw new SiteBuildExtensionException(knowledge.Diagnostics);
-        var api = PublicApiDocumentation.Create(root, Path.Combine(generatedInputs, "api"), new WebsiteApiLayout(new(social)));
+        var api = PublicApiDocumentation.Create(root, Path.Combine(generatedInputs, "api"), new WebsiteApiLayout(new(social), menu));
+        menu.Api = api;
         const string exampleId = "M:LithoSharp.Website.Examples.WebsiteExamples.HasPublishedVersion(System.Boolean,System.String)";
         var symbols = new ApiAssemblySource("LithoSharp.Website", [
             new ApiSymbol("T:LithoSharp.Website.Examples.WebsiteExamples", "public static class WebsiteExamples", ApiVisibility.Public),
@@ -90,7 +94,7 @@ public sealed class WebsiteFactory : ISiteFactory
             OutputDirectory = Path.GetFullPath(OutputDirectory, root),
             Customization = new()
             {
-                Template = new WebsiteTemplate(),
+                Template = new WebsiteTemplate(menu, BaseUrl),
                 GenerateLlmsTxt = true,
                 Theme = new() { UseExternalThemeRestoration = true },
             },
@@ -107,7 +111,7 @@ public sealed class WebsiteFactory : ISiteFactory
                 Quality = new SiteQualityOptions(),
                 CommonSocialImage = new ImageSource(social),
                 AssetTransforms = [socialTransform],
-                GeneratedAssets = [.. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs")))],
+                GeneratedAssets = [new SiteGeneratedAsset("website-sidebar", "website-sidebar.js", sidebarScript), .. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs"))), new SiteGeneratedAsset("website-theme", "website-theme.js", File.ReadAllBytes(Path.Combine(root, "website-theme.js")))],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
                     { Title = entry.FrontMatter.Title, Version = WebsiteVersion.Document, Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>

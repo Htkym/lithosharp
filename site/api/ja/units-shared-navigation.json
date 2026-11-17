@@ -1,0 +1,12 @@
+{
+  "units": {
+    "58a0fcb0098e3206588c7f2cd3a23e1edc904b4286071502ff0b4346e8516496": {
+      "japanese": "現在の URL とロケールから、テンプレートの全ページで共通のサイドバーを描画します。省略した場合は自動生成されたナビゲーションを使います。",
+      "english": "Optionally renders a shared sidebar for all template pages from the current URL and locale. Null preserves generated navigation.",
+      "contexts": [
+        "P:LithoSharp.DocsSiteTemplate.NavigationRenderer/summary"
+      ]
+    }
+  },
+  "schemaVersion": 1
+}
