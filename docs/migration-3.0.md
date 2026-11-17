@@ -91,3 +91,13 @@ trusted projects and tests; changed inputs invalidate earlier success. A test
 process exiting successfully without evidence of executed tests does not verify a
 snippet. These results do not create OKF trust attestations or establish the
 technical truth of a document.
+
+## Documentation header extensions
+
+Replace header-wide HTML rewrites with `DocsSiteTemplate.HeaderContentRenderer`.
+Return `DocsHeaderContent.Navigation` for version badges or top-level links and
+`Actions` for language selectors or other site-specific controls. Keep
+`EnableHeaderSearch` for the standard search form. The built-in brand, menu and
+theme controls are retained, so remove equivalent controls from custom snippets.
+The new optional API does not require changes to sites using the default header.
+See [Docs template](docs-template.md#extending-the-shared-header).

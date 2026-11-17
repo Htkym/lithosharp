@@ -1,3 +1,4 @@
+using LithoSharp.Configuration;
 using System.Text.Json;
 using LithoSharp.Search;
 
@@ -5,6 +6,24 @@ namespace LithoSharp.Tests;
 
 public sealed class LocalSearchTests
 {
+    [Test]
+    public async Task GeneratedSearchIncludesReusableAutocompleteWithoutReplacingSearchPage()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "site");
+        await new SiteGenerator().GenerateWithOptionsAsync(
+            new SiteSettings { BaseUrl = "https://example.test/docs/" }, [], output, false,
+            new() { Template = new DocsSiteTemplate { EnableSearch = true } },
+            new SiteGenerationOptions(), CancellationToken.None);
+        var script = await File.ReadAllTextAsync(Path.Combine(output, "assets", "search.js"));
+        await Assert.That(script.Contains("[data-site-autocomplete]", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(script.Contains("const queryDocuments", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(script.Contains("getElementById(\"search-app\")", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(script.Contains("request !== requestId", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(script.Contains("url.origin !== location.origin", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(script.Contains("/*__LITHOSHARP_LOCAL_SEARCH__*/", StringComparison.Ordinal)).IsFalse();
+    }
+
     [Test]
     public async Task ExcerptsKeepWordAndGraphemeBoundariesWithinBudget()
     {

@@ -3,7 +3,7 @@ using LithoSharp.Documentation;
 using LithoSharp.Pages;
 using LithoSharp.Testing;
 
-internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPageLayout<PageLayoutContent>
+internal sealed class WebsiteDocumentationLayout(ImageSource socialImage, WebsiteMenu menu) : IPageLayout<PageLayoutContent>
 {
     private sealed record Binding(DocumentKey Document, string NativeId, string Heading, string Alias, string? MarkerSource = null);
 
@@ -47,7 +47,7 @@ internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPag
     {
         var bindings = Bindings.Where(binding => binding.Document == page.Metadata.Document).ToArray();
         if (bindings.Length == 0)
-            return WebsiteChrome.Render(page, context, socialImage);
+            return WebsiteChrome.Render(page, context, socialImage, menu);
         var body = (page.Content.DocumentationChrome?.Article ?? page.Content.Body).ToHtmlString();
         using var document = SiteTestDocument.Parse(body);
         var ids = document.Snapshot.QueryAll("[id]");
@@ -76,7 +76,7 @@ internal sealed class WebsiteDocumentationLayout(ImageSource socialImage) : IPag
         foreach (var insertion in insertions.OrderByDescending(insertion => insertion.Start))
             body = body.Insert(insertion.Start, insertion.Html);
         return WebsiteChrome.Render(new(page.Id, page.Route,
-            page.Content with { Body = Html.UnsafeRaw(body), DocumentationChrome = UpdateArticle(page.Content.DocumentationChrome, body) }, page.Metadata), context, socialImage);
+            page.Content with { Body = Html.UnsafeRaw(body), DocumentationChrome = UpdateArticle(page.Content.DocumentationChrome, body) }, page.Metadata), context, socialImage, menu);
     }
     private static DocumentationPageChrome? UpdateArticle(DocumentationPageChrome? chrome, string article) => chrome is null ? null : new(Html.UnsafeRaw(article))
     {

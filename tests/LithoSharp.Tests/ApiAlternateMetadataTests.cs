@@ -28,6 +28,9 @@ public sealed class ApiAlternateMetadataTests
             new() { Template = new DocsSiteTemplate() }, new() { Extensions = [api] }, default);
         var shared = layout.Pages.Single(page => page.Metadata.Document == new DocumentKey("library", "v1", "en", "T:Example.Shared"));
         await Assert.That(string.Join(',', shared.Metadata.Alternates.Keys.Order())).IsEqualTo("en,ja");
+        await Assert.That(shared.Content.DocumentationChrome!.Article.ToHtmlString()).DoesNotContain("API language");
+        await Assert.That(shared.Content.DocumentationChrome.Variants!.ToHtmlString()).Contains("API language");
+        await Assert.That(shared.Content.Body.ToHtmlString()).Contains("API language");
         var only = layout.Pages.Single(page => page.Metadata.Document == new DocumentKey("library", "v1", "en", "T:Example.EnglishOnly"));
         await Assert.That(only.Metadata.Alternates.Count).IsEqualTo(0);
         var index = layout.Pages.Single(page => page.Route.PublicPath == "/sub/api/library/v1/en/");

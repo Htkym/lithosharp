@@ -96,6 +96,7 @@ try {
     Invoke-Checked { node (Join-Path $root 'validate-api-localization.mjs') --material (Join-Path $work 'g/api/english-units.json') }
     Invoke-Checked { dotnet run --project $project --configuration Release --no-build --no-restore -- --project $root --output $outputPath --base-url $BaseUrl --generated-inputs (Join-Path $work 'g') }
     Invoke-Checked { node (Join-Path $root 'validate-generated-site.mjs') --inputs (Join-Path $work 'g') --output $outputPath }
+    Invoke-Checked { node (Join-Path $root 'validate-navigation.mjs') $outputPath }
     Invoke-Checked { dotnet run --project $project --configuration Release --no-build --no-restore -- --project $root --verify-snippets --version $LithoSharpVersion }
 } finally { $env:LITHOSHARP_SITE_PACKAGE_VERSION = $previousVersion; Pop-Location }
 Write-Host "Website and mapped snippets checked: $outputPath"

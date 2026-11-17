@@ -47,6 +47,7 @@ internal static class PublicDocumentation
             if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != source.Hash)
                 throw new InvalidDataException("Public documentation changed after its inventory/review: " + source.Path);
             var text = WebsiteDocumentationLayout.ProjectSource(source.Path, new UTF8Encoding(false, true).GetString(bytes));
+            text = ProjectLanguageLinks(text, source, sources, repository);
             var analysis = MarkdownParser.Analyze(text, MarkdownAnalysisParts.Links, "website-reference", source.Path, source.Hash);
             if (analysis.Status != MarkdownParseStatus.Complete || analysis.Links is null
                 || analysis.GetAvailability(MarkdownAnalysisParts.Links) != MarkdownAnalysisAvailability.Complete)
@@ -109,6 +110,30 @@ internal static class PublicDocumentation
         return assets.Values.ToArray();
     }
 
+    private static string ProjectLanguageLinks(string text, Source source, IReadOnlyList<Source> sources, string repository)
+    {
+        var peers = sources.Where(candidate => candidate.Collection == source.Collection && candidate.Id == source.Id)
+            .ToDictionary(candidate => candidate.Locale, candidate => candidate.Path.Replace('\\', '/'), StringComparer.Ordinal);
+        var pattern = new System.Text.RegularExpressions.Regex(@"(?m)^ {0,3}(?:\[English\]\((?<en>[^)\r\n]+)\)(?:[ \t]*\|[ \t]*\[日本語\]\((?<ja>[^)\r\n]+)\))?|\[日本語\]\((?<ja>[^)\r\n]+)\))[ \t]*\r?\n");
+        return pattern.Replace(text, match =>
+        {
+            if (text.AsSpan(0, match.Index).Contains("```", StringComparison.Ordinal)
+                || text.AsSpan(0, match.Index).Contains("~~~", StringComparison.Ordinal)) return match.Value;
+            foreach (var locale in new[] { "en", "ja" })
+            {
+                if (!match.Groups[locale].Success) continue;
+                var target = match.Groups[locale].Value;
+                const string prefix = "https://github.com/Htkym/lithosharp/blob/main/";
+                if (target.Contains("://", StringComparison.Ordinal) && !target.StartsWith(prefix, StringComparison.Ordinal)) return match.Value;
+                var physical = target.StartsWith(prefix, StringComparison.Ordinal)
+                    ? Path.GetFullPath(Uri.UnescapeDataString(target[prefix.Length..]), repository)
+                    : Path.GetFullPath(Uri.UnescapeDataString(target), Path.GetDirectoryName(Path.GetFullPath(source.Path, repository))!);
+                var relative = Path.GetRelativePath(repository, physical).Replace('\\', '/');
+                if (!peers.TryGetValue(locale, out var expected) || !string.Equals(relative, expected, StringComparison.OrdinalIgnoreCase)) return match.Value;
+            }
+            return "";
+        });
+    }
     private static IReadOnlyList<DocumentTranslationReview> ReadReviews(string root)
     {
         using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root, "reference-translation-reviews.json")));

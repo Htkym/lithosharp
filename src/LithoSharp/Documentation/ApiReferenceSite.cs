@@ -134,13 +134,14 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
             throw new ArgumentException("An explicit stable LayoutFingerprint is required for a custom API layout.", nameof(LayoutFingerprint));
         var layoutIdentity = layout is null ? "standard" : SiteContentCollection.CaptureRendererIdentity(
             (Func<SitePage<PageLayoutContent>, PageRenderingContext, IHtmlContent>)layout.Render, layout.GetType()) + "|" + layoutFingerprint;
-        string Render(ContentPageRenderingContext rendering, string body, string pageId)
+        string Render(ContentPageRenderingContext rendering, string body, string pageId, string? sidebar = null, string? variants = null)
         {
-            if (layout is null)
-                return rendering.RenderDocument(body);
+            var pageLayout = layout ?? (sidebar is not null && rendering.CreateLayoutContext().Configuration.DocsTemplate is not null ? new DocsPageLayout() : null);
+            if (pageLayout is null)
+                return rendering.RenderDocument((variants ?? "") + body);
             rendering.SetDerivedContent(body);
-            var page = new SitePage<PageLayoutContent>(new(pageId), rendering.Route, new(Html.UnsafeRaw(body)), rendering.Metadata);
-            return (layout.Render(page, rendering.CreateLayoutContext())
+            var page = new SitePage<PageLayoutContent>(new(pageId), rendering.Route, new(Html.UnsafeRaw((variants ?? "") + body)) { Sidebar = sidebar is null ? null : Html.UnsafeRaw(sidebar), DocumentationChrome = new(Html.UnsafeRaw(body)) { Variants = variants is null ? null : Html.UnsafeRaw(variants) } }, rendering.Metadata);
+            return (pageLayout.Render(page, rendering.CreateLayoutContext())
                 ?? throw new InvalidOperationException("The API page layout returned null.")).ToHtmlString();
         }
         var loaded = new List<(ApiReferenceInput Input, byte[] Bytes, string Hash, bool OpenApi, ApiAssemblySource? Source)>();
@@ -211,6 +212,7 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
             }
             var parsed = allMembers.Where(pair => pair.Key.Collection == input.Collection && pair.Key.Version == variant.Version && pair.Key.Locale == variant.Locale)
                 .Select(pair => pair.Value).OrderBy(member => member.Id, StringComparer.Ordinal).ToArray();
+            var catalog = new ApiCatalogNavigation(parsed, id => SiteUrl.FromRoute(allRoutes[Key(id)]), SiteUrl.FromRoute(SiteRoute.ForDirectoryIndex(variant.RoutePrefix, context.Site.BaseUrl)), variant.Locale);
             // This dependency is repeated per page; retain the complete input identity without copying its symbol map.
             var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
                 string.Join(";", group.Select(item => item.Hash + ":" + JsonSerializer.Serialize(item.Source))))));
@@ -224,18 +226,15 @@ public sealed class ApiReferenceSite : ISiteBuildExtension
                 entry => allRoutes[Key(entry.Id.Value)], entry => new(entry.FrontMatter.Title, entry.FrontMatter.Summary)
                 { Document = Key(entry.Id.Value), Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex, Alternates = Alternates(SymbolVariants(entry.Id.Value)) },
                 declaredDependencies: [ContentDependency.FromValue("api.input", hash), ContentDependency.FromValue("api.variant", JsonSerializer.Serialize(variant)),
-                    ContentDependency.FromValue("api.navigation", navigationHash), ContentDependency.FromValue("api.layout", layoutIdentity)], transformationId: new("api-v3"), isCacheable: true);
+                    ContentDependency.FromValue("api.navigation", navigationHash), ContentDependency.FromValue("api.layout", layoutIdentity)], transformationId: new("api-v6"), isCacheable: true);
             collections.Add(new SiteContentCollection<ApiMember, ApiMember>(collection, (entry, rendering) => Render(rendering,
-                LanguageNavigation(SymbolVariants(entry.Id.Value), variant.Locale)
-                + "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" + (entry.FrontMatter.Deprecated ? "<aside role=\"note\">" + ApiXmlReferenceReader.Label(variant.Locale, "Deprecated") + "</aside>" : "") + entry.Body.BodyHtml, entry.Id.Value))
-            { RendererFingerprint = "api-v3|" + layoutIdentity, IsThreadSafe = layout is null });
+                catalog.Breadcrumb(entry.FrontMatter) + "<h1>" + Html.Encode(entry.FrontMatter.Title) + "</h1>" + (entry.FrontMatter.Deprecated ? "<aside role=\"note\">" + ApiXmlReferenceReader.Label(variant.Locale, "Deprecated") + "</aside>" : "") + entry.Body.BodyHtml + catalog.Children(entry.FrontMatter), entry.Id.Value, catalog.Sidebar(entry.FrontMatter), LanguageNavigation(SymbolVariants(entry.Id.Value), variant.Locale)))
+            { RendererFingerprint = "api-v6|" + layoutIdentity, IsThreadSafe = layout is null });
             collections.Add(collection.GeneratePages(new(collection.Id.Value + ":index"), _ => ["index"],
                 entries => new SitePage<IReadOnlyList<ContentEntry<ApiMember, ApiMember>>>(new("index"), SiteRoute.ForDirectoryIndex(variant.RoutePrefix, context.Site.BaseUrl), entries.Entries,
                     new(input.Collection) { Language = variant.Locale, RightToLeft = variant.RightToLeft, NoIndex = variant.NoIndex, Alternates = Alternates(indexVariants) }),
-                (page, rendering) => Render(rendering, LanguageNavigation(indexVariants, variant.Locale)
-                    + "<h1>" + Html.Encode(input.Collection) + "</h1><ul>" + string.Concat(page.Content.Select(entry =>
-                    "<li><a href=\"" + SiteUrl.FromRoute(allRoutes[Key(entry.Id.Value)]).ToAttributeValue() + "\">" + Html.Encode(entry.FrontMatter.Title) + "</a></li>")) + "</ul>", page.Id.Value),
-                transformationId: new("api-index-v3"), isCacheable: true));
+                (page, rendering) => Render(rendering, "<h1>" + Html.Encode(input.Collection) + "</h1>" + catalog.Index(), page.Id.Value, catalog.Sidebar(), LanguageNavigation(indexVariants, variant.Locale)),
+                transformationId: new("api-index-v6"), isCacheable: true));
         }
         foreach (var comparison in comparisons)
         {

@@ -134,9 +134,9 @@
       "version": "3.1",
       "id": "docs-template",
       "sourcePath": "docs/docs-template.md",
-      "sourceSha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946",
+      "sourceSha256": "9130db0817667ddf9c53683f285c2f7a85f7b06dbb271cbf7b7fdf98e65b8065",
       "translationPath": "docs/docs-template.ja.md",
-      "translationSha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b"
+      "translationSha256": "2483ed78234d1ccc309776dbb2092557d69fe3ce0fa6046c22a208249a880428"
     },
     {
       "collection": "reference",
@@ -215,9 +215,9 @@
       "version": "3.1",
       "id": "mdx",
       "sourcePath": "docs/mdx.md",
-      "sourceSha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4",
+      "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
       "translationPath": "docs/mdx.ja.md",
-      "translationSha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89"
+      "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0"
     },
     {
       "collection": "history",
@@ -233,9 +233,9 @@
       "version": "3.1",
       "id": "migration-3.0",
       "sourcePath": "docs/migration-3.0.md",
-      "sourceSha256": "7847e6620239c990fe76679fb733145506f8030b5babb63f4939daf0e08d0b66",
+      "sourceSha256": "f17b186231eaea3be7e8f0f91867bd9994dd2dc6c91170d4904f844c1f07f84d",
       "translationPath": "docs/migration-3.0.ja.md",
-      "translationSha256": "65ce58d0c6e3ca26033c45b0e7828aab07038153a388cae9a65c62992a648ee6"
+      "translationSha256": "1b66ae1690c7525de5bd62e6c7cf4836b778a3d733fc84610903b4322371cd06"
     },
     {
       "collection": "reference",
@@ -912,6 +912,39 @@
       "sourceSha256": "173fa2faf76132491c1b0ced9da613e1c16250d6395fe9735a0ae017c36261c5",
       "translationSha256": "cebb5018a960fff8ecece741f060e51e926a33656b0ad6eb075cb7ec6e02daa2",
       "scope": "Aligned installation examples with the 3.1 package set and removed internal development/publication-status prose. Public usage, migration requirements and limitations were preserved. Changed pairs were reviewed; added Japanese prose received AGY/Yomiyasu proofreading."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "docs-template",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946",
+      "previousTranslationSha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b",
+      "sourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
+      "translationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372",
+      "scope": "Reviewed the changed English/Japanese usage paragraphs for shared navigation, header search, sidebar sizing, theme restoration and stylesheet continuity. Changed Japanese prose with surrounding search context received AGY/Gemini and Yomiyasu proofreading; unchanged text retained its existing review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "mdx",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4",
+      "previousTranslationSha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89",
+      "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
+      "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0",
+      "scope": "Reviewed the changed English/Japanese usage paragraphs for shared navigation, header search, sidebar sizing, theme restoration and stylesheet continuity. Changed Japanese prose with surrounding search context received AGY/Gemini and Yomiyasu proofreading; unchanged text retained its existing review."
+    },
+    {
+      "collection": "reference",
+      "version": "3.1",
+      "id": "docs-template",
+      "reviewedAt": "2026-11-17",
+      "previousSourceSha256": "c56635297a0b453386be2715e0f9c3e1e892d46b7da2ccfee60e2add0cebe6d3",
+      "previousTranslationSha256": "2a091c84597ad00237ad8a9b5b1e85f690794e81913d777306213cb451b9b372",
+      "sourceSha256": "5452763eb33f83444bc5a5474421f106eafc9f4755b13a6b91c40475a40795b1",
+      "translationSha256": "a36392e4f088271f18e48cccd5a6abdcfcfe9170c7ae66751e140dbd9d2b75e1",
+      "scope": "Reviewed the added TOC current-heading paragraph in English and Japanese, including aria-current and no-JavaScript fallback. Added Japanese prose received AGY/Gemini and Yomiyasu proofreading; unchanged text retains prior review."
     }
   ]
 }

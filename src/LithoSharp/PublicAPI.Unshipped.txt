@@ -894,3 +894,15 @@ LithoSharp.DocumentationPageChrome.Headings.get -> System.Collections.Generic.IR
 LithoSharp.DocumentationPageChrome.Headings.init -> void
 LithoSharp.PageLayoutContent.DocumentationChrome.get -> LithoSharp.DocumentationPageChrome?
 LithoSharp.PageLayoutContent.DocumentationChrome.init -> void
+LithoSharp.DocsSiteTemplate.NavigationRenderer.get -> System.Func<string?, string?, LithoSharp.IHtmlContent!>?
+LithoSharp.DocsSiteTemplate.NavigationRenderer.init -> void
+*REMOVED*LithoSharp.DocsSiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteTemplateResult!>!
+virtual LithoSharp.DocsSiteTemplate.RenderAsync(LithoSharp.SiteTemplateContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<LithoSharp.SiteTemplateResult!>!
+LithoSharp.DocsHeaderContent
+LithoSharp.DocsHeaderContent.DocsHeaderContent() -> void
+LithoSharp.DocsHeaderContent.Navigation.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocsHeaderContent.Navigation.init -> void
+LithoSharp.DocsHeaderContent.Actions.get -> LithoSharp.IHtmlContent?
+LithoSharp.DocsHeaderContent.Actions.init -> void
+LithoSharp.DocsSiteTemplate.HeaderContentRenderer.get -> System.Func<string?, string?, LithoSharp.DocsHeaderContent!>?
+LithoSharp.DocsSiteTemplate.HeaderContentRenderer.init -> void

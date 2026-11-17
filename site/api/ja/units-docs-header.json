@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "0139e7b5d112e8f0b48232ed496e4192b9422f025b644d5750cc66f95dab63ca": {
+      "english": "Adds per-page navigation and actions while retaining the built-in brand, search, theme, and menu controls. The URL is null for the not-found page.",
+      "japanese": "標準のサイト名・検索・テーマ・メニューを維持しながら、ページごとのナビゲーションや操作を追加します。404 ページの URL は null です。",
+      "contexts": [
+        "P:LithoSharp.DocsSiteTemplate.HeaderContentRenderer/summary"
+      ]
+    },
+    "3d323e6c81e3dfb02dcbe21111c18317e08dd1852aa3a86b288f938959facf6c": {
+      "english": "Optional additions to the built-in documentation header.",
+      "japanese": "標準のドキュメントヘッダーへ任意のコンテンツを追加します。",
+      "contexts": [
+        "T:LithoSharp.DocsHeaderContent/summary"
+      ]
+    },
+    "875a1cb4754e479630db218e9a7b36cf7f0db25fe2541bf11aa285bb1b186cc9": {
+      "english": "Content following the site brand, such as a version badge or navigation links.",
+      "japanese": "サイト名の後に表示する、バージョン表示やナビゲーションリンクなどのコンテンツです。",
+      "contexts": [
+        "P:LithoSharp.DocsHeaderContent.Navigation/summary"
+      ]
+    },
+    "7b14996cbe48f74e04fb483ad15ebed2c4a92c9080abf346ac38d6ccf01d463b": {
+      "english": "Content following search and preceding the built-in theme and menu controls.",
+      "japanese": "検索欄の後、標準のテーマ・メニュー操作の前に表示するコンテンツです。",
+      "contexts": [
+        "P:LithoSharp.DocsHeaderContent.Actions/summary"
+      ]
+    }
+  }
+}

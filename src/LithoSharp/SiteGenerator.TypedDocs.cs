@@ -37,7 +37,7 @@ public sealed partial class SiteGenerator
                 : $"<p class=\"docs-description\">{Html.Encode(page.Presentation.Description)}</p>\n")
             + NormalizePostBodyHeadings(bodyHtml)
             + PreviousNextComponent.RenderCore(previous?.Label, previous?.Url, next?.Label, next?.Url, metadata.Language);
-        var sidebar = DocsNavigationComponent.RenderCore(root,
+        var sidebar = configuration.DocsTemplate?.NavigationRenderer?.Invoke(page.Route.PublicPath, metadata.Language).ToHtmlString() ?? DocsNavigationComponent.RenderCore(root,
             DocsAdditionalLinks(configuration), page.Route.PublicPath, configuration.DocsTemplate?.CollapseTopics == true, metadata.Language);
         var socialImageUrl = socialImageRelativePath is null ? null
             : configuration.Routes.AbsoluteUrl(configuration.Routes.File(socialImageRelativePath));

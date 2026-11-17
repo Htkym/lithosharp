@@ -57,7 +57,7 @@ public sealed partial class SiteGenerator
             var sourcePages = posts.Select(post => new KeyValuePair<string, SiteRoute>(post.FilePath, routes.Post(post)))
                 .Concat(contentPages.Select(page => new KeyValuePair<string, SiteRoute>(page.MarkdownSourcePath ?? page.SourcePath, page.Route)))
                 .Concat(configuration.ExtraPages.Select(page => new KeyValuePair<string, SiteRoute>("extra:" + routes.ExtraPage(page).RelativeOutputPath, routes.ExtraPage(page)))).ToArray();
-            var publicRoutes = template is DocsSiteTemplate or BlogSiteTemplate
+            var publicRoutes = template.GetType() == typeof(DocsSiteTemplate) || template is BlogSiteTemplate
                 ? BuiltInSiteTemplateBuildPlanAdapter.CreateTemplateOwnerMap(template, posts, configuration.ExtraPages, routes)
                     // The ownership map includes the optional theme asset even when no render action exists.
                     .Keys.Where(path => path != routes.ThemeRestorationScript.RelativeOutputPath || HasExternalThemeRestoration(configuration))

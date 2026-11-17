@@ -139,8 +139,14 @@ async function checkPlacement(placement) {
   await click('[data-site-theme-toggle]');
   await wait(() => document.documentElement.dataset.siteTheme === 'dark', 'theme toggle');
   await request('POST', '/refresh', {});
-  await wait(() => document.documentElement.dataset.siteTheme === 'dark' && document.querySelector('[data-site-theme-toggle]')?.getAttribute('aria-pressed') === 'true', 'persisted theme');
-  result.checks.push('strict-csp-external-theme', 'theme-persistence');
+  await wait(() => document.documentElement.dataset.siteTheme === 'dark' && document.querySelector('[data-site-theme-toggle]')?.getAttribute('data-theme-mode') === 'dark', 'persisted theme');
+  await click('[data-site-theme-toggle]');
+  await wait(() => document.documentElement.dataset.themeMode === 'system', 'automatic theme mode');
+  await click('[data-site-theme-toggle]');
+  await wait(() => document.documentElement.dataset.themeMode === 'light', 'explicit light theme mode');
+  await click('[data-site-theme-toggle]');
+  await wait(() => document.documentElement.dataset.themeMode === 'dark', 'explicit dark theme mode');
+  result.checks.push('strict-csp-external-theme', 'theme-persistence', 'three-state-theme');
 
   await request('POST', '/window/rect', {width: 640, height: 900});
   const menu = '[data-docs-menu-toggle], [data-site-menu-toggle]';
@@ -209,9 +215,9 @@ async function checkPlacement(placement) {
 
   await navigate(new URL('index.html?block-storage=1', base));
   assert.equal(await execute(() => { try { void localStorage; return false; } catch { return true; } }), true);
-  const before = await execute(() => document.querySelector('[data-site-theme-toggle]').getAttribute('aria-pressed'));
+  const before = await execute(() => document.querySelector('[data-site-theme-toggle]').getAttribute('data-theme-mode'));
   await click('[data-site-theme-toggle]');
-  assert.notEqual(await execute(() => document.querySelector('[data-site-theme-toggle]').getAttribute('aria-pressed')), before);
+  assert.notEqual(await execute(() => document.querySelector('[data-site-theme-toggle]').getAttribute('data-theme-mode')), before);
   result.checks.push('blocked-storage');
   await sleep(250);
   assert.deepEqual(events, [], 'Browser CSP/runtime/resource failures');

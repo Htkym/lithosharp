@@ -117,8 +117,11 @@ public sealed class DocsPageLayout : IPageLayout<PageLayoutContent>
               <a class="docs-skip-link" href="#docs-main">{SiteText.Label(metadata?.Language, "Skip to main content")}</a>
               {DocsHeaderComponent.RenderCore(configuration.Site.Title, configuration.Routes.PublicPath(configuration.Routes.Home), configuration.Theme.EnableThemeSwitching, configuration.Text,
                   configuration.DocsTemplate?.EnableHeaderSearch == true && relativePath != configuration.Routes.SearchPage.RelativeOutputPath
-                    ? SearchFormComponent.RenderCore(configuration, configuration.Routes.PublicPath(configuration.Routes.SearchPage), includeInputId: false)
-                    : string.Empty, metadata?.Language)}
+                    ? SearchFormComponent.RenderCore(configuration, configuration.Routes.PublicPath(configuration.Routes.SearchPage), includeInputId: false, locale: metadata?.Language)
+                    : string.Empty, metadata?.Language,
+                  configuration.DocsTemplate?.HeaderContentRenderer?.Invoke(
+                      relativePath == configuration.Routes.NotFound.RelativeOutputPath ? null : configuration.Routes.PublicPath(configuration.Routes.File(relativePath)),
+                      metadata?.Language ?? configuration.Site.Language))}
               <div class="docs-shell{(string.IsNullOrWhiteSpace(tableOfContents) ? " docs-shell-no-toc" : "")}{(string.IsNullOrWhiteSpace(sidebar) ? " docs-shell-no-sidebar" : "")}">
                 {sidebar ?? string.Empty}
                 {tableOfContents ?? string.Empty}

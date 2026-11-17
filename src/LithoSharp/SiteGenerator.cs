@@ -299,7 +299,7 @@ public sealed partial class SiteGenerator
         var contentPages = AdaptContentCollections(
             options.ContentCollections, site.BaseUrl, buildTimestamp, options.EnvironmentName,
             pageRouteTable, unpublishedPages, cancellationToken).ToList();
-        var builtInTemplate = template is DocsSiteTemplate or BlogSiteTemplate;
+        var builtInTemplate = template.GetType() == typeof(DocsSiteTemplate) || template is BlogSiteTemplate;
         RegisterPageRoutes(pageRouteTable, publishedMarkdownClaims, builtInTemplate);
         RegisterPageRoutes(pageRouteTable, publishedExtraPageClaims, builtInTemplate);
         // Keep this actual core catalog for rendering; do not re-run route callbacks.
@@ -606,6 +606,23 @@ public sealed partial class SiteGenerator
             {
                 foreach (var artifact in node.Artifacts.Where(artifact => artifact.RelativeOutputPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || artifact.RelativeOutputPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)))
                 {
+                    if (configuration.DocsTemplate?.NavigationRenderer is { } navigationRenderer)
+                    {
+                        var contentPage = contentPages.FirstOrDefault(page => page.Route.RelativeOutputPath == artifact.RelativeOutputPath);
+                        var navigationUrl = artifact.RelativeOutputPath == routes.NotFound.RelativeOutputPath ? null
+                            : contentPage?.Route.PublicPath ?? routes.PublicPath(routes.File(artifact.RelativeOutputPath));
+                        inputs = inputs.Append(BuildInput.FromConfiguration("template.navigation:" + artifact.RelativeOutputPath,
+                            navigationRenderer(navigationUrl, contentPage?.Metadata.Language ?? configuration.Site.Language).ToHtmlString()));
+                    }
+                    if (configuration.DocsTemplate?.HeaderContentRenderer is { } headerRenderer)
+                    {
+                        var contentPage = contentPages.FirstOrDefault(page => page.Route.RelativeOutputPath == artifact.RelativeOutputPath);
+                        var headerUrl = artifact.RelativeOutputPath == routes.NotFound.RelativeOutputPath ? null
+                            : contentPage?.Route.PublicPath ?? routes.PublicPath(routes.File(artifact.RelativeOutputPath));
+                        var header = headerRenderer(headerUrl, contentPage?.Metadata.Language ?? configuration.Site.Language);
+                        inputs = inputs.Append(BuildInput.FromConfiguration("template.header:" + artifact.RelativeOutputPath,
+                            JsonSerializer.Serialize(new { Navigation = header.Navigation?.ToHtmlString(), Actions = header.Actions?.ToHtmlString() })));
+                    }
                     if (postOrigins.TryGetValue(artifact.RelativeOutputPath, out var originIdentity))
                         inputs = inputs.Append(BuildInput.FromConfiguration("markdown.origins:" + artifact.RelativeOutputPath, originIdentity));
                     inputs = inputs.Append(BuildInput.FromConfiguration("assets.socialImage:" + artifact.RelativeOutputPath,
@@ -1433,7 +1450,7 @@ public sealed partial class SiteGenerator
         };
 
         if (HasExternalThemeRestoration(configuration))
-            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeRestorationScript });
+            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeScript.Restore(SiteUrl.ForDirectory("", configuration.Site.BaseUrl).Value) });
 
         foreach (var extraPage in configuration.ExtraPages)
         {
@@ -1501,7 +1518,7 @@ public sealed partial class SiteGenerator
 
         files.Add(new() { RelativePath = configuration.Routes.NotFound.RelativeOutputPath, Content = RenderNotFound(configuration, templateContext.Navigation) });
         if (HasExternalThemeRestoration(configuration))
-            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeRestorationScript });
+            files.Add(new() { RelativePath = configuration.Routes.ThemeRestorationScript.RelativeOutputPath, Content = ThemeScript.Restore(SiteUrl.ForDirectory("", configuration.Site.BaseUrl).Value) });
 
         for (var index = 0; index < orderedPosts.Length; index++)
         {
@@ -1898,7 +1915,7 @@ public sealed partial class SiteGenerator
         var currentUrl = string.IsNullOrWhiteSpace(currentPagePath)
             ? null
             : configuration.Routes.PublicPath(configuration.Routes.File(currentPagePath));
-        return DocsNavigationComponent.RenderCore(BuildDocsPresentationNavigation(configuration, root), links,
+        return configuration.DocsTemplate?.NavigationRenderer?.Invoke(currentUrl, configuration.Site.Language).ToHtmlString() ?? DocsNavigationComponent.RenderCore(BuildDocsPresentationNavigation(configuration, root), links,
             currentUrl, configuration.DocsTemplate?.CollapseTopics == true);
     }
     private static string RenderExtraPage(RenderContext configuration, SiteExtraPage page) =>
@@ -5253,6 +5270,7 @@ public sealed partial class SiteGenerator
 
         @layer layout {
           .docs-body {
+            min-block-size: 100svh; display: flex; flex-direction: column;
             font-family: system-ui, "Segoe UI", "Yu Gothic UI", sans-serif;
             background: var(--surface);
             line-height: 1.75;
@@ -5260,7 +5278,7 @@ public sealed partial class SiteGenerator
           .docs-header,
           .docs-shell,
           .docs-footer {
-            inline-size: min(100%, 90rem);
+            inline-size: 100%;
             margin-inline: auto;
           }
           .docs-header {
@@ -5278,9 +5296,11 @@ public sealed partial class SiteGenerator
             border-block-start: 3px solid var(--accent);
             gap: 1rem;
           }
+          .docs-body > .docs-header, .docs-body > .docs-footer { flex: 0 0 auto; }
           .docs-shell {
+            flex: 1 0 auto; min-block-size: 0;
             display: grid;
-            grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr) minmax(12rem, 15rem);
+            grid-template-columns: var(--docs-sidebar-width, 16rem) minmax(0, 1fr) minmax(12rem, 15rem);
             gap: clamp(1.5rem, 3vw, 3rem);
             align-items: start;
             padding: 3rem 1.25rem 4rem;
@@ -5292,7 +5312,7 @@ public sealed partial class SiteGenerator
           .docs-sidebar {
             position: sticky;
             inset-block-start: calc(var(--docs-header-height, 4.25rem) + 1.5rem);
-            max-block-size: calc(100svh - var(--docs-header-height, 4.25rem) - 2.75rem);
+            max-block-size: max(8rem, calc(100svh - var(--docs-header-height, 4.25rem) - var(--docs-footer-height, 6.25rem) - var(--docs-shell-block-spacing, 7rem)));
             overflow-y: auto;
             padding-inline-end: 1rem;
             border-inline-end: 1px solid var(--border);
@@ -5344,8 +5364,53 @@ public sealed partial class SiteGenerator
             flex-wrap: wrap;
             align-items: center;
           }
-          .docs-header .site-header-search { flex: 1 1 12rem; min-inline-size: 0; }
-          .docs-nav-topic > summary { cursor: pointer; padding: 0.5rem 0.75rem; overflow-wrap: anywhere; }
+          .docs-header .site-header-search { flex: 1 1 12rem; min-inline-size: 0; max-inline-size: 32rem; position: relative; }
+          .docs-header .site-header-search input { inline-size:100%; min-inline-size:0; }
+          .site-autocomplete-panel { position:absolute; inset-inline:0; inset-block-start:calc(100% + .35rem); z-index:30; padding:.5rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); max-block-size:min(60svh,32rem); overflow-y:auto; overscroll-behavior:contain; }
+          .site-autocomplete-panel[hidden] { display:none; }
+          .site-autocomplete-panel :is([data-results],article,a,p) { min-inline-size:0; max-inline-size:100%; white-space:normal; overflow-wrap:anywhere; }
+          .site-autocomplete-panel [role=status] { font-size:.8rem; color:var(--muted); margin:.35rem .5rem; }
+          .site-autocomplete-panel article { padding:0; border-radius:var(--radius); cursor:pointer; }
+          .site-autocomplete-panel article:has([aria-selected=true]), .site-autocomplete-panel article:hover { background:var(--panel-strong); }
+          .site-autocomplete-panel a { display:block; padding:.65rem .75rem; color:var(--text); font-weight:650; text-decoration:none; }
+          .site-autocomplete-panel p { margin:.25rem 0 0; color:var(--muted); font-size:.85rem; line-height:1.5; overflow-wrap:anywhere; }
+          .site-autocomplete-panel article p { font-weight:400; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+          .site-autocomplete-panel mark { background:transparent; color:var(--accent); font-weight:700; }
+          .docs-content:has(> .api-category-grid) { max-inline-size:none; margin-inline:0; }
+        .api-category-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr)); gap:1rem; align-items:start; margin-block:1.5rem; }
+        .api-category-card { margin:0; border:1px solid var(--border); border-radius:.6rem; background:var(--surface); overflow:hidden; scroll-margin-top:6rem; }
+        .api-category-card > summary { cursor:pointer; padding:1rem; display:flex; align-items:center; gap:.75rem; list-style:none; }
+        .api-category-card > summary::-webkit-details-marker { display:none; }
+        .api-category-card > summary::before { content:''; flex:none; inline-size:.4rem; block-size:.4rem; border-inline-end:2px solid var(--muted); border-block-end:2px solid var(--muted); transform:rotate(-45deg); margin-inline-end:.25rem; }
+        .api-category-card[open] > summary::before { transform:rotate(45deg); }
+        .api-category-card > summary:hover { background:var(--panel); }
+        .api-category-card > summary:focus-visible { outline:2px solid var(--accent); outline-offset:-3px; }
+        .docs-content .api-category-card > summary h2 { flex:1; min-inline-size:0; margin:0; padding:0; border:0; font-size:1rem; line-height:1.5; overflow-wrap:anywhere; }
+        .api-category-count { white-space:nowrap; color:var(--muted); font-size:.8rem; }
+        .api-category-card .api-type-list { margin:0; padding:0 1rem 1rem; list-style:none; }
+        .api-type-list > li { padding:.75rem 0; border-block-start:1px solid var(--border); }
+        .api-type-list > li > p { margin:.3rem 0 0; color:var(--muted); font-size:.85rem; line-height:1.5; }
+        .api-type-list a { overflow-wrap:anywhere; }
+        .api-category-navigation { display:flex; flex-wrap:wrap; list-style:none; gap:.5rem; padding:0; }
+          .api-category-navigation a { display:block; padding:.4rem .7rem; border:1px solid var(--border); border-radius:.35rem; text-decoration:none; }
+          .api-category { margin-block:2rem; }
+          .api-table-scroll { max-inline-size:100%; overflow-x:auto; }
+          .api-member-table { inline-size:100%; border-collapse:collapse; display:table; }
+          .api-member-table :is(th,td) { padding:.65rem .8rem; text-align:start; vertical-align:top; border-block-end:1px solid var(--border); }
+          .api-breadcrumbs ol { display:flex; flex-wrap:wrap; gap:.5rem; list-style:none; padding:0; font-size:.85rem; }
+          .api-breadcrumbs li+li::before { content:'/'; margin-inline-end:.5rem; color:var(--muted); }
+          .api-deprecated { color:var(--muted); font-size:.8rem; }
+          .docs-nav-topic > summary { display: block; cursor: pointer; padding: 0.5rem 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .docs-nav-topic > summary::-webkit-details-marker { display:none; }
+          .docs-nav-topic > summary::before { content:'▸'; display:inline-block; inline-size:1rem; margin-inline-end:.25rem; }
+          .docs-nav-topic[open] > summary::before { content:'▾'; }
+          .docs-nav-list, .docs-nav-list :is(li,ul,details) { min-inline-size:0; }
+          .docs-nav-link { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+          .docs-sidebar-resizer { position:absolute; inset-inline-end:-4px; inset-block:0; inline-size:9px; cursor:col-resize; touch-action:none; z-index:5; }
+          .docs-sidebar-resizer:hover, .docs-sidebar-resizer:focus-visible { background:var(--accent); opacity:.6; }
+          .docs-sidebar-resizing { cursor:col-resize; user-select:none; }
+          .docs-sidebar-resizer[hidden] { display:none; }
+          @media(max-width:52rem) { .docs-sidebar-resizer { display:none; } }
           .docs-nav-topic[open] > summary { color: var(--accent); }
           .docs-hero.docs-hero-compact { padding: 1rem; }
           .docs-hero.docs-hero-compact h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
@@ -5390,7 +5455,7 @@ public sealed partial class SiteGenerator
           .docs-nav-list ul {
             margin: 0.25rem 0 0.5rem 0.7rem;
             padding-inline-start: 0.7rem;
-            border-inline-start: 1px solid var(--border);
+            border-inline-start: 0;
           }
           .docs-nav-folder > span {
             display: block;
@@ -5522,6 +5587,8 @@ public sealed partial class SiteGenerator
           .docs-toc .toc-track, .docs-toc .toc-indicator, .docs-toc .toc-list li::before { display: none; }
           .docs-toc .toc-list { padding: 0; gap: 0.75rem; }
           .docs-toc .toc-list a { padding: 0; color: var(--muted); font-weight: 400; }
+          .docs-toc .toc-list a { border-inline-start:2px solid transparent; padding-inline-start:.65rem; }
+          .docs-toc .toc-list a.docs-toc-current { color:var(--accent); border-inline-start-color:var(--accent); background:var(--panel); font-weight:650; }
           .docs-toc .toc-list .toc-link-active { color: var(--accent) !important; }
           .docs-toc.post-toc h2 { color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
           .docs-pagination {
@@ -5559,23 +5626,29 @@ public sealed partial class SiteGenerator
           .docs-shell > .docs-sidebar { grid-area: sidebar; }
           .docs-shell > .docs-main { grid-area: main; }
           .docs-shell > .post-toc { grid-area: toc; }
-          .docs-shell-no-toc { grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr); grid-template-areas: "sidebar main"; }
+          .docs-shell-no-toc { grid-template-columns: var(--docs-sidebar-width, 16rem) minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "sidebar main toc"; }
           .docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
-          .docs-shell-no-toc.docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+          .docs-shell-no-toc.docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
         }
         .docs-enhanced .docs-menu-toggle { display: inline-flex; min-block-size: 2.75rem; }
         @media (min-width: 52.01rem) {
           .docs-enhanced.docs-sidebar-collapsed .docs-sidebar { display: none; }
           .docs-enhanced.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
-          .docs-enhanced.docs-sidebar-collapsed .docs-shell-no-toc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
+          .docs-enhanced.docs-sidebar-collapsed .docs-shell-no-toc { grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem); grid-template-areas: "main toc"; }
+        }
+
+        @media (min-width: 70.01rem) {
+          .docs-shell:has(> .docs-main .api-category-grid) { grid-template-columns: var(--docs-sidebar-width, 16rem) minmax(0, 1fr); grid-template-areas: "sidebar main"; }
+          .docs-shell.docs-shell-no-sidebar:has(.api-category-grid), .docs-enhanced.docs-sidebar-collapsed .docs-shell:has(.api-category-grid) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main"; }
         }
         @media (max-width: 70rem) and (min-width: 52.01rem) {
           .docs-enhanced.docs-sidebar-collapsed .docs-shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "toc" "main"; }
           .docs-enhanced.docs-sidebar-collapsed .docs-toc.post-toc { grid-column: 1; }
           .docs-enhanced.docs-sidebar-collapsed .docs-shell.docs-shell-no-toc { grid-template-areas: "main"; }
         }
+
         @media (max-width: 70rem) and (min-width: 52.01rem) {
-          .docs-shell { grid-template-columns: 14rem minmax(0, 1fr); grid-template-areas: "sidebar toc" "sidebar main"; }
+          .docs-shell { grid-template-columns: var(--docs-sidebar-width, 14rem) minmax(0, 1fr); grid-template-areas: "sidebar toc" "sidebar main"; }
           .docs-shell-no-toc { grid-template-areas: "sidebar main"; }
           .docs-shell-no-sidebar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "toc" "main"; }
           .docs-toc.post-toc { grid-column: 2; position: static; }
@@ -5643,7 +5716,7 @@ public sealed partial class SiteGenerator
     }
 
     private static string BuildDocsScript(RenderContext configuration) =>
-        BuildSiteScript(configuration) + """
+        BuildSiteScript(configuration) + DocsLayoutScript.BrowserScript + DocsSidebarScript.BrowserScript + DocsTocScript.BrowserScript + """
 
         (() => {
           "use strict";
@@ -5654,12 +5727,6 @@ public sealed partial class SiteGenerator
             return;
           }
           document.body.classList.add("docs-enhanced");
-          const header = document.querySelector(".docs-header");
-          if (header) {
-            const updateHeaderHeight = () => document.body.style.setProperty("--docs-header-height", `${header.getBoundingClientRect().height}px`);
-            updateHeaderHeight();
-            new ResizeObserver(updateHeaderHeight).observe(header);
-          }
 
           const compact = matchMedia('(max-width: 52rem)');
           let desktopOpen = true;
@@ -6418,7 +6485,7 @@ public sealed partial class SiteGenerator
         };
         return (contextual ? ContextualSearchTemplate() : SearchScriptTemplate)
             .Replace("__LITHOSHARP_SEARCH_MESSAGES__", SerializeSearchMessages(messages), StringComparison.Ordinal)
-            .Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript, StringComparison.Ordinal);
+            .Replace("/*__LITHOSHARP_LOCAL_SEARCH__*/", LocalSearch.BrowserScript + "\n" + LocalSearch.AutocompleteScript, StringComparison.Ordinal);
     }
 
     private static string SerializeSearchMessages(Dictionary<string, string> messages)
@@ -6700,28 +6767,7 @@ public sealed partial class SiteGenerator
         })();
         """;
 
-    private static string BuildSiteScript(RenderContext configuration) => CodeCopyScript.BrowserScript + "\n" + (configuration.Theme.EnableThemeSwitching ? """
-        (() => {
-          "use strict";
-
-          const themeToggle = document.querySelector("[data-site-theme-toggle]");
-          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
-          const isDark = () => document.documentElement.dataset.siteTheme
-            ? document.documentElement.dataset.siteTheme === "dark" : systemTheme.matches;
-          const updateThemeToggle = () => themeToggle?.setAttribute("aria-pressed", String(isDark()));
-          if (themeToggle) {
-            themeToggle.hidden = false;
-            updateThemeToggle();
-            themeToggle.addEventListener("click", () => {
-              const theme = isDark() ? "light" : "dark";
-              document.documentElement.dataset.siteTheme = theme;
-              try { localStorage.setItem("lithosharp-theme", theme); } catch {}
-              updateThemeToggle();
-            });
-            systemTheme.addEventListener("change", updateThemeToggle);
-          }
-        })();
-        """ : string.Empty) + """
+    private static string BuildSiteScript(RenderContext configuration) => CodeCopyScript.BrowserScript + "\n" + (configuration.Theme.EnableThemeSwitching ? ThemeScript.Start(SiteUrl.ForDirectory("", configuration.Site.BaseUrl).Value) : string.Empty) + """
 
         (() => {
           "use strict";
@@ -6772,6 +6818,7 @@ public sealed partial class SiteGenerator
             closeMenu();
           }
 
+          if (document.body.classList.contains("docs-body")) return;
           const toc = document.querySelector(".post-toc");
           if (!toc) {
             return;

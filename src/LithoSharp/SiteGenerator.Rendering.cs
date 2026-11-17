@@ -9,7 +9,7 @@ public sealed partial class SiteGenerator
             ? configuration with { Text = SiteText.Japanese } : configuration;
 
     internal static string BuildThemeToggle(string? locale = null) => $"""
-        <button class="site-theme-toggle" type="button" aria-label="{SiteText.Label(locale, "Dark mode")}" aria-pressed="false" data-site-theme-toggle hidden>
+        <button class="site-theme-toggle" type="button" aria-label="{SiteText.Label(locale, "Dark mode")}" data-site-theme-toggle hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg>
         </button>
         """;
@@ -52,7 +52,7 @@ public sealed partial class SiteGenerator
             !docs && includeBlogNavigation ? configuration.Routes.PublicPath(configuration.Routes.Feed) : null,
             includeDefaultScript && (docs || includeBlogNavigation) ? configuration.Routes.PublicPath(configuration.Routes.SiteScript) : null,
             docs, configuration.Theme.EnableThemeSwitching,
-            HasExternalThemeRestoration(configuration) ? configuration.Routes.PublicPath(configuration.Routes.ThemeRestorationScript) : null);
+            HasExternalThemeRestoration(configuration) ? configuration.Routes.PublicPath(configuration.Routes.ThemeRestorationScript) : null, SiteUrl.ForDirectory("", configuration.Site.BaseUrl).Value);
     }
     internal static string RenderTemplateTableOfContents(
         RenderContext configuration,

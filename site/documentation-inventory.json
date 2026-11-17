@@ -253,12 +253,12 @@
         "en": {
           "path": "docs/docs-template.md",
           "title": "Configure the Docs template",
-          "sha256": "309aa39050d6f2171678d553f533c9597b6dd965e7239f5a58f67e0b75a50946"
+          "sha256": "9130db0817667ddf9c53683f285c2f7a85f7b06dbb271cbf7b7fdf98e65b8065"
         },
         "ja": {
           "path": "docs/docs-template.ja.md",
           "title": "Docsテンプレートの設定",
-          "sha256": "c8044a29804b01c4609c0787b104bae3228b6bcd3888beb19677a203f3002d0b"
+          "sha256": "2483ed78234d1ccc309776dbb2092557d69fe3ce0fa6046c22a208249a880428"
         }
       }
     },
@@ -406,12 +406,12 @@
         "en": {
           "path": "docs/mdx.md",
           "title": "MDX and documentation sites",
-          "sha256": "ed24b701ee6d1f4db1c471e82d163fe138271a613a21598bc8960b9b3e2c5be4"
+          "sha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0"
         },
         "ja": {
           "path": "docs/mdx.ja.md",
           "title": "MDX とドキュメントサイト",
-          "sha256": "734d5e0ca552a3acbb46ff63b96430cdaacf0b70ccf13a2d2c67712688d99f89"
+          "sha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0"
         }
       }
     },
@@ -440,12 +440,12 @@
         "en": {
           "path": "docs/migration-3.0.md",
           "title": "Upgrade to LithoSharp 3",
-          "sha256": "7847e6620239c990fe76679fb733145506f8030b5babb63f4939daf0e08d0b66"
+          "sha256": "f17b186231eaea3be7e8f0f91867bd9994dd2dc6c91170d4904f844c1f07f84d"
         },
         "ja": {
           "path": "docs/migration-3.0.ja.md",
           "title": "LithoSharp 3 への移行",
-          "sha256": "65ce58d0c6e3ca26033c45b0e7828aab07038153a388cae9a65c62992a648ee6"
+          "sha256": "1b66ae1690c7525de5bd62e6c7cf4836b778a3d733fc84610903b4322371cd06"
         }
       }
     },
@@ -910,8 +910,8 @@
     },
     {
       "path": "src/LithoSharp/PublicAPI.Unshipped.txt",
-      "sha256": "f8dcd24e0c694f9932952faa1c17b85e8773c8eec1cc4a05f8740e7eed52c2ea",
-      "entries": 894
+      "sha256": "f2bb62d5863b21e9e2f5df61bcdb32fe8b87044493e5828aaf7f2edcce70345f",
+      "entries": 906
     },
     {
       "path": "src/LithoSharp.Mdx/PublicAPI.Shipped.txt",
@@ -1224,7 +1224,7 @@
         },
         {
           "path": "src/LithoSharp.Mdx/DocumentationSite.cs",
-          "sha256": "4a360bdc823d87ba088c4cb75a08eba6e8617be96bd3f476d4e55a057fab11c8"
+          "sha256": "21fc5183c46495334c71d3083bb6ba34eea11c2665c5a0cdcb549dfdcc69feca"
         },
         {
           "path": "src/LithoSharp.Mdx/MdxBlogSite.cs",
@@ -1372,7 +1372,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.AgentReady.cs",
-          "sha256": "604c9b333f672d0b646b063e8f2d34f4f2e15564bd907b445df24ef08ea3c38d"
+          "sha256": "acc4988886ab99bb61258d050a0ae272f880131a953d7c326c7467a9f8ef18f1"
         },
         {
           "path": "src/LithoSharp/SiteGenerator.Quality.cs",
@@ -1380,7 +1380,7 @@
         },
         {
           "path": "src/LithoSharp/SiteGenerator.cs",
-          "sha256": "7bd5b5e11d8ccbad5d76be55897231fd2720cefd5c01199138de2e8299ea1bc2"
+          "sha256": "5e398d4e3309b8ffc6883429d848fea711e32c2396a26124e60fb13e658b6a68"
         }
       ],
       "guides": {

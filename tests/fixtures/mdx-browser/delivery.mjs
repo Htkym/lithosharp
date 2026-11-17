@@ -28,11 +28,12 @@ try {
   assert.equal(await bootstrap.getAttribute('defer'), null);
   assert.ok((await bootstrap.getAttribute('src')).startsWith(base.pathname));
   const toggle = page.locator('[data-site-theme-toggle]');
-  await toggle.click();
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  await toggle.click(); // system -> light
+  await toggle.click(); // light -> dark
+  assert.equal(await toggle.getAttribute('data-theme-mode'), 'dark');
   await page.reload();
   assert.equal(await page.locator('html').getAttribute('data-site-theme'), 'dark');
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  assert.equal(await toggle.getAttribute('data-theme-mode'), 'dark');
 
   const menu = page.locator('[data-docs-menu-toggle], [data-site-menu-toggle]').first();
   await menu.click();
@@ -59,7 +60,7 @@ try {
   const blockedPage = await blocked.newPage();
   await blockedPage.goto(new URL('index.html', base).href);
   await blockedPage.locator('[data-site-theme-toggle]').click();
-  assert.equal(await blockedPage.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await blockedPage.locator('[data-site-theme-toggle]').getAttribute('data-theme-mode'), 'light');
   await blocked.close();
   console.log(JSON.stringify({ browser: browserName, browserVersion: browser.version(), basePath: base.pathname, csp: 'passed', theme: 'passed', blockedStorage: 'passed', menuKeyboard: 'passed', missingPageStatus: 404, safariVerified: false }));
   await context.close();

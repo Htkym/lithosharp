@@ -5,7 +5,6 @@ export function start(config) {
   const namespace = `lithosharp:${config.basePath}:`;
   const saved = key => { try { return localStorage.getItem(namespace + key); } catch { return null; } };
   const save = (key, value) => { try { localStorage.setItem(namespace + key, value); } catch { /* Persistence is optional. */ } };
-  const system = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : {matches: false, addEventListener() {}};
   let messages = {};
   const t = (key, fallback) => messages[key] ?? fallback;
   document.addEventListener('lithosharp:chunk-error', () => {
@@ -41,7 +40,6 @@ export function start(config) {
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (controlled) reload(); });
     navigator.serviceWorker.addEventListener('message', event => { if (event.data?.type === 'lithosharp:offline-retired') reload(); });
   }
-  let theme = saved('theme') || 'system';
   const searchCache = new Map();
   const searchWidgets = new WeakSet();
   function startSearch() {
@@ -100,22 +98,12 @@ export function start(config) {
       });
     }
   }
-  function applyTheme() {
-    document.documentElement.dataset.theme = theme === 'system' ? system.matches ? 'dark' : 'light' : theme;
-    document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
-    document.dispatchEvent(new CustomEvent('lithosharp:theme', {detail: {theme: document.documentElement.dataset.theme}}));
-    document.querySelectorAll('[data-ls-theme]').forEach(button => { button.textContent = `${t('theme', 'Theme')}: ${t(theme, theme)}`; button.setAttribute('aria-label', button.textContent); });
-  }
   const docsCompact = matchMedia('(max-width: 52rem)');
   let docsDesktopOpen = true;
-  let docsBody = null, docsHeader = null, docsHeaderObserver = null;
+  let docsBody = null, docsHeader = null;
   function clearDocsPage() {
-    docsHeaderObserver?.disconnect();
-    docsBody = docsHeader = docsHeaderObserver = null;
-  }
-  function updateDocsHeaderHeight() {
-    if (docsBody === document.body && docsHeader?.isConnected)
-      docsBody.style.setProperty('--docs-header-height', `${docsHeader.getBoundingClientRect().height}px`);
+
+    docsBody = docsHeader = null;
   }
   function setDocsOpen(open) {
     const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
@@ -135,23 +123,19 @@ export function start(config) {
     if (docsBody !== document.body || docsHeader !== header) {
       clearDocsPage(); docsBody = document.body; docsHeader = header;
       setDocsOpen(!docsCompact.matches && docsDesktopOpen);
-      if (header && typeof ResizeObserver === 'function') {
-        docsHeaderObserver = new ResizeObserver(updateDocsHeaderHeight);
-        docsHeaderObserver.observe(header);
-      }
     }
-    updateDocsHeaderHeight();
+
   }
   function page() {
     try { messages = JSON.parse(document.querySelector('[data-ls-messages]')?.textContent || '{}'); } catch { messages = {}; }
     startSearch();
     if (config.theme) {
-      if (!document.querySelector('[data-ls-theme]')) {
+      if (!document.querySelector('[data-ls-theme], [data-site-theme-toggle]')) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.lsTheme = '';
         const header = document.querySelector('header');
         (header?.querySelector('.docs-header-actions') ?? header)?.append(button);
       }
-      applyTheme();
+      globalThis[Symbol.for('lithosharp.theme')].start(config.basePath, t);
     }
     if (config.announcement && !saved('announcement:' + config.announcement) && !document.querySelector('[data-ls-announcement]')) {
       const aside = document.createElement('aside'); aside.dataset.lsAnnouncement = ''; aside.setAttribute('role', 'note');
@@ -168,9 +152,7 @@ export function start(config) {
     track();
   }
   globalThis[installed] = {page};
-  if (config.theme) system.addEventListener('change', applyTheme);
   document.addEventListener('click', event => {
-    if (event.target.closest('[data-ls-theme]')) { theme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'; save('theme', theme); applyTheme(); }
     if (event.target.closest('[data-ls-dismiss]')) { save('announcement:' + config.announcement, 'dismissed'); document.querySelector('[data-ls-announcement]')?.remove(); }
     const menu = event.target.closest('[data-docs-menu-toggle]');
     if (menu) setDocsOpen(menu.getAttribute('aria-expanded') !== 'true');
@@ -180,7 +162,6 @@ export function start(config) {
     const menu = document.querySelector('[data-docs-menu-toggle]');
     if (event.key === 'Escape' && menu?.getAttribute('aria-expanded') === 'true') { setDocsOpen(false); menu.focus(); }
   });
-  window.addEventListener('resize', updateDocsHeaderHeight);
   docsCompact.addEventListener('change', () => setDocsOpen(!docsCompact.matches && docsDesktopOpen));
   document.addEventListener('lithosharp:before-navigate', clearDocsPage);
   if (config.navigation) {
@@ -208,14 +189,19 @@ export function start(config) {
         if (!next.querySelector('main') || next.querySelector('meta[http-equiv=refresh]')) throw new Error('Full navigation required.');
         if (controller.signal.aborted) return;
         const scripts = [...next.querySelectorAll('script[type=module][src]')].map(script => new URL(script.getAttribute('src'), url).href);
-        const selectors = 'title,meta[name=description],meta[name=robots],meta[property],link[rel=canonical],link[rel=alternate],link[rel=stylesheet]';
+        const styles = await prepareNavigationStyles(document, next, url, controller.signal);
+        if (controller.signal.aborted) { styles.cancel(); return; }
+        const selectors = 'title,meta[name=description],meta[name=robots],meta[property],link[rel=canonical],link[rel=alternate]';
         document.dispatchEvent(new CustomEvent('lithosharp:before-navigate'));
         document.querySelectorAll('head ' + selectors.split(',').join(',head ')).forEach(element => element.remove());
         next.head.querySelectorAll(selectors).forEach(element => document.head.append(document.importNode(element, true)));
         document.documentElement.lang = next.documentElement.lang;
         document.documentElement.dir = next.documentElement.dir;
+        styles.commit();
         document.body.replaceWith(document.importNode(next.body, true));
         if (!pop) history.pushState({lsScroll: [0,0]}, '', url);
+        // Restore the shell before asynchronous module loading can yield a paint.
+        page();
         for (const source of scripts) {
           if (new URL(source).origin !== location.origin) throw new Error('External module requires full navigation.');
           const module = await import(source); if (controller.signal.aborted) return; await module.mount?.();
@@ -244,4 +230,55 @@ export function start(config) {
     window.addEventListener('scroll', () => { if (!pending) rememberScroll(); }, {passive: true});
   }
   page();
+}
+
+// Keep the current page styled until every new stylesheet is ready. Shared links
+// retain their node identity, avoiding a remove/reinsert flash on each navigation.
+export async function prepareNavigationStyles(document, next, url, signal) {
+  const selector = 'link[rel=stylesheet]';
+  const current = [...document.head.querySelectorAll(selector)];
+  const available = [...current], added = [], desired = [];
+  const key = (link, base) => JSON.stringify([new URL(link.getAttribute('href'), base).href,
+    ...['media', 'integrity', 'crossorigin', 'referrerpolicy', 'title'].map(name => link.getAttribute(name))]);
+  const waiting = [];
+  const cancel = () => added.forEach(({link}) => link.remove());
+  try {
+    for (const source of next.head.querySelectorAll(selector)) {
+      const sourceKey = key(source, url);
+      const index = available.findIndex(link => key(link, document.baseURI) === sourceKey);
+      if (index >= 0) {
+        const link = available.splice(index, 1)[0];
+        // Pin a relative URL before pushState changes the document base URI.
+        link.setAttribute('href', new URL(link.getAttribute('href'), document.baseURI).href);
+        desired.push(link); continue;
+      }
+      const link = document.importNode(source, true);
+      link.setAttribute('href', new URL(source.getAttribute('href'), url).href);
+      const media = source.getAttribute('media');
+      link.setAttribute('media', 'not all');
+      added.push({link, media}); desired.push(link);
+      waiting.push(new Promise((resolve, reject) => {
+        const finish = error => {
+          clearTimeout(timer); link.removeEventListener('load', loaded); link.removeEventListener('error', failed);
+          signal.removeEventListener('abort', aborted);
+          error ? reject(error) : resolve();
+        };
+        const loaded = () => finish(), failed = () => finish(new Error('Stylesheet unavailable.'));
+        const aborted = () => finish(new Error('Navigation cancelled.'));
+        const timer = setTimeout(failed, 10000);
+        link.addEventListener('load', loaded, {once:true}); link.addEventListener('error', failed, {once:true});
+        signal.addEventListener('abort', aborted, {once:true});
+        if (signal.aborted) aborted(); else document.head.append(link);
+      }));
+    }
+    await Promise.all(waiting);
+    if (signal.aborted) throw new Error('Navigation cancelled.');
+    return {cancel, commit() {
+      // Preserve cascade order, moving a retained link only when order changed.
+      const actual = [...document.head.querySelectorAll(selector)].filter(link => desired.includes(link));
+      if (actual.some((link, index) => link !== desired[index])) desired.forEach(link => document.head.append(link));
+      for (const {link, media} of added) media === null ? link.removeAttribute('media') : link.setAttribute('media', media);
+      available.forEach(link => link.remove());
+    }};
+  } catch (error) { cancel(); throw error; }
 }

@@ -102,6 +102,15 @@ public static class LocalSearch
             }).OfType<SearchHit>().OrderByDescending(hit => hit.Score).ThenBy(hit => hit.Url, StringComparer.Ordinal).Take(limit).ToArray();
     }
 
+    internal static string AutocompleteScript
+    {
+        get
+        {
+            using var reader = new StreamReader(typeof(LocalSearch).Assembly.GetManifestResourceStream("LithoSharp.Search.autocomplete.mjs")!);
+            return reader.ReadToEnd();
+        }
+    }
+
     private static string ReadBrowserScript()
     {
         using var reader = new StreamReader(typeof(LocalSearch).Assembly.GetManifestResourceStream("LithoSharp.Search.query.mjs")!);

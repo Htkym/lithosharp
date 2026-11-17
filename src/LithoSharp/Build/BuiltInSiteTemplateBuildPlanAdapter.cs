@@ -64,10 +64,12 @@ internal static class BuiltInSiteTemplateBuildPlanAdapter
             SiteScriptNodeId,
             routes.SiteScript,
             [Configuration("template.builtIn", templateIdentity),
+                Configuration("theme.basePath", SiteUrl.ForDirectory("", site.BaseUrl).Value),
                 Configuration("theme.enableThemeSwitching", Json(theme.EnableThemeSwitching))]);
 
         if (theme.EnableThemeSwitching && theme.UseExternalThemeRestoration)
-            AddTextArtifactNode(nodes, filesByPath, ThemeRestorationScriptNodeId, routes.ThemeRestorationScript, []);
+            AddTextArtifactNode(nodes, filesByPath, ThemeRestorationScriptNodeId, routes.ThemeRestorationScript,
+                [Configuration("theme.basePath", SiteUrl.ForDirectory("", site.BaseUrl).Value)]);
 
         AddTextArtifactNode(nodes, filesByPath, NotFoundNodeId, routes.NotFound,
             [

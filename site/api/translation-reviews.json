@@ -3,6 +3,10 @@
   "sourceIdentity": "Each explanation is keyed by the SHA-256 of its exact normalized English XML prose.",
   "files": [
     {
+      "path": "ja/units-docs-header.json",
+      "sha256": "c895135afa80e90d2c307cd13d1b7c9c7ced06a08b42bd96eb0dc95ab700b99b"
+    },
+    {
       "path": "ja/units-0-7.json",
       "sha256": "8fe7392c2ece18f49d32c69144ce0e6eb9dd36513a0a7ccfe2949848064baf76"
     },
@@ -37,6 +41,10 @@
     {
       "path": "ja/units-docs-navigation.json",
       "sha256": "ac7132a66b1dd75949e6983117bdad5107e08bdeca59e7d3afbf547023405f1f"
+    },
+    {
+      "path": "ja/units-shared-navigation.json",
+      "sha256": "309e14df755592f9da30f43fce8eb10e023e0b889590f516c40f4993bd276f4a"
     }
   ],
   "example": {

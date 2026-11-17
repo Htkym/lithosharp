@@ -17,7 +17,7 @@ try {
       const sidebar = page.locator('[data-docs-sidebar]');
       assert.equal(await sidebar.isVisible(), width > 832);
       assert.equal(await page.locator('.docs-toc').evaluate(el => el.scrollWidth <= el.clientWidth), true);
-      assert.equal(await page.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), String(colorScheme === 'dark'));
+      assert.equal(await page.locator('html').getAttribute('data-site-theme'), colorScheme);
       if (width === 320) {
         await page.locator('.docs-brand').evaluate(el => {
           el.textContent = 'LithoSharpDocumentationGuide / 日本語の長いサイト名でも読めるドキュメント';
@@ -44,14 +44,16 @@ try {
   }
   await page.emulateMedia({ colorScheme: 'light' });
   const themeToggle = page.locator('[data-site-theme-toggle]');
-  await themeToggle.click();
+  await themeToggle.click(); // system -> light
+  await themeToggle.click(); // light -> dark
   await page.reload();
-  assert.equal(await themeToggle.getAttribute('aria-pressed'), 'true');
+  assert.equal(await themeToggle.getAttribute('data-theme-mode'), 'dark');
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark');
-  await themeToggle.click();
+  await themeToggle.click(); // dark -> system
+  await themeToggle.click(); // system -> light
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.reload();
-  assert.equal(await themeToggle.getAttribute('aria-pressed'), 'false');
+  assert.equal(await themeToggle.getAttribute('data-theme-mode'), 'light');
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'light');
   await page.goto(url);
   await page.keyboard.press('Tab');
@@ -87,7 +89,7 @@ try {
   const blocked = await blockedStorage.newPage();
   await blocked.goto(url);
   await blocked.locator('[data-site-theme-toggle]').click();
-  assert.equal(await blocked.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await blocked.locator('[data-site-theme-toggle]').getAttribute('data-theme-mode'), 'light');
   console.log(`${browserName} Docs: light/dark layouts, system preference, saved choice, blocked storage, menu, sidebar navigation, skip link, optional header search and no-JavaScript checks passed.`);
 } finally {
   await browser.close();

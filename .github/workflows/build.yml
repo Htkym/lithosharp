@@ -85,8 +85,8 @@ jobs:
           node --test eng/markdown/Verify-FixedPair.test.mjs
           node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
 
-      - name: Verify search excerpts
-        run: node --test eng/Test-SearchExcerpt.mjs
+      - name: Verify search excerpts and autocomplete
+        run: node --test eng/Test-SearchExcerpt.mjs tests/fixtures/search-autocomplete-submit.mjs tests/fixtures/navigation-styles.mjs tests/fixtures/theme-restoration.mjs tests/fixtures/sidebar-sizing.mjs tests/fixtures/mdx-module-syntax.mjs tests/fixtures/docs-toc.mjs tests/fixtures/docs-layout.mjs
 
       - name: Verify development version matrix
         shell: pwsh
@@ -437,7 +437,7 @@ jobs:
         run: |
           foreach ($browser in @('chromium', 'firefox')) {
             $env:LS_BROWSER = $browser
-            foreach ($check in @('menu.mjs', 'docs-layout.mjs', 'search-scope.mjs', 'code-copy.mjs')) {
+            foreach ($check in @('menu.mjs', 'docs-layout.mjs', 'search-scope.mjs', 'code-copy.mjs', 'docs-toc.mjs')) {
               node "tests/fixtures/mdx-browser/$check"
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }

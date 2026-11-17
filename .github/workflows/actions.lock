@@ -38,6 +38,10 @@ workflows:
         - 'actions/setup-dotnet@v6.1.0'
         - 'actions/setup-node@v7.1.0'
         - 'actions/upload-pages-artifact@v5.0.0'
+    '.github/workflows/safari-startup.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'

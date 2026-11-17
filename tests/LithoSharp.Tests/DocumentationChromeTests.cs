@@ -55,6 +55,20 @@ public sealed class DocumentationChromeTests
         await Assert.That(ordinary.Body.ToHtmlString()).IsEqualTo("legacy");
     }
 
+    [Test]
+    public async Task ExistingMarkdownHeadingDoesNotReceiveASecondTitle()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var input = Path.Combine(workspace.Root, "docs");
+        Directory.CreateDirectory(input);
+        await File.WriteAllTextAsync(Path.Combine(input, "intro.md"), "---\ntitle: Package\n---\n# Package\n\nDescription.\n\n## Usage\n\nUse the package.");
+        var layout = new CapturingLayout();
+        await using var docs = new DocumentationSite(new(workspace.Root)) { Layout = layout };
+        docs.AddCollection(new("guide", [new("v1", "en", input, "en")]));
+        await new SiteGenerator().GenerateWithOptionsAsync(new SiteSettings(), [], Path.Combine(workspace.Root, "output"), false,
+            new() { Template = new DocsSiteTemplate() }, new() { Extensions = [docs] }, default);
+        await Assert.That(layout.Contents.Single().DocumentationChrome!.Article.ToHtmlString().Split("<h1", StringSplitOptions.None).Length).IsEqualTo(2);
+    }
     private sealed class CapturingLayout : IPageLayout<PageLayoutContent>
     {
         public List<PageLayoutContent> Contents { get; } = [];

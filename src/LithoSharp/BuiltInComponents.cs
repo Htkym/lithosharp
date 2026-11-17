@@ -51,24 +51,34 @@ public sealed class SearchFormComponent : ISiteComponent<SiteUrl>
     {
         ArgumentNullException.ThrowIfNull(props);
         ArgumentNullException.ThrowIfNull(context);
-        return Html.UnsafeRaw(RenderCore(context.Configuration, props.Value));
+        return Html.UnsafeRaw(RenderCore(context.Configuration, props.Value, locale: context.Document?.Key.Locale));
     }
 
-    internal static string RenderCore(SiteGenerator.RenderContext configuration, string actionUrl, bool includeInputId = true)
+    internal static string RenderCore(SiteGenerator.RenderContext configuration, string actionUrl, bool includeInputId = true, string? locale = null)
     {
         var searchPath = Html.Encode(actionUrl);
         var inputLabel = Html.Encode(configuration.Text.SearchInputLabel);
         var placeholder = Html.Encode(configuration.Text.HeaderSearchPlaceholder);
         var buttonLabel = Html.Encode(configuration.Text.SearchButtonLabel);
+        var autocomplete = configuration.DocsTemplate?.EnableHeaderSearch == true;
+        var autocompleteAttributes = autocomplete
+            ? " data-site-autocomplete data-index=\"" + Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchIndex)) + "\" data-locale=\"" + Html.Encode(locale ?? configuration.Site.Language) + "\""
+            : string.Empty;
+        var autocompletePanel = autocomplete
+            ? "<div class=\"site-autocomplete-panel\" data-autocomplete-panel hidden><p role=\"status\" aria-live=\"polite\"></p><div data-results></div></div>"
+            : string.Empty;
+        var autocompleteScript = autocomplete ? "<script defer src=\"" + Html.Encode(configuration.Routes.PublicPath(configuration.Routes.SearchScript)) + "\"></script>" : string.Empty;
         return $"""
-                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get">
+                  <form class="site-header-search browser-search" role="search" action="{searchPath}" method="get"{autocompleteAttributes}>
                     {(includeInputId ? $"<label class=\"visually-hidden\" for=\"header-search-input\">{inputLabel}</label>" : string.Empty)}
                     <input{(includeInputId ? " id=\"header-search-input\"" : string.Empty)} name="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="{placeholder}" aria-label="{inputLabel}">
                     <button type="submit" aria-label="{buttonLabel}">
                       {BuildSearchIconSvg()}
                       <span class="visually-hidden">{buttonLabel}</span>
                     </button>
+                    {autocompletePanel}
                   </form>
+                  {autocompleteScript}
                 """;
     }
 
@@ -267,11 +277,13 @@ public sealed class DocsHeaderComponent : ISiteComponent<NavigationLink>
         return Html.UnsafeRaw(RenderCore(props.Label, props.Url.Value, context.Theme.EnableThemeSwitching, context.Text, locale: context.Document?.Key.Locale));
     }
 
-    internal static string RenderCore(string title, string url, bool enableThemeSwitching, SiteText? text = null, string searchHtml = "", string? locale = null) => $"""
+    internal static string RenderCore(string title, string url, bool enableThemeSwitching, SiteText? text = null, string searchHtml = "", string? locale = null, DocsHeaderContent? content = null) => $"""
             <header class="docs-header{(searchHtml.Length > 0 ? " docs-header-with-search" : string.Empty)}">
                 <a class="docs-brand" href="{Html.Encode(url)}">{Html.Encode(title)}</a>
+                {content?.Navigation?.ToHtmlString()}
                 <div class="docs-header-actions">
                 {searchHtml}
+                {content?.Actions?.ToHtmlString()}
                 {(enableThemeSwitching ? SiteGenerator.BuildThemeToggle(locale) : string.Empty)}
                 <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>{Html.Encode(text?.MenuLabel ?? "Menu")}</button>
                 </div>
@@ -352,12 +364,12 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
             SeoComponent.RenderCore(props.Seo, context.Site.Title), props.StylesheetUrl.Value,
             props.FaviconLinks.ToHtmlString(), props.Analytics.ToHtmlString(),
             props.FeedUrl?.Value, props.ScriptUrl?.Value, props.Docs, context.Theme.EnableThemeSwitching,
-            context.Theme.UseExternalThemeRestoration ? context.Configuration.Routes.PublicPath(context.Configuration.Routes.ThemeRestorationScript) : null));
+            context.Theme.UseExternalThemeRestoration ? context.Configuration.Routes.PublicPath(context.Configuration.Routes.ThemeRestorationScript) : null, SiteUrl.ForDirectory("", context.Site.BaseUrl).Value));
     }
 
     internal static string RenderCore(string siteTitle, string themeColor, string seo,
         string stylesheetUrl, string faviconLinks, string analytics, string? feedUrl, string? scriptUrl, bool docs, bool enableThemeSwitching,
-        string? themeRestorationScriptUrl = null)
+        string? themeRestorationScriptUrl = null, string basePath = "/")
     {
         var feed = feedUrl is null ? string.Empty : $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(siteTitle)}\" href=\"{Html.Encode(feedUrl)}\">";
         var script = scriptUrl is null ? string.Empty : $"<script src=\"{Html.Encode(scriptUrl)}\" defer></script>";
@@ -370,7 +382,7 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
             + $"  <meta name=\"color-scheme\" content=\"{(enableThemeSwitching ? "light dark" : "light")}\">\n"
             + (enableThemeSwitching && scriptUrl is not null
                 ? themeRestorationScriptUrl is null
-                    ? "  <script>" + SiteGenerator.ThemeRestorationScript + "</script>\n"
+                    ? "  <script>" + ThemeScript.Restore(basePath) + "</script>\n"
                     : "  <script src=\"" + Html.Encode(themeRestorationScriptUrl) + "\"></script>\n"
                 : string.Empty)
             + $"  <meta name=\"theme-color\" content=\"{Html.Encode(themeColor)}\">\n"

@@ -56,6 +56,19 @@ collection cache/build-graph rules apply. Use the
 [migration guide](migration-2.0.md#move-an-existing-docs-site-to-typed-content)
 when retaining an existing site's URLs or schema.
 
+On wider screens, the sidebar fits its content within the available screen width.
+Drag its boundary, or focus the separator and use the arrow keys, Home or End,
+to adjust and save its width. Double-click the boundary to restore automatic sizing.
+Narrow screens keep the compact menu; without JavaScript, the standard width remains.
+
+## Shared site navigation
+
+Set `DocsSiteTemplate.NavigationRenderer` to render the same sidebar across
+collections and utility pages. The callback receives the current URL and locale
+and returns `IHtmlContent`. Leave it unset to keep the generated navigation.
+Reuse `DocsNavigationComponent` for nested categories and active-page ancestors;
+include only published routes that readers should be able to discover.
+
 ## Error pages and Content Security Policy
 
 Both built-in templates generate `404.html` with the regular navigation, theme
@@ -157,10 +170,12 @@ pass the same data through `FooterComponentProps.AdditionalContent`.
 
 Header search uses `SiteText` labels and the site's base path. The search page
 keeps its own input and omits the header form. The header form uses `aria-label`
-and no fixed input ID so that content headings can keep their IDs. Search still
-requires JavaScript on the results page. With JavaScript disabled, navigation and
+and no fixed input ID so that content headings can keep their IDs. With JavaScript enabled, typing shows matching titles and excerpts directly beneath
+the header input. Select a result to open its page. Search requires JavaScript. With JavaScript disabled, navigation and
 native topic disclosures remain usable. A search header scrolls with the page
 without JavaScript; with JavaScript it stays sticky and measures its wrapped height.
+
+With JavaScript enabled, the table of contents highlights the current heading as you scroll or follow a heading link. The active link also uses `aria-current="location"`. Without JavaScript, the table of contents remains a list of ordinary heading links.
 
 Topic overview links are separate from disclosure summaries. Closing a topic
 hides its links until the reader opens it; it does not change routes, navigation
@@ -222,3 +237,53 @@ tests whose purpose was that postprocessing. Keep source/content checks and
 checks of the output you distribute. Sites that retain custom HTML processing
 must still maintain its dependency and validation. See the [upgrade
 guide](migration-2.0.md) and [output inspection](generated-output-checks.md).
+
+### Theme preference across templates
+
+The built-in Docs and Blog controls and MDX controls share the same preference:
+`system` → `light` → `dark` → `system`. This replaces the built-in binary toggle.
+The current mode is exposed in the button's accessible label and
+`data-theme-mode`; `aria-pressed` is no longer used. Custom controls can use
+`data-site-theme-toggle` (preserves icon markup) or `data-ls-theme` (text label).
+
+Preferences are stored under `lithosharp:<base-path>:theme`, isolating sites at
+different base paths. Existing `lithosharp-theme` values are read as a migration
+fallback, but new choices only update the scoped key. Both Core and MDX restore
+the choice before rendering and keep `data-theme`, `data-site-theme`, and
+`data-theme-mode` synchronized. System changes apply only in `system` mode.
+Storage being unavailable does not disable the controls.
+
+### Extending the shared header
+
+Use `DocsSiteTemplate.HeaderContentRenderer` instead of replacing generated
+header HTML. It receives the current public URL and locale (the URL is null for
+the not-found page) and returns `DocsHeaderContent`:
+
+```csharp
+HeaderContentRenderer = (url, locale) => new DocsHeaderContent
+{
+    Navigation = Html.UnsafeRaw(Html.Encode("v3")),
+    Actions = Html.UnsafeRaw(Html.Encode(locale ?? "en"))
+}
+```
+
+`Navigation` follows the site brand; `Actions` follows search and precedes the
+built-in theme and menu buttons. Both slots accept `IHtmlContent` and are optional.
+Use encoded text or validated components for untrusted values, not raw HTML.
+The renderer should be deterministic: its rendered output participates in
+incremental-build invalidation. Default controls remain owned by the template;
+do not duplicate them in a slot.
+
+### Stable article layout and footer sizing
+
+On desktop, ordinary documentation pages reserve the table-of-contents rail even
+when a page has no headings. This keeps the article position and width stable
+between pages. API catalog grids use the available width instead. Tablet and
+mobile layouts do not reserve an empty rail.
+
+The shared documentation script measures the header, footer, and shell padding
+so short pages fill the viewport without an unnecessary scrollbar. Long articles
+remain naturally scrollable. Custom templates should retain `docs-body`,
+`docs-shell`, `docs-header`, and `docs-footer` on the corresponding elements.
+Remove site-specific viewport-height calculations and duplicate resize observers
+when adopting this layout. Footer content and navigation labels remain site-owned.
