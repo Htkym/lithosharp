@@ -1,0 +1,40 @@
+name: Safari startup diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/safari-startup.yml'
+      - 'eng/Test-SafariStartup.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  empty-session:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24.13.0
+      # Use only the supported enable command on the disposable hosted runner.
+      # No browser updates, permission database edits, retries, or product setup.
+      - name: Create one empty native Safari session
+        run: |
+          sudo /usr/bin/safaridriver --enable
+          node eng/Test-SafariStartup.mjs artifacts/safari-startup
+      - name: Preserve startup and native driver diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: safari-startup-${{ matrix.os }}
+          path: |
+            artifacts/safari-startup
+            ~/Library/Logs/com.apple.WebDriver
+          if-no-files-found: error
