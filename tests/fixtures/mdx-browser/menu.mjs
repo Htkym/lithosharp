@@ -10,13 +10,16 @@ const theme = await readFile(new URL('../../../src/LithoSharp.Mdx/Browser/theme.
 const body = '<header class="docs-header"><button class="docs-menu-toggle" data-docs-menu-toggle aria-controls="docs-sidebar" aria-expanded="false">Menu</button></header><div class="docs-shell"><aside id="docs-sidebar" class="docs-sidebar" data-docs-sidebar><a href="#main">Introduction</a></aside><main id="main" class="docs-main">Article</main><nav class="docs-toc post-toc">Contents</nav></div>';
 const browser = await browserType.launch();
 try {
-  for (const [name, script] of [['core', core], ['mdx', client.replace('export function start', 'function start') + '\nstart({basePath:"/"});']]) {
+  for (const [name, script] of [['core', core], ['mdx', client + '\nstart({basePath:"/"});']]) {
     const page = await browser.newPage({viewport:{width:1440,height:900}});
     await page.setContent(`<style>${docsCss}\n${theme}</style><body class="docs-body">${body}</body>`);
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
     const toggle = page.locator('[data-docs-menu-toggle]'), sidebar = page.locator('[data-docs-sidebar]');
     assert.equal(await sidebar.isVisible(), true, name + ' no-JS sidebar');
     assert.equal(await toggle.isVisible(), false, name + ' no-JS toggle');
-    await page.addScriptTag({content:script});
+    await page.addScriptTag({type: name === 'mdx' ? 'module' : 'text/javascript', content:script});
+    assert.deepEqual(errors, [], name + ' script errors');
+    if (name === 'mdx') await page.waitForFunction(() => !!globalThis[Symbol.for('lithosharp.client')]);
     const state = async open => {
       assert.equal(await toggle.getAttribute('aria-expanded'), String(open), name + ' aria');
       assert.equal(await sidebar.isVisible(), open, name + ' visibility');
@@ -47,6 +50,7 @@ try {
     await toggle.click();
     const columns = await page.locator('.docs-shell').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
     assert.equal(columns, 2, name + ' collapsed desktop columns');
+    assert.deepEqual(errors, [], 'No browser errors during interactions');
     await page.close();
     console.log(name + ': desktop/mobile, keyboard, ARIA, inert, resize, link behavior and no-JS passed');
   }

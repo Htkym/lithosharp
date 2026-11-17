@@ -86,7 +86,7 @@ jobs:
           node eng/markdown/Verify-FixedPair.mjs verify-fixed eng/markdown/feed
 
       - name: Verify search excerpts and autocomplete
-        run: node --test eng/Test-SearchExcerpt.mjs tests/fixtures/search-autocomplete-submit.mjs tests/fixtures/navigation-styles.mjs tests/fixtures/theme-restoration.mjs tests/fixtures/sidebar-sizing.mjs
+        run: node --test eng/Test-SearchExcerpt.mjs tests/fixtures/search-autocomplete-submit.mjs tests/fixtures/navigation-styles.mjs tests/fixtures/theme-restoration.mjs tests/fixtures/sidebar-sizing.mjs tests/fixtures/mdx-module-syntax.mjs
 
       - name: Verify development version matrix
         shell: pwsh

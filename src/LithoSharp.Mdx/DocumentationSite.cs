@@ -651,7 +651,7 @@ public sealed class DocumentationSite : ISiteBuildExtension, ISiteCatalogPrepara
         Registration registration, ContentEntry<DocumentFrontMatter, MdxDocument> entry, string article) =>
         registration.Options.UseMdx && entry.Body.Semantics is { } semantics
             ? semantics.Headings.Any(heading => heading.RawLevel == 1)
-            : SiteGenerator.ExtractTemplateHeadings(article).Any(heading => heading.Level == 1);
+            : HtmlFacts.Parse(article).Elements.Any(element => element.Name == "h1" && element.Namespace == HtmlNamespaces.Html);
     private static string Cards(DocumentationPreparation state, Registration registration, IReadOnlyList<ContentEntry<DocumentFrontMatter, MdxDocument>> entries) =>
         "<ul>" + string.Concat(entries.Select(entry => "<li>" + Link(entry.FrontMatter.Title, SiteUrl.FromRoute(state.Catalog.Resolve(
             new(registration.Options.Id, registration.Variant.Version, registration.Variant.Locale, entry.Id.Value)).Route)) + "</li>")) + "</ul>";
