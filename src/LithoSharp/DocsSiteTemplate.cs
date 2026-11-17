@@ -26,6 +26,10 @@ public class DocsSiteTemplate : ISiteTemplate
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<string?, string?, IHtmlContent>? NavigationRenderer { get; init; }
 
+    /// <summary>Adds per-page navigation and actions while retaining the built-in brand, search, theme, and menu controls. The URL is null for the not-found page.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<string?, string?, DocsHeaderContent>? HeaderContentRenderer { get; init; }
+
     internal bool SearchEnabled => EnableSearch || EnableHeaderSearch;
 
     /// <inheritdoc />

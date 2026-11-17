@@ -277,11 +277,13 @@ public sealed class DocsHeaderComponent : ISiteComponent<NavigationLink>
         return Html.UnsafeRaw(RenderCore(props.Label, props.Url.Value, context.Theme.EnableThemeSwitching, context.Text, locale: context.Document?.Key.Locale));
     }
 
-    internal static string RenderCore(string title, string url, bool enableThemeSwitching, SiteText? text = null, string searchHtml = "", string? locale = null) => $"""
+    internal static string RenderCore(string title, string url, bool enableThemeSwitching, SiteText? text = null, string searchHtml = "", string? locale = null, DocsHeaderContent? content = null) => $"""
             <header class="docs-header{(searchHtml.Length > 0 ? " docs-header-with-search" : string.Empty)}">
                 <a class="docs-brand" href="{Html.Encode(url)}">{Html.Encode(title)}</a>
+                {content?.Navigation?.ToHtmlString()}
                 <div class="docs-header-actions">
                 {searchHtml}
+                {content?.Actions?.ToHtmlString()}
                 {(enableThemeSwitching ? SiteGenerator.BuildThemeToggle(locale) : string.Empty)}
                 <button class="docs-menu-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar" data-docs-menu-toggle>{Html.Encode(text?.MenuLabel ?? "Menu")}</button>
                 </div>
@@ -362,12 +364,12 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
             SeoComponent.RenderCore(props.Seo, context.Site.Title), props.StylesheetUrl.Value,
             props.FaviconLinks.ToHtmlString(), props.Analytics.ToHtmlString(),
             props.FeedUrl?.Value, props.ScriptUrl?.Value, props.Docs, context.Theme.EnableThemeSwitching,
-            context.Theme.UseExternalThemeRestoration ? context.Configuration.Routes.PublicPath(context.Configuration.Routes.ThemeRestorationScript) : null));
+            context.Theme.UseExternalThemeRestoration ? context.Configuration.Routes.PublicPath(context.Configuration.Routes.ThemeRestorationScript) : null, SiteUrl.ForDirectory("", context.Site.BaseUrl).Value));
     }
 
     internal static string RenderCore(string siteTitle, string themeColor, string seo,
         string stylesheetUrl, string faviconLinks, string analytics, string? feedUrl, string? scriptUrl, bool docs, bool enableThemeSwitching,
-        string? themeRestorationScriptUrl = null)
+        string? themeRestorationScriptUrl = null, string basePath = "/")
     {
         var feed = feedUrl is null ? string.Empty : $"\n  <link rel=\"alternate\" type=\"application/rss+xml\" title=\"{Html.Encode(siteTitle)}\" href=\"{Html.Encode(feedUrl)}\">";
         var script = scriptUrl is null ? string.Empty : $"<script src=\"{Html.Encode(scriptUrl)}\" defer></script>";
@@ -380,7 +382,7 @@ public sealed class HeadComponent : ISiteComponent<HeadComponentProps>
             + $"  <meta name=\"color-scheme\" content=\"{(enableThemeSwitching ? "light dark" : "light")}\">\n"
             + (enableThemeSwitching && scriptUrl is not null
                 ? themeRestorationScriptUrl is null
-                    ? "  <script>" + SiteGenerator.ThemeRestorationScript + "</script>\n"
+                    ? "  <script>" + ThemeScript.Restore(basePath) + "</script>\n"
                     : "  <script src=\"" + Html.Encode(themeRestorationScriptUrl) + "\"></script>\n"
                 : string.Empty)
             + $"  <meta name=\"theme-color\" content=\"{Html.Encode(themeColor)}\">\n"

@@ -33,9 +33,12 @@ public sealed class WebsiteFactory : ISiteFactory
         };
         var menu = new WebsiteMenu(root);
         using var sidebarReader = new StreamReader(typeof(DocsSiteTemplate).Assembly.GetManifestResourceStream("LithoSharp.Browser.sidebar.mjs")!);
-        var sidebarScript = System.Text.Encoding.UTF8.GetBytes(sidebarReader.ReadToEnd());
+        using var layoutReader = new StreamReader(typeof(DocsSiteTemplate).Assembly.GetManifestResourceStream("LithoSharp.Browser.layout.mjs")!);
+        var sidebarScript = System.Text.Encoding.UTF8.GetBytes(layoutReader.ReadToEnd() + "\n" + sidebarReader.ReadToEnd());
         using var tocReader = new StreamReader(typeof(DocsSiteTemplate).Assembly.GetManifestResourceStream("LithoSharp.Browser.toc.mjs")!);
         var tocScript = System.Text.Encoding.UTF8.GetBytes(tocReader.ReadToEnd());
+        using var themeReader = new StreamReader(typeof(DocsSiteTemplate).Assembly.GetManifestResourceStream("LithoSharp.Browser.theme-controller.mjs")!);
+        var themeScript = System.Text.Encoding.UTF8.GetBytes(themeReader.ReadToEnd() + "\n" + File.ReadAllText(Path.Combine(root, "website-theme.js")));
         var social = new SiteAssetOutput("website-social", "images/social.png", "image/png");
         var docs = new DocumentationSite(new MdxOptions(root) { Cacheable = true })
         {
@@ -113,7 +116,7 @@ public sealed class WebsiteFactory : ISiteFactory
                 Quality = new SiteQualityOptions(),
                 CommonSocialImage = new ImageSource(social),
                 AssetTransforms = [socialTransform],
-                GeneratedAssets = [new SiteGeneratedAsset("website-toc", "website-toc.js", tocScript), new SiteGeneratedAsset("website-sidebar", "website-sidebar.js", sidebarScript), .. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs"))), new SiteGeneratedAsset("website-theme", "website-theme.js", File.ReadAllBytes(Path.Combine(root, "website-theme.js")))],
+                GeneratedAssets = [new SiteGeneratedAsset("website-toc", "website-toc.js", tocScript), new SiteGeneratedAsset("website-sidebar", "website-sidebar.js", sidebarScript), .. knowledge.CreateAuxiliaryAssets("knowledge"), .. referenceAssets, new SiteGeneratedAsset("website-css", "website.css", File.ReadAllBytes(Path.Combine(root, "website.css"))), new SiteGeneratedAsset("website-js", "website.mjs", File.ReadAllBytes(Path.Combine(root, "website.mjs"))), new SiteGeneratedAsset("website-theme", "website-theme.js", themeScript)],
                 ContentCollections = [loaded.Collection!.RenderDocs(entry => new()
                     { Title = entry.FrontMatter.Title, Version = WebsiteVersion.Document, Locale = entry.FrontMatter.Locale },
                     (entry, rendering) =>

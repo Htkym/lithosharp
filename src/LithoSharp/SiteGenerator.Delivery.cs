@@ -2,7 +2,6 @@ namespace LithoSharp;
 
 public sealed partial class SiteGenerator
 {
-    internal const string ThemeRestorationScript = "try{const t=localStorage.getItem('lithosharp-theme');if(t==='light'||t==='dark')document.documentElement.dataset.siteTheme=t;}catch{}";
 
     private static bool HasExternalThemeRestoration(RenderContext configuration) =>
         configuration.Theme.EnableThemeSwitching && configuration.Theme.UseExternalThemeRestoration;

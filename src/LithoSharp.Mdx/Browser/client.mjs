@@ -5,7 +5,6 @@ export function start(config) {
   const namespace = `lithosharp:${config.basePath}:`;
   const saved = key => { try { return localStorage.getItem(namespace + key); } catch { return null; } };
   const save = (key, value) => { try { localStorage.setItem(namespace + key, value); } catch { /* Persistence is optional. */ } };
-  const system = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : {matches: false, addEventListener() {}};
   let messages = {};
   const t = (key, fallback) => messages[key] ?? fallback;
   document.addEventListener('lithosharp:chunk-error', () => {
@@ -41,8 +40,6 @@ export function start(config) {
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (controlled) reload(); });
     navigator.serviceWorker.addEventListener('message', event => { if (event.data?.type === 'lithosharp:offline-retired') reload(); });
   }
-  let theme = document.documentElement.dataset.themeMode || saved('theme') || 'system';
-  if (!['system', 'light', 'dark'].includes(theme)) theme = 'system';
   const searchCache = new Map();
   const searchWidgets = new WeakSet();
   function startSearch() {
@@ -101,24 +98,12 @@ export function start(config) {
       });
     }
   }
-  function applyTheme() {
-    document.documentElement.dataset.theme = theme === 'system' ? system.matches ? 'dark' : 'light' : theme;
-    document.documentElement.dataset.siteTheme = document.documentElement.dataset.theme;
-    document.documentElement.dataset.themeMode = theme;
-    document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
-    document.dispatchEvent(new CustomEvent('lithosharp:theme', {detail: {theme: document.documentElement.dataset.theme}}));
-    document.querySelectorAll('[data-ls-theme]').forEach(button => { button.hidden = false; button.textContent = `${t('theme', 'Theme')}: ${t(theme, theme)}`; button.setAttribute('aria-label', button.textContent); });
-  }
   const docsCompact = matchMedia('(max-width: 52rem)');
   let docsDesktopOpen = true;
-  let docsBody = null, docsHeader = null, docsHeaderObserver = null;
+  let docsBody = null, docsHeader = null;
   function clearDocsPage() {
-    docsHeaderObserver?.disconnect();
-    docsBody = docsHeader = docsHeaderObserver = null;
-  }
-  function updateDocsHeaderHeight() {
-    if (docsBody === document.body && docsHeader?.isConnected)
-      docsBody.style.setProperty('--docs-header-height', `${docsHeader.getBoundingClientRect().height}px`);
+
+    docsBody = docsHeader = null;
   }
   function setDocsOpen(open) {
     const menu = document.querySelector('[data-docs-menu-toggle]'), sidebar = document.querySelector('[data-docs-sidebar]');
@@ -138,23 +123,19 @@ export function start(config) {
     if (docsBody !== document.body || docsHeader !== header) {
       clearDocsPage(); docsBody = document.body; docsHeader = header;
       setDocsOpen(!docsCompact.matches && docsDesktopOpen);
-      if (header && typeof ResizeObserver === 'function') {
-        docsHeaderObserver = new ResizeObserver(updateDocsHeaderHeight);
-        docsHeaderObserver.observe(header);
-      }
     }
-    updateDocsHeaderHeight();
+
   }
   function page() {
     try { messages = JSON.parse(document.querySelector('[data-ls-messages]')?.textContent || '{}'); } catch { messages = {}; }
     startSearch();
     if (config.theme) {
-      if (!document.querySelector('[data-ls-theme]')) {
+      if (!document.querySelector('[data-ls-theme], [data-site-theme-toggle]')) {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.lsTheme = '';
         const header = document.querySelector('header');
         (header?.querySelector('.docs-header-actions') ?? header)?.append(button);
       }
-      applyTheme();
+      globalThis[Symbol.for('lithosharp.theme')].start(config.basePath, t);
     }
     if (config.announcement && !saved('announcement:' + config.announcement) && !document.querySelector('[data-ls-announcement]')) {
       const aside = document.createElement('aside'); aside.dataset.lsAnnouncement = ''; aside.setAttribute('role', 'note');
@@ -171,9 +152,7 @@ export function start(config) {
     track();
   }
   globalThis[installed] = {page};
-  if (config.theme) system.addEventListener('change', applyTheme);
   document.addEventListener('click', event => {
-    if (event.target.closest('[data-ls-theme]')) { theme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'; save('theme', theme); applyTheme(); }
     if (event.target.closest('[data-ls-dismiss]')) { save('announcement:' + config.announcement, 'dismissed'); document.querySelector('[data-ls-announcement]')?.remove(); }
     const menu = event.target.closest('[data-docs-menu-toggle]');
     if (menu) setDocsOpen(menu.getAttribute('aria-expanded') !== 'true');
@@ -183,7 +162,6 @@ export function start(config) {
     const menu = document.querySelector('[data-docs-menu-toggle]');
     if (event.key === 'Escape' && menu?.getAttribute('aria-expanded') === 'true') { setDocsOpen(false); menu.focus(); }
   });
-  window.addEventListener('resize', updateDocsHeaderHeight);
   docsCompact.addEventListener('change', () => setDocsOpen(!docsCompact.matches && docsDesktopOpen));
   document.addEventListener('lithosharp:before-navigate', clearDocsPage);
   if (config.navigation) {

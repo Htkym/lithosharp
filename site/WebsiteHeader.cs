@@ -4,21 +4,23 @@ internal static class WebsiteHeader
 {
     internal static string VersionBadge => "<span class=\"website-version\">" + Html.Encode(WebsiteVersion.Display) + "</span>";
 
-    public static string Render(string baseUrl, string? locale = null, string? languageLinks = null)
+    public static DocsHeaderContent Content(string baseUrl, string? locale = null, string? languageLinks = null)
     {
         var ja = locale == "ja";
         var current = locale ?? "en";
         string Directory(string path) => SiteUrl.ForDirectory(path, baseUrl).ToAttributeValue().ToString();
         if (languageLinks is null)
             languageLinks = "<a lang=\"en\" href=\"" + Directory("en/introduction") + "\">English</a><a lang=\"ja\" href=\"" + Directory("ja/introduction") + "\">日本語</a>";
-        return "<header class=\"docs-header\"><a class=\"docs-brand\" href=\"" + Directory("") + "\">LithoSharp</a>"
-            + VersionBadge
+        return new DocsHeaderContent
+        {
+            Navigation = Html.UnsafeRaw(VersionBadge
             + "<nav class=\"website-top-nav\" aria-label=\"" + (ja ? "サイト内の案内" : "Site navigation") + "\">"
             + "<a href=\"" + Directory(current + "/introduction") + "\">" + (ja ? "ガイド" : "Guide") + "</a>"
-            + "<a href=\"" + Directory("api/" + current + "/lithosharp") + "\">API</a><a href=\"https://github.com/Htkym/lithosharp\">GitHub</a></nav>"
-            + "<div class=\"docs-header-actions\">" + Search(baseUrl, locale)
-            + (languageLinks.Length == 0 ? "" : "<details class=\"website-language\"><summary aria-label=\"" + (ja ? "言語: 日本語" : locale is null ? "Language / 言語" : "Language: English") + "\">"
-            + WebsiteChrome.LanguageIcon + (ja ? "日本語" : locale is null ? "Language" : "English") + "</summary><nav aria-label=\"Language\">" + languageLinks + "</nav></details>") + ThemeButton(ja) + "</div></header>";
+            + "<a href=\"" + Directory("api/" + current + "/lithosharp") + "\">API</a><a href=\"https://github.com/Htkym/lithosharp\">GitHub</a></nav>"),
+
+            Actions = Html.UnsafeRaw(languageLinks.Length == 0 ? "" : "<details class=\"website-language\"><summary aria-label=\"" + (ja ? "言語: 日本語" : locale is null ? "Language / 言語" : "Language: English") + "\">"
+            + WebsiteChrome.LanguageIcon + (ja ? "日本語" : locale is null ? "Language" : "English") + "</summary><nav aria-label=\"Language\">" + languageLinks + "</nav></details>")
+        };
     }
     internal static string ThemeButton(bool ja) => "<button type=\"button\" data-ls-theme hidden aria-label=\"" + (ja ? "テーマ" : "Theme") + "\">" + (ja ? "テーマ" : "Theme") + "</button>";
 

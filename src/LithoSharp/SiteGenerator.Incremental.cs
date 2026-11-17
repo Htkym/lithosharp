@@ -21,7 +21,7 @@ public sealed partial class SiteGenerator
         var posts = context.Posts;
         var renders = new Dictionary<string, Func<string?, string>>(StringComparer.Ordinal);
         if (HasExternalThemeRestoration(configuration))
-            renders.Add(routes.ThemeRestorationScript.RelativeOutputPath, _ => ThemeRestorationScript);
+            renders.Add(routes.ThemeRestorationScript.RelativeOutputPath, _ => ThemeScript.Restore(SiteUrl.ForDirectory("", configuration.Site.BaseUrl).Value));
         if (template is DocsSiteTemplate)
         {
             var orderedPosts = FlattenDocsNavigation(BuildDocsNavigation(posts)).ToArray();

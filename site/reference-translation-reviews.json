@@ -134,9 +134,9 @@
       "version": "3.1",
       "id": "docs-template",
       "sourcePath": "docs/docs-template.md",
-      "sourceSha256": "5452763eb33f83444bc5a5474421f106eafc9f4755b13a6b91c40475a40795b1",
+      "sourceSha256": "9130db0817667ddf9c53683f285c2f7a85f7b06dbb271cbf7b7fdf98e65b8065",
       "translationPath": "docs/docs-template.ja.md",
-      "translationSha256": "a36392e4f088271f18e48cccd5a6abdcfcfe9170c7ae66751e140dbd9d2b75e1"
+      "translationSha256": "2483ed78234d1ccc309776dbb2092557d69fe3ce0fa6046c22a208249a880428"
     },
     {
       "collection": "reference",
@@ -233,9 +233,9 @@
       "version": "3.1",
       "id": "migration-3.0",
       "sourcePath": "docs/migration-3.0.md",
-      "sourceSha256": "7847e6620239c990fe76679fb733145506f8030b5babb63f4939daf0e08d0b66",
+      "sourceSha256": "f17b186231eaea3be7e8f0f91867bd9994dd2dc6c91170d4904f844c1f07f84d",
       "translationPath": "docs/migration-3.0.ja.md",
-      "translationSha256": "65ce58d0c6e3ca26033c45b0e7828aab07038153a388cae9a65c62992a648ee6"
+      "translationSha256": "1b66ae1690c7525de5bd62e6c7cf4836b778a3d733fc84610903b4322371cd06"
     },
     {
       "collection": "reference",

@@ -17,7 +17,7 @@ try {
         const response = await page.goto(new URL(route, base).href);
         assert.equal(response.status(), 200);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${route} at ${width}`);
-        assert.equal(await page.locator('[data-site-theme-toggle]').getAttribute('aria-pressed'), String(colorScheme === 'dark'));
+        assert.equal(await page.locator('html').getAttribute('data-site-theme'), colorScheme);
       }
       const searchButton = await page.locator('.site-header-search button').boundingBox();
       assert.ok(searchButton.width >= 44 && searchButton.height >= 44, `Search button at ${width}px`);

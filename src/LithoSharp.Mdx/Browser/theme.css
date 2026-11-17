@@ -9,7 +9,7 @@
 .docs-enhanced .docs-menu-toggle{display:inline-flex;min-block-size:2.75rem}
 @media(min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-sidebar{display:none}.docs-enhanced.docs-sidebar-collapsed .docs-shell{grid-template-columns:minmax(0,1fr) minmax(12rem,15rem)}}
 @media(max-width:70rem) and (min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-shell{grid-template-columns:minmax(0,1fr)}.docs-enhanced.docs-sidebar-collapsed .docs-toc.post-toc{grid-column:1}}
-@media(min-width:52.01rem){.docs-enhanced.docs-sidebar-collapsed .docs-shell.docs-shell-no-toc{grid-template-columns:minmax(0,1fr);grid-template-areas:"main"}}
+
 .ls-code-tools{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;margin-block-start:1rem}.ls-code-copy{min-block-size:2.5rem;padding:.35rem .75rem;font:inherit;cursor:pointer}.ls-code-status{font-size:.875rem}
 
 .docs-body [data-docs-toc] .toc-list a{border-inline-start:2px solid transparent;padding-inline-start:.65rem}.docs-body [data-docs-toc] .toc-list a.docs-toc-current{color:var(--accent);border-inline-start-color:var(--accent);background:var(--panel);font-weight:650}.docs-body [data-docs-toc] .toc-track,.docs-body [data-docs-toc] .toc-indicator{display:none}

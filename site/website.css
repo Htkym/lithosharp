@@ -12,7 +12,7 @@
 .website-top-nav a { color: var(--muted); text-decoration: none; font-weight: 600; }
 .website-top-nav a:hover { color: var(--accent); }
 .website-body .docs-header-actions { align-items: center; gap: .75rem; flex-wrap: wrap; }
-.website-body .docs-shell { max-inline-size: 96rem; margin-inline: auto; grid-template-columns: var(--docs-sidebar-width,16rem) minmax(0,1fr) 13rem; grid-template-areas: "sidebar main toc"; gap: 0 3rem; align-items: stretch; padding: 0 2rem 0 0; min-block-size: calc(100svh - 8rem); }
+.website-body .docs-shell { max-inline-size: 96rem; margin-inline: auto; grid-template-columns: var(--docs-sidebar-width,16rem) minmax(0,1fr) 13rem; grid-template-areas: "sidebar main toc"; gap: 0 3rem; align-items: stretch; padding: 0 2rem 0 0; min-block-size: 0; }
 .website-no-toc .docs-shell { grid-template-columns: var(--docs-sidebar-width,16rem) minmax(0,1fr) 13rem; grid-template-areas: "sidebar main toc"; padding-inline-end: 2rem; }
 .website-body .docs-sidebar { grid-area: sidebar; position: relative; max-block-size: none; padding: 0; overflow: visible; border-inline-end: 1px solid var(--border); }
 .website-body .docs-sidebar > nav { position: sticky; inset-block-start: var(--docs-header-height,4.25rem); max-block-size: calc(100svh - var(--docs-header-height,4.25rem)); overflow-y: auto; padding: 1.5rem 1rem 2rem; }
@@ -229,12 +229,9 @@
 .website-api .docs-main:has(.api-category-grid) { inline-size:100%; max-inline-size:none; margin-inline:0; padding-inline:0; }
 
 /* Keep the sidebar inside its grid track and reserve the actual footer height. */
-.website-body { min-block-size:100svh; display:flex; flex-direction:column; }
-.website-body > .docs-header, .website-body > .docs-footer { flex:0 0 auto; }
-.website-body > .docs-shell { flex:1 0 auto; min-block-size:0; }
 @media(min-width:52.01rem) {
   .website-body .docs-sidebar { inset-block-start:0; }
-  .website-body .docs-sidebar > nav { max-block-size:max(8rem,calc(100svh - var(--docs-header-height,4.25rem) - var(--website-footer-height,4.6rem))); }
+  .website-body .docs-sidebar > nav { max-block-size:max(8rem,calc(100svh - var(--docs-header-height,4.25rem) - var(--docs-footer-height,4.6rem))); }
 }
 @media(max-width:52rem) {
   .website-body.docs-enhanced .docs-sidebar { position:fixed; inset-block:var(--docs-header-height,4.25rem) 0; inset-inline-start:0; max-block-size:none; }
@@ -252,3 +249,11 @@
 
 .website-toc .toc-list a { display:block; border-inline-start:2px solid transparent; padding-inline-start:.65rem; }
 .website-toc .toc-list a.docs-toc-current { color:var(--accent); border-inline-start-color:var(--accent); background:var(--panel); font-weight:650; }
+
+/* Utility pages use a centered Docs main region without side rails. */
+.website-body.website-utility .docs-shell { grid-template-columns:minmax(0,1fr); grid-template-areas:"main"; padding-inline:1rem; }
+.website-body.website-utility .docs-main { inline-size:100%; max-inline-size:56rem; padding:3rem 1.5rem; margin-inline:auto; box-sizing:border-box; }
+.website-utility .docs-footer { padding:1.5rem 2rem; border-block-start:1px solid var(--border); font-size:.85rem; }
+@media(min-width:52.01rem) {
+  .website-body.website-utility.docs-sidebar-collapsed .docs-shell { grid-template-columns:minmax(0,1fr); grid-template-areas:"main"; }
+}

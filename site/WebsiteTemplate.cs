@@ -1,11 +1,17 @@
 using LithoSharp;
+using LithoSharp.Pages;
+using LithoSharp.Routing;
 
 internal sealed class WebsiteTemplate : DocsSiteTemplate
 {
     internal WebsiteTemplate(WebsiteMenu menu, string baseUrl)
     {
-        EnableSearch = true;
+        EnableHeaderSearch = true;
         CollapseTopics = true;
+        HeaderContentRenderer = (url, locale) => url is null
+            || url == SiteUrl.ForFile("index.html", baseUrl).Value
+            || url == SiteUrl.ForFile("search.html", baseUrl).Value
+                ? WebsiteHeader.Content(baseUrl, locale) : new DocsHeaderContent();
         NavigationRenderer = (url, locale) => menu.Render(baseUrl, url, locale);
     }
 
@@ -15,7 +21,7 @@ internal sealed class WebsiteTemplate : DocsSiteTemplate
         var home = new SiteTemplateFile
         {
             RelativePath = "index.html",
-            Content = Decorate(context.RenderDocument(new()
+            Content = Decorate(RenderUtility(new()
             {
                 RelativePath = "index.html",
                 Title = "LithoSharp",
@@ -30,7 +36,7 @@ internal sealed class WebsiteTemplate : DocsSiteTemplate
         var notFound = new SiteTemplateFile
         {
             RelativePath = "404.html",
-            Content = Decorate(context.RenderDocument(new()
+            Content = Decorate(RenderUtility(new()
             {
                 RelativePath = "404.html",
                 Title = "Page not found / ページが見つかりません",
@@ -43,7 +49,7 @@ internal sealed class WebsiteTemplate : DocsSiteTemplate
         var search = new SiteTemplateFile
         {
             RelativePath = "search.html",
-            Content = Decorate(context.RenderDocument(new()
+            Content = Decorate(RenderUtility(new()
             {
                 RelativePath = "search.html",
                 Title = "Search this site",
@@ -53,19 +59,24 @@ internal sealed class WebsiteTemplate : DocsSiteTemplate
                     + "<p id=\"search-status\" role=\"status\" aria-live=\"polite\"></p>"
                     + "<section id=\"search-app\" data-index=\"" + SiteUrl.ForFile("search-index.json", context.Site.BaseUrl).ToAttributeValue() + "\"><div id=\"search-results\"></div></section>"
                     + "<noscript><p>JavaScript is required for search.</p></noscript>"
+                    + "<script defer src=\"" + SiteUrl.ForFile("assets/search.js", context.Site.BaseUrl).ToAttributeValue() + "\"></script>"
             }))
         };
         return new([.. standard.Files.Where(file => file.RelativePath != home.RelativePath && file.RelativePath != notFound.RelativePath && file.RelativePath != search.RelativePath), home, notFound, search]);
 
+        string RenderUtility(SiteTemplateDocument document)
+        {
+            var route = SiteRoute.ForFile(document.RelativePath, context.Site.BaseUrl);
+            var content = new PageLayoutContent(Html.UnsafeRaw(document.BodyHtml));
+            var page = new SitePage<PageLayoutContent>(new PageId("website:" + document.RelativePath),
+                route, content, new PageMetadata(document.Title, document.Description));
+            return context.RenderLayout(page, new DocsPageLayout()).ToHtmlString();
+        }
+
         string Decorate(string html)
         {
-            var header = System.Text.RegularExpressions.Regex.Match(html, "<header\\b[^>]*>[\\s\\S]*?</header>");
-            if (!header.Success) throw new InvalidDataException("The utility document requires a site header.");
-            var controls = string.Concat(System.Text.RegularExpressions.Regex.Matches(header.Value, "<button\\b[^>]*>[\\s\\S]*?</button>").Where(match => !match.Value.Contains("data-site-theme-toggle", StringComparison.Ordinal)).Select(match => match.Value));
-            var replacement = WebsiteHeader.Render(context.Site.BaseUrl).Replace("</div></header>", controls + "</div></header>", StringComparison.Ordinal);
-            html = html.Remove(header.Index, header.Length).Insert(header.Index, replacement);
             return html.Replace("</head>", "<script src=\"" + SiteUrl.ForFile("website-theme.js", context.Site.BaseUrl).ToAttributeValue() + "\" data-base-path=\"" + SiteUrl.ForDirectory("", context.Site.BaseUrl).ToAttributeValue() + "\"></script><link rel=\"stylesheet\" href=\"" + SiteUrl.ForFile("website.css", context.Site.BaseUrl).ToAttributeValue()
-                + "\"><script defer src=\"" + SiteUrl.ForFile("assets/site.js", context.Site.BaseUrl).ToAttributeValue() + "\"></script><script type=\"module\" src=\"" + SiteUrl.ForFile("website.mjs", context.Site.BaseUrl).ToAttributeValue() + "\"></script></head>", StringComparison.Ordinal)
+                + "\"><script type=\"module\" src=\"" + SiteUrl.ForFile("website.mjs", context.Site.BaseUrl).ToAttributeValue() + "\"></script></head>", StringComparison.Ordinal)
                 .Replace("class=\"blog-body\"", "class=\"blog-body website-body website-utility\"", StringComparison.Ordinal)
                 .Replace("class=\"docs-body\"", "class=\"docs-body website-body website-utility\"", StringComparison.Ordinal);
         }

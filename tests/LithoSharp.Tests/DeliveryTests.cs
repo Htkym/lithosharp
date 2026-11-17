@@ -61,4 +61,32 @@ public sealed class DeliveryTests
             await Assert.That(generated.BuildPlan.Nodes.Any(node => node.Id.Value == "asset:theme-restoration-script")).IsEqualTo(external);
         }
     }
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task BasePathChangesInvalidateBothThemeAssets(bool docs)
+    {
+        using var workspace = new TemporaryWorkspace();
+        var output = Path.Combine(workspace.Root, "output");
+        var generator = new SiteGenerator();
+        var customization = new SiteCustomization
+        {
+            Template = docs ? new DocsSiteTemplate() : new BlogSiteTemplate(),
+            Theme = new SiteThemeOptions { UseExternalThemeRestoration = true },
+            FaviconSourceDirectory = Path.Combine(workspace.Root, "no-favicons")
+        };
+        var options = new SiteGenerationOptions { BuildTimestamp = DateTimeOffset.UnixEpoch };
+        foreach (var basePath in new[] { "/one/", "/two/", "/two/" })
+        {
+            var result = await generator.GenerateWithOptionsAsync(
+                new SiteSettings { Title = "Delivery", BaseUrl = "https://example.test" + basePath, Language = "en", TimeZone = "UTC" },
+                [], output, false, customization, options, CancellationToken.None);
+            var restoration = await File.ReadAllTextAsync(Path.Combine(output, "assets", "theme.js"));
+            var controller = await File.ReadAllTextAsync(Path.Combine(output, "assets", "site.js"));
+            await Assert.That(restoration).Contains(".restore(\"" + basePath + "\");");
+            await Assert.That(controller).Contains(".start(\"" + basePath + "\");");
+            options = options with { PreviousBuildPlan = result.BuildPlan };
+        }
+    }
+
 }

@@ -21,9 +21,10 @@ function verifyVersionBadges(directory) {
             const header = html.match(/<header[\s\S]*?<\/header>/)?.[0];
             assert(header, `Missing site header: ${file}`);
             const relative = path.relative(output, file).replaceAll('\\', '/');
-            // RenderDocs examples intentionally demonstrate the unmodified shared template.
+            // RenderDocs examples use shared chrome, including the optional shared search.
             if (relative.startsWith('examples/') || relative.startsWith('knowledge/')) {
-                assert(header.includes('class="docs-header"'), `Missing standard example header: ${file}`);
+                assert(/<header class="docs-header(?:\s|")/.test(header), `Missing standard example header: ${file}`);
+                assert(!header.includes('website-version'), `Official-only branding leaked into example: ${file}`);
                 continue;
             }
             const badges = [...header.matchAll(/<span class="website-version">([^<]+)<\/span>/g)];
@@ -112,8 +113,12 @@ for (const locale of ['en', 'ja']) {
 }
 for (const file of ['index.html', '404.html', 'search.html']) {
     const html = readFileSync(path.join(output, file), 'utf8');
-    assert(html.includes('class="docs-header"'), `Common utility header: ${file}`);
-    assert(html.includes('website-search-form') && html.includes('type="search"'), `Site search entry: ${file}`);
+    assert(/<header class="docs-header(?:\s|")/.test(html), `Common utility header: ${file}`);
+    const header = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? '';
+    assert.equal((header.match(/type="search"/g) ?? []).length, file === 'search.html' ? 0 : 1, `Shared header search placement: ${file}`);
+    assert.equal((html.match(/type="search"/g) ?? []).length, 1, `Single site search entry: ${file}`);
+    assert.equal((html.match(/src="[^"]*\/assets\/site\.js"/g) ?? []).length, 1, `Single shared controller: ${file}`);
+    assert.equal((html.match(/src="[^"]*\/assets\/search\.js"/g) ?? []).length, 1, `Single shared search controller: ${file}`);
     assert(html.includes('website-language'), `Language entry: ${file}`);
     assert(!html.includes('id="docs-sidebar"'), `No unrelated sidebar: ${file}`);
 }
