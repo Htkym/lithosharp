@@ -35,8 +35,8 @@ JSON の `preflight` と SARIF の `runs[0].properties` は、同じ段階のメ
 同じバージョンの Tool とテンプレートパッケージをインストールして、サイトを作成します。
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

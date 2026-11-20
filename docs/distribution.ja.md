@@ -27,8 +27,8 @@ JPEG、WebP、AVIFは既存ファイルを登録するか、別の手段で用�
 詳しくは[アセットと画像](assets-and-images.ja.md)を参照してください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 ```
 
 サイトの作成と配信は[Quick Start](quickstart.ja.md)を、既存プロジェクトの更新は[3.0への移行手順](migration-3.0.ja.md)を参照してください。

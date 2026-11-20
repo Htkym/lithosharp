@@ -1,6 +1,6 @@
 ---
 title: 追加のワークフロー
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [quickstart]
 ---
 

@@ -40,6 +40,13 @@ HTMLの検査はコードのsandboxではありません。配布するのはビ
 この表は用途の確認事項であり、性能や機能の完全な同等性を示すものではありません。
 [参考時間](performance.ja.md)も参照してください。速度は参考値です。利用環境・構成・コンテンツによって変わります。
 
+## Open Knowledge Format のバンドルを試す
+
+出典や検証の記録を付けたナレッジを管理する場合は、既存のバンドルで[OKF のプレビュー機能](open-knowledge-format.ja.md)を試してください。
+ルートの索引に形式のバージョンを書き、CLI で検証してから、Docs で概念やファイル、リンクの表示を確認します。
+通常の Markdown に OKF は不要です。公開ページの Markdown と発見用のリンクを配信する[Agent Ready](agent-ready.ja.md)は別のオプションです。
+どちらも引用を保証する機能ではありません。
+
 ## Docsサンプルを試す
 
 [Docsサンプル](../samples/LithoSharp.DocsSample/README.ja.md)は`ArticleFrontMatter`、生成Binder・Catalog、型付き参照をDocsのナビゲーションと最終HTMLへ接続します。体験手順には、通常の入力から分離した不正な入力例があります。

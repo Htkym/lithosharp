@@ -9,7 +9,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>LithoSharp</PackageId>
-    <Version>3.1.0</Version>
+    <Version>4.0.0</Version>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(Version)</PackageVersion>
     <Authors>Htkym</Authors>
     <Product>LithoSharp</Product>
@@ -29,6 +29,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('4.'))">3.1.0</PackageValidationBaselineVersion>
     <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('3.'))">2.2.0</PackageValidationBaselineVersion>
     <PackageValidationBaselineVersion Condition="$([System.String]::Copy('$(PackageVersion)').StartsWith('2.'))">1.1.0</PackageValidationBaselineVersion>
     <EnablePackageValidation>true</EnablePackageValidation>

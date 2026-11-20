@@ -1,11 +1,11 @@
 ---
 title: 文書、言語、検索
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [quickstart]
 ---
 
 `DocumentationSite` は、二つの `DocumentVariant` を持つ `handbook` コレクションを登録します。
-`3.1/en` の入力は `en/`、`3.1/ja` の入力は `ja/` から読み込みます。
+`4.0/en` の入力は `en/`、`4.0/ja` の入力は `ja/` から読み込みます。
 共通の文書 ID が言語間の移動先を結び、明示した `MissingDocumentPolicy.Error` がペアの欠落を拒否します。
 バージョンを追加する場合は、専用の入力ソースとルートの接頭辞が必要です。
 ラベルを付けても、現在の文章が過去の文書になるわけではありません。

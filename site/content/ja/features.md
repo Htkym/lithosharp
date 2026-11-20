@@ -1,6 +1,6 @@
 ---
 title: 機能ガイド
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [introduction]
 sidebar_position: 3
 ---
@@ -48,6 +48,11 @@ order: 1
 
 [ドキュメントと多言語対応を設定する](../documentation/)
 
+## ナレッジのバンドルを検証して公開する
+
+[Open Knowledge Format ガイド](../knowledge/)では、ローカルの OKF バンドルを調査、検証し、Docs に表示する手順を説明します。
+このプレビュー機能は、バンドルのメタデータを通常の Markdown の C# スキーマとは別に扱います。
+
 ## Markdown にコンポーネントを追加する
 
 コンテンツに合わせて Markdown プロファイルを選べます。
@@ -56,7 +61,7 @@ order: 1
 このサイトのバージョンバッジもその一例です。
 
 ```markdown
-:::component name="version-badge" version="3.1"
+:::component name="version-badge" version="4.0"
 :::
 ```
 

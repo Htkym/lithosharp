@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Compiler XML exported from the LithoSharp 4.0.0 packages.",
+  "units": {
+    "4910cfd7b50cdaaa7e6c41859c75159635ae4f87b4ca0631c925e70508c986cc": {
+      "contexts": [
+        "M:LithoSharp.OpenKnowledge.OkfPathReference.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,LithoSharp.OpenKnowledge.OkfLinkKind)/summary"
+      ],
+      "english": "A v0.3 frontmatter path or URI, resolved without opening any target.",
+      "japanese": "OKF 0.3 のフロントマターに記述されたパスまたは URI です。参照先を開かずに解決します。"
+    },
+    "614a57cda7333b41870758274ba0f6005461767554dd58c5ed3a453ea927e17b": {
+      "contexts": [
+        "M:LithoSharp.OpenKnowledge.OkfWriter.PrepareForVersion(System.String,System.Collections.Generic.IEnumerable{LithoSharp.OpenKnowledge.OkfNewConcept},System.Collections.Generic.IEnumerable{LithoSharp.OpenKnowledge.OkfNewAuxiliary},System.Nullable{System.DateTimeOffset},System.Threading.CancellationToken)/summary"
+      ],
+      "english": "Creates a new bundle with an explicit version declaration at its root.",
+      "japanese": "ルートにバージョンを明示した新しいバンドルを作成します。"
+    },
+    "72a8d2a2d8c058cf407f6c7373e56d0e9a65dfd125ba9ab1fd11f26bc9bc29b5": {
+      "contexts": [
+        "M:LithoSharp.OpenKnowledge.OkfParameter.#ctor(Syntamark.YamlNode,System.String,System.String,System.Boolean)/summary"
+      ],
+      "english": "A usable declared parameter. Raw retains its full YAML mapping.",
+      "japanese": "利用できる宣言済みのパラメーターです。Raw は YAML マッピング全体を保持します。"
+    },
+    "f117db28b1ba7ae6918e9c137d9cd53d830abcbcdc80b8362291fd16bdeba50b": {
+      "contexts": [
+        "T:LithoSharp.OpenKnowledge.OkfBundle/summary"
+      ],
+      "english": "A nonexecuting, version-selected OKF reader over immutable file snapshots.",
+      "japanese": "変更されないファイルのスナップショットを対象とし、選択したバージョンの規則で読み込む OKF リーダーです。バンドル内のコードは実行しません。"
+    }
+  }
+}

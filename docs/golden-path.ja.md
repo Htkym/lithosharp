@@ -8,8 +8,8 @@
 ## Markdownだけのサイト
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release --port 4317

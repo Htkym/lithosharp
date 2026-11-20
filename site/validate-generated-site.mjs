@@ -123,3 +123,20 @@ for (const file of ['index.html', '404.html', 'search.html']) {
     assert(!html.includes('id="docs-sidebar"'), `No unrelated sidebar: ${file}`);
 }
 console.log('Official navigation, search and empty-TOC contracts passed.');
+
+// The OKF entry points remain discoverable in generated HTML and machine indexes.
+const home = readFileSync(path.join(output, 'index.html'), 'utf8');
+const searchIndex = JSON.parse(readFileSync(path.join(output, 'search-index.json'), 'utf8'));
+const sitemap = readFileSync(path.join(output, 'sitemap.xml'), 'utf8');
+for (const locale of ['en', 'ja']) {
+    const route = `/${locale}/knowledge/`;
+    assert(home.includes(route), `Home OKF guide entry: ${locale}`);
+    for (const page of ['introduction', 'features']) {
+        const html = readFileSync(path.join(output, locale, page, 'index.html'), 'utf8');
+        assert(html.includes(route), `OKF adoption link: ${locale}/${page}`);
+    }
+    const entry = searchIndex.documents.find(document => document.url.endsWith(route));
+    assert(entry && entry.locale === locale && entry.version === inventory.sourceVersion, `Versioned OKF search entry: ${locale}`);
+    assert(sitemap.includes(`${route}</loc>`), `OKF sitemap entry: ${locale}`);
+}
+console.log('OKF adoption links, bilingual search entries and sitemap coverage passed.');

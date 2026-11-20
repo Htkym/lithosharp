@@ -5,16 +5,16 @@
   "reviews": [
     {
       "collection": "overview",
-      "version": "3.1",
+      "version": "4.0",
       "id": "introduction",
       "sourcePath": "README.md",
-      "sourceSha256": "1a2626b7adfde5f7a3f572645f9f92e8c4df194bd1447f1896ba562276afa619",
+      "sourceSha256": "fefccca5874bf89ab7d7f228b083fa7936ef82437be56c16f14fb78e57b39acc",
       "translationPath": "README.ja.md",
-      "translationSha256": "e0666d065e7884070fa516066f768a28d01846dd53241006ab9748e8619965c2"
+      "translationSha256": "5dbbf2fb4665e59d6b0e2e1b8ae1e9857fdb41f03c593eb7d5db9328395ac88c"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "README",
       "sourcePath": "docs/README.md",
       "sourceSha256": "71dc2a375c3b3ec1bafd2fef2e58f81c0a59fb598a12f9c31b4b13395074fe2c",
@@ -23,7 +23,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "Testing-v2-api",
       "sourcePath": "docs/Testing-v2-api.md",
       "sourceSha256": "ee491ab6317d40a9114bdf818ccb6f4ee3fd472b6505cd3827ba22c06a49b995",
@@ -32,16 +32,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "adoption-guide",
       "sourcePath": "docs/adoption-guide.md",
-      "sourceSha256": "e066062ee0cf390003907f1a2caee100c6ba1ba544379331292ae2c18ce3eed8",
+      "sourceSha256": "f342ff5dbf95674cb54dda25d22c39b53f9e18573f56e5068e508febfde5df90",
       "translationPath": "docs/adoption-guide.ja.md",
-      "translationSha256": "1204cf95311a876cecf556e946dd342de8975fbd0cb7c3bfde276a28da896907"
+      "translationSha256": "13d2cfd5825787f0660f904eaddbc9e8b272918f2d0c6b518338bfa7722608f9"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "agent-ready",
       "sourcePath": "docs/agent-ready.md",
       "sourceSha256": "076db5adc59138d7e24a1bf4dd5d2a9bcf157769ff1879c518d1ee5253fee1f5",
@@ -50,7 +50,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "agent-ready-metadata",
       "sourcePath": "docs/agent-ready-metadata.md",
       "sourceSha256": "2b89fa4b97ea4257f60aabd463d796c349669ba98e3070d0128f707b4766215c",
@@ -59,7 +59,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "assets-and-images",
       "sourcePath": "docs/assets-and-images.md",
       "sourceSha256": "0bc4491339723209b4d2ce53219728dfa5450c75ee6c153f8ce715ac92c781a0",
@@ -68,7 +68,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "build-graph",
       "sourcePath": "docs/build-graph.md",
       "sourceSha256": "a8960766533dbd0712c7258900046e1ac0f4cfb1022bbf99a45c1f0811333176",
@@ -77,16 +77,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "cli",
       "sourcePath": "docs/cli.md",
-      "sourceSha256": "6431f5171af9bb4f55b90170885099ad87a3a2ca9bc45615d97bfd860abf852b",
+      "sourceSha256": "fe7e84b8138900bf76ed813cff6061a40bcec512db65bd247f5feede323108ad",
       "translationPath": "docs/cli.ja.md",
-      "translationSha256": "f5be09c0a2c981678b5f46b07ee68d89b64b6f7421937df2057c99b33c7fb439"
+      "translationSha256": "3a040f8ed1c65e357385f3b36ab14c29a0a7ac718e732ab37ba866eb5cfc44c8"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "code-example-verification",
       "sourcePath": "docs/code-example-verification.md",
       "sourceSha256": "959c288f466bfb478adb57d3057fe4a77333dba8d7f59adef82a0d87e75c0425",
@@ -95,7 +95,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "compatibility-contract",
       "sourcePath": "docs/compatibility-contract.md",
       "sourceSha256": "c97f97146b56c9616ffd69af323f74afd08c3bcba18d1985e60821b012007910",
@@ -104,7 +104,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "csharp-reference-rename",
       "sourcePath": "docs/csharp-reference-rename.md",
       "sourceSha256": "446a4ed2ee9176caf60164df70f2a10faa6c937f09365af196f53f239f40f6d0",
@@ -113,7 +113,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "diagnostics",
       "sourcePath": "docs/diagnostics.md",
       "sourceSha256": "24a7491e0dddc9e1a85cea8b694642a55f689ed7d4f5a7b6ae83778c9d4dd19d",
@@ -122,16 +122,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "distribution",
       "sourcePath": "docs/distribution.md",
-      "sourceSha256": "f4af6eb4c6a9137bded58eb4d0d27de06caf2cb4f27f0a9537af1098039b539a",
+      "sourceSha256": "bbe92c3d9a87f07cb2d800118d3c72a6d29a38b09220ede9d8c219feaea68f56",
       "translationPath": "docs/distribution.ja.md",
-      "translationSha256": "43c9bde0a357fd6abfb00e920402bb0b09e4b1e752ed1cedc59b4edc266238c3"
+      "translationSha256": "c79fde7adfc7080463c1bb417fc33fd9ba3ded7ed940ccb7d0ea8e7ae3b9de51"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "docs-template",
       "sourcePath": "docs/docs-template.md",
       "sourceSha256": "9130db0817667ddf9c53683f285c2f7a85f7b06dbb271cbf7b7fdf98e65b8065",
@@ -140,7 +140,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "docusaurus-migration",
       "sourcePath": "docs/docusaurus-migration.md",
       "sourceSha256": "aa43b31b0b59b3fef159595668cf6f7700a9314fac2c5d27c2173869f98f0efe",
@@ -149,7 +149,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "generated-output-checks",
       "sourcePath": "docs/generated-output-checks.md",
       "sourceSha256": "60139a5802d8b3774c164f785b6a9f5ff53c2bd316b9f2ab5b5e67aa3f2dfafc",
@@ -158,16 +158,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "golden-path",
       "sourcePath": "docs/golden-path.md",
-      "sourceSha256": "07b79daf1c180ddc8c6aa902c611302fbfd58f13e7aa88126a312f70bd441416",
+      "sourceSha256": "35b0b15a8d5bcb02ac54c0f4782918abee40cba6ff32a662a2ad818b5ae5e694",
       "translationPath": "docs/golden-path.ja.md",
-      "translationSha256": "edc0d4da170097bf577b95a9b4adfee9cc651b4ff6b161c3381ecc9efbd16fe0"
+      "translationSha256": "57f616e4b90880b4b45987fc78993d2354fcf832922c8a8c3e5fbc2c5f6ff0e8"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "incremental-builds",
       "sourcePath": "docs/incremental-builds.md",
       "sourceSha256": "b6cd7a70862f4432f8a3a86ccc72b90d26d1423ef3911b2d24ceacd1fd2d9406",
@@ -176,7 +176,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "known-limitations",
       "sourcePath": "docs/known-limitations.md",
       "sourceSha256": "8301c1ca8f1a6f91270694fbfa70f5e14808fb9ae5be5060297da8c961589e0b",
@@ -185,7 +185,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "language-server",
       "sourcePath": "docs/language-server.md",
       "sourceSha256": "434330e0078a458a420534fc2d7347d7d355613953188b54231752481bcf458c",
@@ -194,7 +194,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "layout-css-contract",
       "sourcePath": "docs/layout-css-contract.md",
       "sourceSha256": "a1b3631774438da89bd8ab283ca6148f60932e36e9fba0e03b5aa16794780dfa",
@@ -203,7 +203,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "markdown-profiles",
       "sourcePath": "docs/markdown-profiles.md",
       "sourceSha256": "0a5957ffbf2fa24fe4e95cef3e093665b98a57be19794a5043a33a292d6589d9",
@@ -212,12 +212,12 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "mdx",
       "sourcePath": "docs/mdx.md",
-      "sourceSha256": "cac68c3f32d49dc3b6d40ef242500052c83cc63d2fa0e544c92c207c2c5c0ca0",
+      "sourceSha256": "f3e8efd1d940941099ec64fc9e0469a6edbec6fa747410ab0e936bde5a2c07f5",
       "translationPath": "docs/mdx.ja.md",
-      "translationSha256": "875cc6e6c77d41ef3a2401e99be5ee042a2c545c9eba953238f1da4011f400b0"
+      "translationSha256": "7304adb1581f5baa4d6679fdf0809bbf93a46dd8f50add1d68e82fa08073d62e"
     },
     {
       "collection": "history",
@@ -230,7 +230,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "migration-3.0",
       "sourcePath": "docs/migration-3.0.md",
       "sourceSha256": "f17b186231eaea3be7e8f0f91867bd9994dd2dc6c91170d4904f844c1f07f84d",
@@ -239,16 +239,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "open-knowledge-format",
       "sourcePath": "docs/open-knowledge-format.md",
-      "sourceSha256": "8a1083714c002f60407d6f79fbd7cf1f8828218947912b6f8d816d05156637a3",
+      "sourceSha256": "ae75aa1d855b5682bd28f65f3c4441b1f1a9f2c646f960679e04aa32cacb165e",
       "translationPath": "docs/open-knowledge-format.ja.md",
-      "translationSha256": "0dd90281ea3d7cdfba060f275345ae632630b559e98cce058677e9b35e78b345"
+      "translationSha256": "46632a5bd825f83e3c66f64b8f5ca421f04eefeac0dcc5643056260a0d54c632"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "performance",
       "sourcePath": "docs/performance.md",
       "sourceSha256": "31d61875672dbd01fe2c51c56524bbcdf49a458786693d0937f0a0ad0e5d8af7",
@@ -257,7 +257,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "proofreading",
       "sourcePath": "docs/proofreading.md",
       "sourceSha256": "b067a157c77bbd1c89b6999d27f1e69243d6039af4f24bbb287c34dc48a5ba69",
@@ -266,16 +266,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "quickstart",
       "sourcePath": "docs/quickstart.md",
-      "sourceSha256": "d03a3acd6b181530f5d3c4dd9c89fef052044f390ae0a03e727077a5e5b42f3f",
+      "sourceSha256": "2ca729be8dd81cc0ef1d450ef080f4cf1a55eab426d1c5418f90a76dc3be3cb1",
       "translationPath": "docs/quickstart.ja.md",
-      "translationSha256": "d6d87a7485ace630a784dbede1d26a55bc24bdd15d81e43bd4e16c4280b95c0d"
+      "translationSha256": "bff17679c08af30f4aa41cc78c3c62f91adf92a881b2c88b754a2a9b6e95286e"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "reference-editing",
       "sourcePath": "docs/reference-editing.md",
       "sourceSha256": "f1d76bba42dff8b1630845a532f61f884e9e3c08ff8c50b33b263b36600f69d9",
@@ -284,7 +284,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "semantic-constraints",
       "sourcePath": "docs/semantic-constraints.md",
       "sourceSha256": "d3c6584f75ee17e39d3edba65a998dc7fd2c831df586f1961111d5095e87704c",
@@ -293,7 +293,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "site-quality",
       "sourcePath": "docs/site-quality.md",
       "sourceSha256": "460d79519f2fe71ec1e04de0d03e045f5af398d88774ebc46cd359fac946f2d9",
@@ -302,16 +302,16 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "source-generators",
       "sourcePath": "docs/source-generators.md",
-      "sourceSha256": "696fe5f454dd888f4cd0f5e12ac8890e99ad076543c5796f9d86c8e5445da760",
+      "sourceSha256": "040d83a7c5d756a621309e3cc8979ef0abbd6655dae10245b09a32da9b02f3a1",
       "translationPath": "docs/source-generators.ja.md",
-      "translationSha256": "aeec75b82dd1b60cb875cd9408bb4543f4ce9c19328d6563c3523cf78a25e973"
+      "translationSha256": "9138e1e3365dbb5ed2a6c964ab36717fdd71660543a0968bae02f9f10520caec"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "syntamark-contracts",
       "sourcePath": "docs/syntamark-contracts.md",
       "sourceSha256": "c593949f6fd84b0a64a6451a76b320269dd8eb2a396b9aa518c342d7b8c59284",
@@ -320,25 +320,25 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "testing",
       "sourcePath": "docs/testing.md",
-      "sourceSha256": "94ded23f0e2d17a22fdfaf066d06a8509cd642c12ee61618df8fd19368cb2d6b",
+      "sourceSha256": "512c0247d0b95c4e3bb03580174cb8dc7a659aeb891c6d83cedf15d180488f93",
       "translationPath": "docs/testing.ja.md",
-      "translationSha256": "f70ef268c2aeee6e9122e98bb6b0bc3abcca41ecf4cc200e0248ab7b325903c9"
+      "translationSha256": "44216fcdc56437b04c567cbc82aa1479676e43fc62f2b62b03f8aaee9dca5be2"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "tooling-capabilities",
       "sourcePath": "docs/tooling-capabilities.md",
-      "sourceSha256": "6acbfc0886d3e9d5515ae3150a8a36055530628382da24b99431e9f3c64854a3",
+      "sourceSha256": "94c17be25e216341f0d9d13bf1758b49cefa915a31811a3d9c45cf234110db2a",
       "translationPath": "docs/tooling-capabilities.ja.md",
-      "translationSha256": "0bbcb368c7a87b0570ae75691ed3de5edfea575555694c2b464c5b169236ba88"
+      "translationSha256": "def71c314cbaf7acc5f9015475c4851e59998b62d996c3d7cb0a2466f0d2cc54"
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "typed-markdown-collections",
       "sourcePath": "docs/typed-markdown-collections.md",
       "sourceSha256": "583f22aff8eb4d33a2fe29e1450a329a5bef20466f27f73dbabd62135f84bd1e",
@@ -347,7 +347,7 @@
     },
     {
       "collection": "reference",
-      "version": "3.1",
+      "version": "4.0",
       "id": "typed-yaml-collections",
       "sourcePath": "docs/typed-yaml-collections.md",
       "sourceSha256": "8fdd028c1998cef5c6ff1d4e47c01f77a7a12c26cc9d753e4130a4bf2b8fce1b",
@@ -356,7 +356,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "extensions-lithosharp-vscode",
       "sourcePath": "extensions/lithosharp-vscode/README.md",
       "sourceSha256": "16bfce29b78b86b7692b283e0279b8fad985cd5c0b02b1702f37a792a052d124",
@@ -365,7 +365,7 @@
     },
     {
       "collection": "samples",
-      "version": "3.1",
+      "version": "4.0",
       "id": "samples-lithosharp-docssample",
       "sourcePath": "samples/LithoSharp.DocsSample/README.md",
       "sourceSha256": "95c19622e581890c5faf236bcaa5a400891c2b9e9a6c673ae6ddfa3c14c4d728",
@@ -374,7 +374,7 @@
     },
     {
       "collection": "samples",
-      "version": "3.1",
+      "version": "4.0",
       "id": "samples-lithosharp-mdxsample",
       "sourcePath": "samples/LithoSharp.MdxSample/README.md",
       "sourceSha256": "f5b61cd744bb8ec01be805fcb057f10b9354edbcbbc4155e1e1b1fe11bc32468",
@@ -383,7 +383,7 @@
     },
     {
       "collection": "samples",
-      "version": "3.1",
+      "version": "4.0",
       "id": "samples-lithosharp-sample",
       "sourcePath": "samples/LithoSharp.Sample/README.md",
       "sourceSha256": "c4386047b80b22fd9dab31bc2aa051a9bbbb3cf3d4d0707ab40dde87b7ae09dd",
@@ -392,7 +392,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-analyzers",
       "sourcePath": "src/LithoSharp.Analyzers/README.md",
       "sourceSha256": "4f3488681a2c1d407ed19fb2cac229fe5388123da8af01bb448d2f7b4a237e0d",
@@ -401,7 +401,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-codefixes",
       "sourcePath": "src/LithoSharp.CodeFixes/README.md",
       "sourceSha256": "821a8b42b06b280237b797a5380a421ec59debba7312d0455950b05c510804ee",
@@ -410,7 +410,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-generators",
       "sourcePath": "src/LithoSharp.Generators/README.md",
       "sourceSha256": "1ff73dddb8da54d1a04e1ebe8c989bdf48d41ec688bd45dfe141370e609a896e",
@@ -419,7 +419,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-images",
       "sourcePath": "src/LithoSharp.Images/README.md",
       "sourceSha256": "0f7e66b1ae018fc246465b87a9b3f85f2d625fee258ad0ae4fedd7eee8596ce9",
@@ -428,7 +428,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-mdx",
       "sourcePath": "src/LithoSharp.Mdx/README.md",
       "sourceSha256": "617a0db0ad54f134a21f2159283eb044ba28acfa595902f9081d6027c888cd32",
@@ -437,7 +437,7 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-testing",
       "sourcePath": "src/LithoSharp.Testing/README.md",
       "sourceSha256": "082002c9d29a029e4380c2dfe5e0ffdda7d73e93b623a89f0bd15e5971dc3236",
@@ -446,21 +446,21 @@
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "src-lithosharp-tool",
       "sourcePath": "src/LithoSharp.Tool/README.md",
-      "sourceSha256": "b3d62e1ab1ca27a230b98c4ddd4ef34a897179cd6971a424f5446f24b8b12b7d",
+      "sourceSha256": "1eb6e0abd4892cafdd068ff6b7204a5f7cabc0678b305f71b038bc566b253e72",
       "translationPath": "src/LithoSharp.Tool/README.ja.md",
-      "translationSha256": "9b42d97fd5dbf9f9675e98db601976b4d9fd1d583605e12425957a67456ad34b"
+      "translationSha256": "0fdf8b740e0e9d8690569fdd001d8ff8e21db37e70cc6d48a2dfede5a4ef1c6f"
     },
     {
       "collection": "packages",
-      "version": "3.1",
+      "version": "4.0",
       "id": "templates-lithosharp-projecttemplates",
       "sourcePath": "templates/LithoSharp.ProjectTemplates/README.md",
-      "sourceSha256": "173fa2faf76132491c1b0ced9da613e1c16250d6395fe9735a0ae017c36261c5",
+      "sourceSha256": "edcd714011f406cfbbab60bd96bc50b7df2fbd38aa25b8ad257ef32e5d666aad",
       "translationPath": "templates/LithoSharp.ProjectTemplates/README.ja.md",
-      "translationSha256": "cebb5018a960fff8ecece741f060e51e926a33656b0ad6eb075cb7ec6e02daa2"
+      "translationSha256": "ebc7104d4c9858715984e5842cb1c183ca6923d1c3de92e5bc4b4577e9aee1bd"
     }
   ],
   "reviewUpdates": [

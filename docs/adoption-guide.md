@@ -41,6 +41,15 @@ compatibility. See [migration to 3.0](migration-3.0.md) and [limitations](known-
 These are selection questions, not measured performance or feature-parity claims.
 See [reference times](performance.md). Results vary with the environment, configuration, and content.
 
+## Evaluate an Open Knowledge Format bundle
+
+If you maintain knowledge with provenance and verification metadata, try an
+existing local bundle with the [OKF preview tools](open-knowledge-format.md).
+Declare its format in the root index, validate it from the CLI, and assess how
+the Docs output represents concepts, assets, and links. Ordinary Markdown does
+not need OKF. Agent Ready publishing is [a separate opt-in](agent-ready.md) for
+published Markdown and discovery links; neither workflow guarantees citations.
+
 ## Try the Docs sample
 
 The [Docs sample](../samples/LithoSharp.DocsSample/README.md) connects

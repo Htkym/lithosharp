@@ -1,11 +1,11 @@
 ---
 title: Documentation, languages and search
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [quickstart]
 ---
 
 `DocumentationSite` registers a `handbook` collection with two `DocumentVariant`
-inputs: `3.1/en` under `en/`, and `3.1/ja` under `ja/`. Shared document IDs connect
+inputs: `4.0/en` under `en/`, and `4.0/ja` under `ja/`. Shared document IDs connect
 language targets; an explicit `MissingDocumentPolicy.Error` rejects missing pairs.
 Adding a version requires its own source input and route prefix. A label does not
 turn current text into archived documentation.

@@ -11,8 +11,8 @@ Node.jsとReactは不要です。任意のMDXにはNode.js 24.13.0と明示的�
 新しいディレクトリで次のコマンドを実行してください。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 

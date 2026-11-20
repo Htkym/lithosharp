@@ -2,6 +2,12 @@
 
 [日本語](CHANGELOG.ja.md)
 
+## 4.0.0
+
+- **Migration:** LithoSharp requires a quoted `okf_version: "0.2"` or `okf_version: "0.3"` in the OKF bundle’s root `index.md` for validation and site generation. Declare `"0.2"` to retain the existing rules. Ordinary Markdown is unaffected.
+- OKF 0.3 derives trust from current verification only and interprets date-only metadata as midnight UTC. Metadata paths without a leading slash resolve relative to the containing document, with no fallback to the bundle root.
+- Byte-preserving export still copies a complete captured bundle even when validation fails. LithoSharp does not execute computations or perform runtime attestation. For 0.3 validation, use `lithosharp okf validate`; live editor diagnostics and reference editing do not apply the 0.3 rules.
+
 ## 3.1.0
 
 - Highlight the current heading in Docs and MDX tables of contents while retaining ordinary anchor links without JavaScript.

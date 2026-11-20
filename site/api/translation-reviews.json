@@ -3,6 +3,10 @@
   "sourceIdentity": "Each explanation is keyed by the SHA-256 of its exact normalized English XML prose.",
   "files": [
     {
+      "path": "ja/units-okf-v03.json",
+      "sha256": "3e16626b4dc66e265c3de299abed0771dfb4ddd08f427c9e93921c6b0bb1a31e"
+    },
+    {
       "path": "ja/units-docs-header.json",
       "sha256": "c895135afa80e90d2c307cd13d1b7c9c7ced06a08b42bd96eb0dc95ab700b99b"
     },
@@ -49,7 +53,7 @@
   ],
   "example": {
     "sourcePath": "examples/source/WebsiteExamples.cs",
-    "sourceSha256": "4aebc6aa3a2d243d14f5e3234e5d469b431020513e65020111035c01b0f6ad3f",
+    "sourceSha256": "3640d28c1ca710722a3ccd96c50cfbaa9742fa332f8163b689f04f449c8325b2",
     "translationPath": "api/ja/WebsiteExamples.xml",
     "translationSha256": "f8d41316f727b29f93f3b0edd83cac1446bbafeeb8c0f98bd6d7a93fb17b014c"
   }

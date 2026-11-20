@@ -13,8 +13,8 @@ Core と Generators は同じバージョンを使います。
 NuGet パッケージは `AdditionalFiles` のメタデータの契約を自動的に読み込みます。
 
 ```xml
-<PackageReference Include="LithoSharp" Version="3.1.0" />
-<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="4.0.0" />
+<PackageReference Include="LithoSharp.Generators" Version="4.0.0" PrivateAssets="all" />
 ```
 
 ## 宣言と入力

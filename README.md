@@ -3,164 +3,115 @@
 [![build](https://github.com/Htkym/lithosharp/actions/workflows/build.yml/badge.svg)](https://github.com/Htkym/lithosharp/actions/workflows/build.yml)
 [![NuGet](https://img.shields.io/nuget/v/LithoSharp.svg)](https://www.nuget.org/packages/LithoSharp)
 
-[English](https://github.com/Htkym/lithosharp/blob/main/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/README.ja.md)
+English | [日本語](https://github.com/Htkym/lithosharp/blob/main/README.ja.md)
 
-Manage documentation consistency with C# types and builds. LithoSharp connects
-your .NET team's content schema, generated references, compiler diagnostics and
-checks of the generated site. Write product documentation and technical guides
-in Markdown, add MDX/React when needed, and deploy ordinary static files.
+LithoSharp is a C# and .NET static site generator for technical documentation, API references, and Open Knowledge Format (OKF) bundles. Use C# types to define content schemas, routes, and references; write pages in Markdown or optionally MDX; then build HTML and static assets for an ordinary HTTP host. OKF support is in Preview.
 
-Three common failures have different checks:
+| OKF version | What LithoSharp uses |
+| --- | --- |
+| `"0.2"` | The existing 0.2 rules, including the previous verification and timestamp behavior. |
+| `"0.3"` | Current verification only for trust, date-only metadata at midnight UTC, and document-relative metadata paths unless rooted with `/`. |
 
-- A missing required title is reported against your C# schema during compilation (`LSG006`).
-- A statically proven entry/route contradiction is reported by the analyzer (`LSA1402`).
-- A missing internal target or heading in final HTML is reported by output quality checks (`LSQ001`/`LSQ002`).
+For either version, validation and site generation require a quoted `okf_version` in the bundle-root `index.md`. An existing 0.2 bundle can add `okf_version: "0.2"` to keep the previous rules. This requirement does not apply to ordinary Markdown.
 
-These checks have separate scopes. Editor syntax feedback does not execute your
-custom schema on every keystroke, and a valid typed reference does not certify
-the final HTML. See the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md)
-for fit, dependencies and evaluation examples.
+## When to use LithoSharp
 
-For an existing site, follow the [3.0 migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
+- **Product documentation and developer guides:** Build a Docs site with sidebars, a table of contents, local search, versions, and locales. Use the Blog template or independent pages alongside Docs.
+- **Typed documentation and API references:** Model Markdown or YAML content with C# types and use XML .NET API documentation, OpenAPI 3 JSON, checked examples, and cross-references to keep authored guides connected to generated references.
+- **Knowledge bundles:** Inspect and validate local OKF Markdown and YAML metadata, preserve original bundle bytes, or render documents through the Docs pipeline. No model or external service is required.
 
-## Features
+Start with the [adoption guide](https://github.com/Htkym/lithosharp/blob/main/docs/adoption-guide.md) if you are evaluating fit, the [4.0 OKF migration instructions](https://github.com/Htkym/lithosharp/blob/main/docs/open-knowledge-format.md#declare-the-bundle-version) if you have an existing OKF bundle, or the [3.0 migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md) if you are migrating a site from an older release.
 
-- Typed C# content collections, routes and references, with strict schema validation
-  and optional Roslyn source generators and build diagnostics.
-- Markdown and optional MDX 3 with React, build-time HTML, page hydration and
-  selective hydration with explicit islands.
-- Docs, Blog and independent pages, multiple Docs collections, versions, locales,
-  sidebars and local search.
-- Dependency graphs, persistent caches, invalidation reasons and artifact ownership
-  for inspectable incremental builds.
-- Staged output transactions and rollback before publication, with route and
-  ownership validation.
-- Structured link, anchor, canonical, redirect and SEO diagnostics.
-- XML .NET API documentation, OpenAPI 3 JSON, exact xrefs and checked examples.
-- Schema-based editor completion, document and heading references, guarded rename
-  previews, conditional requirements and publication compatibility checks.
-- Explicit Markdown profiles, typed C# components, source-mapped diagnostics,
-  snippet execution evidence and translation review records.
-- Native YAML parsing and binding, preserved Open Knowledge Format bundles,
-  existing image variants and optional limited PNG processing.
-- .NET testing APIs for sites, routes, artifacts, DOM, components and layouts.
-- Fingerprinted assets, responsive images and explicit extension points for C#
-  rendering and trusted MDX plugins.
+## Quick Start: build and serve a Docs site
 
-## Quick Start
-
-With the .NET 10 SDK installed, install matching Tool and template packages:
+Install the .NET 10 SDK (minimum **10.0.300**), then run these commands for **4.0.0**:
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-On Windows the executable is `.tools/lithosharp.exe`. Edit `GuideFrontMatter.cs`
-and `MyDocs/content`; `Guides.Binder`, catalog routes and `RenderDocs` connect them
-to the Docs shell. The factory enables Quality at Error without external HTTP.
-Configure `DocsSiteFactory.cs`, build and check, then deploy `MyDocs/dist`.
-For isolated installation, Markdown authoring, MDX and an interactive component,
-follow the [complete Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md).
+On Windows use `.tools/lithosharp.exe`. Edit `MyDocs/content` and `GuideFrontMatter.cs` to define your content. Configure the site in `DocsSiteFactory.cs`. The template checks site quality at Error severity without external HTTP requests. Build and check the site, then deploy `MyDocs/dist` to your static host.
 
-Existing applications can use `dotnet add package LithoSharp --version 3.1.0`
-and call the library directly; a CLI host is not required.
+Existing .NET apps can install the library with `dotnet add package LithoSharp --version 4.0.0` and call it directly. See the [full Quick Start](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md) for setup, Markdown authoring, and optional MDX components.
 
-## Sample sites
-
-Generated from the included factories. Both built-in templates support light/dark
-switching, responsive menus and keyboard navigation. Set
-`SiteThemeOptions.EnableThemeSwitching = false` to disable switching; see
-[theme configuration](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md#theme-switching).
-
-| Docs — light | Blog — dark |
+| Docs sample, light theme | Blog sample, dark theme |
 | --- | --- |
-| [![Docs sample with sidebar, article and table of contents](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/docs-light.png)](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.DocsSample) | [![Blog sample with featured article and navigation](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/blog-dark.png)](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.Sample) |
+| [![Docs with sidebar, article, and table of contents](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/docs-light.png)](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.DocsSample) | [![Blog with featured article and navigation](https://raw.githubusercontent.com/Htkym/lithosharp/main/docs/images/blog-dark.png)](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.Sample) |
 
-## Examples
+## Inspect an OKF bundle
 
-Follow the [typed content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output)
-to generate a valid Docs site, change one front matter value to see a compiler
-diagnostic, restore it, and inspect the generated HTML and links. The same C#
-model connects the binder, typed references and site layout.
+Create `knowledge/index.md`:
 
-| Concern | Checked at | Limits |
+```markdown
+---
+okf_version: "0.3"
+---
+# Knowledge
+
+- [Build process](build.md)
+```
+
+Create `knowledge/build.md`:
+
+```markdown
+---
+type: Guide
+title: Build process
+---
+# Build process
+
+Run the documentation build before deployment.
+```
+
+Run the CLI from the directory containing `knowledge`:
+
+```sh
+.tools/lithosharp okf inspect --input knowledge --format json
+.tools/lithosharp okf validate --input knowledge --format sarif
+```
+
+As in Quick Start, use `.tools/lithosharp.exe` on Windows. A bare 0.3 metadata path is not retried at the bundle root if it cannot be resolved from the containing document.
+
+The bundle reader, CLI, site generation, and writer use the selected OKF version. Live editor diagnostics and reference edits are not authoritative for 0.3; validate the bundle with the CLI. OKF inspection and export do not run computations or verify runtime attestations. See the [OKF guide](https://github.com/Htkym/lithosharp/blob/main/docs/open-knowledge-format.md) for diagnostics, preservation, and version-specific behavior.
+
+## What gets checked?
+
+| Stage | Example | Boundary |
 | --- | --- | --- |
-| Required fields and typed values | Generator/compiler | Explicit content inputs and statically known schema requirements. |
-| Entry/route contradictions | Analyzer | Complete, current catalogs and known values; runtime values remain unproven. |
-| Headings and source diagnostics | Editor/LSP | `NoContext` has no project binding; `Partial` analysis covers only available facts. |
-| Unavailable header or body analysis | Generator/build/editor | `Unknown` or input/resource limits do not establish absence or validity; see the walkthrough for diagnostics and limits. |
-| Internal URLs, anchors and HTML | Generated output inspection | Current output artifacts; source freshness and external HTTP responses require separate context/checks. |
+| C# compilation | A required content field is missing (`LSG006`). | Checks explicit inputs and requirements known to the generator. |
+| Roslyn analyzer | A statically known entry and route disagree (`LSA1402`). | Does not prove values known only at runtime. |
+| Generated output | An internal link or heading target is missing (`LSQ001` / `LSQ002`). | Checks built artifacts, not unbuilt source or unchecked external sites. |
 
-Syntamark 2 owns Markdown and YAML syntax and raw source ranges. LithoSharp retains
-C# schemas, routes, display policy and product diagnostics. The default profile
-remains `lithosharp-markdown/1`; `commonmark/0.31.2` and `syntamark-docs/2` are
-explicit choices. See [Markdown profiles](https://github.com/Htkym/lithosharp/blob/main/docs/markdown-profiles.md)
-and the [migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
+The editor can report source syntax and support navigation without running your custom schema on every keystroke. A valid typed reference does not certify the final HTML. Try the [typed content walkthrough](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.DocsSample/README.md#from-a-c-model-to-checked-output) or read the [generated-output checks guide](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.md).
+
+## FAQ
+
+### Do I need Node.js, React, or a server runtime?
+
+No for Markdown-only authoring. The CLI development server uses ASP.NET Core from the .NET SDK. Optional MDX 3 uses React and requires Node.js **24.13.0** plus an explicit worker restore. Production output is served by a static HTTP host. C# site code and MDX run as trusted build code, not in a sandbox. See [MDX setup](https://github.com/Htkym/lithosharp/blob/main/docs/mdx.md) and [known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md).
+
+### How is Agent Ready publishing different from OKF?
+
+[Agent Ready publishing](https://github.com/Htkym/lithosharp/blob/main/docs/agent-ready.md) optionally exposes public Markdown with stable URLs and discovery links alongside the site. [OKF support](https://github.com/Htkym/lithosharp/blob/main/docs/open-knowledge-format.md) reads local knowledge bundles and their structured metadata, such as sources and verification records. Neither feature guarantees indexing or citations by a search engine or AI system.
+
+### Can I author in VS Code?
+
+[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) supports Markdown/MDX diagnostics, heading navigation, builds, and site previews. See the [extension guide](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.md).
+
+## Documentation and examples
 
 | Goal | Start here |
 | --- | --- |
-| Markdown Docs, typed content and images | [Docs sample](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.DocsSample) |
-| Blog, feed and search | [Blog sample](https://github.com/Htkym/lithosharp/tree/main/samples/LithoSharp.Sample) |
-| MDX, React islands and offline navigation | [MDX sample](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.MdxSample/README.md) |
-| Versioning, i18n, Blog/Pages and API docs | [MDX guide](https://github.com/Htkym/lithosharp/blob/main/docs/mdx.md) and [sample map](https://github.com/Htkym/lithosharp/blob/main/docs/quickstart.md#examples-and-next-steps) |
+| Choose packages and guides | [Documentation index](https://github.com/Htkym/lithosharp/blob/main/docs/README.md) |
+| Configure Docs layout and themes | [Docs template](https://github.com/Htkym/lithosharp/blob/main/docs/docs-template.md), [theme switching](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md#theme-switching) |
+| Model content in C# | [Typed Markdown](https://github.com/Htkym/lithosharp/blob/main/docs/typed-markdown-collections.md), [typed YAML](https://github.com/Htkym/lithosharp/blob/main/docs/typed-yaml-collections.md), [source generators](https://github.com/Htkym/lithosharp/blob/main/docs/source-generators.md) |
+| Add React components | [MDX sample](https://github.com/Htkym/lithosharp/blob/main/samples/LithoSharp.MdxSample/README.md) |
+| Inspect builds and deployment changes | [Build graph](https://github.com/Htkym/lithosharp/blob/main/docs/build-graph.md), [incremental builds](https://github.com/Htkym/lithosharp/blob/main/docs/incremental-builds.md), [site quality](https://github.com/Htkym/lithosharp/blob/main/docs/site-quality.md) |
+| Test sites and check performance | [Testing](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md), [reference measurements](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md) |
+| Upgrade an existing project | [4.0 OKF migration](https://github.com/Htkym/lithosharp/blob/main/docs/open-knowledge-format.md#declare-the-bundle-version), [3.0 migration guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md), [older upgrade history](https://github.com/Htkym/lithosharp/blob/main/docs/history/README.md) |
 
-## Requirements
-
-.NET 10 is required. The minimum supported SDK is 10.0.300. The CLI development
-server also uses the ASP.NET Core shared framework provided with the SDK.
-Markdown-only sites do not need Node.js or React. MDX requires Node.js 24.13.0
-and explicit worker restore; the lockfile pins MDX 3.1.1, React 19.2.4 and
-esbuild 0.28.2. Production output needs only a static HTTP host.
-
-## VS Code extension
-
-Install [LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) for Markdown/MDX diagnostics, heading navigation, build commands and site preview. See the [extension guide](https://github.com/Htkym/lithosharp/blob/main/extensions/lithosharp-vscode/README.md).
-
-## Documentation
-
-Use the [documentation index](https://github.com/Htkym/lithosharp/blob/main/docs/README.md) for an ordered reading path, package choices and the full guide map.
-
-- [Agent Ready publishing](https://github.com/Htkym/lithosharp/blob/main/docs/agent-ready.md): opt-in public Markdown, discovery, and verification boundaries.
-- [Docs template settings](https://github.com/Htkym/lithosharp/blob/main/docs/docs-template.md), [existing output checks](https://github.com/Htkym/lithosharp/blob/main/docs/generated-output-checks.md)
-- [CLI and site factories](https://github.com/Htkym/lithosharp/blob/main/docs/cli.md), [MDX and documentation sites](https://github.com/Htkym/lithosharp/blob/main/docs/mdx.md)
-- [Typed Markdown collections](https://github.com/Htkym/lithosharp/blob/main/docs/typed-markdown-collections.md),
-  [typed YAML](https://github.com/Htkym/lithosharp/blob/main/docs/typed-yaml-collections.md), [source generators](https://github.com/Htkym/lithosharp/blob/main/docs/source-generators.md)
-- [Build graph](https://github.com/Htkym/lithosharp/blob/main/docs/build-graph.md), [incremental builds](https://github.com/Htkym/lithosharp/blob/main/docs/incremental-builds.md)
-- [Assets and images](https://github.com/Htkym/lithosharp/blob/main/docs/assets-and-images.md), [site quality](https://github.com/Htkym/lithosharp/blob/main/docs/site-quality.md)
-- [Testing](https://github.com/Htkym/lithosharp/blob/main/docs/testing.md), [HTML/CSS contract](https://github.com/Htkym/lithosharp/blob/main/docs/layout-css-contract.md),
-  [compatibility contract](https://github.com/Htkym/lithosharp/blob/main/docs/compatibility-contract.md)
-
-## Upgrade to 3.0.0
-
-Keep selected packages, CLI and templates at the same version.
-Replace YamlDotNet attributes with `ContentName` and `ContentIgnore`. Image
-conversion is limited to supported PNG; use existing JPEG, WebP, AVIF and SVG
-assets directly or supply pre-generated variants. Register PNG social images
-explicitly through the optional Images package. Preserve URLs through catalog
-route declarations and compare publication manifests before deployment.
-See the [upgrade guide](https://github.com/Htkym/lithosharp/blob/main/docs/migration-3.0.md).
-From 1.x, also apply the Testing API change from `Document` to `Snapshot`.
-Rebuild and check content diagnostics, final links and custom CSS. MDX is optional.
-
-Notes for migrations between older releases are preserved in the
-[upgrade history](https://github.com/Htkym/lithosharp/blob/main/docs/history/README.md).
-
-## Known limitations
-
-MDX and C# site code execute as trusted build code. HTML safety is not a code
-sandbox. Large MDX rebuilds can still bundle many interactive entries; arbitrary
-Docusaurus plugins, trimming and Native AOT are unsupported. Read
-[Known limitations](https://github.com/Htkym/lithosharp/blob/main/docs/known-limitations.md) before choosing an execution environment.
-
-## Performance
-
-Performance figures are for reference. Results vary with the environment, configuration, and content.
-See the [Docs reference times](https://github.com/Htkym/lithosharp/blob/main/docs/performance.md).
-
-## License
-
-MIT licensed; see [LICENSE](https://github.com/Htkym/lithosharp/blob/main/LICENSE) and [third-party notices](https://github.com/Htkym/lithosharp/blob/main/THIRD-PARTY-NOTICES.md).
+MIT licensed. See [LICENSE](https://github.com/Htkym/lithosharp/blob/main/LICENSE) and [third-party notices](https://github.com/Htkym/lithosharp/blob/main/THIRD-PARTY-NOTICES.md).

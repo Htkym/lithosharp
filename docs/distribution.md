@@ -30,8 +30,8 @@ optional, bounded PNG processing. Register existing JPEG, WebP and AVIF files or
 prepare those formats separately; see [assets and images](assets-and-images.md).
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 ```
 
 See the [Quick Start](quickstart.md) to create and serve a site, and the
