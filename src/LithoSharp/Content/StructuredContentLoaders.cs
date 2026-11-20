@@ -419,8 +419,9 @@ internal static class ContentPath
         ContentInputProfile profile,
         CancellationToken cancellationToken,
         int maxFiles,
-        int maxEntries)
-        => Discover(root, [".md"], cancellationToken, profile, maxFiles, maxEntries);
+        int maxEntries,
+        bool useOkfVersion03 = false)
+        => Discover(root, [".md"], cancellationToken, profile, maxFiles, maxEntries, useOkfVersion03);
 
     private static (IReadOnlyList<ContentFile> Files, IReadOnlyList<SiteDiagnostic> Diagnostics) Discover(
         string root,
@@ -428,7 +429,8 @@ internal static class ContentPath
         CancellationToken cancellationToken,
         ContentInputProfile? profile,
         int maxFiles = int.MaxValue,
-        int maxEntries = int.MaxValue)
+        int maxEntries = int.MaxValue,
+        bool useOkfVersion03 = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         ArgumentNullException.ThrowIfNull(extensions);
@@ -545,6 +547,10 @@ internal static class ContentPath
                 cancellationToken.ThrowIfCancellationRequested();
                 var fullPath = Path.GetFullPath(entries[index]);
                 var relativePath = RelativeIdentity(fullRoot, fullPath);
+                if (useOkfVersion03 && relativePath.Split('/').Any(static part => part.StartsWith('.')))
+                {
+                    continue;
+                }
                 if (!TryGetAttributes(fullPath, relativePath, diagnostics, out var attributes))
                 {
                     continue;
@@ -568,7 +574,9 @@ internal static class ContentPath
                 ContentInputKind? kind;
                 try
                 {
-                    kind = profile is null ? ContentInputKind.Markdown : ContentInputPolicy.Classify(relativePath, profile.Value);
+                    kind = useOkfVersion03 && !relativePath.EndsWith(".md", StringComparison.Ordinal)
+                        ? ContentInputKind.Auxiliary
+                        : profile is null ? ContentInputKind.Markdown : ContentInputPolicy.Classify(relativePath, profile.Value);
                 }
                 catch (ArgumentException exception)
                 {

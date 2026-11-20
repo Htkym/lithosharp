@@ -54,7 +54,7 @@ Tool の `capabilities` コマンドはさらに次の Preview 機能を加え�
 | --- | --- | --- | --- | --- |
 | `csharp-reference-rename` | `Preview` | `1.0` | `preview-csharp-rename` | 明示した呼び出し側ソースとメタデータに対するRoslynのプレビューです。不完全な範囲は手作業として残し、ファイルには書き込みません。 |
 | `proofreading` | `Preview` | `1.0` | `proofread` | 任意のYomiyasuを明示的に実行し、ソースに対応付けた指摘と保護付き編集プレビューを返します。プロジェクトを評価せず、文書に書き込みません。 |
-| `open-knowledge-format` | `Preview` | `0.2` | `okf inspect`, `okf validate`, `okf export` | バンドルを明示的に単独で検査・検証・エクスポートします。プロジェクト評価や計算の実行はしません。 |
+| `open-knowledge-format` | `Preview` | `0.3` | `okf inspect`, `okf validate`, `okf export` | OKF 0.2 と 0.3 のバンドルを検査、検証、エクスポートします。プロジェクトの評価や計算の実行はしません。 |
 | `publication-compatibility` | `Preview` | `1.0` | `check-output` | 検証済みマニフェストに対して公開URLとアンカーを明示的に比較します。プロジェクト評価や基準の自動昇格はしません。 |
 | `preflight-static-inputs` | `Preview` | `1.0` | `markdown`, `mdx` | 明示した入力だけを、プロジェクトを評価せずに検査します。MDXには復元済みの解析用workerが必要です。 |
 | `preflight-trusted-catalog` | `Preview` | `1.0` | `trusted-catalog` | 明示的にコンパイルし、信頼するfactoryとcatalogを検査します。描画しません。 |

@@ -12,7 +12,7 @@ public sealed class OkfBundleTests
     private static readonly DateTimeOffset AsOf = new(2026, 11, 13, 0, 0, 0, TimeSpan.Zero);
 
     [Test]
-    public async Task InputRootMustBeADirectoryAndMayBeEmpty()
+    public async Task InputRootMustBeADirectoryAndEmptyRequiresVersion()
     {
         using var workspace = new TemporaryWorkspace();
         var input = Path.Combine(workspace.Root, "bundle");
@@ -47,10 +47,10 @@ public sealed class OkfBundleTests
         var empty = await OkfBundle.ReadAsync(input, new() { AsOf = AsOf });
         await Assert.That(empty.SnapshotComplete).IsTrue();
         await Assert.That(empty.IsComplete).IsTrue();
-        await Assert.That(empty.Conformance).IsEqualTo(OkfConformance.Conformant);
-        await Assert.That(empty.IsSuccess).IsTrue();
+        await Assert.That(empty.Conformance).IsEqualTo(OkfConformance.NotAssessed);
+        await Assert.That(empty.IsSuccess).IsFalse();
         await Assert.That(empty.Files.Count).IsEqualTo(0);
-        await Assert.That(empty.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(empty.Diagnostics.Single().Id).IsEqualTo("OKF010");
     }
 
     [Test]
@@ -101,7 +101,8 @@ public sealed class OkfBundleTests
     public async Task InvalidStructureAndUnsupportedYamlRemainDistinctAndOtherDocumentsAreInspected()
     {
         using var workspace = new TemporaryWorkspace();
-        await Write(workspace.Root, "index.md", "---\nokf_version: &version \"0.2\"\n---\n# Bundle\n");
+        await Write(workspace.Root, "index.md", "---\nokf_version: \"0.2\"\n---\n# Bundle\n");
+        await Write(workspace.Root, "unsupported.md", "---\ntype: &type Reference\n---\n");
         await Write(workspace.Root, "numeric.md", "---\ntype: 42\n---\n");
         await Write(workspace.Root, "empty.md", "---\ntype: \"\"\n---\n");
         await Write(workspace.Root, "null.md", "---\ntype: null\n---\n");
@@ -111,11 +112,11 @@ public sealed class OkfBundleTests
         await Write(workspace.Root, "log.md", "---\nproducer: retained\n---\n# Updates\n## 2026-02-30\nInvalid date\n");
         await Write(workspace.Root, "README.md", "---\ntype: Reference\n---\n");
         var bundle = await OkfBundle.ReadAsync(workspace.Root, new() { AsOf = AsOf });
-        await Assert.That(bundle.Documents.Count).IsEqualTo(9);
+        await Assert.That(bundle.Documents.Count).IsEqualTo(10);
         await Assert.That(bundle.SnapshotComplete).IsTrue();
         await Assert.That(bundle.Conformance).IsEqualTo(OkfConformance.NonConformant);
-        await Assert.That(bundle.Diagnostics.Any(diagnostic => diagnostic.Category == "Unsupported" && diagnostic.Location!.FilePath == "index.md")).IsTrue();
-        await Assert.That(bundle.Diagnostics.Any(diagnostic => diagnostic.Category == "Structure" && diagnostic.Location!.FilePath == "index.md")).IsFalse();
+        await Assert.That(bundle.Diagnostics.Any(diagnostic => diagnostic.Category == "Unsupported" && diagnostic.Location!.FilePath == "unsupported.md")).IsTrue();
+        await Assert.That(bundle.Diagnostics.Any(diagnostic => diagnostic.Category == "Structure" && diagnostic.Location!.FilePath == "unsupported.md")).IsFalse();
         await Assert.That(bundle.Diagnostics.Count(diagnostic => diagnostic.Id is "OKF004" or "OKF005" or "OKF006" or "OKF008")).IsEqualTo(7);
         await Assert.That(bundle.Documents.Single(document => document.Path == "README.md").Kind).IsEqualTo(ContentInputKind.Concept);
     }
@@ -124,7 +125,7 @@ public sealed class OkfBundleTests
     public async Task LinksUseParsedFactsAndBundleRoutesWhileMissingConceptsRemainValueRelations()
     {
         using var workspace = new TemporaryWorkspace();
-        await Write(workspace.Root, "index.md", "# Bundle\n");
+        await Write(workspace.Root, "index.md", "---\nokf_version: \"0.2\"\n---\n# Bundle\n");
         await Write(workspace.Root, "tables/index.md", "# Tables\n");
         await Write(workspace.Root, "tables/target.md", "---\ntype: Reference\n---\n# Target\n");
         await Write(workspace.Root, "cafe\u0301.md", "---\ntype: Reference\n---\n# Title\n");
@@ -209,6 +210,7 @@ public sealed class OkfBundleTests
     public async Task TimestampViewsRejectTrailingNewlinesAndFreshnessKeepsSubTickPrecision()
     {
         using var workspace = new TemporaryWorkspace();
+        await Write(workspace.Root, "index.md", "---\nokf_version: \"0.2\"\n---\n");
         await Write(workspace.Root, "newline.md", "---\ntype: Reference\nstale_after: |\n  2026-11-13T00:00:00Z\nverified: {by: human:reviewer, at: \"2026-11-13T00:00:00Z\\n\"}\n---\n");
         await Write(workspace.Root, "precise.md", "---\ntype: Reference\nstale_after: 2026-11-13T09:00:00.00000001+09:00\nverified: {by: human:reviewer, at: 2026-11-13T00:00:00.00000001Z}\n---\n");
         var bundle = await OkfBundle.ReadAsync(workspace.Root, new() { AsOf = AsOf });
@@ -248,6 +250,7 @@ public sealed class OkfBundleTests
         using var workspace = new TemporaryWorkspace();
         var input = Path.Combine(workspace.Root, "in");
         var output = Path.Combine(workspace.Root, "out");
+        await Write(input, "index.md", "---\nokf_version: \"0.2\"\n---\n");
         await Write(input, "guide.md", "---\ntype: Reference\n---\n# Old snapshot\n\n[Data](data.bin)\n");
         await Write(input, "data.bin", "old-data");
         var old = await OkfBundle.ReadAsync(input, new() { AsOf = AsOf });
@@ -283,7 +286,7 @@ public sealed class OkfBundleTests
         using var workspace = new TemporaryWorkspace();
         var input = Path.Combine(workspace.Root, "in");
         var output = Path.Combine(workspace.Root, "out");
-        await Write(input, "index.md", "# Knowledge\n\n[Guide](guide.md)\n");
+        await Write(input, "index.md", "---\nokf_version: \"0.2\"\n---\n# Knowledge\n\n[Guide](guide.md)\n");
         await Write(input, "guide.md", """
             ---
             type: Reference

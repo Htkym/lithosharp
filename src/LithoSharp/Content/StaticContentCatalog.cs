@@ -21,6 +21,12 @@ public sealed class StaticContentCatalog
     /// <summary>Creates a catalog with a declared discovery root and input policy.</summary>
     public StaticContentCatalog(ContentCollectionId collectionId, IEnumerable<StaticContentCatalogEntry> entries,
         string inputRoot, ContentInputProfile inputProfile, string site, string variant)
+        : this(collectionId, entries, inputRoot, inputProfile, site, variant, false)
+    {
+    }
+
+    internal StaticContentCatalog(ContentCollectionId collectionId, IEnumerable<StaticContentCatalogEntry> entries,
+        string inputRoot, ContentInputProfile inputProfile, string site, string variant, bool caseSensitiveMarkdownExtension)
     {
         ArgumentNullException.ThrowIfNull(collectionId);
         ArgumentNullException.ThrowIfNull(entries);
@@ -44,7 +50,9 @@ public sealed class StaticContentCatalog
         foreach (var entry in snapshot)
         {
             var path = ContentInputPolicy.RelativeToRoot(entry.SourcePath, InputRoot);
-            if (InputRoot.Length != 0 && (entry.InputPath != path || ContentInputPolicy.Classify(path, inputProfile) != entry.Kind))
+            var kind = caseSensitiveMarkdownExtension && inputProfile == ContentInputProfile.OpenKnowledgeFormat
+                && !path.EndsWith(".md", StringComparison.Ordinal) ? ContentInputKind.Auxiliary : ContentInputPolicy.Classify(path, inputProfile);
+            if (InputRoot.Length != 0 && (entry.InputPath != path || kind != entry.Kind))
                 throw new ArgumentException($"Catalog input '{entry.SourcePath}' does not match its declared root or input policy.", nameof(entries));
             if (!byInputPath.TryAdd(path, entry))
                 throw new ArgumentException($"Catalog inputs collide at normalized relative path '{path}'.", nameof(entries));

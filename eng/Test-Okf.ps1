@@ -19,10 +19,11 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw $Message }
 }
 
-function Write-Bundle([string] $Name, [string] $Metadata) {
+function Write-Bundle([string] $Name, [string] $Metadata, [string] $Version = '0.2') {
     $directory = Join-Path $EvidenceDirectory $Name
     $null = New-Item -ItemType Directory -Path $directory
     [IO.File]::WriteAllText((Join-Path $directory 'concept.md'), "---`n$Metadata`n---`n# Retained original`n")
+    if ($Version) { [IO.File]::WriteAllText((Join-Path $directory 'index.md'), "---`nokf_version: '$Version'`n---`n# Bundle`n") }
     return $directory
 }
 
@@ -104,6 +105,29 @@ $walkLimited = Invoke-Okf 'inspect' $valid @('--max-discovery-entries', '1') 1
 Assert-True (!$walkLimited.okf.snapshotComplete -and @($walkLimited.diagnostics | Where-Object category -eq 'ResourceLimit').Count -gt 0) 'Discovery enumeration ignored its explicit entry limit.'
 $missing = Invoke-Okf 'inspect' (Join-Path $EvidenceDirectory 'missing') @() 1
 Assert-True (!$missing.okf.snapshotComplete -and @($missing.diagnostics | Where-Object category -eq 'Io').Count -gt 0) 'I/O failure was not classified.'
+$modern = Write-Bundle 'modern' "type: custom`nresource: data.bin`ngenerated: {by: process:builder, at: 2026-11-13}`nverified: {by: 'human:reviewer', at: 2026-11-12}" '0.3'
+[IO.File]::WriteAllBytes((Join-Path $modern 'data.bin'), [byte[]]@(1, 2))
+[IO.File]::WriteAllText((Join-Path $modern 'README.md'), '# Not a concept')
+$modernResult = Invoke-Okf 'inspect' $modern @() 0
+Assert-True ($modernResult.okf.specificationVersion -eq '0.3' -and $modernResult.okf.declaredVersion -eq '0.3') 'The declared 0.3 profile was not selected.'
+Assert-True (@($modernResult.okf.pathReferences | Where-Object { $_.field -eq 'resource' -and $_.targetPath -eq 'data.bin' -and !$_.isConceptEdge }).Count -eq 1) 'A path-field asset was not reported distinctly.'
+Assert-True (@($modernResult.okf.documents | Where-Object { $_.path -eq 'concept.md' -and $_.trustTier -eq 'Unverified' }).Count -eq 1) 'A historical human verification elevated trust under 0.3.'
+Assert-True (@($modernResult.okf.documents | Where-Object { $_.path -eq 'README.md' -and $_.skipped -and $null -eq $_.conceptId }).Count -eq 1) 'An untyped Markdown file was classified as a concept.'
+$modernSarif = Invoke-Okf 'validate' $modern @() 0 'sarif'
+Assert-True ($modernSarif.runs[0].properties.okf.specificationVersion -eq '0.3') 'SARIF did not report the selected 0.3 profile.'
+$unversioned = Write-Bundle 'unversioned' 'type: custom' ''
+$missingVersion = Invoke-Okf 'validate' $unversioned @() 1
+Assert-True ($null -eq $missingVersion.okf.specificationVersion -and @($missingVersion.diagnostics | Where-Object { $_.message -match 'index\.md' -and $_.message -match 'okf_version' }).Count -gt 0) 'Missing version did not report how to declare it.'
+$malformed = Write-Bundle 'malformed' 'type: custom' ''
+[IO.File]::WriteAllText((Join-Path $malformed 'index.md'), "---`nokf_version: 0.3`n---`n")
+$malformedVersion = Invoke-Okf 'validate' $malformed @() 1
+Assert-True ($null -eq $malformedVersion.okf.specificationVersion -and @($malformedVersion.diagnostics | Where-Object { $_.message -match 'quoted' -and $_.message -match 'okf_version' }).Count -gt 0) 'An unquoted version was accepted or lacked a diagnostic.'
+$future = Write-Bundle 'future' 'type: custom' '0.99'
+$unknownVersion = Invoke-Okf 'inspect' $future @() 1
+Assert-True ($null -eq $unknownVersion.okf.specificationVersion -and $unknownVersion.okf.declaredVersion -eq '0.99' -and $unknownVersion.okf.conformance -eq 'NotAssessed') 'Unknown version was selected or treated as validated conformance.'
+$futureOutput = Join-Path $EvidenceDirectory 'future-export'
+$futureExport = Invoke-Okf 'export' $future @('--output', $futureOutput) 1
+Assert-True ($futureExport.okf.exported -and !$futureExport.okf.success -and (Bundle-Identity $futureOutput) -eq (Bundle-Identity $future)) 'Byte export of an unknown version was rewritten or reported as validated.'
 $invalidTime = Invoke-Okf 'validate' $valid @() 2 'json' '2026-11-13'
 Assert-True ($invalidTime.exitCode -eq 2) 'Date-only as-of was not rejected as a usage error.'
 $newlineTime = Invoke-Okf 'validate' $valid @() 2 'json' "2026-11-13T00:00:00Z`n"

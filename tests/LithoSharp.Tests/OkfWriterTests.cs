@@ -23,12 +23,29 @@ public sealed class OkfWriterTests
         await prepared.ExportAsync(output);
         var consumed = await OkfBundle.ReadAsync(output);
         await Assert.That(consumed.IsConformant).IsTrue();
-        var document = consumed.Documents.Single();
+        await Assert.That(consumed.DeclaredVersion).IsEqualTo("0.2");
+        var document = consumed.Documents.Single(document => document.Path == "metric.md");
         await Assert.That(document.Body).IsEqualTo(alternative);
         await Assert.That(document.Metadata!.Generated).IsNull();
         await Assert.That(document.Metadata.GetField("status")).IsNull();
         await Assert.That(document.Metadata.Sources.Count).IsEqualTo(0);
         await Assert.That(document.Metadata.GetField("unknown")!.Entries.Single().Key.Value).IsEqualTo("nested");
+    }
+
+    [Test]
+    public async Task NewWriterDeclaresTheSelectedVersionAndUsesItsTimestampRules()
+    {
+        using var workspace = new TemporaryWorkspace();
+        var prepared = OkfWriter.PrepareForVersion("0.3", [
+            new("metric.md", "type: Metric\nstale_after: 2026-11-13", "Body"),
+        ]);
+        await Assert.That(prepared.CanExport).IsTrue();
+        var output = Path.Combine(workspace.Root, "out");
+        await prepared.ExportAsync(output);
+        var bundle = await OkfBundle.ReadAsync(output);
+        await Assert.That(bundle.SpecificationVersion).IsEqualTo("0.3");
+        await Assert.That(bundle.IsSuccess).IsTrue();
+        await Assert.That(File.ReadAllText(Path.Combine(output, "index.md"))).Contains("okf_version: \"0.3\"");
     }
 
     [Test]

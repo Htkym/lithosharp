@@ -71,7 +71,15 @@ public static class OkfWriter
     /// <remarks>No Date, Draft or Sources property is inferred from ordinary content. An explicitly supplied alternative is a producer declaration, not a guarantee about every Markdown implementation.</remarks>
     public static OkfWriteResult Prepare(IEnumerable<OkfNewConcept> concepts, IEnumerable<OkfNewAuxiliary>? auxiliary = null,
         DateTimeOffset? asOf = null, CancellationToken cancellationToken = default)
+        => PrepareForVersion("0.2", concepts, auxiliary, asOf, cancellationToken);
+
+    /// <summary>Creates a new bundle with an explicit version declaration at its root.</summary>
+    public static OkfWriteResult PrepareForVersion(string specificationVersion, IEnumerable<OkfNewConcept> concepts,
+        IEnumerable<OkfNewAuxiliary>? auxiliary = null, DateTimeOffset? asOf = null, CancellationToken cancellationToken = default)
     {
+        if (specificationVersion is not ("0.2" or "0.3"))
+            throw new ArgumentOutOfRangeException(nameof(specificationVersion), "Choose OKF version 0.2 or 0.3.");
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(concepts);
         var documents = concepts.ToArray();
         if (documents.Any(static document => document is null))
@@ -81,7 +89,9 @@ public static class OkfWriter
             throw new ArgumentException("Auxiliary files cannot contain null.", nameof(auxiliary));
         var diagnostics = new List<SiteDiagnostic>();
         var files = new List<OkfFile>();
-        var paths = new HashSet<string>(ContentInputPolicy.PathComparer);
+        var paths = new HashSet<string>(ContentInputPolicy.PathComparer) { "index.md" };
+        files.Add(new OkfFile("index.md", ContentInputKind.Index,
+            Encoding.UTF8.GetBytes($"---\nokf_version: \"{specificationVersion}\"\n---\n# Knowledge bundle\n")));
         var now = asOf ?? DateTimeOffset.UtcNow;
         foreach (var document in documents)
         {
@@ -133,7 +143,7 @@ public static class OkfWriter
                 OkfBundle.Add(diagnostics, id, id == "OKF118" ? SiteDiagnosticSeverity.Error : SiteDiagnosticSeverity.Warning,
                     OkfDiagnosticCategory.Quality, message, document.Path, analysis,
                     node is null ? null : new RawSpan(offset + node.RawSpan.Start, node.RawSpan.Length));
-            });
+            }, isVersion03: specificationVersion == "0.3");
             if (analysis.Root?.DescendantsAndSelf(cancellationToken).Any(static node => node.Kind == MarkdownSyntaxKind.Directive) == true)
                 Error("OKFW004", OkfDiagnosticCategory.Unsupported,
                     "Structured components require a portable Markdown alternative that contains no component directives.", document.Path);
@@ -151,6 +161,13 @@ public static class OkfWriter
 
         bool Reserve(string path)
         {
+            if (specificationVersion == "0.3" && (path.Split('/').Any(static segment => segment.StartsWith('.'))
+                || ContentInputPolicy.Classify(path, ContentInputProfile.OpenKnowledgeFormat) == ContentInputKind.Concept
+                    && !path.EndsWith(".md", StringComparison.Ordinal)))
+            {
+                Error("OKFW008", OkfDiagnosticCategory.Structure, "OKF 0.3 output cannot include dot-prefixed paths or concepts without a lowercase .md extension.", path);
+                return false;
+            }
             if (paths.Add(ContentInputPolicy.NormalizePath(path)))
                 return true;
             Error("OKFW006", OkfDiagnosticCategory.Structure, "New output paths collide after case and NFC normalization.", path);

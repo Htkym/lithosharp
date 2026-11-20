@@ -1,8 +1,8 @@
 # Open Knowledge Format
 
-LithoSharp reads local Open Knowledge Format bundles using the pinned [OKF v0.2 specification](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md). A bundle contains Markdown concepts, optional `index.md` and `log.md` files, and auxiliary files such as SQL, Python and images. Reading and exporting a bundle never execute those files, call a model or connect to a service.
+LithoSharp reads local Open Knowledge Format bundles using the pinned [OKF 0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md) or [OKF 0.3](https://github.com/open-knowledge-format/open-knowledge-format/blob/527e81aff55992be21507e97004286789126f88c/SPEC.md) specification. A bundle contains Markdown concepts, indexes, optional `log.md` files, and auxiliary files such as SQL, Python and images. Reading and exporting a bundle never execute those files, call a model or connect to a service.
 
-Each concept needs a frontmatter mapping with a nonempty string `type`. Unknown types and nested extension metadata are retained. Missing optional fields, missing indexes and unresolved links do not make a concept structurally invalid.
+Each concept needs a frontmatter mapping with a nonempty string `type`. Unknown types and nested extension metadata are retained. Missing optional fields, missing subdirectory indexes and unresolved links do not make a concept structurally invalid.
 
 ## Inspect and validate
 
@@ -15,7 +15,25 @@ These commands read the bundle directly. They do not build a C# project or invok
 
 Diagnostics classify structural errors, quality findings, unsupported syntax, resource limits, I/O, cancellation and publication policy separately. The result also distinguishes file-snapshot completeness, analysis completeness and conformance. An unsupported YAML feature or unknown declared specification version is not reported as validated conformance. A warning becomes a failure under explicit `--strict-lint`; structural and execution failures always fail. Cancellation returns exit status 130 and invalid command arguments return 2.
 
-Root `index.md` may declare `okf_version: "0.2"` without `type`. Other index files contain no frontmatter. Log date headings use valid `YYYY-MM-DD` dates; log frontmatter is not prohibited. `README.md`, `AGENTS.md` and underscore-prefixed Markdown files remain concepts.
+### Declare the bundle version
+
+In the bundle-root `index.md`, set `okf_version` to a quoted `"0.2"` or `"0.3"`. For example:
+
+```markdown
+---
+okf_version: "0.3"
+title: Project knowledge
+---
+# Knowledge
+
+* [Revenue](metrics/revenue.md) - Revenue definition
+```
+
+Although the upstream specification makes the declaration optional, LithoSharp requires it to validate an OKF bundle or publish it as a site. This does not apply to ordinary Markdown. If you already have a bundle that worked with the previous reader, declare `"0.2"` to retain those rules. An unknown version is not run through the 0.2 validator or published; inspect can still report captured inputs and diagnostics. In JSON and SARIF, `specificationVersion` identifies the selected profile, or is `null` if none was selected.
+
+Version selection applies to the bundle reader, CLI, site generation, and bundle writer. Live editor diagnostics and reference editing use document snapshots without the bundle version. Do not rely on them to validate 0.3 or to rewrite links using its resolution rules; use `lithosharp okf validate` on the bundle instead.
+
+Other index files contain no frontmatter. Log date headings use valid `YYYY-MM-DD` dates. In 0.2, untyped Markdown is invalid as a concept and log frontmatter is permitted. In 0.3, Markdown without a `type` is skipped as a concept, dot-prefixed files and directories are outside the bundle, and `log.md` has no frontmatter. `index.md` and `log.md` are never concepts.
 
 ## Read metadata without changing it
 
@@ -40,7 +58,7 @@ foreach (var document in bundle.Documents)
 
 `Sources` accepts resource descriptions as well as paths and URLs. `UsageWindow`, `Generated`, `Runtime`, `Parameters`, `Computation`, `Executor` and `Attester` retain their source nodes. A legacy `timestamp` supplies only a display fallback when `generated` is absent. A legacy Citations section remains available as raw section text when `sources` is absent.
 
-`verified` mappings and sequences share the `VerificationEvents` view:
+`verified` mappings and sequences share the `VerificationEvents` view. In 0.2 the trust tier uses all valid events:
 
 | Records | Derived trust tier |
 | --- | --- |
@@ -52,7 +70,7 @@ foreach (var document in bundle.Documents)
 
 Mixed valid and invalid events keep the derived tier and report `VerificationIsComplete = false`. Producer names are not an allowlist. These tiers summarize declared records; they do not establish an actor's identity or the truth of the content. The reader never adds a generator, verifier or timestamp.
 
-`Freshness` distinguishes no deadline, fresh, stale and invalid values. A record becomes stale at `AsOf >= StaleAfter`, comparing instants across offsets. Date-only and offset-free values do not acquire an assumed time or timezone. Missing `status` reads as `stable`; unknown status values remain available with a quality diagnostic.
+`Freshness` distinguishes no deadline, fresh, stale and invalid values. A record becomes stale at `AsOf >= StaleAfter`, comparing instants across offsets. In 0.3, only current verification events contribute to trust: events before `generated.at` remain available as history but do not increase the tier. A date-only metadata value means midnight UTC in 0.3; 0.2 retains its offset datetime requirement. A datetime without an offset is invalid in both versions. Missing `status` reads as `stable`; unknown status values remain available with a quality diagnostic and are not treated as stable in 0.3. A deprecated concept can identify its replacement with `superseded_by`.
 
 ## Use the existing Docs pipeline
 
@@ -65,6 +83,10 @@ var options = bundle.CreateSiteOptions(new ContentCollectionId("knowledge"));
 Pass these options to the usual `SiteGenerator.GenerateWithOptionsAsync` call with a `DocsSiteTemplate`. The collection participates in existing Docs navigation, search, heading links and publication metadata. The default HTML output prefix is the collection ID, so the bundle's root index becomes `knowledge/index.html` without replacing the site's home page. Set `outputPrefix` explicitly when another prefix is needed. Raw OKF export keeps its original paths independently of this HTML projection.
 
 Links come from the Markdown parser, including resolved reference links. Code spans, fenced code and escaped link-like text do not become relations. Bundle-root links are resolved against the bundle rather than the site's origin. HTML URLs use the site's base path. Original destinations remain in `Links`; unresolved concepts remain relations and render as nonnavigating spans carrying `data-okf-target`. Existing link checking remains enabled for ordinary site content.
+
+For 0.3, `PathReferences` (CLI `pathReferences`) reports recognized metadata path fields separately from `Links`. An unprefixed path resolves relative to the containing file, with no second attempt at the bundle root. A leading `/` starts at the bundle root. A source scope description remains text. Only concept-to-concept references are graph edges; assets are reported separately. Resolving a reference never reads files outside the bundle or fetches a URL.
+
+LithoSharp retains the static computation contract and resolves its file path references. It does not validate executable or inline computation code, run a computation, or perform runtime attestation.
 
 Footnotes retain original labels, display numbers, repeated-reference occurrences and backlinks. `Citations` joins those labels to `Sources[].Id`, so reordering sources does not move attribution to a different source. Ordinary explanatory footnotes also render.
 
@@ -96,12 +118,12 @@ await bundle.ExportPreservedAsync("exported-knowledge");
 
 Preservation writes a complete captured file set to a new directory outside the input bundle. Every document and auxiliary file keeps its original relative path and bytes, including a UTF-8 BOM, newline style, source IDs and unknown metadata. It does not replace an existing index or output directory. Links, reparse points, unsafe paths and normalized collisions are rejected. Publication occurs by moving a fully staged directory; a failed or canceled operation may leave its private staging directory for inspection.
 
-Preserving bytes and validating syntax are separate results. A fully captured bundle with unsupported YAML can still be preserved; the CLI reports the export and retains its non-successful validation status. An incomplete file capture cannot be exported as a preserved bundle. This guarantee covers local captured files, not a round trip through an external service.
+Preserving bytes and validating syntax are separate results. A fully captured bundle with unsupported YAML or an unsupported or missing version can still be preserved; the CLI reports the export and retains its non-successful validation status. An incomplete file capture cannot be exported as a preserved bundle. This guarantee covers local captured files, not a round trip through an external service.
 
 ## Create new OKF explicitly
 
 ```csharp
-var prepared = OkfWriter.Prepare(
+var prepared = OkfWriter.PrepareForVersion("0.3",
 [
     new OkfNewConcept("metrics/revenue.md", "type: Metric\ntitle: Revenue",
         "# Revenue\n\nThe declared value is 42.\n"),
@@ -109,7 +131,7 @@ var prepared = OkfWriter.Prepare(
 await prepared.ExportAsync("new-knowledge");
 ```
 
-New output uses the provided metadata and Markdown. It does not infer `generated.at`, `status` or OKF sources from an ordinary article's Date, Draft or Sources properties. Timestamp values must have explicit offsets. No producer, verification event or build time is inserted.
+New output declares the selected version in the generated root `index.md` and uses the provided concept metadata and Markdown. `OkfWriter.Prepare` selects 0.2 by default. It does not infer `generated.at`, `status` or OKF sources from an ordinary article's Date, Draft or Sources properties. Date-time values must have explicit offsets; 0.3 also accepts date-only values. No producer, verification event or build time is inserted.
 
 For component Markdown or MDX, declare the source body kind and provide a portable Markdown alternative:
 

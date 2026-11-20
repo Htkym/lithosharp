@@ -56,7 +56,7 @@ The Tool advertises these commands as Preview capabilities.
 | --- | --- | --- | --- |
 | `csharp-reference-rename` | `1.0` | `preview-csharp-rename` | Roslyn previews for explicit caller sources and metadata; incomplete scopes remain manual and no files are written. |
 | `proofreading` | `1.0` | `proofread` | Explicit optional Yomiyasu execution with source-mapped findings and guarded edit previews; no project evaluation or document writes. |
-| `open-knowledge-format` | `0.2` | `okf inspect`, `okf validate`, `okf export` | Explicit standalone bundle inspection, validation and export; no project evaluation or computation execution. |
+| `open-knowledge-format` | `0.3` | `okf inspect`, `okf validate`, `okf export` | Standalone OKF 0.2 and 0.3 bundle inspection, validation and export; no project evaluation or computation execution. |
 | `publication-compatibility` | `1.0` | `check-output` | Explicit published URL/anchor comparison against a verified manifest; no project evaluation or automatic baseline promotion. |
 | `preflight-static-inputs` | `1.0` | `markdown`, `mdx` | Explicit source-only preflight without project evaluation. MDX requires an explicitly restored analysis worker. |
 | `preflight-trusted-catalog` | `1.0` | `trusted-catalog` | Explicit compilation and trusted factory/catalog inspection without rendering. The capability report itself does not resolve project support. |
