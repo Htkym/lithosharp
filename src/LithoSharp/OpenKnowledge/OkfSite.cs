@@ -19,6 +19,7 @@ public sealed partial class OkfBundle
         Func<OkfDocument, PageMetadata>? publicationMapper = null, string? policyFingerprint = null, string? outputPrefix = null)
     {
         ArgumentNullException.ThrowIfNull(collectionId);
+        EnsureSupportedPublication();
         if (Catalog is null || !SnapshotComplete)
             throw new InvalidOperationException("Site publication requires a complete file snapshot and collision-free routes.");
         var prefix = OutputPrefix(collectionId, outputPrefix);
@@ -26,18 +27,24 @@ public sealed partial class OkfBundle
         var entries = Documents.Where(static document => document.IsAvailable && document.Body is not null).Select(document =>
         {
             var relations = Links.Where(link => link.SourcePath == document.Path || link.TargetPath == document.Path).ToArray();
+            var paths = PathReferences.Where(reference => reference.SourcePath == document.Path || reference.TargetPath == document.Path).ToArray();
             var dependencies = new List<ContentDependency>
             {
                 ContentDependency.FromValue("okf:relations", Hash(JsonSerializer.Serialize(relations.Select(static link => new
                 { link.SourcePath, link.OriginalTarget, link.TargetPath, link.PublicUrl, link.Kind })))),
                 ContentDependency.FromValue("okf:as-of", AsOf.ToString("O", CultureInfo.InvariantCulture)),
+                ContentDependency.FromValue("okf:version", SpecificationVersion!),
+                ContentDependency.FromValue("okf:path-relations", Hash(JsonSerializer.Serialize(paths))),
             };
             foreach (var target in relations.Select(link => link.SourcePath == document.Path ? link.TargetPath : link.SourcePath)
+                .Concat(paths.Select(reference => reference.SourcePath == document.Path ? reference.TargetPath : reference.SourcePath))
                 .Where(static path => path is not null)
                 .Select(path => filesByPath.GetValueOrDefault(ContentInputPolicy.NormalizePath(path!)))
                 .Where(static file => file is not null).Distinct())
                 dependencies.Add(ContentDependency.FromCapturedFile(target!.Path, target.Sha256));
             dependencies.Add(ContentDependency.FromCapturedFile(document.Path, document.File.Sha256));
+            if (document.Path != "index.md")
+                dependencies.Add(ContentDependency.FromCapturedFile("index.md", filesByPath["index.md"].Sha256));
             return new ContentEntry<OkfDocument, string>(new ContentEntryId(document.Path), document.Path, "sha256:" + document.File.Sha256,
                 document, document.Body!, new(document.Path, 1, 1))
             {
@@ -63,7 +70,9 @@ public sealed partial class OkfBundle
                     document.Syntax?.Analysis.ParserVersion + ":" + document.Syntax?.Analysis.OptionsHash).Distinct(StringComparer.Ordinal))),
                 ContentDependency.FromValue("okf:publication-policy", policyFingerprint ?? (publicationMapper is null ? "default-readable/1" : "custom-unfingerprinted")),
                 ContentDependency.FromValue("okf:output-prefix", prefix),
-            ], transformationId: new ContentTransformationId("okf-v0.2/1"),
+                ContentDependency.FromValue("okf:version", SpecificationVersion!),
+                ContentDependency.FromCapturedFile("index.md", filesByPath["index.md"].Sha256),
+            ], transformationId: new ContentTransformationId("okf-v" + SpecificationVersion + "/2"),
             isCacheable: publicationMapper is null || !string.IsNullOrWhiteSpace(policyFingerprint));
     }
 
@@ -77,7 +86,7 @@ public sealed partial class OkfBundle
             Title = entry.FrontMatter.Metadata?.Title ?? entry.FrontMatter.ConceptId ?? entry.FrontMatter.Path,
             Description = entry.FrontMatter.Metadata?.Description,
         }, (entry, context) => RenderMetadata(entry.FrontMatter) + RenderBody(entry.FrontMatter, context, prefix, collection),
-            rendererFingerprint: "okf-docs/1", isThreadSafe: true);
+            rendererFingerprint: "okf-docs/2/" + SpecificationVersion, isThreadSafe: true);
     }
 
     /// <summary>Publishes captured auxiliary files through the existing transactional asset pipeline without image transforms.</summary>
@@ -87,6 +96,7 @@ public sealed partial class OkfBundle
     private IReadOnlyList<SiteGeneratedAsset> CreateAuxiliaryAssets(string outputPrefix, ContentCollectionId? collectionId)
     {
         ArgumentNullException.ThrowIfNull(outputPrefix);
+        EnsureSupportedPublication();
         if (outputPrefix.Length != 0)
             _ = ContentInputPolicy.NormalizePath(outputPrefix);
         return Array.AsReadOnly(Files.Where(static file => file.Kind == ContentInputKind.Auxiliary)
@@ -137,7 +147,9 @@ public sealed partial class OkfBundle
     {
         var html = new StringBuilder();
         foreach (var path in Links.Where(link => link.IsConceptEdge && link.TargetPath == document.Path)
-            .Select(static link => link.SourcePath).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+            .Select(static link => link.SourcePath)
+            .Concat(PathReferences.Where(reference => reference.IsConceptEdge && reference.TargetPath == document.Path).Select(static reference => reference.SourcePath))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
             var entry = collection.Entries.FirstOrDefault(entry => entry.FrontMatter.Path == path);
             if (entry is null || !PagePublicationPolicy.ShouldPublish(collection.PublicationMapper(entry), context.BuildTimestamp, context.EnvironmentName))
@@ -172,6 +184,7 @@ public sealed partial class OkfBundle
         var html = new StringBuilder("<aside class=\"okf-metadata\" aria-label=\"Knowledge metadata\"><dl>");
         Item("Type", metadata.Type);
         Item("Status", metadata.Status);
+        Item("Superseded by", metadata.SupersededBy);
         Item("Trust record", metadata.TrustTier.ToString());
         Item("Verification records complete", metadata.VerificationIsComplete.ToString());
         Item("Freshness", metadata.Freshness.ToString());
@@ -191,7 +204,8 @@ public sealed partial class OkfBundle
         }
         foreach (var verification in metadata.VerificationEvents)
             html.Append("<p class=\"okf-verification\">").Append(Encode(verification.Actor)).Append(" ")
-                .Append(Encode(verification.At?.ToString("O", CultureInfo.InvariantCulture))).Append("</p>");
+                .Append(Encode(verification.At?.ToString("O", CultureInfo.InvariantCulture)))
+                .Append(verification.IsCurrent ? "" : " (historical or invalid record)").Append("</p>");
         foreach (var field in new[] { "runtime", "parameters", "computation", "executor", "attester" })
             if (metadata.GetField(field) is { } node)
                 html.Append("<details><summary>").Append(field).Append("</summary><pre>").Append(Encode(node.GetRawText())).Append("</pre></details>");
@@ -202,5 +216,14 @@ public sealed partial class OkfBundle
                 html.Append("<dt>").Append(label).Append("</dt><dd>").Append(Encode(value)).Append("</dd>");
         }
         static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+    }
+
+    private void EnsureSupportedPublication()
+    {
+        if (!SnapshotComplete)
+            throw new InvalidOperationException("OKF site publication requires a complete captured bundle snapshot.");
+        if (SpecificationVersion is null || Diagnostics.Any(static diagnostic => diagnostic.Id is "OKF010" or "OKF011"))
+            throw new InvalidOperationException("OKF site publication requires a supported quoted okf_version in the bundle-root index.md. "
+                + string.Join(" ", Diagnostics.Where(static diagnostic => diagnostic.Id is "OKF007" or "OKF010" or "OKF011").Select(static diagnostic => diagnostic.Message)));
     }
 }

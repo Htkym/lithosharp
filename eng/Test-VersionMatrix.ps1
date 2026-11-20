@@ -11,6 +11,10 @@ foreach ($workflow in @('build.yml', 'publish-nuget.yml')) {
     if ($currentBaseline.Count -ne 1 -or $currentBaseline[0].Groups[1].Value -cne $matrix.currentStableConsumerBaseline) {
         throw "Current-stable consumer baseline differs from the matrix: $workflow"
     }
+    $previousMajor = [regex]::Matches($text, '(?m)^\s*LITHOSHARP_PREVIOUS_MAJOR_VERSION:\s*''([^''\r\n]+)''\s*$')
+    if ($previousMajor.Count -ne 1 -or $previousMajor[0].Groups[1].Value -cne $matrix.previousMajorConsumerBaseline) {
+        throw "Previous-major consumer baseline differs from the matrix: $workflow"
+    }
     $declarations = [regex]::Matches($text, '(?m)^\s*[''"]?LITHOSHARP_PREVIOUS_STABLE_VERSION[''"]?\s*:')
     $baseline = [regex]::Matches($text, '(?m)^\s*LITHOSHARP_PREVIOUS_STABLE_VERSION:\s*''([^''\r\n]+)''\s*$')
     if ($declarations.Count -ne 1 -or $baseline.Count -ne 1 -or $baseline[0].Groups[1].Value -cne $matrix.coreApiCompatibilityBaseline) {
@@ -50,6 +54,14 @@ foreach ($project in Get-ChildItem -LiteralPath (Join-Path $repo 'templates/Lith
     $xml = [xml](Get-Content -LiteralPath $project.FullName -Raw)
     if ($xml.SelectSingleNode('/Project/PropertyGroup/LithoSharpVersion').InnerText -cne $matrix.lithosharpTarget) {
         throw "Template default version differs from the matrix: $($project.FullName)"
+    }
+}
+foreach ($relative in @('site/Directory.Build.props', 'site/LithoSharp.Website.csproj')) {
+    $xml = [xml](Get-Content -LiteralPath (Join-Path $repo $relative) -Raw)
+    $versions = @($xml.SelectNodes('/Project/PropertyGroup/LithoSharpVersion') | ForEach-Object { $_.InnerText } |
+        Where-Object { $_ -notmatch '^\$\(' })
+    if ($versions.Count -ne 1 -or $versions[0] -cne $matrix.lithosharpTarget) {
+        throw "Official site default version differs from the matrix: $relative"
     }
 }
 Write-Host 'Development version matrix passed. This does not establish formal publication.'

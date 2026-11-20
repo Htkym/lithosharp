@@ -1,6 +1,6 @@
 ---
 title: Markdown profiles and components
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [typed-content]
 ---
 
@@ -15,7 +15,7 @@ sessions, native YAML, footnotes and proofreading boundaries.
 
 This page renders a registered C# component with typed literal props:
 
-:::component name="version-badge" version="3.1"
+:::component name="version-badge" version="4.0"
 :::
 
 `WebsiteFactory` selects the documentation profile and registers `VersionBadge`

@@ -1,6 +1,6 @@
 ---
 title: Features
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [introduction]
 sidebar_position: 3
 ---
@@ -48,6 +48,12 @@ Try switching this page's language: you stay on the corresponding document.
 
 [Configure documentation and languages](../documentation/)
 
+## Validate and publish a knowledge bundle
+
+The [Open Knowledge Format guide](../knowledge/) shows how to inspect and
+validate a local OKF bundle and render it in Docs. This preview workflow keeps
+bundle metadata separate from C# schemas for ordinary Markdown.
+
 ## Add components when plain Markdown is not enough
 
 Choose a Markdown profile for your content. The default is
@@ -56,7 +62,7 @@ A registered C# component can expose typed literal attributes. This site's
 version badge is one example:
 
 ```markdown
-:::component name="version-badge" version="3.1"
+:::component name="version-badge" version="4.0"
 :::
 ```
 

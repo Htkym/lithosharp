@@ -161,13 +161,16 @@ internal static class OkfCommand
             bundle.AsOf, state, bundle.IsComplete, bundle.SnapshotComplete, bundle.Conformance.ToString(),
             bundle.IsSuccess, options.Read.StrictLint, bundle.Files.Count,
             bundle.Documents.Select(static document => new DocumentSummary(document.Path, document.Kind.ToString(), document.ConceptId,
-                document.IsAvailable, document.Metadata?.Type, document.Metadata?.Status,
-                document.Metadata?.TrustTier.ToString(), document.Metadata?.Freshness.ToString())).ToArray(), exported, exported ? options.Output : null);
+                document.IsAvailable, document.IsSkipped, document.Metadata?.Type, document.Metadata?.Status,
+                document.Metadata?.TrustTier.ToString(), document.Metadata?.Freshness.ToString())).ToArray(),
+            bundle.PathReferences.Select(static reference => new PathReferenceSummary(reference.SourcePath, reference.Field,
+                reference.OriginalTarget, reference.TargetPath, reference.TargetConceptId, reference.PublicUrl,
+                reference.Kind.ToString(), reference.IsConceptEdge)).ToArray(), exported, exported ? options.Output : null);
     }
 
     private static Summary EmptySummary(Options options, DateTimeOffset asOf) =>
-        new(options.Command, options.Input, "0.2", null, asOf, "Incomplete", false, false, "NotAssessed", false,
-            options.Read.StrictLint, 0, [], false, null);
+        new(options.Command, options.Input, null, null, asOf, "Incomplete", false, false, "NotAssessed", false,
+            options.Read.StrictLint, 0, [], [], false, null);
 
     private static int Print(Summary summary, IEnumerable<SiteDiagnostic> diagnostics, string format, int exitCode)
     {
@@ -175,11 +178,13 @@ internal static class OkfCommand
         if (format == "text")
         {
             Console.WriteLine($"OKF {summary.Command}: {summary.State}; conformance: {summary.Conformance}; success: {summary.Success}.");
-            Console.WriteLine($"Supported specification: {summary.SpecificationVersion}; declared: {summary.DeclaredVersion ?? "not declared"}; as-of: {summary.AsOf:O}.");
+            Console.WriteLine($"Supported specifications: 0.2, 0.3; selected: {summary.SpecificationVersion ?? "none"}; declared: {summary.DeclaredVersion ?? "not declared"}; as-of: {summary.AsOf:O}.");
             Console.WriteLine($"Files: {summary.FileCount}; documents: {summary.Documents.Length}; strict lint: {summary.StrictLint}.");
             if (summary.Command == "inspect")
                 foreach (var document in summary.Documents)
-                    Console.WriteLine($"  {document.Path} [{document.Kind}] available: {document.Available}; type: {document.Type ?? "unavailable"}; trust: {document.TrustTier ?? "unavailable"}; freshness: {document.Freshness ?? "unavailable"}.");
+                    Console.WriteLine($"  {document.Path} [{(document.Skipped ? "Skipped" : document.Kind)}] available: {document.Available}; type: {document.Type ?? "unavailable"}; trust: {document.TrustTier ?? "unavailable"}; freshness: {document.Freshness ?? "unavailable"}.");
+            if (summary.PathReferences.Length != 0)
+                Console.WriteLine($"Metadata path references: {summary.PathReferences.Length} (details in JSON or SARIF).");
             var text = report.Format(SiteDiagnosticFormat.Text);
             if (text.Length != 0)
                 Console.WriteLine(text);
@@ -204,9 +209,14 @@ internal static class OkfCommand
     }
 
     private sealed record Options(string Command, string Input, string? Output, string Format, OkfReadOptions Read);
-    private sealed record Summary(string Command, string InputRoot, string SpecificationVersion, string? DeclaredVersion,
+    private sealed record Summary(string Command, string InputRoot, string? SpecificationVersion, string? DeclaredVersion,
         DateTimeOffset AsOf, string State, bool Complete, bool SnapshotComplete, string Conformance, bool Success, bool StrictLint,
-        int FileCount, DocumentSummary[] Documents, bool Exported, string? Output);
-    private sealed record DocumentSummary(string Path, string Kind, string? ConceptId, bool Available,
+        int FileCount, DocumentSummary[] Documents, PathReferenceSummary[] PathReferences, bool Exported, string? Output)
+    {
+        public string[] SupportedVersions => ["0.2", "0.3"];
+    }
+    private sealed record DocumentSummary(string Path, string Kind, string? ConceptId, bool Available, bool Skipped,
         string? Type, string? Status, string? TrustTier, string? Freshness);
+    private sealed record PathReferenceSummary(string SourcePath, string Field, string? OriginalTarget,
+        string? TargetPath, string? TargetConceptId, string? PublicUrl, string Kind, bool IsConceptEdge);
 }

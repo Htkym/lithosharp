@@ -17,8 +17,8 @@ analyzer. Its NuGet package imports the `AdditionalFiles` metadata contract
 automatically.
 
 ```xml
-<PackageReference Include="LithoSharp" Version="3.1.0" />
-<PackageReference Include="LithoSharp.Generators" Version="3.1.0" PrivateAssets="all" />
+<PackageReference Include="LithoSharp" Version="4.0.0" />
+<PackageReference Include="LithoSharp.Generators" Version="4.0.0" PrivateAssets="all" />
 ```
 
 <a id="declaration-and-inputs--宣言と入力"></a>

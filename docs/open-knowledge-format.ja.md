@@ -1,12 +1,12 @@
 # Open Knowledge Format
 
-LithoSharp は、固定した [OKF v0.2 仕様](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md)に従って、ローカルの Open Knowledge Format バンドルを読みます。
-バンドルには、Markdown の概念、任意の `index.md` と `log.md`、SQL、Python、画像などの補助ファイルがあります。
+LithoSharp はローカルの Open Knowledge Format バンドルを、固定した [OKF 0.2 仕様](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/ad30107c31c06aec8a7d5636e0d1058118604e6f/SPEC.md)または [OKF 0.3 仕様](https://github.com/open-knowledge-format/open-knowledge-format/blob/527e81aff55992be21507e97004286789126f88c/SPEC.md)で読みます。
+バンドルには Markdown の概念、インデックス、任意の `log.md`、SQL、Python、画像などの補助ファイルが含まれます。
 読み込みとエクスポートは、これらのファイルの実行、モデルの呼び出し、サービスへの接続を行いません。
 
 各概念には、空でない文字列の `type` を持つフロントマターのマッピングが必要です。
 未知の型や、入れ子の拡張メタデータは保持します。
-任意フィールドやインデックスの欠落、未解決のリンクによって、概念が構造上不正になることはありません。
+任意フィールドやサブディレクトリのインデックスの欠落、未解決のリンクは、概念の構造エラーにはなりません。
 
 ## 検査と検証
 
@@ -26,10 +26,31 @@ lithosharp okf validate --input knowledge --strict-lint --format sarif
 明示した `--strict-lint` では警告も失敗になり、構造上の失敗や実行の失敗は常に失敗です。
 キャンセルの終了状態は 130、不正なコマンド引数は 2 です。
 
-ルートの `index.md` は、`type` なしで `okf_version: "0.2"` を宣言できます。
-ほかのインデックスファイルにはフロントマターを置きません。
-ログの日付見出しには、有効な `YYYY-MM-DD` の日付を使います。ログのフロントマターは禁止していません。
-`README.md`、`AGENTS.md`、アンダースコアで始まる Markdown ファイルも概念として扱います。
+### バンドルのバージョン宣言
+
+バンドルのルートにある `index.md` で、`okf_version` に引用符付きの `"0.2"` または `"0.3"` を指定してください。
+
+```markdown
+---
+okf_version: "0.3"
+title: Project knowledge
+---
+# Knowledge
+
+* [Revenue](metrics/revenue.md) - Revenue definition
+```
+
+OKF 仕様ではバージョン宣言は任意です。LithoSharp は OKF バンドルを検証したりサイトとして公開したりするときに宣言を求めます。通常の Markdown には影響しません。
+従来の読み込み規則を維持するには `"0.2"` を指定してください。未知のバージョンには 0.2 の検証規則を適用せず、サイトにも公開しません。`inspect` では取得できた入力と診断を確認できます。
+JSON と SARIF の `specificationVersion` は選択したバージョンを示します。選択できなかった場合は `null` です。
+
+バージョンの選択はバンドルの読み込み、CLI、サイト生成、新規バンドルの作成に適用します。
+エディター上の診断と参照編集は、バンドルのバージョンを含まない文書スナップショットを使います。0.3 の検証や、0.3 の解決規則に従うリンクの書き換えには使えません。適合性は `lithosharp okf validate` でバンドルを指定して確認してください。
+
+サブディレクトリの `index.md` にはフロントマターを置きません。ログの日付見出しには有効な `YYYY-MM-DD` の日付を使います。
+0.2 では `type` のない Markdown は概念として不正で、ログにはフロントマターを置けます。
+0.3 では `type` のない Markdown を概念として扱わず、ドットで始まるファイルやディレクトリはバンドルに含めません。`log.md` にはフロントマターを置きません。
+`index.md` と `log.md` はどちらのバージョンでも概念になりません。
 
 ## メタデータを変更せずに読む
 
@@ -64,7 +85,7 @@ foreach (var document in bundle.Documents)
 従来の `timestamp` は、`generated` がない場合だけ表示のフォールバックに使います。
 従来の Citations 節は、`sources` がない場合に、そのままの節の文字列として利用できます。
 
-`verified` のマッピングとシーケンスは、共通の `VerificationEvents` 表示を使います。
+`verified` のマッピングとシーケンスは、どちらも `VerificationEvents` で参照できます。0.2 では次のようにすべての有効な記録から信頼性の段階を決めます。
 
 | 記録 | 導出する信頼性の段階 |
 |---|---|
@@ -81,8 +102,9 @@ foreach (var document in bundle.Documents)
 
 `Freshness` は、期限なし、新しい状態、古い状態、不正な値を区別します。
 `AsOf >= StaleAfter` で古い状態とし、オフセットをまたいで時点を比較します。
-日付だけの値やオフセットのない値に、時刻やタイムゾーンを補いません。
-`status` がない場合は `stable` として読みます。未知の状態値は、品質診断とともに利用できる状態を維持します。
+0.3 では `generated.at` より前の検証記録を履歴として保持しますが、信頼性の段階には反映しません。
+0.3 では日付だけのメタデータ値を UTC の 0 時として扱います。0.2 では日付だけの値は受け付けません。どちらのバージョンでも日時にはオフセットが必要です。
+`status` を省略すると `stable` になります。未知の値は品質診断とともに保持し、0.3 では `stable` として扱いません。非推奨の概念では `superseded_by` で移行先を指定できます。
 
 ## 既存の Docs パイプラインを使う
 
@@ -106,6 +128,13 @@ HTML の URL はサイトのベースパスを使います。
 元の宛先は `Links` に残し、未解決の概念も関係として保持します。
 未解決の概念は、`data-okf-target` を持つ、移動しない span として描画します。
 通常のサイトコンテンツには既存のリンク検査を引き続き適用します。
+
+0.3 では、メタデータのパス参照を本文の `Links` と分けて `PathReferences`（CLI では `pathReferences`）で確認できます。
+先頭に `/` がないパスは、それを含むファイルと同じディレクトリから解決します。対象が見つからなくても、バンドルのルートを再検索しません。
+`/` で始まるパスはバンドルのルートから解決します。出典の対象範囲を表す説明は文字列のまま保持します。グラフの辺になるのは概念同士の参照だけです。補助ファイルへの参照は区別します。
+参照の解決でバンドル外のファイルを読んだり、URL に接続したりすることはありません。
+
+LithoSharp は計算の定義を保持し、定義内のファイル参照を解決します。実行用ファイルや本文中のコードは検証せず、計算の実行や実行結果の証明も行いません。
 
 脚注は、元のラベル、表示番号、繰り返し参照した箇所、戻るリンクを保持します。
 `Citations` はラベルを `Sources[].Id` に対応付けるので、出典を並べ替えても別の出典への帰属に変わりません。
@@ -153,7 +182,7 @@ await bundle.ExportPreservedAsync("exported-knowledge");
 失敗やキャンセルの場合は、確認用に専用のステージングディレクトリが残ることがあります。
 
 バイト列の保持と構文の検証は、別の結果です。
-未対応の YAML を含むバンドルも、完全に取得できていれば保持できます。
+未対応の YAML を含む場合や、バージョンが未宣言または未対応の場合でも、ファイルを完全に取得できていれば保持できます。
 CLI はエクスポートを報告するとともに、検証が成功していない状態を維持します。
 ファイルの取得が不完全な場合は、保持バンドルとしてエクスポートできません。
 この保証は、ローカルで取得したファイルを対象とし、外部サービスを通した往復処理は対象にしません。
@@ -161,7 +190,7 @@ CLI はエクスポートを報告するとともに、検証が成功してい�
 ## 新しい OKF を明示的に作る
 
 ```csharp
-var prepared = OkfWriter.Prepare(
+var prepared = OkfWriter.PrepareForVersion("0.3",
 [
     new OkfNewConcept("metrics/revenue.md", "type: Metric\ntitle: Revenue",
         "# Revenue\n\nThe declared value is 42.\n"),
@@ -169,9 +198,9 @@ var prepared = OkfWriter.Prepare(
 await prepared.ExportAsync("new-knowledge");
 ```
 
-新しい出力は指定したメタデータと Markdown を使います。
+新しいバンドルは生成したルートの `index.md` で選択したバージョンを宣言し、概念には指定したメタデータと Markdown を使います。`OkfWriter.Prepare` の既定値は 0.2 です。
 通常の記事の Date、Draft、Sources プロパティから、`generated.at`、`status`、OKF の出典を推測しません。
-日時には明示的なオフセットが必要です。生成者、検証イベント、ビルド時刻は挿入しません。
+日時には明示的なオフセットが必要です。0.3 では日付だけの値も受け付けます。生成者、検証イベント、ビルド時刻は挿入しません。
 
 コンポーネントの Markdown や MDX では、元の本文の種類を宣言し、移植可能な Markdown の代替を渡します。
 

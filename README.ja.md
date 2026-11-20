@@ -3,141 +3,115 @@
 [![build](https://github.com/Htkym/lithosharp/actions/workflows/build.yml/badge.svg)](https://github.com/Htkym/lithosharp/actions/workflows/build.yml)
 [![NuGet](https://img.shields.io/nuget/v/LithoSharp.svg)](https://www.nuget.org/packages/LithoSharp)
 
-[English](https://github.com/Htkym/lithosharp/blob/main/README.md) | [日本語](https://github.com/Htkym/lithosharp/blob/main/README.ja.md)
+[English](README.md) | 日本語
 
-C#の型とビルドで、ドキュメントの整合性を管理します。LithoSharpは.NETチームの
-コンテンツ型、生成した参照、コンパイル診断、生成物の検査をつなぐ静的サイト生成器です。
-製品ドキュメントや技術ガイドをMarkdownで書き、必要に応じてMDXやReactを加えられます。
-生成物は通常の静的ファイルとして配置できます。
+LithoSharp は技術ドキュメント、API リファレンス、Open Knowledge Format（OKF）バンドル向けの、C# と .NET で使う静的サイトジェネレーターです。コンテンツのスキーマ、ルート、参照を C# の型で定義し、Markdown や MDX から HTML と静的アセットを生成できます。OKF 対応はプレビューです。
 
-次の三つの問題を、それぞれの工程で検査します。
-
-- 必須のタイトルがない場合は、C#スキーマに基づいてコンパイル時に`LSG006`を報告します。
-- entryとルートの矛盾が静的に確定した場合は、Analyzerが`LSA1402`を報告します。
-- 最終HTMLにリンク先や見出しがない場合は、生成物の品質検査で`LSQ001`や`LSQ002`を報告します。
-
-検査の対象範囲は工程ごとに異なります。エディターは入力のたびに独自C#スキーマを実行せず、
-正しい型付き参照だけで最終HTMLの正しさが確定するわけでもありません。
-適合条件、依存関係、評価例は[導入選択ガイド](docs/adoption-guide.ja.md)を参照してください。
-
-既存サイトを更新する場合は[3.0への更新手順](docs/migration-3.0.ja.md)を参照してください。
-
-## サンプルサイト
-
-同梱のサイト定義から生成した画面です。標準のDocsとBlogは、ライト・ダーク切り替え、
-画面幅に応じたメニュー、キーボード操作に対応します。
-`SiteThemeOptions.EnableThemeSwitching = false` で切り替えを無効にできます。
-詳しくは[テーマの設定](docs/layout-css-contract.md#theme-switching--テーマ切り替え)を参照してください。
-
-| Docsのライト配色 | Blogのダーク配色 |
+| OKF バージョン | 読み込み規則 |
 | --- | --- |
-| [![サイドバー、本文、目次を表示したDocsサンプル](docs/images/docs-light.png)](samples/LithoSharp.DocsSample) | [![先頭記事とナビゲーションを表示したBlogサンプル](docs/images/blog-dark.png)](samples/LithoSharp.Sample) |
+| `"0.2"` | 検証記録や日時を含め、従来の 0.2 の規則を使います。 |
+| `"0.3"` | 信頼性の判定に使うのは、生成日時以降の検証記録です。日付だけの値は UTC の 0 時として扱い、`/` で始まらないメタデータのパスは文書のディレクトリから解決します。 |
 
-## 主な機能
+どちらのバージョンも、検証とサイト生成にはバンドルのルートにある `index.md` に引用符付きの `okf_version` が必要です。既存のバンドルに `okf_version: "0.2"` を追加すると、これまでの 0.2 の規則で読み込めます。通常の Markdown にはこの要件を適用しません。
 
-- 型付きC# content collection、route、reference。厳密なschema検証と、任意のRoslyn source generator・build診断。
-- Markdownと任意のMDX 3。Reactによる生成時HTML、page hydration、明示islandによるselective hydration。
-- Docs、Blog、独立ページ、複数Docs collection、version、locale、sidebar、local search。
-- 依存graph、永続cache、invalidation reason、artifact ownershipによる増分ビルドの確認。
-- routeとownershipを検証したうえでのstaging、output transaction、公開前のrollback。
-- link、anchor、canonical、redirect、SEOに対する構造化診断。
-- XML形式の.NET API文書、OpenAPI 3 JSON、正確なxref、検証済みexampleの取り込み。
-- スキーマに基づく編集時の補完、文書と見出しの参照、適用条件付きの名前変更プレビュー、条件付き必須項目、公開互換性の検査。
-- 明示的なMarkdownプロファイル、型付きC#部品、原文位置へ戻れる診断、コード例の実行記録、翻訳レビューの記録。
-- 自作のYAML解析と型バインド、原文を保持するOpen Knowledge Format、既成画像のvariant、任意パッケージによる限定PNG処理。
-- site、route、artifact、DOM、component、layoutを検証する.NET向けTesting API。
-- fingerprint付きasset、responsive image、C# renderingと信頼するMDX pluginの拡張点。
+## 主な用途
 
-## Quick Start
+- 製品ドキュメントや開発者ガイド: Docs テンプレートで、サイドバー、目次、サイト内検索、バージョンや言語の切り替えを備えたサイトを作れます。ブログや独立ページも同じサイトに追加できます。
+- 型付きコンテンツと API リファレンス: Markdown や YAML の項目を C# の型で定義できます。.NET の XML API ドキュメント、OpenAPI 3 JSON、検証済みのコード例、相互参照も扱えます。
+- OKF バンドル: ローカルにある OKF の Markdown と YAML メタデータを検査・検証できます。元のバイト列を保持してエクスポートすることも、Docs ページとして出力することもできます。モデルや外部サービスは不要です。
 
-.NET 10 SDKを用意して実行します。
+用途や依存関係を比較するときは[導入選択ガイド](docs/adoption-guide.ja.md)を参照してください。既存の OKF バンドルを引き継ぐ場合は [4.0 の OKF 移行手順](docs/open-knowledge-format.ja.md)、旧版のサイトを移行する場合は [3.0 への更新手順](docs/migration-3.0.ja.md)を参照してください。
 
+## Quick Start: Docs サイトの生成とプレビュー
+
+.NET 10 SDK（10.0.300 以上）を用意し、4.0.0 で次のコマンドを実行します。
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs -c Release
 .tools/lithosharp serve MyDocs -c Release
 ```
 
-Windowsの実行ファイルは`.tools/lithosharp.exe`です。`GuideFrontMatter.cs`と`MyDocs/content`を
-編集します。生成Binder・Catalogのルートと`RenderDocs`がDocs表示につながります。
-factoryはQualityのError閾値と外部HTTP検査の無効を明示しています。
-`DocsSiteFactory.cs`を設定し、ビルドと検査の後に`MyDocs/dist`を静的HTTP hostへ配置してください。
-独立したinstall、Markdown、MDX、対話componentの手順は[Quick Start全体](docs/quickstart.ja.md)を参照してください。
+Windows では `.tools/lithosharp.exe` を使ってください。本文は `MyDocs/content`、項目の定義は `GuideFrontMatter.cs`、サイトの設定は `DocsSiteFactory.cs` を編集します。テンプレートは外部 HTTP に接続せず、サイト品質を Error レベルで検査します。ビルドと検査を終えたら `MyDocs/dist` を静的ホストに配置してください。
 
-既存アプリケーションでは`dotnet add package LithoSharp --version 3.1.0`でライブラリを追加し、
-直接呼び出せます。CLI hostは必須ではありません。
+既存の .NET アプリでは `dotnet add package LithoSharp --version 4.0.0` でライブラリを追加し、直接呼び出せます。環境の準備や Markdown、MDX の使い方は [Quick Start 全体](docs/quickstart.ja.md)を参照してください。
 
-## 使用例
-
-[型付きコンテンツの体験手順](samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)では、正常なDocsサイトを生成し、front matterを一箇所変更して診断を確認した後、元に戻してHTMLとリンクを検査します。同じC#モデルがbinder、型付き参照、サイトのレイアウトにつながっています。
-
-| 問題や情報 | 確認する段階 | 判断できる範囲 |
-| --- | --- | --- |
-| 必須項目の不足や型の不一致 | Generator/compiler | 明示したコンテンツ入力と、静的に分かるスキーマの条件。 |
-| エントリーとルートの矛盾 | Analyzer | 完全で最新のカタログと既知の値。実行時の値は未検証です。 |
-| 見出しと原文位置の診断 | Editor/LSP | `NoContext`ではプロジェクトに結び付かず、`Partial`では取得できた情報だけを扱います。 |
-| headerや本文の情報を取得できない | Generator・build・Editor | `Unknown`は不存在の証明ではありません。解析上限で取得できない情報を成功として扱いません。 |
-| 内部URL、anchor、HTML | 生成物検査 | 現在の出力ファイル。原稿との一致や外部HTTP応答は別途確認が必要です。 |
-
-| 目的 | 入口 |
+| Docs サンプル（ライト） | Blog サンプル（ダーク） |
 | --- | --- |
-| Markdown Docs、typed content、画像 | [Docs sample](samples/LithoSharp.DocsSample) |
-| Blog、フィード、検索 | [Blog sample](samples/LithoSharp.Sample) |
-| MDX、React island、offline navigation | [MDX sample](samples/LithoSharp.MdxSample/README.ja.md) |
-| versioning、i18n、Blog/Pages、API docs | [MDXガイド](docs/mdx.ja.md)と[使用例の案内](docs/quickstart.ja.md#使用例と次の手順) |
+| [![サイドバー、本文、目次がある Docs サイト](docs/images/docs-light.png)](samples/LithoSharp.DocsSample) | [![先頭記事とナビゲーションがある Blog](docs/images/blog-dark.png)](samples/LithoSharp.Sample) |
 
-Markdownの既定プロファイルは`lithosharp-markdown/1`です。`commonmark/0.31.2`と`syntamark-docs/2`は明示的に選択できます。Syntamark 2がMarkdownとYAMLの構文、原文範囲を扱い、LithoSharpがC#スキーマ、ルート、表示方針、製品の診断を担当します。[Markdownプロファイル](docs/markdown-profiles.ja.md)と[更新手順](docs/migration-3.0.ja.md)を参照してください。
+## OKF バンドルの検査と検証
 
-## 必要な環境
+`knowledge/index.md` を作成します。
 
-.NET 10が必要です。最低対応SDKは10.0.300です。CLIの開発サーバーはSDKに含まれる
-ASP.NET Core shared frameworkも使います。MarkdownだけならNode.jsとReactは不要です。
-MDXはNode.js 24.13.0と明示的なworker restoreが必要です。lockfileはMDX 3.1.1、React 19.2.4、
-esbuild 0.28.2を固定しています。本番出力の配信には静的HTTP hostだけで十分です。
+```markdown
+---
+okf_version: "0.3"
+---
+# Knowledge
 
-## VS Code拡張機能
+- [Build process](build.md)
+```
 
-[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp)でMarkdown/MDXの診断、見出しによる移動、ビルド、サイトのプレビューを利用できます。手順は[拡張機能のガイド](extensions/lithosharp-vscode/README.ja.md)を参照してください。
+`knowledge/build.md` を作成します。
 
-## ドキュメント
+```markdown
+---
+type: Guide
+title: Build process
+---
+# Build process
 
-[目的別のドキュメント案内](docs/README.ja.md)から、導入、型付きコンテンツ、編集支援、検査、運用のガイドを選べます。英語・日英併記の技術リファレンスも区別しています。
+Run the documentation build before deployment.
+```
 
-- [Agent Readyの公開Markdown](docs/agent-ready.ja.md)で、有効化、発見用リンク、検証範囲を確認できます。
-- [Docsの標準設定](docs/docs-template.ja.md)、[生成済み成果物の検査](docs/generated-output-checks.ja.md)
-- [CLIとsite factory](docs/cli.ja.md)、[MDXと文書サイト](docs/mdx.ja.md)
-- [型付きMarkdown collection](docs/typed-markdown-collections.md)、
-  [型付きYAML](docs/typed-yaml-collections.md)、[source generator](docs/source-generators.md)
-- [Build graph](docs/build-graph.ja.md)、[増分ビルド](docs/incremental-builds.ja.md)
-- [Assetと画像](docs/assets-and-images.ja.md)、[サイト品質](docs/site-quality.md)
-- [Testing](docs/testing.ja.md)、[HTML/CSS契約](docs/layout-css-contract.md)、[互換性契約](docs/compatibility-contract.ja.md)
+`knowledge` の親ディレクトリで次のコマンドを実行します。
 
-## 3.0.0への更新
+```sh
+.tools/lithosharp okf inspect --input knowledge --format json
+.tools/lithosharp okf validate --input knowledge --format sarif
+```
 
-利用するパッケージ、CLI、テンプレートは同じバージョンにそろえてください。
-YamlDotNetの属性を`ContentName`と`ContentIgnore`へ変更します。画像変換は対応範囲のPNGに限定します。
-JPEG、WebP、AVIF、SVGは既成ファイルをそのまま使うか、事前生成したvariantを用意してください。
-PNGのOGP画像は任意のImagesパッケージで明示的に登録します。Catalogのルート宣言で既存URLを維持し、
-配置前に公開manifestを比較してください。[更新手順](docs/migration-3.0.ja.md)を参照してください。
-1.xからの更新ではTesting APIの`Document`から`Snapshot`への移行も必要です。
-再生成して、コンテンツ診断、最終出力のリンク、独自CSSを確認してください。MDXは任意です。
+Windows では Quick Start と同じく `.tools/lithosharp.exe` を使ってください。0.3 で相対パスの参照先が文書のディレクトリから見つからなくても、バンドルのルートを再検索しません。
 
-過去版同士の移行手順は[更新履歴の資料](docs/history/README.md)に保管しています。
+バージョン宣言は読み込み、CLI、サイト生成、新規バンドルの作成に適用されます。エディターの診断と参照の編集には 0.3 の規則が適用されないため、検証には CLI を使ってください。検査やエクスポートで計算を実行したり、実行結果を証明したりすることはありません。詳しくは [OKF ガイド](docs/open-knowledge-format.ja.md)を参照してください。
 
-## 既知の制約
+## 工程ごとの検査
 
-MDXとC#のsite codeは信頼するbuild codeとして実行します。HTML safetyはコードのsandboxではありません。
-大規模MDXでは多くのinteractive entryを再bundleする場合があります。任意のDocusaurus plugin、
-trimming、Native AOTは非対応です。実行環境を選ぶ前に[既知の制約](docs/known-limitations.ja.md)を確認してください。
+| 工程 | 診断例 | 検査範囲 |
+| --- | --- | --- |
+| C# コンパイル | コンテンツの必須項目がない（`LSG006`） | 明示された入力とジェネレーターが確認できる条件。 |
+| Roslyn Analyzer | 静的に分かるエントリーとルートに矛盾がある（`LSA1402`） | 実行時にしか分からない値は検証しません。 |
+| 生成物の検査 | 内部リンクや見出しの参照先がない（`LSQ001` / `LSQ002`） | ビルド済みのファイル。未ビルドの原稿や検査していない外部サイトは対象外です。 |
 
-## 性能
+エディターは構文の診断や見出しへの移動に対応しますが、入力のたびに独自のスキーマを実行するわけではありません。型付き参照が正しくても、最終 HTML の検査は別に必要です。[型付きコンテンツの体験手順](samples/LithoSharp.DocsSample/README.ja.md#cの型定義から生成物の検査まで)や[生成物の検査ガイド](docs/generated-output-checks.ja.md)で確認できます。
 
-速度は参考値です。利用環境・構成・コンテンツによって変わります。
-[Docsの参考時間](docs/performance.ja.md)を参照してください。
+## よくある質問
 
-## ライセンス
+### Node.js や React は必要ですか？
 
-MIT licenseです。[LICENSE](LICENSE)と[third-party notices](THIRD-PARTY-NOTICES.md)も確認してください。
+Markdown だけなら不要です。CLI の開発サーバーは .NET SDK に含まれる ASP.NET Core を使います。MDX 3 を使う場合は React、Node.js 24.13.0、MDX ワーカーの明示的な復元が必要です。本番では静的 HTTP ホストで配信できます。C# のサイトコードと MDX は信頼済みのビルドコードとして実行するため、サンドボックスにはなりません。[MDX の設定](docs/mdx.ja.md)と[既知の制約](docs/known-limitations.ja.md)を参照してください。
+
+### Agent Ready の公開機能と OKF はどう違いますか？
+
+[Agent Ready](docs/agent-ready.ja.md) は公開用 Markdown と発見用リンクをサイトに追加する任意の機能です。[OKF 対応](docs/open-knowledge-format.ja.md)ではローカルのOKF バンドルを読み、出典や検証記録などの構造化メタデータを扱います。どちらも検索エンジンや AI による登録や引用を保証するものではありません。
+
+### VS Code から編集できますか？
+
+[LithoSharp for VS Code](https://marketplace.visualstudio.com/items?itemName=htkym.lithosharp) は Markdown と MDX の診断、見出しによる移動、ビルド、サイトのプレビューに対応します。設定方法は[拡張機能のガイド](extensions/lithosharp-vscode/README.ja.md)を参照してください。
+
+## ドキュメントとサンプル
+
+| 目的 | 参照先 |
+| --- | --- |
+| パッケージや手順を選ぶ | [ドキュメント案内](docs/README.ja.md) |
+| Docs のレイアウトやテーマを設定する | [Docs テンプレート](docs/docs-template.ja.md)、[テーマ切り替え](docs/layout-css-contract.md#theme-switching) |
+| C# でコンテンツを定義する | [型付き Markdown](docs/typed-markdown-collections.md)、[型付き YAML](docs/typed-yaml-collections.md)、[ソースジェネレーター](docs/source-generators.md) |
+| React の部品を追加する | [MDX サンプル](samples/LithoSharp.MdxSample/README.ja.md) |
+| ビルドと公開時の変更を調べる | [ビルドグラフ](docs/build-graph.ja.md)、[増分ビルド](docs/incremental-builds.ja.md)、[サイト品質](docs/site-quality.md) |
+| サイトのテストと性能測定 | [Testing API](docs/testing.ja.md)、[性能の参考値](docs/performance.ja.md) |
+| 既存プロジェクトを更新する | [4.0 の OKF 移行手順](docs/open-knowledge-format.ja.md)、[3.0 への更新手順](docs/migration-3.0.ja.md)、[過去の更新資料](docs/history/README.md) |
+
+MIT ライセンスです。[LICENSE](LICENSE) と[サードパーティー通知](THIRD-PARTY-NOTICES.md)を参照してください。

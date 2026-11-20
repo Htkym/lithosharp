@@ -5,13 +5,13 @@
 Start documentation managed with C# types and builds. The `docs` template connects a custom schema, generated binder/catalog and typed
 references to Docs navigation and explicit output quality checks.
 
-Install the matching template package with `dotnet new install LithoSharp.ProjectTemplates::3.1.0`
+Install the matching template package with `dotnet new install LithoSharp.ProjectTemplates::4.0.0`
 and create a site with `dotnet new lithosharp-docs`, `dotnet new lithosharp-blog`,
 `dotnet new lithosharp-empty`, or `dotnet new lithosharp-mdx`.
 
 ```sh
 dotnet new lithosharp-docs -n MyDocs -o MyDocs
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```

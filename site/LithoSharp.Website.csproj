@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">3.1.0</LithoSharpVersion>
+    <LithoSharpVersion Condition="'$(LithoSharpVersion)' == ''">4.0.0</LithoSharpVersion>
     <DefaultItemExcludes>$(DefaultItemExcludes);checks/**;dist/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>

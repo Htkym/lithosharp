@@ -42,8 +42,8 @@ Normal generation validates the captured Core catalog and all available extensio
 Install matching Tool and template packages to create a site:
 
 ```sh
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
 .tools/lithosharp new docs MyDocs -o MyDocs
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs

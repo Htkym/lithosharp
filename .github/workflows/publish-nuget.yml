@@ -8,7 +8,8 @@ on:
 env:
   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
   LITHOSHARP_PREVIOUS_STABLE_VERSION: '2.2.0'
-  LITHOSHARP_CURRENT_STABLE_VERSION: '3.0.0'
+  LITHOSHARP_PREVIOUS_MAJOR_VERSION: '3.0.0'
+  LITHOSHARP_CURRENT_STABLE_VERSION: '3.1.0'
 
 permissions:
   contents: read
@@ -95,7 +96,7 @@ jobs:
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'baseline-packages'
           $null = New-Item -ItemType Directory -Force -Path $baseline
-          foreach ($version in @($env:LITHOSHARP_PREVIOUS_STABLE_VERSION, $env:LITHOSHARP_CURRENT_STABLE_VERSION) | Select-Object -Unique) {
+          foreach ($version in @($env:LITHOSHARP_PREVIOUS_STABLE_VERSION, $env:LITHOSHARP_PREVIOUS_MAJOR_VERSION, $env:LITHOSHARP_CURRENT_STABLE_VERSION) | Select-Object -Unique) {
             Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/lithosharp/$version/lithosharp.$version.nupkg" -OutFile (Join-Path $baseline "LithoSharp.$version.nupkg")
             ./eng/Test-ConsumerCompatibility.ps1 -BaselinePackageDirectory $baseline -CandidatePackageDirectory artifacts/packages -BaselineVersion $version -CandidateVersion ($env:GITHUB_REF_NAME -replace '^v', '')
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

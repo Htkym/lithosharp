@@ -26,9 +26,12 @@ internal sealed class WebsiteTemplate : DocsSiteTemplate
                 RelativePath = "index.html",
                 Title = "LithoSharp",
                 BodyHtml = "<section class=\"website-introduction\"><h1>LithoSharp</h1>"
-                    + "<p>Build static sites with C# types and Markdown.</p><p lang=\"ja\">C# の型と Markdown で静的サイトを構築します。</p>"
+                    + "<p>A C# and .NET static site generator for technical documentation, API references, and Open Knowledge Format (OKF) bundles (preview).</p>"
+                    + "<p lang=\"ja\">技術文書、API リファレンス、Open Knowledge Format（OKF）バンドルを扱う C# と .NET の静的サイトジェネレーターです。OKF 対応はプレビューです。</p>"
                     + "<nav class=\"website-language-choice\" aria-label=\"Documentation language\">"
                     + Link("English documentation", "en/introduction/", "en") + Link("日本語ドキュメント", "ja/introduction/", "ja") + "</nav>"
+                    + "<p>" + Link("Open Knowledge Format guide", "en/knowledge/", "en") + " · "
+                    + Link("Open Knowledge Format ガイド", "ja/knowledge/", "ja") + "</p>"
                     + "<pre><code>dotnet new lithosharp-docs -n MyDocs</code></pre>"
                     + "<a href=\"https://github.com/Htkym/lithosharp\">GitHub</a></section>"
             }))

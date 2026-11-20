@@ -65,6 +65,7 @@ for (const entry of inventory.entries) {
     const key = entry.collection + '/' + entry.id;
     const review = referenceReviews.reviews.find(review => review.collection === entry.collection && review.id === entry.id);
     assert(review, `Unreviewed canonical document: ${key}`);
+    assert.equal(review.version, entry.historical ? '2.2' : documentVersion, `Stale canonical review version: ${key}`);
     assert(!reviewed.has(key), `Duplicate canonical review: ${key}`);
     reviewed.add(key);
     for (const locale of ['en', 'ja']) {

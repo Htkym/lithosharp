@@ -1,6 +1,6 @@
 ---
 title: クイックスタート
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [introduction]
 sidebar_position: 2
 ---
@@ -18,8 +18,8 @@ sidebar_position: 2
 ## インストールしてサイトを作成する
 
 ```sh
-dotnet new install LithoSharp.ProjectTemplates::3.1.0
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet new install LithoSharp.ProjectTemplates::4.0.0
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp new docs MyDocs -o MyDocs
 ```
 

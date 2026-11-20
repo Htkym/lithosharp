@@ -1,28 +1,48 @@
 ---
 title: Open Knowledge Format
-supported_version: "3.1"
+supported_version: "4.0"
 prerequisites: [quickstart]
 ---
 
-The website factory reads `site/knowledge/` with `OkfBundle.ReadAsync`, a fixed
-`AsOf` timestamp and the site's explicit base URL. It registers `RenderDocs` and
-the captured auxiliary assets in the ordinary output transaction. Visit the
-[English concept](../../knowledge/en/typed-sites.html) and its
-[Japanese counterpart](../../knowledge/ja/typed-sites.html).
+Open Knowledge Format (OKF) bundles package knowledge as Markdown concepts with
+YAML metadata and related assets. LithoSharp 4.0.0 provides preview support for
+inspecting, validating, exporting and rendering local OKF 0.2 and 0.3 bundles.
 
-Exact lowercase `index.md` and `log.md` are reserved at every level. Other Markdown
-files are concepts; non-Markdown inputs are auxiliary files. Concept paths are
-identities independent of ordinary typed-document schemas. The reader retains
-unknown metadata and distinguishes structural conformance, lint, freshness and
-trust. Draft, stale or unverified records remain readable by default.
+## Choose the bundle version
 
-This bundle declares its format version and sources, but has no invented
-verification or generation attestation. A source entry and a footnote do not prove
-technical truth. Explicit policy is required to restrict publication based on trust.
+Create a root `index.md` with a quoted `okf_version: "0.2"` or
+`okf_version: "0.3"` in its YAML frontmatter. This is a LithoSharp requirement
+for validation and site generation, not a requirement for ordinary Markdown.
+Use 0.2 to keep existing bundle behavior. For 0.3:
 
-Preserved export retains captured bytes; it is separate from YAML serialization.
-Use the CLI's documented OKF inspection/export commands with a new destination and
-inspect diagnostics before publishing. Export does not update trust records.
-Ordinary `DocumentSemanticRuleSet.Documentation` rules are not applied to this
-bundle. The repository's [limitations](../../reference/en/known-limitations/)
-describe remaining format and tooling boundaries.
+- Only current verification records affect trust; earlier records remain available
+  as history. Date-only metadata values mean midnight UTC.
+- Relative metadata paths start at the containing file, with no retry at the
+  bundle root. A leading slash starts at the root. References between concepts
+  form graph edges; assets and source-scope descriptions are separate.
+- Untyped Markdown is skipped as a concept. Dot-prefixed files and directories
+  are outside the bundle. The reserved `log.md` does not take frontmatter.
+
+## Inspect a local bundle
+
+```sh
+lithosharp okf inspect --input knowledge --format json
+lithosharp okf validate --input knowledge --format sarif
+```
+
+Use the [OKF guide](../../reference/en/open-knowledge-format/) for a bundle
+example, strict lint and byte-preserving export. Unsupported versions and YAML
+features are not reported as validated conformance. Live editor diagnostics and
+reference edits do not apply the 0.3 rules. The reader does not execute
+computations, attest results or fetch referenced URLs.
+
+## Render a bundle in Docs
+
+The official site's [knowledge examples](../../knowledge/index.html) retain the
+0.2 profile. The site factory reads the bundle with `OkfBundle.ReadAsync` and
+publishes the documents through `RenderDocs` together with captured auxiliary
+assets. Reading verification metadata does not establish the truth of a claim.
+
+Agent Ready publishing is a separate opt-in that serves public Markdown and
+discovery links for published pages. See the
+[Agent Ready guide](../../reference/en/agent-ready/) for what it exposes.

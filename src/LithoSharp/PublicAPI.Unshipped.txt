@@ -310,7 +310,7 @@ LithoSharp.OpenKnowledge.OkfBundle.Links.get -> System.Collections.Generic.IRead
 LithoSharp.OpenKnowledge.OkfBundle.RenderDocs(LithoSharp.Content.ContentCollectionId! collectionId, System.Func<LithoSharp.OpenKnowledge.OkfDocument!, LithoSharp.Pages.PageMetadata!>? publicationMapper = null, string? policyFingerprint = null, string? outputPrefix = null) -> LithoSharp.Content.SiteContentCollection<LithoSharp.OpenKnowledge.OkfDocument!, string!>!
 LithoSharp.OpenKnowledge.OkfBundle.SnapshotComplete.get -> bool
 LithoSharp.OpenKnowledge.OkfBundle.SnapshotFingerprint.get -> string!
-LithoSharp.OpenKnowledge.OkfBundle.SpecificationVersion.get -> string!
+LithoSharp.OpenKnowledge.OkfBundle.SpecificationVersion.get -> string?
 LithoSharp.OpenKnowledge.OkfCitation
 LithoSharp.OpenKnowledge.OkfCitation.Reference.get -> Syntamark.MarkdownFootnoteReference!
 LithoSharp.OpenKnowledge.OkfCitation.Source.get -> LithoSharp.OpenKnowledge.OkfSource?
@@ -906,3 +906,56 @@ LithoSharp.DocsHeaderContent.Actions.get -> LithoSharp.IHtmlContent?
 LithoSharp.DocsHeaderContent.Actions.init -> void
 LithoSharp.DocsSiteTemplate.HeaderContentRenderer.get -> System.Func<string?, string?, LithoSharp.DocsHeaderContent!>?
 LithoSharp.DocsSiteTemplate.HeaderContentRenderer.init -> void
+LithoSharp.OpenKnowledge.OkfBundle.PathReferences.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfPathReference!>!
+LithoSharp.OpenKnowledge.OkfDocument.IsConcept.get -> bool
+LithoSharp.OpenKnowledge.OkfDocument.IsSkipped.get -> bool
+LithoSharp.OpenKnowledge.OkfLinkKind.NonConceptDocument = 6 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfLinkKind.ScopeDescriptor = 7 -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfMetadata.ParameterEntries.get -> System.Collections.Generic.IReadOnlyList<LithoSharp.OpenKnowledge.OkfParameter!>!
+LithoSharp.OpenKnowledge.OkfMetadata.SupersededBy.get -> string?
+LithoSharp.OpenKnowledge.OkfParameter.<Clone>$() -> LithoSharp.OpenKnowledge.OkfParameter!
+LithoSharp.OpenKnowledge.OkfParameter.Deconstruct(out Syntamark.YamlNode! Raw, out string! Name, out string! Type, out bool Required) -> void
+LithoSharp.OpenKnowledge.OkfParameter.Equals(LithoSharp.OpenKnowledge.OkfParameter? other) -> bool
+LithoSharp.OpenKnowledge.OkfParameter.Name.get -> string!
+LithoSharp.OpenKnowledge.OkfParameter.Name.init -> void
+LithoSharp.OpenKnowledge.OkfParameter.OkfParameter(Syntamark.YamlNode! Raw, string! Name, string! Type, bool Required) -> void
+LithoSharp.OpenKnowledge.OkfParameter.Raw.get -> Syntamark.YamlNode!
+LithoSharp.OpenKnowledge.OkfParameter.Raw.init -> void
+LithoSharp.OpenKnowledge.OkfParameter.Required.get -> bool
+LithoSharp.OpenKnowledge.OkfParameter.Required.init -> void
+LithoSharp.OpenKnowledge.OkfParameter.Type.get -> string!
+LithoSharp.OpenKnowledge.OkfParameter.Type.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.<Clone>$() -> LithoSharp.OpenKnowledge.OkfPathReference!
+LithoSharp.OpenKnowledge.OkfPathReference.Deconstruct(out string! SourcePath, out string! Field, out string! OriginalTarget, out string? TargetPath, out string? TargetConceptId, out string? PublicUrl, out LithoSharp.OpenKnowledge.OkfLinkKind Kind) -> void
+LithoSharp.OpenKnowledge.OkfPathReference.Equals(LithoSharp.OpenKnowledge.OkfPathReference? other) -> bool
+LithoSharp.OpenKnowledge.OkfPathReference.Field.get -> string!
+LithoSharp.OpenKnowledge.OkfPathReference.Field.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.IsConceptEdge.get -> bool
+LithoSharp.OpenKnowledge.OkfPathReference.IsResolved.get -> bool
+LithoSharp.OpenKnowledge.OkfPathReference.Kind.get -> LithoSharp.OpenKnowledge.OkfLinkKind
+LithoSharp.OpenKnowledge.OkfPathReference.Kind.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.OkfPathReference(string! SourcePath, string! Field, string! OriginalTarget, string? TargetPath, string? TargetConceptId, string? PublicUrl, LithoSharp.OpenKnowledge.OkfLinkKind Kind) -> void
+LithoSharp.OpenKnowledge.OkfPathReference.OriginalTarget.get -> string!
+LithoSharp.OpenKnowledge.OkfPathReference.OriginalTarget.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.PublicUrl.get -> string?
+LithoSharp.OpenKnowledge.OkfPathReference.PublicUrl.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.SourcePath.get -> string!
+LithoSharp.OpenKnowledge.OkfPathReference.SourcePath.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.TargetConceptId.get -> string?
+LithoSharp.OpenKnowledge.OkfPathReference.TargetConceptId.init -> void
+LithoSharp.OpenKnowledge.OkfPathReference.TargetPath.get -> string?
+LithoSharp.OpenKnowledge.OkfPathReference.TargetPath.init -> void
+LithoSharp.OpenKnowledge.OkfVerificationEvent.IsCurrent.get -> bool
+override LithoSharp.OpenKnowledge.OkfParameter.Equals(object? obj) -> bool
+override LithoSharp.OpenKnowledge.OkfParameter.GetHashCode() -> int
+override LithoSharp.OpenKnowledge.OkfParameter.ToString() -> string!
+override LithoSharp.OpenKnowledge.OkfPathReference.Equals(object? obj) -> bool
+override LithoSharp.OpenKnowledge.OkfPathReference.GetHashCode() -> int
+override LithoSharp.OpenKnowledge.OkfPathReference.ToString() -> string!
+static LithoSharp.OpenKnowledge.OkfParameter.operator !=(LithoSharp.OpenKnowledge.OkfParameter? left, LithoSharp.OpenKnowledge.OkfParameter? right) -> bool
+static LithoSharp.OpenKnowledge.OkfParameter.operator ==(LithoSharp.OpenKnowledge.OkfParameter? left, LithoSharp.OpenKnowledge.OkfParameter? right) -> bool
+static LithoSharp.OpenKnowledge.OkfPathReference.operator !=(LithoSharp.OpenKnowledge.OkfPathReference? left, LithoSharp.OpenKnowledge.OkfPathReference? right) -> bool
+static LithoSharp.OpenKnowledge.OkfPathReference.operator ==(LithoSharp.OpenKnowledge.OkfPathReference? left, LithoSharp.OpenKnowledge.OkfPathReference? right) -> bool
+static LithoSharp.OpenKnowledge.OkfWriter.PrepareForVersion(string! specificationVersion, System.Collections.Generic.IEnumerable<LithoSharp.OpenKnowledge.OkfNewConcept!>! concepts, System.Collections.Generic.IEnumerable<LithoSharp.OpenKnowledge.OkfNewAuxiliary!>? auxiliary = null, System.DateTimeOffset? asOf = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> LithoSharp.OpenKnowledge.OkfWriteResult!
+LithoSharp.OpenKnowledge.OkfPathReference
+LithoSharp.OpenKnowledge.OkfParameter

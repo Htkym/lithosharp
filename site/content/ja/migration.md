@@ -1,8 +1,18 @@
 ---
-title: 3.0 への移行
-supported_version: "3.1"
+title: LithoSharp 4.0 への移行
+supported_version: "4.0"
 prerequisites: [introduction]
 ---
+
+## 3.x から更新する
+
+パッケージ、CLI、プロジェクトテンプレートをそろえて 4.0.0 に更新します。
+OKF バンドルを従来の規則で使うには、ルートの `index.md` に引用符付きで `okf_version: "0.2"` と書きます。
+`"0.3"` を選ぶ前に、相対パス、検証記録、日時の扱いの違いを確認してください。
+サイトを生成する前に `lithosharp okf validate --input knowledge` を実行します。
+通常の Markdown にはこの宣言は不要です。詳しくは[OKF ガイド](../knowledge/)を参照してください。
+
+## 2.x 以前から更新する
 
 既存のサイトを更新する前に、[3.0 移行ガイドの全文](../../reference/ja/migration-3.0/)を読んでください。
 固定した Syntamark の組み合わせ、ネイティブ YAML とコンテンツ属性、厳密な DTO バインド、

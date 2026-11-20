@@ -4,11 +4,11 @@
 
 C# の型とビルドで管理するドキュメントを作成できます。`docs` テンプレートはカスタムスキーマ、生成バインダーとカタログ、型付き参照を、Docs のナビゲーションと明示的な出力品質検査につなぎます。
 
-テンプレートパッケージを `dotnet new install LithoSharp.ProjectTemplates::3.1.0` でインストールし、`dotnet new lithosharp-docs`、`dotnet new lithosharp-blog`、`dotnet new lithosharp-empty`、`dotnet new lithosharp-mdx` のいずれかでサイトを作成してください。
+テンプレートパッケージを `dotnet new install LithoSharp.ProjectTemplates::4.0.0` でインストールし、`dotnet new lithosharp-docs`、`dotnet new lithosharp-blog`、`dotnet new lithosharp-empty`、`dotnet new lithosharp-mdx` のいずれかでサイトを作成してください。
 
 ```sh
 dotnet new lithosharp-docs -n MyDocs -o MyDocs
-dotnet tool install LithoSharp.Tool --version 3.1.0 --tool-path .tools
+dotnet tool install LithoSharp.Tool --version 4.0.0 --tool-path .tools
 .tools/lithosharp build MyDocs
 .tools/lithosharp serve MyDocs
 ```

@@ -1,5 +1,5 @@
 param(
-    [string]$LithoSharpVersion = '3.1.0',
+    [string]$LithoSharpVersion = '4.0.0',
     [string[]]$PackageFeed = @(),
     [string]$Output = (Join-Path $PSScriptRoot 'dist'),
     [string]$WorkDirectory,
